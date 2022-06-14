@@ -13,21 +13,20 @@
 #      group is already on multi primary mode.
 #   2. Executing a mode change or primary election on an OFFLINE member must
 #      fail.
-#   3. Stop applier thread on server1 so server2 stays on recovering.
-#   4. Executing a mode change or primary election on a RECOVERING member
+#   3. Executing a mode change or primary election on a RECOVERING member
 #      must fail.
-#   5. Start applier sql thread on server1 to enable server2 to join the
-#      group.
-#   6. Executing a mode change or primary election on an ERRORed member must
+#   4. Allow recovery to complete.
+#   5. Executing a mode change or primary election on an ERRORed member must
 #      fail. Rectify the cause of error and bring back member ONLINE.
-#   7. Lock a table and try to execute a mode change. It must fail.
-#   8. Kill server1 to create a network partition on group.
-#   9. Executing a mode change or primary election on a network partition
+#   6. Lock a table and try to execute a mode change. It must fail.
+#   7. Kill server1 to create a network partition on group.
+#   8. Executing a mode change or primary election on a network partition
 #      must fail.
-#  10. Cleanup.
+#   9. Cleanup.
 #
 ###############################################################################
 
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -64,18 +63,13 @@ SELECT group_replication_switch_to_single_primary_mode();
 --eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
 
 --echo
---echo # 3. Stop applier thread on server1 so server2 stays on recovering.
-
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
---source include/gr_stop_applier_sql_thread.inc
-
---echo
---echo # 4. Executing a mode change or primary election on a RECOVERING member
+--echo # 3. Executing a mode change or primary election on a RECOVERING member
 --echo #    must fail.
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
@@ -95,23 +89,23 @@ SELECT group_replication_switch_to_single_primary_mode();
 --eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
 
 --echo
---echo # 5. Start applier sql thread on server1 to enable server2 to join the
---echo #    group.
-
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
---source include/gr_start_applier_sql_thread.inc
-
+--echo # 4. Allow recovery to complete.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
+SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 
 --let $group_replication_member_state= ONLINE
 --source include/gr_wait_for_member_state.inc
 
+SET DEBUG_SYNC= 'RESET';
+
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --echo
---echo # 6. Executing a mode change or primary election on an ERRORed member
+--echo # 5. Executing a mode change or primary election on an ERRORed member
 --echo #    must fail.
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
@@ -158,7 +152,7 @@ set session sql_log_bin=1;
 --source include/start_group_replication.inc
 
 --echo
---echo # 7. Lock a table and try to execute a mode change. It must fail.
+--echo # 6. Lock a table and try to execute a mode change. It must fail.
 
 LOCK TABLE t1 WRITE;
 
@@ -183,7 +177,7 @@ DROP TABLE t1;
 --source include/rpl_sync.inc
 
 --echo
---echo # 8. Kill server1 to create a network partition on group.
+--echo # 7. Kill server1 to create a network partition on group.
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -199,7 +193,7 @@ DROP TABLE t1;
 --source include/gr_wait_for_member_state.inc
 
 --echo
---echo # 9. Executing a mode change or primary election on a network partition
+--echo # 8. Executing a mode change or primary election on a network partition
 --echo #    must fail.
 
 --replace_result $server1_uuid MEMBER1_UUID
@@ -217,7 +211,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 --eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
 
 --echo
---echo # 10. Cleanup.
+--echo # 9. Cleanup.
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc

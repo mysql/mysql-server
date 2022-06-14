@@ -233,6 +233,9 @@ int Replication_thread_api::wait_for_gtid_execution(std::string &retrieved_set,
                                                     bool update_THD_status) {
   DBUG_TRACE;
 
+  DBUG_EXECUTE_IF("group_replication_wait_for_gtid_execution_force_error",
+                  { return REPLICATION_THREAD_WAIT_NO_INFO_ERROR; });
+
   int error = channel_wait_until_transactions_applied(
       interface_channel, retrieved_set.c_str(), timeout, update_THD_status);
   return error;

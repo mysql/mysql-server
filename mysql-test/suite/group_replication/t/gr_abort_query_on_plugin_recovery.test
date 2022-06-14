@@ -10,33 +10,30 @@
 #
 # Test:
 # 0. The test requires two servers: M1 and M2.
-# 1. Bootstrap start a group on M1, create a table 't1', and stop the applier
-#    thread.
+# 1. Bootstrap start a group on M1, create a table 't1'.
 # 2. Start GR on M2. M2 should go to RECOVERING state. Wait for recovery to
 #    create table t1.
 # 3. Expect ER_OPTION_PREVENTS_STATEMENT on DML execution because M2 is in
 #    super_read_only mode during recovery.
-# 4. Start applier thread on M1. Wait for M2 to come ONLINE and re-execute
-#    DML.
+# 4. Wait for M2 to come ONLINE and re-execute DML.
 # 5. Assert check that M1 and M2 have the same data and gtid_executed.
 # 6. Cleanup.
 ################################################################################
 
+--source include/have_debug_sync.inc
 --let $group_replication_group_name= 49adfac0-b156-11e4-ab27-0800200c9a66
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
 --echo #################################################################
---echo # Start group replication on server 1 and stop the applier thread.
+--echo # Start group replication on server 1.
 
 --connection server1
 --echo server1
 --source include/start_and_bootstrap_group_replication.inc
 
 CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
-
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo #####################################################################
@@ -49,6 +46,8 @@ set session sql_log_bin=0;
 call mtr.add_suppression("Transaction cannot be executed while Group Replication is recovering.*");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 set session sql_log_bin=1;
+
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
@@ -69,23 +68,20 @@ set session sql_log_bin=1;
 INSERT INTO test.t1 (b) VALUES (1);
 
 --echo
---echo ####################################################################
---echo # On server 1 restart the applier thread so now server 2 can recover.
-
---connection server1
---echo server1
-
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-
---echo
 --echo ###################################################################
 --echo # On server 2 wait for it to become online and re-execute the query
 
 --connection server2
 --echo server2
 
+SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
+SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
+
 --let $group_replication_member_state= ONLINE
 --source include/gr_wait_for_member_state.inc
+
+SET DEBUG_SYNC= 'RESET';
 
 INSERT INTO test.t1 (b) VALUES (1);
 

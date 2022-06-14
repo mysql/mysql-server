@@ -18,10 +18,9 @@ include/start_group_replication.inc
 [connection server3]
 include/start_group_replication.inc
 
-# 2. Stop the applier sql thread in server2
+# 2. Fake a stopped applier in server2
 [connection server2]
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
 # 3. Change to multi primary mode
 [connection server1]
@@ -36,6 +35,7 @@ include/rpl_gr_wait_for_number_of_members.inc
 # 5. Wait for server 2 to disconnect/abort and restart
 [connection server2]
 include/rpl_reconnect.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 # 6. Cleanup
 include/group_replication_end.inc

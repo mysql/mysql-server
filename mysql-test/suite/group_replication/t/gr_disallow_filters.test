@@ -10,9 +10,9 @@
 #    channels 'group_replication_applier' and
 #    'group_replication_recovery' are disallowed.
 # 3. Execute some DDLs on M1 to check that nothing is filtered out on M2.
-# 4. Stop applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
+# 4. Block applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
 # 5. Start GR on M3 and check donor's server_uuid.
-# 6. Start applier thread on M1 and M2.
+# 6. Resume applier thread on M1 and M2.
 # 7. Allow member M3 to come ONLINE, then verify nothing is filtered out.
 # 8. Clean up.
 # 9. Verify that if the user specifies a per-channel replication filter
@@ -22,6 +22,7 @@
 #    per-channel replication filter is discarded with a warning.
 ################################################################################
 
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --source include/force_restart.inc
 
@@ -146,13 +147,13 @@ SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME IN ('test'
 SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) AS TABNAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
 
 --echo #
---echo # 4. Stop applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
+--echo # 4. Block applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
 --echo #    And, we can fetch donor's server_uuid.
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --echo #
 --echo # 5. Start GR on M3 and check donor's server_uuid.
@@ -170,11 +171,15 @@ SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) AS TABNAME FROM INFORMATION_SCHEMA.TA
 --echo # 6. Start applier thread on M1 and M2.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --echo #
 --echo # 7. Allow member M3 to come ONLINE, then verify data.
@@ -195,8 +200,13 @@ SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) AS TABNAME FROM INFORMATION_SCHEMA.TA
 
 --echo #
 --echo # 8. Clean up
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= 'RESET';
+
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+SET DEBUG_SYNC= 'RESET';
 CHANGE REPLICATION FILTER
  Replicate_Rewrite_DB=(),
  Replicate_Ignore_Table=(),

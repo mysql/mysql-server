@@ -714,8 +714,22 @@ bool start_slave_cmd(THD *thd) {
         command = "START SLAVE SQL_THREAD FOR CHANNEL";
 
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0), command,
-               mi->get_channel(), command);
+               mi->get_channel());
 
+      goto err;
+    }
+    /*
+      START SLAVE for channel group_replication_applier is disallowed while
+      Group Replication is running.
+    */
+    if (mi &&
+        channel_map.is_group_replication_channel_name(mi->get_channel(),
+                                                      true) &&
+        is_group_replication_running()) {
+      const char *command =
+          "START SLAVE FOR CHANNEL while Group Replication is running";
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0), command,
+               mi->get_channel());
       goto err;
     }
 
@@ -798,8 +812,23 @@ bool stop_slave_cmd(THD *thd) {
         command = "STOP SLAVE SQL_THREAD FOR CHANNEL";
 
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0), command,
-               mi->get_channel(), command);
+               mi->get_channel());
 
+      channel_map.unlock();
+      return true;
+    }
+    /*
+      STOP SLAVE for channel group_replication_applier is disallowed while
+      Group Replication is running.
+    */
+    if (mi &&
+        channel_map.is_group_replication_channel_name(mi->get_channel(),
+                                                      true) &&
+        is_group_replication_running()) {
+      const char *command =
+          "STOP SLAVE FOR CHANNEL while Group Replication is running";
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0), command,
+               mi->get_channel());
       channel_map.unlock();
       return true;
     }

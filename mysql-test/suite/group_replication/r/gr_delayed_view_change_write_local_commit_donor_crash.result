@@ -25,17 +25,13 @@ GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user";
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 ############################################################
-#  3. Stop applier on server 1 to force the delayed
+#  3. Block applier on server 1 to force the delayed
 #     View_change_log_event log to binary log.
 [connection server1]
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 ############################################################
 #  4. Execute a transaction on server2.
@@ -75,6 +71,12 @@ SET SESSION sql_log_bin= 1;
 #  7. server2 will leave the group and remove recovery user
 #     to force a server3 to failover recovery to server1.
 [connection server2]
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,force_sql_thread_error';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG='-d,force_sql_thread_error';
 include/stop_group_replication.inc
 include/stop_dump_threads.inc
 SET SESSION sql_log_bin= 0;
@@ -103,12 +105,12 @@ include/assert.inc ['There is a value 1 in table t1']
 include/assert.inc ['There is a value 2 in table t1']
 
 ############################################################
-# 11. Start applier on server1.
+# 11. Resume applier on server1.
 #     Server3 state will change to ONLINE.
 [connection server1]
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 [connection server3]
 include/gr_wait_for_member_state.inc
 
@@ -141,10 +143,20 @@ include/assert.inc ['There are 4 values in table t1']
 ############################################################
 # 15. Clean up.
 [connection server1]
+SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;
+[connection server2]
+SET DEBUG_SYNC= 'RESET';
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Relay log read failure: Could not parse relay log event entry.*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin = 1;
 [connection server3]
 SET @@GLOBAL.group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_saved;
 SET GLOBAL debug= '-d,group_replication_skip_read_mode';

@@ -9,7 +9,7 @@
 # Test guide:
 #   0) The test requires three servers: M1, M2 and M3.
 #   1) With all the 3 members ONLINE, create a table on M1. Check 4 transactions
-#      belonging to the GROUP on M2 and M3. Stop the applier on M2 so it can't
+#      belonging to the GROUP on M2 and M3. Block the applier on M2 so it can't
 #      apply remote transactions.
 #   2) Execute more transaction on M1. Check 6 transactions belonging to the
 #      GROUP on M3 then make M3 leave.
@@ -23,6 +23,7 @@
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --let $group_replication_group_name= 3d4bc080-ec58-11e5-a837-0800200c9a66
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
@@ -54,15 +55,13 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --source include/assert.inc
 
 --echo #
---echo # Step 1: Stop the applier on server 2.
+--echo # Step 1: Block the applier on server 2.
 --echo #
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --echo #
 --echo # Step 2: Insert some transaction and remove server 3
@@ -136,14 +135,14 @@ INSERT INTO t1 VALUES (4);
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --source include/start_group_replication_command.inc
 
---echo # Start server 2 applier
+--echo # Resume server 2 applier
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -154,6 +153,10 @@ START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --echo #
 --echo # Step 6: Cleanup
 --echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

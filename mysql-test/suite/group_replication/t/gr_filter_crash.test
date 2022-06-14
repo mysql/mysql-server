@@ -10,6 +10,7 @@
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 
 --echo #
 --echo # Initialize group replication
@@ -42,7 +43,7 @@ SET SESSION sql_log_bin=1;
 INSERT INTO t1 VALUES(1);
 
 # It keeps server_2 is in RECOVERY status.
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --let rpl_connection_name= server_2
 --source include/rpl_connection.inc
@@ -74,9 +75,12 @@ DROP TABLE t1;
 --echo #
 --let rpl_connection_name= server_1
 --source include/rpl_connection.inc
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --source include/stop_group_replication.inc
+SET DEBUG_SYNC= 'RESET';
 
 DROP TABLE t1;
 --source include/group_replication_end.inc

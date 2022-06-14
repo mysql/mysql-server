@@ -23,14 +23,10 @@ ERROR HY000: Can't initialize function 'group_replication_switch_to_single_prima
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
 ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 
-# 3. Stop applier thread on server1 so server2 stays on recovering.
-[connection server1]
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
-
-# 4. Executing a mode change or primary election on a RECOVERING member
+# 3. Executing a mode change or primary election on a RECOVERING member
 #    must fail.
 [connection server2]
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 include/start_group_replication.inc
 SELECT group_replication_set_as_primary("MEMBER1_UUID");
 ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Member must be ONLINE and in the majority partition.
@@ -41,15 +37,15 @@ ERROR HY000: Can't initialize function 'group_replication_switch_to_single_prima
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
 ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 
-# 5. Start applier sql thread on server1 to enable server2 to join the
-#    group.
-[connection server1]
-include/gr_start_applier_sql_thread.inc
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+# 4. Allow recovery to complete.
 [connection server2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
+SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 include/gr_wait_for_member_state.inc
+SET DEBUG_SYNC= 'RESET';
 
-# 6. Executing a mode change or primary election on an ERRORed member
+# 5. Executing a mode change or primary election on an ERRORed member
 #    must fail.
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 set session sql_log_bin=0;
@@ -76,7 +72,7 @@ TRUNCATE TABLE t1;
 set session sql_log_bin=1;
 include/start_group_replication.inc
 
-# 7. Lock a table and try to execute a mode change. It must fail.
+# 6. Lock a table and try to execute a mode change. It must fail.
 LOCK TABLE t1 WRITE;
 SELECT group_replication_set_as_primary("MEMBER1_UUID");
 ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Can't execute the given operation because you have active locked tables.
@@ -90,12 +86,12 @@ UNLOCK TABLES;
 DROP TABLE t1;
 include/rpl_sync.inc
 
-# 8. Kill server1 to create a network partition on group.
+# 7. Kill server1 to create a network partition on group.
 [connection server1]
 [connection server2]
 include/gr_wait_for_member_state.inc
 
-# 9. Executing a mode change or primary election on a network partition
+# 8. Executing a mode change or primary election on a network partition
 #    must fail.
 SELECT group_replication_set_as_primary("MEMBER1_UUID");
 ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Member must be ONLINE and in the majority partition.
@@ -106,7 +102,7 @@ ERROR HY000: Can't initialize function 'group_replication_switch_to_single_prima
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
 ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 
-# 10. Cleanup.
+# 9. Cleanup.
 [connection server_1]
 include/rpl_reconnect.inc
 [connection server2]

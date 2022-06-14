@@ -19,6 +19,7 @@
 # 9. Stop GR and try to call group_replication_{get,set}_write_concurrency
 #    outside of a group
 ################################################################################
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 2
 --source include/group_replication.inc
@@ -178,14 +179,11 @@ SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=4;
 
 --echo ###############################################################################
 --echo # 7. Check that it is not possible to modify/query write_concurrency value when server is in RECOVERING state.
-# Stop slave SQL thread on M1, so that M2 stays in RECOVERING state.
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
---source include/gr_stop_applier_sql_thread.inc
-
 # Start GR on M2, It should be in RECOVERING state.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
+
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
 
@@ -200,13 +198,18 @@ SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=4;
 
 --echo ###############################################################################
 --echo # 8. Check that it is not possible to update wc value when a member is in ERROR state.
---let $rpl_connection_name= server1
+--let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
+SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
+
 # Wait until M2 becomes ONLINE
 --echo Wait until server2 becomes ONLINE
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
 --source include/wait_condition.inc
+
+SET DEBUG_SYNC= 'RESET';
 
 # Create a table.
 CREATE TABLE t2 (a INT PRIMARY KEY);

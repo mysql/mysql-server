@@ -5,16 +5,17 @@
 # 0. The test requires two servers: M1 and M2.
 # 1. Bootstrap start a group on M2. Create table t1.
 # 2. verify that the show slave hosts output is empty.
-# 3. Stop the SQL_THREAD for channel group_replication_applier
+# 3. Block the SQL_THREAD for channel group_replication_applier
 #    so that M1 will be in recovering state when it is joined
 #    to the group.
 # 4. Start GR on M1. Wait until it is in RECOVERING state.
 # 5. verify that show slave hosts on M2 shows M1.
-# 6. start the SQL_THREAD for channel group_replication_applier
+# 6. Resume the SQL_THREAD for channel group_replication_applier
 # 7. Wait until show slave hosts doesn't show server M2 in it's output.
 # 8. Clean up.
 ################################################################################
 
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -32,7 +33,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 
 # This is to ensure that M1 will be in recovering state, so that the
 # output of show slave hosts can be verified.
-STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -60,7 +61,9 @@ let $field= Slave_UUID;
 let $condition= = '$server1_uuid';
 --source include/wait_show_condition.inc
 
-START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 # Verify that both the servers are in ONLINE state.
 --let $wait_timeout= 60
@@ -76,6 +79,10 @@ let $condition= = 'No such row';
 --source include/wait_show_condition.inc
 
 # Clean up
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= 'RESET';
+
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 

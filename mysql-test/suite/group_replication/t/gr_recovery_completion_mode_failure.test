@@ -13,13 +13,14 @@
 #   4. Insert some data on t2 on server1.
 #      Recovery application of cached data is waiting on the state transfer
 #      completion.
-#   5. Stop the applier thread for the Group Replication applier.
+#   5. Fake a stopped applier thread during recovery.
 #   6. Unlock t1 and recovery first phase will unblock.
 #      The member should error out as it can't execute cached transactions.
 #   7. Clean up.
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_debug.inc
 --let $group_replication_group_name= a5980950-41c7-11e5-b970-0800200c9a66
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -111,13 +112,13 @@ INSERT INTO t2 VALUES (1);
 --source include/wait_condition.inc
 
 --echo #
---echo # Stop the group replication applier thread during recovery.
+--echo # Fake a stopped applier thread during recovery.
 --echo #
 
 --connection server2
 --echo server2
 
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
 --echo #
 --echo # UnLock table t1: First phase of recovery can carry on.
@@ -131,6 +132,8 @@ UNLOCK TABLES;
 
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 --echo #
 --echo # Test cleanup

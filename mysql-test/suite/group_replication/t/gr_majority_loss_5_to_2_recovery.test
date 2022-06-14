@@ -7,7 +7,7 @@
 #   0) The test requires five servers: M1, M2, M3, M4 and M5.
 #   1) Bootstrap start a group on M1. Start GR on M3, M4, M5 to create a group
 #      of 4 members and create a table on it.
-#   2) Only setup replication user and stop applier channel on M5, any member
+#   2) Only setup replication user and block applier channel on M5, any member
 #      that will try to recover from it will be blocked.
 #   3) Configure M2 to use replication user, so that it will be forced to
 #      recover from M5, since it will not be able to authenticate on any other
@@ -23,6 +23,7 @@
 # This test does crashes servers, thence we skip it on valgrind.
 --source include/not_valgrind.inc
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --source include/force_restart.inc
 --source include/not_have_privilege_checks_user.inc
 --source include/have_group_replication_plugin.inc
@@ -83,7 +84,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 --echo
 --echo ############################################################
---echo # 2. Only setup replication user and stop applier channel
+--echo # 2. Only setup replication user and block applier channel
 --echo #    on member 5, any member that will try to recover from
 --echo #    it will be blocked.
 --let $rpl_connection_name= server5
@@ -97,9 +98,7 @@ SET SESSION sql_log_bin= 0;
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 
 --echo

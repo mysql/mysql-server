@@ -20,8 +20,7 @@ call mtr.add_suppression("The member has failed to gracefully leave the group.")
 call mtr.add_suppression("read failed");
 SET SESSION sql_log_bin=1;
 INSERT INTO t1 VALUES(1);
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 [connection server_2]
 START GROUP_REPLICATION;
 # Wait until donor is confirmed
@@ -38,8 +37,10 @@ DROP TABLE t1;
 # Cleanup
 #
 [connection server_1]
-include/gr_start_applier_sql_thread.inc
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 include/stop_group_replication.inc
+SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 include/group_replication_end.inc

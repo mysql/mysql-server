@@ -26,12 +26,11 @@ call mtr.add_suppression("There was a previous plugin error while the member joi
 SET sql_log_bin = 1;
 
 #########################################################################
-# 1) Stop the applier on M2.
+# 1) Block the applier on M2.
 #########################################################################
 
 [connection server2]
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 #########################################################################
 # 2) Replicate TRX from M1 to M2 but without M2 applying it.
@@ -40,11 +39,17 @@ STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server1]
 CREATE TABLE t1 (a INT PRIMARY KEY);
 [connection server2]
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 
 #########################################################################
-# 3) Stop GR on M2.
+# 3) Force GR to stop on M2 without commit the received transaction.
 #########################################################################
 
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,force_sql_thread_error';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG='-d,force_sql_thread_error';
 include/stop_group_replication.inc
 
 #########################################################################

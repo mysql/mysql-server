@@ -55,12 +55,10 @@ INSERT INTO t2 VALUES (1);
 #
 server2
 #
-# Stop the group replication applier thread during recovery.
+# Fake a stopped applier thread during recovery.
 #
 server2
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 #
 # UnLock table t1: First phase of recovery can carry on.
 # Member 2 will error out as it can't wait for data execution
@@ -68,6 +66,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 server_2 (server2)
 UNLOCK TABLES;
 include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 #
 # Test cleanup
 #

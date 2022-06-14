@@ -7,9 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
 
-STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
@@ -24,8 +22,9 @@ START GROUP_REPLICATION;
 "Verifying GR activity on M2 by checking if slave has read all relay log"
 
 [connection server1]
-START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 DROP TABLE test.t1;
+SET DEBUG_SYNC= 'RESET';
 include/group_replication_end.inc

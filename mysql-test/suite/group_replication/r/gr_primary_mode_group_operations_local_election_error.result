@@ -18,11 +18,10 @@ call mtr.add_suppression("Plugin group_replication reported: 'A configuration ch
 set session sql_log_bin=1;
 include/start_group_replication.inc
 
-# 3. Stop the applier sql thread on server2
+# 3. Fake a stopped the applier sql thread on server2
 #    Execute an action, it shall fail
 [connection server2]
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 SELECT group_replication_set_as_primary("MEMBER2_UUID");
 ERROR HY000: The function 'group_replication_set_as_primary' failed. A critical error occurred during the local execution of this action. The member will now leave the group.
 
@@ -30,6 +29,7 @@ ERROR HY000: The function 'group_replication_set_as_primary' failed. A critical 
 #    The action terminates locally.
 [connection server_2]
 include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 # 5. Server 1 is the primary
 [connection server1]

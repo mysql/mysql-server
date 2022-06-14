@@ -4,13 +4,14 @@
 # Test :
 # 0. This test requires 2 servers, M1 and M2
 # 1. Start GR on M1
-# 2. Stop sql thread for CHANNEL 'group_replication_applier' on M1
+# 2. Block sql thread for CHANNEL 'group_replication_applier' on M1
 # 3. Perform some DDL/DML operations on M1
 # 4. Start GR on another server M2
 # 5. Verify GR activity through 'SHOW PROCESSLIST' on M1 and M2
 # 6. Verify GR activity through select from INFORMATION_SCHEMA.PROCESSLIST on M1 and M2
 # 7. Clean-up
 #######################################################################################
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 2
@@ -22,10 +23,10 @@
 --source include/rpl_connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
-# Stop slave sql_thread for group replication applier channel
+# Block slave sql_thread for group replication applier channel
 # This is to ensure M2 goes to RECOVERING state, so that GR activity corresponding to this state can be verified
 --echo
-STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 # Do some DDL, DML operations
 --echo
@@ -77,12 +78,17 @@ let $condition= = 'Replica has read all relay log; waiting for more updates';
 --let $wait_condition= SELECT COUNT(*)>=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State='Replica has read all relay log; waiting for more updates';
 --source include/wait_condition.inc
 
-# Restart slave sql_thread for group replication applier channel
+# Resume slave sql_thread for group replication applier channel
 --echo
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+
 # Drop table
 DROP TABLE test.t1;
+
+SET DEBUG_SYNC= 'RESET';
 
 --source include/group_replication_end.inc

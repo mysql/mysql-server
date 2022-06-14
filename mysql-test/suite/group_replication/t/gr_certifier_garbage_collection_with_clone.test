@@ -114,12 +114,12 @@ SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
 --echo ############################################################
 --echo # 6. Assert COUNT_TRANSACTIONS_ROWS_VALIDATING and
 --echo #    TRANSACTIONS_COMMITTED_ALL_MEMBERS values on all servers.
-# Stop applier on server3 so that it cannot apply the transactions, thence
+# Block applier on server3 so that it cannot apply the transactions, thence
 # its GTID_EXECUTED will not increase, thence on slow machines it will not
 # feed a garbage collection round that would make the test not deterministic.
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -161,7 +161,9 @@ while($inserts)
 --source include/assert.inc
 
 # Resume applier on server3.
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 
 --echo
@@ -282,6 +284,7 @@ UNINSTALL PLUGIN clone;
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+SET DEBUG_SYNC = 'RESET';
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2

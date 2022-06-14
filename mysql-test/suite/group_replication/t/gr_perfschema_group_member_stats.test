@@ -10,16 +10,17 @@
 #    both M1 and M2 to delete data from previous rounds.
 # 2. Check output of the replication_group_member_stats table before GR start.
 # 3. Bootstrap and start GR on M1. Add some data.
-# 4. Stop applier thread on M1 so that recovery blocks on M2.
+# 4. Block applier thread on M1 so that recovery blocks on M2.
 # 5. Start M2. Check that it is in RECOVERING state.
 # 6. Apply some transactions on M1 so that the queue of the M2 is not empty.
-# 7. Check for the transactions in the applier queue on M2. Then Start applier
+# 7. Check for the transactions in the applier queue on M2. Then resume applier
 #    thread on M1 so that recovery unblocks on M2. Check M2 is ONLINE.
 # 8. Check output of the replication_group_member_stats table.
 # 9. Clean up. Stop GR on M1 and M2.
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --let $group_replication_group_name= 8a84f397-aaa4-18df-89ab-c70aa9823561
 --source include/have_group_replication_plugin.inc
 
@@ -114,13 +115,13 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 INSERT INTO t1 values (4);
 
-#Stop the applier on server 1 so that recovery blocks on server 2
+# Block the applier on server 1 so that recovery blocks on server 2
 # View_change_log_event will be written to the binary log after the
 # transactions aaa:1-2, since local transactions can still be
 # logged. Which means that server2 will receive both transactions
 # through recovery, and then through GCS on which will be rollback
 # (discarded after certification),thence the below suppressions.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --connection server2
 --echo server2
@@ -154,7 +155,9 @@ SET GTID_NEXT= 'AUTOMATIC';
 --connection server1
 --echo server1
 
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --connection server2
 --echo server2
@@ -221,6 +224,8 @@ SET SESSION sql_log_bin= 1;
 --let $diff_tables=server1:t1, server2:t1
 --source include/diff_tables.inc
 DROP TABLE t1;
+
+SET DEBUG_SYNC= 'RESET';
 
 --echo ####################################
 --echo The values being checked after stop

@@ -158,13 +158,11 @@ test.igtab1
 test.itab1
 test.tab1
 #
-# 4. Stop applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
+# 4. Block applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
 #    And, we can fetch donor's server_uuid.
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 [connection server1]
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 #
 # 5. Start GR on M3 and check donor's server_uuid.
 [connection server3]
@@ -173,11 +171,13 @@ include/start_group_replication.inc
 #
 # 6. Start applier thread on M1 and M2.
 [connection server1]
-include/gr_start_applier_sql_thread.inc
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 [connection server2]
-include/gr_start_applier_sql_thread.inc
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 #
 # 7. Allow member M3 to come ONLINE, then verify data.
 [connection server3]
@@ -186,7 +186,10 @@ include/assert.inc [There are [4] databases]
 include/assert.inc [There are [12] tables]
 #
 # 8. Clean up
+[connection server1]
+SET DEBUG_SYNC= 'RESET';
 [connection server2]
+SET DEBUG_SYNC= 'RESET';
 CHANGE REPLICATION FILTER
 Replicate_Rewrite_DB=(),
 Replicate_Ignore_Table=(),

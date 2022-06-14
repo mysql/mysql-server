@@ -18,10 +18,9 @@ include/start_group_replication.inc
 [connection server3]
 include/start_group_replication.inc
 
-# 3. Stop the applier sql thread on server2
+# 3. Fake a stopped applier on server2
 [connection server2]
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
 # 4. Set server2 weight higher to be new primary server
 SET GLOBAL group_replication_member_weight= 90;
@@ -39,6 +38,7 @@ include/gr_assert_primary_member.inc
 # 8. Confirm server2 is on ERROR state
 [connection server2]
 include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 # 9. Cleanup
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;

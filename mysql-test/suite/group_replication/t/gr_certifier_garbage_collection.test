@@ -13,7 +13,7 @@
 # 0. The test requires two servers: M1 and M2.
 # 1. Both members are ONLINE. Execute two transactions on M1 and wait until they
 #    are applied on all group members.
-# 2. Stop M2 group replication applier so that certified remote transactions not
+# 2. Block M2 group replication applier so that certified remote transactions not
 #    applied. This will mimic a slow server.
 # 3. Commit a transaction(T1) on M1, that will be certified on both members but
 #    only applied on M1
@@ -25,7 +25,7 @@
 # 6. Execute the same statement of T1 in M2, now named T2. It must be aborted
 #    since it conflicts with T1, despite it is not yet applied on M2.
 #    Snapshot of T2 is: 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
-# 7. Start M2 group replication applier so that certified remote transactions
+# 7. Resume M2 group replication applier so that certified remote transactions
 #    are applied. Wait until all group transactions are applied.
 # 8. Execute a transaction on M2 to verify that everything is OK.
 # 9. Check that GTID_EXECUTED on M1 contains all transactions. Also check that
@@ -35,6 +35,7 @@
 # 11. Clean up.
 ################################################################################
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --source include/have_group_replication_gtid_assignment_block_size_1.inc
 --let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9422222
 --source include/have_group_replication_plugin.inc
@@ -63,11 +64,11 @@ INSERT INTO t1 VALUES (1);
 
 --echo
 --echo ############################################################
---echo #  2. Stop server 2 group replication applier so that
+--echo #  2. Block server 2 group replication applier so that
 --echo #     certified remote transactions are not applied.
 --echo #     This will mimic a slow server.
 --connection server2
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --echo
 --echo ############################################################
@@ -155,7 +156,9 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 --echo #     Wait until all group transactions are applied.
 --connection server2
 
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --source include/rpl_sync.inc
 
@@ -217,5 +220,6 @@ SET SESSION sql_log_bin= 1;
 SET SESSION sql_log_bin= 0;
 --source include/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
+SET DEBUG_SYNC= 'RESET';
 
 --source include/group_replication_end.inc

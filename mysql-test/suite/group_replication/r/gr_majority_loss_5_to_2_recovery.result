@@ -33,7 +33,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 include/rpl_sync.inc
 
 ############################################################
-# 2. Only setup replication user and stop applier channel
+# 2. Only setup replication user and block applier channel
 #    on member 5, any member that will try to recover from
 #    it will be blocked.
 [connection server5]
@@ -43,9 +43,7 @@ GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
 GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user";
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 ############################################################
 # 3. Configure member 2 to use replication user, so that it

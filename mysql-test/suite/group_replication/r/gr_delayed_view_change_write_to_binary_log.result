@@ -7,8 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 ############################################################
 # 1. Start a 1 member group, and block it on recovery start.
 [connection server1]
-SET @debug_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= 'd,recovery_thread_start_wait';
+SET @@GLOBAL.DEBUG= '+d,recovery_thread_start_wait';
 SET GLOBAL group_replication_group_name= "e70f06d2-eb85-11e5-b3b5-00212844d44e";
 SET GLOBAL group_replication_bootstrap_group= 1;
 START GROUP_REPLICATION;
@@ -17,17 +16,16 @@ include/gr_wait_for_member_state.inc
 SET GLOBAL group_replication_bootstrap_group= 0;
 
 ############################################################
-# 2. Stop applier channel in order to delay the view change
+# 2. Block applier channel in order to delay the view change
 #    log event write to binary log.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 ############################################################
 # 3. Resume recovery, member will be online but view change
 #    log event will still be queued to apply into binary log.
+SET @@GLOBAL.DEBUG= '-d,recovery_thread_start_wait';
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
-SET @@GLOBAL.DEBUG= @debug_save;
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 include/gr_wait_for_member_state.inc
 include/assert.inc [GTID_EXECUTED must be empty]
 
@@ -38,16 +36,15 @@ include/assert.inc [GTID_EXECUTED must be empty]
 #    connection server_1.
 #    Commit a transaction that will be blocked before broadcast.
 [connection server_1]
-SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 [connection server1]
 
 ############################################################
-# 5. Start applier channel and wait until the view change
+# 5. Resume applier channel and wait until the view change
 #    log event is written into binary log.
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 SELECT WAIT_FOR_EXECUTED_GTID_SET('e70f06d2-eb85-11e5-b3b5-00212844d44e:1');
 WAIT_FOR_EXECUTED_GTID_SET('e70f06d2-eb85-11e5-b3b5-00212844d44e:1')
 0
@@ -55,13 +52,14 @@ WAIT_FOR_EXECUTED_GTID_SET('e70f06d2-eb85-11e5-b3b5-00212844d44e:1')
 ############################################################
 # 6. Resume transaction T1, it will be send to the group for
 #    conflict detection and apply.
+SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET @@GLOBAL.DEBUG= @debug_save;
 [connection server_1]
 [connection server1]
 include/assert.inc [GTID_EXECUTED must contain all group GTIDs]
 
 ############################################################
 # 7. Clean up.
+SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 include/group_replication_end.inc

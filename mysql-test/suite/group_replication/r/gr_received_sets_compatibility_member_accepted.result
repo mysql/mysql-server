@@ -14,12 +14,10 @@ include/assert.inc [Server 2 has 4 transaction belonging to the group]
 [connection server3]
 include/assert.inc [Server 3 has 4 transaction belonging to the group]
 #
-# Step 1: Stop the applier on server 2.
+# Step 1: Block the applier on server 2.
 #
 [connection server2]
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 #
 # Step 2: Insert some transaction and remove server 3
 #
@@ -53,16 +51,18 @@ include/assert.inc [Server 2 has only 4 applied transactions.]
 include/assert.inc [Server 3 has 6 applied transactions.]
 SET GLOBAL group_replication_group_name= "3d4bc080-ec58-11e5-a837-0800200c9a66";
 START GROUP_REPLICATION;
-# Start server 2 applier
+# Resume server 2 applier
 [connection server2]
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 [connection server3]
 include/gr_wait_for_member_state.inc
 #
 # Step 6: Cleanup
 #
+[connection server2]
+SET DEBUG_SYNC= 'RESET';
 [connection server1]
 include/start_group_replication.inc
 DROP TABLE t1;

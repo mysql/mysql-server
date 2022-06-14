@@ -8,7 +8,7 @@
 #   0. This test requires three servers
 #   1. Server1 start, bootstrap the group
 #   2. Start server2 and server3
-#   3. Stop the applier sql thread on server2
+#   3. Fake a stopped applier on server2
 #   4. Set server2 weight higher to be new primary server
 #   5. Stop primary member that will force election from another member
 #   6. Server2 will fail (applier thread stopped)  and leave the group
@@ -18,6 +18,7 @@
 #
 ###############################################################################
 
+--source include/have_debug.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --let $rpl_skip_group_replication_start= 1
@@ -50,12 +51,11 @@ set session sql_log_bin=1;
 --let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --echo
---echo # 3. Stop the applier sql thread on server2
+--echo # 3. Fake a stopped applier on server2
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
 --echo
 --echo # 4. Set server2 weight higher to be new primary server
@@ -91,6 +91,8 @@ SET GLOBAL group_replication_member_weight= 90;
 
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 --echo
 --echo # 9. Cleanup

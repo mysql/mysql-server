@@ -7,7 +7,7 @@
 # 1. Create a group with three members and schedule a periodic event to create
 #    some load in the group on M1.
 # 2. Add suppressions.
-# 3. Stop applier channel on M1 so that joinining members that will recover
+# 3. Block applier channel on M1 so that joinining members that will recover
 #    from it will be blocked on recovery waiting for the View_change_log_event.
 # 4. Stop and start M2 and M3. M2 and M3 will be in recovery.
 # 5. Stop and start M1. M1 will be in recovery since all existent group members
@@ -15,6 +15,7 @@
 # 6. Clean up.
 ################################################################################
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --source include/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 
@@ -80,6 +81,16 @@ delimiter ;//
 --echo
 --echo ############################################################
 --echo # 2. Add error suppressions.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Relay log read failure: Could not parse relay log event entry.*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin = 1;
+
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET SESSION sql_log_bin= 0;
@@ -114,15 +125,13 @@ SET SESSION sql_log_bin= 1;
 
 --echo
 --echo ############################################################
---echo # 3. Stop applier channel on member 1 so that joinining
+--echo # 3. Block applier channel on member 1 so that joinining
 --echo #    members that will recover from it will be blocked on
 --echo #    recovery waiting for the View_change_log_event on which
 --echo #    them joined.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 
 --echo
@@ -157,8 +166,7 @@ STOP GROUP_REPLICATION;
 
 --echo
 --echo ############################################################
---echo # 5. Stop and start member 1 without waiting for member
---echo #    status.
+--echo # 5. Stop and start member 1.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
@@ -173,6 +181,15 @@ ALTER EVENT e1 DISABLE;
 SET GLOBAL EVENT_SCHEDULER= @old_event_scheduler;
 DROP EVENT e1;
 DROP TABLE t1;
+
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,force_sql_thread_error';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG='-d,force_sql_thread_error';
+SET DEBUG_SYNC= 'RESET';
 
 STOP GROUP_REPLICATION;
 RESET MASTER;

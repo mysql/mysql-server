@@ -7,17 +7,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 include/assert.inc [Assert that show slave hosts is empty..]
-STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 [connection server1]
 SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 SET @@global.replica_net_timeout=20;
 include/start_group_replication.inc
 [connection server2]
-START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+[connection server2]
+SET DEBUG_SYNC= 'RESET';
 [connection server1]
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 DROP TABLE t1;

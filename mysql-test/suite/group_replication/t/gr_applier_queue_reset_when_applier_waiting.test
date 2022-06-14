@@ -7,7 +7,7 @@
 # 1. Start 2 servers.
 #    Only setup recovery_user with GRANT REPLICATION SLAVE on server2
 #    for force server3 to recover from it.
-# 2. Stop applier on server 2 to force the delayed
+# 2. Block applier on server 2 to force the delayed
 #    View_change_log_event log to binary log.
 # 3. Start Group Replication on server3.
 #    It will recover from server2 and will stay on
@@ -16,13 +16,14 @@
 #    is on RECOVERING.
 # 5. Server 3 will apply INSERT (2) through recovery.
 #    INSERT(1) will only be applied after member is ONLINE.
-# 6. Start applier on server2.
+# 6. Resume applier on server2.
 #    Server3 state will change to ONLINE.
 # 7. Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on all servers.
 # 8. Clean up.
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 3
@@ -63,13 +64,13 @@ SET SESSION sql_log_bin= 1;
 --source include/start_group_replication.inc
 
 --echo
---echo # 2. Stop applier on server 2 to force the delayed
+--echo # 2. Block applier on server 2 to force the delayed
 --echo #    View_change_log_event log to binary log.
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --echo
 --echo # 3. Start Group Replication on server3.
@@ -129,13 +130,15 @@ INSERT INTO t1 VALUES (2);
 --source include/assert.inc
 
 --echo
---echo # 6. Start applier on server2.
+--echo # 6. Resume applier on server2.
 --echo #    Server3 state will change to ONLINE.
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -177,6 +180,7 @@ SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 
 SET SESSION sql_log_bin= 0;

@@ -7,7 +7,7 @@
 # Test:
 #   0. This test requires three servers in single primary mode
 #   1. Start the servers, server 2 is configured to abort
-#   2. Stop the applier sql thread in server2
+#   2. Fake a stopped applier in server2
 #   3. Change to multi primary mode
 #   4. Server2 shall abort and 'exit' the group
 #   5. Wait for server 2 to disconnect/abort and restart
@@ -49,11 +49,11 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --source include/start_group_replication.inc
 
 --echo
---echo # 2. Stop the applier sql thread in server2
+--echo # 2. Fake a stopped applier in server2
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
 # Inform MTR that we are expecting an abort and that it should wait before
 # restarting the aborting member
@@ -85,6 +85,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 --echo
 --echo # 6. Cleanup

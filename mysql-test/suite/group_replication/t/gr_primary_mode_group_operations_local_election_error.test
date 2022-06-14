@@ -6,7 +6,7 @@
 #   0. This test requires two servers started on single primary mode
 #   1. Server1 start, bootstrap the group
 #   2. Start server2
-#   3. Stop the applier sql thread on server2 and execute an action,
+#   3. Fake a stopped applier sql thread on server2 and execute an action,
 #      it shall fail
 #   4. Check that server2 went to error state. The action terminates locally
 #   5. Server 1 is the primary
@@ -14,6 +14,7 @@
 #
 ###############################################################################
 
+--source include/have_debug.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_group_replication_single_primary_mode=1
@@ -41,13 +42,13 @@ set session sql_log_bin=1;
 --source include/start_group_replication.inc
 
 --echo
---echo # 3. Stop the applier sql thread on server2
+--echo # 3. Fake a stopped the applier sql thread on server2
 --echo #    Execute an action, it shall fail
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --replace_result $server2_uuid MEMBER2_UUID
@@ -67,6 +68,8 @@ set session sql_log_bin=1;
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 --echo
 --echo # 5. Server 1 is the primary

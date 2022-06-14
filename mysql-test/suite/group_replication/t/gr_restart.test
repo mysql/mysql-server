@@ -21,6 +21,7 @@
 # This test does crashes servers, thence we skip it on valgrind.
 --source include/not_valgrind.inc
 --source include/have_debug.inc
+--source include/have_debug_sync.inc
 --source include/force_restart.inc
 --let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429576
 --source include/have_group_replication_plugin.inc
@@ -41,12 +42,19 @@ call mtr.add_suppression("The member resumed contact with a majority of the memb
 set session sql_log_bin=1;
 
 --connection server2
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Relay log read failure: Could not parse relay log event entry.*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin = 1;
 SET @debug_saved= @@GLOBAL.DEBUG;
 --source include/start_group_replication.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 # Do not apply certified remote transactions.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --connection server1
 --let $group_replication_number_of_members= 2
@@ -59,9 +67,19 @@ INSERT INTO t1 VALUES (1);
 --echo # 2. Restart server2 and verify that certifier sequence number is set
 --echo # from relay log certified transactions and view change transactions
 --connection server2
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 # Wait until server receives and certify the transactions.
 --let $wait_condition= SELECT (Count_transactions_checked - Count_conflicts_detected) = 2 from performance_schema.replication_group_member_stats
 --source include/wait_condition.inc
+
+# Force GR to stop without commit the received transactions.
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,force_sql_thread_error';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG='-d,force_sql_thread_error';
+SET DEBUG_SYNC= 'RESET';
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`

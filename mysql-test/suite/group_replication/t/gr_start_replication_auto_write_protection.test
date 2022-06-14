@@ -5,14 +5,15 @@
 # Test:
 #   0) The test requires two servers: M1 and M2.
 #   1) Bootstrap start a group on M1. Add some data on M1. Start GR on M2.
-#   2) Stop GR on M2 and then stop applier thread on M1.
-#   3) Restart M2 with auto start. Recovery is stuck as M1's applier is stopped.
+#   2) Stop GR on M2 and then block applier thread on M1.
+#   3) Restart M2 with auto start. Recovery is stuck as M1's applier is blocked.
 #   4) Verify that while stuck in recovery, M2 does not accept queries.
-#   5) Unblock recovery by starting the applier thread on M1. Check all is fine.
+#   5) Unblock recovery by resuming the applier thread on M1. Check all is fine.
 #   6) Clean up.
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --let $group_replication_group_name= f68d2bd0-8964-11e5-a837-0800200c9a66
 --source include/have_group_replication_plugin.inc
 --source include/force_restart.inc
@@ -38,9 +39,9 @@ INSERT INTO t1 VALUES (1);
 --connection server1
 
 --echo #
---echo # Stop the applier on server 1 to block recovery on server 2
+--echo # Block the applier on server 1 to block recovery on server 2
 --echo #
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --echo #
 --echo # On server 2 restart the server. Group replication should start at boot
@@ -81,12 +82,14 @@ INSERT INTO t1 VALUES (2);
 
 
 --echo #
---echo # Unblock recovery by starting the applier on server 1
+--echo # Unblock recovery by resuming the applier on server 1
 --echo #
 
 --connection server1
 
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --connection server2
 
@@ -103,6 +106,9 @@ INSERT INTO t1 VALUES (2);
 --echo #
 --echo # Cleanup
 --echo #
+
+--connection server1
+SET DEBUG_SYNC= 'RESET';
 
 --connection server2
 

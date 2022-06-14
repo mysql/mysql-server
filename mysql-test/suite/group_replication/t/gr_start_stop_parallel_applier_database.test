@@ -23,6 +23,7 @@
 ################################################################################
 --source include/only_mts_replica_parallel_workers.inc
 --source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start = 1
 --source include/group_replication.inc
 
 # If these assert fails there is no point in continue the test,
@@ -38,6 +39,11 @@
 --let $assert_text= Default slave preserve commit order 1
 --let $assert_cond= [SELECT @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER] = 1
 --source include/assert.inc
+
+# Start and stop Group Replication to ensure that `group_replication_applier`
+# channel exists.
+--source include/start_and_bootstrap_group_replication.inc
+--source include/stop_group_replication.inc
 
 # Save defaults.
 SET @replica_parallel_type_saved= @@GLOBAL.REPLICA_PARALLEL_TYPE;
@@ -104,4 +110,5 @@ SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
 SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 
+--source include/gr_stop_applier_sql_thread.inc
 --source include/group_replication_end.inc

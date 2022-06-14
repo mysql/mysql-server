@@ -24,14 +24,13 @@ include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:
 include/assert.inc [Assert that there are 2 notifications logged of type STATE %:1]
 include/assert.inc [Assert that there are 3 notifications logged]
 [Truncating gms_listener_example Table]
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 ### Scenario 2: MEMBER JOINS, but blocks recoverying
 ### Expected:
 ### - Myself: 1 VIEW CHANGED, 1 STATE CHANGED
 ### - Others: 1 VIEW CHANGED, 1 STATE CHANGED
 ##########################################################################
 [connection server2]
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 include/start_group_replication.inc
 include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:2]
 include/assert.inc [Assert that there are 1 notifications logged of type STATE %:2]
@@ -47,10 +46,10 @@ include/assert.inc [Assert that there are 2 notifications logged]
 ### - Myself: 1 STATE CHANGED
 ### - Others: 1 STATE CHANGED
 ##########################################################################
-[connection server1]
-include/gr_start_applier_sql_thread.inc
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
+SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 include/gr_wait_for_member_state.inc
 include/assert.inc [Assert that there are 1 notifications logged of type STATE %:2]
 include/assert.inc [Assert that there are 1 notifications logged]
@@ -102,6 +101,7 @@ include/stop_group_replication.inc
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
 # Removing debug point 'register_gms_listener_example' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'RESET';
 include/start_group_replication.inc
 DROP TABLE gms_listener_example;
 DROP TABLE test.tab1;

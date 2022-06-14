@@ -7,7 +7,7 @@
 # 1. Bootstrap M1(primary) and create some transactions.
 # 2. Start GR on M2 with higher member weight and start GR on M3.
 # 3. Create some transactions on M1.
-#    Stop applier on M2 and create more transactions on M1.
+#    Fake stopped applier on M2 and create more transactions on M1.
 #    Wait for transactions to reach M3.
 # 4. Stop primary server M1.
 #    M2 will become next primary due to member weight.
@@ -19,6 +19,7 @@
 # 7. Cleanup.
 ################################################################################
 
+--source include/have_debug.inc
 --let $group_replication_group_name= a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
@@ -52,7 +53,7 @@ SET GLOBAL group_replication_member_weight= 90;
 
 --echo
 --echo # 3. Create some transactions on M1.
---echo #    Stop applier on M2 and create more transactions on M1.
+--echo #    Fake Stopped applier on M2 and create more transactions on M1.
 --echo #    Wait for transactions to reach M3.
 --echo
 
@@ -66,7 +67,7 @@ INSERT INTO t1 values (3);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -101,10 +102,12 @@ INSERT INTO t1 values (5);
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
 
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
+
 ## ASSERTS
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_count = 1
---let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-7
+--let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-9
 --let $assert_text = Server executed GTID set is logged.
 --source include/assert_grep.inc
 

@@ -20,6 +20,7 @@
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_group_replication_single_primary_mode=1
@@ -45,9 +46,6 @@
 --let $assert_text= Verify group_replication_primary_member is SERVER_UUID
 --let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$group_replication_expected_uuid"
 --source include/assert.inc
-
-# For later use in TU#3 to send SECONDARY to RECOVERING state.
-STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
 
 --echo #
 --echo # TU#2: Test that group_replication_primary_member is EMPTY when SECONDARY is in OFFLINE state.
@@ -85,6 +83,8 @@ SET sql_log_bin=0;
 CREATE TABLE t1 (a INT PRIMARY KEY NOT NULL);
 SET sql_log_bin=1;
 
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
+
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
 
@@ -99,14 +99,16 @@ SET sql_log_bin=1;
 --echo #
 --echo # TU#4: Test that group_replication_primary_member is UNDEFINED when SECONDARY is in ERROR state.
 --echo #
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
-START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
-
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
+SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
+
 --let $group_replication_member_state= ONLINE
 --source include/gr_wait_for_member_state.inc
+
+SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

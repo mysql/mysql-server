@@ -13,7 +13,7 @@
 #   0. This test requires three servers
 #   1. Server1 start and bootstrap the group
 #   2. Start server2
-#   3. Start server3 and disable applier
+#   3. Start server3 and fake a stopped applier
 #   4. Execute action to switch to multi primary
 #   5. Server3 will leave group
 #   6. Server3 changed to ERROR state
@@ -25,6 +25,7 @@
 ###############################################################################
 
 --source include/big_test.inc
+--source include/have_debug.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --let $rpl_skip_group_replication_start= 1
@@ -44,7 +45,7 @@
 --source include/start_group_replication.inc
 
 --echo
---echo # 3. Start server3 and disable applier
+--echo # 3. Start server3 and fake a stopped applier
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -58,7 +59,7 @@ set session sql_log_bin=1;
 
 --source include/start_group_replication.inc
 
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
 --echo
 --echo # 4. Execute action to switch to multi primary
@@ -85,6 +86,8 @@ set session sql_log_bin=1;
 
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 --echo
 --echo # 7. Check that Single primary mode is false on the stuck member and the

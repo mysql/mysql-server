@@ -24,10 +24,10 @@
 #  r) START SLAVE is blocked on group_replication_applier
 #  f) STOP SLAVE is blocked on group_replication_applier
 #  g) SHOW SLAVE STATUS is blocked on group_replication_applier
-#  h) START SLAVE SQL_THREAD is allowed on group_replication_applier
-#  i) START SLAVE SQL_THREAD with UNTIL option is allowed on
+#  h) START SLAVE SQL_THREAD is not allowed on group_replication_applier
+#  i) START SLAVE SQL_THREAD with UNTIL option is not allowed on
 #     group_replication_applier
-#  j) STOP SLAVE SQL_THREAD is allowed on group_replication_applier
+#  j) STOP SLAVE SQL_THREAD is not allowed on group_replication_applier
 #  k) SHOW RELAYLOG EVENTS is allowed on group_replication_applier
 #
 # 2. Stop GR on member i.e. make M1 OFFLINE. Now, check the execution of
@@ -117,34 +117,22 @@ STOP SLAVE FOR CHANNEL 'group_replication_applier';
 SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
 
 --echo
---echo # START SLAVE SQL_THREAD command will work for group_replication_applier
---source include/gr_start_applier_sql_thread.inc
+--echo # START SLAVE SQL_THREAD command will not work for group_replication_applier
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --echo
---echo # STOP SLAVE SQL_THREAD command will work for group_replication_applier
---source include/gr_stop_applier_sql_thread.inc
+--echo # STOP SLAVE SQL_THREAD command will not work for group_replication_applier
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
---echo # START SLAVE SQL_THREAD with UNTIL option will work for group_replication_applier
---disable_warnings
+--echo # START SLAVE SQL_THREAD with UNTIL option will not work for group_replication_applier
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS='11111111-1111-1111-1111-111111111111:1-23' FOR CHANNEL 'group_replication_applier';
---let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
---enable_warnings
 
---disable_warnings
---source include/gr_stop_applier_sql_thread.inc
---enable_warnings
-
---echo # START SLAVE SQL_THREAD with UNTIL option will work for group_replication_applier
---disable_warnings
+--echo # START SLAVE SQL_THREAD with UNTIL option will not work for group_replication_applier
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replication_applier.000002', RELAY_LOG_POS = 10000 FOR CHANNEL 'group_replication_applier';
---let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
---enable_warnings
-
---disable_warnings
---source include/gr_stop_applier_sql_thread.inc
---enable_warnings
 
 --echo
 --echo # SHOW RELAYLOG EVENTS for channel will work for all channels
@@ -253,7 +241,6 @@ RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 
 # RESET SLAVE should not be allowed when Group_replication is running.
 --source include/start_group_replication.inc
---source include/gr_stop_applier_sql_thread.inc
 --echo # RESET SLAVE should not be allowed when GR is ONLINE.
 --echo # So this command will fail.
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
@@ -263,7 +250,6 @@ RESET SLAVE FOR CHANNEL "group_replication_applier";
 --echo # So this command will fail.
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
---source include/gr_start_applier_sql_thread.inc
 
 --echo # stop the channel and try reset slave for channel again. It should work.
 --source include/stop_group_replication.inc

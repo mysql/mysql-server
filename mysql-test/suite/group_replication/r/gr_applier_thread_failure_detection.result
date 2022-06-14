@@ -14,19 +14,12 @@ INSERT INTO t1 VALUES (1);
 SET SESSION sql_log_bin= 1;
 include/rpl_sync.inc
 #
-# 2. Restart the applier SQL thread in server 1.
-#
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
-include/gr_start_applier_sql_thread.inc
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
-#
-# 3. Insert a value on server 2 that will clash with data on server1
+# 2. Insert a value on server 2 that will clash with data on server1
 #
 [connection server2]
 INSERT INTO t1 VALUES (1);
 #
-# 4. Check that server1 applier fails and the plugin goes to error mode.
+# 3. Check that server1 applier fails and the plugin goes to error mode.
 #
 [connection server1]
 # Expect ERROR state.
@@ -36,7 +29,7 @@ include/rpl_gr_wait_for_number_of_members.inc
 # Wait for one member on server 2
 include/rpl_gr_wait_for_number_of_members.inc
 #
-# 5. Remove the value, restart the plugin and do a cleanup
+# 4. Remove the value, restart the plugin and do a cleanup
 #
 [connection server1]
 include/stop_group_replication.inc

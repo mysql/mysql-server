@@ -78,10 +78,8 @@ ERROR HY000: The function 'group_replication_set_write_concurrency' failed. Argu
 include/stop_group_replication.inc
 ###############################################################################
 # 7. Check that it is not possible to modify/query write_concurrency value when server is in RECOVERING state.
-[connection server1]
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 include/start_group_replication.inc
 SELECT group_replication_set_write_concurrency(111);
 ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be ONLINE and in the majority partition.
@@ -89,10 +87,12 @@ SELECT group_replication_get_write_concurrency();
 ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be ONLINE and in the majority partition.
 ###############################################################################
 # 8. Check that it is not possible to update wc value when a member is in ERROR state.
-[connection server1]
-include/gr_start_applier_sql_thread.inc
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
+SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 Wait until server2 becomes ONLINE
+SET DEBUG_SYNC= 'RESET';
 CREATE TABLE t2 (a INT PRIMARY KEY);
 include/rpl_sync.inc
 [connection server2]

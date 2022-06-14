@@ -25,11 +25,10 @@ FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 
-# 2. Stop applier on server 2 to force the delayed
+# 2. Block applier on server 2 to force the delayed
 #    View_change_log_event log to binary log.
 [connection server2]
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 # 3. Start Group Replication on server3.
 #    It will recover from server2 and will stay on
@@ -61,11 +60,12 @@ INSERT INTO t1 VALUES (2);
 [connection server3]
 include/assert.inc [value of 1 is not received.]
 
-# 6. Start applier on server2.
+# 6. Resume applier on server2.
 #    Server3 state will change to ONLINE.
 [connection server2]
-include/gr_start_applier_sql_thread.inc
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 [connection server3]
 include/gr_wait_for_member_state.inc
 include/rpl_sync.inc
@@ -81,6 +81,7 @@ SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;
 [connection server2]
+SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";

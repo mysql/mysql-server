@@ -289,7 +289,9 @@ int Recovery_module::recovery_thread_handle() {
 
 #ifndef NDEBUG
   DBUG_EXECUTE_IF("recovery_thread_wait_before_finish", {
-    const char act[] = "now wait_for signal.recovery_end";
+    const char act[] =
+        "now signal signal.recovery_thread_wait_before_finish_reached "
+        "wait_for signal.recovery_end";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 #endif  // NDEBUG

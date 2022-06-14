@@ -41,23 +41,19 @@ ERROR HY000: STOP SLAVE FOR CHANNEL cannot be performed on channel 'group_replic
 SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
 ERROR HY000: SHOW SLAVE STATUS cannot be performed on channel 'group_replication_applier'.
 
-# START SLAVE SQL_THREAD command will work for group_replication_applier
-include/gr_start_applier_sql_thread.inc
+# START SLAVE SQL_THREAD command will not work for group_replication_applier
 START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Note	3083	Replication thread(s) for channel 'group_replication_applier' are already runnning.
+ERROR HY000: START SLAVE FOR CHANNEL while Group Replication is running cannot be performed on channel 'group_replication_applier'.
 
-# STOP SLAVE SQL_THREAD command will work for group_replication_applier
-include/gr_stop_applier_sql_thread.inc
+# STOP SLAVE SQL_THREAD command will not work for group_replication_applier
 STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
-# START SLAVE SQL_THREAD with UNTIL option will work for group_replication_applier
+ERROR HY000: STOP SLAVE FOR CHANNEL while Group Replication is running cannot be performed on channel 'group_replication_applier'.
+# START SLAVE SQL_THREAD with UNTIL option will not work for group_replication_applier
 START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS='11111111-1111-1111-1111-111111111111:1-23' FOR CHANNEL 'group_replication_applier';
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
-# START SLAVE SQL_THREAD with UNTIL option will work for group_replication_applier
+ERROR HY000: START SLAVE FOR CHANNEL while Group Replication is running cannot be performed on channel 'group_replication_applier'.
+# START SLAVE SQL_THREAD with UNTIL option will not work for group_replication_applier
 START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replication_applier.000002', RELAY_LOG_POS = 10000 FOR CHANNEL 'group_replication_applier';
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+ERROR HY000: START SLAVE FOR CHANNEL while Group Replication is running cannot be performed on channel 'group_replication_applier'.
 
 # SHOW RELAYLOG EVENTS for channel will work for all channels
 include/assert.inc [Relay log name should not be empty as the command successfully executed.]
@@ -135,8 +131,6 @@ RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_group_replication.inc
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 # RESET SLAVE should not be allowed when GR is ONLINE.
 # So this command will fail.
 RESET SLAVE FOR CHANNEL "group_replication_applier";
@@ -145,8 +139,6 @@ ERROR HY000: RESET SLAVE [ALL] FOR CHANNEL cannot be performed on channel 'group
 # So this command will fail.
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 ERROR HY000: RESET SLAVE [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
-include/gr_start_applier_sql_thread.inc
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 # stop the channel and try reset slave for channel again. It should work.
 include/stop_group_replication.inc
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";

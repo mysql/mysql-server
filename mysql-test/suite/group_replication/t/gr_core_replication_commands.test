@@ -23,6 +23,7 @@
 #     server3.
 ############################################################################################################
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 3
@@ -88,7 +89,7 @@ eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-120',5);
 --let $m1_saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -98,7 +99,7 @@ eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-120',5);
 --let $m2_saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -138,11 +139,16 @@ if (`SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHE
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+
 
 # Stop the group replication
 --let $rpl_connection_name= server3
@@ -174,11 +180,11 @@ while($i)
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -222,15 +228,19 @@ eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1-1
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1-155", 10, "group_replication_applier");
 
-# Start appliers on server1 and server2 to assist server3 come out of recovery
+# Resume appliers on server1 and server2 to assist server3 come out of recovery
 # Wait till all the servers are online
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -260,8 +270,18 @@ let $wait_condition=
 
 # Cleanup
 --echo ## Cleanup ##
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= 'RESET';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= 'RESET';
 DROP TABLE test.t1;
 DROP TABLE test.t2;
+
+--let $slave_timeout= 120
+--source include/rpl_sync.inc
 
 --source include/group_replication_end.inc
 

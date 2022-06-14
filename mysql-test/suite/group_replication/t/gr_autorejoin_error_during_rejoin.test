@@ -43,8 +43,8 @@ call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave th
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
 call mtr.add_suppression("Unable to initialize the Group Replication applier module.");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.t1; Duplicate entry '1' for key 't1.PRIMARY'.*");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker .* failed executing transaction .*; Could not execute Write_rows event on table test.t1; Duplicate entry '1' for key 't1.PRIMARY'.*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Update_rows event on table test.t1; Duplicate entry '1' for key 't1.PRIMARY'.*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker .* failed executing transaction .*; Could not execute Update_rows event on table test.t1; Duplicate entry '1' for key 't1.PRIMARY'*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
@@ -79,21 +79,24 @@ CREATE TABLE t1(a INT PRIMARY KEY);
 --echo ####
 --let $rpl_connection_name = server1
 --source include/rpl_connection.inc
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --let $rpl_connection_name = server2
 --source include/rpl_connection.inc
-INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(0);
+UPDATE t1 SET a=1 WHERE a=0;
 
 --let $rpl_connection_name = server3
 --source include/rpl_connection.inc
---let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = "$group_replication_group_name:1-5"
+--let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = "$group_replication_group_name:1-6"
 --source include/wait_condition.inc
 
 --let $rpl_connection_name = server1
 --source include/rpl_connection.inc
---let $wait_condition= SELECT received_transaction_set="$group_replication_group_name:1-5" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier";
+--let $wait_condition= SELECT received_transaction_set="$group_replication_group_name:1-6" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier";
 --source include/wait_condition.inc
+
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 
 # Cause a applier error during recovery when plugins tries to rejoin.
 SET SESSION sql_log_bin= 0;
@@ -159,6 +162,15 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
 --source include/rpl_connection.inc
 
 SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
+
+# When the stop applier step of autorejoin is waiting, resume the applier.
+# The applier will be stopped before the UPDATE statement is committed.
+--let $gr_applier_module_thread_id= `SELECT THREAD_ID FROM performance_schema.threads WHERE NAME like 'thread/group_rpl/THD_applier_module_receiver'`
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.events_waits_current WHERE THREAD_ID=$gr_applier_module_thread_id AND EVENT_NAME='wait/synch/cond/sql/Relay_log_info::stop_cond' AND TIMER_WAIT != 'NULL'
+--source include/wait_condition.inc
+
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --echo
 --echo ####

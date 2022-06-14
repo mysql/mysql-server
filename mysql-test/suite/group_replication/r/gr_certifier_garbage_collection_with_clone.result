@@ -41,8 +41,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
 # 6. Assert COUNT_TRANSACTIONS_ROWS_VALIDATING and
 #    TRANSACTIONS_COMMITTED_ALL_MEMBERS values on all servers.
 [connection server3]
-include/gr_stop_applier_sql_thread.inc
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 [connection server1]
 include/assert.inc ['Count_transactions_rows_validating must be equal to 10 on server1']
 include/assert.inc ['Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-4 on server1']
@@ -52,8 +51,9 @@ include/assert.inc ['Transactions_committed_all_members must be equal to "" on s
 [connection server3]
 include/assert.inc ['Count_transactions_rows_validating must be equal to 10 on server3']
 include/assert.inc ['Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-4 on server3']
-include/gr_start_applier_sql_thread.inc
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 ############################################################
 # 7. Assert COUNT_TRANSACTIONS_ROWS_VALIDATING and
@@ -101,6 +101,7 @@ include/rpl_sync.inc
 include/stop_group_replication.inc
 UNINSTALL PLUGIN clone;
 [connection server3]
+SET DEBUG_SYNC = 'RESET';
 include/stop_group_replication.inc
 [connection server2]
 SET DEBUG_SYNC = 'RESET';

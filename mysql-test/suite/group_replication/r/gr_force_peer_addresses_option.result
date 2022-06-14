@@ -58,10 +58,8 @@ include/assert.inc [group_replication_force_members is empty]
 # 5. Set empty string value to
 #    group_replication_force_members on a RECOVERING
 #    member.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 [connection server2]
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 include/start_group_replication.inc
 SET GLOBAL group_replication_force_members= "";
 include/assert.inc [group_replication_force_members is empty]
@@ -72,12 +70,12 @@ include/assert.inc [group_replication_force_members is empty]
 include/gr_wait_for_member_state.inc
 SET GLOBAL group_replication_force_members= "127.0.0.1:10000";
 ERROR 42000: Variable 'group_replication_force_members' can't be set to the value of '127.0.0.1:10000'
-[connection server1]
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
+SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 [connection server2]
 include/gr_wait_for_member_state.inc
+SET DEBUG_SYNC= 'RESET';
 
 ############################################################
 # 7. Restart member with group_replication_force_members

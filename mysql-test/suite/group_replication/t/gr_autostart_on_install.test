@@ -16,6 +16,7 @@
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --let $group_replication_group_name= ce94c230-2fc0-11e5-a2cb-0800200c9a66
 --source include/have_group_replication_plugin.inc
 --source include/force_restart.inc
@@ -69,7 +70,7 @@ RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
---source include/gr_stop_applier_sql_thread.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --echo #
 --echo # On server 2 uninstall and install the plugin with auto start.
@@ -105,7 +106,9 @@ INSERT INTO t1 VALUES (2);
 
 --connection server1
 
---source include/gr_start_applier_sql_thread.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --connection server2
 
@@ -120,6 +123,10 @@ INSERT INTO t1 VALUES (2);
 --echo # Clean up
 --echo #
 
+--connection server1
+SET DEBUG_SYNC= 'RESET';
+
+--connection server2
 DROP TABLE t1;
 
 --source include/rpl_sync.inc

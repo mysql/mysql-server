@@ -8,7 +8,7 @@
 #  2. Start 2 servers.
 #     Only setup recovery_user on server2 for force server3
 #     to recover from it.
-#  3. Stop applier on server 2 to force the delayed
+#  3. Block applier on server 2 to force the delayed
 #     View_change_log_event log to binary log.
 #  4. Start Group Replication on server3.
 #     It will recover from server2 and will stay on
@@ -19,7 +19,7 @@
 #     group_replication_gtid_assignment_block_size option.
 #  6. Server 3 will apply INSERT (2) through recovery.
 #     INSERT(1) will only be applied after member is ONLINE.
-#  7. Start applier on server2.
+#  7. Resume applier on server2.
 #     Server3 state will change to ONLINE.
 #  8. Sync all group members.
 #  9. Execute more transactions on all members.
@@ -38,6 +38,7 @@
 #     The group_replication_view_change_uuid parameter for Group Replication
 ################################################################################
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 
 --echo
@@ -104,10 +105,7 @@ SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_ch
 --echo #     View_change_log_event log to binary log.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 
 --echo
@@ -218,13 +216,13 @@ if ($view_change_uuid != AUTOMATIC) {
 
 --echo
 --echo ############################################################
---echo #  7. Start applier on server2.
+--echo #  7. Resume applier on server2.
 --echo #     Server3 state will change to ONLINE.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -354,6 +352,8 @@ if ($view_change_uuid != AUTOMATIC) {
 --echo # 11. Clean up.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+SET DEBUG_SYNC= 'RESET';
+
 DROP TABLE t1;
 
 SET SESSION sql_log_bin= 0;

@@ -6,11 +6,11 @@
 # Test:
 # 0. The test requires two servers: M1 and M2.
 # 1. Bootstrap start a group on M1. Start GR on M2.
-# 2. Stop applier channel in order to delay the execution of remote transactions
+# 2. Block applier channel in order to delay the execution of remote transactions
 #    on M1.
 # 3. Create a table on M2 with a specified GTID. GTID_EXECUTED must contain a
 #    hole on M2. Wait until statement reaches M1 relay log.
-# 4. Shutdown the group i.e. stop GR on M1 and M2.
+# 4. Shutdown the group before applying the received transactions on server1.
 #  - M2: Drop table t1, remove applier thread channel and reset master.
 # 5. Bootstrap start a group on M1. GTID_EXECUTED must contain no holes.
 #  - UUID_GROUP:3 is used for the view on M1.
@@ -21,6 +21,7 @@
 # 6. Clean up.
 ################################################################################
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -55,13 +56,11 @@ SET SESSION sql_log_bin= 1;
 
 --echo
 --echo ############################################################
---echo # 2. Stop applier channel in order to delay the execution of
+--echo # 2. Block applier channel in order to delay the execution of
 --echo #    remote transactions on member 1.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --echo
 --echo ############################################################
@@ -92,9 +91,17 @@ SET GTID_NEXT="AUTOMATIC";
 
 --echo
 --echo ############################################################
---echo # 4. Shutdown the group.
+--echo # 4. Shutdown the group before applying the received transactions on server1.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,force_sql_thread_error';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG='-d,force_sql_thread_error';
+SET DEBUG_SYNC= 'RESET';
+
 --source include/stop_group_replication.inc
 
 # Server 2 will contain one more GTID then server 1, which will fill
@@ -153,7 +160,12 @@ DROP TABLE t1;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET SESSION sql_log_bin= 0;
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Relay log read failure: Could not parse relay log event entry.*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 --source include/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2

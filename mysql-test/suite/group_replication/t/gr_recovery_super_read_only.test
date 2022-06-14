@@ -67,7 +67,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo #
 
 --connection server1
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --connection server2
 
@@ -79,7 +79,9 @@ CREATE TABLE t2 (i INT NOT NULL PRIMARY KEY);
 
 # Unblock recovery and verify all is now normal
 --connection server1
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --connection server2
 --let $group_replication_member_state= ONLINE
@@ -94,5 +96,8 @@ CREATE TABLE t2 (i INT NOT NULL PRIMARY KEY);
 
 DROP TABLE t1;
 DROP TABLE t2;
+
+--connection server1
+SET DEBUG_SYNC= 'RESET';
 
 --source include/group_replication_end.inc
