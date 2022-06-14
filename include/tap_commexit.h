@@ -19,16 +19,25 @@
 #include <string.h>
 #include <fcntl.h>
 #include <limits.h>
+#ifdef WIN32
+#include <windows.h>
+#include <WinSock2.h>
+#include <stdint.h>
+#else
 #include <pthread.h>
 #include <semaphore.h>
-#include <signal.h>
 #include <sys/mman.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#endif
+#include <signal.h>
+
 #include <errno.h>
 #include <sys/stat.h>
-#include <sys/time.h>
+
 #include <stdlib.h>
 
-#include <netinet/in.h>
+
 // #include <ipv6_fix.h>
 
 #ifdef __cplusplus
