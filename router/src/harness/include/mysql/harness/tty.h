@@ -27,6 +27,7 @@
 
 #include "harness_export.h"
 
+#include <cstdint>
 #include <ostream>
 
 #ifdef _WIN32

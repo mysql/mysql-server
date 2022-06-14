@@ -23,6 +23,7 @@
 #ifndef DD__SDI_INCLUDED
 #define DD__SDI_INCLUDED
 
+#include <cstdint>
 #include <functional>
 #include "my_compiler.h"
 #include "sql/dd/sdi_fwd.h"      // RJ_Document

@@ -23,6 +23,7 @@
 #ifndef BINARY_LOG_GTIDS_GTID_SET_INCLUDED
 #define BINARY_LOG_GTIDS_GTID_SET_INCLUDED
 
+#include <cstddef>
 #include <map>
 #include <set>
 #include <sstream>

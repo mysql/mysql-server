@@ -26,6 +26,8 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
+#include <cstdint>
+
 class Gcs_group_management_interface {
  public:
   /**

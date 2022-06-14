@@ -25,6 +25,7 @@
 #ifndef MYSQL_PROTOCOL_AUTHENTICATION_INCLUDED
 #define MYSQL_PROTOCOL_AUTHENTICATION_INCLUDED
 
+#include <cstdint>
 #include <optional>
 #include <string_view>
 #include <vector>

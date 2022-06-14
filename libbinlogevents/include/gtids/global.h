@@ -23,6 +23,7 @@
 #ifndef CS_GTIDS_GLOBALS_INCLUDED
 #define CS_GTIDS_GLOBALS_INCLUDED
 
+#include <cstdint>
 #include <set>
 #include <sstream>
 #include "libbinlogevents/include/uuid.h"

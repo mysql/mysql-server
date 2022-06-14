@@ -2021,6 +2021,8 @@ void Ndbfs::callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const
   Uint32 block = refToMain(ref);
   Uint32 instance = refToInstance(ref);
 
+  ndbrequire(block <= MAX_BLOCK_NO);
+
   SimulatedBlock* main_block = globalData.getBlock(block);
   ndbrequire(main_block != nullptr);
   ndbrequire(instance < NDBMT_MAX_BLOCK_INSTANCES);

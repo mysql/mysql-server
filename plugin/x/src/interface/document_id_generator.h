@@ -25,6 +25,7 @@
 #ifndef PLUGIN_X_SRC_INTERFACE_DOCUMENT_ID_GENERATOR_H_
 #define PLUGIN_X_SRC_INTERFACE_DOCUMENT_ID_GENERATOR_H_
 
+#include <cstdint>
 #include <cstdio>
 #include <string>
 

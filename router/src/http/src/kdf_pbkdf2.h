@@ -24,6 +24,7 @@
 #ifndef MYSQLROUTER_KDF_PBKDF2_INCLUDED
 #define MYSQLROUTER_KDF_PBKDF2_INCLUDED
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <vector>

@@ -24,6 +24,7 @@
 #include "storage/ndb/plugin/ndb_sync_excluded_objects_table.h"
 
 #include <assert.h>
+#include <cstdint>
 #include <cstring>  // std::strlen
 
 // assert
