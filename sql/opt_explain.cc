@@ -31,10 +31,11 @@
 
 #include <algorithm>
 #include <atomic>
-#include <climits>
+#include <cassert>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,7 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -51,7 +53,6 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -65,25 +66,20 @@
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
-#include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/explain_access_path.h"
-#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"              // stage_explaining
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/opt_costmodel.h"
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"  // Opt_trace_*
+#include "sql/parse_tree_node_base.h"
 #include "sql/protocol.h"
-#include "sql/range_optimizer/group_index_skip_scan.h"
+#include "sql/query_term.h"
 #include "sql/range_optimizer/group_index_skip_scan_plan.h"
-#include "sql/range_optimizer/index_range_scan_plan.h"
 #include "sql/range_optimizer/path_helpers.h"
-#include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/rowid_ordered_retrieval.h"
-#include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
@@ -98,8 +94,8 @@
 #include "sql/sql_partition.h"  // for make_used_partitions_str()
 #include "sql/sql_select.h"
 #include "sql/table.h"
-#include "sql/table_function.h"    // Table_function
-#include "sql/temp_table_param.h"  // Func_ptr
+#include "sql/table_function.h"  // Table_function
+#include "sql/visible_fields.h"
 #include "sql_string.h"
 #include "template_utils.h"
 

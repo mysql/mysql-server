@@ -57,7 +57,6 @@ Query_block), by calling explain_query_expression() for each of them.
 #include "my_base.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"
-#include "sql/iterators/row_iterator.h"
 #include "sql/opt_explain_format.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_result.h"  // Query_result_send
@@ -66,15 +65,14 @@ Query_block), by calling explain_query_expression() for each of them.
 #include "sys/types.h"
 
 class Item;
-class JOIN;
-class QEP_TAB;
 class Query_block;
 class Query_expression;
+class Query_term;
 class THD;
 struct AccessPath;
 struct TABLE;
 template <class T>
-class List;
+class mem_root_deque;
 
 extern const char *join_type_str[];
 
