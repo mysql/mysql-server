@@ -69,7 +69,7 @@
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"
-#include "sql/opt_explain.h"  // explain_no_table
+#include "sql/opt_explain.h"
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"
 #include "sql/parse_tree_node_base.h"

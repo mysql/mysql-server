@@ -129,6 +129,8 @@ static const char *plan_not_ready[] = {"Not optimized, outer query is empty",
 static bool ExplainIterator(THD *ethd, const THD *query_thd,
                             Query_expression *unit);
 
+namespace {
+
 /**
   A base for all Explain_* classes
 
@@ -541,6 +543,8 @@ class Explain_table : public Explain_table_base {
     return true;  // Because we know that we have a plan
   }
 };
+
+}  // namespace
 
 /* Explain class functions ****************************************************/
 
@@ -1780,10 +1784,6 @@ bool Explain_table::explain_extra() {
           explain_tmptable_and_filesort(need_tmp_table, need_sort));
 }
 
-/******************************************************************************
-  External function implementations
-******************************************************************************/
-
 /**
   Send a message as an "extra" column value
 
@@ -1802,9 +1802,9 @@ bool Explain_table::explain_extra() {
   @return false if success, true if error
 */
 
-bool explain_no_table(THD *explain_thd, const THD *query_thd,
-                      Query_block *query_block, const char *message,
-                      enum_parsing_context ctx) {
+static bool explain_no_table(THD *explain_thd, const THD *query_thd,
+                             Query_block *query_block, const char *message,
+                             enum_parsing_context ctx) {
   DBUG_TRACE;
   const bool ret = Explain_no_table(explain_thd, query_thd, query_block,
                                     message, ctx, HA_POS_ERROR)

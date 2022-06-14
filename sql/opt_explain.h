@@ -166,9 +166,6 @@ class Query_result_explain final : public Query_result_send {
   }
 };
 
-bool explain_no_table(THD *explain_thd, const THD *query_thd,
-                      Query_block *query_block, const char *message,
-                      enum_parsing_context ctx);
 bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
                                        const Modification_plan *plan,
                                        Query_block *select);
