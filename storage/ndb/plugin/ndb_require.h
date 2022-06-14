@@ -23,6 +23,7 @@
 #define NDB_REQUIRE_H
 
 #include <cstdlib>
+#include "include/my_compiler.h"
 
 namespace ndbcluster {
 

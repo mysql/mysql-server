@@ -84,9 +84,10 @@ bool Ndb_sql_metadata_table::define_table_ndb(NdbDictionary::Table &new_table,
   }
 
   {
-    // `sql_ddl_text` varbinary(12000) DEFAULT NULL
+    // `sql_ddl_text` varbinary(12000)
     NdbDictionary::Column col_text(COL_TEXT);
     col_text.setType(NdbDictionary::Column::Longvarbinary);
+    col_text.setNullable(false);
     col_text.setLength(12000);
     if (!define_table_add_column(new_table, col_text)) return false;
   }
