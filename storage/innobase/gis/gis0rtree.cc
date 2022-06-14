@@ -1689,8 +1689,10 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
 
   ut_ad(dtuple_f_len >= DATA_MBR_LEN);
   rtr_read_mbr(range_mbr_ptr, &range_mbr);
-  range_area =
-      (range_mbr.xmax - range_mbr.xmin) * (range_mbr.ymax - range_mbr.ymin);
+
+  double range_mbr_coords[4]{range_mbr.xmin, range_mbr.xmax, range_mbr.ymin,
+                             range_mbr.ymax};
+  range_area = compute_area(index->rtr_srs.get(), range_mbr_coords, SPDIMS);
 
   /* Get index root page. */
   page_size_t page_size(dict_table_page_size(index->table));
@@ -1736,7 +1738,8 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
 
     rtr_read_mbr(field, &mbr);
 
-    rec_area = (mbr.xmax - mbr.xmin) * (mbr.ymax - mbr.ymin);
+    double mbr_coords[4]{mbr.xmin, mbr.xmax, mbr.ymin, mbr.ymax};
+    rec_area = compute_area(index->rtr_srs.get(), mbr_coords, SPDIMS);
 
     if (rec_area == 0) {
       switch (mode) {
