@@ -1959,6 +1959,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
   );
 
   try {
+    SCOPED_TRACE("// connection to router");
     sess.connect(router_host_, router_port,
                  mock_username,  // user
                  mock_password,  // pass
@@ -1971,8 +1972,10 @@ TEST_P(SplicerParamTest, classic_protocol) {
 
     const bool is_encrypted{sess.ssl_cipher() != nullptr};
 
+    SCOPED_TRACE("// checking connection is (not) encrypted");
     EXPECT_EQ(is_encrypted, GetParam().expect_client_encrypted);
 
+    SCOPED_TRACE("// checking server's ssl_cipher");
     try {
       const auto row = sess.query_one("show status like 'ssl_cipher'");
       ASSERT_TRUE(row) << "<show status like 'ssl_cipher'> returned no row";
@@ -1987,16 +1990,18 @@ TEST_P(SplicerParamTest, classic_protocol) {
       FAIL() << e.what();
     }
 
+    SCOPED_TRACE("// SELECT <- 15Mbyte");
     try {
       const auto row =
           sess.query_one("select repeat('a', 15 * 1024 * 1024) as a");
       ASSERT_EQ(row->size(), 1);
 
-      EXPECT_EQ((*row)[0], std::string(15 * 1024 * 1024, 'a'));
+      EXPECT_EQ((*row)[0], std::string(15L * 1024 * 1024, 'a'));
     } catch (const mysqlrouter::MySQLSession::Error &e) {
       FAIL() << e.what();
     }
 
+    SCOPED_TRACE("// SELECT -> 4k");
     try {
       const auto row = sess.query_one("select length(" +
                                       std::string(4097, 'a') + ") as length");
