@@ -367,9 +367,9 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block, uint64_t modify_clock,
         const page_id_t page_id(dict_index_get_space(cursor->index),
                                 left_page_no);
 
-        cursor->left_block =
-            btr_block_get(page_id, dict_table_page_size(cursor->index->table),
-                          mode, UT_LOCATION_HERE, cursor->index, mtr);
+        cursor->left_block = buf_page_get_gen(
+            page_id, dict_table_page_size(cursor->index->table), mode, nullptr,
+            Page_fetch::POSSIBLY_FREED, UT_LOCATION_HERE, mtr);
       } else {
         cursor->left_block = nullptr;
       }
