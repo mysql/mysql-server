@@ -3674,3 +3674,52 @@ SELECT * FROM dbls;
 SELECT * FROM flts;
 
 DROP TABLE ints, deci, dbls, flts;
+
+--echo # Bug#33521861: Server fails to update row via PS but works via query
+
+CREATE TABLE t1 (
+ id INT NOT NULL,
+ value VARCHAR(100) NULL
+);
+
+INSERT INTO t1 VALUES ROW(1,'A');
+
+flush status;
+
+set @a=1;
+set @b='B';
+
+prepare ps from "
+UPDATE t1 AS ut
+       INNER JOIN (VALUES ROW(?, ?)) AS vt (id, value)
+       ON ut.id = vt.id
+SET ut.value = vt.value";
+
+execute ps using @a, @b;
+
+SELECT * FROM t1;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+UPDATE t1 SET id = 1, value = 'A';
+
+--echo Notice the above statement is implicitly reprepared, as there
+--echo is no context available to guess the desired types.
+--echo Using explicit CAST avoids the reprepare.
+
+prepare ps from "
+UPDATE t1 AS ut
+       INNER JOIN (VALUES ROW(CAST(? AS SIGNED), CAST(? AS CHAR))
+                  ) AS vt (id, value)
+       ON ut.id = vt.id
+SET ut.value = vt.value";
+
+execute ps using @a, @b;
+
+SELECT * FROM t1;
+
+SHOW STATUS LIKE 'Com_stmt_reprepare';
+
+deallocate prepare ps;
+
+DROP TABLE t1;

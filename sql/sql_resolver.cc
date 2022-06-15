@@ -5326,6 +5326,16 @@ bool Query_block::resolve_table_value_constructor_values(THD *thd) {
         return true;
       }
 
+      /*
+        In case this item is or contains a parameter, propagate a default
+        data type for the expression. Note that there is no context available
+        here that can give us a good default value (like what is done when
+        a VALUES clause is used directly with an INSERT statement).
+      */
+      if (item->data_type() == MYSQL_TYPE_INVALID) {
+        if (item->propagate_type(thd, item->default_data_type())) return true;
+      }
+
       if (row_index == 0) {
         // If single row, we skip setting up indirections.
         if (num_rows != 1 && first_execution) {
