@@ -54,9 +54,8 @@ RUN SET GLOBAL group_replication_bootstrap_group= 0
 ### - Myself: 1 VIEW CHANGED, 1 STATE CHANGED
 ### - Others: 1 VIEW CHANGED, 1 STATE CHANGED
 ##########################################################################
-[connection server_1]
-RUN STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier"
 [connection server_2]
+RUN SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish'
 RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
 RUN START GROUP_REPLICATION
 [waiting for member_state to be equal 'RECOVERING']
@@ -72,10 +71,12 @@ RUN START GROUP_REPLICATION
 ### - Myself: 1 STATE CHANGED
 ### - Others: 1 STATE CHANGED
 ##########################################################################
-[connection server_1]
-RUN START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier"
 [connection server_2]
+RUN SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached"
+RUN SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish'
+RUN SET DEBUG_SYNC= "now SIGNAL signal.recovery_end"
 [waiting for member_state to be equal 'ONLINE']
+RUN SET DEBUG_SYNC= 'RESET'
 [ASSERT state_change on 'verify_1' connection]
 [ASSERT no notices on 'verify_1' connection]
 [ASSERT state_change on 'verify_2' connection]
@@ -191,9 +192,8 @@ RUN SET GLOBAL group_replication_bootstrap_group= 0
 ### - Myself: 1 VIEW CHANGED, 1 STATE CHANGED
 ### - Others: 1 VIEW CHANGED, 1 STATE CHANGED
 ##########################################################################
-[connection server_1]
-RUN STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier"
 [connection server_2]
+RUN SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish'
 RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
 RUN START GROUP_REPLICATION
 [waiting for member_state to be equal 'RECOVERING']
@@ -209,10 +209,12 @@ RUN START GROUP_REPLICATION
 ### - Myself: 1 STATE CHANGED
 ### - Others: 1 STATE CHANGED
 ##########################################################################
-[connection server_1]
-RUN START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier"
 [connection server_2]
+RUN SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached"
+RUN SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish'
+RUN SET DEBUG_SYNC= "now SIGNAL signal.recovery_end"
 [waiting for member_state to be equal 'ONLINE']
+RUN SET DEBUG_SYNC= 'RESET'
 [ASSERT no notices on 'verify_1' connection]
 [ASSERT no notices on 'verify_1' connection]
 [ASSERT no notices on 'verify_2' connection]
