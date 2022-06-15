@@ -739,7 +739,8 @@ SELECT regexp_instr( 'abc', '(?-' );
 --echo #              REFERENCE BINDING TO MISALIGNED ADDRESS
 --echo #
 
-select regexp_instr(char('313:50:35.199734'using utf16le),uuid());
+select regexp_instr(char('313:50:35.199734'using utf16le),
+                    cast(uuid() as char character set utf16le));
 
 --echo #
 --echo # Bug#27992118: REGEXP_REPLACE ACCUMULATING RESULT

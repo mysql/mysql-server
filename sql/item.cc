@@ -2296,10 +2296,10 @@ static bool left_is_superset(DTCollation *left, DTCollation *right) {
       left->derivation == right->derivation)
     return true;
   /* Allow convert from ASCII */
-  if (right->repertoire == MY_REPERTOIRE_ASCII &&
+  if ((right->collation->state & MY_CS_PUREASCII) &&
       (left->derivation < right->derivation ||
        (left->derivation == right->derivation &&
-        !(left->repertoire == MY_REPERTOIRE_ASCII))))
+        !(left->collation->state & MY_CS_PUREASCII))))
     return true;
   /* Disallow conversion otherwise */
   return false;

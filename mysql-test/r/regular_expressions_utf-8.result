@@ -860,8 +860,10 @@ ERROR HY000: Invalid match mode flag in regular expression.
 # Bug#27743722 REGEXP::EVALEXPRTOCHARSET:
 #              REFERENCE BINDING TO MISALIGNED ADDRESS
 #
-select regexp_instr(char('313:50:35.199734'using utf16le),uuid());
-regexp_instr(char('313:50:35.199734'using utf16le),uuid())
+select regexp_instr(char('313:50:35.199734'using utf16le),
+cast(uuid() as char character set utf16le));
+regexp_instr(char('313:50:35.199734'using utf16le),
+cast(uuid() as char character set utf16le))
 0
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '313:50:35.199734'

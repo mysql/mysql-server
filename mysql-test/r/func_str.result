@@ -5690,7 +5690,6 @@ c
 SELECT _utf8mb4 'ss' = _latin1 'ß' AS c;
 c
 0
-Note that following results are different due to bug#33801312
 SELECT _utf8mb4 'ss' = _utf8mb3 'ß' AS c;
 c
 1
@@ -5698,6 +5697,6 @@ Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT _utf8mb3 'ß' = _utf8mb4 'ss' AS c;
 c
-0
+1
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
