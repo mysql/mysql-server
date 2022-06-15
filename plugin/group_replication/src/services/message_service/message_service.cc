@@ -277,20 +277,33 @@ bool Message_service_handler::notify_message_service_recv(
   bool error = false;
   bool is_service_default_implementation = true;
   my_h_service_iterator iterator;
+  std::list<std::string> listeners_names;
 
   my_service<SERVICE_TYPE(registry_query)> reg_query("registry_query",
                                                      get_plugin_registry());
+  /*
+    Create iterator to navigate message service recv implementations.
+  */
   if (reg_query->create(service_name, &iterator)) {
     // no listeners registered we can terminate notification
-    goto end;
+    if (iterator) {
+      reg_query->release(iterator);
+    }
+    return false;
   }
 
-  /* Create iterator to navigate message service recv implementations. */
-  for (; !reg_query->is_valid(iterator); reg_query->next(iterator)) {
+  /*
+    To avoid acquire multiple re-entrant locks on the services
+    registry, which would happen after registry_module is acquired
+    after calling registry_module::create(), we store the services names
+    and only notify them after release the iterator.
+  */
+  for (; iterator != nullptr && !reg_query->is_valid(iterator);
+       reg_query->next(iterator)) {
     const char *name = nullptr;
     if (reg_query->get(iterator, &name)) {
-      error = true;
-      goto end;
+      error |= true;
+      continue;
     }
 
     std::string s(name);
@@ -310,18 +323,22 @@ bool Message_service_handler::notify_message_service_recv(
       continue;
     }
 
+    listeners_names.push_back(s);
+  }
+
+  /* release the iterator */
+  if (iterator) reg_query->release(iterator);
+
+  /* notify all listeners */
+  for (std::string listener_name : listeners_names) {
     my_service<SERVICE_TYPE(group_replication_message_service_recv)> svc(
-        name, get_plugin_registry());
+        listener_name.c_str(), get_plugin_registry());
     if (!svc.is_valid() || svc->recv(service_message->get_tag().c_str(),
                                      service_message->get_data(),
                                      service_message->get_data_length())) {
-      error = true;
-      goto end;
+      error |= true;
     }
   }
-
-end:
-  reg_query->release(iterator);
 
   return error;
 }
