@@ -3,7 +3,9 @@
 #include "sql/protocol_classic.h"
 #include "violite.h"
 
+#ifndef WIN32
 #include <dlfcn.h>
+#endif
 
 #include <iostream>
 
