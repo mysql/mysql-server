@@ -731,7 +731,8 @@ std::string HttpRequest::get_response_code_line() const {
   }
 
 #if LIBEVENT_VERSION_NUMBER >= 0x02010000
-  return evhttp_request_get_response_code_line(ev_req);
+  const char *code_line = evhttp_request_get_response_code_line(ev_req);
+  return code_line != nullptr ? code_line : "";
 #else
   return HttpStatusCode::get_default_status_text(
       evhttp_request_get_response_code(ev_req));
