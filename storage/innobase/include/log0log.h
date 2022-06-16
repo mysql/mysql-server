@@ -931,10 +931,9 @@ void log_files_header_fill(byte *buf, lsn_t start_lsn, const char *creator,
 void log_files_header_flush(log_t &log, uint32_t nth_file, lsn_t start_lsn);
 
 /** Changes format of redo files to previous format version.
-
-@note Note this will work between the two formats 5_7_9 & current because
-the only change is the version number */
-void log_files_downgrade(log_t &log);
+@param[in]      log             redo log
+@param[in]      log_format      previous format version */
+void log_files_downgrade(log_t &log, uint32_t log_format);
 
 /** Writes the next checkpoint info to header of the first log file.
 Note that two pages of the header are used alternately for consecutive

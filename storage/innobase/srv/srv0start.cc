@@ -145,6 +145,10 @@ bool srv_startup_is_before_trx_rollback_phase = false;
 /** true if srv_start() has been called */
 static bool srv_start_has_been_called = false;
 
+/** Redo log format before upgrade, used to create redo log files of the same
+version on failed upgrades*/
+static uint32_t log_format_before_upgrade;
+
 /** Bit flags for tracking background thread creation. They are used to
 determine which threads need to be stopped if we need to abort during
 the initialisation step. */
@@ -522,9 +526,70 @@ static void create_log_files_rename(
   strcpy(logfile0, logfilename);
 
   fil_open_log_and_system_tablespace_files();
+  fil_space_t::s_redo_space = fil_space_get(dict_sys_t::s_log_space_first_id);
 
   /* For cloned database it is normal to resize redo logs. */
   ib::info(ER_IB_MSG_1068, ulonglong{lsn});
+}
+
+/* create the log file name
+@param[in/out] logfilename  buffer for log file name
+retrun the dir name lenght */
+static size_t create_log_file_name(char *logfilename, size_t logfilename_size) {
+  size_t dirnamelen;
+  dirnamelen = strlen(srv_log_group_home_dir);
+  ut_a(dirnamelen < logfilename_size - 10 - sizeof "ib_logfile");
+  memcpy(logfilename, srv_log_group_home_dir, dirnamelen);
+
+  /* Add a path separator if needed. */
+  if (dirnamelen && logfilename[dirnamelen - 1] != OS_PATH_SEPARATOR) {
+    logfilename[dirnamelen++] = OS_PATH_SEPARATOR;
+  }
+  return dirnamelen;
+}
+
+/* recreate the redo logs
+@param[in,out]  logfilename     buffer for log file name
+@param[in]      dirnamelen      length of the directory path
+@param[out]     logfile0        name of the first log file
+@param[out]     checkpoint_lsn  lsn of the first created checkpoint
+@param[in]      flushed_lsn     current flushed lsn
+@param[in]      num_of_files    number of redo log files to be created
+@return DB_SUCCESS or error code */
+static dberr_t recreate_redo_logs(char *logfilename, size_t dirnamelen,
+                                  char *&logfile0, lsn_t new_checkpoint_lsn,
+                                  lsn_t flushed_lsn,
+                                  uint32_t number_of_log_files) {
+  ut_ad(fil_space_t::s_redo_space != nullptr);
+  /* Close and free the redo log files, so that
+  we can replace them. */
+  fil_close_log_files(true);
+
+  RECOVERY_CRASH(5);
+
+  log_sys_close();
+
+  /* Finish clone file recovery before creating new log files. We
+  roll forward to remove any intermediate files here. */
+  clone_files_recovery(true);
+
+  auto err =
+      create_log_files(logfilename, dirnamelen, flushed_lsn,
+                       number_of_log_files, logfile0, new_checkpoint_lsn);
+
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  create_log_files_rename(logfilename, dirnamelen, new_checkpoint_lsn,
+                          logfile0);
+  ut_d(log_sys->disable_redo_writes = false);
+
+  flushed_lsn = new_checkpoint_lsn;
+
+  log_start(*log_sys, 0, flushed_lsn, flushed_lsn);
+
+  return DB_SUCCESS;
 }
 
 /** Opens a log file.
@@ -2242,14 +2307,7 @@ dberr_t srv_start(bool create_new_db) {
       return (srv_init_abort(err));
   }
 
-  dirnamelen = strlen(srv_log_group_home_dir);
-  ut_a(dirnamelen < (sizeof logfilename) - 10 - sizeof "ib_logfile");
-  memcpy(logfilename, srv_log_group_home_dir, dirnamelen);
-
-  /* Add a path separator if needed. */
-  if (dirnamelen && logfilename[dirnamelen - 1] != OS_PATH_SEPARATOR) {
-    logfilename[dirnamelen++] = OS_PATH_SEPARATOR;
-  }
+  dirnamelen = create_log_file_name(logfilename, (sizeof logfilename));
 
   srv_log_file_size_requested = srv_log_file_size;
 
@@ -2635,6 +2693,8 @@ files_checked:
       log_buffer_flush_to_disk(*log_sys);
     }
 
+    log_format_before_upgrade = log_sys->format;
+
     log_sys->m_allow_checkpoints.store(true, std::memory_order_release);
 
     if (!srv_force_recovery && !recv_sys->found_corrupt_log &&
@@ -2676,38 +2736,15 @@ files_checked:
 
       RECOVERY_CRASH(4);
 
-      /* Close and free the redo log files, so that
-      we can replace them. */
-      fil_close_log_files(true);
-
-      RECOVERY_CRASH(5);
-
-      log_sys_close();
-
-      /* Finish clone file recovery before creating new log files. We
-      roll forward to remove any intermediate files here. */
-      clone_files_recovery(true);
-
       ib::info(ER_IB_MSG_1143);
 
       srv_log_file_size = srv_log_file_size_requested;
 
-      err =
-          create_log_files(logfilename, dirnamelen, flushed_lsn,
-                           srv_n_log_files_found, logfile0, new_checkpoint_lsn);
+      err = recreate_redo_logs(logfilename, dirnamelen, logfile0,
+                               new_checkpoint_lsn, flushed_lsn,
+                               srv_n_log_files_found);
 
-      if (err != DB_SUCCESS) {
-        return (srv_init_abort(err));
-      }
-
-      create_log_files_rename(logfilename, dirnamelen, new_checkpoint_lsn,
-                              logfile0);
-
-      ut_d(log_sys->disable_redo_writes = false);
-
-      flushed_lsn = new_checkpoint_lsn;
-
-      log_start(*log_sys, 0, flushed_lsn, flushed_lsn);
+      if (err != DB_SUCCESS) return (srv_init_abort(DB_ERROR));
 
       log_start_background_threads(*log_sys);
 
@@ -3480,7 +3517,7 @@ static lsn_t srv_shutdown_log() {
   log_background_threads_inactive_validate();
   buf_must_be_all_freed();
 
-  const lsn_t lsn = log_get_lsn(*log_sys);
+  lsn_t lsn = log_get_lsn(*log_sys);
 
   if (!srv_read_only_mode) {
     fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE) | to_int(FIL_TYPE_LOG));
@@ -3488,10 +3525,30 @@ static lsn_t srv_shutdown_log() {
 
   srv_shutdown_set_state(SRV_SHUTDOWN_LAST_PHASE);
 
-  if (srv_downgrade_logs) {
+  /* If the upgrade fails, new redo log format is not compatible with older
+  versions, recreate them */
+  if (dd_init_failed_during_upgrade) {
+    char logfilename[10000];
+    char *logfile0 = nullptr;
+    size_t dirnamelen = create_log_file_name(logfilename, (sizeof logfilename));
+    lsn_t new_checkpoint_lsn = 0;
+
+    auto flushed_lsn = log_get_lsn(*log_sys);
+
+    ib::info(ER_IB_MSG_DOWNGRADING_LOG_FILE);
+
+    auto err =
+        recreate_redo_logs(logfilename, dirnamelen, logfile0,
+                           new_checkpoint_lsn, flushed_lsn, srv_n_log_files);
+
+    ut_ad(err == DB_SUCCESS);
+    lsn = log_get_lsn(*log_sys);
+  }
+
+  if (srv_downgrade_logs || dd_init_failed_during_upgrade) {
     ut_a(!srv_read_only_mode);
 
-    log_files_downgrade(*log_sys);
+    log_files_downgrade(*log_sys, log_format_before_upgrade);
 
     fil_flush_file_redo();
   }
@@ -3501,7 +3558,6 @@ static lsn_t srv_shutdown_log() {
 
   ut_a(lsn == log_sys->last_checkpoint_lsn.load() ||
        srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
-
   ut_a(lsn == log_get_lsn(*log_sys));
 
   if (!srv_read_only_mode) {

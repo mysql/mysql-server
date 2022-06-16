@@ -1207,6 +1207,7 @@ bool opt_no_monitor = false;
 bool opt_no_dd_upgrade = false;
 long opt_upgrade_mode = UPGRADE_AUTO;
 bool opt_initialize = false;
+bool dd_init_failed_during_upgrade = false;
 bool opt_skip_replica_start = false;  ///< If set, slave is not autostarted
 bool opt_enable_named_pipe = false;
 bool opt_local_infile, opt_replica_compressed_protocol;
@@ -6327,6 +6328,10 @@ static int init_server_components() {
     if (!is_help_or_validate_option() &&
         dd::init(dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE)) {
       LogErr(ERROR_LEVEL, ER_DD_INIT_FAILED);
+
+      if (!dd::upgrade::no_server_upgrade_required()) {
+        dd_init_failed_during_upgrade = true;
+      }
 
       /* If clone recovery fails, we rollback the files to previous
       dataset and attempt to restart server. */
