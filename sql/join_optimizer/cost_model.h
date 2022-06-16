@@ -117,6 +117,8 @@ inline double FindOutputRowsForJoin(double left_rows, double right_rows,
     // we only have selectivity to work with, we don't really have anything
     // better than to estimate it as a normal join and cap the result
     // at selectivity 1.0 (ie., each outer row generates at most one inner row).
+    // Note that this can cause inconsistent row counts; see bug #33550360 and
+    // CostingReceiver::has_semijoin_with_possibly_clamped_child.
     fanout = std::min(fanout, 1.0);
   } else if (edge->expr->type == RelationalExpression::ANTIJOIN) {
     // Antijoin are estimated as simply the opposite of semijoin (see above),

@@ -2717,6 +2717,61 @@ TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant2) {
                                     .inner->type);
 }
 
+TEST_F(HypergraphOptimizerTest, SemijoinToInnerWithSargable) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x IN (SELECT t2.x FROM t2) "
+      "AND t1.x IN (SELECT t3.x FROM t3)",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  Fake_TABLE *t3 = m_fake_tables["t3"];
+
+  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
+
+  t1->file->stats.records = 10;
+  t2->file->stats.records = 100;
+  t3->file->stats.records = 1000;
+
+  // Build a multiple equality from the WHERE condition:
+  // t1.x = t2.x = t3.x
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+  EXPECT_EQ(1, cond_equal->current_level.size());
+  const Item_equal *eq = cond_equal->current_level.head();
+  EXPECT_EQ(nullptr, eq->get_const());
+  EXPECT_EQ(3, eq->get_fields().size());
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // We don't really care that much about which plan is chosen here. The main
+  // thing we want to check, is that FindBestQueryPlan() didn't hit an assertion
+  // because of inconsistent row estimates. The row estimates *are*
+  // inconsistent, though, until bug#33550360 is fixed. The returned plan is
+  // ((t1 semi-HJ t2) semi-HJ t3).
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->hash_join().outer->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN,
+            root->hash_join().outer->hash_join().outer->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN,
+            root->hash_join().outer->hash_join().inner->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, root->hash_join().inner->type);
+  EXPECT_STREQ(
+      "t1",
+      root->hash_join().outer->hash_join().outer->table_scan().table->alias);
+  EXPECT_STREQ(
+      "t2",
+      root->hash_join().outer->hash_join().inner->table_scan().table->alias);
+  EXPECT_STREQ("t3", root->hash_join().inner->table_scan().table->alias);
+}
+
 /*
   Test a query with two multiple equalities on overlapping, but not identical,
   sets of tables, and where there is a hyperpredicate that references all of the

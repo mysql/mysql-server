@@ -332,6 +332,19 @@ class CostingReceiver {
   /// on inconsistent row counts between APs, excluding this (known) issue.
   bool has_clamped_multipart_eq_ref = false;
 
+  /// Whether we have a semijoin where the inner child is parameterized on the
+  /// outer child, and the row estimate of the inner child is possibly clamped,
+  /// for example because of some other semijoin. In this case, we may see
+  /// inconsistent row count estimates between the ordinary semijoin plan and
+  /// the rewrite_semi_to_inner plan, because it's hard to tell how much the
+  /// already-applied-as-sargable selectivity affected the row count estimate of
+  /// the child.
+  ///
+  /// The only reason why we collect this information, is to be able to assert
+  /// on inconsistent row counts between access paths, excluding this known
+  /// issue.
+  bool has_semijoin_with_possibly_clamped_child = false;
+
   /// Keeps track of interesting orderings in this query block.
   /// See LogicalOrderings for more information.
   const LogicalOrderings *m_orderings;
@@ -3638,17 +3651,28 @@ void CostingReceiver::ProposeNestedLoopJoin(
 
   // Ignores the row count from filter_path; see above.
   {
+    assert(right_path_already_applied_selectivity >= 0.0);
     double outer_input_rows = left_path->num_output_rows;
     double inner_input_rows =
         right_path->num_output_rows / right_path_already_applied_selectivity;
-    if (right_path_already_applied_selectivity < 0.0) {
-      return;
-    }
 
     // If left and right are flipped for semijoins, we need to flip
     // them back for row calculation (or we'd clamp to the wrong value).
     if (rewrite_semi_to_inner) {
       swap(outer_input_rows, inner_input_rows);
+
+      if (right_path_already_applied_selectivity < 1.0 &&
+          PopulationCount(right) > 1) {
+        // If there are multiple inner tables, it is possible that the row count
+        // of the inner child is clamped by FindOutputRowsForJoin() by a
+        // semijoin nested inside the inner child, and it is therefore difficult
+        // to tell whether the already applied selectivity needs to be accounted
+        // for or not. Until we have found a way to ensure consistent row
+        // estimates between semijoin and rewrite_semi_to_inner with already
+        // applied sargable predicates, just set a flag to pacify the assert in
+        // ProposeAccessPath().
+        has_semijoin_with_possibly_clamped_child = true;
+      }
     }
 
     join_path.num_output_rows_before_filter = join_path.num_output_rows =
@@ -4182,7 +4206,8 @@ AccessPath *CostingReceiver::ProposeAccessPath(
   // These should never happen, up to numerical issues, but they currently do;
   // see bug #33550360.
   const bool has_known_row_count_inconsistency_bugs =
-      m_graph->has_reordered_left_joins || has_clamped_multipart_eq_ref;
+      m_graph->has_reordered_left_joins || has_clamped_multipart_eq_ref ||
+      has_semijoin_with_possibly_clamped_child;
   bool verify_consistency = (m_trace != nullptr);
 #ifndef NDEBUG
   if (!has_known_row_count_inconsistency_bugs) {
