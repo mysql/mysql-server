@@ -767,14 +767,43 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
                    ER_GRP_RPL_SIDNO_FETCH_ERROR); /* purecov: inspected */
       goto end;                                   /* purecov: inspected */
     }
+
+    /*
+      Only throw the error if the gtid is both on group_gtid_executed
+      and executed_gtids due to the following scenario(bug#34157846):
+
+      It is possible that gtid can present in group_gtid_executed but
+      not in executed_gtids(i.e the gtid is not logged in the binary
+      log).
+       1)replica-worker - starts transaction execution,
+                          slave_worker_exec_event()->..calls
+                          group_replication_trans_before_commit.
+       2)gr-applier     - certifies the transaction and add gtid to
+                          group_gtid_executed.
+       3)replica-worker - proceeds to commit but commit order deadlock
+                          occurred and rollbacked the transaction.
+       4)replica-worker - retries the transaction,
+                          i) calls group_replication_trans_before_commit.
+                          ii) gr-applier tries to certify again the retried
+                              transaction.
+                          iii) retry certification would fail, if there is no
+                               check on gtid present in both executed_gtids
+                               and group_gtid_executed, since gtid is already
+                               added to group_gtid_executed as part of initial
+                               try(step 2).
+    */
     if (group_gtid_executed->contains_gtid(sidno_for_group_gtid_sid_map,
                                            gle->get_gno())) {
-      char buf[rpl_sid::TEXT_LENGTH + 1];
-      gle->get_sid()->to_string(buf);
+      // sidno is relative to global_sid_map.
+      Gtid gtid = {gle->get_sidno(true), gle->get_gno()};
+      if (is_gtid_committed(gtid)) {
+        char buf[rpl_sid::TEXT_LENGTH + 1];
+        gle->get_sid()->to_string(buf);
 
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_ALREADY_USED, buf,
-                   gle->get_gno());
-      goto end;
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_ALREADY_USED, buf,
+                     gle->get_gno());
+        goto end;
+      }
     }
     /*
       Add received transaction GTID to transaction snapshot version.

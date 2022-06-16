@@ -1,0 +1,120 @@
+
+############################################################
+# 01. Setup source-replica
+include/uninstall_group_replication_plugin.inc
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+############################################################
+# 02. Setup replica as replica-cluster primary
+[connection slave]
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1  --group_replication_single_primary_mode=1 --group_replication_enforce_update_everywhere_checks=0 --skip_slave_start=0
+include/rpl_reconnect.inc
+[connection slave]
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 03. Initial setup on the source
+[connection master]
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+(1, NULL),
+(2, 2),
+(3, NULL),
+(4, 4),
+(5, NULL),
+(6, 6);
+CREATE TABLE t2(a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/stop_slave_sql.inc
+set session sql_log_bin=0;
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Deadlock found when trying to get lock.*");
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Can not lock user management caches for processing.*");
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Replica worker has stopped after at least one previous worker.*");
+CALL mtr.add_suppression(".*worker thread retried transaction.*time.*in vain, giving up.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*Slave worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
+set session sql_log_bin=1;
+SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = 3;
+SET GLOBAL replica_preserve_commit_order = ON;
+SET GLOBAL replica_transaction_retries = REPLICA_TRANSACTION_RETRIES;
+SET GLOBAL innodb_lock_wait_timeout = INNODB_LOCK_WAIT_TIMEOUT;
+include/rpl_connect.inc [creating rpl_slave_connection_2]
+include/rpl_connect.inc [creating rpl_slave_connection_3]
+
+############################################################
+# 04. Generate commit_order_deadlock on replica-cluster
+#     primary so that transaction will be retried
+[connection master]
+INSERT INTO t1 VALUES(13, 13);
+[connection slave]
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:1";
+INSERT INTO t1 VALUES(14, NULL);
+SET GTID_NEXT = AUTOMATIC;
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:2";
+INSERT INTO t1 VALUES(15, NULL);
+SET GTID_NEXT = AUTOMATIC;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+[connection slave]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:1";
+BEGIN;
+[connection rpl_slave_connection_2]
+SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:2";
+BEGIN;
+[connection slave1]
+include/start_slave_sql.inc
+include/assert.inc [Replica parallel type is LOGICAL_CLOCK]
+include/assert.inc [MTS worker thread count is correct]
+include/assert.inc [Replica preserve commit order is 1]
+include/assert.inc [Replica transaction retries has correct configured value]
+include/assert.inc [InnoDB lock wait timeout has correct configured value]
+[connection rpl_slave_connection_2]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+include/wait_condition.inc [First worker must wait on commit order]
+[connection slave1]
+SET GLOBAL read_only = ON;
+[connection slave]
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave1]
+[connection slave1]
+SET GLOBAL read_only = OFF;
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/rpl_diff.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+
+############################################################
+# 05. Cleanup
+# Kill and restart:--skip_slave_start=0
+include/rpl_reconnect.inc
+[connection slave]
+include/start_slave_sql.inc
+Warnings:
+Note	3083	Replication thread(s) for channel '' are already runnning.
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+include/install_group_replication_plugin.inc
+include/rpl_end.inc
+[connection slave]
+SET GLOBAL replica_parallel_type = 'SAVED_REPLICA_PARALLEL_TYPE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = SAVED_REPLICA_PARALLEL_WORKERS;
+SET GLOBAL replica_preserve_commit_order = SAVED_REPLICA_PRESERVE_COMMIT_ORDER;
+SET GLOBAL replica_transaction_retries = SAVED_REPLICA_TRANSACTION_RETRIES;
+SET GLOBAL innodb_lock_wait_timeout = SAVED_INNODB_LOCK_WAIT_TIMEOUT;
+SET GLOBAL read_only = SAVED_READ_ONLY;
