@@ -3463,6 +3463,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
     return (err);
   }
 
+  btr_drop_ahi_for_table(table);
   /* Discard the physical file that is used for the tablespace. */
   err = fil_discard_tablespace(table->space);
 
