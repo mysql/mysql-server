@@ -90,6 +90,8 @@ struct row_threads {
   uint m_groupname_length;
   /** Column EXECUTION_ENGINE. */
   bool m_secondary;
+  /** CURRENT_CONTROLLED_MEMORY, ... */
+  PFS_session_all_memory_stat_row m_session_all_memory_row;
 };
 
 class PFS_index_threads_by_thread_id : public PFS_index_threads {

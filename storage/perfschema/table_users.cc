@@ -54,6 +54,8 @@ Plugin_table table_users::m_table_def(
     "  USER CHAR(32) collate utf8mb4_bin default null,\n"
     "  CURRENT_CONNECTIONS bigint not null,\n"
     "  TOTAL_CONNECTIONS bigint not null,\n"
+    "  MAX_SESSION_CONTROLLED_MEMORY BIGINT unsigned not null,\n"
+    "  MAX_SESSION_TOTAL_MEMORY BIGINT unsigned not null,\n"
     "  UNIQUE KEY (USER) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -162,6 +164,8 @@ int table_users::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 1: /* CURRENT_CONNECTIONS */
         case 2: /* TOTAL_CONNECTIONS */
+        case 3: /* MAX_SESSION_CONTROLLED_MEMORY */
+        case 4: /* MAX_SESSION_TOTAL_MEMORY */
           m_row.m_connection_stat.set_field(f->field_index() - 1, f);
           break;
         default:

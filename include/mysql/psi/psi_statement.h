@@ -50,6 +50,7 @@ struct PSI_statement_bootstrap {
     @sa PSI_STATEMENT_VERSION_1
     @sa PSI_STATEMENT_VERSION_2
     @sa PSI_STATEMENT_VERSION_3
+    @sa PSI_STATEMENT_VERSION_4
     @sa PSI_CURRENT_STATEMENT_VERSION
   */
   void *(*get_interface)(int version);
@@ -81,10 +82,19 @@ struct PSI_statement_service_v2 {
   @since PSI_STATEMENT_VERSION_3
 */
 struct PSI_statement_service_v3 {
+  /* No binary compatibility with old PLUGIN */
+  void *this_interface_is_obsolete;
+};
+
+/**
+  Performance Schema Statement Interface, version 4.
+  @since PSI_STATEMENT_VERSION_4
+*/
+struct PSI_statement_service_v4 {
   /** @sa register_statement_v1_t. */
   register_statement_v1_t register_statement;
-  /** @sa get_thread_statement_locker_v1_t. */
-  get_thread_statement_locker_v1_t get_thread_statement_locker;
+  /** @sa get_thread_statement_locker_v4_t. */
+  get_thread_statement_locker_v4_t get_thread_statement_locker;
   /** @sa refine_statement_v1_t. */
   refine_statement_v1_t refine_statement;
   /** @sa start_statement_v1_t. */
@@ -160,7 +170,7 @@ struct PSI_statement_service_v3 {
   drop_sp_v1_t drop_sp;
 };
 
-typedef struct PSI_statement_service_v3 PSI_statement_service_t;
+typedef struct PSI_statement_service_v4 PSI_statement_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_statement_service_t *psi_statement_service;
 

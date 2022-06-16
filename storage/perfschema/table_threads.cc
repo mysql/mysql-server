@@ -69,6 +69,10 @@ Plugin_table table_threads::m_table_def(
     "  THREAD_OS_ID BIGINT unsigned,\n"
     "  RESOURCE_GROUP VARCHAR(64),\n"
     "  EXECUTION_ENGINE ENUM ('PRIMARY', 'SECONDARY'),\n"
+    "  CONTROLLED_MEMORY BIGINT unsigned not null,\n"
+    "  MAX_CONTROLLED_MEMORY BIGINT unsigned not null,\n"
+    "  TOTAL_MEMORY BIGINT unsigned not null,\n"
+    "  MAX_TOTAL_MEMORY BIGINT unsigned not null,\n"
     "  PRIMARY KEY (THREAD_ID) USING HASH,\n"
     "  KEY (PROCESSLIST_ID) USING HASH,\n"
     "  KEY (THREAD_OS_ID) USING HASH,\n"
@@ -322,6 +326,8 @@ int table_threads::make_row(PFS_thread *pfs) {
 
   m_row.m_secondary = pfs->m_secondary;
 
+  m_row.m_session_all_memory_row.set(&pfs->m_session_all_memory_stat);
+
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
@@ -462,6 +468,12 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 18: /* EXECUTION_ENGINE */
           set_field_enum(f, m_row.m_secondary ? ENUM_SECONDARY : ENUM_PRIMARY);
+          break;
+        case 19: /* CONTROLLED_MEMORY */
+        case 20: /* MAX_CONTROLLED_MEMORY */
+        case 21: /* TOTAL_MEMORY */
+        case 22: /* MAX_TOTAL_MEMORY */
+          m_row.m_session_all_memory_row.set_field(f->field_index() - 19, f);
           break;
         default:
           assert(false);

@@ -1096,19 +1096,27 @@ PFS_connection_stat_visitor::~PFS_connection_stat_visitor() = default;
 void PFS_connection_stat_visitor::visit_global() {}
 
 void PFS_connection_stat_visitor::visit_host(PFS_host *pfs) {
-  m_stat.aggregate_disconnected(pfs->m_disconnected_count);
+  m_stat.aggregate_disconnected(pfs->m_disconnected_count,
+                                pfs->m_max_controlled_memory,
+                                pfs->m_max_total_memory);
 }
 
 void PFS_connection_stat_visitor::visit_user(PFS_user *pfs) {
-  m_stat.aggregate_disconnected(pfs->m_disconnected_count);
+  m_stat.aggregate_disconnected(pfs->m_disconnected_count,
+                                pfs->m_max_controlled_memory,
+                                pfs->m_max_total_memory);
 }
 
 void PFS_connection_stat_visitor::visit_account(PFS_account *pfs) {
-  m_stat.aggregate_disconnected(pfs->m_disconnected_count);
+  m_stat.aggregate_disconnected(pfs->m_disconnected_count,
+                                pfs->m_max_controlled_memory,
+                                pfs->m_max_total_memory);
 }
 
-void PFS_connection_stat_visitor::visit_thread(PFS_thread *) {
-  m_stat.aggregate_active(1);
+void PFS_connection_stat_visitor::visit_thread(PFS_thread *pfs) {
+  m_stat.aggregate_active(
+      1, pfs->m_session_all_memory_stat.m_controlled.get_session_max(),
+      pfs->m_session_all_memory_stat.m_total.get_session_max());
 }
 
 PFS_connection_memory_visitor::PFS_connection_memory_visitor(

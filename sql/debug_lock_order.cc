@@ -7889,7 +7889,7 @@ static void *lo_get_idle_interface(int version) {
 
 struct PSI_idle_bootstrap LO_idle_bootstrap = {lo_get_idle_interface};
 
-PSI_statement_service_v3 LO_statement_v3 = {
+PSI_statement_service_v4 LO_statement_v4 = {
     lo_register_statement,
     lo_get_thread_statement_locker,
     lo_refine_statement,
@@ -7932,9 +7932,10 @@ static void *lo_get_statement_interface(int version) {
   switch (version) {
     case PSI_STATEMENT_VERSION_1:
     case PSI_STATEMENT_VERSION_2:
-      return nullptr;
     case PSI_STATEMENT_VERSION_3:
-      return &LO_statement_v3;
+      return nullptr;
+    case PSI_STATEMENT_VERSION_4:
+      return &LO_statement_v4;
     default:
       return nullptr;
   }

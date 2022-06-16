@@ -12,8 +12,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @@GLOBAL.DEBUG= '+d,group_replication_message_service_dispatcher_before_pop';
 include/start_and_bootstrap_group_replication.inc
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/message_service_queue';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/message_service_queue	YES	NULL	global_statistics	0	Memory gets allocated when messages of Group Replication: delivery message service are added to deliver them in orderly manner.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/message_service_queue	YES	NULL	global_statistics		0	Memory gets allocated when messages of Group Replication: delivery message service are added to deliver them in orderly manner.
 include/assert.inc ['There should be 1 entry corresponding to the message_service_queue in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/message_service_queue';
 EVENT_NAME
@@ -46,8 +46,8 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_message_service_dispatcher_
 #    message_service_queue remain in the tables after stopping GR.
 include/stop_group_replication.inc
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/message_service_queue';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/message_service_queue	YES	NULL	global_statistics	0	Memory gets allocated when messages of Group Replication: delivery message service are added to deliver them in orderly manner.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/message_service_queue	YES	NULL	global_statistics		0	Memory gets allocated when messages of Group Replication: delivery message service are added to deliver them in orderly manner.
 include/assert.inc ['There should be 1 entry corresponding to the message_service_queue in the setup_instruments table after stopping GR']
 SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/message_service_queue';
 EVENT_NAME	CURRENT_NUMBER_OF_BYTES_USED

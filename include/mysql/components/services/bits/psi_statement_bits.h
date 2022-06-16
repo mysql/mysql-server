@@ -49,30 +49,37 @@ typedef unsigned int PSI_statement_key;
 /**
   @def PSI_STATEMENT_VERSION_1
   Performance Schema Statement Interface number for version 1.
-  This version is deprecated.
+  This version is obsolete.
 */
 #define PSI_STATEMENT_VERSION_1 1
 
 /**
   @def PSI_STATEMENT_VERSION_2
   Performance Schema Statement Interface number for version 2.
-  This version is deprecated.
+  This version is obsolete.
 */
 #define PSI_STATEMENT_VERSION_2 2
 
 /**
   @def PSI_STATEMENT_VERSION_3
   Performance Schema Statement Interface number for version 3.
-  This version is supported.
+  This version is obsolete.
 */
 #define PSI_STATEMENT_VERSION_3 3
 
 /**
+  @def PSI_STATEMENT_VERSION_4
+  Performance Schema Statement Interface number for version 4.
+  This version is supported.
+*/
+#define PSI_STATEMENT_VERSION_4 4
+
+/**
   @def PSI_CURRENT_STATEMENT_VERSION
   Performance Schema Statement Interface number for the most recent version.
-  The most current version is @c PSI_STATEMENT_VERSION_3
+  The most current version is @c PSI_STATEMENT_VERSION_4
 */
-#define PSI_CURRENT_STATEMENT_VERSION 3
+#define PSI_CURRENT_STATEMENT_VERSION 4
 
 /**
   Interface for an instrumented statement.
@@ -133,16 +140,15 @@ typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 #define PSI_SCHEMA_NAME_LEN (64 * 3)
 
 /**
-  State data storage for @c get_thread_statement_locker_v1_t,
-  @c get_thread_statement_locker_v1_t.
+  State data storage for @c get_thread_statement_locker_v4_t.
   This structure provide temporary storage to a statement locker.
   The content of this structure is considered opaque,
   the fields are only hints of what an implementation
   of the psi interface can use.
   This memory is provided by the instrumented code for performance reasons.
-  @sa get_thread_statement_locker_v1_t
+  @sa get_thread_statement_locker_v4_t
 */
-struct PSI_statement_locker_state_v1 {
+struct PSI_statement_locker_state_v4 {
   /** Discarded flag. */
   bool m_discarded;
   /** In prepare flag. */
@@ -161,6 +167,14 @@ struct PSI_statement_locker_state_v1 {
   unsigned long long m_timer_start;
   /** THREAD CPU time start. */
   unsigned long long m_cpu_time_start;
+  /** State temporary data for CONTROLLED_MEMORY. */
+  size_t m_controlled_local_size_start;
+  /** State temporary data for MAX_CONTROLLED_MEMORY. */
+  size_t m_controlled_stmt_size_start;
+  /** State temporary data for TOTAL_MEMORY. */
+  size_t m_total_local_size_start;
+  /** State temporary data for MAX_TOTAL_MEMORY. */
+  size_t m_total_stmt_size_start;
   /** Internal data. */
   void *m_statement;
   /** Locked time. */
@@ -209,7 +223,7 @@ struct PSI_statement_locker_state_v1 {
   PSI_sp_share *m_parent_sp_share;
   PSI_prepared_stmt *m_parent_prepared_stmt;
 };
-typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
+typedef struct PSI_statement_locker_state_v4 PSI_statement_locker_state_v4;
 
 struct PSI_sp_locker_state_v1 {
   /** Internal state. */
@@ -243,8 +257,8 @@ typedef void (*register_statement_v1_t)(const char *category,
   @param sp_share Parent stored procedure share, if any.
   @return a statement locker, or NULL
 */
-typedef struct PSI_statement_locker *(*get_thread_statement_locker_v1_t)(
-    struct PSI_statement_locker_state_v1 *state, PSI_statement_key key,
+typedef struct PSI_statement_locker *(*get_thread_statement_locker_v4_t)(
+    struct PSI_statement_locker_state_v4 *state, PSI_statement_key key,
     const void *charset, PSI_sp_share *sp_share);
 
 /**
@@ -533,7 +547,7 @@ typedef void (*drop_sp_v1_t)(unsigned int object_type, const char *schema_name,
                              unsigned int object_name_length);
 
 typedef struct PSI_statement_info_v1 PSI_statement_info;
-typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
+typedef struct PSI_statement_locker_state_v4 PSI_statement_locker_state;
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
 
 /** @} (end of group psi_abi_statement) */

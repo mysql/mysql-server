@@ -10,8 +10,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    table and the memory summary tables for the event
 #    consistent_transactions.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/consistent_transactions	YES	NULL	global_statistics	0	Memory used to hold transaction and list of members that must prepare that transaction for the Group Replication Transaction Consistency Guarantees.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions	YES	NULL	global_statistics		0	Memory used to hold transaction and list of members that must prepare that transaction for the Group Replication Transaction Consistency Guarantees.
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions';
 EVENT_NAME
@@ -44,8 +44,8 @@ include/uninstall_group_replication_plugin.inc
 #    consistent_transactions remain in the tables after
 #    stopping GR.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/consistent_transactions	YES	NULL	global_statistics	0	Memory used to hold transaction and list of members that must prepare that transaction for the Group Replication Transaction Consistency Guarantees.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions	YES	NULL	global_statistics		0	Memory used to hold transaction and list of members that must prepare that transaction for the Group Replication Transaction Consistency Guarantees.
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions in the setup_instruments table after stopping GR']
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions in the memory_summary_global_by_event_name table after stopping GR']
 

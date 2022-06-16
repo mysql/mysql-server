@@ -1065,7 +1065,13 @@ void PFS_statement_stat_row::set_field(uint index, Field *f) {
     case 24: /* SUM_CPU_TIME */
       set_field_ulonglong(f, m_cpu_time);
       break;
-    case 25: /* COUNT_SECONDARY */
+    case 25: /* MAX_CONTROLLED_MEMORY */
+      set_field_ulonglong(f, m_max_controlled_memory);
+      break;
+    case 26: /* MAX_TOTAL_MEMORY */
+      set_field_ulonglong(f, m_max_total_memory);
+      break;
+    case 27: /* COUNT_SECONDARY */
       set_field_ulonglong(f, m_count_secondary);
       break;
     default:
@@ -1162,10 +1168,16 @@ void PFS_error_stat_row::set_field(uint index, Field *f,
 void PFS_connection_stat_row::set_field(uint index, Field *f) {
   switch (index) {
     case 0: /* CURRENT_CONNECTIONS */
-      set_field_ulonglong(f, m_current_connections);
+      set_field_ulonglong(f, m_stat.m_current_connections);
       break;
     case 1: /* TOTAL_CONNECTIONS */
-      set_field_ulonglong(f, m_total_connections);
+      set_field_ulonglong(f, m_stat.m_total_connections);
+      break;
+    case 2: /* MAX_SESSION_CONTROLLED_MEMORY */
+      set_field_ulonglong(f, m_stat.m_max_session_controlled_memory);
+      break;
+    case 3: /* MAX_SESSION_TOTAL_MEMORY */
+      set_field_ulonglong(f, m_stat.m_max_session_total_memory);
       break;
     default:
       assert(false);
@@ -1346,6 +1358,34 @@ void PFS_memory_stat_row::set_field(uint index, Field *f) {
     case 9: /* HIGH_NUMBER_OF_BYTES_USED */
       val = m_stat.m_high_size_used;
       set_field_longlong(f, val);
+      break;
+    default:
+      assert(false);
+      break;
+  }
+}
+
+void PFS_session_all_memory_stat_row::set(
+    const PFS_session_all_memory_stat *stat) {
+  m_controlled_size = stat->m_controlled.get_session_size();
+  m_max_controlled_size = stat->m_controlled.get_session_max();
+  m_total_size = stat->m_total.get_session_size();
+  m_max_total_size = stat->m_total.get_session_max();
+}
+
+void PFS_session_all_memory_stat_row::set_field(uint index, Field *f) {
+  switch (index) {
+    case 0: /* CONTROLLED_MEMORY */
+      set_field_ulonglong(f, m_controlled_size);
+      break;
+    case 1: /* MAX_CONTROLLED_MEMORY */
+      set_field_ulonglong(f, m_max_controlled_size);
+      break;
+    case 2: /* TOTAL_MEMORY */
+      set_field_ulonglong(f, m_total_size);
+      break;
+    case 3: /* MAX_TOTAL_MEMORY */
+      set_field_ulonglong(f, m_max_total_size);
       break;
     default:
       assert(false);

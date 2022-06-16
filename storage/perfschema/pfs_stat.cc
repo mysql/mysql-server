@@ -398,6 +398,29 @@ void PFS_memory_monitoring_stat::reset() {
   m_high_size_used = 0;
 }
 
+void PFS_session_all_memory_stat::reset() {
+  m_controlled.reset();
+  m_total.reset();
+}
+
+void PFS_session_all_memory_stat::count_controlled_alloc(size_t size) {
+  m_controlled.count_alloc(size);
+  m_total.count_alloc(size);
+}
+
+void PFS_session_all_memory_stat::count_uncontrolled_alloc(size_t size) {
+  m_total.count_alloc(size);
+}
+
+void PFS_session_all_memory_stat::count_controlled_free(size_t size) {
+  m_controlled.count_free(size);
+  m_total.count_free(size);
+}
+
+void PFS_session_all_memory_stat::count_uncontrolled_free(size_t size) {
+  m_total.count_free(size);
+}
+
 void PFS_memory_monitoring_stat::normalize(bool global) {
   if (m_free_count_capacity > m_missing_free_count_capacity) {
     m_free_count_capacity -= m_missing_free_count_capacity;

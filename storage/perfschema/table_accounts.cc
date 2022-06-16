@@ -54,6 +54,8 @@ Plugin_table table_accounts::m_table_def(
     "  HOST CHAR(255) CHARACTER SET ASCII default null,\n"
     "  CURRENT_CONNECTIONS bigint not null,\n"
     "  TOTAL_CONNECTIONS bigint not null,\n"
+    "  MAX_SESSION_CONTROLLED_MEMORY BIGINT unsigned not null,\n"
+    "  MAX_SESSION_TOTAL_MEMORY BIGINT unsigned not null,\n"
     "  UNIQUE KEY `ACCOUNT` (USER, HOST) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -161,6 +163,8 @@ int table_accounts::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 2: /* CURRENT_CONNECTIONS */
         case 3: /* TOTAL_CONNECTIONS */
+        case 4: /* MAX_SESSION_CONTROLLED_MEMORY */
+        case 5: /* MAX_SESSION_TOTAL_MEMORY */
           m_row.m_connection_stat.set_field(f->field_index() - 2, f);
           break;
         default:

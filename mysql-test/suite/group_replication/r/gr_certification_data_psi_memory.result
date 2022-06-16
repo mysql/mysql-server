@@ -9,8 +9,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    instrumented memory are in the setup instruments
 #    table and the memory summary tables.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/certification_data';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/certification_data	YES	NULL	global_statistics	0	Memory gets allocated for this Event name when new incoming transaction is received for certification.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/certification_data	YES	NULL	global_statistics		0	Memory gets allocated for this Event name when new incoming transaction is received for certification.
 include/assert.inc ['There should be 1 entry corresponding to the certification_data in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/certification_data';
 EVENT_NAME
@@ -45,8 +45,8 @@ include/stop_group_replication.inc
 # 4. Verify that the entries corresponding to the instrumented
 #    certification_data remain in the tables after stopping GR.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/certification_data';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/certification_data	YES	NULL	global_statistics	0	Memory gets allocated for this Event name when new incoming transaction is received for certification.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/certification_data	YES	NULL	global_statistics		0	Memory gets allocated for this Event name when new incoming transaction is received for certification.
 include/assert.inc ['There should be 1 entry corresponding to the certification_data in the setup_instruments table after stopping GR']
 SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/certification_data';
 EVENT_NAME	CURRENT_NUMBER_OF_BYTES_USED

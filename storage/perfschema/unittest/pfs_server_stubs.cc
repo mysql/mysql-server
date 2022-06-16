@@ -59,9 +59,9 @@ struct System_status_var *get_thd_status_var(THD *, bool *) {
 }
 
 #ifndef NDEBUG
-bool thd_mem_cnt_alloc(THD *, size_t, const char *) { return false; }
+void thd_mem_cnt_alloc(THD *, size_t, const char *) {}
 #else
-bool thd_mem_cnt_alloc(THD *, size_t) { return false; }
+void thd_mem_cnt_alloc(THD *, size_t) {}
 #endif
 
 void thd_mem_cnt_free(THD *, size_t) {}

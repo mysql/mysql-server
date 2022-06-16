@@ -177,13 +177,13 @@ prepare dump_memory_global from
   order by event_name;";
 
 prepare dump_users from
-  "select * from performance_schema.users where user is not null order by user;";
+  "select USER, CURRENT_CONNECTIONS, TOTAL_CONNECTIONS from performance_schema.users where user is not null order by user;";
 
 prepare dump_hosts from
-  "select * from performance_schema.hosts where host is not null order by host;";
+  "select HOST, CURRENT_CONNECTIONS, TOTAL_CONNECTIONS from performance_schema.hosts where host is not null order by host;";
 
 prepare dump_accounts from
-  "select * from performance_schema.accounts where (user is not null) and (host is not null) order by user, host;";
+  "select USER, HOST, CURRENT_CONNECTIONS, TOTAL_CONNECTIONS from performance_schema.accounts where (user is not null) and (host is not null) order by user, host;";
 
 --enable_query_log
 

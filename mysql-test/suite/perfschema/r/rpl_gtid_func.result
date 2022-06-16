@@ -22,7 +22,7 @@ set enabled='YES', timed='NO';
 **** On Master ****
 select * from performance_schema.setup_instruments
 where timed='NO' and name not like "memory/%";
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
 select "This better be in the master" as in_master_digest;
 in_master_digest
 This better be in the master
@@ -65,7 +65,7 @@ a
 2
 select * from performance_schema.setup_instruments
 where timed='YES';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
 select "This better be in the slave" as in_slave_digest;
 in_slave_digest
 This better be in the slave

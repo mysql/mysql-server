@@ -316,14 +316,17 @@ static void *handle_connection(void *arg) {
     Connection_handler_manager::dec_connection_count();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    /*
-      Delete the instrumentation for the job that just completed.
-    */
+    /* Decouple THD and the thread instrumentation. */
     thd->set_psi(nullptr);
-    PSI_THREAD_CALL(delete_current_thread)();
+    mysql_thread_set_psi_THD(nullptr);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
     delete thd;
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    /* Delete the instrumentation for the job that just completed. */
+    PSI_THREAD_CALL(delete_current_thread)();
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     // Server is shutting down so end the pthread.
     if (connection_events_loop_aborted()) break;

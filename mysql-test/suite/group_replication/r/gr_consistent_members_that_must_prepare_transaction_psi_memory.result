@@ -11,8 +11,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    consistent_members_that_must_prepare_transaction.
 [connection server1]
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_members_that_must_prepare_transaction';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/consistent_members_that_must_prepare_transaction	YES	NULL	global_statistics	0	Memory used to hold list of members that must prepare the transaction for the Group Replication Transaction Consistency Guarantees.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_members_that_must_prepare_transaction	YES	NULL	global_statistics		0	Memory used to hold list of members that must prepare the transaction for the Group Replication Transaction Consistency Guarantees.
 include/assert.inc ['There should be 1 entry corresponding to the consistent_members_that_must_prepare_transaction in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_members_that_must_prepare_transaction';
 EVENT_NAME
@@ -44,8 +44,8 @@ include/stop_group_replication.inc
 #    consistent_members_that_must_prepare_transaction remain in the
 #    tables after stopping GR.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_members_that_must_prepare_transaction';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/consistent_members_that_must_prepare_transaction	YES	NULL	global_statistics	0	Memory used to hold list of members that must prepare the transaction for the Group Replication Transaction Consistency Guarantees.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_members_that_must_prepare_transaction	YES	NULL	global_statistics		0	Memory used to hold list of members that must prepare the transaction for the Group Replication Transaction Consistency Guarantees.
 include/assert.inc ['There should be 1 entry corresponding to the consistent_members_that_must_prepare_transaction in the setup_instruments table after stopping GR']
 include/assert.inc ['There should be 1 entry corresponding to the consistent_members_that_must_prepare_transaction in the memory_summary_global_by_event_name table after stopping GR']
 

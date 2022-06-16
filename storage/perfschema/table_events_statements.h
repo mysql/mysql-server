@@ -158,6 +158,10 @@ struct row_events_statements {
   ulonglong m_no_good_index_used;
   /** Column CPU_TIME. */
   ulonglong m_cpu_time;
+  /** Column MAX_CONTROLLED_MEMORY. */
+  ulonglong m_max_controlled_memory;
+  /** Column MAX_TOTAL_MEMORY. */
+  ulonglong m_max_total_memory;
 
   /** Column STATEMENT_ID. */
   ulonglong m_statement_id;

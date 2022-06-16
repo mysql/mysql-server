@@ -10,8 +10,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    table and the memory summary tables for the event
 #    consistent_transactions_prepared.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_prepared';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/consistent_transactions_prepared	YES	NULL	global_statistics	0	Memory used to hold list of transaction info which are prepared for the Group Replication Transaction Consistency Guarantees.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_prepared	YES	NULL	global_statistics		0	Memory used to hold list of transaction info which are prepared for the Group Replication Transaction Consistency Guarantees.
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_prepared in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions_prepared';
 EVENT_NAME
@@ -24,8 +24,8 @@ include/assert.inc ['There should be 1 entry corresponding to the consistent_tra
 #    table and the memory summary tables for the event
 #    consistent_transactions_waiting.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_waiting';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/consistent_transactions_waiting	YES	NULL	global_statistics	0	Memory used to hold list of transaction info if there are precedent prepared transactions with consistency AFTER and BEFORE_AND_AFTER to hold the transaction until the prepared are committed.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_waiting	YES	NULL	global_statistics		0	Memory used to hold list of transaction info if there are precedent prepared transactions with consistency AFTER and BEFORE_AND_AFTER to hold the transaction until the prepared are committed.
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_waiting in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions_waiting';
 EVENT_NAME
@@ -132,8 +132,8 @@ include/uninstall_group_replication_plugin.inc
 #     consistent_transactions_prepared remain in the
 #     tables after stopping GR.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_prepared';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/consistent_transactions_prepared	YES	NULL	global_statistics	0	Memory used to hold list of transaction info which are prepared for the Group Replication Transaction Consistency Guarantees.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_prepared	YES	NULL	global_statistics		0	Memory used to hold list of transaction info which are prepared for the Group Replication Transaction Consistency Guarantees.
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_prepared in the setup_instruments table after stopping GR']
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_prepared in the memory_summary_global_by_event_name table after stopping GR']
 
@@ -142,8 +142,8 @@ include/assert.inc ['There should be 1 entry corresponding to the consistent_tra
 #     consistent_transactions_waiting remain in the
 #     tables after stopping GR.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_waiting';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/consistent_transactions_waiting	YES	NULL	global_statistics	0	Memory used to hold list of transaction info if there are precedent prepared transactions with consistency AFTER and BEFORE_AND_AFTER to hold the transaction until the prepared are committed.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_waiting	YES	NULL	global_statistics		0	Memory used to hold list of transaction info if there are precedent prepared transactions with consistency AFTER and BEFORE_AND_AFTER to hold the transaction until the prepared are committed.
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_waiting in the setup_instruments table after stopping GR']
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_waiting in the memory_summary_global_by_event_name table after stopping GR']
 

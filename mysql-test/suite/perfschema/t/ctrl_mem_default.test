@@ -1,0 +1,9 @@
+
+SELECT NAME FROM performance_schema.setup_instruments
+  WHERE find_in_set('controlled_by_default', PROPERTIES)
+  ORDER BY NAME;
+
+SELECT NAME, PROPERTIES, FLAGS FROM performance_schema.setup_instruments
+  WHERE find_in_set('controlled_by_default', PROPERTIES)
+  ORDER BY NAME;
+

@@ -94,8 +94,116 @@ UNLOCK TABLES;
 UPDATE performance_schema.setup_instruments SET timed='NO'
 ORDER BY RAND();
 
+# PROPERTIES column
+
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.setup_instruments
+  set PROPERTIES='singleton';
+
+# Global instruments should not have controlled by default
+# NOW() as fixme is to prevent recording 'exceptions' in .result
+select NOW() as fixme, NAME, PROPERTIES, FLAGS
+  from performance_schema.setup_instruments
+  where NAME like 'memory/%'
+  AND (find_in_set('global_statistics', PROPERTIES) != 0)
+  AND (find_in_set('controlled_by_default', PROPERTIES) != 0);
+
+# FLAGS column
+
+select distinct FLAGS from performance_schema.setup_instruments
+  ORDER BY FLAGS;
+
+# 'controlled_by_default' are 'controlled'
+select distinct FLAGS from performance_schema.setup_instruments
+  WHERE (find_in_set('controlled_by_default', PROPERTIES) != 0);
+
+# Not 'controlled_by_default' are not 'controlled'
+select distinct FLAGS from performance_schema.setup_instruments
+  WHERE (find_in_set('controlled_by_default', PROPERTIES) = 0);
+
+select * from performance_schema.setup_instruments
+  WHERE (FLAGS IS NULL) AND (NAME LIKE "memory/%");
+
+select * from performance_schema.setup_instruments
+  WHERE (FLAGS IS NOT NULL) AND (NAME NOT LIKE "memory/%");
+
+--disable_result_log
+# WARN_DATA_TRUNCATED, prints a row number
+--error 1265
+update performance_schema.setup_instruments
+  set FLAGS='garbage' where name like "wait/%";
+--enable_result_log
+
+select distinct FLAGS from performance_schema.setup_instruments
+  where name like "wait/%";
+
+update performance_schema.setup_instruments
+  set FLAGS = NULL where name like "wait/%";
+
+select distinct FLAGS from performance_schema.setup_instruments
+  where name like "wait/%";
+
+update performance_schema.setup_instruments
+  set FLAGS = '' where name like "wait/%";
+
+select distinct FLAGS from performance_schema.setup_instruments
+  where name like "wait/%";
+
+update performance_schema.setup_instruments
+  set FLAGS = 'controlled' where name like "wait/%";
+
+select distinct FLAGS from performance_schema.setup_instruments
+  where name like "wait/%";
+
+--disable_result_log
+# WARN_DATA_TRUNCATED, prints a row number
+--error 1265
+update performance_schema.setup_instruments
+  set FLAGS = 'garbage' where name like "memory/%";
+--enable_result_log
+
+select distinct FLAGS from performance_schema.setup_instruments
+  where name like "memory/%";
+
+update performance_schema.setup_instruments
+  set FLAGS = NULL where name like "memory/%";
+
+select distinct FLAGS from performance_schema.setup_instruments
+  where name like "memory/%";
+
+update performance_schema.setup_instruments
+  set FLAGS = '' where name like "memory/%";
+
+select distinct FLAGS from performance_schema.setup_instruments
+  where name like "memory/%";
+
+# Set the controlled flag on everything,
+# and see on which instruments it is actually set.
+update performance_schema.setup_instruments
+  set FLAGS = 'controlled' where name like "memory/%";
+
+# Global instruments are never controlled,
+select count(*) from performance_schema.setup_instruments
+  where name like "memory/%"
+  and (find_in_set('global_statistics', PROPERTIES) != 0)
+  and (FLAGS = 'controlled');
+
+# session instruments are controlled
+select count(*) from performance_schema.setup_instruments
+  where name like "memory/%"
+  and (find_in_set('global_statistics', PROPERTIES) = 0)
+  and (find_in_set('controlled', FLAGS) = 0);
+
 # Test cleanup
 
 update performance_schema.setup_instruments
   set enabled='YES', TIMED='YES';
+
+update performance_schema.setup_instruments
+  set FLAGS = '';
+
+update performance_schema.setup_instruments
+  set FLAGS = 'controlled'
+  where (find_in_set('controlled_by_default', PROPERTIES));
+
 

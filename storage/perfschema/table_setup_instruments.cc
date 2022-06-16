@@ -54,7 +54,8 @@ Plugin_table table_setup_instruments::m_table_def(
     "  ENABLED ENUM ('YES', 'NO') not null,\n"
     "  TIMED ENUM ('YES', 'NO'),\n"
     "  PROPERTIES SET('singleton', 'progress', 'user', 'global_statistics', "
-    "'mutable') not null,\n"
+    "'mutable', 'controlled_by_default') not null,\n"
+    "  FLAGS SET('controlled'),\n"
     "  VOLATILITY int not null,\n"
     "  DOCUMENTATION LONGTEXT,\n"
     "  PRIMARY KEY (NAME) USING HASH\n",
@@ -355,6 +356,7 @@ int table_setup_instruments::make_row(PFS_instr_class *klass,
   m_row.m_instr_class = klass;
   m_row.m_update_enabled = update_enabled;
   m_row.m_update_timed = klass->can_be_timed();
+  m_row.m_update_flags = klass->can_be_enforced();
 
   return 0;
 }
@@ -364,6 +366,7 @@ int table_setup_instruments::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
   const char *doc;
   uint properties;
+  uint enforced;
 
   /* Set the null bits */
   assert(table->s->null_bytes == 1);
@@ -410,12 +413,26 @@ int table_setup_instruments::read_row_values(TABLE *table, unsigned char *buf,
           if (m_row.m_instr_class->is_global()) {
             properties |= INSTR_PROPERTIES_SET_GLOBAL_STAT;
           }
+          if (m_row.m_instr_class->has_default_memory_cnt()) {
+            properties |= INSTR_PROPERTIES_SET_QUOTA_BY_DEFAULT;
+          }
           set_field_set(f, properties);
           break;
-        case 4: /* VOLATILITY */
+        case 4: /* FLAGS */
+          if (m_row.m_update_flags) {
+            enforced = 0;
+            if (m_row.m_instr_class->has_enforced_memory_cnt()) {
+              enforced |= INSTR_FLAGS_SET_CONTROLLED;
+            }
+            set_field_set(f, enforced);
+          } else {
+            f->set_null();
+          }
+          break;
+        case 5: /* VOLATILITY */
           set_field_ulong(f, m_row.m_instr_class->m_volatility);
           break;
-        case 5: /* DOCUMENTATION */
+        case 6: /* DOCUMENTATION */
           doc = m_row.m_instr_class->m_documentation;
           if (doc != nullptr) {
             set_field_blob(f, doc, strlen(doc));
@@ -455,6 +472,27 @@ int table_setup_instruments::update_row_values(TABLE *table,
           if (m_row.m_update_timed) {
             value = (enum_yes_no)get_field_enum(f);
             m_row.m_instr_class->m_timed = (value == ENUM_YES) ? true : false;
+          }
+          break;
+        case 4: /* FLAGS */
+          /*
+            Silently ignore the update if:
+            - the instrument is not a memory instrument (m_update_flags
+              is false)
+            - the instrument is global (controlled memory depends on
+              per thread statistics)
+           */
+          if (m_row.m_update_flags && !m_row.m_instr_class->is_global()) {
+            ulonglong enforced_value = 0;
+            uint enforced_flags = 0;
+            /* Treat FLAGS = NULL as FLAGS = '' */
+            if (!f->is_null()) {
+              enforced_value = get_field_set(f);
+            }
+            if (enforced_value & INSTR_FLAGS_SET_CONTROLLED) {
+              enforced_flags |= PSI_FLAG_MEM_COLLECT;
+            }
+            m_row.m_instr_class->set_enforced_flags(enforced_flags);
           }
           break;
         default:

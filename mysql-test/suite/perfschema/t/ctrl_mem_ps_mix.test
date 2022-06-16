@@ -1,0 +1,61 @@
+
+UPDATE performance_schema.setup_instruments
+  SET FLAGS = '', ENABLED='NO'
+  WHERE NAME LIKE 'memory/%';
+
+UPDATE performance_schema.setup_instruments
+  SET FLAGS = 'controlled', ENABLED='YES'
+  WHERE NAME IN ('memory/sql/Prepared_statement::infrastructure');
+
+UPDATE performance_schema.setup_instruments
+  SET ENABLED='YES'
+  WHERE NAME IN ('memory/sql/Prepared_statement::main_mem_root');
+
+--source ../include/controlled_memory_setup.inc
+
+--connection con1
+
+PREPARE stmt1 FROM "SELECT 1 FROM DUAL;";
+
+--connection con2
+
+PREPARE stmt2a FROM "SELECT 2 FROM DUAL;";
+PREPARE stmt2b FROM "SELECT 2+2 FROM DUAL;";
+
+--source ../include/controlled_memory_dump.inc
+
+--connection con1
+
+EXECUTE stmt1;
+
+--connection con2
+
+EXECUTE stmt2a;
+EXECUTE stmt2b;
+
+--source ../include/controlled_memory_dump.inc
+
+--connection con1
+
+EXECUTE stmt1;
+
+--connection con2
+
+EXECUTE stmt2a;
+EXECUTE stmt2b;
+
+--source ../include/controlled_memory_dump.inc
+
+--connection con1
+
+DEALLOCATE PREPARE stmt1;
+
+--connection con2
+
+DEALLOCATE PREPARE stmt2a;
+DEALLOCATE PREPARE stmt2b;
+
+--source ../include/controlled_memory_dump.inc
+
+--source ../include/controlled_memory_cleanup.inc
+

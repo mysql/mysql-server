@@ -135,9 +135,9 @@ ulong sql_rnd_with_mutex();
 struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated);
 
 #ifndef NDEBUG
-bool thd_mem_cnt_alloc(THD *thd, size_t size, const char *key_name);
+void thd_mem_cnt_alloc(THD *thd, size_t size, const char *key_name);
 #else
-bool thd_mem_cnt_alloc(THD *thd, size_t size);
+void thd_mem_cnt_alloc(THD *thd, size_t size);
 #endif
 
 void thd_mem_cnt_free(THD *thd, size_t size);

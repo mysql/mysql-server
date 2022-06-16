@@ -44,6 +44,7 @@ SET(tests
  pfs_noop
  pfs
  pfs_misc
+ pfs_mem
 )
 FOREACH(testname ${tests})
   PFS_ADD_TEST(${testname})

@@ -3,34 +3,34 @@ select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Mutex/sql/%'
   and name not in ('wait/synch/mutex/sql/DEBUG_SYNC::mutex')
 order by name limit 10;
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-wait/synch/mutex/sql/Commit_order_manager::m_mutex	YES	YES		0	NULL
-wait/synch/mutex/sql/Cost_constant_cache::LOCK_cost_const	YES	YES	singleton	0	NULL
-wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state	YES	YES	singleton	0	NULL
-wait/synch/mutex/sql/Gtid_set::gtid_executed::free_intervals_mutex	YES	YES		0	NULL
-wait/synch/mutex/sql/Gtid_state	YES	YES	singleton	0	NULL
-wait/synch/mutex/sql/hash_filo::lock	YES	YES		0	NULL
-wait/synch/mutex/sql/key_mta_gaq_LOCK	YES	YES		0	NULL
-wait/synch/mutex/sql/key_mta_temp_table_LOCK	YES	YES		0	NULL
-wait/synch/mutex/sql/LOCK_acl_cache_flush	YES	YES	singleton	0	NULL
-wait/synch/mutex/sql/LOCK_admin_tls_ctx_options	YES	YES		0	A lock to control all of the --ssl-* CTX related command line options for administrative connection port
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/sql/Commit_order_manager::m_mutex	YES	YES		NULL	0	NULL
+wait/synch/mutex/sql/Cost_constant_cache::LOCK_cost_const	YES	YES	singleton	NULL	0	NULL
+wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state	YES	YES	singleton	NULL	0	NULL
+wait/synch/mutex/sql/Gtid_set::gtid_executed::free_intervals_mutex	YES	YES		NULL	0	NULL
+wait/synch/mutex/sql/Gtid_state	YES	YES	singleton	NULL	0	NULL
+wait/synch/mutex/sql/hash_filo::lock	YES	YES		NULL	0	NULL
+wait/synch/mutex/sql/key_mta_gaq_LOCK	YES	YES		NULL	0	NULL
+wait/synch/mutex/sql/key_mta_temp_table_LOCK	YES	YES		NULL	0	NULL
+wait/synch/mutex/sql/LOCK_acl_cache_flush	YES	YES	singleton	NULL	0	NULL
+wait/synch/mutex/sql/LOCK_admin_tls_ctx_options	YES	YES		NULL	0	A lock to control all of the --ssl-* CTX related command line options for administrative connection port
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in (
 'wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock',
 'wait/synch/rwlock/sql/LOCK_named_pipe_full_access_group')
 order by name limit 10;
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-wait/synch/rwlock/sql/Binlog_relay_IO_delegate::lock	YES	YES	singleton	0	NULL
-wait/synch/rwlock/sql/Binlog_storage_delegate::lock	YES	YES	singleton	0	NULL
-wait/synch/rwlock/sql/Binlog_transmit_delegate::lock	YES	YES	singleton	0	NULL
-wait/synch/rwlock/sql/channel_lock	YES	YES		0	NULL
-wait/synch/rwlock/sql/channel_map_lock	YES	YES		0	NULL
-wait/synch/rwlock/sql/channel_to_filter_lock	YES	YES		0	NULL
-wait/synch/rwlock/sql/gtid_commit_rollback	YES	YES	singleton	0	NULL
-wait/synch/rwlock/sql/gtid_mode_lock	YES	YES	singleton	0	NULL
-wait/synch/rwlock/sql/gtid_retrieved	YES	YES	singleton	0	NULL
-wait/synch/rwlock/sql/LOCK_sys_init_connect	YES	YES	singleton	0	NULL
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+wait/synch/rwlock/sql/Binlog_relay_IO_delegate::lock	YES	YES	singleton	NULL	0	NULL
+wait/synch/rwlock/sql/Binlog_storage_delegate::lock	YES	YES	singleton	NULL	0	NULL
+wait/synch/rwlock/sql/Binlog_transmit_delegate::lock	YES	YES	singleton	NULL	0	NULL
+wait/synch/rwlock/sql/channel_lock	YES	YES		NULL	0	NULL
+wait/synch/rwlock/sql/channel_map_lock	YES	YES		NULL	0	NULL
+wait/synch/rwlock/sql/channel_to_filter_lock	YES	YES		NULL	0	NULL
+wait/synch/rwlock/sql/gtid_commit_rollback	YES	YES	singleton	NULL	0	NULL
+wait/synch/rwlock/sql/gtid_mode_lock	YES	YES	singleton	NULL	0	NULL
+wait/synch/rwlock/sql/gtid_retrieved	YES	YES	singleton	NULL	0	NULL
+wait/synch/rwlock/sql/LOCK_sys_init_connect	YES	YES	singleton	NULL	0	NULL
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Cond/sql/%'
   and name not in (
@@ -40,17 +40,17 @@ where name like 'Wait/Synch/Cond/sql/%'
 'wait/synch/cond/sql/COND_socket_listener_active',
 'wait/synch/cond/sql/COND_start_signal_handler')
 order by name limit 10;
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-wait/synch/cond/sql/Commit_order_manager::m_workers.cond	YES	YES		0	NULL
-wait/synch/cond/sql/COND_compress_gtid_table	YES	YES	singleton	0	NULL
-wait/synch/cond/sql/COND_connection_count	YES	YES	singleton	0	NULL
-wait/synch/cond/sql/COND_flush_thread_cache	YES	YES	singleton	0	NULL
-wait/synch/cond/sql/COND_manager	YES	YES	singleton	0	NULL
-wait/synch/cond/sql/COND_queue_state	YES	YES	singleton	0	NULL
-wait/synch/cond/sql/COND_server_started	YES	YES	singleton	0	NULL
-wait/synch/cond/sql/COND_thd_list	YES	YES		0	NULL
-wait/synch/cond/sql/COND_thr_lock	YES	YES		0	NULL
-wait/synch/cond/sql/COND_thread_cache	YES	YES	singleton	0	NULL
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+wait/synch/cond/sql/Commit_order_manager::m_workers.cond	YES	YES		NULL	0	NULL
+wait/synch/cond/sql/COND_compress_gtid_table	YES	YES	singleton	NULL	0	NULL
+wait/synch/cond/sql/COND_connection_count	YES	YES	singleton	NULL	0	NULL
+wait/synch/cond/sql/COND_flush_thread_cache	YES	YES	singleton	NULL	0	NULL
+wait/synch/cond/sql/COND_manager	YES	YES	singleton	NULL	0	NULL
+wait/synch/cond/sql/COND_queue_state	YES	YES	singleton	NULL	0	NULL
+wait/synch/cond/sql/COND_server_started	YES	YES	singleton	NULL	0	NULL
+wait/synch/cond/sql/COND_thd_list	YES	YES		NULL	0	NULL
+wait/synch/cond/sql/COND_thr_lock	YES	YES		NULL	0	NULL
+wait/synch/cond/sql/COND_thread_cache	YES	YES	singleton	NULL	0	NULL
 select * from performance_schema.setup_instruments
 where name='Wait';
 select * from performance_schema.setup_instruments
@@ -84,4 +84,96 @@ UNLOCK TABLES;
 UPDATE performance_schema.setup_instruments SET timed='NO'
 ORDER BY RAND();
 update performance_schema.setup_instruments
+set PROPERTIES='singleton';
+ERROR HY000: Invalid performance_schema usage.
+select NOW() as fixme, NAME, PROPERTIES, FLAGS
+from performance_schema.setup_instruments
+where NAME like 'memory/%'
+  AND (find_in_set('global_statistics', PROPERTIES) != 0)
+AND (find_in_set('controlled_by_default', PROPERTIES) != 0);
+fixme	NAME	PROPERTIES	FLAGS
+select distinct FLAGS from performance_schema.setup_instruments
+ORDER BY FLAGS;
+FLAGS
+NULL
+
+controlled
+select distinct FLAGS from performance_schema.setup_instruments
+WHERE (find_in_set('controlled_by_default', PROPERTIES) != 0);
+FLAGS
+controlled
+select distinct FLAGS from performance_schema.setup_instruments
+WHERE (find_in_set('controlled_by_default', PROPERTIES) = 0);
+FLAGS
+NULL
+
+select * from performance_schema.setup_instruments
+WHERE (FLAGS IS NULL) AND (NAME LIKE "memory/%");
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+select * from performance_schema.setup_instruments
+WHERE (FLAGS IS NOT NULL) AND (NAME NOT LIKE "memory/%");
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+update performance_schema.setup_instruments
+set FLAGS='garbage' where name like "wait/%";
+select distinct FLAGS from performance_schema.setup_instruments
+where name like "wait/%";
+FLAGS
+NULL
+update performance_schema.setup_instruments
+set FLAGS = NULL where name like "wait/%";
+select distinct FLAGS from performance_schema.setup_instruments
+where name like "wait/%";
+FLAGS
+NULL
+update performance_schema.setup_instruments
+set FLAGS = '' where name like "wait/%";
+select distinct FLAGS from performance_schema.setup_instruments
+where name like "wait/%";
+FLAGS
+NULL
+update performance_schema.setup_instruments
+set FLAGS = 'controlled' where name like "wait/%";
+select distinct FLAGS from performance_schema.setup_instruments
+where name like "wait/%";
+FLAGS
+NULL
+update performance_schema.setup_instruments
+set FLAGS = 'garbage' where name like "memory/%";
+select distinct FLAGS from performance_schema.setup_instruments
+where name like "memory/%";
+FLAGS
+
+controlled
+update performance_schema.setup_instruments
+set FLAGS = NULL where name like "memory/%";
+select distinct FLAGS from performance_schema.setup_instruments
+where name like "memory/%";
+FLAGS
+
+update performance_schema.setup_instruments
+set FLAGS = '' where name like "memory/%";
+select distinct FLAGS from performance_schema.setup_instruments
+where name like "memory/%";
+FLAGS
+
+update performance_schema.setup_instruments
+set FLAGS = 'controlled' where name like "memory/%";
+select count(*) from performance_schema.setup_instruments
+where name like "memory/%"
+  and (find_in_set('global_statistics', PROPERTIES) != 0)
+and (FLAGS = 'controlled');
+count(*)
+0
+select count(*) from performance_schema.setup_instruments
+where name like "memory/%"
+  and (find_in_set('global_statistics', PROPERTIES) = 0)
+and (find_in_set('controlled', FLAGS) = 0);
+count(*)
+0
+update performance_schema.setup_instruments
 set enabled='YES', TIMED='YES';
+update performance_schema.setup_instruments
+set FLAGS = '';
+update performance_schema.setup_instruments
+set FLAGS = 'controlled'
+  where (find_in_set('controlled_by_default', PROPERTIES));

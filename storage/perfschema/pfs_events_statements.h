@@ -113,6 +113,9 @@ struct PFS_events_statements : public PFS_events {
   */
   ulonglong m_cpu_time;
 
+  ulonglong m_max_controlled_memory;
+  ulonglong m_max_total_memory;
+
   /** True if @c SQL_TEXT was truncated. */
   bool m_sqltext_truncated;
   /** Statement character set number. */

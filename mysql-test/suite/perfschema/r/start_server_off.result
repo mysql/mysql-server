@@ -152,7 +152,7 @@ Performance_schema_users_lost	0
 select * from performance_schema.setup_consumers;
 NAME	ENABLED
 select * from performance_schema.setup_instruments;
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
 select * from performance_schema.setup_actors;
 HOST	USER	ROLE	ENABLED	HISTORY
 select * from performance_schema.setup_objects;

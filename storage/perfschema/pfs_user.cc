@@ -184,7 +184,7 @@ search:
 
     pfs->init_refcount();
     pfs->reset_stats();
-    pfs->m_disconnected_count = 0;
+    pfs->reset_connections_stats();
 
     int res;
     pfs->m_lock.dirty_to_allocated(&dirty_state);
@@ -258,7 +258,32 @@ void PFS_user::aggregate_status() {
 
 void PFS_user::aggregate_stats() {
   /* No parent to aggregate to, clean the stats */
-  m_disconnected_count = 0;
+  reset_connections_stats();
+}
+
+void PFS_user::aggregate_stats_from(PFS_account *pfs) {
+  m_disconnected_count += pfs->m_disconnected_count;
+
+  if (m_max_controlled_memory < pfs->m_max_controlled_memory) {
+    m_max_controlled_memory = pfs->m_max_controlled_memory;
+  }
+
+  if (m_max_total_memory < pfs->m_max_total_memory) {
+    m_max_total_memory = pfs->m_max_total_memory;
+  }
+}
+
+void PFS_user::aggregate_disconnect(ulonglong controlled_memory,
+                                    ulonglong total_memory) {
+  m_disconnected_count++;
+
+  if (m_max_controlled_memory < controlled_memory) {
+    m_max_controlled_memory = controlled_memory;
+  }
+
+  if (m_max_total_memory < total_memory) {
+    m_max_total_memory = total_memory;
+  }
 }
 
 void PFS_user::release() { dec_refcount(); }

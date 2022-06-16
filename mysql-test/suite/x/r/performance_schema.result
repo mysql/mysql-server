@@ -50,37 +50,37 @@ name
 wait/synch/rwlock/mysqlx/client_list_clients
 wait/synch/rwlock/mysqlx/sha256_password_cache
 0 rows affected
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-wait/synch/mutex/mysqlx/lock_list_access	NO	NO		0	null
-wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
-wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
-wait/synch/mutex/mysqlx/document_id_generate	YES	NO		0	null
-wait/synch/mutex/mysqlx/notice_output_queue	YES	NO		0	null
-wait/synch/mutex/mysqlx/client_session_exit	YES	NO		0	null
-wait/synch/mutex/mysqlx/socket_events_timers	YES	NO		0	null
-wait/synch/mutex/mysqlx/scheduler_post	YES	NO		0	null
-wait/synch/mutex/mysqlx/server_client_exit	YES	NO		0	null
-wait/synch/mutex/mysqlx/vio_shutdown	YES	NO		0	null
-wait/synch/mutex/mysqlx/page_pool	YES	NO		0	null
-wait/synch/mutex/mysqlx/listener_tcp_sync	YES	NO		0	null
-wait/synch/mutex/mysqlx/broker_context_sync	YES	NO		0	null
-wait/synch/mutex/mysqlx/server_state_sync	YES	NO		0	null
-wait/synch/mutex/mysqlx/socket_acceptors_sync	YES	NO		0	null
-wait/synch/rwlock/mysqlx/client_list_clients	YES	NO		0	null
-wait/synch/rwlock/mysqlx/sha256_password_cache	YES	NO		0	null
-wait/synch/rwlock/mysqlx/xpl_server_instance	YES	NO		0	null
-wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
-wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
-wait/synch/cond/mysqlx/listener_tcp_sync	YES	NO		0	null
-wait/synch/cond/mysqlx/broker_context_sync	YES	NO		0	null
-wait/synch/cond/mysqlx/server_state_sync	YES	NO		0	null
-wait/synch/cond/mysqlx/socket_acceptors_sync	YES	NO		0	null
-wait/io/socket/mysqlx/tcpip_socket	YES	NO		0	null
-wait/io/socket/mysqlx/diagnostics_socket	YES	NO		0	null
-wait/io/socket/mysqlx/client_connection	YES	NO		0	null
-memory/mysqlx/objects	YES	null	global_statistics	0	null
-memory/mysqlx/recv_buffer	YES	null	global_statistics	0	null
-memory/mysqlx/send_buffer	YES	null	global_statistics	0	null
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/mysqlx/lock_list_access	NO	NO		null	0	null
+wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending	NO	NO		null	0	null
+wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/document_id_generate	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/notice_output_queue	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/client_session_exit	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/socket_events_timers	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/scheduler_post	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/server_client_exit	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/vio_shutdown	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/page_pool	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/listener_tcp_sync	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/broker_context_sync	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/server_state_sync	YES	NO		null	0	null
+wait/synch/mutex/mysqlx/socket_acceptors_sync	YES	NO		null	0	null
+wait/synch/rwlock/mysqlx/client_list_clients	YES	NO		null	0	null
+wait/synch/rwlock/mysqlx/sha256_password_cache	YES	NO		null	0	null
+wait/synch/rwlock/mysqlx/xpl_server_instance	YES	NO		null	0	null
+wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending	NO	NO		null	0	null
+wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit	YES	NO		null	0	null
+wait/synch/cond/mysqlx/listener_tcp_sync	YES	NO		null	0	null
+wait/synch/cond/mysqlx/broker_context_sync	YES	NO		null	0	null
+wait/synch/cond/mysqlx/server_state_sync	YES	NO		null	0	null
+wait/synch/cond/mysqlx/socket_acceptors_sync	YES	NO		null	0	null
+wait/io/socket/mysqlx/tcpip_socket	YES	NO		null	0	null
+wait/io/socket/mysqlx/diagnostics_socket	YES	NO		null	0	null
+wait/io/socket/mysqlx/client_connection	YES	NO		null	0	null
+memory/mysqlx/objects	YES	null	global_statistics		0	null
+memory/mysqlx/recv_buffer	YES	null	global_statistics		0	null
+memory/mysqlx/send_buffer	YES	null	global_statistics		0	null
 0 rows affected
 
 1 rows affected

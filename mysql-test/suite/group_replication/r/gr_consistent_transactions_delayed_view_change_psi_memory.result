@@ -35,8 +35,8 @@ include/start_group_replication.inc
 #    consistent_transactions_delayed_view_change.
 [connection server1]
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_delayed_view_change';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/consistent_transactions_delayed_view_change	YES	NULL	global_statistics	0	Memory used to hold list of View_change_log_event which are delayed after the prepared consistent transactions waiting for the prepare acknowledge.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_delayed_view_change	YES	NULL	global_statistics		0	Memory used to hold list of View_change_log_event which are delayed after the prepared consistent transactions waiting for the prepare acknowledge.
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions_delayed_view_change';
 EVENT_NAME
@@ -140,8 +140,8 @@ include/uninstall_group_replication_plugin.inc
 #     consistent_transactions_delayed_view_change remain in the
 #     tables after stopping GR.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_delayed_view_change';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/consistent_transactions_delayed_view_change	YES	NULL	global_statistics	0	Memory used to hold list of View_change_log_event which are delayed after the prepared consistent transactions waiting for the prepare acknowledge.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_delayed_view_change	YES	NULL	global_statistics		0	Memory used to hold list of View_change_log_event which are delayed after the prepared consistent transactions waiting for the prepare acknowledge.
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the setup_instruments table after stopping GR']
 include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the memory_summary_global_by_event_name table after stopping GR']
 

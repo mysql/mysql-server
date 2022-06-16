@@ -115,7 +115,7 @@ show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 select * from performance_schema.setup_instruments
 where name like "wait/%" and enabled='YES';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
 select * from performance_schema.events_waits_summary_global_by_event_name
 where event_name like "wait/%" and count_star > 0;
 EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT

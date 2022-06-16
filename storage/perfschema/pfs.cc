@@ -168,19 +168,63 @@ static void report_memory_accounting_error(const char *api_name,
                                            PFS_thread *old_thread) {
   pfs_print_error(
       "%s "
-      "thread <%d> of class <%s> "
-      "not owner of <%d> bytes in class <%s> "
-      "allocated by thread <%d> of class <%s>\n",
-      api_name, new_thread->m_thread_internal_id, new_thread->m_class->m_name,
-      size, klass->m_name, old_thread->m_thread_internal_id,
-      old_thread->m_class->m_name);
+      "thread <%lld> of class <%s> "
+      "not owner of <%ld> bytes in class <%s> "
+      "allocated by thread <%lld> of class <%s>\n",
+      api_name, new_thread->m_thread_internal_id,
+      new_thread->m_class->m_name.str(), size, klass->m_name.str(),
+      old_thread->m_thread_internal_id, old_thread->m_class->m_name.str());
 
-  assert(strcmp(new_thread->m_class->m_name, "thread/sql/event_worker") != 0);
-  assert(strcmp(new_thread->m_class->m_name, "thread/sql/event_scheduler") !=
+#ifdef NEVER
+  assert(strcmp(new_thread->m_class->m_name.str(), "thread/sql/event_worker") !=
          0);
-  assert(strcmp(new_thread->m_class->m_name, "thread/sql/one_connection") != 0);
+  assert(strcmp(new_thread->m_class->m_name.str(),
+                "thread/sql/event_scheduler") != 0);
+  assert(strcmp(new_thread->m_class->m_name.str(),
+                "thread/sql/one_connection") != 0);
+#endif
 }
 #endif /* PFS_PARANOID */
+
+/*
+  This compiling option is private for debugging,
+  not exposed in CMake.
+  Do not use in production.
+*/
+// #define PFS_TRACE_MEMORY
+
+#ifdef PFS_TRACE_MEMORY
+#define DEBUG_TRACE_MEMORY(P1, P2, P3, P4) debug_trace_memory(P1, P2, P3, P4)
+
+void debug_trace_memory(const char *api, PFS_thread *thread,
+                        PFS_memory_class *klass, size_t size) {
+  if (thread != nullptr) {
+    fprintf(stderr,
+            "%s: %s id %lld %s size %ld, "
+            "res = { %ld / %ld / %ld / %ld, %ld / %ld / %ld / %ld}\n",
+            api,                           /* Api */
+            thread->m_class->m_name.str(), /* Thread name */
+            thread->m_thread_internal_id,  /* Thread id */
+            klass->m_name.str(),           /* Memory name */
+            size,                          /* Operation size */
+            thread->m_session_all_memory_stat.m_controlled.m_size,
+            thread->m_session_all_memory_stat.m_controlled.m_max_local_size,
+            thread->m_session_all_memory_stat.m_controlled.m_max_stmt_size,
+            thread->m_session_all_memory_stat.m_controlled.m_max_session_size,
+            thread->m_session_all_memory_stat.m_total.m_size,
+            thread->m_session_all_memory_stat.m_total.m_max_local_size,
+            thread->m_session_all_memory_stat.m_total.m_max_stmt_size,
+            thread->m_session_all_memory_stat.m_total.m_max_session_size);
+  } else {
+    fprintf(stderr, "%s: %s size %ld\n", api, klass->m_name.str(), size);
+  }
+}
+
+#else
+#define DEBUG_TRACE_MEMORY(P1, P2, P3, P4) \
+  do {                                     \
+  } while (0)
+#endif /* PFS_TRACE_MEMORY */
 
 /* clang-format off */
 /**
@@ -5925,6 +5969,16 @@ PSI_statement_locker *pfs_get_thread_statement_locker_vc(
     if (!pfs_thread->m_enabled) {
       return nullptr;
     }
+
+    if (sp_share == nullptr) {
+      pfs_thread->m_session_all_memory_stat.start_top_statement();
+    } else {
+      pfs_thread->m_session_all_memory_stat.start_nested_statement(
+          &state->m_controlled_local_size_start,
+          &state->m_controlled_stmt_size_start,
+          &state->m_total_local_size_start, &state->m_total_stmt_size_start);
+    }
+
     state->m_thread = reinterpret_cast<PSI_thread *>(pfs_thread);
     flags = STATE_FLAG_THREAD;
 
@@ -5985,6 +6039,8 @@ PSI_statement_locker *pfs_get_thread_statement_locker_vc(
       pfs->m_no_index_used = 0;
       pfs->m_no_good_index_used = 0;
       pfs->m_cpu_time = 0;
+      pfs->m_max_controlled_memory = 0;
+      pfs->m_max_total_memory = 0;
       pfs->m_secondary = false;
       pfs->m_digest_storage.reset();
 
@@ -6416,6 +6472,9 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
     wait_time = timer_end - state->m_timer_start;
   }
 
+  size_t stmt_controlled_size = 0;
+  size_t stmt_total_size = 0;
+
   PFS_statement_stat *event_name_array;
   uint index = klass->m_event_name_index;
   PFS_statement_stat *stat;
@@ -6431,6 +6490,18 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
   if (flags & STATE_FLAG_THREAD) {
     PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
     assert(thread != nullptr);
+
+    if (state->m_parent_sp_share == nullptr) {
+      thread->m_session_all_memory_stat.end_top_statement(&stmt_controlled_size,
+                                                          &stmt_total_size);
+    } else {
+      thread->m_session_all_memory_stat.end_nested_statement(
+          state->m_controlled_local_size_start,
+          state->m_controlled_stmt_size_start, state->m_total_local_size_start,
+          state->m_total_stmt_size_start, &stmt_controlled_size,
+          &stmt_total_size);
+    }
+
     event_name_array = thread->write_instr_class_statements_stats();
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     stat = &event_name_array[index];
@@ -6482,6 +6553,9 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
       pfs->m_timer_end = timer_end;
       pfs->m_cpu_time = cpu_time;
       pfs->m_end_event_id = thread->m_event_id;
+
+      pfs->m_max_controlled_memory = stmt_controlled_size;
+      pfs->m_max_total_memory = stmt_total_size;
 
       pfs_program = reinterpret_cast<PFS_program *>(state->m_parent_sp_share);
       pfs_prepared_stmt =
@@ -6547,6 +6621,8 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
   stat->m_sort_scan += state->m_sort_scan;
   stat->m_no_index_used += state->m_no_index_used;
   stat->m_no_good_index_used += state->m_no_good_index_used;
+  stat->aggregate_memory_size(stmt_controlled_size, stmt_total_size);
+
   if (flags & STATE_FLAG_SECONDARY) {
     stat->m_count_secondary++;
   }
@@ -6631,6 +6707,8 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
     digest_stat->m_stat.m_sort_scan += state->m_sort_scan;
     digest_stat->m_stat.m_no_index_used += state->m_no_index_used;
     digest_stat->m_stat.m_no_good_index_used += state->m_no_good_index_used;
+    digest_stat->m_stat.aggregate_memory_size(stmt_controlled_size,
+                                              stmt_total_size);
     if (flags & STATE_FLAG_SECONDARY) {
       digest_stat->m_stat.m_count_secondary++;
     }
@@ -6673,6 +6751,8 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
       sub_stmt_stat->m_sort_scan += state->m_sort_scan;
       sub_stmt_stat->m_no_index_used += state->m_no_index_used;
       sub_stmt_stat->m_no_good_index_used += state->m_no_good_index_used;
+      sub_stmt_stat->aggregate_memory_size(stmt_controlled_size,
+                                           stmt_total_size);
       if (flags & STATE_FLAG_SECONDARY) {
         sub_stmt_stat->m_count_secondary++;
       }
@@ -6719,6 +6799,8 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
         prepared_stmt_stat->m_sort_scan += state->m_sort_scan;
         prepared_stmt_stat->m_no_index_used += state->m_no_index_used;
         prepared_stmt_stat->m_no_good_index_used += state->m_no_good_index_used;
+        prepared_stmt_stat->aggregate_memory_size(stmt_controlled_size,
+                                                  stmt_total_size);
         if (pfs_prepared_stmt->m_secondary) {
           prepared_stmt_stat->m_count_secondary++;
         }
@@ -7656,12 +7738,23 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
       return PSI_NOT_INSTRUMENTED;
     }
 
-    if (klass->has_memory_cnt()) {
+    if (klass->has_enforced_memory_cnt()) {
+      result_key |= PSI_MEM_CNT_BIT;
 #ifndef NDEBUG
       pfs_thread->current_key_name = klass->m_name.str();
 #endif
-      if (pfs_thread->m_cnt_thd != nullptr && pfs_thread->mem_cnt_alloc(size))
-        result_key |= PSI_MEM_CNT_BIT;
+    }
+
+    /* Adjust session memory for this thread. */
+    if (result_key & PSI_MEM_CNT_BIT) {
+      if (pfs_thread->m_cnt_thd != nullptr) {
+        pfs_thread->mem_cnt_alloc(size);
+      }
+      pfs_thread->m_session_all_memory_stat.count_controlled_alloc(size);
+      DEBUG_TRACE_MEMORY("CA()", pfs_thread, klass, size);
+    } else {
+      pfs_thread->m_session_all_memory_stat.count_uncontrolled_alloc(size);
+      DEBUG_TRACE_MEMORY("UA()", pfs_thread, klass, size);
     }
 
     PFS_memory_safe_stat *event_name_array;
@@ -7683,6 +7776,8 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
   } else {
     PFS_memory_shared_stat *event_name_array;
     PFS_memory_shared_stat *stat;
+
+    DEBUG_TRACE_MEMORY("GA()", nullptr, klass, size);
 
     /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
     event_name_array = global_instr_class_memory_array;
@@ -7838,7 +7933,20 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
         old_thread->carry_memory_stat_free_delta(free_delta, index);
       }
 
+      /* Adjust session memory for this thread. */
+      if (key & PSI_MEM_CNT_BIT) {
+        if (old_thread->m_cnt_thd != nullptr) {
+          old_thread->mem_cnt_free(size);
+        }
+        old_thread->m_session_all_memory_stat.count_controlled_free(size);
+        DEBUG_TRACE_MEMORY("CF()", old_thread, klass, size);
+      } else {
+        old_thread->m_session_all_memory_stat.count_uncontrolled_free(size);
+        DEBUG_TRACE_MEMORY("UF()", old_thread, klass, size);
+      }
+
       /* 2: A MALLOC is counted globally. */
+      DEBUG_TRACE_MEMORY("GA()", nullptr, klass, size);
       event_name_global_array = global_instr_class_memory_array;
       if (event_name_global_array) {
         global_stat = &event_name_global_array[index];
@@ -7863,13 +7971,38 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
     if (flag_global_instrumentation && klass->m_enabled &&
         flag_thread_instrumentation && (new_thread != nullptr)) {
       /* 1: A FREE is counted globally. */
+      DEBUG_TRACE_MEMORY("GF()", nullptr, klass, size);
       event_name_global_array = global_instr_class_memory_array;
       if (event_name_global_array) {
         global_stat = &event_name_global_array[index];
         global_stat->count_global_free(size);
       }
 
+      /*
+        Re evaluate the controlled flag,
+        it may have changed.
+      */
+      key = PSI_REAL_MEM_KEY(key);
+      if (klass->has_enforced_memory_cnt()) {
+        key |= PSI_MEM_CNT_BIT;
+#ifndef NDEBUG
+        new_thread->current_key_name = klass->m_name.str();
+#endif
+      }
+
       /* 2: A MALLOC is counted against Y. */
+      /* Adjust session memory for this thread. */
+      if (key & PSI_MEM_CNT_BIT) {
+        if (new_thread->m_cnt_thd != nullptr) {
+          new_thread->mem_cnt_alloc(size);
+        }
+        new_thread->m_session_all_memory_stat.count_controlled_alloc(size);
+        DEBUG_TRACE_MEMORY("CA()", new_thread, klass, size);
+      } else {
+        new_thread->m_session_all_memory_stat.count_uncontrolled_alloc(size);
+        DEBUG_TRACE_MEMORY("UA()", new_thread, klass, size);
+      }
+
       PFS_memory_stat_alloc_delta alloc_delta_buffer;
       PFS_memory_stat_alloc_delta *alloc_delta;
       event_name_local_array = new_thread->write_instr_class_memory_stats();
@@ -7888,8 +8021,7 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
   return key;
 }
 
-void pfs_memory_free_vc(PSI_memory_key key, size_t size,
-                        PSI_thread *owner [[maybe_unused]]) {
+void pfs_memory_free_vc(PSI_memory_key key, size_t size, PSI_thread *owner) {
   PFS_memory_class *klass = find_memory_class(PSI_REAL_MEM_KEY(key));
 
   if (klass == nullptr) {
@@ -7911,17 +8043,13 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size,
     PFS_thread *pfs_thread = my_thread_get_THR_PFS();
     PFS_thread *owner_thread = reinterpret_cast<PFS_thread *>(owner);
     if (likely(pfs_thread != nullptr)) {
-      if (pfs_thread->m_cnt_thd != nullptr && (key & PSI_MEM_CNT_BIT)) {
-        assert(klass->has_memory_cnt());
-        pfs_thread->mem_cnt_free(size);
-      }
-
       if (pfs_thread == owner_thread) {
         /*
           Do not check pfs_thread->m_enabled.
           If a memory alloc was instrumented,
           the corresponding free must be instrumented.
         */
+
         /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
         PFS_memory_safe_stat *event_name_array;
         PFS_memory_safe_stat *stat;
@@ -7932,6 +8060,19 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size,
         if (delta != nullptr) {
           pfs_thread->carry_memory_stat_free_delta(delta, index);
         }
+
+        /* Adjust session memory for this thread. */
+        if (key & PSI_MEM_CNT_BIT) {
+          if (pfs_thread->m_cnt_thd != nullptr) {
+            pfs_thread->mem_cnt_free(size);
+          }
+          pfs_thread->m_session_all_memory_stat.count_controlled_free(size);
+          DEBUG_TRACE_MEMORY("CF()", pfs_thread, klass, size);
+        } else {
+          pfs_thread->m_session_all_memory_stat.count_uncontrolled_free(size);
+          DEBUG_TRACE_MEMORY("UF()", pfs_thread, klass, size);
+        }
+
         return;
       }
 #ifdef PFS_PARANOID
@@ -7942,6 +8083,7 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size,
     }
   }
 
+  DEBUG_TRACE_MEMORY("GF()", nullptr, klass, size);
   PFS_memory_shared_stat *event_name_array;
   PFS_memory_shared_stat *stat;
   /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
@@ -8654,7 +8796,7 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_stage_v1) = {
     pfs_register_stage_v1, pfs_start_stage_v1,
     pfs_get_current_stage_progress_v1, pfs_end_stage_v1};
 
-PSI_statement_service_v3 pfs_statement_service_v3 = {
+PSI_statement_service_v4 pfs_statement_service_v4 = {
     /* Old interface, for plugins. */
     pfs_register_statement_vc,
     pfs_get_thread_statement_locker_vc,
@@ -8694,85 +8836,8 @@ PSI_statement_service_v3 pfs_statement_service_v3 = {
     pfs_end_sp_vc,
     pfs_drop_sp_vc};
 
-SERVICE_TYPE(psi_statement_v1)
-SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v1) = {
-    /* New interface, for components. */
-    pfs_register_statement_vc,
-    pfs_get_thread_statement_locker_vc,
-    pfs_refine_statement_vc,
-    pfs_start_statement_vc,
-    pfs_set_statement_text_vc,
-    pfs_set_statement_lock_time_vc,
-    pfs_set_statement_rows_sent_vc,
-    pfs_set_statement_rows_examined_vc,
-    pfs_inc_statement_created_tmp_disk_tables_vc,
-    pfs_inc_statement_created_tmp_tables_vc,
-    pfs_inc_statement_select_full_join_vc,
-    pfs_inc_statement_select_full_range_join_vc,
-    pfs_inc_statement_select_range_vc,
-    pfs_inc_statement_select_range_check_vc,
-    pfs_inc_statement_select_scan_vc,
-    pfs_inc_statement_sort_merge_passes_vc,
-    pfs_inc_statement_sort_range_vc,
-    pfs_inc_statement_sort_rows_vc,
-    pfs_inc_statement_sort_scan_vc,
-    pfs_set_statement_no_index_used_vc,
-    pfs_set_statement_no_good_index_used_vc,
-    pfs_end_statement_vc,
-    pfs_create_prepared_stmt_vc,
-    pfs_destroy_prepared_stmt_vc,
-    pfs_reprepare_prepared_stmt_vc,
-    pfs_execute_prepared_stmt_vc,
-    pfs_set_prepared_stmt_text_vc,
-    pfs_digest_start_vc,
-    pfs_digest_end_vc,
-    pfs_get_sp_share_vc,
-    pfs_release_sp_share_vc,
-    pfs_start_sp_vc,
-    pfs_end_sp_vc,
-    pfs_drop_sp_vc};
-
-SERVICE_TYPE(psi_statement_v2)
-SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v2) = {
-    /* New interface, for components. */
-    pfs_register_statement_vc,
-    pfs_get_thread_statement_locker_vc,
-    pfs_refine_statement_vc,
-    pfs_start_statement_vc,
-    pfs_set_statement_text_vc,
-    pfs_set_statement_query_id_vc,
-    pfs_set_statement_lock_time_vc,
-    pfs_set_statement_rows_sent_vc,
-    pfs_set_statement_rows_examined_vc,
-    pfs_inc_statement_created_tmp_disk_tables_vc,
-    pfs_inc_statement_created_tmp_tables_vc,
-    pfs_inc_statement_select_full_join_vc,
-    pfs_inc_statement_select_full_range_join_vc,
-    pfs_inc_statement_select_range_vc,
-    pfs_inc_statement_select_range_check_vc,
-    pfs_inc_statement_select_scan_vc,
-    pfs_inc_statement_sort_merge_passes_vc,
-    pfs_inc_statement_sort_range_vc,
-    pfs_inc_statement_sort_rows_vc,
-    pfs_inc_statement_sort_scan_vc,
-    pfs_set_statement_no_index_used_vc,
-    pfs_set_statement_no_good_index_used_vc,
-    pfs_end_statement_vc,
-    pfs_create_prepared_stmt_vc,
-    pfs_destroy_prepared_stmt_vc,
-    pfs_reprepare_prepared_stmt_vc,
-    pfs_execute_prepared_stmt_vc,
-    pfs_set_prepared_stmt_text_vc,
-    pfs_digest_start_vc,
-    pfs_digest_end_vc,
-    pfs_get_sp_share_vc,
-    pfs_release_sp_share_vc,
-    pfs_start_sp_vc,
-    pfs_end_sp_vc,
-    pfs_drop_sp_vc};
-
-SERVICE_TYPE(psi_statement_v3)
-SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v3) = {
+SERVICE_TYPE(psi_statement_v4)
+SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v4) = {
     /* New interface, for components. */
     pfs_register_statement_vc,
     pfs_get_thread_statement_locker_vc,
@@ -8988,6 +9053,7 @@ static void *get_statement_interface(int version) {
   switch (version) {
     case PSI_STATEMENT_VERSION_1:
     case PSI_STATEMENT_VERSION_2:
+    case PSI_STATEMENT_VERSION_3:
       /*
         Obsolete.
 
@@ -9011,7 +9077,7 @@ static void *get_statement_interface(int version) {
 
         PSI_STATEMENT_CALL(M) psi_statement_service->M
 
-        macro, the therefore depends on the -- server -- global variable,
+        macro, and therefore depends on the -- server -- global variable,
         which is by definition unsafe (it may not be the proper version).
 
         This is because this mechanism was never deployed in full to plug-ins,
@@ -9024,8 +9090,8 @@ static void *get_statement_interface(int version) {
         For COMPONENTS, the service is properly versioned.
       */
       return nullptr;
-    case PSI_STATEMENT_VERSION_3:
-      return &pfs_statement_service_v3;
+    case PSI_STATEMENT_VERSION_4:
+      return &pfs_statement_service_v4;
     default:
       return nullptr;
   }
@@ -9134,9 +9200,10 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, psi_rwlock_v2),
     PROVIDES_SERVICE(performance_schema, psi_socket_v1),
     PROVIDES_SERVICE(performance_schema, psi_stage_v1),
-    /* Deprecated, use psi_statement_v2. */
-    PROVIDES_SERVICE(performance_schema, psi_statement_v1),
-    PROVIDES_SERVICE(performance_schema, psi_statement_v2),
+    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v1), */
+    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v2), */
+    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v3), */
+    PROVIDES_SERVICE(performance_schema, psi_statement_v4),
     PROVIDES_SERVICE(performance_schema, psi_system_v1),
     PROVIDES_SERVICE(performance_schema, psi_table_v1),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v1), */

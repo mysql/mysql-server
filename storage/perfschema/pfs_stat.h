@@ -398,6 +398,8 @@ struct PFS_statement_stat {
     Expressed in STORAGE units (nanoseconds).
   */
   ulonglong m_cpu_time{0};
+  ulonglong m_max_controlled_memory{0};
+  ulonglong m_max_total_memory{0};
   ulonglong m_count_secondary{0};
 
   void reset() { new (this) PFS_statement_stat(); }
@@ -406,6 +408,15 @@ struct PFS_statement_stat {
 
   void aggregate_value(ulonglong value) {
     m_timer1_stat.aggregate_value(value);
+  }
+
+  void aggregate_memory_size(size_t controlled_size, size_t total_size) {
+    if (controlled_size > m_max_controlled_memory) {
+      m_max_controlled_memory = controlled_size;
+    }
+    if (total_size > m_max_total_memory) {
+      m_max_total_memory = total_size;
+    }
   }
 
   void aggregate(const PFS_statement_stat *stat) {
@@ -432,6 +443,12 @@ struct PFS_statement_stat {
       m_no_index_used += stat->m_no_index_used;
       m_no_good_index_used += stat->m_no_good_index_used;
       m_cpu_time += stat->m_cpu_time;
+      if (stat->m_max_controlled_memory > m_max_controlled_memory) {
+        m_max_controlled_memory = stat->m_max_controlled_memory;
+      }
+      if (stat->m_max_total_memory > m_max_total_memory) {
+        m_max_total_memory = stat->m_max_total_memory;
+      }
       m_count_secondary += stat->m_count_secondary;
     }
   }
@@ -994,6 +1011,171 @@ struct PFS_memory_monitoring_stat {
   void normalize(bool global);
 };
 
+struct PFS_all_memory_stat {
+  /** The current memory size allocated. */
+  size_t m_size;
+  /** The maximum memory size allocated, for a sub statement. */
+  size_t m_max_local_size;
+  /** The maximum memory size allocated, for a statement. */
+  size_t m_max_stmt_size;
+  /** The maximum memory size allocated, for this session. */
+  size_t m_max_session_size;
+
+  void reset() {
+    m_size = 0;
+    m_max_local_size = 0;
+    m_max_stmt_size = 0;
+    m_max_session_size = 0;
+  }
+
+  void start_top_statement() {
+    if (m_max_session_size < m_max_local_size) {
+      m_max_session_size = m_max_local_size;
+    }
+    m_max_stmt_size = m_size;
+    m_max_local_size = m_size;
+  }
+
+  void end_top_statement(size_t *stmt_size) {
+    if (m_max_stmt_size < m_max_local_size) {
+      m_max_stmt_size = m_max_local_size;
+    }
+    *stmt_size = m_max_stmt_size;
+  }
+
+  void start_nested_statement(size_t *local_size_start,
+                              size_t *stmt_size_start) {
+    if (m_max_session_size < m_max_local_size) {
+      m_max_session_size = m_max_local_size;
+    }
+    if (m_max_stmt_size < m_max_local_size) {
+      m_max_stmt_size = m_max_local_size;
+    }
+    *local_size_start = m_size;
+    m_max_local_size = m_size;
+
+    /* PUSH m_max_stmt_size = m_size */
+    *stmt_size_start = m_max_stmt_size;
+    m_max_stmt_size = m_size;
+  }
+
+  void end_nested_statement(size_t local_size_start, size_t stmt_size_start,
+                            size_t *stmt_size) {
+    if (m_max_session_size < m_max_local_size) {
+      m_max_session_size = m_max_local_size;
+    }
+    if (m_max_stmt_size < m_max_local_size) {
+      m_max_stmt_size = m_max_local_size;
+    }
+    if (m_max_stmt_size > local_size_start) {
+      *stmt_size = m_max_stmt_size - local_size_start;
+    } else {
+      *stmt_size = 0;
+    }
+
+    /* POP m_max_stmt_size */
+    m_max_stmt_size = stmt_size_start;
+  }
+
+  void count_alloc(size_t size) {
+    m_size += size;
+    if (m_max_local_size < m_size) {
+      m_max_local_size = m_size;
+    }
+  }
+
+  void count_free(size_t size) {
+    if (m_size >= size) {
+      m_size -= size;
+    } else {
+      /*
+        Thread 1, allocates memory : owner = T1
+        Thread 1 puts the memory in a global cache,
+        but does not use unclaim.
+        Thread 1 disconnects.
+
+        The memory in the cache has owner = T1,
+        pointing to a defunct thread.
+
+        Thread 2 connects,
+        Thread 2 purges the global cache,
+        but does not use claim.
+
+        As a result, it appears that:
+        - T1 'leaks' memory, even when there are no leaks.
+        - T2 frees 'non existent' memory, even when it was allocated.
+
+        Long term fix is to enforce use of:
+        - unclaim in T1
+        - claim in T2,
+        to make sure memory transfers are properly accounted for.
+
+        Short term fix, here, we discover (late) that:
+        - the thread T2 uses more memory that was claimed
+          (because it takes silently ownership of the global cache)
+        - it releases more memory that it is supposed to own.
+
+        The net consumption of T2 is adjusted to 0,
+        as it can not be negative.
+      */
+      m_size = 0;
+    }
+  }
+
+  size_t get_session_size() const { return m_size; }
+
+  size_t get_session_max() const {
+    if (m_max_session_size < m_max_local_size) {
+      return m_max_local_size;
+    }
+    return m_max_session_size;
+  }
+};
+
+struct PFS_session_all_memory_stat {
+  PFS_all_memory_stat m_controlled;
+  PFS_all_memory_stat m_total;
+
+  void reset();
+
+  void start_top_statement() {
+    m_controlled.start_top_statement();
+    m_total.start_top_statement();
+  }
+
+  void end_top_statement(size_t *controlled_size, size_t *total_size) {
+    m_controlled.end_top_statement(controlled_size);
+    m_total.end_top_statement(total_size);
+  }
+
+  void start_nested_statement(size_t *controlled_local_size_start,
+                              size_t *controlled_stmt_size_start,
+                              size_t *total_local_size_start,
+                              size_t *total_stmt_size_start) {
+    m_controlled.start_nested_statement(controlled_local_size_start,
+                                        controlled_stmt_size_start);
+    m_total.start_nested_statement(total_local_size_start,
+                                   total_stmt_size_start);
+  }
+
+  void end_nested_statement(size_t controlled_local_size_start,
+                            size_t controlled_stmt_size_start,
+                            size_t total_local_size_start,
+                            size_t total_stmt_size_start,
+                            size_t *controlled_size, size_t *total_size) {
+    m_controlled.end_nested_statement(controlled_local_size_start,
+                                      controlled_stmt_size_start,
+                                      controlled_size);
+    m_total.end_nested_statement(total_local_size_start, total_stmt_size_start,
+                                 total_size);
+  }
+
+  void count_controlled_alloc(size_t size);
+  void count_uncontrolled_alloc(size_t size);
+  void count_controlled_free(size_t size);
+  void count_uncontrolled_free(size_t size);
+};
+
 void memory_partial_aggregate(PFS_memory_safe_stat *from,
                               PFS_memory_shared_stat *stat);
 
@@ -1042,18 +1224,43 @@ void memory_monitoring_aggregate(const PFS_memory_shared_stat *from,
 
 /** Connections statistics. */
 struct PFS_connection_stat {
-  PFS_connection_stat() : m_current_connections(0), m_total_connections(0) {}
+  PFS_connection_stat()
+      : m_current_connections(0),
+        m_total_connections(0),
+        m_max_session_controlled_memory(0),
+        m_max_session_total_memory(0) {}
 
   ulonglong m_current_connections;
   ulonglong m_total_connections;
+  ulonglong m_max_session_controlled_memory;
+  ulonglong m_max_session_total_memory;
 
-  inline void aggregate_active(ulonglong active) {
+  inline void aggregate_active(ulonglong active, ulonglong controlled_memory,
+                               ulonglong total_memory) {
     m_current_connections += active;
     m_total_connections += active;
+
+    if (m_max_session_controlled_memory < controlled_memory) {
+      m_max_session_controlled_memory = controlled_memory;
+    }
+
+    if (m_max_session_total_memory < total_memory) {
+      m_max_session_total_memory = total_memory;
+    }
   }
 
-  inline void aggregate_disconnected(ulonglong disconnected) {
+  inline void aggregate_disconnected(ulonglong disconnected,
+                                     ulonglong controlled_memory,
+                                     ulonglong total_memory) {
     m_total_connections += disconnected;
+
+    if (m_max_session_controlled_memory < controlled_memory) {
+      m_max_session_controlled_memory = controlled_memory;
+    }
+
+    if (m_max_session_total_memory < total_memory) {
+      m_max_session_total_memory = total_memory;
+    }
   }
 };
 

@@ -1850,13 +1850,13 @@ struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated) {
 }
 
 #ifndef NDEBUG
-bool thd_mem_cnt_alloc(THD *thd, size_t size, const char *key_name) {
+void thd_mem_cnt_alloc(THD *thd, size_t size, const char *key_name) {
   thd->current_key_name = key_name;
-  return thd->m_mem_cnt.alloc_cnt(size);
+  thd->m_mem_cnt.alloc_cnt(size);
 }
 #else
-bool thd_mem_cnt_alloc(THD *thd, size_t size) {
-  return thd->m_mem_cnt.alloc_cnt(size);
+void thd_mem_cnt_alloc(THD *thd, size_t size) {
+  thd->m_mem_cnt.alloc_cnt(size);
 }
 #endif
 

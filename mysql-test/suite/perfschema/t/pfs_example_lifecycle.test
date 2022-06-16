@@ -10,7 +10,8 @@ INSTALL COMPONENT "file://component_pfs_example";
 select component_urn from mysql.component;
 
 --sorted_result
-select * from performance_schema.setup_instruments
+select NAME, ENABLED, TIMED, PROPERTIES, VOLATILITY, DOCUMENTATION
+  from performance_schema.setup_instruments
   where NAME like "%/pfs_example/%";
 
 --sorted_result
@@ -23,7 +24,8 @@ UNINSTALL COMPONENT "file://component_pfs_example";
 select component_urn from mysql.component;
 
 --sorted_result
-select * from performance_schema.setup_instruments
+select NAME, ENABLED, TIMED, PROPERTIES, VOLATILITY, DOCUMENTATION
+  from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
 --sorted_result
@@ -36,7 +38,8 @@ INSTALL COMPONENT "file://component_pfs_example";
 select component_urn from mysql.component;
 
 --sorted_result
-select * from performance_schema.setup_instruments
+select NAME, ENABLED, TIMED, PROPERTIES, VOLATILITY, DOCUMENTATION
+  from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
 --sorted_result
@@ -49,7 +52,8 @@ select NAME
 select component_urn from mysql.component;
 
 --sorted_result
-select * from performance_schema.setup_instruments
+select NAME, ENABLED, TIMED, PROPERTIES, VOLATILITY, DOCUMENTATION
+  from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
 --sorted_result
@@ -62,7 +66,8 @@ UNINSTALL COMPONENT "file://component_pfs_example";
 select component_urn from mysql.component;
 
 --sorted_result
-select * from performance_schema.setup_instruments
+select NAME, ENABLED, TIMED, PROPERTIES, VOLATILITY, DOCUMENTATION
+  from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
 --sorted_result
@@ -75,7 +80,8 @@ select *
 select component_urn from mysql.component;
 
 --sorted_result
-select * from performance_schema.setup_instruments
+select NAME, ENABLED, TIMED, PROPERTIES, VOLATILITY, DOCUMENTATION
+  from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
 --sorted_result

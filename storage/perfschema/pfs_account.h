@@ -123,7 +123,18 @@ struct PFS_ALIGNED PFS_account : PFS_connection_slice {
   PFS_user *m_user;
   PFS_host *m_host;
 
+  void reset_connections_stats() {
+    m_disconnected_count = 0;
+    m_max_controlled_memory = 0;
+    m_max_total_memory = 0;
+  }
+
+  void aggregate_disconnect(ulonglong controlled_memory,
+                            ulonglong total_memory);
+
   ulonglong m_disconnected_count;
+  ulonglong m_max_controlled_memory;
+  ulonglong m_max_total_memory;
 
  private:
   std::atomic<int> m_refcount;

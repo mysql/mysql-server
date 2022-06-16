@@ -1,0 +1,94 @@
+UPDATE performance_schema.setup_instruments
+SET FLAGS = '';
+UPDATE performance_schema.setup_instruments
+SET FLAGS = 'controlled'
+  WHERE NAME IN ('memory/sql/THD::sp_cache');
+SELECT * FROM performance_schema.setup_instruments
+WHERE FLAGS = 'controlled';
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/sql/THD::sp_cache	YES	NULL	controlled_by_default	controlled	0	Per session cache for stored programs.
+# Switch to (con1, localhost, root, , )
+# Switch to (con2, localhost, root, , )
+CREATE PROCEDURE test.proc_1() BEGIN
+SELECT "P1";
+END
+$$
+CREATE PROCEDURE test.proc_2a()
+BEGIN
+SELECT "P2A";
+END
+$$
+CREATE PROCEDURE test.proc_2b()
+BEGIN
+SELECT "P2B";
+END
+$$
+# Switch to connection default
+connection	check_status
+CON1	threads PASSED
+connection	check_status
+CON1	statement history PASSED
+offending_ctrl_digests	DIGEST_TEXT	MAX_CONTROLLED_MEMORY	max_ctrl
+offending_total_digests	DIGEST_TEXT	MAX_TOTAL_MEMORY	max_total
+connection	check_status
+CON2	threads PASSED
+connection	check_status
+CON2	statement history PASSED
+offending_ctrl_digests	DIGEST_TEXT	MAX_CONTROLLED_MEMORY	max_ctrl
+offending_total_digests	DIGEST_TEXT	MAX_TOTAL_MEMORY	max_total
+CALL test.proc_1();
+P1
+P1
+CALL test.proc_2a();
+P2A
+P2A
+CALL test.proc_2b();
+P2B
+P2B
+# Switch to connection default
+connection	check_status
+CON1	threads PASSED
+connection	check_status
+CON1	statement history PASSED
+offending_ctrl_digests	DIGEST_TEXT	MAX_CONTROLLED_MEMORY	max_ctrl
+offending_total_digests	DIGEST_TEXT	MAX_TOTAL_MEMORY	max_total
+connection	check_status
+CON2	threads PASSED
+connection	check_status
+CON2	statement history PASSED
+offending_ctrl_digests	DIGEST_TEXT	MAX_CONTROLLED_MEMORY	max_ctrl
+offending_total_digests	DIGEST_TEXT	MAX_TOTAL_MEMORY	max_total
+CALL test.proc_1();
+P1
+P1
+CALL test.proc_2a();
+P2A
+P2A
+CALL test.proc_2b();
+P2B
+P2B
+# Switch to connection default
+connection	check_status
+CON1	threads PASSED
+connection	check_status
+CON1	statement history PASSED
+offending_ctrl_digests	DIGEST_TEXT	MAX_CONTROLLED_MEMORY	max_ctrl
+offending_total_digests	DIGEST_TEXT	MAX_TOTAL_MEMORY	max_total
+connection	check_status
+CON2	threads PASSED
+connection	check_status
+CON2	statement history PASSED
+offending_ctrl_digests	DIGEST_TEXT	MAX_CONTROLLED_MEMORY	max_ctrl
+offending_total_digests	DIGEST_TEXT	MAX_TOTAL_MEMORY	max_total
+UPDATE performance_schema.setup_instruments
+SET FLAGS = '', ENABLED='YES';
+UPDATE performance_schema.setup_instruments
+SET FLAGS = 'controlled'
+  where (find_in_set('controlled_by_default', PROPERTIES));
+UPDATE performance_schema.setup_threads SET ENABLED = 'YES';
+UPDATE performance_schema.threads SET INSTRUMENTED = 'YES';
+DROP PROCEDURE test.verify_thread;
+DROP TABLE test.enforced;
+DROP PROCEDURE test.proc_1;
+DROP PROCEDURE test.proc_2a;
+DROP PROCEDURE test.proc_2b;

@@ -9,8 +9,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    instrumented memory are in the setup instruments
 #    table and the memory summary tables.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%GCS_XCom::xcom_cache%';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/GCS_XCom::xcom_cache	YES	NULL	global_statistics	0	Memory usage statistics for the XCom cache.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/GCS_XCom::xcom_cache	YES	NULL	global_statistics		0	Memory usage statistics for the XCom cache.
 include/assert.inc ['There should be 1 entry corresponding to the XCom cache in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE '%GCS_XCom::xcom_cache%';
 EVENT_NAME
@@ -30,8 +30,8 @@ include/stop_group_replication.inc
 # 4. Verify that the entries corresponding to the instrumented
 #    GCS memory remain in the tables after stopping GR.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%GCS_XCom::xcom_cache%';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/GCS_XCom::xcom_cache	YES	NULL	global_statistics	0	Memory usage statistics for the XCom cache.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/GCS_XCom::xcom_cache	YES	NULL	global_statistics		0	Memory usage statistics for the XCom cache.
 include/assert.inc ['There should be 1 entry corresponding to the XCom cache in the setup_instruments table after stopping GR']
 SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE '%GCS_XCom::xcom_cache%';
 EVENT_NAME	CURRENT_NUMBER_OF_BYTES_USED

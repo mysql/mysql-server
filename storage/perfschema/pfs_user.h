@@ -45,6 +45,7 @@ struct PFS_memory_stat_alloc_delta;
 struct PFS_memory_stat_free_delta;
 struct PFS_memory_shared_stat;
 struct PFS_thread;
+struct PFS_account;
 
 /**
   @addtogroup performance_schema_buffers
@@ -111,7 +112,19 @@ struct PFS_ALIGNED PFS_user : public PFS_connection_slice {
   pfs_lock m_lock;
   PFS_user_key m_key;
 
+  void reset_connections_stats() {
+    m_disconnected_count = 0;
+    m_max_controlled_memory = 0;
+    m_max_total_memory = 0;
+  }
+
+  void aggregate_stats_from(PFS_account *pfs);
+  void aggregate_disconnect(ulonglong controlled_memory,
+                            ulonglong total_memory);
+
   ulonglong m_disconnected_count;
+  ulonglong m_max_controlled_memory;
+  ulonglong m_max_total_memory;
 
  private:
   std::atomic<int> m_refcount;

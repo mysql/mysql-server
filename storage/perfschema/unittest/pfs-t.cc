@@ -255,9 +255,11 @@ static void test_bootstrap() {
   psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_1);
   ok(psi == nullptr, "no statement version 1");
   psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_2);
-  ok(psi == nullptr, "statement version 2");
+  ok(psi == nullptr, "no statement version 2");
   psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_3);
-  ok(psi != nullptr, "statement version 3");
+  ok(psi == nullptr, "no statement version 3");
+  psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_4);
+  ok(psi != nullptr, "statement version 4");
 
   psi = transaction_boot->get_interface(0);
   ok(psi == nullptr, "no transaction version 0");
@@ -401,7 +403,7 @@ static void load_perfschema(
   *stage_service =
       (PSI_stage_service_t *)stage_boot->get_interface(PSI_SOCKET_VERSION_1);
   *statement_service = (PSI_statement_service_t *)statement_boot->get_interface(
-      PSI_STATEMENT_VERSION_3);
+      PSI_CURRENT_STATEMENT_VERSION);
   *system_service =
       (PSI_system_service_t *)system_boot->get_interface(PSI_SYSTEM_VERSION_1);
   *transaction_service =
@@ -1931,7 +1933,7 @@ static void test_event_name_index() {
       (PSI_stage_service_t *)stage_boot->get_interface(PSI_STAGE_VERSION_1);
   ok(stage_service != nullptr, "stage_service");
   statement_service = (PSI_statement_service_t *)statement_boot->get_interface(
-      PSI_STATEMENT_VERSION_3);
+      PSI_CURRENT_STATEMENT_VERSION);
   ok(statement_service != nullptr, "statement_service");
   transaction_service =
       (PSI_transaction_service_t *)transaction_boot->get_interface(
@@ -2583,7 +2585,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(415);
+  plan(416);
 
   MY_INIT("pfs-t");
   do_all_tests();

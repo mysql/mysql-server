@@ -53,6 +53,8 @@ struct row_setup_instruments {
   bool m_update_enabled;
   /** True if column TIMED can be updated. */
   bool m_update_timed;
+  /** True if column FLAGS can be updated. */
+  bool m_update_flags;
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */

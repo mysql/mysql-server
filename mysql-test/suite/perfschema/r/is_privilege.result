@@ -38,6 +38,8 @@ performance_schema	accounts	USER	1
 performance_schema	accounts	HOST	2
 performance_schema	accounts	CURRENT_CONNECTIONS	3
 performance_schema	accounts	TOTAL_CONNECTIONS	4
+performance_schema	accounts	MAX_SESSION_CONTROLLED_MEMORY	5
+performance_schema	accounts	MAX_SESSION_TOTAL_MEMORY	6
 performance_schema	cond_instances	NAME	1
 performance_schema	cond_instances	OBJECT_INSTANCE_BEGIN	2
 performance_schema	setup_consumers	NAME	1

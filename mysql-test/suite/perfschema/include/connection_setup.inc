@@ -87,15 +87,15 @@ begin
     where (processlist_user is not null) and (processlist_host is not null)
     order by processlist_user;
 
-  select * from performance_schema.accounts
+  select USER, HOST, CURRENT_CONNECTIONS, TOTAL_CONNECTIONS from performance_schema.accounts
     where (user is not null) and (host is not null)
     order by user, host;
 
-  select * from performance_schema.users
+  select USER, CURRENT_CONNECTIONS, TOTAL_CONNECTIONS from performance_schema.users
     where user is not null
     order by user;
 
-  select * from performance_schema.hosts
+  select HOST, CURRENT_CONNECTIONS, TOTAL_CONNECTIONS from performance_schema.hosts
     where host is not null
     order by host;
 

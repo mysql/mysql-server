@@ -11,8 +11,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    table and the memory summary tables.
 include/start_and_bootstrap_group_replication.inc
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/message_service_received_message';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/message_service_received_message	YES	NULL	global_statistics	0	Memory used to receive messages for Group Replication: delivery message service.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/message_service_received_message	YES	NULL	global_statistics		0	Memory used to receive messages for Group Replication: delivery message service.
 include/assert.inc ['There should be 1 entry corresponding to the message_service_received_message in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/message_service_received_message';
 EVENT_NAME
@@ -51,8 +51,8 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_message_service_delete_mess
 #    message_service_received_message remain in the tables after stopping GR.
 include/stop_group_replication.inc
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/message_service_received_message';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/message_service_received_message	YES	NULL	global_statistics	0	Memory used to receive messages for Group Replication: delivery message service.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/message_service_received_message	YES	NULL	global_statistics		0	Memory used to receive messages for Group Replication: delivery message service.
 include/assert.inc ['There should be 1 entry corresponding to the message_service_received_message in the setup_instruments table after stopping GR']
 SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/message_service_received_message';
 EVENT_NAME	CURRENT_NUMBER_OF_BYTES_USED

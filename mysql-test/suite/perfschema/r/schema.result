@@ -125,6 +125,8 @@ accounts	CREATE TABLE `accounts` (
   `HOST` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
   `CURRENT_CONNECTIONS` bigint NOT NULL,
   `TOTAL_CONNECTIONS` bigint NOT NULL,
+  `MAX_SESSION_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_SESSION_TOTAL_MEMORY` bigint unsigned NOT NULL,
   UNIQUE KEY `ACCOUNT` (`USER`,`HOST`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table cond_instances;
@@ -291,6 +293,8 @@ events_statements_current	CREATE TABLE `events_statements_current` (
   `NESTING_EVENT_LEVEL` int DEFAULT NULL,
   `STATEMENT_ID` bigint unsigned DEFAULT NULL,
   `CPU_TIME` bigint unsigned NOT NULL,
+  `MAX_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_TOTAL_MEMORY` bigint unsigned NOT NULL,
   `EXECUTION_ENGINE` enum('PRIMARY','SECONDARY') DEFAULT NULL,
   PRIMARY KEY (`THREAD_ID`,`EVENT_ID`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -340,6 +344,8 @@ events_statements_history	CREATE TABLE `events_statements_history` (
   `NESTING_EVENT_LEVEL` int DEFAULT NULL,
   `STATEMENT_ID` bigint unsigned DEFAULT NULL,
   `CPU_TIME` bigint unsigned NOT NULL,
+  `MAX_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_TOTAL_MEMORY` bigint unsigned NOT NULL,
   `EXECUTION_ENGINE` enum('PRIMARY','SECONDARY') DEFAULT NULL,
   PRIMARY KEY (`THREAD_ID`,`EVENT_ID`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -389,6 +395,8 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `NESTING_EVENT_LEVEL` int DEFAULT NULL,
   `STATEMENT_ID` bigint unsigned DEFAULT NULL,
   `CPU_TIME` bigint unsigned NOT NULL,
+  `MAX_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_TOTAL_MEMORY` bigint unsigned NOT NULL,
   `EXECUTION_ENGINE` enum('PRIMARY','SECONDARY') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_summary_by_digest;
@@ -422,6 +430,8 @@ events_statements_summary_by_digest	CREATE TABLE `events_statements_summary_by_d
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `MAX_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_TOTAL_MEMORY` bigint unsigned NOT NULL,
   `COUNT_SECONDARY` bigint unsigned NOT NULL,
   `FIRST_SEEN` timestamp(6) NOT NULL,
   `LAST_SEEN` timestamp(6) NOT NULL,
@@ -463,6 +473,8 @@ events_statements_summary_by_host_by_event_name	CREATE TABLE `events_statements_
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `MAX_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_TOTAL_MEMORY` bigint unsigned NOT NULL,
   `COUNT_SECONDARY` bigint unsigned NOT NULL,
   UNIQUE KEY `HOST` (`HOST`,`EVENT_NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -496,6 +508,8 @@ events_statements_summary_by_thread_by_event_name	CREATE TABLE `events_statement
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `MAX_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_TOTAL_MEMORY` bigint unsigned NOT NULL,
   `COUNT_SECONDARY` bigint unsigned NOT NULL,
   PRIMARY KEY (`THREAD_ID`,`EVENT_NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -529,6 +543,8 @@ events_statements_summary_by_user_by_event_name	CREATE TABLE `events_statements_
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `MAX_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_TOTAL_MEMORY` bigint unsigned NOT NULL,
   `COUNT_SECONDARY` bigint unsigned NOT NULL,
   UNIQUE KEY `USER` (`USER`,`EVENT_NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -563,6 +579,8 @@ events_statements_summary_by_account_by_event_name	CREATE TABLE `events_statemen
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `MAX_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_TOTAL_MEMORY` bigint unsigned NOT NULL,
   `COUNT_SECONDARY` bigint unsigned NOT NULL,
   UNIQUE KEY `ACCOUNT` (`USER`,`HOST`,`EVENT_NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -595,6 +613,8 @@ events_statements_summary_global_by_event_name	CREATE TABLE `events_statements_s
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `MAX_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_TOTAL_MEMORY` bigint unsigned NOT NULL,
   `COUNT_SECONDARY` bigint unsigned NOT NULL,
   PRIMARY KEY (`EVENT_NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1151,6 +1171,8 @@ hosts	CREATE TABLE `hosts` (
   `HOST` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
   `CURRENT_CONNECTIONS` bigint NOT NULL,
   `TOTAL_CONNECTIONS` bigint NOT NULL,
+  `MAX_SESSION_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_SESSION_TOTAL_MEMORY` bigint unsigned NOT NULL,
   UNIQUE KEY `HOST` (`HOST`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table mutex_instances;
@@ -1262,7 +1284,8 @@ setup_instruments	CREATE TABLE `setup_instruments` (
   `NAME` varchar(128) NOT NULL,
   `ENABLED` enum('YES','NO') NOT NULL,
   `TIMED` enum('YES','NO') DEFAULT NULL,
-  `PROPERTIES` set('singleton','progress','user','global_statistics','mutable') NOT NULL,
+  `PROPERTIES` set('singleton','progress','user','global_statistics','mutable','controlled_by_default') NOT NULL,
+  `FLAGS` set('controlled') DEFAULT NULL,
   `VOLATILITY` int NOT NULL,
   `DOCUMENTATION` longtext,
   PRIMARY KEY (`NAME`)
@@ -1547,6 +1570,10 @@ threads	CREATE TABLE `threads` (
   `THREAD_OS_ID` bigint unsigned DEFAULT NULL,
   `RESOURCE_GROUP` varchar(64) DEFAULT NULL,
   `EXECUTION_ENGINE` enum('PRIMARY','SECONDARY') DEFAULT NULL,
+  `CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `TOTAL_MEMORY` bigint unsigned NOT NULL,
+  `MAX_TOTAL_MEMORY` bigint unsigned NOT NULL,
   PRIMARY KEY (`THREAD_ID`),
   KEY `PROCESSLIST_ID` (`PROCESSLIST_ID`),
   KEY `THREAD_OS_ID` (`THREAD_OS_ID`),
@@ -1561,5 +1588,7 @@ users	CREATE TABLE `users` (
   `USER` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `CURRENT_CONNECTIONS` bigint NOT NULL,
   `TOTAL_CONNECTIONS` bigint NOT NULL,
+  `MAX_SESSION_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
+  `MAX_SESSION_TOTAL_MEMORY` bigint unsigned NOT NULL,
   UNIQUE KEY `USER` (`USER`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

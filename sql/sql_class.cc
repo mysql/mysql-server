@@ -160,12 +160,13 @@ void Thd_mem_cnt::disable() {
    global memory counter.
 
    @param size   amount of memory allocated.
-
-   @returns true if memory consumption is controlled
 */
-bool Thd_mem_cnt::alloc_cnt(size_t size) {
+void Thd_mem_cnt::alloc_cnt(size_t size) {
+  mem_counter += size;
+  max_conn_mem = std::max(max_conn_mem, mem_counter);
+
   if (!m_enabled) {
-    return false;
+    return;
   }
 
   assert(!opt_initialize && m_thd != nullptr);
@@ -173,21 +174,18 @@ bool Thd_mem_cnt::alloc_cnt(size_t size) {
          !is_error_mode());
   assert(m_thd->is_killable);
 
-  mem_counter += size;
-  max_conn_mem = std::max(max_conn_mem, mem_counter);
-
 #ifndef NDEBUG
   if (is_error_mode() && fail_on_alloc(m_thd)) {
     m_thd->is_mem_cnt_error_issued = true;
-    return generate_error(ER_DA_CONN_LIMIT, m_thd->variables.conn_mem_limit,
-                          mem_counter);
+    generate_error(ER_DA_CONN_LIMIT, m_thd->variables.conn_mem_limit,
+                   mem_counter);
   }
 #endif
 
   if (mem_counter > m_thd->variables.conn_mem_limit) {
 #ifndef NDEBUG
     // Used for testing the entering to idle state
-    // after successful statement execution(see mem_cnt_common_debug.test).
+    // after successful statement execution (see mem_cnt_common_debug.test).
     if (!DBUG_EVALUATE_IF("mem_cnt_no_error_on_exec_session", 1, 0))
 #endif
       (void)generate_error(ER_DA_CONN_LIMIT, m_thd->variables.conn_mem_limit,
@@ -215,16 +213,13 @@ bool Thd_mem_cnt::alloc_cnt(size_t size) {
     if (global_conn_mem_counter_save > global_conn_mem_limit_save) {
 #ifndef NDEBUG
       // Used for testing the entering to idle state
-      // after successful statement execution(see mem_cnt_common_debug.test).
-      if (DBUG_EVALUATE_IF("mem_cnt_no_error_on_exec_global", 1, 0))
-        return true;
+      // after successful statement execution (see mem_cnt_common_debug.test).
+      if (DBUG_EVALUATE_IF("mem_cnt_no_error_on_exec_global", 1, 0)) return;
 #endif
       (void)generate_error(ER_DA_GLOBAL_CONN_LIMIT, global_conn_mem_limit_save,
                            global_conn_mem_counter_save);
     }
   }
-
-  return true;
 }
 
 /**
@@ -233,12 +228,12 @@ bool Thd_mem_cnt::alloc_cnt(size_t size) {
    @param size   amount of memory freed.
 */
 void Thd_mem_cnt::free_cnt(size_t size) {
-  if (!m_enabled) {
-    return;
+  if (mem_counter >= size) {
+    mem_counter -= size;
+  } else {
+    /* Freeing memory allocated by another. */
+    mem_counter = 0;
   }
-
-  assert(mem_counter >= size);
-  mem_counter -= size;
 }
 
 /**

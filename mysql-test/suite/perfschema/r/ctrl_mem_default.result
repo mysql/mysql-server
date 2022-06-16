@@ -1,0 +1,50 @@
+SELECT NAME FROM performance_schema.setup_instruments
+WHERE find_in_set('controlled_by_default', PROPERTIES)
+ORDER BY NAME;
+NAME
+memory/sql/bison_stack
+memory/sql/Blob_mem_storage::storage
+memory/sql/Filesort_buffer::sort_keys
+memory/sql/Filesort_info::merge
+memory/sql/Filesort_info::record_pointers
+memory/sql/hash_join
+memory/sql/IndexRangeScanIterator::mrr_buf_desc
+memory/sql/Partition::prune_exec
+memory/sql/Prepared_statement::infrastructure
+memory/sql/Prepared_statement::main_mem_root
+memory/sql/READ_INFO
+memory/sql/sp_head::call_mem_root
+memory/sql/sp_head::execute_mem_root
+memory/sql/TABLE::sort_io_cache
+memory/sql/test_quick_select
+memory/sql/THD::main_mem_root
+memory/sql/THD::sp_cache
+memory/sql/Unique::merge_buffer
+memory/sql/Unique::sort_buffer
+memory/temptable/physical_disk
+memory/temptable/physical_ram
+SELECT NAME, PROPERTIES, FLAGS FROM performance_schema.setup_instruments
+WHERE find_in_set('controlled_by_default', PROPERTIES)
+ORDER BY NAME;
+NAME	PROPERTIES	FLAGS
+memory/sql/bison_stack	controlled_by_default	controlled
+memory/sql/Blob_mem_storage::storage	controlled_by_default	controlled
+memory/sql/Filesort_buffer::sort_keys	controlled_by_default	controlled
+memory/sql/Filesort_info::merge	controlled_by_default	controlled
+memory/sql/Filesort_info::record_pointers	controlled_by_default	controlled
+memory/sql/hash_join	controlled_by_default	controlled
+memory/sql/IndexRangeScanIterator::mrr_buf_desc	controlled_by_default	controlled
+memory/sql/Partition::prune_exec	controlled_by_default	controlled
+memory/sql/Prepared_statement::infrastructure	controlled_by_default	controlled
+memory/sql/Prepared_statement::main_mem_root	controlled_by_default	controlled
+memory/sql/READ_INFO	controlled_by_default	controlled
+memory/sql/sp_head::call_mem_root	controlled_by_default	controlled
+memory/sql/sp_head::execute_mem_root	controlled_by_default	controlled
+memory/sql/TABLE::sort_io_cache	controlled_by_default	controlled
+memory/sql/test_quick_select	controlled_by_default	controlled
+memory/sql/THD::main_mem_root	controlled_by_default	controlled
+memory/sql/THD::sp_cache	controlled_by_default	controlled
+memory/sql/Unique::merge_buffer	controlled_by_default	controlled
+memory/sql/Unique::sort_buffer	controlled_by_default	controlled
+memory/temptable/physical_disk	controlled_by_default	controlled
+memory/temptable/physical_ram	controlled_by_default	controlled

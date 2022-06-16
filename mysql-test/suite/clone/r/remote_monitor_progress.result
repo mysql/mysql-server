@@ -26,14 +26,14 @@ WHERE name LIKE "%stage/innodb/clone%"
 OR name LIKE "statement/clone/%"
 OR name LIKE "wait/io/file/innodb/innodb_clone_file"
 ORDER BY NAME;
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-stage/innodb/clone (file copy)	YES	YES	progress	0	NULL
-stage/innodb/clone (page copy)	YES	YES	progress	0	NULL
-stage/innodb/clone (redo copy)	YES	YES	progress	0	NULL
-statement/clone/client	YES	YES		0	NULL
-statement/clone/local	YES	YES		0	NULL
-statement/clone/server	YES	YES		0	NULL
-wait/io/file/innodb/innodb_clone_file	YES	YES		0	NULL
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+stage/innodb/clone (file copy)	YES	YES	progress	NULL	0	NULL
+stage/innodb/clone (page copy)	YES	YES	progress	NULL	0	NULL
+stage/innodb/clone (redo copy)	YES	YES	progress	NULL	0	NULL
+statement/clone/client	YES	YES		NULL	0	NULL
+statement/clone/local	YES	YES		NULL	0	NULL
+statement/clone/server	YES	YES		NULL	0	NULL
+wait/io/file/innodb/innodb_clone_file	YES	YES		NULL	0	NULL
 SELECT *
 FROM performance_schema.setup_consumers
 WHERE name LIKE "events_statements_%" OR name LIKE "events_stages_%"

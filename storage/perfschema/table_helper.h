@@ -883,6 +883,8 @@ struct PFS_statement_stat_row {
     Expressed in DISPLAY units (picoseconds).
   */
   ulonglong m_cpu_time;
+  ulonglong m_max_controlled_memory;
+  ulonglong m_max_total_memory;
   ulonglong m_count_secondary;
 
   /** Build a row from a memory buffer. */
@@ -910,6 +912,8 @@ struct PFS_statement_stat_row {
       m_no_index_used = stat->m_no_index_used;
       m_no_good_index_used = stat->m_no_good_index_used;
       m_cpu_time = stat->m_cpu_time * NANOSEC_TO_PICOSEC;
+      m_max_controlled_memory = stat->m_max_controlled_memory;
+      m_max_total_memory = stat->m_max_total_memory;
       m_count_secondary = stat->m_count_secondary;
     } else {
       m_timer1_row.reset();
@@ -934,6 +938,8 @@ struct PFS_statement_stat_row {
       m_no_index_used = 0;
       m_no_good_index_used = 0;
       m_cpu_time = 0;
+      m_max_controlled_memory = 0;
+      m_max_total_memory = 0;
       m_count_secondary = 0;
     }
   }
@@ -1006,13 +1012,9 @@ struct PFS_error_stat_row {
 
 /** Row fragment for connection statistics. */
 struct PFS_connection_stat_row {
-  ulonglong m_current_connections;
-  ulonglong m_total_connections;
+  PFS_connection_stat m_stat;
 
-  inline void set(const PFS_connection_stat *stat) {
-    m_current_connections = stat->m_current_connections;
-    m_total_connections = stat->m_total_connections;
-  }
+  inline void set(const PFS_connection_stat *stat) { m_stat = *stat; }
 
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
@@ -1078,6 +1080,19 @@ struct PFS_memory_stat_row {
 
   /** Build a row from a memory buffer. */
   inline void set(const PFS_memory_monitoring_stat *stat) { m_stat = *stat; }
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+};
+
+struct PFS_session_all_memory_stat_row {
+  size_t m_controlled_size;
+  size_t m_max_controlled_size;
+  size_t m_total_size;
+  size_t m_max_total_size;
+
+  /** Build a row from a memory buffer. */
+  void set(const PFS_session_all_memory_stat *stat);
 
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);

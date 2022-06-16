@@ -355,6 +355,13 @@ enum enum_transaction_mode {
 #define INSTR_PROPERTIES_SET_USER (1 << 2)
 #define INSTR_PROPERTIES_SET_GLOBAL_STAT (1 << 3)
 #define INSTR_PROPERTIES_SET_MUTABLE (1 << 4)
+#define INSTR_PROPERTIES_SET_QUOTA_BY_DEFAULT (1 << 5)
+
+/* Flags exposed in setup_instruments.enforced */
+#define INSTR_FLAGS_SET_CONTROLLED (1 << 0)
+
+/* All valid flags, only INSTR_FLAGS_SET_CONTROLLED so far. */
+#define INSTR_FLAGS_MASK (1)
 
 /* Flags exposed in setup_threads.properties */
 #define THREAD_PROPERTIES_SET_SINGLETON (1 << 0)

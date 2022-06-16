@@ -583,11 +583,11 @@ void carry_global_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
   (void)stat->apply_free_delta(delta, &delta_buffer);
 }
 
-bool PFS_thread::mem_cnt_alloc(size_t size) {
+void PFS_thread::mem_cnt_alloc(size_t size) {
 #ifndef NDEBUG
-  return thd_mem_cnt_alloc(m_cnt_thd, size, current_key_name);
+  thd_mem_cnt_alloc(m_cnt_thd, size, current_key_name);
 #else
-  return thd_mem_cnt_alloc(m_cnt_thd, size);
+  thd_mem_cnt_alloc(m_cnt_thd, size);
 #endif
 }
 
@@ -716,6 +716,8 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
       snprintf(pfs->m_os_name, PFS_MAX_OS_NAME_LENGTH, "%s", klass->m_os_name);
     }
     pfs->m_os_name[PFS_MAX_OS_NAME_LENGTH - 1] = '\0';
+
+    pfs->m_session_all_memory_stat.reset();
 
     pfs->m_lock.dirty_to_allocated(&dirty_state);
   }
@@ -1936,18 +1938,25 @@ void aggregate_thread_status(PFS_thread *thread, PFS_account *safe_account,
   return;
 }
 
-static void aggregate_thread_stats(PFS_thread *, PFS_account *safe_account,
+static void aggregate_thread_stats(PFS_thread *thread,
+                                   PFS_account *safe_account,
                                    PFS_user *safe_user, PFS_host *safe_host) {
+  ulonglong controlled_memory =
+      thread->m_session_all_memory_stat.m_controlled.get_session_max();
+  ulonglong total_memory =
+      thread->m_session_all_memory_stat.m_total.get_session_max();
+
   if (likely(safe_account != nullptr)) {
-    safe_account->m_disconnected_count++;
+    safe_account->aggregate_disconnect(controlled_memory, total_memory);
+    return;
   }
 
   if (safe_user != nullptr) {
-    safe_user->m_disconnected_count++;
+    safe_user->aggregate_disconnect(controlled_memory, total_memory);
   }
 
   if (safe_host != nullptr) {
-    safe_host->m_disconnected_count++;
+    safe_host->aggregate_disconnect(controlled_memory, total_memory);
   }
 
   /* There is no global table for connections statistics. */

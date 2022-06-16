@@ -21,7 +21,8 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 SELECT @@global.binlog_cache_size;
 SELECT @@global.binlog_stmt_cache_size;
-SELECT * FROM performance_schema.setup_instruments WHERE name LIKE "%file/sql/io_cache%";
+SELECT NAME, ENABLED, TIMED, PROPERTIES, VOLATILITY, DOCUMENTATION
+  FROM performance_schema.setup_instruments WHERE name LIKE "%file/sql/io_cache%";
 
 --echo
 --echo ## Connection con1

@@ -210,6 +210,8 @@ struct PFS_instr_class {
   bool m_timed;
   /** Instrument flags. */
   uint m_flags;
+  /** Instrument enforced flags. */
+  uint m_enforced_flags;
   /** Volatility index. */
   int m_volatility;
   /**
@@ -250,7 +252,13 @@ struct PFS_instr_class {
 
   bool has_auto_seqnum() const { return m_flags & PSI_FLAG_AUTO_SEQNUM; }
 
-  bool has_memory_cnt() const { return m_flags & PSI_FLAG_MEM_COLLECT; }
+  bool has_default_memory_cnt() const { return m_flags & PSI_FLAG_MEM_COLLECT; }
+
+  bool has_enforced_memory_cnt() const {
+    return m_enforced_flags & PSI_FLAG_MEM_COLLECT;
+  }
+
+  void set_enforced_flags(uint flags) { m_enforced_flags = flags; }
 
   void enforce_valid_flags(uint allowed_flags) {
     /* Reserved for future use. */
@@ -288,6 +296,15 @@ struct PFS_instr_class {
         return false;
       default:
         return true;
+    };
+  }
+
+  bool can_be_enforced() const {
+    switch (m_type) {
+      case PFS_CLASS_MEMORY:
+        return true;
+      default:
+        return false;
     };
   }
 };

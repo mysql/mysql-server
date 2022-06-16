@@ -115,7 +115,7 @@ show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 select * from performance_schema.setup_instruments
 where name in ('error') and enabled='YES';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
 use non_existing_db;
 ERROR 42000: Unknown database 'non_existing_db'
 SELECT * from non_existing_table;

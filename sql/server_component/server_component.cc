@@ -517,11 +517,10 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_rwlock_v2),
     PROVIDES_SERVICE(performance_schema, psi_socket_v1),
     PROVIDES_SERVICE(performance_schema, psi_stage_v1),
-    /* Deprecated, use psi_statement_v2. */
-    PROVIDES_SERVICE(performance_schema, psi_statement_v1),
-    /* Deprecated, use psi_statement_v3. */
-    PROVIDES_SERVICE(performance_schema, psi_statement_v2),
-    PROVIDES_SERVICE(performance_schema, psi_statement_v3),
+    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v1), */
+    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v2), */
+    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v3), */
+    PROVIDES_SERVICE(performance_schema, psi_statement_v4),
     PROVIDES_SERVICE(performance_schema, psi_system_v1),
     PROVIDES_SERVICE(performance_schema, psi_table_v1),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v1), */

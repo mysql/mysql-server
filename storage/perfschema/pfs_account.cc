@@ -200,7 +200,7 @@ search:
 
     pfs->init_refcount();
     pfs->reset_stats();
-    pfs->m_disconnected_count = 0;
+    pfs->reset_connections_stats();
 
     if (user->length() > 0 && host->length() > 0) {
       lookup_setup_actor(thread, &key.m_user_name, &key.m_host_name,
@@ -580,27 +580,28 @@ void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
 }
 
 void PFS_account::aggregate_stats(PFS_user *safe_user, PFS_host *safe_host) {
-  if (likely(safe_user != nullptr && safe_host != nullptr)) {
-    safe_user->m_disconnected_count += m_disconnected_count;
-    safe_host->m_disconnected_count += m_disconnected_count;
-    m_disconnected_count = 0;
-    return;
-  }
-
   if (safe_user != nullptr) {
-    safe_user->m_disconnected_count += m_disconnected_count;
-    m_disconnected_count = 0;
-    return;
+    safe_user->aggregate_stats_from(this);
   }
 
   if (safe_host != nullptr) {
-    safe_host->m_disconnected_count += m_disconnected_count;
-    m_disconnected_count = 0;
-    return;
+    safe_host->aggregate_stats_from(this);
   }
 
-  m_disconnected_count = 0;
-  return;
+  reset_connections_stats();
+}
+
+void PFS_account::aggregate_disconnect(ulonglong controlled_memory,
+                                       ulonglong total_memory) {
+  m_disconnected_count++;
+
+  if (m_max_controlled_memory < controlled_memory) {
+    m_max_controlled_memory = controlled_memory;
+  }
+
+  if (m_max_total_memory < total_memory) {
+    m_max_total_memory = total_memory;
+  }
 }
 
 void PFS_account::release() { dec_refcount(); }

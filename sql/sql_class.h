@@ -255,13 +255,13 @@ class Thd_mem_cnt {
   Thd_mem_cnt() {}
   ~Thd_mem_cnt() {
     assert(!m_enabled);
-    assert(mem_counter == 0 && glob_mem_counter == 0);
+    assert(glob_mem_counter == 0);
   }
   void set_thd(THD *thd) { m_thd = thd; }
   void enable() { m_enabled = true; }
   void disable();
 
-  bool alloc_cnt(size_t size);
+  void alloc_cnt(size_t size);
   void free_cnt(size_t size);
   int reset();
   void flush();

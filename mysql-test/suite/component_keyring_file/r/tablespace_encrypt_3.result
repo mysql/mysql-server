@@ -51,10 +51,10 @@ events_stages_history	YES
 events_stages_history_long	YES
 SELECT * FROM performance_schema.setup_instruments
 WHERE NAME LIKE "%encryption%";
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-wait/synch/mutex/innodb/resume_encryption_cond_mutex	YES	YES		0	NULL
-wait/synch/cond/innodb/resume_encryption_cond	YES	YES		0	NULL
-stage/innodb/alter tablespace (encryption)	YES	YES	progress	0	NULL
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/innodb/resume_encryption_cond_mutex	YES	YES		NULL	0	NULL
+wait/synch/cond/innodb/resume_encryption_cond	YES	YES		NULL	0	NULL
+stage/innodb/alter tablespace (encryption)	YES	YES	progress	NULL	0	NULL
 select count(*) from performance_schema.events_stages_current
 WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
 count(*)

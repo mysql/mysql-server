@@ -1,0 +1,18 @@
+
+UPDATE performance_schema.setup_instruments
+  SET FLAGS = '';
+
+--source ../include/controlled_memory_setup.inc
+
+--connection con1
+
+SELECT "This is CON1.";
+
+--connection con2
+
+SELECT "This is CON2.";
+
+--source ../include/controlled_memory_dump.inc
+
+--source ../include/controlled_memory_cleanup.inc
+

@@ -9,8 +9,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    instrumented memory are in the setup instruments
 #    table and the memory summary tables.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/write_set_encoded';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/write_set_encoded	YES	NULL	global_statistics	0	Memory used to encode write set before getting broadcasted to group members.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/write_set_encoded	YES	NULL	global_statistics		0	Memory used to encode write set before getting broadcasted to group members.
 include/assert.inc ['There should be 1 entry corresponding to the write_set_encoded in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/write_set_encoded';
 EVENT_NAME
@@ -45,8 +45,8 @@ include/stop_group_replication.inc
 # 4. Verify that the entries corresponding to the instrumented
 #    write_set_encoded remain in the tables after stopping GR.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/write_set_encoded';
-NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
-memory/group_rpl/write_set_encoded	YES	NULL	global_statistics	0	Memory used to encode write set before getting broadcasted to group members.
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/write_set_encoded	YES	NULL	global_statistics		0	Memory used to encode write set before getting broadcasted to group members.
 include/assert.inc ['There should be 1 entry corresponding to the write_set_encoded in the setup_instruments table after stopping GR']
 SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/write_set_encoded';
 EVENT_NAME	CURRENT_NUMBER_OF_BYTES_USED

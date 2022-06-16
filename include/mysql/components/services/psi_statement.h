@@ -26,12 +26,12 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_statement_service.h>
 
-#define REQUIRES_PSI_STATEMENT_SERVICE REQUIRES_SERVICE(psi_statement_v3)
+#define REQUIRES_PSI_STATEMENT_SERVICE REQUIRES_SERVICE(psi_statement_v4)
 #define REQUIRES_PSI_STATEMENT_SERVICE_PLACEHOLDER \
-  REQUIRES_SERVICE_PLACEHOLDER(psi_statement_v3)
+  REQUIRES_SERVICE_PLACEHOLDER(psi_statement_v4)
 
 extern REQUIRES_PSI_STATEMENT_SERVICE_PLACEHOLDER;
 
-#define PSI_STATEMENT_CALL(M) mysql_service_psi_statement_v3->M
+#define PSI_STATEMENT_CALL(M) mysql_service_psi_statement_v4->M
 
 #endif /* COMPONENTS_SERVICES_PSI_STATEMENT_H */

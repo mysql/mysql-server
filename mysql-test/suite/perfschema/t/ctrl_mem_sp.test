@@ -1,0 +1,57 @@
+
+UPDATE performance_schema.setup_instruments
+  SET FLAGS = '';
+
+UPDATE performance_schema.setup_instruments
+  SET FLAGS = 'controlled'
+  WHERE NAME IN ('memory/sql/sp_head::call_mem_root', 'memory/sql/sp_head::execute_mem_root');
+
+SELECT * FROM performance_schema.setup_instruments
+  WHERE FLAGS = 'controlled';
+
+--source ../include/controlled_memory_setup.inc
+
+--connection con1
+
+delimiter $$;
+CREATE PROCEDURE test.proc_1() BEGIN
+  SELECT "P1";
+END
+$$
+delimiter ;$$
+
+--connection con2
+
+delimiter $$;
+CREATE PROCEDURE test.proc_2a()
+BEGIN
+  SELECT "P2A";
+END
+$$
+
+CREATE PROCEDURE test.proc_2b()
+BEGIN
+  SELECT "P2B";
+END
+$$
+delimiter ;$$
+
+--source ../include/controlled_memory_dump.inc
+
+--connection con1
+
+CALL test.proc_1();
+
+--connection con2
+
+CALL test.proc_2a();
+CALL test.proc_2b();
+
+--source ../include/controlled_memory_dump.inc
+
+--source ../include/controlled_memory_cleanup.inc
+
+DROP PROCEDURE test.proc_1;
+DROP PROCEDURE test.proc_2a;
+DROP PROCEDURE test.proc_2b;
+
