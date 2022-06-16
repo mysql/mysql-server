@@ -458,15 +458,17 @@ void Rewriter_user::rewrite_in_memory_user_application_user_metadata(
     const LEX *lex, String *str) const {
   if (lex->alter_user_attribute ==
       enum_alter_user_attribute::ALTER_USER_ATTRIBUTE) {
-    str->append(" ATTRIBUTE '");
+    str->append(" ATTRIBUTE ");
   } else if (lex->alter_user_attribute ==
              enum_alter_user_attribute::ALTER_USER_COMMENT) {
-    str->append(" COMMENT '");
+    str->append(" COMMENT ");
   }
   if (lex->alter_user_attribute !=
       enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED) {
-    str->append(lex->alter_user_comment_text);
-    str->append("'");
+    String comment_text(lex->alter_user_comment_text.str,
+                        lex->alter_user_comment_text.length,
+                        system_charset_info);
+    append_query_string(m_thd, system_charset_info, &comment_text, str);
   }
 }
 
