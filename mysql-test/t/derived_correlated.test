@@ -1093,3 +1093,20 @@ SELECT /*+ JOIN_PREFIX(tbl1, tbl2) */ * FROM t1 AS tbl1
                     (SELECT 1 FROM t2 WHERE id = tbl2.id LIMIT 10) AS d1);
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34190101: Hypergraph Assert in FindBestQueryPlan
+--echo #               on derived_condition_pushdown
+--echo #
+
+CREATE TABLE t(x INT, b BLOB);
+INSERT INTO t VALUES (0, 'zero'), (1, 'one'), (2, 'two');
+
+SELECT t3.b
+FROM
+  t AS t1,
+  t AS t2,
+  LATERAL (SELECT DISTINCT * FROM t WHERE t2.x <> 0) AS t3
+WHERE t1.x = t2.x AND t2.x = t3.x ORDER BY t3.x;
+
+DROP TABLE t;

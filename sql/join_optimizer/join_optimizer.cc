@@ -4480,6 +4480,10 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
     stream_path->cost_before_filter = stream_path->cost;
     stream_path->ordering_state = path->ordering_state;
     stream_path->safe_for_rowid = path->safe_for_rowid;
+    // Streaming paths are usually added after all filters have been applied, so
+    // we don't expect any delayed predicates. If there are any, we need to copy
+    // them into stream_path.
+    assert(IsEmpty(path->delayed_predicates));
     return stream_path;
   } else {
     // Filesort needs sort by row ID, possibly because large blobs are
@@ -4525,6 +4529,7 @@ AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
 
   EstimateMaterializeCost(thd, materialize_path);
   materialize_path->ordering_state = path->ordering_state;
+  materialize_path->delayed_predicates = path->delayed_predicates;
   return materialize_path;
 }
 
