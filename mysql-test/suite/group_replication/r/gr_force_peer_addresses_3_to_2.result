@@ -13,7 +13,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET sql_log_bin=0;
 call mtr.add_suppression("force_members can only be updated when Group Replication is running*");
 SET sql_log_bin=1;
-ERROR 42000: Variable 'group_replication_force_members' can't be set to the value of '127.0.0.1:10000'
+ERROR HY000: The 'SET GLOBAL group_replication_force_members=127.0.0.1:10000' command encountered a failure. The group_replication_force_members can only be updated when Group Replication is running and majority of the members are unreachable.
 include/assert.inc [group_replication_force_members is empty]
 
 ############################################################

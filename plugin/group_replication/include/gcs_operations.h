@@ -65,6 +65,32 @@ class Gcs_operations {
   };
 
   /**
+    @enum enum_force_members_state
+
+    This enumeration describes the return value when forces a new group
+    membership
+  */
+  enum enum_force_members_state {
+    /* OK. The forced new group membership is successful */
+    FORCE_MEMBERS_OK,
+    /* Error. The member is not ONLINE */
+    FORCE_MEMBERS_ER_MEMBER_NOT_ONLINE,
+    /*
+      Error. The member is not ONLINE and majority of the members are
+      unreachable.
+    */
+    FORCE_MEMBERS_ER_NOT_ONLINE_AND_MAJORITY_UNREACHABLE,
+    /* Error. The member is leaving the group */
+    FORCE_MEMBERS_ER_MEMBERS_WHEN_LEAVING,
+    /* Timeout on wait for view after setting group_replication_force_members */
+    FORCE_MEMBERS_ER_TIMEOUT_ON_WAIT_FOR_VIEW,
+    /* Error setting group_replication_force_members value */
+    FORCE_MEMBERS_ER_VALUE_SET_ERROR,
+    /* Internal Error while setting group_replication_force_members */
+    FORCE_MEMBERS_ER_INTERNAL_ERROR
+  };
+
+  /**
     Default constructor.
   */
   Gcs_operations();
@@ -248,10 +274,28 @@ class Gcs_operations {
                     separated. E.g., host1:port1,host2:port2
 
     @return Operation status
-      @retval 0      OK
-      @retval !=0    Error
+      @retval FORCE_MEMBERS_OK   The forced new group membership is
+                                 successful.
+      @retval FORCE_MEMBERS_ER_MEMBER_NOT_ONLINE
+                                        An error as member is not ONLINE,
+                                        when forcing a new group membership.
+      @retval FORCE_MEMBERS_NOT_ONLINE_AND_MAJORITY_UNREACHABLE
+                                        An error as member is not ONLINE and
+                                        majority of the members are
+                                        unreachable.
+      @retval FORCE_MEMBERS_ER_MEMBERS_WHEN_LEAVING
+                                        An error as member leaving group,
+                                        when forcing new group membership.
+      @retval FORCE_MEMBERS_ER_TIMEOUT_ON_WAIT_FOR_VIEW
+                                        A timeout happened when waiting for
+                                        view after setting
+                                        group_replication_force_members.
+      @retval FORCE_MEMBERS_VALUE_SET_ERROR
+                                        Error setting
+                                        group_replication_force_members value.
+      @retval FORCE_MEMBERS_INTERNAL_ERROR   Internal error.
   */
-  int force_members(const char *members);
+  enum enum_force_members_state force_members(const char *members);
 
   /**
     Retrieves the minimum supported "write concurrency" value.

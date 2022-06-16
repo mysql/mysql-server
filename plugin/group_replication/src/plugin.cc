@@ -3542,11 +3542,16 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR *, void *save,
   const char *str = nullptr;
   (*(const char **)save) = nullptr;
   int length = 0;
+  Gcs_operations::enum_force_members_state force_members_error =
+      Gcs_operations::FORCE_MEMBERS_OK;
 
   // Only one set force_members can run at a time.
   mysql_mutex_lock(&lv.force_members_running_mutex);
   if (lv.force_members_running) {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SUPPORTS_ONLY_ONE_FORCE_MEMBERS_SET);
+    my_error(ER_GROUP_REPLICATION_FORCE_MEMBERS_COMMAND_FAILURE, MYF(0),
+             "value",
+             "There is one group_replication_force_members operation "
+             "already ongoing.");
     mysql_mutex_unlock(&lv.force_members_running_mutex);
     return 1;
   }
@@ -3574,14 +3579,50 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR *, void *save,
 
   // if group replication isn't running and majority is reachable you can't
   // update force_members
-  if (!plugin_is_group_replication_running() ||
-      !group_member_mgr->is_majority_unreachable()) {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBERS_SET_UPDATE_NOT_ALLOWED);
+  if (!plugin_is_group_replication_running()) {
+    force_members_error = Gcs_operations::FORCE_MEMBERS_ER_MEMBER_NOT_ONLINE;
+  } else if (!group_member_mgr->is_majority_unreachable()) {
+    force_members_error =
+        Gcs_operations::FORCE_MEMBERS_ER_NOT_ONLINE_AND_MAJORITY_UNREACHABLE;
+  } else {
+    force_members_error = gcs_module->force_members(str);
+  }
+
+  if (force_members_error != Gcs_operations::FORCE_MEMBERS_OK) {
+    std::stringstream ss;
+    switch (force_members_error) {
+      case Gcs_operations::FORCE_MEMBERS_ER_NOT_ONLINE_AND_MAJORITY_UNREACHABLE:
+        ss << "The group_replication_force_members can only be updated when "
+           << "Group Replication is running and majority of the members are "
+           << "unreachable.";
+        break;
+      case Gcs_operations::FORCE_MEMBERS_ER_MEMBER_NOT_ONLINE:
+        ss << "Member is not ONLINE, it is not possible to force a new "
+           << "group membership.";
+        break;
+      case Gcs_operations::FORCE_MEMBERS_ER_MEMBERS_WHEN_LEAVING:
+        ss << "A request to force a new group membership was issued "
+           << "while the member is leaving the group.";
+        break;
+      case Gcs_operations::FORCE_MEMBERS_ER_TIMEOUT_ON_WAIT_FOR_VIEW:
+        ss << "Timeout on wait for view after setting "
+           << "group_replication_force_members.";
+        break;
+      case Gcs_operations::FORCE_MEMBERS_ER_VALUE_SET_ERROR:
+        ss << "Error setting group_replication_force_members value '" << str
+           << "'. Please check error log for additional details.";
+        break;
+      case Gcs_operations::FORCE_MEMBERS_ER_INTERNAL_ERROR:
+      default:
+        ss << "Please check error log for additional details.";
+        break;
+    }
+
+    my_error(ER_GROUP_REPLICATION_FORCE_MEMBERS_COMMAND_FAILURE, MYF(0), str,
+             ss.str().c_str());
     error = 1;
     goto end;
   }
-
-  if ((error = gcs_module->force_members(str))) goto end;
 
 update_value:
   *(const char **)save = str;
