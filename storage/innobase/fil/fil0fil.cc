@@ -9853,7 +9853,12 @@ dberr_t Fil_system::open_for_recovery(space_id_t space_id) {
   dberr_t err = DB_SUCCESS;
 
   if (status == FIL_LOAD_OK) {
-    if ((FSP_FLAGS_GET_ENCRYPTION(space->flags) ||
+    /* In the case of undo tablespace, even if the encryption flag is not
+    enabled in space->flags, the encryption keys needs to be restored from
+    recv_sys->keys to the corresponding fil_space_t object. */
+    const bool is_undo = fsp_is_undo_tablespace(space_id);
+
+    if ((FSP_FLAGS_GET_ENCRYPTION(space->flags) || is_undo ||
          space->encryption_op_in_progress ==
              Encryption::Progress::ENCRYPTION) &&
         recv_sys->keys != nullptr) {
