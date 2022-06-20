@@ -30,6 +30,8 @@
 #include <string>
 #include <vector>
 
+#include "mysqlrouter/router_export.h"
+
 namespace mysqlrouter {
 
 /**
@@ -56,7 +58,7 @@ namespace mysqlrouter {
  * action will not be affected). Adding a revert file action may fail if initial
  * or backup files could not be opened.
  */
-class AutoCleaner {
+class ROUTER_LIB_EXPORT AutoCleaner {
  public:
   void add_file_delete(const std::string &file);
   void add_directory_delete(const std::string &d, bool recursive = false);

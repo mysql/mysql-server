@@ -68,6 +68,7 @@
 #include "mysql/harness/process_state_component.h"
 #include "mysql/harness/sd_notify.h"
 #include "mysql/harness/stdx/monitor.h"
+#include "mysql/harness/supported_config_options.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "scope_guard.h"
 #include "utilities.h"  // make_range
@@ -117,6 +118,11 @@ static const std::array<const char *, supported_global_options_size>
                              "event_source_name"
 #endif
     };
+
+static const char kLogReopenServiceName[] = "log_reopen";
+#if defined(USE_POSIX_SIGNALS)
+static const char kSignalHandlerServiceName[] = "signal_handler";
+#endif
 
 /**
  * @defgroup Loader Plugin loader
@@ -1162,9 +1168,15 @@ void Loader::check_default_config_options_supported() {
   const bool error_out = config_.error_on_unsupported_option;
 
   for (const auto &option : default_section.get_options()) {
-    if (std::find(supported_global_options.begin(),
-                  supported_global_options.end(),
-                  option.first) != supported_global_options.end()) {
+    // this option is supported by the Loader
+    if (mysql_harness::str_in_collection(loader_supported_options,
+                                         option.first)) {
+      continue;
+    }
+
+    // this option is supported by the App{
+    if (mysql_harness::str_in_collection(supported_app_options_,
+                                         option.first)) {
       continue;
     }
 
@@ -1174,6 +1186,7 @@ void Loader::check_default_config_options_supported() {
       for (auto supported_option : make_range(
                plugin->supported_options, plugin->supported_options_length)) {
         if (supported_option != nullptr) {
+          // this option is supported by configured plugin
           if (option.first == supported_option) option_supported = true;
         }
       }

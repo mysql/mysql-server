@@ -38,6 +38,7 @@
 #include "mysql/harness/loader.h"  // PluginFuncEnv
 #include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/supported_logger_options.h"
 #include "mysql/harness/plugin.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -83,7 +84,7 @@ mysql_harness::Plugin PLUGIN_API harness_plugin_routertestplugin_logger = {
     run,      // start
     nullptr,  // stop
     true,     // declares_readiness
-    sink_supported_options.size(),
-    sink_supported_options.data(),
+    logger_sink_supported_options.size(),
+    logger_sink_supported_options.data(),
 };
 }

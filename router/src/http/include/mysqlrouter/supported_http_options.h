@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,34 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
-#define MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
+#ifndef MYSQL_ROUTER_SUPPORTED_HTTP_OPTIONS_H_INCLUDED
+#define MYSQL_ROUTER_SUPPORTED_HTTP_OPTIONS_H_INCLUDED
 
 #include <array>
 
-#include "harness_export.h"
-#include "mysql/harness/loader_config.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/logging/registry.h"
-#include "mysql/harness/plugin.h"
+static constexpr std::array<const char *, 10> http_server_supported_options{
+    "static_folder", "bind_address", "require_realm", "ssl_cert", "ssl_key",
+    "ssl_cipher",    "ssl_dh_param", "ssl_curves",    "ssl",      "port"};
 
-constexpr const char *kLoggerPluginName = "logger";
-extern mysql_harness::Plugin HARNESS_EXPORT harness_plugin_logger;
+static constexpr std::array<const char *, 4> http_auth_realm_suported_options{
+    "backend", "method", "require", "name"};
 
-/**
- * Creates the logging handler for each plugin from the configuration.
- *
- * @param config    configuration containing the plugin names we should create
- * loggers for
- * @param registry  logging registry where the logging handlers should be
- * created
- * @param level     logging level for the newly create logging handlers
- *
- * @throws std::logic_error
- */
-void HARNESS_EXPORT
-create_plugin_loggers(const mysql_harness::LoaderConfig &config,
-                      mysql_harness::logging::Registry &registry,
-                      const mysql_harness::logging::LogLevel level);
+static constexpr std::array<const char *, 2> http_backend_supported_options{
+    "backend", "filename"};
 
-#endif
+#endif /* MYSQL_ROUTER_SUPPORTED_HTTP_OPTIONS_H_INCLUDED */

@@ -52,9 +52,7 @@ ADD_HARNESS_TEST_FILE(test_certificate_handler.cc
     test-helpers
     harness_tls
     harness_stdx
-  EXTRA_SOURCES
-    ../src/certificate_handler.cc
-    ../src/certificate_generator.cc
+    router_lib
   INCLUDE_DIRS
     $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
     ../src/
@@ -212,19 +210,12 @@ SET_TARGET_PROPERTIES(
   PROPERTIES
   COMPILE_DEFINITIONS ROUTER_LIB_STATIC_DEFINE=1)
 
-STATICLIB_FROM_TARGET(router_lib_export_all
-  router_lib)
-TARGET_COMPILE_DEFINITIONS(
-  router_lib_export_all
-  PUBLIC
-    ROUTER_LIB_STATIC_DEFINE=1
-  )
-
 ADD_HARNESS_TEST_FILE(test_config_generator.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
     test-helpers
-    router_lib_export_all
+    router_lib
+    router_frontend_lib
   EXTRA_SOURCES
     ../../../tests/helpers/filesystem_utils.cc
     ../../../tests/helpers/mysql_session_replayer.cc
@@ -232,16 +223,13 @@ ADD_HARNESS_TEST_FILE(test_config_generator.cc
     ../../../tests/helpers/
     ../src/
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
-SET_TARGET_PROPERTIES(
-  routertest_${TEST_MODULE}_config_generator
-  PROPERTIES
-  COMPILE_DEFINITIONS ROUTER_LIB_STATIC_DEFINE=1)
 
 ADD_HARNESS_TEST_FILE(test_mysqlrouter_app.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
     test-helpers
-    router_lib_export_all
+    router_lib
+    router_frontend_lib
   EXTRA_SOURCES
     ../../../tests/helpers/filesystem_utils.cc
     ../../../tests/helpers/mysql_session_replayer.cc
@@ -254,7 +242,7 @@ ADD_HARNESS_TEST_FILE(test_keyring_frontend.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
     test-helpers
-    router_lib_export_all
+    router_lib
   EXTRA_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/keyring_frontend.cc
   INCLUDE_DIRS
@@ -270,7 +258,9 @@ FOREACH(test_file
     MODULE issues
     LIB_DEPENDS
       test-helpers
-      router_lib_export_all
+      router_lib
+      router_frontend_lib
+    EXTRA_SOURCES
     INCLUDE_DIRS
       ../src/
     SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}

@@ -30,6 +30,7 @@
 #include "consolelog_plugin.h"
 #include "dim.h"
 #include "filelog_plugin.h"
+#include "mysql/harness/logging/supported_logger_options.h"
 #include "mysql/harness/string_utils.h"
 #include "mysql/harness/utility/string.h"  // join
 
@@ -75,20 +76,7 @@ static inline bool legal_consolelog_destination(
 
   return true;
 }
-
-const std::array<const char *, 4> sink_supported_options = {
-    {mysql_harness::logging::kConfigOptionLogFilename,
-     mysql_harness::logging::kConfigOptionLogDestination,
-     mysql_harness::logging::kConfigOptionLogLevel,
-     mysql_harness::logging::kConfigOptionLogTimestampPrecision}};
-
 namespace {
-
-static const std::array<const char *, 5> logger_supported_options = {
-    {"sinks", mysql_harness::logging::kConfigOptionLogFilename,
-     mysql_harness::logging::kConfigOptionLogDestination,
-     mysql_harness::logging::kConfigOptionLogLevel,
-     mysql_harness::logging::kConfigOptionLogTimestampPrecision}};
 
 HandlerPtr create_logging_sink(
     const std::string &sink_name, const mysql_harness::LoaderConfig &config,

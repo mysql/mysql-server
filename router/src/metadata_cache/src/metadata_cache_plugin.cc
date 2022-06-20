@@ -41,6 +41,7 @@
 #include "mysql/harness/utility/string.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 #include "mysqlrouter/mysql_session.h"  // kSslModePreferred
+#include "mysqlrouter/supported_metadata_cache_options.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
 #include "plugin_config.h"
@@ -110,18 +111,23 @@ static std::string get_option(const mysql_harness::ConfigSection *section,
   return def_value;
 }
 
+#define GET_OPTION_CHECKED(option, section, name, def_value) \
+  static_assert(mysql_harness::str_in_collection(            \
+      metadata_cache_supported_options, name));              \
+  option = get_option(section, name, def_value);
+
 static mysqlrouter::SSLOptions make_ssl_options(
     const mysql_harness::ConfigSection *section) {
   mysqlrouter::SSLOptions options;
 
-  options.mode = get_option(section, "ssl_mode",
-                            mysqlrouter::MySQLSession::kSslModePreferred);
-  options.cipher = get_option(section, "ssl_cipher", "");
-  options.tls_version = get_option(section, "tls_version", "");
-  options.ca = get_option(section, "ssl_ca", "");
-  options.capath = get_option(section, "ssl_capath", "");
-  options.crl = get_option(section, "ssl_crl", "");
-  options.crlpath = get_option(section, "ssl_crlpath", "");
+  GET_OPTION_CHECKED(options.mode, section, "ssl_mode",
+                     mysqlrouter::MySQLSession::kSslModePreferred);
+  GET_OPTION_CHECKED(options.cipher, section, "ssl_cipher", "");
+  GET_OPTION_CHECKED(options.tls_version, section, "tls_version", "");
+  GET_OPTION_CHECKED(options.ca, section, "ssl_ca", "");
+  GET_OPTION_CHECKED(options.capath, section, "ssl_capath", "");
+  GET_OPTION_CHECKED(options.crl, section, "ssl_crl", "");
+  GET_OPTION_CHECKED(options.crlpath, section, "ssl_crlpath", "");
 
   return options;
 }

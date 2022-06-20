@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,34 +22,41 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
-#define MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
+#ifndef MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED
+#define MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED
 
 #include <array>
+#include <string_view>
 
-#include "harness_export.h"
-#include "mysql/harness/loader_config.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/logging/registry.h"
-#include "mysql/harness/plugin.h"
+static constexpr std::array<const char *, 29> routing_supported_options{
+    "protocol",
+    "destinations",
+    "bind_port",
+    "bind_address",
+    "socket",
+    "connect_timeout",
+    "mode",
+    "routing_strategy",
+    "max_connect_errors",
+    "max_connections",
+    "client_connect_timeout",
+    "net_buffer_length",
+    "thread_stack_size",
+    "client_ssl_mode",
+    "client_ssl_cert",
+    "client_ssl_key",
+    "client_ssl_cipher",
+    "client_ssl_curves",
+    "client_ssl_dh_params",
+    "server_ssl_mode",
+    "server_ssl_verify",
+    "disabled",
+    "server_ssl_cipher",
+    "server_ssl_ca",
+    "server_ssl_capath",
+    "server_ssl_crl",
+    "server_ssl_crlpath",
+    "server_ssl_curves",
+    "unreachable_destination_refresh_interval"};
 
-constexpr const char *kLoggerPluginName = "logger";
-extern mysql_harness::Plugin HARNESS_EXPORT harness_plugin_logger;
-
-/**
- * Creates the logging handler for each plugin from the configuration.
- *
- * @param config    configuration containing the plugin names we should create
- * loggers for
- * @param registry  logging registry where the logging handlers should be
- * created
- * @param level     logging level for the newly create logging handlers
- *
- * @throws std::logic_error
- */
-void HARNESS_EXPORT
-create_plugin_loggers(const mysql_harness::LoaderConfig &config,
-                      mysql_harness::logging::Registry &registry,
-                      const mysql_harness::logging::LogLevel level);
-
-#endif
+#endif /* MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED */

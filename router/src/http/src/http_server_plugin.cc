@@ -60,6 +60,7 @@
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_common.h"
 #include "mysqlrouter/http_server_component.h"
+#include "mysqlrouter/supported_http_options.h"
 #include "static_files.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -424,6 +425,11 @@ void HttpServer::remove_route(const std::string &url_regex) {
 using mysql_harness::IntOption;
 using mysql_harness::StringOption;
 
+#define GET_OPTION_CHECKED(option, section, name, value)                      \
+  static_assert(                                                              \
+      mysql_harness::str_in_collection(http_server_supported_options, name)); \
+  option = get_option(section, name, value);
+
 class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string static_basedir;
@@ -438,17 +444,19 @@ class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
   uint16_t srv_port;
 
   explicit HttpServerPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysql_harness::BasePluginConfig(section),
-        static_basedir(get_option(section, "static_folder", StringOption{})),
-        srv_address(get_option(section, "bind_address", StringOption{})),
-        require_realm(get_option(section, "require_realm", StringOption{})),
-        ssl_cert(get_option(section, "ssl_cert", StringOption{})),
-        ssl_key(get_option(section, "ssl_key", StringOption{})),
-        ssl_cipher(get_option(section, "ssl_cipher", StringOption{})),
-        ssl_dh_params(get_option(section, "ssl_dh_param", StringOption{})),
-        ssl_curves(get_option(section, "ssl_curves", StringOption{})),
-        with_ssl(get_option(section, "ssl", IntOption<bool>{})),
-        srv_port(get_option(section, "port", IntOption<uint16_t>{})) {}
+      : mysql_harness::BasePluginConfig(section) {
+    GET_OPTION_CHECKED(static_basedir, section, "static_folder",
+                       StringOption{});
+    GET_OPTION_CHECKED(srv_address, section, "bind_address", StringOption{});
+    GET_OPTION_CHECKED(require_realm, section, "require_realm", StringOption{});
+    GET_OPTION_CHECKED(ssl_cert, section, "ssl_cert", StringOption{});
+    GET_OPTION_CHECKED(ssl_key, section, "ssl_key", StringOption{});
+    GET_OPTION_CHECKED(ssl_cipher, section, "ssl_cipher", StringOption{});
+    GET_OPTION_CHECKED(ssl_dh_params, section, "ssl_dh_param", StringOption{});
+    GET_OPTION_CHECKED(ssl_curves, section, "ssl_curves", StringOption{});
+    GET_OPTION_CHECKED(with_ssl, section, "ssl", IntOption<bool>{});
+    GET_OPTION_CHECKED(srv_port, section, "port", IntOption<uint16_t>{});
+  }
 
   std::string get_default_ciphers() const {
     return mysql_harness::join(TlsServerContext::default_ciphers(), ":");
@@ -667,10 +675,6 @@ static const std::array<const char *, 3> required = {{
     "router_protobuf",
 }};
 
-static const std::array<const char *, 10> supported_options{
-    "static_folder", "bind_address", "require_realm", "ssl_cert", "ssl_key",
-    "ssl_cipher",    "ssl_dh_param", "ssl_curves",    "ssl",      "port"};
-
 extern "C" {
 mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
@@ -688,7 +692,7 @@ mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
-    supported_options.size(),
-    supported_options.data(),
+    http_server_supported_options.size(),
+    http_server_supported_options.data(),
 };
 }

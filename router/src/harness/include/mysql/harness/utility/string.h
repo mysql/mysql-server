@@ -151,6 +151,14 @@ std::string join(Container cont, const std::string &delim) {
   return detail::Join<Container, typename Container::value_type>::impl(cont,
                                                                        delim);
 }
+/* Checks that given string belongs to the collection of strings */
+template <class T>
+constexpr bool str_in_collection(const T &t, const std::string_view &k) {
+  for (auto v : t) {
+    if (v == k) return true;
+  }
+  return false;
+}
 
 }  // namespace mysql_harness
 

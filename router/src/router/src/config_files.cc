@@ -28,7 +28,6 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/utility/string.h"
 #include "mysqlrouter/config_files.h"
-#include "router_app.h"
 
 std::string use_ini_extension(const std::string &file_name) {
   auto pos = file_name.find_last_of(".conf");

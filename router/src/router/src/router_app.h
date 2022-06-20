@@ -71,7 +71,7 @@ class ConfigFiles;
  *     }
  *
  */
-class ROUTER_LIB_EXPORT MySQLRouter {
+class MySQLRouter {
  public:
   /** @brief Default constructor
    *

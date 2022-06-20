@@ -51,7 +51,7 @@ using perm_mode = mode_t;
 using perm_mode = int;
 #endif
 /** @brief Constant for directory accessible only for the owner */
-extern const perm_mode kStrictDirectoryPerm;
+extern const perm_mode ROUTER_LIB_EXPORT kStrictDirectoryPerm;
 
 // Some (older) compiler have no std::to_string available
 template <typename T>
@@ -80,7 +80,7 @@ ms_to_seconds_string(const std::chrono::milliseconds &msec);
  * @param data string containing the TCP port number
  * @return uint16_t the TCP port number
  */
-uint16_t get_tcp_port(const std::string &data);
+uint16_t ROUTER_LIB_EXPORT get_tcp_port(const std::string &data);
 
 /** @brief Dumps buffer as hex values
  *
@@ -154,7 +154,8 @@ bool my_check_access(const std::string &path);
  *
  * Exception thrown if open, create read or write operation fails.
  */
-void copy_file(const std::string &from, const std::string &to);
+void ROUTER_LIB_EXPORT copy_file(const std::string &from,
+                                 const std::string &to);
 
 /**
  * renames file.
@@ -166,8 +167,8 @@ void copy_file(const std::string &from, const std::string &to);
  *
  * @returns stdx::expected<void, std::error_code>
  */
-stdx::expected<void, std::error_code> rename_file(const std::string &from,
-                                                  const std::string &to);
+stdx::expected<void, std::error_code> ROUTER_LIB_EXPORT
+rename_file(const std::string &from, const std::string &to);
 
 /** @brief Returns whether the socket name passed as parameter is valid
  */

@@ -38,6 +38,7 @@
 
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/rest_api_component.h"
+#include "mysqlrouter/supported_rest_options.h"
 
 #include "rest_clusters_list.h"
 #include "rest_clusters_nodes.h"
@@ -48,13 +49,18 @@ IMPORT_LOG_FUNCTIONS()
 
 using namespace std::string_literals;
 
-static const char kSectionName[]{"rest_metadata_cache"};
-static const char kRequireRealm[]{"require_realm"};
+static constexpr char kSectionName[]{"rest_metadata_cache"};
+static constexpr char kRequireRealm[]{"require_realm"};
 
 // one shared setting
 std::string require_realm_metadata_cache;
 
 using StringOption = mysql_harness::StringOption;
+
+#define GET_OPTION_CHECKED(option, section, name, value)                      \
+  static_assert(                                                              \
+      mysql_harness::str_in_collection(rest_plugin_supported_options, name)); \
+  option = get_option(section, name, value);
 
 class RestMetadataCachePluginConfig : public mysql_harness::BasePluginConfig {
  public:
@@ -62,8 +68,9 @@ class RestMetadataCachePluginConfig : public mysql_harness::BasePluginConfig {
 
   explicit RestMetadataCachePluginConfig(
       const mysql_harness::ConfigSection *section)
-      : mysql_harness::BasePluginConfig(section),
-        require_realm(get_option(section, kRequireRealm, StringOption{})) {}
+      : mysql_harness::BasePluginConfig(section) {
+    GET_OPTION_CHECKED(require_realm, section, kRequireRealm, StringOption{});
+  }
 
   std::string get_default(const std::string & /* option */) const override {
     return {};
@@ -854,8 +861,6 @@ static const std::array<const char *, 2> required = {{
     "rest_api",
 }};
 
-static const std::array<const char *, 1> supported_options{kRequireRealm};
-
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_metadata_cache = {
     mysql_harness::PLUGIN_ABI_VERSION,
@@ -873,7 +878,7 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_metadata_cache = {
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
-    supported_options.size(),
-    supported_options.data(),
+    rest_plugin_supported_options.size(),
+    rest_plugin_supported_options.data(),
 };
 }

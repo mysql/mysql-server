@@ -61,10 +61,18 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/dynamic_state.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/supported_logger_options.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/supported_config_options.h"
+#include "mysql/harness/utility/string.h"
 #include "mysql/harness/vt100.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/default_paths.h"
+#include "mysqlrouter/supported_http_options.h"
+#include "mysqlrouter/supported_metadata_cache_options.h"
+#include "mysqlrouter/supported_rest_options.h"
+#include "mysqlrouter/supported_router_options.h"
+#include "mysqlrouter/supported_routing_options.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
 #include "random_generator.h"
@@ -2128,19 +2136,29 @@ class ConfigSectionPrinter {
 
 /*static*/ std::set<std::string> ConfigSectionPrinter::used_sections_;
 
-void add_endpoint_option(ConfigSectionPrinter &config_section_printer,
+using mysql_harness::loader_supported_options;
+
+#define ADD_CONFIG_LINE_CHECKED(section, option, value, supported_options)    \
+  static_assert(mysql_harness::str_in_collection(supported_options, option)); \
+  section.add_line(option, value);
+
+void add_endpoint_option(ConfigSectionPrinter &routing_section,
                          const ConfigGenerator::Options &options,
                          const ConfigGenerator::Options::Endpoint &ep) {
   if (ep.port > 0) {
-    auto bind_address =
+    const auto bind_address =
         (!options.bind_address.empty()) ? options.bind_address : "0.0.0.0";
-    config_section_printer.add_line("bind_address", bind_address);
-    config_section_printer.add_line("bind_port", std::to_string(ep.port));
+
+    ADD_CONFIG_LINE_CHECKED(routing_section, "bind_address", bind_address,
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(routing_section, "bind_port",
+                            std::to_string(ep.port), routing_supported_options);
   }
 
   if (!ep.socket.empty()) {
-    config_section_printer.add_line("socket",
-                                    options.socketsdir + "/" + ep.socket);
+    const auto socket = options.socketsdir + "/" + ep.socket;
+    ADD_CONFIG_LINE_CHECKED(routing_section, "socket", socket,
+                            routing_supported_options);
   }
 }
 
@@ -2161,14 +2179,17 @@ void add_metadata_cache_routing_section(
   // kept for backward compatibility, always empty
   const std::string metadata_replicaset{""};
 
-  ConfigSectionPrinter section_printer(config_file, config_cmdln_options,
+  ConfigSectionPrinter routing_section(config_file, config_cmdln_options,
                                        "routing:" + metadata_key + key_suffix);
-  add_endpoint_option(section_printer, options, endpoint);
-  section_printer
-      .add_line("destinations", "metadata-cache://" + cluster_name + "/" +
-                                    metadata_replicaset + "?role=" + role)
-      .add_line("routing_strategy", strategy)
-      .add_line("protocol", protocol);
+  add_endpoint_option(routing_section, options, endpoint);
+  const auto destinations = "metadata-cache://" + cluster_name + "/" +
+                            metadata_replicaset + "?role=" + role;
+  ADD_CONFIG_LINE_CHECKED(routing_section, "destinations", destinations,
+                          routing_supported_options);
+  ADD_CONFIG_LINE_CHECKED(routing_section, "routing_strategy", strategy,
+                          routing_supported_options);
+  ADD_CONFIG_LINE_CHECKED(routing_section, "protocol", protocol,
+                          routing_supported_options);
 }
 
 /**
@@ -2189,12 +2210,13 @@ static void add_http_auth_backend_section(
     const std::string_view auth_backend_name,
     const mysqlrouter::MetadataSchemaVersion schema_version,
     const std::map<std::string, std::string> &config_cmdln_options) {
-  ConfigSectionPrinter section_printer{
+  ConfigSectionPrinter http_backend_section{
       config_file, config_cmdln_options,
       "http_auth_backend:" + std::string(auth_backend_name)};
   if (metadata_schema_version_is_compatible(kNewMetadataVersion,
                                             schema_version)) {
-    section_printer.add_line("backend", "metadata_cache");
+    ADD_CONFIG_LINE_CHECKED(http_backend_section, "backend", "metadata_cache",
+                            http_backend_supported_options);
   } else {
     const auto auth_backend_passwd_file =
         datadir.join("auth_backend_passwd_file").str();
@@ -2204,9 +2226,11 @@ static void add_http_auth_backend_section(
                   auth_backend_passwd_file.c_str(),
                   open_res.error().message().c_str());
     }
-
-    section_printer.add_line("backend", "file")
-        .add_line("filename", auth_backend_passwd_file);
+    ADD_CONFIG_LINE_CHECKED(http_backend_section, "backend", "file",
+                            http_backend_supported_options);
+    ADD_CONFIG_LINE_CHECKED(http_backend_section, "filename",
+                            auth_backend_passwd_file,
+                            http_backend_supported_options);
   }
 }
 
@@ -2226,31 +2250,62 @@ void add_rest_section(
   else
     datadir_path = mysql_harness::Path(default_paths.at("data_folder"));
 
-  ConfigSectionPrinter(config_file, config_cmdln_options, "http_server")
-      .add_line("port", options.https_port_str)
-      .add_line("ssl", "1")
-      .add_line("ssl_cert", datadir_path.real_path().join(ssl_cert).str())
-      .add_line("ssl_key", datadir_path.real_path().join(ssl_key).str());
+  {
+    ConfigSectionPrinter http_server_section(config_file, config_cmdln_options,
+                                             "http_server");
+    ADD_CONFIG_LINE_CHECKED(http_server_section, "port", options.https_port_str,
+                            http_server_supported_options);
+    ADD_CONFIG_LINE_CHECKED(http_server_section, "ssl", "1",
+                            http_server_supported_options);
+    ADD_CONFIG_LINE_CHECKED(http_server_section, "ssl_cert",
+                            datadir_path.real_path().join(ssl_cert).str(),
+                            http_server_supported_options);
+    ADD_CONFIG_LINE_CHECKED(http_server_section, "ssl_key",
+                            datadir_path.real_path().join(ssl_key).str(),
+                            http_server_supported_options);
+  }
 
-  ConfigSectionPrinter(config_file, config_cmdln_options,
-                       "http_auth_realm:" + auth_realm_name)
-      .add_line("backend", auth_backend_name)
-      .add_line("method", "basic")
-      .add_line("name", "default_realm");
+  {
+    ConfigSectionPrinter http_auth_realm_section(
+        config_file, config_cmdln_options,
+        "http_auth_realm:" + auth_realm_name);
+    ADD_CONFIG_LINE_CHECKED(http_auth_realm_section, "backend",
+                            auth_backend_name,
+                            http_auth_realm_suported_options);
+    ADD_CONFIG_LINE_CHECKED(http_auth_realm_section, "method", "basic",
+                            http_auth_realm_suported_options);
+    ADD_CONFIG_LINE_CHECKED(http_auth_realm_section, "name", "default_realm",
+                            http_auth_realm_suported_options);
+  }
 
-  ConfigSectionPrinter(config_file, config_cmdln_options, "rest_router")
-      .add_line("require_realm", auth_realm_name);
+  {
+    ConfigSectionPrinter rest_router_section(config_file, config_cmdln_options,
+                                             "rest_router");
+    ADD_CONFIG_LINE_CHECKED(rest_router_section, "require_realm",
+                            auth_realm_name, rest_plugin_supported_options);
+  }
 
-  ConfigSectionPrinter(config_file, config_cmdln_options, "rest_api");
+  {
+    ConfigSectionPrinter rest_api_section(config_file, config_cmdln_options,
+                                          "rest_api");
+  }
 
   add_http_auth_backend_section(config_file, datadir_path, auth_backend_name,
                                 schema_version, config_cmdln_options);
 
-  ConfigSectionPrinter(config_file, config_cmdln_options, "rest_routing")
-      .add_line("require_realm", auth_realm_name);
+  {
+    ConfigSectionPrinter rest_routing_section(config_file, config_cmdln_options,
+                                              "rest_routing");
+    ADD_CONFIG_LINE_CHECKED(rest_routing_section, "require_realm",
+                            auth_realm_name, rest_plugin_supported_options);
+  }
 
-  ConfigSectionPrinter(config_file, config_cmdln_options, "rest_metadata_cache")
-      .add_line("require_realm", auth_realm_name);
+  {
+    ConfigSectionPrinter rest_metadata_cache_section(
+        config_file, config_cmdln_options, "rest_metadata_cache");
+    ADD_CONFIG_LINE_CHECKED(rest_metadata_cache_section, "require_realm",
+                            auth_realm_name, rest_plugin_supported_options);
+  }
 }
 
 }  // namespace
@@ -2289,79 +2344,160 @@ void ConfigGenerator::create_config(
   config_file << "# File automatically generated during MySQL Router bootstrap"
               << "\n";
 
-  ConfigSectionPrinter(config_file, config_cmdln_options, "DEFAULT")
-      .add_line("name", router_name)
-      .add_line("user", system_username)
-      .add_line("logging_folder", options.override_logdir)
-      .add_line("runtime_folder", options.override_rundir)
-      .add_line("data_folder", options.override_datadir)
-      .add_line("keyring_path", options.keyring_file_path)
-      .add_line("master_key_path", options.keyring_master_key_file_path)
-      .add_line("master_key_reader", keyring_info_.get_master_key_reader())
-      .add_line("master_key_writer", keyring_info_.get_master_key_writer())
-      .add_line("connect_timeout", std::to_string(connect_timeout_))
-      .add_line("read_timeout", std::to_string(read_timeout_))
-      .add_line("dynamic_state", state_file_name)
-      .add_line("client_ssl_cert", options.client_ssl_cert)
-      .add_line("client_ssl_key", options.client_ssl_key)
-      .add_line("client_ssl_cipher", options.client_ssl_cipher)
-      .add_line("client_ssl_curves", options.client_ssl_curves)
-      .add_line("client_ssl_mode", options.client_ssl_mode)
-      .add_line("client_ssl_dh_params", options.client_ssl_dh_params)
-      .add_line("server_ssl_ca", options.server_ssl_ca)
-      .add_line("server_ssl_capath", options.server_ssl_capath)
-      .add_line("server_ssl_crl", options.server_ssl_crl)
-      .add_line("server_ssl_crlpath", options.server_ssl_crlpath)
-      .add_line("server_ssl_cipher", options.server_ssl_cipher)
-      .add_line("server_ssl_curves", options.server_ssl_curves)
-      .add_line("server_ssl_mode", options.server_ssl_mode)
-      .add_line("server_ssl_verify", options.server_ssl_verify)
-      .add_line("unknown_config_option", "error");
+  {
+    // Add the DEFAULT section options. For each check if Loader's checker
+    // has them registered as allowed options.
+    ConfigSectionPrinter default_section(config_file, config_cmdln_options,
+                                         "DEFAULT");
+    ADD_CONFIG_LINE_CHECKED(default_section, "name", router_name,
+                            router_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "user", system_username,
+                            router_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "logging_folder",
+                            options.override_logdir, loader_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "runtime_folder",
+                            options.override_rundir, loader_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "data_folder",
+                            options.override_datadir, loader_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "keyring_path",
+                            options.keyring_file_path,
+                            router_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "master_key_path",
+                            options.keyring_master_key_file_path,
+                            router_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "master_key_reader",
+                            keyring_info_.get_master_key_reader(),
+                            router_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "master_key_writer",
+                            keyring_info_.get_master_key_writer(),
+                            router_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "connect_timeout",
+                            std::to_string(connect_timeout_),
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "read_timeout",
+                            std::to_string(read_timeout_),
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "dynamic_state", state_file_name,
+                            router_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_cert",
+                            options.client_ssl_cert, routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_key",
+                            options.client_ssl_key, routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_cipher",
+                            options.client_ssl_cipher,
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_curves",
+                            options.client_ssl_curves,
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_mode",
+                            options.client_ssl_mode, routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_dh_params",
+                            options.client_ssl_dh_params,
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_ca",
+                            options.server_ssl_ca, routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_capath",
+                            options.server_ssl_capath,
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_crl",
+                            options.server_ssl_crl, routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_crlpath",
+                            options.server_ssl_crlpath,
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_cipher",
+                            options.server_ssl_cipher,
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_curves",
+                            options.server_ssl_curves,
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_mode",
+                            options.server_ssl_mode, routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_verify",
+                            options.server_ssl_verify,
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "unknown_config_option", "error",
+                            loader_supported_options);
+  }
 
   save_initial_dynamic_state(state_file, *metadata_.get(), cluster_specific_id_,
                              cluster_info.metadata_servers);
 
-  ConfigSectionPrinter(config_file, config_cmdln_options,
-                       mysql_harness::logging::kConfigSectionLogger)
-      .add_line(mysql_harness::logging::kConfigOptionLogLevel, "INFO")
-      .add_line("filename", options.override_logfilename);
+  {
+    ConfigSectionPrinter logger_section(
+        config_file, config_cmdln_options,
+        mysql_harness::logging::kConfigSectionLogger);
+    ADD_CONFIG_LINE_CHECKED(logger_section, "level", "INFO",
+                            logger_supported_options);
+    ADD_CONFIG_LINE_CHECKED(logger_section, "filename",
+                            options.override_logfilename,
+                            logger_supported_options);
+  }
 
   {
-    ConfigSectionPrinter metadata_section_printer(
+    ConfigSectionPrinter metadata_cache_section(
         config_file, config_cmdln_options,
         "metadata_cache:" + kDefaultMetadataCacheSectionKey);
 
-    metadata_section_printer
-        .add_line("cluster_type", mysqlrouter::to_string(metadata_->get_type()))
-        .add_line("router_id", std::to_string(router_id))
-        .add_line("user", username);
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "cluster_type",
+                            mysqlrouter::to_string(metadata_->get_type()),
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "router_id",
+                            std::to_string(router_id),
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "user", username,
+                            metadata_cache_supported_options);
 
     if (mysqlrouter::ClusterType::GR_CS != metadata_->get_type()) {
-      metadata_section_printer.add_line("metadata_cluster", cluster_info.name);
+      ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "metadata_cluster",
+                              cluster_info.name,
+                              metadata_cache_supported_options);
     }
 
-    metadata_section_printer
-        .add_line("ttl", mysqlrouter::ms_to_seconds_string(options.ttl))
-        .add_line("auth_cache_ttl",
-                  mysqlrouter::ms_to_seconds_string(kDefaultAuthCacheTTL))
-        .add_line("auth_cache_refresh_interval",
-                  mysqlrouter::ms_to_seconds_string(
-                      kDefaultAuthCacheRefreshInterval > options.ttl
-                          ? kDefaultAuthCacheRefreshInterval
-                          : options.ttl));
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "ttl",
+                            mysqlrouter::ms_to_seconds_string(options.ttl),
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(
+        metadata_cache_section, "auth_cache_ttl",
+        mysqlrouter::ms_to_seconds_string(kDefaultAuthCacheTTL),
+        metadata_cache_supported_options);
+
+    const auto auth_cache_refresh_interval = mysqlrouter::ms_to_seconds_string(
+        kDefaultAuthCacheRefreshInterval > options.ttl
+            ? kDefaultAuthCacheRefreshInterval
+            : options.ttl);
+    ADD_CONFIG_LINE_CHECKED(
+        metadata_cache_section, "auth_cache_refresh_interval",
+        auth_cache_refresh_interval, metadata_cache_supported_options);
 
     if (mysqlrouter::ClusterType::RS_V2 != metadata_->get_type()) {
-      metadata_section_printer.add_line(
-          "use_gr_notifications", options.use_gr_notifications ? "1" : "0");
+      const auto use_gr_notifications =
+          options.use_gr_notifications ? "1" : "0";
+      ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "use_gr_notifications",
+                              use_gr_notifications,
+                              metadata_cache_supported_options);
     }
 
-    metadata_section_printer.add_line("ssl_mode", options.ssl_options.mode)
-        .add_line("ssl_cipher", options.ssl_options.cipher)
-        .add_line("tls_version", options.ssl_options.tls_version)
-        .add_line("ssl_ca", options.ssl_options.ca)
-        .add_line("ssl_capath", options.ssl_options.capath)
-        .add_line("ssl_crl", options.ssl_options.crl)
-        .add_line("ssl_crlpath", options.ssl_options.crlpath);
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "ssl_mode",
+                            options.ssl_options.mode,
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "ssl_cipher",
+                            options.ssl_options.cipher,
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "tls_version",
+                            options.ssl_options.tls_version,
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "ssl_ca",
+                            options.ssl_options.ca,
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "ssl_capath",
+                            options.ssl_options.capath,
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "ssl_crl",
+                            options.ssl_options.crl,
+                            metadata_cache_supported_options);
+    ADD_CONFIG_LINE_CHECKED(metadata_cache_section, "ssl_crlpath",
+                            options.ssl_options.crlpath,
+                            metadata_cache_supported_options);
   }
 
   // Note: we don't write cert and key because

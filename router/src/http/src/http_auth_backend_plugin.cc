@@ -43,10 +43,12 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
+#include "mysql/harness/utility/string.h"
 
 #include "mysqlrouter/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_backend_export.h"
 #include "mysqlrouter/metadata_cache.h"
+#include "mysqlrouter/supported_http_options.h"
 
 #include "http_auth_backend.h"
 #include "http_auth_backend_metadata_cache.h"
@@ -58,14 +60,19 @@ static std::vector<std::string> registered_backends;
 
 using StringOption = mysql_harness::StringOption;
 
+#define GET_OPTION_CHECKED(option, section, name, value)                       \
+  static_assert(                                                               \
+      mysql_harness::str_in_collection(http_backend_supported_options, name)); \
+  option = get_option(section, name, value);
 namespace {
 class HtpasswdPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string filename;
 
   explicit HtpasswdPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysql_harness::BasePluginConfig(section),
-        filename(get_option(section, "filename", StringOption{})) {}
+      : mysql_harness::BasePluginConfig(section) {
+    GET_OPTION_CHECKED(filename, section, "filename", StringOption{});
+  }
 
   std::string get_default(const std::string &option) const override {
     if (option == "filename") return "users";
@@ -109,8 +116,9 @@ class PluginConfig : public mysql_harness::BasePluginConfig {
   std::string filename;
 
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
-      : mysql_harness::BasePluginConfig(section),
-        backend(get_option(section, "backend", StringOption{})) {}
+      : mysql_harness::BasePluginConfig(section) {
+    GET_OPTION_CHECKED(backend, section, "backend", StringOption{});
+  }
 
   std::string get_default(const std::string & /* option */) const override {
     return std::string();
@@ -211,8 +219,6 @@ static const std::array<const char *, 2> required = {{
     "router_protobuf",
 }};
 
-const std::array<const char *, 2> supported_options{"backend", "filename"};
-
 extern "C" {
 mysql_harness::Plugin HTTP_AUTH_BACKEND_EXPORT
     harness_plugin_http_auth_backend = {
@@ -231,7 +237,7 @@ mysql_harness::Plugin HTTP_AUTH_BACKEND_EXPORT
         start,    // start
         nullptr,  // stop
         false,    // declares_readiness
-        supported_options.size(),
-        supported_options.data(),
+        http_backend_supported_options.size(),
+        http_backend_supported_options.data(),
 };
 }

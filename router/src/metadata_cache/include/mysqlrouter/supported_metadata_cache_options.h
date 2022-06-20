@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,34 +22,31 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
-#define MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
+#ifndef METADATA_CACHE_SUPPORTED_OPTIONS_INCLUDED
+#define METADATA_CACHE_SUPPORTED_OPTIONS_INCLUDED
 
 #include <array>
 
-#include "harness_export.h"
-#include "mysql/harness/loader_config.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/logging/registry.h"
-#include "mysql/harness/plugin.h"
+static constexpr std::array<const char *, 19> metadata_cache_supported_options{{
+    "user",
+    "ttl",
+    "auth_cache_ttl",
+    "auth_cache_refresh_interval",
+    "metadata_cluster",
+    "connect_timeout",
+    "read_timeout",
+    "router_id",
+    "thread_stack_size",
+    "use_gr_notifications",
+    "cluster_type",
+    "bootstrap_server_addresses",
+    "ssl_mode",
+    "ssl_cipher",
+    "tls_version",
+    "ssl_ca",
+    "ssl_capath",
+    "ssl_crl",
+    "ssl_crlpath",
+}};
 
-constexpr const char *kLoggerPluginName = "logger";
-extern mysql_harness::Plugin HARNESS_EXPORT harness_plugin_logger;
-
-/**
- * Creates the logging handler for each plugin from the configuration.
- *
- * @param config    configuration containing the plugin names we should create
- * loggers for
- * @param registry  logging registry where the logging handlers should be
- * created
- * @param level     logging level for the newly create logging handlers
- *
- * @throws std::logic_error
- */
-void HARNESS_EXPORT
-create_plugin_loggers(const mysql_harness::LoaderConfig &config,
-                      mysql_harness::logging::Registry &registry,
-                      const mysql_harness::logging::LogLevel level);
-
-#endif
+#endif /* METADATA_CACHE_SUPPORTED_OPTIONS_INCLUDED */

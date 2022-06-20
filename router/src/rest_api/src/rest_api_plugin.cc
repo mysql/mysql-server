@@ -45,8 +45,14 @@ IMPORT_LOG_FUNCTIONS()
 
 static const char kSectionName[]{"rest_api"};
 
+static constexpr std::array<const char *, 1> supported_options{"require_realm"};
+
 // one shared setting
 std::string require_realm_api;
+
+#define GET_OPTION_CHECKED(option, section, name, value)                    \
+  static_assert(mysql_harness::str_in_collection(supported_options, name)); \
+  option = get_option(section, name, value);
 
 class RestApiPluginConfig : public mysql_harness::BasePluginConfig {
  public:
@@ -55,8 +61,9 @@ class RestApiPluginConfig : public mysql_harness::BasePluginConfig {
   using StringOption = mysql_harness::StringOption;
 
   explicit RestApiPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysql_harness::BasePluginConfig(section),
-        require_realm(get_option(section, "require_realm", StringOption{})) {}
+      : mysql_harness::BasePluginConfig(section) {
+    GET_OPTION_CHECKED(require_realm, section, "require_realm", StringOption{});
+  }
 
   std::string get_default(const std::string & /* option */) const override {
     return {};
@@ -272,8 +279,6 @@ static const std::array<const char *, 2> plugin_requires = {{
     "http_server",
     "logger",
 }};
-
-const std::array<const char *, 1> supported_options{"require_realm"};
 
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_api = {

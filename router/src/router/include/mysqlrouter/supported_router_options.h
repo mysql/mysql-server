@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,34 +22,31 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
-#define MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
+#ifndef ROUTER_SUPPORTED_ROUTER_OPTIONS_INCLUDED
+#define ROUTER_SUPPORTED_ROUTER_OPTIONS_INCLUDED
 
 #include <array>
+#include <string_view>
 
-#include "harness_export.h"
-#include "mysql/harness/loader_config.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/logging/registry.h"
-#include "mysql/harness/plugin.h"
-
-constexpr const char *kLoggerPluginName = "logger";
-extern mysql_harness::Plugin HARNESS_EXPORT harness_plugin_logger;
-
-/**
- * Creates the logging handler for each plugin from the configuration.
- *
- * @param config    configuration containing the plugin names we should create
- * loggers for
- * @param registry  logging registry where the logging handlers should be
- * created
- * @param level     logging level for the newly create logging handlers
- *
- * @throws std::logic_error
- */
-void HARNESS_EXPORT
-create_plugin_loggers(const mysql_harness::LoaderConfig &config,
-                      mysql_harness::logging::Registry &registry,
-                      const mysql_harness::logging::LogLevel level);
-
+#ifdef _WIN32
+static constexpr size_t router_supported_options_size = 10;
+#else
+static constexpr size_t router_supported_options_size = 9;
 #endif
+
+static constexpr std::array<std::string_view, router_supported_options_size>
+    router_supported_options{"user",
+                             "name",
+                             "keyring_path",
+                             "master_key_path",
+                             "master_key_reader",
+                             "master_key_writer",
+                             "dynamic_state",
+                             "max_total_connections",
+                             "pid_file",
+#ifdef _WIN32
+                             "event_source_name"
+#endif
+    };
+
+#endif /* ROUTER_SUPPORTED_ROUTER_OPTIONS_INCLUDED */
