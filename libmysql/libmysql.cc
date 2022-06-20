@@ -656,16 +656,6 @@ int STDCALL mysql_query(MYSQL *mysql, const char *query) {
 }
 
 /**************************************************************************
-  Return next field of the query results
-**************************************************************************/
-
-MYSQL_FIELD *STDCALL mysql_fetch_field(MYSQL_RES *result) {
-  if (result->current_field >= result->field_count || !result->fields)
-    return (nullptr);
-  return &result->fields[result->current_field++];
-}
-
-/**************************************************************************
   Move to a specific row and column
 **************************************************************************/
 
@@ -904,10 +894,6 @@ MYSQL_FIELD *STDCALL mysql_fetch_field_direct(MYSQL_RES *res, uint fieldnr) {
   return &(res)->fields[fieldnr];
 }
 
-MYSQL_FIELD *STDCALL mysql_fetch_fields(MYSQL_RES *res) {
-  return (res)->fields;
-}
-
 MYSQL_ROW_OFFSET STDCALL mysql_row_tell(MYSQL_RES *res) {
   return res->data_cursor;
 }
@@ -916,38 +902,11 @@ MYSQL_FIELD_OFFSET STDCALL mysql_field_tell(MYSQL_RES *res) {
   return (res)->current_field;
 }
 
-enum_resultset_metadata STDCALL mysql_result_metadata(MYSQL_RES *result) {
-  return result->metadata;
-}
-
 /* MYSQL */
-
-unsigned int STDCALL mysql_field_count(MYSQL *mysql) {
-  return mysql->field_count;
-}
-
-uint64_t STDCALL mysql_affected_rows(MYSQL *mysql) {
-  return mysql->affected_rows;
-}
 
 uint64_t STDCALL mysql_insert_id(MYSQL *mysql) { return mysql->insert_id; }
 
-const char *STDCALL mysql_sqlstate(MYSQL *mysql) {
-  return mysql ? mysql->net.sqlstate : cant_connect_sqlstate;
-}
-
 uint STDCALL mysql_warning_count(MYSQL *mysql) { return mysql->warning_count; }
-
-const char *STDCALL mysql_info(MYSQL *mysql) {
-  if (!mysql) {
-#if defined(CLIENT_PROTOCOL_TRACING)
-    return "protocol tracing enabled";
-#else
-    return NULL;
-#endif
-  }
-  return mysql->info;
-}
 
 ulong STDCALL mysql_thread_id(MYSQL *mysql) {
   /*
@@ -4279,81 +4238,8 @@ const char *STDCALL mysql_stmt_error(MYSQL_STMT *stmt) {
 }
 
 /********************************************************************
- Transactional APIs
-*********************************************************************/
-
-/*
-  Commit the current transaction
-*/
-
-bool STDCALL mysql_commit(MYSQL *mysql) {
-  DBUG_TRACE;
-  return (bool)mysql_real_query(mysql, "commit", 6);
-}
-
-/*
-  Rollback the current transaction
-*/
-
-bool STDCALL mysql_rollback(MYSQL *mysql) {
-  DBUG_TRACE;
-  return (bool)mysql_real_query(mysql, "rollback", 8);
-}
-
-/*
-  Set autocommit to either true or false
-*/
-
-bool STDCALL mysql_autocommit(MYSQL *mysql, bool auto_mode) {
-  DBUG_TRACE;
-  DBUG_PRINT("enter", ("mode : %d", auto_mode));
-
-  return (bool)mysql_real_query(
-      mysql, auto_mode ? "set autocommit=1" : "set autocommit=0", 16);
-}
-
-/********************************************************************
  Multi query execution + SPs APIs
 *********************************************************************/
-
-/*
-  Returns true/false to indicate whether any more query results exist
-  to be read using mysql_next_result()
-*/
-
-bool STDCALL mysql_more_results(MYSQL *mysql) {
-  bool res;
-  DBUG_TRACE;
-
-  res = ((mysql->server_status & SERVER_MORE_RESULTS_EXISTS) ? 1 : 0);
-  DBUG_PRINT("exit", ("More results exists ? %d", res));
-  return res;
-}
-
-/*
-  Reads and returns the next query results
-*/
-int STDCALL mysql_next_result(MYSQL *mysql) {
-  DBUG_TRACE;
-
-  MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
-
-  if (mysql->status != MYSQL_STATUS_READY) {
-    set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
-    return 1;
-  }
-
-  net_clear_error(&mysql->net);
-  mysql->affected_rows = ~(uint64_t)0;
-
-  if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
-    return (*mysql->methods->next_result)(mysql);
-  else {
-    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
-  }
-
-  return -1; /* No more results */
-}
 
 /*
   This API reads the next statement result and returns a status to indicate
@@ -4424,26 +4310,6 @@ int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt) {
   return 0;
 }
 
-MYSQL_RES *STDCALL mysql_use_result(MYSQL *mysql) {
-  return (*mysql->methods->use_result)(mysql);
-}
-
 bool STDCALL mysql_read_query_result(MYSQL *mysql) {
   return (*mysql->methods->read_query_result)(mysql);
-}
-
-int STDCALL mysql_reset_connection(MYSQL *mysql) {
-  DBUG_TRACE;
-  if (simple_command(mysql, COM_RESET_CONNECTION, nullptr, 0, 0))
-    return 1;
-  else {
-    mysql_detach_stmt_list(&mysql->stmts, "mysql_reset_connection");
-    /* reset some of the members in mysql */
-    mysql->insert_id = 0;
-    mysql->affected_rows = ~(uint64_t)0;
-    free_old_query(mysql);
-    mysql->status = MYSQL_STATUS_READY;
-    mysql_extension_bind_free(MYSQL_EXTENSION_PTR(mysql));
-    return 0;
-  }
 }

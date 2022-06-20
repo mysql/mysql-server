@@ -266,6 +266,8 @@ for p in \
          component_test_mysql_system_variable_set.so \
          component_test_component_deinit.so \
          component_test_global_priv_registration.so \
+         component_test_mysql_command_services.so \
+         test_services_command_services.so \
          component_test_page_track_component.so \
          component_test_pfs_notification.so \
          component_test_pfs_resource_group.so \

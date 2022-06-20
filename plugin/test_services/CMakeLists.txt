@@ -51,3 +51,8 @@ MYSQL_ADD_PLUGIN(test_services_host_application_signal
   MODULE_ONLY
   TEST_ONLY
   )
+MYSQL_ADD_PLUGIN(test_services_command_services
+  test_services_command_services.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )

@@ -102,36 +102,45 @@ Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
     return nullptr;
   }
 
-  Srv_session *session =
-      new (std::nothrow) class Srv_session(error_cb, plugin_ctx);
-
-  if (!session) {
+  Srv_session *session = nullptr;
+  try {
+    session = new Srv_session(error_cb, plugin_ctx);
+  } catch (...) {
     DBUG_PRINT("error", ("Can't allocate a Srv_session object"));
     connection_errors_internal++;
     if (error_cb)
       error_cb(plugin_ctx, ER_OUT_OF_RESOURCES,
                ER_DEFAULT(ER_OUT_OF_RESOURCES));
-  } else {
-    THD *current = current_thd;
-    THD *stack_thd = session->get_thd();
-
-    session->get_thd()->thread_stack = reinterpret_cast<char *>(&stack_thd);
-    session->get_thd()->store_globals();
-
-    bool result = session->open();
-
-    session->get_thd()->restore_globals();
-
-    if (result) {
-      delete session;
-      session = nullptr;
-    }
-
-    if (current) current->store_globals();
+    return nullptr;
   }
+
+  THD *current = current_thd;
+  THD *stack_thd = session->get_thd();
+
+  session->get_thd()->thread_stack = reinterpret_cast<char *>(&stack_thd);
+  session->get_thd()->store_globals();
+
+  bool result = session->open();
+
+  session->get_thd()->restore_globals();
+
+  if (result) {
+    delete session;
+    session = nullptr;
+  }
+
+  if (current) current->store_globals();
+
   return session;
 }
 
+/**
+  Opens server session
+
+  @return
+    handler of session   on success
+    NULL                 on failure
+*/
 Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
   DBUG_TRACE;
   return srv_session_open_internal(error_cb, plugin_ctx, false);
@@ -212,6 +221,13 @@ int srv_session_server_is_available() {
   return get_server_state() == SERVER_OPERATING;
 }
 
+/**
+  Attaches a session to current srv_session physical thread.
+
+  @returns
+    0  success
+    1  failure
+*/
 int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd) {
   DBUG_TRACE;
 

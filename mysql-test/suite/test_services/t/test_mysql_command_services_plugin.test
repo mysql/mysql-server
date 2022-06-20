@@ -1,0 +1,21 @@
+--echo ------ Run plugin ------------------------------------------------
+--replace_result $TEST_SERVICES_COMMAND_SERVICES_PLUGIN TEST_SERVICES_COMMAND_SERVICES_PLUGIN
+eval INSTALL PLUGIN test_services_command_services SONAME '$TEST_SERVICES_COMMAND_SERVICES_PLUGIN';
+
+--echo ------ Show status of plugin -------------------------------------
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME='test_services_command_services';
+
+--echo # Test : must return '2' the output of SELECT 1+1;
+SELECT test_command_service_udf("select 1+1");
+
+--echo # Test : must return '2.5' the output of SELECT 1.3+1.2;
+SELECT test_command_service_udf("select 1.3+1.2");
+
+--echo # Test : must return error message
+--error ER_COMMAND_SERVICE_BACKEND_FAILED
+SELECT test_command_service_udf("SELECT * FROM mysql.plugin ORDER BY name");
+
+SELECT test_command_service_udf();
+--echo ------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_services_command_services;

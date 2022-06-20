@@ -33,6 +33,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/keyring_writer.h>
 #include <mysql/components/services/mysql_audit_print_service_double_data_source.h>
 #include <mysql/components/services/mysql_audit_print_service_longlong_data_source.h>
+#include <mysql/components/services/mysql_command_consumer.h>
+#include <mysql/components/services/mysql_command_services.h>
 #include <mysql/components/services/mysql_cond_service.h>
 #include <mysql/components/services/mysql_mutex_service.h>
 #include <mysql/components/services/mysql_psi_system_service.h>
@@ -65,6 +67,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_audit_print_service_longlong_data_source_imp.h"
 #include "mysql_backup_lock_imp.h"
 #include "mysql_clone_protocol_imp.h"
+#include "mysql_command_consumer_imp.h"
+#include "mysql_command_services_imp.h"
 #include "mysql_connection_attributes_iterator_imp.h"
 #include "mysql_current_thread_reader_imp.h"
 #include "mysql_ongoing_transaction_query_imp.h"
@@ -443,6 +447,86 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
 mysql_audit_print_service_double_data_source_imp::get
 END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_factory)
+mysql_command_services_imp::init, mysql_command_services_imp::connect,
+    mysql_command_services_imp::reset, mysql_command_services_imp::close,
+    mysql_command_services_imp::commit, mysql_command_services_imp::autocommit,
+    mysql_command_services_imp::rollback END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_options)
+mysql_command_services_imp::set,
+    mysql_command_services_imp::get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_query)
+mysql_command_services_imp::query,
+    mysql_command_services_imp::affected_rows END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_query_result)
+mysql_command_services_imp::store_result,
+    mysql_command_services_imp::free_result,
+    mysql_command_services_imp::more_results,
+    mysql_command_services_imp::next_result,
+    mysql_command_services_imp::result_metadata,
+    mysql_command_services_imp::fetch_row,
+    mysql_command_services_imp::fetch_lengths END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_field_info)
+mysql_command_services_imp::fetch_field, mysql_command_services_imp::num_fields,
+    mysql_command_services_imp::fetch_fields,
+    mysql_command_services_imp::field_count END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_error_info)
+mysql_command_services_imp::sql_errno, mysql_command_services_imp::sql_error,
+    mysql_command_services_imp::sql_state END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_factory_v1)
+mysql_command_consumer_dom_imp::start,
+    mysql_command_consumer_dom_imp::end END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_metadata_v1)
+mysql_command_consumer_dom_imp::start_result_metadata,
+    mysql_command_consumer_dom_imp::field_metadata,
+    mysql_command_consumer_dom_imp::end_result_metadata
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_row_factory_v1)
+mysql_command_consumer_dom_imp::start_row,
+    mysql_command_consumer_dom_imp::abort_row,
+    mysql_command_consumer_dom_imp::end_row END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_error_v1)
+mysql_command_consumer_dom_imp::handle_ok,
+    mysql_command_consumer_dom_imp::handle_error,
+    mysql_command_consumer_dom_imp::error END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_get_null_v1)
+mysql_command_consumer_dom_imp::get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_get_integer_v1)
+mysql_command_consumer_dom_imp::get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_get_longlong_v1)
+mysql_command_consumer_dom_imp::get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_get_decimal_v1)
+mysql_command_consumer_dom_imp::get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_get_double_v1)
+mysql_command_consumer_dom_imp::get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_get_date_time_v1)
+mysql_command_consumer_dom_imp::get_date,
+    mysql_command_consumer_dom_imp::get_time,
+    mysql_command_consumer_dom_imp::get_datetime END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_get_string_v1)
+mysql_command_consumer_dom_imp::get_string END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_text_consumer_client_capabilities_v1)
+mysql_command_consumer_dom_imp::client_capabilities
+END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -581,6 +665,24 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
                      mysql_audit_print_service_longlong_data_source),
     PROVIDES_SERVICE(mysql_server,
                      mysql_audit_print_service_double_data_source),
+    PROVIDES_SERVICE(mysql_server, mysql_command_factory),
+    PROVIDES_SERVICE(mysql_server, mysql_command_options),
+    PROVIDES_SERVICE(mysql_server, mysql_command_query),
+    PROVIDES_SERVICE(mysql_server, mysql_command_query_result),
+    PROVIDES_SERVICE(mysql_server, mysql_command_field_info),
+    PROVIDES_SERVICE(mysql_server, mysql_command_error_info),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_factory_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_metadata_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_row_factory_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_error_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_null_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_integer_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_longlong_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_decimal_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_double_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_date_time_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_string_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_text_consumer_client_capabilities_v1),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

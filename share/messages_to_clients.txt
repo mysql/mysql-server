@@ -9809,6 +9809,12 @@ ER_DA_EXPIRE_LOGS_DAYS_IGNORED
 ER_CTE_RECURSIVE_NOT_UNION
   eng "Recursive table reference in EXCEPT or INTERSECT operand is not allowed."
 
+ER_COMMAND_BACKEND_FAILED_TO_FETCH_SECURITY_CTX
+  eng "Error when trying to fetch information from security context object, when trying to connect the server."
+
+ER_COMMAND_SERVICE_BACKEND_FAILED
+  eng "Error in command service backend interface, because of : "%s""
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

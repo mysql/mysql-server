@@ -159,3 +159,8 @@ MYSQL_ADD_COMPONENT(test_sensitive_system_variables
   MODULE_ONLY
   TEST_ONLY
   )
+MYSQL_ADD_COMPONENT(test_mysql_command_services
+  test_mysql_command_services.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )

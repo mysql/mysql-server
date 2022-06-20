@@ -168,3 +168,7 @@ component_test_table_access  	plugin_output_directory no TEST_TABLE_ACCESS
 
 # component test_sensitive_system_variables
 component_test_sensitive_system_variables  	plugin_output_directory no TEST_SENSITIVE_SYSTEM_VARIABLES
+
+# TO test mysql command services
+component_test_mysql_command_services  	plugin_output_directory no TEST_MYSQL_COMMAND_SERVICES
+test_services_command_services    plugin_output_directory   no  TEST_SERVICES_COMMAND_SERVICES_PLUGIN

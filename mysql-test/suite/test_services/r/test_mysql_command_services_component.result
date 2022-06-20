@@ -1,0 +1,104 @@
+INSTALL COMPONENT "file://component_test_mysql_command_services";
+# Test : sending no arguments.
+SELECT test_mysql_command_services_udf();
+test_mysql_command_services_udf()
+NULL
+# Test : should return '2' the output of SELECT 1+1;
+SELECT test_mysql_command_services_udf("select 1+1");
+test_mysql_command_services_udf("select 1+1")
+2
+# Test : should return '2.5' the output of SELECT 1.3+1.2;
+SELECT test_mysql_command_services_udf("select 1.3+1.2");
+test_mysql_command_services_udf("select 1.3+1.2")
+2.5
+# Test : should return TIMESTAMP
+SELECT test_mysql_command_services_udf("SELECT TIMESTAMP('2003-12-31')");
+test_mysql_command_services_udf("SELECT TIMESTAMP('2003-12-31')")
+2003-12-31 00:00:00
+# Test : should return DATE
+SELECT test_mysql_command_services_udf("SELECT FROM_DAYS(730669)");
+test_mysql_command_services_udf("SELECT FROM_DAYS(730669)")
+2000-07-03
+# Test : should return TIME
+SELECT test_mysql_command_services_udf("SELECT CURTIME()");
+CREATE TABLE test.t1 (c1 int, c2 char(13));
+INSERT INTO test.t1 VALUES (1, "foo"), (2, "bar"), (3, "zap");
+SELECT * FROM test.t1;
+c1	c2
+1	foo
+2	bar
+3	zap
+SELECT test_mysql_command_services_udf("SELECT * FROM test.t1");
+test_mysql_command_services_udf("SELECT * FROM test.t1")
+1foo2bar3zap
+CREATE TABLE test.t2 (c1 int, c2 float);
+INSERT INTO test.t2 VALUES (1, 1.1), (2, 2.2), (3, 3.3);
+SELECT * FROM test.t2;
+c1	c2
+1	1.1
+2	2.2
+3	3.3
+SELECT test_mysql_command_services_udf("SELECT * FROM test.t2");
+test_mysql_command_services_udf("SELECT * FROM test.t2")
+11.122.233.3
+CREATE TABLE test.t3 (c1 int, c2 double);
+INSERT INTO test.t3 VALUES (1, 1.11), (2, 2.22), (3, 3.33);
+SELECT * FROM test.t3;
+c1	c2
+1	1.11
+2	2.22
+3	3.33
+SELECT test_mysql_command_services_udf("SELECT * FROM test.t3");
+test_mysql_command_services_udf("SELECT * FROM test.t3")
+11.1122.2233.33
+CREATE TABLE test.t4 (c1 int, c2 decimal(5,3));
+INSERT INTO test.t4 VALUES (1, 1.111), (2, 2.222), (3, 3.333);
+SELECT * FROM test.t4;
+c1	c2
+1	1.111
+2	2.222
+3	3.333
+SELECT test_mysql_command_services_udf("SELECT * FROM test.t4");
+test_mysql_command_services_udf("SELECT * FROM test.t4")
+11.11122.22233.333
+The output is truncated to MAX_FIELD_WIDTH size, this is
+because the udf buffer is of that size.
+CREATE TABLE test.t5 (c1 int, c2 varchar(1000));
+INSERT INTO test.t5 VALUES (1, repeat('a',1000));
+SELECT * FROM test.t5;
+c1	c2
+1	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+SELECT test_mysql_command_services_udf("SELECT * FROM test.t5");
+test_mysql_command_services_udf("SELECT * FROM test.t5")
+1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+# Test : should return error message
+SELECT test_mysql_command_services_udf("SELECT * FROM mysql.plugin ORDER BY name");
+ERROR HY000: Error in command service backend interface, because of : "SELECT command denied to user 'mysql.session'@'localhost' for table 'plugin'"
+# Test : should return error message BUG#34035897
+SELECT test_mysql_command_services_udf("SELECT * FROM information_schema.innodb_tables");
+ERROR HY000: Error in command service backend interface, because of : "Access denied; you need (at least one of) the PROCESS privilege(s) for this operation"
+SELECT test_mysql_command_services_udf("SELECT * FROM information_schema.COLLATION_CHARACTER_SET_APPLICABILITY");
+# Test : should return NULL field value if exits BUG#34026180
+CREATE TABLE test.t6(c1 int, c2 text);
+INSERT INTO test.t6 VALUES(1, 'FOO');
+SELECT test_mysql_command_services_udf("INSERT INTO test.t6(c2) VALUES('BAR')");
+test_mysql_command_services_udf("INSERT INTO test.t6(c2) VALUES('BAR')")
+
+SELECT test_mysql_command_services_udf("SELECT c1,c2 FROM test.t6");
+test_mysql_command_services_udf("SELECT c1,c2 FROM test.t6")
+1FOONULLBAR
+SELECT test_mysql_command_services_apis_udf();
+test_mysql_command_services_apis_udf()
+10mysql-1
+SELECT test_mysql_command_services_apis_udf("SELECT 1+1");
+test_mysql_command_services_apis_udf("SELECT 1+1")
+NULL
+The test.my_demo_transaction table is created inside above udf function
+DROP TABLE test.my_demo_transaction;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+UNINSTALL COMPONENT "file://component_test_mysql_command_services";

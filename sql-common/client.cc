@@ -60,6 +60,9 @@
 #include <stdio.h>
 
 #include <algorithm>
+#include <fstream>
+#include <ios>
+#include <iostream>
 #include <string>
 
 #include "base64.h"
@@ -127,6 +130,8 @@
 #ifdef MYSQL_SERVER
 #include "mysql_com_server.h"
 #include "sql/client_settings.h"
+#include "sql/server_component/mysql_command_services_imp.h"
+/* mysql_command_service_extn */
 #else
 #include "libmysql/client_settings.h"
 #endif
@@ -3196,6 +3201,52 @@ static net_async_status read_one_row_nonblocking(MYSQL *mysql, uint fields,
   return NET_ASYNC_COMPLETE;
 }
 
+static bool cli_read_query_result(MYSQL *mysql);
+static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql);
+static MYSQL_RES *cli_use_result(MYSQL *mysql);
+static MYSQL_ROW cli_fetch_row(MYSQL_RES *mysql_res);
+static MYSQL *cli_connect(mysql_async_connect *ctx);
+
+int cli_read_change_user_result(MYSQL *mysql) {
+  return cli_safe_read(mysql, nullptr);
+}
+
+net_async_status cli_read_change_user_result_nonblocking(MYSQL *mysql,
+                                                         ulong *ret) {
+  return cli_safe_read_nonblocking(mysql, nullptr, ret);
+}
+
+static MYSQL_METHODS client_methods = {
+    cli_connect,
+    cli_read_query_result,      /* read_query_result */
+    cli_advanced_command,       /* advanced_command */
+    cli_read_rows,              /* read_rows */
+    cli_use_result,             /* use_result */
+    cli_fetch_row,              /* fetch_row */
+    cli_fetch_lengths,          /* fetch_lengths */
+    cli_flush_use_result,       /* flush_use_result */
+    cli_read_change_user_result /* read_change_user_result */
+#ifndef MYSQL_SERVER
+    ,
+    cli_list_fields,         /* list_fields */
+    cli_read_prepare_result, /* read_prepare_result */
+    cli_stmt_execute,        /* stmt_execute */
+    cli_read_binary_rows,    /* read_binary_rows */
+    cli_unbuffered_fetch,    /* unbuffered_fetch */
+    cli_read_statistics,     /* read_statistics */
+    cli_read_query_result,   /* next_result */
+    cli_read_binary_rows,    /* read_rows_from_cursor */
+    free_rows
+#endif
+    ,
+    cli_read_query_result_nonblocking,      /* read_query_result_nonblocking */
+    cli_advanced_command_nonblocking,       /* advanced_command_nonblocking */
+    cli_read_rows_nonblocking,              /* read_rows_nonblocking */
+    cli_flush_use_result_nonblocking,       /* flush_use_result_nonblocking */
+    cli_read_query_result_nonblocking,      /* next_result_nonblocking */
+    cli_read_change_user_result_nonblocking /* read_change_user_result_nonblocking
+                                             */
+};
 /****************************************************************************
   Init MySQL structure or allocate one
 ****************************************************************************/
@@ -3266,7 +3317,12 @@ MYSQL *STDCALL mysql_init(MYSQL *mysql) {
   /* by default connection_compressed should be OFF */
   ENSURE_EXTENSIONS_PRESENT(&mysql->options);
   mysql->options.extension->connection_compressed = false;
-
+  /*
+    Set the client methods to use. It can be overridden just before
+    calling the mysql_real_connect(). May be the ideal way is to pass through
+    the argument but that will break the ABI.
+  */
+  mysql->methods = &client_methods;
   mysql->resultset_metadata = RESULTSET_METADATA_FULL;
   ASYNC_DATA(mysql)->async_op_status = ASYNC_OP_UNSET;
   return mysql;
@@ -3281,16 +3337,17 @@ MYSQL_EXTENSION *mysql_extension_init(MYSQL *mysql [[maybe_unused]]) {
   MYSQL_EXTENSION *ext;
   DBUG_TRACE;
 
-  ext = static_cast<MYSQL_EXTENSION *>(my_malloc(PSI_NOT_INSTRUMENTED,
-                                                 sizeof(MYSQL_EXTENSION),
-                                                 MYF(MY_WME | MY_ZEROFILL)));
-  ext->mysql_async_context = static_cast<MYSQL_ASYNC *>(
-      my_malloc(PSI_NOT_INSTRUMENTED, sizeof(struct MYSQL_ASYNC),
-                MYF(MY_WME | MY_ZEROFILL)));
+  ext = static_cast<MYSQL_EXTENSION *>(my_malloc(
+      key_memory_MYSQL, sizeof(MYSQL_EXTENSION), MYF(MY_WME | MY_ZEROFILL)));
+  ext->mysql_async_context = static_cast<MYSQL_ASYNC *>(my_malloc(
+      key_memory_MYSQL, sizeof(struct MYSQL_ASYNC), MYF(MY_WME | MY_ZEROFILL)));
   /* set default value */
   ext->mysql_async_context->async_op_status = ASYNC_OP_UNSET;
 #ifdef MYSQL_SERVER
   ext->server_extn = nullptr;
+  ext->mcs_extn = static_cast<struct mysql_command_service_extn *>(
+      my_malloc(key_memory_MYSQL, sizeof(struct mysql_command_service_extn),
+                MYF(MY_WME | MY_ZEROFILL)));
 #endif
   DBUG_PRINT("async",
              ("set state=%d", ext->mysql_async_context->async_query_state));
@@ -3333,6 +3390,9 @@ void mysql_extension_free(MYSQL_EXTENSION *ext) {
     my_free(ext->mysql_async_context);
     ext->mysql_async_context = nullptr;
   }
+#ifdef MYSQL_SERVER
+  if (ext->mcs_extn) my_free(ext->mcs_extn);
+#endif
   // free state change related resources.
   free_state_change_info(ext);
   mysql_extension_bind_free(ext);
@@ -3678,49 +3738,6 @@ error:
   Note that the mysql argument must be initialized with mysql_init()
   before calling mysql_real_connect !
 */
-
-static bool cli_read_query_result(MYSQL *mysql);
-static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql);
-static MYSQL_RES *cli_use_result(MYSQL *mysql);
-
-int cli_read_change_user_result(MYSQL *mysql) {
-  return cli_safe_read(mysql, nullptr);
-}
-
-net_async_status cli_read_change_user_result_nonblocking(MYSQL *mysql,
-                                                         ulong *ret) {
-  return cli_safe_read_nonblocking(mysql, nullptr, ret);
-}
-
-static MYSQL_METHODS client_methods = {
-    cli_read_query_result,      /* read_query_result */
-    cli_advanced_command,       /* advanced_command */
-    cli_read_rows,              /* read_rows */
-    cli_use_result,             /* use_result */
-    cli_fetch_lengths,          /* fetch_lengths */
-    cli_flush_use_result,       /* flush_use_result */
-    cli_read_change_user_result /* read_change_user_result */
-#ifndef MYSQL_SERVER
-    ,
-    cli_list_fields,         /* list_fields */
-    cli_read_prepare_result, /* read_prepare_result */
-    cli_stmt_execute,        /* stmt_execute */
-    cli_read_binary_rows,    /* read_binary_rows */
-    cli_unbuffered_fetch,    /* unbuffered_fetch */
-    cli_read_statistics,     /* read_statistics */
-    cli_read_query_result,   /* next_result */
-    cli_read_binary_rows,    /* read_rows_from_cursor */
-    free_rows
-#endif
-    ,
-    cli_read_query_result_nonblocking,      /* read_query_result_nonblocking */
-    cli_advanced_command_nonblocking,       /* advanced_command_nonblocking */
-    cli_read_rows_nonblocking,              /* read_rows_nonblocking */
-    cli_flush_use_result_nonblocking,       /* flush_use_result_nonblocking */
-    cli_read_query_result_nonblocking,      /* next_result_nonblocking */
-    cli_read_change_user_result_nonblocking /* read_change_user_result_nonblocking
-                                             */
-};
 
 typedef enum my_cs_match_type_enum {
   /* MySQL and OS charsets are fully compatible */
@@ -6067,12 +6084,44 @@ static int set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len) {
   return rc > 0 ? 1 : 0;
 }
 
+MYSQL *connect_helper(mysql_async_connect *ctx) {
+  mysql_state_machine_status status;
+  auto mysql = ctx->mysql;
+  mysql->options.client_flag |= ctx->client_flag;
+  do {
+    status = ctx->state_function(ctx);
+  } while (status != STATE_MACHINE_FAILED && status != STATE_MACHINE_DONE);
+
+  if (status == STATE_MACHINE_DONE) {
+    DBUG_PRINT("exit", ("Mysql handler: %p", mysql));
+    return ctx->mysql;
+  }
+
+  DBUG_PRINT("error", ("message: %u/%s (%s)", mysql->net.last_errno,
+                       mysql->net.sqlstate, mysql->net.last_error));
+  {
+    /* Free alloced memory */
+    end_server(mysql);
+    mysql_close_free(mysql);
+    if (!(ctx->client_flag & CLIENT_REMEMBER_OPTIONS))
+      mysql_close_free_options(mysql);
+    if (ctx->scramble_buffer_allocated) my_free(ctx->scramble_buffer);
+  }
+  return nullptr;
+}
+
+MYSQL *cli_connect(mysql_async_connect *ctx) {
+  DBUG_TRACE;
+  assert(ctx);
+  ctx->state_function = csm_begin_connect;
+  return connect_helper(ctx);
+}
+
 MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
                                   const char *user, const char *passwd,
                                   const char *db, uint port,
                                   const char *unix_socket, ulong client_flag) {
   DBUG_TRACE;
-  mysql_state_machine_status status;
   mysql_async_connect ctx;
   memset(&ctx, 0, sizeof(ctx));
 
@@ -6090,29 +6139,8 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
   ctx.unix_socket = unix_socket;
   mysql->options.client_flag |= client_flag;
   ctx.client_flag = mysql->options.client_flag;
-  ctx.state_function = csm_begin_connect;
   ctx.ssl_state = SSL_NONE;
-
-  do {
-    status = ctx.state_function(&ctx);
-  } while (status != STATE_MACHINE_FAILED && status != STATE_MACHINE_DONE);
-
-  if (status == STATE_MACHINE_DONE) {
-    DBUG_PRINT("exit", ("Mysql handler: %p", mysql));
-    return mysql;
-  }
-
-  DBUG_PRINT("error", ("message: %u/%s (%s)", mysql->net.last_errno,
-                       mysql->net.sqlstate, mysql->net.last_error));
-  {
-    /* Free allocated memory */
-    end_server(mysql);
-    mysql_close_free(mysql);
-    if (!(ctx.client_flag & CLIENT_REMEMBER_OPTIONS))
-      mysql_close_free_options(mysql);
-    if (ctx.scramble_buffer_allocated) my_free(ctx.scramble_buffer);
-  }
-  return nullptr;
+  return (*mysql->methods->connect_method)(&ctx);
 }
 
 /**
@@ -6238,7 +6266,6 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
   if (set_connect_attributes(mysql, ctx->buff, sizeof(ctx->buff)))
     return STATE_MACHINE_FAILED;
 
-  mysql->methods = &client_methods;
   net->vio = nullptr;     /* If something goes wrong */
   mysql->client_flag = 0; /* For handshake */
 
@@ -8143,8 +8170,7 @@ end:
   There shouldn't be much processing per row because mysql server shouldn't
   have to wait for the client (and will not wait more than 30 sec/packet).
 **************************************************************************/
-
-static MYSQL_RES *cli_use_result(MYSQL *mysql) {
+MYSQL_RES *use_result(MYSQL *mysql) {
   MYSQL_RES *result;
   DBUG_TRACE;
 
@@ -8189,12 +8215,13 @@ static MYSQL_RES *cli_use_result(MYSQL *mysql) {
   mysql->unbuffered_fetch_owner = &result->unbuffered_fetch_cancelled;
   return result; /* Data is read to be fetched */
 }
+static MYSQL_RES *cli_use_result(MYSQL *mysql) { return use_result(mysql); }
 
 /**************************************************************************
   Return next row of the query results
 **************************************************************************/
 
-MYSQL_ROW STDCALL mysql_fetch_row(MYSQL_RES *res) {
+MYSQL_ROW cli_fetch_row(MYSQL_RES *res) {
   DBUG_TRACE;
   if (!res->data) { /* Unbufferred fetch */
     if (!res->eof) {
@@ -8235,6 +8262,16 @@ MYSQL_ROW STDCALL mysql_fetch_row(MYSQL_RES *res) {
     return res->current_row = tmp;
   }
 }
+
+MYSQL_ROW STDCALL mysql_fetch_row(MYSQL_RES *res) {
+  if (res->methods) {
+    return res->methods->fetch_row(res);
+  } else {
+    set_mysql_error(res->handle, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+    return (MYSQL_ROW) nullptr;
+  }
+}
+
 /**
   Reads next row of a result set in an asynchronous way.
 
@@ -9163,6 +9200,144 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name) {
   }
   charsets_dir = save_csdir;
   return mysql->net.last_errno;
+}
+
+const char *STDCALL mysql_info(MYSQL *mysql) {
+  if (!mysql) {
+#if defined(CLIENT_PROTOCOL_TRACING)
+    return "protocol tracing enabled";
+#else
+    return NULL;
+#endif
+  }
+  return mysql->info;
+}
+
+int STDCALL mysql_reset_connection(MYSQL *mysql) {
+  DBUG_TRACE;
+  if (simple_command(mysql, COM_RESET_CONNECTION, nullptr, 0, 0))
+    return 1;
+  else {
+    mysql_detach_stmt_list(&mysql->stmts, "mysql_reset_connection");
+    /* reset some of the members in mysql */
+    mysql->insert_id = 0;
+    mysql->affected_rows = ~(uint64_t)0;
+    free_old_query(mysql);
+    mysql->status = MYSQL_STATUS_READY;
+    mysql_extension_bind_free(MYSQL_EXTENSION_PTR(mysql));
+    return 0;
+  }
+}
+
+/********************************************************************
+ Transactional APIs
+*********************************************************************/
+
+/*
+  Commit the current transaction
+*/
+
+bool STDCALL mysql_commit(MYSQL *mysql) {
+  DBUG_TRACE;
+  return (bool)mysql_real_query(mysql, "commit", 6);
+}
+
+/*
+  Rollback the current transaction
+*/
+
+bool STDCALL mysql_rollback(MYSQL *mysql) {
+  DBUG_TRACE;
+  return (bool)mysql_real_query(mysql, "rollback", 8);
+}
+
+/*
+  Set autocommit to either true or false
+*/
+
+bool STDCALL mysql_autocommit(MYSQL *mysql, bool auto_mode) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("mode : %d", auto_mode));
+
+  return (bool)mysql_real_query(
+      mysql, auto_mode ? "set autocommit=1" : "set autocommit=0", 16);
+}
+
+/********************************************************************
+ Multi query execution + SPs APIs
+*********************************************************************/
+
+/*
+  Returns true/false to indicate whether any more query results exist
+  to be read using mysql_next_result()
+*/
+
+bool STDCALL mysql_more_results(MYSQL *mysql) {
+  bool res;
+  DBUG_TRACE;
+
+  res = ((mysql->server_status & SERVER_MORE_RESULTS_EXISTS) ? 1 : 0);
+  DBUG_PRINT("exit", ("More results exists ? %d", res));
+  return res;
+}
+
+/*
+  Reads and returns the next query results
+*/
+int STDCALL mysql_next_result(MYSQL *mysql) {
+  DBUG_TRACE;
+
+  MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+
+  if (mysql->status != MYSQL_STATUS_READY) {
+    set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+    return 1;
+  }
+
+  net_clear_error(&mysql->net);
+  mysql->affected_rows = ~(uint64_t)0;
+
+  if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
+    return (*mysql->methods->read_query_result)(mysql);
+  else {
+    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+  }
+
+  return -1; /* No more results */
+}
+
+MYSQL_RES *STDCALL mysql_use_result(MYSQL *mysql) {
+  return (*mysql->methods->use_result)(mysql);
+}
+
+uint64_t STDCALL mysql_affected_rows(MYSQL *mysql) {
+  return mysql->affected_rows;
+}
+
+enum_resultset_metadata STDCALL mysql_result_metadata(MYSQL_RES *result) {
+  return result->metadata;
+}
+
+/**************************************************************************
+  Return next field of the query results
+**************************************************************************/
+
+MYSQL_FIELD *STDCALL mysql_fetch_field(MYSQL_RES *result) {
+  if (result->current_field >= result->field_count || !result->fields)
+    return (nullptr);
+  return &result->fields[result->current_field++];
+}
+
+MYSQL_FIELD *STDCALL mysql_fetch_fields(MYSQL_RES *res) {
+  return (res)->fields;
+}
+
+unsigned int STDCALL mysql_field_count(MYSQL *mysql) {
+  return mysql->field_count;
+}
+
+const char *STDCALL mysql_sqlstate(MYSQL *mysql) {
+  return mysql ? mysql->net.sqlstate : cant_connect_sqlstate;
 }
 
 /**

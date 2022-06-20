@@ -139,17 +139,41 @@ class Srv_session {
     SRV_SESSION_OPENED,
     SRV_SESSION_ATTACHED,
     SRV_SESSION_DETACHED,
+    /*
+      Following are the states
+      while using the existing
+      THD with the session.
+    */
+    SRV_SESSION_ASSOCIATE,     /* session using the THD provided explicitly */
+    SRV_SESSION_ASSOCIATED,    /* explicit THD, is installed */
+    SRV_SESSION_DISASSOCIATED, /* Changes the state of a session
+                                 to disassociate */
     SRV_SESSION_CLOSED
   };
 
   /**
-    Constructs a server session
+    Constructs a server session. That means This session object owns the THD.
+
+    @note May throw if it fails to construct server session.
 
     @param err_cb         Default completion callback
     @param err_cb_ctx     Plugin's context, opaque pointer that would
                           be provided to callbacks. Might be NULL.
   */
   Srv_session(srv_session_error_cb err_cb, void *err_cb_ctx);
+
+  /**
+   Have a THD object and wish to associate the same to session object.
+   Session object will use the thd. It won't own it.
+
+   @param err_cb         Default completion callback
+   @param err_cb_ctx     Plugin's context, opaque pointer that would
+                          be provided to callbacks. Might be NULL.
+   @param thd   A valid THD
+  */
+  Srv_session(srv_session_error_cb err_cb, void *err_cb_ctx, THD *thd);
+
+  ~Srv_session();
 
   /**
     Opens a server session
@@ -194,7 +218,7 @@ class Srv_session {
       false   Not attached
       true    Attached
   */
-  inline bool is_attached() const { return state == SRV_SESSION_ATTACHED; }
+  inline bool is_attached() const { return m_state == SRV_SESSION_ATTACHED; }
 
   /**
     Executes a server command.
@@ -221,14 +245,14 @@ class Srv_session {
   /**
     Returns the internal THD object
   */
-  inline THD *get_thd() { return &thd; }
+  inline THD *get_thd() { return m_thd; }
 
   /**
     Returns the ID of a session.
 
     The value returned from THD::thread_id()
   */
-  my_thread_id get_session_id() const { return thd.thread_id(); }
+  my_thread_id get_session_id() const { return m_thd->thread_id(); }
 
   /**
     Returns the client port.
@@ -236,7 +260,7 @@ class Srv_session {
     @note The client port in SHOW PROCESSLIST, INFORMATION_SCHEMA.PROCESSLIST.
     This port is NOT shown in PERFORMANCE_SCHEMA.THREADS.
   */
-  uint16_t get_client_port() const { return thd.peer_port; }
+  uint16_t get_client_port() const { return m_thd->peer_port; }
 
   /**
     Sets the client port.
@@ -257,7 +281,7 @@ class Srv_session {
           returned is valid until the next run_command() call, which may
           change it.
   */
-  LEX_CSTRING get_current_database() const { return thd.db(); }
+  LEX_CSTRING get_current_database() const { return m_thd->db(); }
 
   /**
     Sets the connection type.
@@ -281,6 +305,9 @@ class Srv_session {
   };
 
  private:
+  Srv_session(srv_session_error_cb err_cb, void *err_cb_ctx,
+              srv_session_state state, bool free_resources, THD *thd);
+
   /**
     Sets session's state to attached
 
@@ -293,13 +320,62 @@ class Srv_session {
   */
   void set_detached();
 
-  THD thd;
-  Diagnostics_area da;
-  st_err_protocol_ctx err_protocol_ctx;
-  Protocol_callback protocol_error;
+  /**
+    Changes the state of a session to associate
+  */
+  void set_associate();
 
-  srv_session_state state;
-  enum_vio_type vio_type;
+  /**
+    Changes the state of a session to disassociate
+  */
+  void set_disassociate();
+
+  /**
+    Check is the session state is associate.
+    In other words, session is using the THD provided explicitly.
+
+    @returns
+      true   session state is associate
+      false  Otherwise
+  */
+  bool is_associate() const;
+
+  /**
+    Check if the session state is associated.
+    In other words, explicit thd which pointed by this, is installed
+
+    @returns
+      true   session state is associated
+      false  Otherwise
+  */
+  bool is_associated() const;
+
+  /**
+    Installs the thd pointed by the session object as the current_thd
+
+    @return
+      false success
+      true  failure
+  */
+  bool associate();
+
+  /**
+   Uninstall the thd pointed by the session object as the current_thd
+
+   @return
+     false success
+     true  failure
+  */
+  bool disassociate();
+
+  Diagnostics_area m_da;
+  st_err_protocol_ctx m_err_protocol_ctx;
+  Protocol_callback m_protocol_error;
+
+  srv_session_state m_state;
+  enum_vio_type m_vio_type;
+  THD *m_thd;
+  const bool m_free_resources;
 
   class Session_backup_and_attach {
    public:

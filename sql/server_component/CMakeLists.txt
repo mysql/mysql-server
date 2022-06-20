@@ -60,6 +60,10 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   transaction_delegate_control_imp.cc
   mysql_audit_print_service_longlong_data_source_imp.cc
   mysql_audit_print_service_double_data_source_imp.cc
+  mysql_command_services_imp.cc
+  mysql_command_consumer_imp.cc
+  mysql_command_delegates.cc
+  mysql_command_backend.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

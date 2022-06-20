@@ -43,6 +43,8 @@
 #include "my_psi_config.h"
 #include "my_thread.h"
 #include "my_thread_local.h"  // my_get_thread_local & my_set_thread_local
+#include "mysql.h"
+#include "mysql/components/my_service.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/mysql_rwlock_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -461,17 +463,23 @@ Srv_session::Session_backup_and_attach::Session_backup_and_attach(
   THD *c_thd = current_thd;
   backup_thd = c_thd;
   bool is_plugin = false;
+
+  if (session->is_associate()) {
+    attach_error = session->associate();
+    return;
+  }
+
   /*
     Check whether the current thread and the one we're going to switch to,
     belong to a plugin and if the plugin is the same (so we can reuse the thd).
   */
   if (THR_srv_session_thread && c_thd &&
-      c_thd->get_plugin() == session->thd.get_plugin()) {
+      c_thd->get_plugin() == session->m_thd->get_plugin()) {
     is_plugin = true;
     backup_thd = nullptr;
   }
 
-  if (is_plugin && c_thd != &session->thd &&
+  if (is_plugin && c_thd != session->m_thd &&
       (old_session = server_session_list.find(c_thd))) {
     old_session->detach();
   } else if (is_plugin) {
@@ -482,7 +490,10 @@ Srv_session::Session_backup_and_attach::Session_backup_and_attach(
 }
 
 Srv_session::Session_backup_and_attach::~Session_backup_and_attach() {
-  if (backup_thd) {
+  if (session->is_associated()) {
+    session->disassociate();
+    if (backup_thd && backup_thd != session->m_thd) backup_thd->store_globals();
+  } else if (backup_thd) {
     session->detach();
     backup_thd->store_globals();
 #ifdef HAVE_PSI_THREAD_INTERFACE
@@ -759,77 +770,109 @@ bool Srv_session::module_deinit() {
 */
 bool Srv_session::is_valid(const Srv_session *session) {
   assert(session != nullptr);
-  const bool is_valid_session = ((session->state > SRV_SESSION_CREATED) &&
-                                 (session->state < SRV_SESSION_CLOSED));
+  const bool is_valid_session = ((session->m_state > SRV_SESSION_CREATED) &&
+                                 (session->m_state < SRV_SESSION_CLOSED));
+
+  if (session->is_associate() || session->is_associated()) return true;
+
   /*
     Make sure valid session exists and invalid sessions doesn't exists in the
     list of opened sessions.
   */
-  assert((is_valid_session && server_session_list.find(&session->thd)) ||
-         (!is_valid_session && !server_session_list.find(&session->thd)));
+  assert((is_valid_session && server_session_list.find(session->m_thd)) ||
+         (!is_valid_session && !server_session_list.find(session->m_thd)));
 
   return is_valid_session;
 }
 
 /**
   Constructs a server session
-
-  @param err_cb         Default completion callback
-  @param err_cb_ctx     Plugin's context, opaque pointer that would
-                        be provided to callbacks. Might be NULL.
 */
 Srv_session::Srv_session(srv_session_error_cb err_cb, void *err_cb_ctx)
-    : da(false),
-      err_protocol_ctx(err_cb, err_cb_ctx),
-      protocol_error(&error_protocol_callbacks, CS_TEXT_REPRESENTATION,
-                     (void *)&err_protocol_ctx),
-      state(SRV_SESSION_CREATED),
-      vio_type(NO_VIO_TYPE) {
-  thd.mark_as_srv_session();
-  thd.m_audited = false;
+    : Srv_session(err_cb, err_cb_ctx, SRV_SESSION_CREATED, true, nullptr) {
+  m_thd->mark_as_srv_session();
+  m_thd->m_audited = false;
+}
+
+Srv_session::Srv_session(srv_session_error_cb err_cb, void *err_cb_ctx,
+                         THD *thd)
+    : Srv_session(err_cb, err_cb_ctx, SRV_SESSION_ASSOCIATE, false, thd) {
+  assert(thd);  // A valid thd must be passed.
+  m_thd->push_protocol(&m_protocol_error);
+  m_thd->push_diagnostics_area(&m_da);
+}
+
+/** Delegated constructor to intialize the members. */
+Srv_session::Srv_session(srv_session_error_cb err_cb, void *err_cb_ctx,
+                         srv_session_state state, bool free_resources, THD *thd)
+    : m_da(false),
+      m_err_protocol_ctx(err_cb, err_cb_ctx),
+      m_protocol_error(&error_protocol_callbacks, CS_TEXT_REPRESENTATION,
+                       (void *)&m_err_protocol_ctx),
+      m_state(state),
+      m_vio_type(NO_VIO_TYPE),
+      m_thd(thd),
+      m_free_resources(free_resources) {
+  try {
+    if (m_thd == nullptr) m_thd = new THD();
+  } catch (...) {
+    DBUG_PRINT("error", ("Can't allocate the THD object"));
+    throw;
+  }
+}
+
+Srv_session::~Srv_session() {
+  if (m_free_resources) {
+    delete m_thd;
+  } else {
+    mysql_mutex_lock(&m_thd->LOCK_thd_protocol);
+    m_thd->pop_protocol();
+    mysql_mutex_unlock(&m_thd->LOCK_thd_protocol);
+    m_thd->pop_diagnostics_area();
+  }
 }
 
 /**
-  Opens a server session
+Opens a server session
 
-  @return
-    false  on success
-    true   on failure
+@return
+false  on success
+true   on failure
 */
 bool Srv_session::open() {
   char stack_start;
   DBUG_TRACE;
 
-  DBUG_PRINT("info", ("Session=%p  THD=%p  DA=%p", this, &thd, &da));
-  assert(state == SRV_SESSION_CREATED || state == SRV_SESSION_CLOSED);
+  DBUG_PRINT("info", ("Session=%p  THD=%p  DA=%p", this, m_thd, &m_da));
+  assert(m_state == SRV_SESSION_CREATED || m_state == SRV_SESSION_CLOSED);
 
-  thd.push_protocol(&protocol_error);
-  thd.push_diagnostics_area(&da);
+  m_thd->push_protocol(&m_protocol_error);
+  m_thd->push_diagnostics_area(&m_da);
   /*
-    thd.stack_start will be set once we start attempt to attach.
+    m_thd.stack_start will be set once we start attempt to attach.
     store_globals() will check for it, so we will set it beforehand.
 
     No store_globals() here as the session is always created in a detached
     state. Attachment with store_globals() will happen on demand.
   */
-  if (thd_init_client_charset(&thd, my_charset_utf8mb3_general_ci.number)) {
+  if (thd_init_client_charset(m_thd, my_charset_utf8mb3_general_ci.number)) {
     connection_errors_internal++;
-    if (err_protocol_ctx.handler)
-      err_protocol_ctx.handler(err_protocol_ctx.handler_context,
-                               ER_OUT_OF_RESOURCES,
-                               ER_DEFAULT(ER_OUT_OF_RESOURCES));
+    if (m_err_protocol_ctx.handler)
+      m_err_protocol_ctx.handler(m_err_protocol_ctx.handler_context,
+                                 ER_OUT_OF_RESOURCES,
+                                 ER_DEFAULT(ER_OUT_OF_RESOURCES));
     Connection_handler_manager::dec_connection_count();
     return true;
   }
 
-  thd.update_charset();
+  m_thd->update_charset();
 
-  thd.set_new_thread_id();
+  m_thd->set_new_thread_id();
 
-  DBUG_PRINT("info", ("thread_id=%d", thd.thread_id()));
+  DBUG_PRINT("info", ("thread_id=%d", m_thd->thread_id()));
 
-  thd.set_command(COM_SLEEP);
-  thd.init_query_mem_roots();
+  m_thd->set_command(COM_SLEEP);
+  m_thd->init_query_mem_roots();
 
   /*
     Set current_thd so that it can be used during authentication,
@@ -837,17 +880,17 @@ bool Srv_session::open() {
     separation between open() and attach() so it is likely that
     a conceptually better solution is required long-term.
   */
-  thd_set_thread_stack(&thd, &stack_start);
-  thd.store_globals();
+  thd_set_thread_stack(m_thd, &stack_start);
+  m_thd->store_globals();
 
-  Global_THD_manager::get_instance()->add_thd(&thd);
+  Global_THD_manager::get_instance()->add_thd(m_thd);
 
   const st_plugin_int *plugin = THR_srv_session_thread;
-  thd.set_plugin(plugin);
+  m_thd->set_plugin(plugin);
 
-  server_session_list.add(&thd, plugin, this);
+  server_session_list.add(m_thd, plugin, this);
 
-  state = SRV_SESSION_OPENED;
+  m_state = SRV_SESSION_OPENED;
 
   return false;
 }
@@ -860,13 +903,13 @@ bool Srv_session::open() {
     true    failure
 */
 bool Srv_session::attach() {
-  const bool first_attach = (state == SRV_SESSION_OPENED);
+  const bool first_attach = (m_state == SRV_SESSION_OPENED);
   DBUG_TRACE;
   DBUG_PRINT("info", ("current_thd=%p", current_thd));
-  assert(state > SRV_SESSION_CREATED && state < SRV_SESSION_CLOSED);
+  assert(m_state > SRV_SESSION_CREATED && m_state < SRV_SESSION_CLOSED);
 
   if (is_attached()) {
-    if (!my_thread_equal(thd.real_id, my_thread_self())) {
+    if (!my_thread_equal(m_thd->real_id, my_thread_self())) {
       DBUG_PRINT("error", ("Attached to different thread. Detach in it"));
       return true;
     }
@@ -876,7 +919,7 @@ bool Srv_session::attach() {
 
   // Since we now set current_thd during open(), we need to do complete
   // attach the first time in any case.
-  if (!first_attach && &thd == current_thd) return false;
+  if (!first_attach && m_thd == current_thd) return false;
 
   THD *old_thd = current_thd;
   DBUG_PRINT("info", ("current_thd=%p", current_thd));
@@ -888,7 +931,6 @@ bool Srv_session::attach() {
   const char *new_stack = THR_srv_session_thread
                               ? THR_stack_start_address
                               : (old_thd ? old_thd->thread_stack : nullptr);
-
   /*
     Attach optimistically, as this will set thread_stack,
     which needed by store_globals()
@@ -896,20 +938,20 @@ bool Srv_session::attach() {
   set_attached(new_stack);
 
   // This will install our new THD object as current_thd
-  thd.store_globals();
+  m_thd->store_globals();
 
   Srv_session *old_session = server_session_list.find(old_thd);
 
   /* Really detach only if we are sure everything went fine */
   if (old_session) old_session->set_detached();
 
-  thd_clear_errors(&thd);
+  thd_clear_errors(m_thd);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  set_psi(&thd);
+  set_psi(m_thd);
 
   PSI_THREAD_CALL(set_connection_type)
-  (vio_type != NO_VIO_TYPE ? vio_type : thd.get_vio_type());
+  (m_vio_type != NO_VIO_TYPE ? m_vio_type : m_thd->get_vio_type());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
   if (first_attach) {
@@ -918,10 +960,10 @@ bool Srv_session::attach() {
       and this will report correct information.
     */
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(notify_session_connect)(thd.get_psi());
+    PSI_THREAD_CALL(notify_session_connect)(m_thd->get_psi());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
-    query_logger.general_log_print(&thd, COM_CONNECT, NullS);
+    query_logger.general_log_print(m_thd, COM_CONNECT, NullS);
   }
 
   return false;
@@ -939,16 +981,17 @@ bool Srv_session::detach() {
 
   if (!is_attached()) return false;
 
-  if (!my_thread_equal(thd.real_id, my_thread_self())) {
+  if (!my_thread_equal(m_thd->real_id, my_thread_self())) {
     DBUG_PRINT("error", ("Attached to a different thread. Detach in it"));
     return true;
   }
 
   DBUG_PRINT("info",
-             ("Session=%p THD=%p current_thd=%p", this, &thd, current_thd));
+             ("Session=%p THD=%p current_thd=%p", this, m_thd, current_thd));
 
-  assert(&thd == current_thd);
-  thd.restore_globals();
+  assert(m_thd == current_thd);
+
+  m_thd->restore_globals();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   set_psi(nullptr);
@@ -983,9 +1026,9 @@ bool Srv_session::close() {
   DBUG_TRACE;
 
   DBUG_PRINT("info",
-             ("Session=%p THD=%p current_thd=%p", this, &thd, current_thd));
+             ("Session=%p THD=%p current_thd=%p", this, m_thd, current_thd));
 
-  assert(state < SRV_SESSION_CLOSED);
+  assert(m_state < SRV_SESSION_CLOSED);
 
   /*
     RAII
@@ -998,49 +1041,49 @@ bool Srv_session::close() {
 
   if (backup.attach_error) return true;
 
-  state = SRV_SESSION_CLOSED;
+  m_state = SRV_SESSION_CLOSED;
 
-  server_session_list.remove(&thd);
+  server_session_list.remove(m_thd);
 
   /*
     Log to general log must happen before release_resources() as
     current_thd will be different then.
   */
-  query_logger.general_log_print(&thd, COM_QUIT, NullS);
+  query_logger.general_log_print(m_thd, COM_QUIT, NullS);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(notify_session_disconnect)(thd.get_psi());
+  PSI_THREAD_CALL(notify_session_disconnect)(m_thd->get_psi());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
-  thd.security_context()->logout();
-  thd.m_view_ctx_list.clear();
-  close_mysql_tables(&thd);
+  m_thd->security_context()->logout();
+  m_thd->m_view_ctx_list.clear();
+  close_mysql_tables(m_thd);
 
-  thd.set_plugin(nullptr);
-  thd.pop_diagnostics_area();
+  m_thd->set_plugin(nullptr);
+  m_thd->pop_diagnostics_area();
 
-  thd.get_stmt_da()->reset_diagnostics_area();
+  m_thd->get_stmt_da()->reset_diagnostics_area();
 
   // DEBUG_SYNC control block is released under call to
-  // `thd.release_resource`, thus we can't put this sync
+  // `m_thd->release_resource`, thus we can't put this sync
   // point directly before `pop_protocol`.
   // Second constrain is that `THD::disconnect` marks
   // this connection as killed, which disables DEBUG_SYNC.
-  DEBUG_SYNC(&thd, "srv_session_close");
+  DEBUG_SYNC(m_thd, "srv_session_close");
 
-  thd.disconnect();
+  m_thd->disconnect();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   set_psi(nullptr);
 #endif
 
-  thd.release_resources();
+  m_thd->release_resources();
 
-  Global_THD_manager::get_instance()->remove_thd(&thd);
+  Global_THD_manager::get_instance()->remove_thd(m_thd);
 
-  mysql_mutex_lock(&thd.LOCK_thd_protocol);
-  thd.pop_protocol();
-  mysql_mutex_unlock(&thd.LOCK_thd_protocol);
+  mysql_mutex_lock(&m_thd->LOCK_thd_protocol);
+  m_thd->pop_protocol();
+  mysql_mutex_unlock(&m_thd->LOCK_thd_protocol);
 
   Connection_handler_manager::dec_connection_count();
 
@@ -1053,16 +1096,16 @@ bool Srv_session::close() {
   @param stack  New stack address
 */
 void Srv_session::set_attached(const char *stack) {
-  state = SRV_SESSION_ATTACHED;
-  thd_set_thread_stack(&thd, stack);
+  m_state = SRV_SESSION_ATTACHED;
+  thd_set_thread_stack(m_thd, stack);
 }
 
 /**
   Changes the state of a session to detached
 */
 void Srv_session::set_detached() {
-  state = SRV_SESSION_DETACHED;
-  thd_set_thread_stack(&thd, nullptr);
+  m_state = SRV_SESSION_DETACHED;
+  thd_set_thread_stack(m_thd, nullptr);
 }
 
 int Srv_session::execute_command(enum enum_server_command command,
@@ -1074,62 +1117,64 @@ int Srv_session::execute_command(enum enum_server_command command,
   DBUG_TRACE;
 
   if (!srv_session_server_is_available()) {
-    if (err_protocol_ctx.handler)
-      err_protocol_ctx.handler(err_protocol_ctx.handler_context,
-                               ER_SESSION_WAS_KILLED,
-                               ER_DEFAULT(ER_SESSION_WAS_KILLED));
+    if (m_err_protocol_ctx.handler)
+      m_err_protocol_ctx.handler(m_err_protocol_ctx.handler_context,
+                                 ER_SESSION_WAS_KILLED,
+                                 ER_DEFAULT(ER_SESSION_WAS_KILLED));
     return 1;
   }
 
-  if (thd.killed) {
-    if (err_protocol_ctx.handler)
-      err_protocol_ctx.handler(err_protocol_ctx.handler_context,
-                               ER_SESSION_WAS_KILLED,
-                               ER_DEFAULT(ER_SESSION_WAS_KILLED));
+  if (m_thd->killed) {
+    if (m_err_protocol_ctx.handler)
+      m_err_protocol_ctx.handler(m_err_protocol_ctx.handler_context,
+                                 ER_SESSION_WAS_KILLED,
+                                 ER_DEFAULT(ER_SESSION_WAS_KILLED));
     return 1;
   }
 
-  assert(thd.get_protocol() == &protocol_error);
+  assert(m_thd->get_protocol() == &m_protocol_error);
 
   // RAII:the destructor restores the state
   Srv_session::Session_backup_and_attach backup(this, false);
 
   if (backup.attach_error) return 1;
 
-  if (client_cs && thd.variables.character_set_results != client_cs &&
-      thd_init_client_charset(&thd, client_cs->number))
+  if (client_cs && m_thd->variables.character_set_results != client_cs &&
+      thd_init_client_charset(m_thd, client_cs->number))
     return 1;
 
   /* Switch to different callbacks */
   Protocol_callback client_proto(callbacks, text_or_binary, callbacks_context);
 
-  thd.push_protocol(&client_proto);
+  m_thd->push_protocol(&client_proto);
 
-  mysql_audit_release(&thd);
+  mysql_audit_release(m_thd);
 
   /*
     The server does it for COM_QUERY in dispatch_sql_command() but not for
     COM_INIT_DB, for example
   */
-  if (command != COM_QUERY) thd.reset_for_next_command();
+  if (command != COM_QUERY) m_thd->reset_for_next_command();
 
   /* For per-query performance counters with log_slow_statement */
   struct System_status_var query_start_status;
-  thd.clear_copy_status_var();
+  m_thd->clear_copy_status_var();
   if (opt_log_slow_extra) {
-    thd.copy_status_var(&query_start_status);
+    m_thd->copy_status_var(&query_start_status);
   }
 
   mysql_thread_set_secondary_engine(false);
 
-  assert(thd.m_statement_psi == nullptr);
-  thd.m_statement_psi = MYSQL_START_STATEMENT(
-      &thd.m_statement_state, stmt_info_new_packet.m_key, thd.db().str,
-      thd.db().length, thd.charset(), nullptr);
-  int ret = dispatch_command(&thd, data, command);
+  if (m_state != SRV_SESSION_ASSOCIATED) {
+    assert(m_thd->m_statement_psi == nullptr);
+    m_thd->m_statement_psi = MYSQL_START_STATEMENT(
+        &m_thd->m_statement_state, stmt_info_new_packet.m_key, m_thd->db().str,
+        m_thd->db().length, m_thd->charset(), nullptr);
+  }
+  int ret = dispatch_command(m_thd, data, command);
 
-  thd.pop_protocol();
-  assert(thd.get_protocol() == &protocol_error);
+  m_thd->pop_protocol();
+  assert(m_thd->get_protocol() == &m_protocol_error);
   return ret;
 }
 
@@ -1145,10 +1190,49 @@ int Srv_session::execute_command(enum enum_server_command command,
 bool Srv_session::set_connection_type(enum_vio_type v_type) {
   if (v_type < FIRST_VIO_TYPE || v_type > LAST_VIO_TYPE) return true;
 
-  vio_type = v_type;
+  m_vio_type = v_type;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (is_attached()) PSI_THREAD_CALL(set_connection_type)(vio_type);
+  if (is_attached()) PSI_THREAD_CALL(set_connection_type)(m_vio_type);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
+  return false;
+}
+
+void Srv_session::set_associate() { m_state = SRV_SESSION_ASSOCIATED; }
+
+void Srv_session::set_disassociate() { m_state = SRV_SESSION_DISASSOCIATED; }
+
+bool Srv_session::is_associate() const {
+  return m_state == SRV_SESSION_ASSOCIATE;
+}
+
+bool Srv_session::is_associated() const {
+  return m_state == SRV_SESSION_ASSOCIATED;
+}
+
+bool Srv_session::associate() {
+  if (!is_associate()) return true;
+  const char *stack_start = m_thd->thread_stack ? m_thd->thread_stack : nullptr;
+  thd_set_thread_stack(m_thd, stack_start);
+  // This will install our new THD object as current_thd
+  m_thd->store_globals();
+  thd_clear_errors(m_thd);
+  set_associate();
+  return false;
+}
+
+bool Srv_session::disassociate() {
+  if (!is_associated()) return true;
+
+  if (!my_thread_equal(m_thd->real_id, my_thread_self())) {
+    DBUG_PRINT("error", ("Attached to a different thread. Detach in it"));
+    return true;
+  }
+
+  DBUG_PRINT("info",
+             ("Session=%p THD=%p current_thd=%p", this, m_thd, current_thd));
+
+  m_thd->restore_globals();
+  set_disassociate();
   return false;
 }
 
@@ -1168,7 +1252,7 @@ static void set_client_port_in_thd(THD *thd, uint16_t *input) {
   @param port  Port number
 */
 void Srv_session::set_client_port(uint16_t port) {
-  Find_thd_with_id find_thd_with_id(thd.thread_id());
+  Find_thd_with_id find_thd_with_id(m_thd->thread_id());
   THD_ptr thd_ptr =
       Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (thd_ptr) set_client_port_in_thd(thd_ptr.get(), &port);
