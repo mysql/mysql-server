@@ -1971,3 +1971,12 @@ EXPLAIN
             -> Table scan on t1 (rows=1)
 
 DROP TABLE t1;
+#
+# Bug#34298238: Assertion `cond->is_bool_func()' failed in MySQL 8.0.29
+#
+CREATE TABLE t1 (f1 INTEGER);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM (SELECT f1 FROM t1 UNION SELECT f1 FROM t1) AS dt WHERE f1 <> 0.5;
+f1
+1
+DROP TABLE t1;
