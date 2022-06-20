@@ -53,6 +53,8 @@ using namespace std::string_view_literals;
 IMPORT_LOG_FUNCTIONS()
 
 using StringOption = mysql_harness::StringOption;
+using BoolOption = mysql_harness::BoolOption;
+using DoubleOption = mysql_harness::DoubleOption;
 
 template <class T>
 using IntOption = mysql_harness::IntOption<T>;
@@ -481,6 +483,17 @@ RoutingPluginConfig::RoutingPluginConfig(
         "[destination_status].error_quarantine_interval instead.");
   }
 
+  GET_OPTION_CHECKED(connection_sharing, section, "connection_sharing",
+                     BoolOption{});
+
+  static_assert(mysql_harness::str_in_collection(routing_supported_options,
+                                                 "connection_sharing_delay"));
+  connection_sharing_delay =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::duration<double, std::chrono::seconds::period>(
+              get_option(section, "connection_sharing_delay",
+                         DoubleOption{0})));
+
   using namespace std::string_literals;
 
   // either bind_address or socket needs to be set, or both
@@ -546,7 +559,8 @@ std::string RoutingPluginConfig::get_default(const std::string &option) const {
       {"client_ssl_mode", ""},
       {"server_ssl_mode", "as_client"},
       {"server_ssl_verify", "disabled"},
-
+      {"connection_sharing", "0"},
+      {"connection_sharing_delay", "1"},
   };
 
   const auto it = defaults.find(option);

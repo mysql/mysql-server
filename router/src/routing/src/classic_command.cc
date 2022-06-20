@@ -178,11 +178,12 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
       if (server_conn.is_open() && connection()->connection_sharing_allowed()) {
         trace(Tracer::Event().stage("client::idle::starting"));
 
-        if (true) {
+        auto delay = connection()->context().connection_sharing_delay();
+        if (!delay.count()) {
           client_idle_timeout();
         } else {
           // multiplex-timeout
-          t.expires_after(100ms);
+          t.expires_after(delay);
           t.async_wait([this](auto ec) {
             if (ec) return;
 

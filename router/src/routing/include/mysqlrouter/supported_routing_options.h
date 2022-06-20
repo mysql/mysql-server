@@ -28,7 +28,7 @@
 #include <array>
 #include <string_view>
 
-static constexpr std::array<const char *, 29> routing_supported_options{
+static constexpr std::array<const char *, 31> routing_supported_options{
     "protocol",
     "destinations",
     "bind_port",
@@ -60,5 +60,8 @@ static constexpr std::array<const char *, 29> routing_supported_options{
     // that is no longer used, kept for backward compatibilty, replaced by
     // [destination_status].error_quarantine_interval
     "unreachable_destination_refresh_interval",
+    "connection_sharing",
+    "connection_sharing_delay",
 };
+
 #endif /* MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED */

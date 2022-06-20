@@ -120,12 +120,14 @@ MySQLRouting::MySQLRouting(
     std::chrono::milliseconds client_connect_timeout,
     unsigned int net_buffer_length, SslMode client_ssl_mode,
     TlsServerContext *client_ssl_ctx, SslMode server_ssl_mode,
-    DestinationTlsContext *dest_ssl_ctx, bool connection_sharing)
+    DestinationTlsContext *dest_ssl_ctx, bool connection_sharing,
+    std::chrono::milliseconds connection_sharing_delay)
     : context_(protocol, route_name, net_buffer_length,
                destination_connect_timeout, client_connect_timeout,
                mysql_harness::TCPAddress(bind_address, port), named_socket,
                max_connect_errors, client_ssl_mode, client_ssl_ctx,
-               server_ssl_mode, dest_ssl_ctx, connection_sharing),
+               server_ssl_mode, dest_ssl_ctx, connection_sharing,
+               connection_sharing_delay),
       io_ctx_{io_ctx},
       routing_strategy_(routing_strategy),
       access_mode_(access_mode),

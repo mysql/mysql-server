@@ -38,6 +38,7 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -141,6 +142,8 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
    * @param dest_ssl_ctx SSL contexts of the destinations
    * @param connection_sharing if connection sharing is allowed by the
    * configuration
+   * @param connection_sharing_delay default before a idling connection is moved
+   * to the pool of connection sharing is allowed.
    */
   MySQLRouting(
       net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
@@ -160,7 +163,9 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
       TlsServerContext *client_ssl_ctx = nullptr,
       SslMode server_ssl_mode = SslMode::kDisabled,
       DestinationTlsContext *dest_ssl_ctx = nullptr,
-      bool connection_sharing = false);
+      bool connection_sharing = false,
+      std::chrono::milliseconds connection_sharing_delay =
+          routing::kDefaultConnectionSharingDelay);
 
   /** @brief Starts the service and accept incoming connections
    *

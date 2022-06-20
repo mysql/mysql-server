@@ -94,6 +94,12 @@ class ROUTING_PLUGIN_EXPORT RoutingPluginConfig
       dest_ssl_crl_file;  //!< CRL file used to check revoked certificates
   std::string dest_ssl_crl_dir;  //!< directory of CRL files
   std::string dest_ssl_curves;   //!< allowed TLS curves
+
+  bool connection_sharing;  //!< if connection sharing is allowed.
+  std::chrono::milliseconds
+      connection_sharing_delay;  //!< delay before an idling connection is
+                                 //!< moved to the pool and connection sharing
+                                 //!< is allowed.
 };
 
 #endif  // PLUGIN_CONFIG_ROUTING_INCLUDED

@@ -25,7 +25,6 @@
 #include "mysqlrouter/routing_plugin_export.h"
 
 #include <atomic>
-#include <iostream>
 #include <mutex>
 #include <stdexcept>
 #include <vector>
@@ -40,6 +39,8 @@
 #include "mysql/harness/tls_server_context.h"
 #include "mysql/harness/utility/string.h"  // join, string_format
 #include "mysql_routing.h"
+#include "mysqlrouter/connection_pool.h"
+#include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
@@ -399,6 +400,41 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       dest_tls_ctx.verify(config.dest_ssl_verify);
     }
 
+    if (config.connection_sharing == 1) {
+      if (config.source_ssl_mode == SslMode::kPassthrough) {
+        log_warning(
+            "[%s].connection_sharing=1 has been ignored, as "
+            "client_ssl_mode=PASSTHROUGH.",
+            name.c_str());
+      } else if (config.source_ssl_mode == SslMode::kPreferred &&
+                 config.dest_ssl_mode == SslMode::kAsClient) {
+        log_warning(
+            "[%s].connection_sharing=1 has been ignored, as "
+            "client_ssl_mode=PREFERRED and server_ssl_mode=AS_CLIENT.",
+            name.c_str());
+      }
+
+      auto &pool_component = ConnectionPoolComponent::get_instance();
+      auto default_pool_name = pool_component.default_pool_name();
+      auto default_pool = pool_component.get(default_pool_name);
+      if (!default_pool) {
+        log_warning(
+            "[%s].connection_sharing=1 has been ignored, as "
+            "there is no [connection_pool]",
+            name.c_str());
+      } else if (default_pool->max_pooled_connections() == 0) {
+        log_warning(
+            "[%s].connection_sharing=1 has been ignored, as "
+            "[connection_pool].max_idle_server_connections=0",
+            name.c_str());
+      }
+
+      if (config.protocol == Protocol::Type::kXProtocol) {
+        log_warning("[%s].connection_sharing=1 has been ignored, as protocol=x",
+                    name.c_str());
+      }
+    }
+
     net::io_context &io_ctx = IoComponent::get_instance().io_context();
     auto r = std::make_shared<MySQLRouting>(
         io_ctx, config.routing_strategy, config.bind_address.port(),
@@ -410,7 +446,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         config.source_ssl_mode != SslMode::kDisabled ? &source_tls_ctx
                                                      : nullptr,
         config.dest_ssl_mode,
-        config.dest_ssl_mode != SslMode::kDisabled ? &dest_tls_ctx : nullptr);
+        config.dest_ssl_mode != SslMode::kDisabled ? &dest_tls_ctx : nullptr,
+        config.connection_sharing, config.connection_sharing_delay);
 
     try {
       // don't allow rootless URIs as we did already in the
