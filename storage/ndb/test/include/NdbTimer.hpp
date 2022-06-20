@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +85,7 @@ inline void NdbTimer::printTransactionStatistics(const char* text,
   ndbout_c("%i transactions, %i %s total time = %d ms\nAverage %f ms/transaction, %f ms/%s.\n%f transactions/second, %f %ss/second.\n",
 	 numTransactions, numTransactions*numOperations, text, lapTime,
          ((double)lapTime/numTransactions), ((double)lapTime/(numTransactions*numOperations)), text, 
-         1000.0/((double)lapTime/numOperations), 1000.0/((double)lapTime/(numTransactions*numOperations)), text);
+         1000.0/((double)lapTime/numTransactions), 1000.0/((double)lapTime/(numTransactions*numOperations)), text);
 }
 
 
