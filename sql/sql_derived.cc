@@ -1020,6 +1020,7 @@ bool Condition_pushdown::make_cond_for_derived() {
                (m_derived_table->referencing_view &&
                 m_derived_table->referencing_view->is_system_view)));
       if (m_cond_to_push == nullptr) return true;
+      m_cond_to_push->apply_is_true();
     }
     m_query_block = qb;
 
