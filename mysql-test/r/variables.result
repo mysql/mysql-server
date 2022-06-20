@@ -696,6 +696,7 @@ set @a=@b, @b=@a;
 select @a, @b;
 @a	@b
 2	1
+SET max_join_size = @my_max_join_size;
 set @@global.global.key_buffer_size= 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.key_buffer_size= 1' at line 1
 set GLOBAL global.key_buffer_size= 1;
@@ -948,7 +949,6 @@ select @@version, @@version_comment, @@version_compile_machine,
 @@version_compile_os;
 @@version	@@version_comment	@@version_compile_machine	@@version_compile_os
 #	#	#	#
-SET SQL_BIG_SELECTS=1;
 select @@basedir, @@datadir, @@tmpdir;
 @@basedir	@@datadir	@@tmpdir
 #	#	#
@@ -997,7 +997,6 @@ ssl_fips_mode	#
 ssl_key	#
 ssl_session_cache_mode	#
 ssl_session_cache_timeout	#
-SET SQL_BIG_SELECTS=0;
 select @@log_queries_not_using_indexes;
 @@log_queries_not_using_indexes
 0

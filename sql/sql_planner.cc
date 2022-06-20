@@ -1247,7 +1247,8 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
   /*
     Because calculating condition filtering has a cost, it should only
     be done if the filter is meaningful. It is meaningful if the query
-    is an EXPLAIN, or if the filter may influence the QEP.
+    is an EXPLAIN, if a max_join_size has been specified, or if the
+    filter may influence the QEP.
 
     Note that this means that EXPLAIN FOR CONNECTION will typically
     not find a calculated filtering value for the last table in a QEP
@@ -1277,6 +1278,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         Rationale: some of the limit optimizations take the filtering effect
         on the last table into account.
     2f) Statement is EXPLAIN
+    2g) max_join_size is in effect.
 
     Note: Even in the case of a single table query, the filtering
     effect may effect the QEP because the cost of sorting fewer rows
@@ -1297,8 +1299,10 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
          !tab->join()->query_block->sj_nests.empty() ||  // 2d
          ((!tab->join()->order.empty() || !tab->join()->group_list.empty()) &&
           tab->join()->query_expression()->select_limit_cnt !=
-              HA_POS_ERROR) ||      // 2e
-         thd->lex->is_explain())))  // 2f
+              HA_POS_ERROR) ||                                      // 2e
+         thd->lex->is_explain() ||                                  // 2f
+         !Overlaps(thd->variables.option_bits, OPTION_BIG_SELECTS)  // 2g
+         )))
     return COND_FILTER_ALLPASS;
 
   // No filtering is calculated if we expect less than one row to be fetched

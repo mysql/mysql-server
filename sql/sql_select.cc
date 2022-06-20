@@ -3227,9 +3227,16 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
         For performance reasons, we do not recalculate the filter for
         non-EXPLAIN queries; thus, EXPLAIN CONNECTION may show 100%
         for a query.
+
+        Also calculate the proper value if max_join_size is in effect and there
+        is a limit, since it's needed in order to calculate how many rows to
+        read from the base table if rows are filtered before the limit is
+        applied.
       */
       tab->position()->filter_effect =
-          join->thd->lex->is_explain()
+          (join->thd->lex->is_explain() ||
+           (join->m_select_limit != HA_POS_ERROR &&
+            !Overlaps(join->thd->variables.option_bits, OPTION_BIG_SELECTS)))
               ? calculate_condition_filter(
                     tab,
                     (tab->ref().key != -1) ? tab->position()->key : nullptr,

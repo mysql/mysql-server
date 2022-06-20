@@ -32,12 +32,15 @@
 */
 
 #include "sql/sql_optimizer.h"
+#include "my_base.h"
 #include "sql/sql_optimizer_internal.h"
 
 #include <limits.h>
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <deque>
+#include <limits>
 #include <new>
 #include <string>
 #include <utility>
@@ -110,6 +113,7 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
+using std::ceil;
 using std::max;
 using std::min;
 
@@ -2976,7 +2980,7 @@ static JOIN_TAB *alloc_jtab_array(THD *thd, uint table_count) {
     - for full and index scans info of estimated # of records is updated.
     - in a helper function:
       - all heuristics are applied and the final access method type is picked
-        for each join_tab (only test_if_skip_sortorder() could override it)
+        for each join_tab (only test_if_skip_sort_order() could override it)
       - AM consistency is ensured (e.g only range and index merge are allowed
         to have quick select set).
       - if "Impossible WHERE" is detected - appropriate zero_result_cause is
@@ -5287,14 +5291,6 @@ bool JOIN::make_join_plan() {
   if (query_expression()->item && decide_subquery_strategy()) return true;
 
   refine_best_rowcount();
-
-  if (!(thd->variables.option_bits & OPTION_BIG_SELECTS) &&
-      best_read > (double)thd->variables.max_join_size &&
-      !thd->lex->is_explain()) { /* purecov: inspected */
-    my_error(ER_TOO_BIG_SELECT, MYF(0));
-    error = -1;
-    return true;
-  }
 
   positions = nullptr;  // But keep best_positions for get_best_combination
 
@@ -11252,4 +11248,237 @@ bool IteratorsAreNeeded(const THD *thd, AccessPath *root_path) {
   // external executor.
   return !IsBitSet(static_cast<int>(SecondaryEngineFlag::USE_EXTERNAL_EXECUTOR),
                    secondary_engine->secondary_engine_flags);
+}
+
+/// Constant used to signal that there is no limit in EstimateRowAccesses().
+static constexpr double kNoLimit = std::numeric_limits<double>::infinity();
+
+/**
+  Estimates how many rows that have to be read from the outer table of a join in
+  order to reach the given limit.
+
+  @param join_path  The AccessPath representing the join.
+  @param outer      The AccessPath representing the outer table in the join.
+  @param limit      The maximum number of rows to read from the join result.
+
+  @return The number of rows to read from the outer table before reaching the
+  limit, or kNoLimit if the entire table is expected to be read.
+ */
+static double GetRowsNeededFromOuterTable(const AccessPath *join_path,
+                                          const AccessPath *outer,
+                                          double limit) {
+  const double input_rows = outer->num_output_rows();
+  const double output_rows = join_path->num_output_rows();
+
+  if (input_rows > 0 && output_rows > 0) {
+    const double fanout = output_rows / input_rows;
+    return ceil(limit / fanout);
+  }
+
+  return kNoLimit;
+}
+
+/**
+  Estimates the number of row accesses that will be performed by a nested loop
+  join.
+
+  Nested loop join reads the outer table once, and the inner table once per row
+  in the outer table. If there is a limit on the query, it might not need to
+  read all rows in the outer table.
+
+  @param join_path  The AccessPath representing the nested loop join.
+  @param num_evaluations  The number of times the join will be executed.
+  @param limit  The maximum number of rows to read from the join result.
+  @return An estimate of the number of row accesses.
+ */
+static double EstimateRowAccessesInNestedLoopJoin(const AccessPath *join_path,
+                                                  const AccessPath *outer,
+                                                  const AccessPath *inner,
+                                                  double num_evaluations,
+                                                  double limit) {
+  const double limit_on_outer =
+      GetRowsNeededFromOuterTable(join_path, outer, limit);
+  return EstimateRowAccesses(outer, num_evaluations, limit_on_outer) +
+         EstimateRowAccesses(
+             inner,
+             num_evaluations * min(limit_on_outer, outer->num_output_rows()),
+             kNoLimit);
+}
+
+/**
+  Estimates the number of row accesses performed by the subqueries contained in
+  an item. The returned estimate is pessimistic, as it assumes the contained
+  subqueries are evaluated each time the item is evaluated. If the item for
+  example is an Item_cond_or, say, x=y OR (SELECT ...), the subquery is not
+  evaluated if x=y is true, but the estimate does not take the selectivity of
+  x=y into account.
+
+  @param item The item to check.
+  @param num_evaluations The number of times the item is evaluated.
+  @return An estimate of the number of row accesses.
+ */
+static double EstimateRowAccessesInItem(Item *item, double num_evaluations) {
+  double rows = 0.0;
+  WalkItem(item, enum_walk::PREFIX, [num_evaluations, &rows](Item *subitem) {
+    if (subitem->type() == Item::SUBSELECT_ITEM) {
+      Item_subselect *subselect = down_cast<Item_subselect *>(subitem);
+      Query_block *query_block = subselect->unit->first_query_block();
+      AccessPath *path;
+      if (subselect->unit->root_access_path() != nullptr) {
+        path = subselect->unit->root_access_path();
+      } else {
+        path = subselect->unit->item->root_access_path();
+      }
+      rows += EstimateRowAccesses(
+          path, query_block->is_cacheable() ? 1.0 : num_evaluations, kNoLimit);
+    }
+    return false;
+  });
+  return rows;
+}
+
+double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
+                           double limit) {
+  assert(limit >= 0.0);
+
+  double rows = 0.0;
+  WalkAccessPaths(
+      path, /*join=*/nullptr, WalkAccessPathPolicy::ENTIRE_TREE,
+      [num_evaluations, limit, &rows](const AccessPath *subpath, const JOIN *) {
+        // Count rows accessed in base tables.
+        if (const TABLE *table = GetBasicTable(subpath);
+            table != nullptr && table->s != nullptr &&
+            table->s->tmp_table != INTERNAL_TMP_TABLE &&
+            table->pos_in_table_list != nullptr &&
+            table->pos_in_table_list->is_base_table()) {
+          double num_output_rows = subpath->num_output_rows();
+
+          // Workaround for the old optimizer only: test_if_skip_sort_order()
+          // sets the cardinality of index scans to the same as the query
+          // block's limit, if there is one, so the estimate in the access path
+          // may be too low. Get the cardinality from the handler's statistics
+          // instead.
+          if (subpath->type == AccessPath::INDEX_SCAN &&
+              !current_thd->lex->using_hypergraph_optimizer) {
+            num_output_rows = table->file->stats.records;
+          }
+
+          assert(num_output_rows >= 0);
+
+          rows += num_evaluations * min(limit, num_output_rows);
+          return true;  // Done with this subtree.
+        }
+
+        switch (subpath->type) {
+          case AccessPath::LIMIT_OFFSET: {
+            const auto &param = subpath->limit_offset();
+            rows += EstimateRowAccesses(
+                param.child, num_evaluations,
+                min(limit, static_cast<double>(param.limit)));
+            return true;
+          }
+          case AccessPath::AGGREGATE: {
+            // Assume that aggregation needs to read the entire input,
+            // regardless of limit. This might be too pessimistic for explicitly
+            // grouped queries, but let's be conservative for now.
+            rows += EstimateRowAccesses(subpath->aggregate().child,
+                                        num_evaluations, kNoLimit);
+            return true;
+          }
+          case AccessPath::TEMPTABLE_AGGREGATE: {
+            // Temptable aggregation needs to read the entire input.
+            rows += EstimateRowAccesses(
+                subpath->temptable_aggregate().subquery_path, num_evaluations,
+                kNoLimit);
+            return true;
+          }
+          case AccessPath::MATERIALIZE: {
+            // Materialize once per query or once per evaluation.
+            const double num_materializations =
+                subpath->materialize().param->rematerialize ? num_evaluations
+                                                            : 1.0;
+            for (const MaterializePathParameters::QueryBlock &query_block :
+                 subpath->materialize().param->query_blocks) {
+              rows += EstimateRowAccesses(query_block.subquery_path,
+                                          num_materializations, kNoLimit);
+            }
+            return true;
+          }
+          case AccessPath::APPEND: {
+            // UNION ALL can stop reading from children once the limit is
+            // reached.
+            double limit_on_next_child = limit;
+            for (AppendPathParameters child : *subpath->append().children) {
+              if (limit_on_next_child <= 0) break;
+              rows += EstimateRowAccesses(child.path, num_evaluations,
+                                          limit_on_next_child);
+              limit_on_next_child -= child.path->num_output_rows();
+            }
+            return true;
+          }
+          case AccessPath::NESTED_LOOP_JOIN: {
+            rows += EstimateRowAccessesInNestedLoopJoin(
+                subpath, subpath->nested_loop_join().outer,
+                subpath->nested_loop_join().inner, num_evaluations, limit);
+            return true;
+          }
+          case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL: {
+            rows += EstimateRowAccessesInNestedLoopJoin(
+                subpath,
+                subpath->nested_loop_semijoin_with_duplicate_removal().outer,
+                subpath->nested_loop_semijoin_with_duplicate_removal().inner,
+                num_evaluations, limit);
+            return true;
+          }
+          case AccessPath::BKA_JOIN: {
+            // BKA join reads each side once.
+            const auto &param = subpath->bka_join();
+            rows += EstimateRowAccesses(param.outer, num_evaluations, kNoLimit);
+            rows += EstimateRowAccesses(param.inner, num_evaluations, kNoLimit);
+            return true;
+          }
+          case AccessPath::HASH_JOIN: {
+            // Hash join reads each side once. If there is a LIMIT clause, it
+            // might not need to read all rows from the outer table.
+            const auto &param = subpath->hash_join();
+            rows += EstimateRowAccesses(
+                param.outer, num_evaluations,
+                GetRowsNeededFromOuterTable(subpath, param.outer, limit));
+            rows += EstimateRowAccesses(param.inner, num_evaluations, kNoLimit);
+            // Subqueries in the non-equijoin conditions may access rows.
+            for (Item *item : param.join_predicate->expr->join_conditions) {
+              rows += EstimateRowAccessesInItem(
+                  item, num_evaluations * subpath->num_output_rows());
+            }
+            return true;
+          }
+          case AccessPath::FILTER: {
+            // Filters may access rows in subqueries. Count them.
+            const auto &param = subpath->filter();
+            const double input_rows = param.child->num_output_rows();
+            const double output_rows = subpath->num_output_rows();
+            const double rows_needed_from_child =
+                (input_rows > 0 && output_rows > 0)
+                    ? limit / (output_rows / input_rows)
+                    : kNoLimit;
+            rows += EstimateRowAccessesInItem(
+                param.condition,
+                num_evaluations * min(param.child->num_output_rows(),
+                                      rows_needed_from_child));
+            rows += EstimateRowAccesses(param.child, num_evaluations,
+                                        rows_needed_from_child);
+            return true;
+          }
+          case AccessPath::SORT: {
+            // SORT needs to read the entire input, regardless of LIMIT.
+            rows += EstimateRowAccesses(subpath->sort().child, num_evaluations,
+                                        kNoLimit);
+            return true;
+          }
+          default:
+            return false;  // Keep traversing.
+        }
+      });
+
+  return rows;
 }

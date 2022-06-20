@@ -1215,4 +1215,17 @@ bool ref_lookup_subsumes_comparison(Field *field, Item *right_item);
  */
 bool IteratorsAreNeeded(const THD *thd, AccessPath *root_path);
 
+/**
+  Estimates the number of base table row accesses that will be performed when
+  executing a query using the given plan.
+
+  @param path The access path representing the plan.
+  @param num_evaluations The number of times this path is expected to be
+  evaluated during a single execution of the query.
+  @param limit The maximum number of rows expected to be read from this path.
+  @return An estimate of the number of row accesses.
+ */
+double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
+                           double limit);
+
 #endif /* SQL_OPTIMIZER_INCLUDED */

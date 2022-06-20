@@ -3,7 +3,7 @@
 SET @session_sql_big_selects = @@SESSION.sql_big_selects;
 SET @session_max_join_size = @@SESSION.max_join_size;
 SET @global_max_join_size = @@GLOBAL.max_join_size;
-SET MAX_JOIN_SIZE=4;
+SET MAX_JOIN_SIZE=9;
 CREATE TEMPORARY TABLE t1(a varchar(20) not null, b varchar(20));
 CREATE TEMPORARY TABLE t2(a varchar(20) null, b varchar(20));
 INSERT INTO t1 VALUES('aa','bb');
@@ -16,6 +16,10 @@ INSERT INTO t2 VALUES('aa1','bb');
 INSERT INTO t2 VALUES('aa2','bb');
 INSERT INTO t2 VALUES('aa3','bb');
 INSERT INTO t2 VALUES('aa4','bb');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 '#--------------------FN_DYNVARS_154_01-------------------------#'
 Expected error "Too big select"
 SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
@@ -33,6 +37,10 @@ aa4	bb	aa4	bb
 This should work
 SET SESSION SQL_BIG_SELECTS = 0;
 DELETE FROM t2 WHERE a = 'aa4';
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	Table is already up to date
 SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
 a	b	a	b
 aa	bb	aa	bb

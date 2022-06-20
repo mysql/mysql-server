@@ -492,6 +492,11 @@ set @a=1, @b=2;
 set @a=@b, @b=@a;
 select @a, @b;
 
+# Reset max_join_size now. Otherwise, every test case below that
+# accesses more than 100 rows would fail. (This test is not for
+# testing max_join_size anyways. That is done in main.select_safe.)
+SET max_join_size = @my_max_join_size;
+
 #
 # Bug#2586:Disallow global/session/local as structured var. instance names
 #
@@ -751,7 +756,6 @@ select @@version, @@version_comment, @@version_compile_machine,
 # Bug #1039: make tmpdir and datadir available as @@variables (also included
 # basedir)
 #
-SET SQL_BIG_SELECTS=1;
 # Don't actually output, since it depends on the system
 --replace_column 1 # 2 # 3 #
 select @@basedir, @@datadir, @@tmpdir;
@@ -786,7 +790,6 @@ show variables like 'ssl%';
 --replace_column 2 #
 select * from performance_schema.session_variables where variable_name like 'ssl%' order by 1;
 --enable_warnings
-SET SQL_BIG_SELECTS=0;
 
 #
 # Bug #19616: make log_queries_not_using_indexes available in SHOW VARIABLES

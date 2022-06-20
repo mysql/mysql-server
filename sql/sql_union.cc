@@ -40,6 +40,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstdio>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -64,6 +65,7 @@
 #include "sql/item_subselect.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
@@ -1140,6 +1142,19 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
           stderr, "Query plan:\n%s\n",
           PrintQueryPlan(0, m_root_access_path, join, is_root_of_join).c_str());
     }
+  }
+
+  // When done with the outermost query expression, and if max_join_size is in
+  // effect, estimate the total number of row accesses in the query, and error
+  // out if it exceeds max_join_size.
+  if (outer_query_block() == nullptr &&
+      !Overlaps(thd->variables.option_bits, OPTION_BIG_SELECTS) &&
+      !thd->lex->is_explain() &&
+      EstimateRowAccesses(m_root_access_path, /*num_evaluations=*/1.0,
+                          std::numeric_limits<double>::infinity()) >
+          static_cast<double>(thd->variables.max_join_size)) {
+    my_error(ER_TOO_BIG_SELECT, MYF(0));
+    return true;
   }
 
   return false;

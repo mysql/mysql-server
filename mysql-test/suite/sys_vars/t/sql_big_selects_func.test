@@ -23,9 +23,6 @@
 # Skip the test if MyISAM is not available
 --source include/have_myisam.inc
 
-# The hypergraph optimizer does not support safe limits.
---source include/not_hypergraph.inc
-
 --echo ** Setup **
 --echo
 #
@@ -35,7 +32,9 @@
 SET @session_sql_big_selects = @@SESSION.sql_big_selects;
 SET @session_max_join_size = @@SESSION.max_join_size;
 SET @global_max_join_size = @@GLOBAL.max_join_size;
-SET MAX_JOIN_SIZE=4;
+# The hash join below will read t1 and t2 once, so set it just small
+# enough to let the query hit the limit.
+SET MAX_JOIN_SIZE=9;
 
 #
 # Create tables
@@ -55,6 +54,8 @@ INSERT INTO t2 VALUES('aa1','bb');
 INSERT INTO t2 VALUES('aa2','bb');
 INSERT INTO t2 VALUES('aa3','bb');
 INSERT INTO t2 VALUES('aa4','bb');
+
+ANALYZE TABLE t1, t2;
 
 --echo '#--------------------FN_DYNVARS_154_01-------------------------#'
 #
@@ -78,7 +79,9 @@ SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
 
 SET SESSION SQL_BIG_SELECTS = 0;
 
+# Delete one row to make the join small enough to pass.
 DELETE FROM t2 WHERE a = 'aa4';
+ANALYZE TABLE t1, t2;
 SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
 --echo This should work
 
