@@ -181,7 +181,7 @@ BEGIN
 
     -- Temporary table are used - disable sql_log_bin if necessary to prevent them replicating
     SET @log_bin := @@sql_log_bin;
-    IF (@log_bin = 1) THEN
+    IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
         SET sql_log_bin = 0;
     END IF;
 
@@ -1029,7 +1029,9 @@ BEGIN
 
     IF (in_auto_config <> 'current') THEN
         CALL sys.ps_setup_reload_saved();
-        SET sql_log_bin = @log_bin;
+        IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+            SET sql_log_bin = @log_bin;
+        END IF;
     END IF;
 
     -- Reset the @sys.diagnostics.% user variables internal to this procedure
@@ -1045,7 +1047,7 @@ BEGIN
         CALL sys.ps_setup_enable_thread(CONNECTION_ID());
     END IF;
 
-    IF (@log_bin = 1) THEN
+    IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
         SET sql_log_bin = @log_bin;
     END IF;
 END$$
