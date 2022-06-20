@@ -87,43 +87,6 @@ using namespace std::chrono_literals;
 
 static std::atomic<size_t> num_of_non_ready_services{0};
 
-#ifdef _WIN32
-static constexpr size_t supported_global_options_size = 21;
-#else
-static constexpr size_t supported_global_options_size = 20;
-#endif
-
-static const std::array<const char *, supported_global_options_size>
-    supported_global_options{"origin",
-                             "program",
-                             "logging_folder",
-                             "runtime_folder",
-                             "data_folder",
-                             "plugin_folder",
-                             "config_folder",
-                             "keyring_path",
-                             "master_key_path",
-                             "connect_timeout",
-                             "read_timeout",
-                             "dynamic_state",
-                             "client_ssl_cert",
-                             "client_ssl_key",
-                             "client_ssl_mode",
-                             "server_ssl_mode",
-                             "server_ssl_verify",
-                             "max_total_connections",
-                             "pid_file",
-                             "unknown_config_option",
-#ifdef _WIN32
-                             "event_source_name"
-#endif
-    };
-
-static const char kLogReopenServiceName[] = "log_reopen";
-#if defined(USE_POSIX_SIGNALS)
-static const char kSignalHandlerServiceName[] = "signal_handler";
-#endif
-
 /**
  * @defgroup Loader Plugin loader
  *
