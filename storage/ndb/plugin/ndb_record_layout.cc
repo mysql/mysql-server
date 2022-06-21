@@ -25,6 +25,7 @@
 #include "storage/ndb/plugin/ndb_record_layout.h"
 
 #include <assert.h>
+#include <cstdint>
 #include "NdbApi.hpp"
 #include "my_byteorder.h"
 
@@ -41,6 +42,7 @@ Ndb_record_layout::~Ndb_record_layout() { delete[] record_specs; }
 void Ndb_record_layout::clear() {
   record_size = 4;
   m_seq = 0;
+  m_nullable_columns = 0;
 }
 
 /*
@@ -61,12 +63,15 @@ void Ndb_record_layout::addColumn(const NdbDictionary::Column *column) {
   record_specs[m_seq].offset = record_size;
 
   /* Set nullbits in the record specification */
+
   if (column->getNullable()) {
-    record_specs[m_seq].nullbit_byte_offset = m_columns / 8;
-    record_specs[m_seq].nullbit_bit_in_byte = m_columns % 8;
+    assert(m_nullable_columns < MAX_NULLABLE_COLUMNS);
+    record_specs[m_seq].nullbit_byte_offset = m_nullable_columns / 8;
+    record_specs[m_seq].nullbit_bit_in_byte = m_nullable_columns % 8;
+    m_nullable_columns++;
   } else {
-    record_specs[m_seq].nullbit_byte_offset = 0;
-    record_specs[m_seq].nullbit_bit_in_byte = 0;
+    record_specs[m_seq].nullbit_byte_offset = UINT32_MAX;
+    record_specs[m_seq].nullbit_bit_in_byte = UINT32_MAX;
   }
 
   /* Set Column in record spec */
@@ -79,6 +84,8 @@ void Ndb_record_layout::addColumn(const NdbDictionary::Column *column) {
 
 bool Ndb_record_layout::isNull(const char *data, int idx) const {
   if (record_specs[idx].column->getNullable()) {
+    assert(record_specs[idx].nullbit_byte_offset < MAX_NULLABLE_COLUMNS / 8);
+    assert(record_specs[idx].nullbit_bit_in_byte < 8);
     return (*(data + record_specs[idx].nullbit_byte_offset) &
             (1 << record_specs[idx].nullbit_bit_in_byte));
   }
