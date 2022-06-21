@@ -393,6 +393,7 @@ struct MDL_key {
      - RESOURCE_GROUPS is for resource groups.
      - FOREIGN_KEY is for foreign key names.
      - CHECK_CONSTRAINT is for check constraint names.
+     - RESOURCE_GROUPS_GLOBAL is global lock for resource groups.
     Note that requests waiting for user-level locks get special
     treatment - waiting is aborted if connection to client is lost.
   */
@@ -415,6 +416,7 @@ struct MDL_key {
     RESOURCE_GROUPS,
     FOREIGN_KEY,
     CHECK_CONSTRAINT,
+    RESOURCE_GROUPS_GLOBAL,
     /* This should be the last ! */
     NAMESPACE_END
   };

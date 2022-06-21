@@ -9470,6 +9470,14 @@ static int show_tls_library_version(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+static int show_resource_group_support(THD *, SHOW_VAR *var, char *buf) {
+  var->type = SHOW_BOOL;
+  var->value = buf;
+  *(pointer_cast<bool *>(buf)) =
+      resourcegroups::Resource_group_mgr::instance()->resource_group_support();
+  return 0;
+}
+
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,
@@ -9825,6 +9833,8 @@ SHOW_VAR status_vars[] = {
      (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_timeout, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Tls_library_version", (char *)&show_tls_library_version, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Resource_group_supported", (char *)show_resource_group_support, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}};
 

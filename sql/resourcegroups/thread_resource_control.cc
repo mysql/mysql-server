@@ -92,6 +92,7 @@ bool Thread_resource_control::apply_control() {
 
 bool Thread_resource_control::apply_control(my_thread_os_id_t thread_os_id) {
   DBUG_TRACE;
+  assert(thread_os_id != 0);
 
   bool ret = false;
   std::vector<resourcegroups::platform::cpu_id_t> cpu_ids;

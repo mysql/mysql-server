@@ -11886,6 +11886,18 @@ ER_CONDITIONAL_DEBUG
 ER_IB_MSG_PARSE_OLD_REDO_INDEX_VERSION
   eng "Recovery: Generating index information for INSTANT DDL Table in 8.0.29 format"
 
+ER_RES_GRP_FAILED_TO_SWITCH_RESOURCE_GROUP
+  eng "Failed to switch resource group. %s".
+
+ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_GLOBAL_LOCK
+  eng "Failed to switch resource group. Could not acquire resource groups global lock."
+
+ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_LOCK
+  eng "Failed to switch resource group. Could not acquire lock on resource group %s."
+
+ER_RES_GRP_SWITCH_FAILED_UNABLE_TO_APPLY_RES_GRP
+  eng "Failed to switch resource group. Unable to apply resource group controller %s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -501,6 +501,7 @@ SET(SQL_SHARED_SOURCES
   regexp/regexp_facade.cc
   resourcegroups/thread_resource_control.cc
   resourcegroups/platform/thread_attrs_api_common.cc
+  resourcegroups/resource_group.cc
   resourcegroups/resource_group_mgr.cc
   resourcegroups/resource_group_sql_cmd.cc
   rpl_group_replication.cc
