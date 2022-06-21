@@ -174,7 +174,7 @@ TEST(WalkAccessPathsTest, PostOrderTraversal) {
                                  &ts6, &hj2, &nlj3, &nlj1));
 }
 
-TEST(WalkAccessPaths, ZeroRows) {
+TEST(WalkAccessPathsTest, ZeroRows) {
   /*
    * Set up this access path tree:
    *
@@ -251,7 +251,7 @@ TEST(WalkAccessPaths, ZeroRows) {
   }
 }
 
-TEST(WalkAccessPaths, ZeroRowsNoChild) {
+TEST(WalkAccessPathsTest, ZeroRowsNoChild) {
   AccessPath zero_path = MakeZeroRows(/*child=*/nullptr);
 
   vector<AccessPath *> paths;
@@ -274,7 +274,7 @@ TEST(WalkAccessPaths, ZeroRowsNoChild) {
   }
 }
 
-TEST(WalkAccessPaths, Append) {
+TEST(WalkAccessPathsTest, Append) {
   /*
    * Set up this access path tree:
    *
@@ -308,6 +308,42 @@ TEST(WalkAccessPaths, Append) {
                     return false;
                   });
   EXPECT_THAT(paths, ElementsAre(&append));
+}
+
+TEST(WalkAccessPathsTest, TemptableAggregate) {
+  AccessPath ts1 = MakeTableScan();
+  AccessPath ts2 = MakeTableScan();
+  AccessPath temptable_aggregate;
+  temptable_aggregate.type = AccessPath::TEMPTABLE_AGGREGATE;
+  temptable_aggregate.temptable_aggregate().subquery_path = &ts1;
+  temptable_aggregate.temptable_aggregate().table_path = &ts2;
+
+  vector<AccessPath *> paths;
+  WalkAccessPaths(&temptable_aggregate, /*join=*/nullptr,
+                  WalkAccessPathPolicy::ENTIRE_TREE,
+                  [&paths](AccessPath *path, const JOIN *) {
+                    paths.push_back(path);
+                    return false;
+                  });
+  EXPECT_THAT(paths, ElementsAre(&temptable_aggregate, &ts1, &ts2));
+}
+
+TEST(WalkAccessPathsTest, PushedJoinRef) {
+  TABLE t1;
+  AccessPath pushed_join_ref;
+  pushed_join_ref.type = AccessPath::PUSHED_JOIN_REF;
+  pushed_join_ref.pushed_join_ref().table = &t1;
+  for (bool include_pruned_tables : {true, false}) {
+    vector<TABLE *> tables;
+    WalkTablesUnderAccessPath(
+        &pushed_join_ref,
+        [&tables](TABLE *table) {
+          tables.push_back(table);
+          return false;
+        },
+        include_pruned_tables);
+    EXPECT_THAT(tables, ElementsAre(&t1));
+  }
 }
 
 }  // namespace walk_access_paths_test
