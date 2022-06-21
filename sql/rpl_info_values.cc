@@ -44,6 +44,7 @@ bool Rpl_info_values::init() {
   if (!value && !(value = new (std::nothrow) String[ninfo])) return true;
   if (bitmap_init(&is_null, nullptr, ninfo)) {
     delete[] value;
+    value = nullptr;
     return true;
   }
   bitmap_clear_all(&is_null);
