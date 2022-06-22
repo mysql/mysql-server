@@ -1043,7 +1043,8 @@ static bool send_statement(THD *thd, const Prepared_statement *stmt,
   @returns false if success, true if error
 */
 
-static bool mysql_test_set_fields(THD *thd, Prepared_statement *stmt,
+static bool mysql_test_set_fields(THD *thd,
+                                  Prepared_statement *stmt [[maybe_unused]],
                                   TABLE_LIST *tables,
                                   List<set_var_base> *var_list) {
   List_iterator_fast<set_var_base> it(*var_list);
