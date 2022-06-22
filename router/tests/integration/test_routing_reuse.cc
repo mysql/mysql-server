@@ -599,6 +599,7 @@ class SharedRouter {
     auto &proc =
         process_manager()
             .spawner(bindir.join("mysqlrouter").str())
+            .with_core_dump(true)
             .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::READY)
             .spawn({"-c", writer.write()});
 
