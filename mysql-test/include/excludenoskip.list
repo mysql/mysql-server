@@ -321,3 +321,6 @@ not_tlsv13.inc
 
 # skip tests which require thread_pool_have_transactions_limit in configs which # don't have it
 have_max_transactions_limit.inc
+
+# skip tests which require resource groups feature.
+have_resource_groups.inc

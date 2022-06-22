@@ -53,8 +53,9 @@
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/query_options.h"
-#include "sql/rpl_filter.h"  // binlog_filter
-#include "sql/sql_class.h"   // THD
+#include "sql/resourcegroups/resource_group_mgr.h"  // Resource_group_mgr
+#include "sql/rpl_filter.h"                         // binlog_filter
+#include "sql/sql_class.h"                          // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"  // sqlcom_can_generate_row_events
 #include "sql/system_variables.h"
@@ -375,3 +376,34 @@ bool thd_is_dd_update_stmt(const THD *thd) {
 }
 
 my_thread_id thd_thread_id(const THD *thd) { return (thd->thread_id()); }
+
+void disable_resource_groups(const char *reason) {
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (res_grp_mgr->resource_group_support()) {
+    res_grp_mgr->disable_resource_group();
+    res_grp_mgr->set_unsupport_reason(reason);
+  }
+}
+
+bool set_user_thread_resource_group_to_system_thread(
+    THD *thd, ulonglong user_pfs_thread_id,
+    void **resource_grp_switch_context) {
+  resourcegroups::Resource_group_switch_context **rg_switch_context =
+      pointer_cast<resourcegroups::Resource_group_switch_context **>(
+          resource_grp_switch_context);
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+
+  return res_grp_mgr->set_user_thread_resource_group_to_system_thread(
+      thd, user_pfs_thread_id, rg_switch_context);
+}
+
+bool restore_system_thread_resource_group(THD *thd,
+                                          void **resource_grp_switch_context) {
+  resourcegroups::Resource_group_switch_context **rg_switch_context =
+      pointer_cast<resourcegroups::Resource_group_switch_context **>(
+          resource_grp_switch_context);
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+
+  return res_grp_mgr->restore_system_thread_resource_group(thd,
+                                                           rg_switch_context);
+}
