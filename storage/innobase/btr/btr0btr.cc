@@ -2056,6 +2056,7 @@ static void btr_attach_half_pages(
 
   /* for consistency, both blocks should be locked, before change */
   if (prev_page_no != FIL_NULL && direction == FSP_DOWN) {
+    DEBUG_SYNC_C("btr_attach_half_pages_prev_block");
     prev_block = btr_block_get(page_id_t(space, prev_page_no), block->page.size,
                                RW_X_LATCH, UT_LOCATION_HERE, index, mtr);
   }
