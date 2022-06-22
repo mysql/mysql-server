@@ -902,6 +902,10 @@ bool Item_field::is_valid_for_pushdown(uchar *arg) {
   TABLE_LIST *derived_table = dti->m_derived_table;
   if (table_ref == derived_table) {
     assert(field->table == derived_table->table);
+    // For set operations, if there is result type mismatch for this
+    // expression across query blocks, we do not do condition pushdown
+    // as the resulting type for the condition involving such an expression
+    // would be different across query blocks.
     // If the expression in the derived table for this column has a subquery
     // or has non-deterministic result or is a trigger field, condition is
     // not pushed down.
@@ -924,9 +928,15 @@ bool Item_field::is_valid_for_pushdown(uchar *arg) {
     // does not print the original expression which leads to an incorrect clone.
     Query_expression *derived_query_expression =
         derived_table->derived_query_expression();
+    Item_result result_type = INVALID_RESULT;
     for (Query_block *qb = derived_query_expression->first_query_block();
          qb != nullptr; qb = qb->next_query_block()) {
       Item *item = qb->get_derived_expr(field->field_index());
+      if (result_type == INVALID_RESULT) {
+        result_type = item->result_type();
+      } else if (result_type != item->result_type()) {
+        return true;
+      }
       bool has_trigger_field = false;
       bool has_system_var = false;
       WalkItem(item, enum_walk::PREFIX,

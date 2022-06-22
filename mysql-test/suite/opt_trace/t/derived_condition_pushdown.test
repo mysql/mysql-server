@@ -36,7 +36,7 @@ SELECT trace FROM information_schema.optimizer_trace;
 
 SELECT * FROM
 (SELECT f1, SUM(f1) OVER() AS f2 FROM t1 GROUP BY f1 UNION
- SELECT f1, f1+10 FROM t1
+ SELECT f1, CAST(f1 AS DECIMAL(10,2)) FROM t1
 ) as dt1 WHERE f1 > 26 and f2 > 31;
 SELECT trace FROM information_schema.optimizer_trace;
 
