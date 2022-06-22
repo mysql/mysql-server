@@ -176,4 +176,6 @@ hypergraph::NodeMap GetNodeMapFromTableMap(
 
 std::string PrintDottyHypergraph(const JoinHypergraph &graph);
 
+table_map GetVisibleTables(const RelationalExpression *expr);
+
 #endif  // SQL_JOIN_OPTIMIZER_MAKE_JOIN_HYPERGRAPH

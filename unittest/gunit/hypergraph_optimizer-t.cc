@@ -5031,6 +5031,126 @@ TEST_F(HypergraphSecondaryEngineTest, RejectJoinOrders) {
   EXPECT_STREQ("t3", inner_hash.inner->table_scan().table->alias);
 }
 
+/*
+  For secondary engines we allow semijoin transformation for subqueries
+  present in a join condition. We test if the transformation should
+  be rejected or accepted when proposing hash joins.
+*/
+TEST_F(HypergraphSecondaryEngineTest, SemiJoinWithOuterJoinMultipleEqual) {
+  Query_block *query_block = ::parse(&m_initializer,
+                                     "SELECT 1 FROM t1 LEFT JOIN t2 ON "
+                                     "t1.x=t2.x AND t1.x IN (SELECT x FROM t3)",
+                                     0);
+  // Set using_hypergraph_optimizer to true and enable secondary engine
+  // optimization so that the subquery to semijoin transformation
+  // happens as intended. If not, resolver would think its the old join
+  // optimizer and does the transformation anyways which makes testing
+  // this use case harder.
+  m_initializer.thd()->lex->using_hypergraph_optimizer = true;
+  m_initializer.thd()->set_secondary_engine_optimization(
+      Secondary_engine_optimization::SECONDARY);
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  ResolveQueryBlock(m_initializer.thd(), query_block, true, &m_fake_tables);
+  hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        // Nested-loop joins have been disabled for the secondary engine.
+        EXPECT_NE(AccessPath::NESTED_LOOP_JOIN, path->type);
+        // Without the semijoin transformation, a subquery will
+        // be placed in the ON condition of the outer join.
+        if (path->type == AccessPath::HASH_JOIN) {
+          if (path->hash_join().join_predicate->expr->type ==
+              RelationalExpression::LEFT_JOIN) {
+            RelationalExpression *left_join =
+                path->hash_join().join_predicate->expr;
+            // We reject all the plans which have subqueries in join conditions.
+            if (!left_join->join_conditions.empty() &&
+                left_join->join_conditions[0]->has_subquery())
+              return true;
+          }
+        }
+        return false;
+      };
+
+  // Build multiple equalities from the join condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Check if a plan was generated as the query could be executed using
+  // hash joins.
+  EXPECT_NE(nullptr, root);
+  // Plan would be this:
+  // t1 LEFT JOIN (t2 SEMIJOIN t3 ON t2.x = t3.x) ON t1.x=t2.x
+  // Make sure that the fields from the inner table of the semijoin
+  // are not used in the join condition of the outer join.
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  const RelationalExpression *left_join =
+      root->hash_join().join_predicate->expr;
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN, left_join->type);
+  ASSERT_EQ(1, left_join->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x = t2.x)", ItemToString(left_join->equijoin_conditions[0]));
+
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->hash_join().inner->type);
+  const RelationalExpression *semijoin =
+      root->hash_join().inner->hash_join().join_predicate->expr;
+  EXPECT_EQ(RelationalExpression::SEMIJOIN, semijoin->type);
+  ASSERT_EQ(1, semijoin->equijoin_conditions.size());
+  EXPECT_EQ("(t2.x = t3.x)", ItemToString(semijoin->equijoin_conditions[0]));
+}
+
+TEST_F(HypergraphSecondaryEngineTest, SemiJoinWithOuterJoin) {
+  Query_block *query_block = ::parse(&m_initializer,
+                                     "SELECT 1 FROM t1 LEFT JOIN t2 ON "
+                                     "t1.x=t2.x AND t1.y IN (SELECT x FROM t3)",
+                                     0);
+  // Set using_hypergraph_optimizer to true and enable secondary engine
+  // optimization so that the subquery to semijoin transformation
+  // happens as intended. If not, resolver would think its the old join
+  // optimizer and does the transformation anyways which makes testing
+  // this use case harder.
+  m_initializer.thd()->lex->using_hypergraph_optimizer = true;
+  m_initializer.thd()->set_secondary_engine_optimization(
+      Secondary_engine_optimization::SECONDARY);
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  ResolveQueryBlock(m_initializer.thd(), query_block, true, &m_fake_tables);
+  hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+
+  // Without the semijoin transformation, a subquery will be placed in the
+  // ON condition of the outer join.
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        // Nested-loop joins have been disabled for the secondary engine.
+        EXPECT_NE(AccessPath::NESTED_LOOP_JOIN, path->type);
+        if (path->type == AccessPath::HASH_JOIN) {
+          if (path->hash_join().join_predicate->expr->type ==
+              RelationalExpression::LEFT_JOIN) {
+            RelationalExpression *left_join =
+                path->hash_join().join_predicate->expr;
+            // We reject plans which have subqueries in join conditions.
+            if (!left_join->join_conditions.empty() &&
+                left_join->join_conditions[0]->has_subquery())
+              return true;
+          }
+        }
+        return false;
+      };
+
+  // No plans will be found, so expect an error.
+  ErrorChecker error_checker{m_thd, ER_SECONDARY_ENGINE};
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Check if all plans were rejected as the query cannot be executed
+  // using hash joins.
+  EXPECT_EQ(nullptr, root);
+}
+
 namespace {
 struct RejectionParam {
   // The query to test.

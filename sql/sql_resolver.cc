@@ -77,6 +77,7 @@
 #include "sql/item_row.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/mdl.h"  // MDL_SHARED_READ
 #include "sql/mem_root_array.h"
@@ -1441,7 +1442,10 @@ bool Query_block::resolve_subquery(THD *thd) {
          Semijoin transformations of subqueries in ON cause the
          join nests to no longer be acceptable as a join tree, which
          disturbs the hypergraph optimizer, so we disable them
-         for that case (6x).
+         for that case (6x). However, we enable them when secondary
+         engine optimization is ON because it is easy to reject a
+         possible wrong plan when its not supporting nested loop
+         joins.
       7. Parent query block accepts semijoins (i.e we are not in a subquery of
       a single table UPDATE/DELETE (TODO: We should handle this at some
       point by switching to multi-table UPDATE/DELETE)
@@ -1456,26 +1460,37 @@ bool Query_block::resolve_subquery(THD *thd) {
       15. Antijoins are supported, or it's not an antijoin (it's a semijoin).
       16. OFFSET starts from the first row and LIMIT is not 0.
   */
+  SecondaryEngineFlags engine_flags = 0;
+  if (const handlerton *secondary_engine = SecondaryEngineHandlerton(thd);
+      secondary_engine != nullptr) {
+    engine_flags = secondary_engine->secondary_engine_flags;
+  }
   if (semijoin_enabled(thd) &&                                     // 0
       predicate != nullptr &&                                      // 1
       !is_part_of_set_operation() &&                               // 2
       no_aggregates &&                                             // 3,3x,4,5
       (outer->resolve_place == Query_block::RESOLVE_CONDITION ||   // 6a
        (outer->resolve_place == Query_block::RESOLVE_JOIN_NEST &&  // 6a
-        !thd->lex->using_hypergraph_optimizer)) &&                 // 6x
-      outer->condition_context == enum_condition_context::ANDS &&  // 6b
-      outer->sj_candidates &&                                      // 7
-      leaf_table_count > 0 &&                                      // 8
-      predicate->strategy ==                                       //  9
-          Subquery_strategy::UNSPECIFIED &&                        //  9
-      outer->leaf_table_count > 0 &&                               // 10
-      !((active_options() | outer->active_options()) &             // 11
-        SELECT_STRAIGHT_JOIN) &&                                   // 11
-      !(outer->active_options() & SELECT_NO_SEMI_JOIN) &&          // 12
-      deterministic &&                                             // 13
-      predicate->choose_semijoin_or_antijoin() &&                  // 14
-      (!cannot_do_antijoin || !predicate->can_do_aj) &&            // 15
-      is_row_count_valid_for_semi_join()) {                        // 16
+        (!thd->lex->using_hypergraph_optimizer ||
+         (thd->secondary_engine_optimization() ==
+              Secondary_engine_optimization::SECONDARY &&
+          !Overlaps(
+              engine_flags,
+              MakeSecondaryEngineFlags(
+                  SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN)))))) &&  // 6x
+      outer->condition_context == enum_condition_context::ANDS &&          // 6b
+      outer->sj_candidates &&                                              // 7
+      leaf_table_count > 0 &&                                              // 8
+      predicate->strategy ==                                               //  9
+          Subquery_strategy::UNSPECIFIED &&                                //  9
+      outer->leaf_table_count > 0 &&                                       // 10
+      !((active_options() | outer->active_options()) &                     // 11
+        SELECT_STRAIGHT_JOIN) &&                                           // 11
+      !(outer->active_options() & SELECT_NO_SEMI_JOIN) &&                  // 12
+      deterministic &&                                                     // 13
+      predicate->choose_semijoin_or_antijoin() &&                          // 14
+      (!cannot_do_antijoin || !predicate->can_do_aj) &&                    // 15
+      is_row_count_valid_for_semi_join()) {                                // 16
     DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
     /* Notify in the subquery predicate where it belongs in the query graph */

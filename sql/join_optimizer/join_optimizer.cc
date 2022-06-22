@@ -3094,6 +3094,65 @@ void CostingReceiver::ProposeHashJoin(
     return;
   }
 
+  // A semijoin by definition should have a semijoin condition to work with and
+  // also that the inner table of a semijoin should not be visible outside of
+  // the semijoin. However, MySQL's semijoin transformation when combined with
+  // outer joins might result in a transformation which might do just that. This
+  // transformation cannot be interpreted as is, but instead needs some special
+  // handling in optimizer to correctly do the semijoin and outer join. However,
+  // this is a problem for hypergraph. For a pattern like:
+  // t1 left join (t2 semijoin t3 on true) on t1.a = t2.a and t1.b = t3.a, where
+  // a semijoin does not have any condition to work with, it is expected that
+  // all joins including the outer join be performed before the duplicate
+  // removal happens for semijoin (Complete details in WL#5561). This is not
+  // possible with hash joins. Such a pattern is a result of having a subquery
+  // in an ON condition like:
+  // SELECT * FROM t1 LEFT JOIN t2 ON t1.a= t2.a AND t1.b IN (SELECT a FROM t3);
+  // So we ban the transformation itself for hypergraph during resolving.
+  //
+  // However, this also bans the transformation for a query like this:
+  // SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a AND t1.a IN (SELECT a FROM t3).
+  // For the above query, because of the multiple equalities, we could have
+  // t1 LEFT JOIN (t2 SEMIJOIN t3 ON t2.a=t3.a) ON t1.a=t2.a which could be
+  // executed using hash joins. This is a problem for secondary engine, as
+  // without the semijoin transformation, it needs to process subqueries which
+  // it cannot at present. So we allow the transformation to go through during
+  // resolving when secondary engine optimization is ON and recognize the
+  // pattern when hash join is not possible and reject it here. This is not an
+  // issue for secondary engine as it eventually rejects such a query because
+  // it can only perform hash joins. However it's a problem if we allow for
+  // primary engine as hypergraph can go ahead and produce a mix of NLJ and hash
+  // joins which leads to wrong results.
+  // TODO(Chaithra): It is possible that the various join nests are looked at
+  // carefully when relational expressions are created and forcing only NLJ's
+  // for such cases.
+  if (edge->expr->type == RelationalExpression::LEFT_JOIN &&
+      edge->expr->right->type == RelationalExpression::SEMIJOIN) {
+    // Check if there is a condition connecting the left side of the outer
+    // join and inner side of the semijoin. This is a deviation from the
+    // definition of a semijoin which makes it not possible to execute such
+    // a plan with hash joins.
+    RelationalExpression *semijoin = edge->expr->right;
+    const table_map disallowed_tables =
+        semijoin->nodes_in_subtree & ~GetVisibleTables(semijoin);
+    if (disallowed_tables != 0) {
+      for (Item *cond : edge->expr->equijoin_conditions) {
+        if (Overlaps(disallowed_tables, cond->used_tables()) &&
+            Overlaps(edge->expr->left->tables_in_subtree,
+                     cond->used_tables())) {
+          return;
+        }
+      }
+      for (Item *cond : edge->expr->join_conditions) {
+        if (Overlaps(disallowed_tables, cond->used_tables()) &&
+            Overlaps(edge->expr->left->tables_in_subtree,
+                     cond->used_tables())) {
+          return;
+        }
+      }
+    }
+  }
+
   assert(BitsetsAreCommitted(left_path));
   assert(BitsetsAreCommitted(right_path));
 

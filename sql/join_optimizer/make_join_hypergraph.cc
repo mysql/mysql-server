@@ -779,8 +779,8 @@ table_map CertainlyUsedTablesForCondition(const RelationalExpression &expr) {
   for (Item *cond : expr.join_conditions) {
     table_map this_used_tables = cond->used_tables();
     if (IsMultipleEquals(cond)) {
-      table_map left_bits = this_used_tables & expr.left->tables_in_subtree;
-      table_map right_bits = this_used_tables & expr.right->tables_in_subtree;
+      table_map left_bits = this_used_tables & GetVisibleTables(expr.left);
+      table_map right_bits = this_used_tables & GetVisibleTables(expr.right);
       if (IsSingleBitSet(left_bits)) {
         used_tables |= left_bits;
       }
@@ -3393,4 +3393,33 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   graph->num_where_predicates = graph->predicates.size();
 
   return false;
+}
+
+// Returns the tables in this subtree that are visible higher up in
+// the join tree. This includes all tables in this subtree, except
+// those that are on the inner side of a semijoin or an antijoin.
+table_map GetVisibleTables(const RelationalExpression *expr) {
+  switch (expr->type) {
+    case RelationalExpression::TABLE:
+      return expr->tables_in_subtree;
+    case RelationalExpression::SEMIJOIN:
+    case RelationalExpression::ANTIJOIN:
+      // Inner side of a semijoin or an antijoin should not
+      // be visible outside of the join.
+      return GetVisibleTables(expr->left);
+    case RelationalExpression::INNER_JOIN:
+    case RelationalExpression::STRAIGHT_INNER_JOIN:
+    case RelationalExpression::LEFT_JOIN:
+    case RelationalExpression::FULL_OUTER_JOIN:
+      return GetVisibleTables(expr->left) | GetVisibleTables(expr->right);
+    case RelationalExpression::MULTI_INNER_JOIN:
+      return std::accumulate(
+          expr->multi_children.begin(), expr->multi_children.end(),
+          table_map{0},
+          [](table_map tables, const RelationalExpression *child) {
+            return tables | GetVisibleTables(child);
+          });
+  }
+  assert(false);
+  return 0;
 }
