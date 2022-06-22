@@ -173,15 +173,16 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
   if (param->has_errors()) return nullptr;
 
   // Populate array as we need to examine its values here
-  if (op->array && !op->populated) op->populate_bisection(thd);
-
+  if (op->m_const_array != nullptr && !op->m_populated) {
+    op->populate_bisection(thd);
+  }
   if (is_negated) {
     // We don't support row constructors (multiple columns on lhs) here.
     if (predicand->type() != Item::FIELD_ITEM) return nullptr;
 
     Field *field = down_cast<Item_field *>(predicand)->field;
 
-    if (op->array && !op->array->is_row_result()) {
+    if (op->m_const_array != nullptr && !op->m_const_array->is_row_result()) {
       /*
         We get here for conditions on the form "t.key NOT IN (c1, c2, ...)",
         where c{i} are constants. Our goal is to produce a SEL_TREE that
@@ -215,8 +216,8 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
 
       const uint NOT_IN_IGNORE_THRESHOLD = 1000;
       // If we have t.key NOT IN (null, null, ...) or the list is too long
-      if (op->array->used_count == 0 ||
-          op->array->used_count > NOT_IN_IGNORE_THRESHOLD)
+      if (op->m_const_array->m_used_size == 0 ||
+          op->m_const_array->m_used_size > NOT_IN_IGNORE_THRESHOLD)
         return nullptr;
 
       /*
@@ -226,39 +227,40 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
         We create the Item on thd->mem_root which points to
         per-statement mem_root.
       */
-      Item_basic_constant *value_item = op->array->create_item(thd->mem_root);
-
-      if (!value_item) return nullptr;
+      Item_basic_constant *value_item =
+          op->m_const_array->create_item(thd->mem_root);
+      if (value_item == nullptr) return nullptr;
 
       /* Get a SEL_TREE for "(-inf|NULL) < X < c_0" interval.  */
       uint i = 0;
       SEL_TREE *tree = nullptr;
       do {
-        op->array->value_to_item(i, value_item);
+        op->m_const_array->value_to_item(i, value_item);
         tree = get_mm_parts(thd, param, prev_tables, read_tables, op, field,
                             Item_func::LT_FUNC, value_item);
         if (!tree) break;
         i++;
-      } while (i < op->array->used_count && tree->type == SEL_TREE::IMPOSSIBLE);
+      } while (i < op->m_const_array->m_used_size &&
+               tree->type == SEL_TREE::IMPOSSIBLE);
 
       if (!tree || tree->type == SEL_TREE::IMPOSSIBLE)
         /* We get here in cases like "t.unsigned NOT IN (-1,-2,-3) */
         return nullptr;
       SEL_TREE *tree2 = nullptr;
       Item_basic_constant *previous_range_value =
-          op->array->create_item(thd->mem_root);
-      for (; i < op->array->used_count; i++) {
+          op->m_const_array->create_item(thd->mem_root);
+      for (; i < op->m_const_array->m_used_size; i++) {
         // Check if the value stored in the field for the previous range
         // is greater, lesser or equal to the actual value specified in the
         // query. Used further down to set the flags for the current range
         // correctly (as the max value for the previous range will become
         // the min value for the current range).
-        op->array->value_to_item(i - 1, previous_range_value);
+        op->m_const_array->value_to_item(i - 1, previous_range_value);
         int cmp_value =
             stored_field_cmp_to_item(thd, field, previous_range_value);
-        if (op->array->compare_elems(i, i - 1)) {
+        if (op->m_const_array->compare_elems(i, i - 1)) {
           /* Get a SEL_TREE for "-inf < X < c_i" interval */
-          op->array->value_to_item(i, value_item);
+          op->m_const_array->value_to_item(i, value_item);
           tree2 = get_mm_parts(thd, param, prev_tables, read_tables, op, field,
                                Item_func::LT_FUNC, value_item);
           if (!tree2) {

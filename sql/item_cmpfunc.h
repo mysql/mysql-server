@@ -1577,15 +1577,15 @@ class Item_func_nullif final : public Item_bool_func2 {
 
 class in_vector {
  private:
-  const uint count;  ///< Original size of the vector
+  const uint m_size;  ///< Size of the vector
  public:
-  uint used_count;  ///< The actual size of the vector (NULL may be ignored)
+  uint m_used_size{0};  ///< The actual size of the vector (NULL may be ignored)
 
   /**
     See Item_func_in::resolve_type() for why we need both
     count and used_count.
    */
-  explicit in_vector(uint elements) : count(elements), used_count(elements) {}
+  explicit in_vector(uint elements) : m_size(elements) {}
 
   virtual ~in_vector() = default;
 
@@ -1639,11 +1639,8 @@ class in_vector {
  private:
   virtual void set(uint pos, Item *item) = 0;
 
-  /**
-    Resize and then sort the IN-list array, so we can do efficient lookup with
-    binary_search.
-   */
-  virtual void resize_and_sort() = 0;
+  /// Sort the IN-list array, so we can do efficient lookup with binary_search.
+  virtual void sort_array() = 0;
 };
 
 class in_string final : public in_vector {
@@ -1667,7 +1664,7 @@ class in_string final : public in_vector {
 
  private:
   void set(uint pos, Item *item) override;
-  void resize_and_sort() override;
+  void sort_array() override;
 };
 
 class in_longlong : public in_vector {
@@ -1699,7 +1696,7 @@ class in_longlong : public in_vector {
 
  private:
   void set(uint pos, Item *item) override { val_item(item, &base[pos]); }
-  void resize_and_sort() override;
+  void sort_array() override;
   virtual void val_item(Item *item, packed_longlong *result);
 };
 
@@ -1764,7 +1761,7 @@ class in_double final : public in_vector {
 
  private:
   void set(uint pos, Item *item) override;
-  void resize_and_sort() override;
+  void sort_array() override;
 };
 
 class in_decimal final : public in_vector {
@@ -1784,7 +1781,7 @@ class in_decimal final : public in_vector {
 
  private:
   void set(uint pos, Item *item) override;
-  void resize_and_sort() override;
+  void sort_array() override;
 };
 
 /*
@@ -1795,6 +1792,18 @@ class cmp_item {
  public:
   cmp_item() = default;
   virtual ~cmp_item() = default;
+  /**
+    Allocate comparator objects for each value object, based on the template
+    comparator objects. Only implemented for derived class cmp_item_row.
+
+    @param mem_root mem_root for allocation.
+    @param tmpl     The template item object.
+    @param arg      The value item.
+
+    @returns false if success, true if error.
+  */
+  virtual bool allocate_value_comparators(MEM_ROOT *mem_root, cmp_item *tmpl,
+                                          Item *arg);
   virtual void store_value(Item *item) = 0;
   /**
      @returns result (true, false or UNKNOWN) of
@@ -1805,16 +1814,16 @@ class cmp_item {
   virtual int compare(const cmp_item *item) const = 0;
 
   /**
-    Find the appropriate comparator for the given type.
+    Create an appropriate comparator for the given type.
 
+    @param thd          Session handle.
     @param result_type  Used to find the appropriate comparator.
     @param item         Item object used to distinguish temporal types.
     @param cs           Charset
 
-    @return
-      New cmp_item_xxx object.
+    @returns new cmp_item_xxx object, or nullptr if error.
   */
-  static cmp_item *get_comparator(Item_result result_type, Item *item,
+  static cmp_item *new_comparator(THD *thd, Item_result result_type, Item *item,
                                   const CHARSET_INFO *cs);
   virtual cmp_item *make_same() = 0;
   virtual void store_value_by_template(cmp_item *, Item *item) {
@@ -2044,8 +2053,8 @@ class Item_func_case final : public Item_func {
 */
 class Item_func_in final : public Item_func_opt_neg {
  public:
-  /// An array of values, created when the bisection lookup method is used
-  in_vector *array{nullptr};
+  /// An array of const values, created when the bisection lookup method is used
+  in_vector *m_const_array{nullptr};
   /**
     If there is some NULL among @<in value list@>, during a val_int() call; for
     example
@@ -2053,12 +2062,14 @@ class Item_func_in final : public Item_func_opt_neg {
     NULL.
   */
   bool have_null{false};
-  /// Set to true when bisection values are populated
-  bool populated{false};
+  /// Set to true when values in const array are populated
+  bool m_populated{false};
 
  private:
-  /// Set to true if the values arguments are const
-  bool values_are_const{true};
+  /// Set to true if all values in IN-list are const
+  bool m_values_are_const{true};
+  /// Set to true if const array must be repopulated per execution.
+  bool m_need_populate{false};
   /**
     Set to true by resolve_type() if the IN list contains a
     dependent subquery, in which case condition filtering will not be
@@ -2162,17 +2173,17 @@ class Item_func_in final : public Item_func_opt_neg {
 };
 
 class cmp_item_row : public cmp_item {
-  cmp_item **comparators;
+  cmp_item **comparators{nullptr};
   uint n;
 
   // Only used for Mem_root_array::resize()
-  cmp_item_row() : comparators(nullptr), n(0) {}
+  cmp_item_row() : n(0) {}
 
   friend class Mem_root_array_YY<cmp_item_row>;
 
  public:
-  cmp_item_row(THD *thd, Item *item) : comparators(nullptr), n(item->cols()) {
-    alloc_comparators(thd, item);
+  cmp_item_row(THD *thd, Item *item) : n(item->cols()) {
+    allocate_template_comparators(thd, item);
   }
   ~cmp_item_row() override;
 
@@ -2182,6 +2193,8 @@ class cmp_item_row : public cmp_item {
     other.n = 0;
   }
 
+  bool allocate_value_comparators(MEM_ROOT *mem_root, cmp_item *tmpl,
+                                  Item *arg) override;
   void store_value(Item *item) override;
   int cmp(Item *arg) override;
   int compare(const cmp_item *arg) const override;
@@ -2189,7 +2202,16 @@ class cmp_item_row : public cmp_item {
   void store_value_by_template(cmp_item *tmpl, Item *) override;
 
  private:
-  bool alloc_comparators(THD *thd, Item *item);
+  /**
+    Allocate comparator objects for the LHS argument to IN, used as template
+    for the value comparators.
+
+    @param thd    Session handle
+    @param item   Item to allocate comparator objects for, left-hand IN operand
+
+    @returns false if success, true if error.
+  */
+  bool allocate_template_comparators(THD *thd, Item *item);
 };
 
 class in_row final : public in_vector {
@@ -2201,6 +2223,16 @@ class in_row final : public in_vector {
  public:
   in_row(MEM_ROOT *mem_root, uint elements, cmp_item_row *cmp);
   bool is_row_result() const override { return true; }
+  /**
+    Allocate extra objects for evaluation
+
+    @param mem_root  Memory root for allocation.
+    @param lhs       The left-hand side object of the IN predicate.
+    @param arg_count Number of arguments on the right-hand side of the predicate
+
+    @returns false if success, true if error.
+  */
+  bool allocate(MEM_ROOT *mem_root, Item *lhs, uint arg_count);
   bool find_item(Item *item) override;
   bool compare_elems(uint pos1, uint pos2) const override;
 
@@ -2214,7 +2246,7 @@ class in_row final : public in_vector {
 
  private:
   void set(uint pos, Item *item) override;
-  void resize_and_sort() override;
+  void sort_array() override;
 };
 
 /* Functions used by where clause */
