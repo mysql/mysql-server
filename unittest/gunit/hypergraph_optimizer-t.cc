@@ -5364,6 +5364,50 @@ TEST_F(HypergraphSecondaryEngineTest, NoMaterializationForExternalExecutor) {
   query_block->cleanup(/*full=*/true);
 }
 
+TEST_F(HypergraphSecondaryEngineTest, DontCallCostHookForEmptyJoins) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 WHERE t1.x=t2.x "
+      "AND t1.y IS NULL AND t1.y IN (1,2,3)",
+      /*nullable=*/true);
+
+  // Create an index on t1.y, so that the range optimizer detects the impossible
+  // table filter.
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[1], nullptr, /*unique=*/true);
+
+  // The secondary engine cost hook is stateless, so let's create a thread local
+  // variable for it to store the state in.
+  thread_local vector<AccessPath> paths;
+  paths.clear();
+
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        paths.push_back(*path);
+        return false;
+      };
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The join is known to be always empty.
+  EXPECT_EQ(AccessPath::ZERO_ROWS, root->type);
+
+  // The secondary engine cost hook should have seen the TABLE_SCAN on t2, the
+  // ZERO_ROWS for t1, and the ZERO_ROWS for the join. It should not have seen
+  // any join paths.
+  ASSERT_EQ(3, paths.size());
+  ASSERT_EQ(AccessPath::TABLE_SCAN, paths[0].type);
+  EXPECT_STREQ("t2", paths[0].table_scan().table->alias);
+  EXPECT_EQ(AccessPath::ZERO_ROWS, paths[1].type);
+  EXPECT_EQ(AccessPath::ZERO_ROWS, paths[2].type);
+}
+
 /*
   A hypergraph receiver that doesn't actually cost any plans;
   it only counts the number of possible plans that would be

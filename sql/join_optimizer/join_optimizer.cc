@@ -2806,6 +2806,36 @@ bool DisallowParameterizedJoinPath(AccessPath *left_path,
 }
 
 /**
+  Checks if the result of a join is empty, given that it is known that one or
+  both of the join legs always produces an empty result.
+ */
+bool IsEmptyJoin(const RelationalExpression::Type join_type, bool left_is_empty,
+                 bool right_is_empty) {
+  switch (join_type) {
+    case RelationalExpression::INNER_JOIN:
+    case RelationalExpression::STRAIGHT_INNER_JOIN:
+    case RelationalExpression::SEMIJOIN:
+      // If either side of an inner join or a semijoin is empty, the result of
+      // the join is also empty.
+      return left_is_empty || right_is_empty;
+    case RelationalExpression::LEFT_JOIN:
+    case RelationalExpression::ANTIJOIN:
+      // If the outer side of a left join or an antijoin is empty, the result of
+      // the join is also empty.
+      return left_is_empty;
+    case RelationalExpression::FULL_OUTER_JOIN:
+      // If both sides of a full outer join are empty, the result of the join is
+      // also empty.
+      return left_is_empty && right_is_empty;
+    case RelationalExpression::TABLE:
+    case RelationalExpression::MULTI_INNER_JOIN:
+      break;
+  }
+  assert(false);
+  return false;
+}
+
+/**
   Called to signal that it's possible to connect the non-overlapping
   table subsets “left” and “right” through the edge given by “edge_idx”
   (which corresponds to an index in m_graph->edges), ie., we have found
@@ -2887,6 +2917,25 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
     // This ordering won't be needed anymore after the join is done,
     // so mark it as obsolete.
     new_obsolete_orderings.set(edge->ordering_idx_needed_for_semijoin_rewrite);
+  }
+
+  // Check if the join is known to produce an empty result. If so, we will
+  // return a ZERO_ROWS path instead of a join path, but we cannot do that just
+  // yet. We need to create the join path first and attach it to the ZERO_ROWS
+  // path, in case a join higher up in the join tree needs to know which tables
+  // are pruned away (typically for null-complementing in outer joins).
+  const bool always_empty =
+      IsEmptyJoin(edge->expr->type, left_it->second.always_empty,
+                  right_it->second.always_empty);
+
+  // If the join is known to produce an empty result, and will be replaced by a
+  // ZERO_ROWS path further down, temporarily disable the secondary engine cost
+  // hook. There's no point in asking the secondary engine to provide a cost
+  // estimate for an access path we know will be discarded.
+  const secondary_engine_modify_access_path_cost_t saved_cost_hook =
+      m_secondary_engine_cost_hook;
+  if (always_empty) {
+    m_secondary_engine_cost_hook = nullptr;
   }
 
   bool wrote_trace = false;
@@ -2971,32 +3020,8 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
     }
   }
 
-  // If any side of an inner join or semijoin is always empty, or the outer
-  // side(s) of an outer join or antijoin, the result of the join is also always
-  // empty. In these cases, propose a ZERO_ROWS path.
-  bool always_empty = false;
-  switch (edge->expr->type) {
-    case RelationalExpression::INNER_JOIN:
-    case RelationalExpression::STRAIGHT_INNER_JOIN:
-    case RelationalExpression::SEMIJOIN:
-      always_empty =
-          left_it->second.always_empty || right_it->second.always_empty;
-      break;
-    case RelationalExpression::LEFT_JOIN:
-    case RelationalExpression::ANTIJOIN:
-      always_empty = left_it->second.always_empty;
-      break;
-    case RelationalExpression::FULL_OUTER_JOIN:
-      always_empty =
-          left_it->second.always_empty && right_it->second.always_empty;
-      break;
-    case RelationalExpression::TABLE:
-    case RelationalExpression::MULTI_INNER_JOIN:
-      assert(false);
-      break;
-  }
-
   if (always_empty) {
+    m_secondary_engine_cost_hook = saved_cost_hook;
     const auto it = m_access_paths.find(left | right);
     if (it != m_access_paths.end() && !it->second.paths.empty() &&
         !it->second.always_empty) {
