@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 
 #include "my_inttypes.h"
+#include "sql/handler.h"
 #include "unittest/gunit/base_mock_handler.h"
 
 /**
@@ -70,7 +71,10 @@ class Mock_SAMPLING_HANDLER : public Base_mock_HANDLER {
 class Fake_handlerton : public handlerton {
  public:
   /// Minimal initialization of the handlerton
-  Fake_handlerton() { slot = 0; }
+  Fake_handlerton() {
+    slot = 0;
+    db_type = DB_TYPE_UNKNOWN;
+  }
 };
 
 #endif  // HANDLER_T_INCLUDED
