@@ -74,11 +74,10 @@ void parse_command_line_password_option(const struct my_option *opt,
 void set_password_options(MYSQL *mysql) {
   for (unsigned int factor = 1; factor <= MAX_AUTH_FACTORS; factor++) {
     /**
-     If opt_password is not populated and tty_password is true
-     get password from terminal and update in opt_password
-     and set tty_password to false
+     If tty_password is true get password from terminal and update in
+     opt_password and set tty_password to false
     */
-    if (tty_password[factor - 1] && !opt_password[factor - 1]) {
+    if (tty_password[factor - 1]) {
       opt_password[factor - 1] = get_tty_password(NullS);
       tty_password[factor - 1] = false;
     }
