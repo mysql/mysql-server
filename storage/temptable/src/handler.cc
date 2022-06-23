@@ -24,6 +24,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 TempTable public handler API implementation. */
 
 #include "storage/temptable/include/temptable/handler.h"
+
+#include <string.h>
+
 #include "my_base.h"
 #include "my_dbug.h"
 #include "mysql/plugin.h"
@@ -306,7 +309,8 @@ int Handler::rnd_pos(uchar *mysql_row, uchar *position) {
 
   handler::ha_statistic_increment(&System_status_var::ha_read_rnd_count);
 
-  Storage::Element *row = *reinterpret_cast<Storage::Element **>(position);
+  Storage::Element *row;
+  memcpy(&row, position, sizeof(row));
 
   m_rnd_iterator = Storage::Iterator(&m_opened_table->rows(), row);
 
