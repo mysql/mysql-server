@@ -1234,3 +1234,12 @@ SET @b = '2023-05-06 16:49:45';
 eval EXECUTE stmt USING @a, @b;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34298238: Assertion `cond->is_bool_func()' failed in MySQL 8.0.29
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM (SELECT f1 FROM t1 UNION SELECT f1 FROM t1) AS dt WHERE f1 <> 0.5;
+DROP TABLE t1;
