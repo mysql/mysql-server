@@ -116,7 +116,7 @@ class Query_result_materialize final : public Query_result_union {
       : Query_result_union(),
         result(result_arg),
         materialized_cursor(nullptr) {}
-  ~Query_result_materialize() override { delete materialized_cursor; }
+  ~Query_result_materialize() override { destroy(materialized_cursor); }
   void set_result(Query_result *result_arg) {
     result = result_arg;
     if (materialized_cursor != nullptr)
@@ -473,7 +473,7 @@ bool Query_result_materialize::prepare(THD *thd,
   if (create_result_table(thd, *unit->get_unit_column_types(), false,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
                           "", false, false)) {
-    delete materialized_cursor;
+    destroy(materialized_cursor);
     return true;
   }
   materialized_cursor->set_table(table);
