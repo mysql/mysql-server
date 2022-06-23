@@ -4046,7 +4046,8 @@ bool CreateFramebufferTable(
     the window's frame buffer now that we know the window needs
     buffering.
   */
-  Temp_table_param *par = new (thd->mem_root) Temp_table_param(tmp_table_param);
+  Temp_table_param *par =
+      new (thd->mem_root) Temp_table_param(thd->mem_root, tmp_table_param);
   par->m_window_frame_buffer = true;
 
   // Don't include temporary fields that originally came from

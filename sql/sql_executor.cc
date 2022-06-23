@@ -105,7 +105,7 @@
 #include "sql/sql_tmp_table.h"  // create_tmp_table
 #include "sql/sql_update.h"
 #include "sql/table.h"
-#include "sql/temp_table_param.h"  // Mem_root_vector
+#include "sql/temp_table_param.h"
 #include "sql/visible_fields.h"
 #include "sql/window.h"
 #include "tables_contained_in.h"
@@ -191,7 +191,8 @@ bool JOIN::create_intermediate_table(
           ? m_select_limit
           : HA_POS_ERROR;
 
-  tab->tmp_table_param = new (thd->mem_root) Temp_table_param(tmp_table_param);
+  tab->tmp_table_param =
+      new (thd->mem_root) Temp_table_param(thd->mem_root, tmp_table_param);
   tab->tmp_table_param->skip_create_table = true;
 
   bool distinct_arg =

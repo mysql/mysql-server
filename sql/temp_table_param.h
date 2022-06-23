@@ -29,7 +29,6 @@
 #include "my_base.h"
 #include "my_inttypes.h"
 #include "sql/field.h"
-#include "sql/mem_root_allocator.h"
 #include "sql/mem_root_array.h"
 #include "sql/thr_malloc.h"
 
@@ -38,9 +37,6 @@ class Item;
 class Window;
 struct CHARSET_INFO;
 struct MEM_ROOT;
-
-template <typename T>
-using Mem_root_vector = std::vector<T, Mem_root_allocator<T>>;
 
 enum Copy_func_type : int;
 
@@ -97,7 +93,7 @@ typedef Mem_root_array<Func_ptr> Func_ptr_array;
 
 class Temp_table_param {
  public:
-  Mem_root_vector<Copy_field> copy_fields;
+  Mem_root_array<Copy_field> copy_fields;
 
   uchar *group_buff;
   Func_ptr_array *items_to_copy; /* Fields in tmp table */
@@ -199,8 +195,8 @@ class Temp_table_param {
   /// If this is the out table of a window: the said window
   Window *m_window;
 
-  Temp_table_param(MEM_ROOT *mem_root = *THR_MALLOC)
-      : copy_fields(Mem_root_allocator<Copy_field>(mem_root)),
+  explicit Temp_table_param(MEM_ROOT *mem_root = *THR_MALLOC)
+      : copy_fields(mem_root),
         group_buff(nullptr),
         items_to_copy(nullptr),
         keyinfo(nullptr),
@@ -220,6 +216,32 @@ class Temp_table_param {
         bit_fields_as_long(false),
         can_use_pk_for_unique(true),
         m_window(nullptr) {}
+
+  Temp_table_param(MEM_ROOT *mem_root, const Temp_table_param &other)
+      : copy_fields(mem_root),
+        group_buff(other.group_buff),
+        items_to_copy(other.items_to_copy),
+        keyinfo(other.keyinfo),
+        end_write_records(other.end_write_records),
+        func_count(other.func_count),
+        sum_func_count(other.sum_func_count),
+        hidden_field_count(other.hidden_field_count),
+        group_parts(other.group_parts),
+        group_length(other.group_length),
+        group_null_parts(other.group_null_parts),
+        allow_group_via_temp_table(other.allow_group_via_temp_table),
+        outer_sum_func_count(other.outer_sum_func_count),
+        using_outer_summary_function(other.using_outer_summary_function),
+        table_charset(other.table_charset),
+        schema_table(other.schema_table),
+        precomputed_group_by(other.precomputed_group_by),
+        force_copy_fields(other.force_copy_fields),
+        skip_create_table(other.skip_create_table),
+        bit_fields_as_long(other.bit_fields_as_long),
+        can_use_pk_for_unique(other.can_use_pk_for_unique),
+        force_hash_field_for_unique(other.force_hash_field_for_unique),
+        m_window_frame_buffer(other.m_window_frame_buffer),
+        m_window(other.m_window) {}
 
   void cleanup() { copy_fields.clear(); }
 };
