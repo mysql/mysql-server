@@ -1442,18 +1442,22 @@ void Condition_pushdown::remove_sj_exprs(Item *cond, NESTED_JOIN *sj_nest) {
 }
 
 /**
-  Increment between_count in the derived table query block based on the
-  number of BETWEEN functions pushed down.
+  Increment cond_count and between_count in the derived table query block
+  based on the number of BETWEEN predicates and number of other predicates
+  pushed down.
 */
-void Condition_pushdown::update_between_count(Item *cond) {
+void Condition_pushdown::update_cond_count(Item *cond) {
   if (cond->type() == Item::COND_ITEM) {
     Item_cond *cond_item = down_cast<Item_cond *>(cond);
     List_iterator<Item> li(*cond_item->argument_list());
     Item *item;
-    while ((item = li++)) update_between_count(item);
+    while ((item = li++)) update_cond_count(item);
   } else if ((cond->type() == Item::FUNC_ITEM &&
               down_cast<Item_func *>(cond)->functype() == Item_func::BETWEEN))
     m_query_block->between_count++;
+  else {
+    m_query_block->cond_count++;
+  }
 }
 
 /**
@@ -1486,7 +1490,7 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
     return true;
   }
   m_query_block->having_fix_field = fix_having;
-  update_between_count(cond_to_attach);
+  update_cond_count(cond_to_attach);
   having ? m_query_block->set_having_cond(derived_cond)
          : m_query_block->set_where_cond(derived_cond);
   thd->lex->set_current_query_block(saved_query_block);
