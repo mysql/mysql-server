@@ -76,28 +76,28 @@
 
     <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" ?>
       <?if "@Platform@"="x64"?>
-        <Property Id="VS12REDISTX64">
-          <RegistrySearch Id="FindRedistVS12"
+        <Property Id="VS14REDISTX64">
+          <RegistrySearch Id="FindRedistVS14"
               Win64="no"
               Root="HKLM"
-              Key="SOFTWARE\Microsoft\VisualStudio\12.0\VC\Runtimes\x64"
+              Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
               Name="Version"
               Type="raw" />
         </Property>
-        <Condition Message="This application requires Visual Studio 2013 x64 Redistributable. Please install the Redistributable then run this installer again.">
-          Installed OR VS12REDISTX64
+        <Condition Message="This application requires Visual Studio 2019 x64 Redistributable. Please install the Redistributable then run this installer again.">
+          Installed OR VS14REDISTX64
         </Condition>
       <?elseif "@Platform@"="x86" ?>
-        <Property Id="VS12REDISTX86">
-          <RegistrySearch Id="FindRedistVS12"
+        <Property Id="VS14REDISTX86">
+          <RegistrySearch Id="FindRedistVS14"
               Win64="no"
               Root="HKLM"
-              Key="SOFTWARE\Microsoft\VisualStudio\12.0\VC\Runtimes\x86"
+              Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86"
               Name="Version"
               Type="raw" />
         </Property>
-        <Condition Message="This application requires Visual Studio 2013 x86 Redistributable. Please install the Redistributable then run this installer again.">
-          Installed OR VS12REDISTX86
+        <Condition Message="This application requires Visual Studio 2019 x86 Redistributable. Please install the Redistributable then run this installer again.">
+          Installed OR VS14REDISTX86
         </Condition>
       <?endif?>
     <?endif?> 
