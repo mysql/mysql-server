@@ -67,7 +67,7 @@ static const char *opt_admin_tls_version = nullptr;
 static PolyLock_mutex lock_admin_ssl_ctx(&LOCK_admin_tls_ctx_options);
 
 bool validate_tls_version(const char *val) {
-  if (val && val[0] == 0) return true;
+  if (val && val[0] == 0) return false;
   std::string token;
   std::stringstream str(val);
   while (getline(str, token, ',')) {

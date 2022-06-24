@@ -3,7 +3,7 @@ call mtr.add_suppression("Failed to set up SSL because of the following SSL libr
 
 
 --echo # WL#14481: deprecated --admin-ssl=0
---let $assert_select = Please use --admin-tls-version=invalid instead
+--let $assert_select = Please use --admin-tls-version='' instead
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count = 1
 --let $assert_text = Found a --admin-ssl=0 deprecation message in the log

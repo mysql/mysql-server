@@ -10257,13 +10257,13 @@ bool mysqld_get_one_option(int optid,
         push_deprecated_warn_no_replacement(nullptr, "--admin-ssl=on");
       else
         push_deprecated_warn(nullptr, "--admin-ssl=off",
-                             "--admin-tls-version=invalid");
+                             "--admin-tls-version=''");
       break;
     case OPT_USE_SSL:
       if (opt_use_ssl)
         push_deprecated_warn_no_replacement(nullptr, "--ssl=on");
       else
-        push_deprecated_warn(nullptr, "--ssl=off", "--tls-version=invalid");
+        push_deprecated_warn(nullptr, "--ssl=off", "--tls-version=''");
       break;
     case OPT_ADMIN_SSL_KEY:
     case OPT_ADMIN_SSL_CERT:
