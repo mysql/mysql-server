@@ -30,19 +30,19 @@ SELECT HIGH_PRIORITY * FROM t1;
 
 --let $locking_clause_subquery_privileges_expected_error=$locking_clause_privileges_expected_error_for_update
 
---let $locking_clause_subquery_privileges_query=SELECT * FROM t1 FOR UPDATE
+--let $locking_clause_subquery_privileges_query=SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM t1 FOR UPDATE
 --source include/locking_clause_subquery_privileges.inc
 
---let $locking_clause_subquery_privileges_query=SELECT 1 FROM t1, t2 FOR UPDATE OF t1
+--let $locking_clause_subquery_privileges_query=SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ 1 FROM t1, t2 FOR UPDATE OF t1
 --source include/locking_clause_subquery_privileges.inc
 
 
 --let $locking_clause_subquery_privileges_expected_error=$locking_clause_privileges_expected_error_for_share
 
---let $locking_clause_subquery_privileges_query=SELECT * FROM t1 FOR SHARE
+--let $locking_clause_subquery_privileges_query=SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM t1 FOR SHARE
 --source include/locking_clause_subquery_privileges.inc
 
---let $locking_clause_subquery_privileges_query=SELECT 1 FROM t1, t2 FOR SHARE OF t1
+--let $locking_clause_subquery_privileges_query=SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ 1 FROM t1, t2 FOR SHARE OF t1
 --source include/locking_clause_subquery_privileges.inc
 
 --disconnect conn

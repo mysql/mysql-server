@@ -125,7 +125,7 @@ if ($have_sparc)
 # --source include/xplugin_wait_for_interfaces.inc
 #
 
---let $_xplugin_active= `SELECT plugin_status='ACTIVE' FROM information_schema.plugins WHERE plugin_name LIKE 'mysqlx'`
+--let $_xplugin_active= `SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ plugin_status='ACTIVE' FROM information_schema.plugins WHERE plugin_name LIKE 'mysqlx'`
 if ($_xplugin_active)
 {
   --source include/xplugin_wait_for_interfaces.inc
