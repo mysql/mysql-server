@@ -1,0 +1,52 @@
+################################################################################
+# ==== Purpose ====
+# Verify that FILTER_RULE is correctly shown in replication_applier_filters
+# table.
+#
+# ==== Implementation ====
+# Setup 2 filters on the Replica.
+# One FILTER_RULE should be non-empty and another empty.
+#
+# Assert empty filter is displayed correctly in
+# performance schema table.
+#
+# Cleanup.
+#
+# ==== References ====
+# BUG#33885484: Performance Schema shows wrong FILTER_RULE values
+################################################################################
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+# Test does not depend on binlog_format, so only execute it once
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo #
+--echo # Setup 2 filters on the Replica.
+--echo # One FILTER_RULE should be non-empty and another empty.
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=();
+
+--echo #
+--echo # Assert empty filter is displayed correctly in
+--echo # performance schema table.
+
+SELECT FILTER_NAME, FILTER_RULE FROM performance_schema.replication_applier_filters ORDER BY FILTER_RULE;
+
+--let $assert_text = Filter rule is empty for REPLICATE_IGNORE_TABLE.
+--let $assert_cond = "[SELECT FILTER_RULE FROM performance_schema.replication_applier_filters where FILTER_NAME = \'REPLICATE_IGNORE_TABLE\']" = ""
+--source include/assert.inc
+
+--echo #
+--echo # Cleanup.
+
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
+
+--source include/start_slave.inc
+--source include/rpl_end.inc

@@ -1,0 +1,27 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Setup 2 filters on the Replica.
+# One FILTER_RULE should be non-empty and another empty.
+[connection slave]
+include/stop_slave.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=();
+#
+# Assert empty filter is displayed correctly in
+# performance schema table.
+SELECT FILTER_NAME, FILTER_RULE FROM performance_schema.replication_applier_filters ORDER BY FILTER_RULE;
+FILTER_NAME	FILTER_RULE
+REPLICATE_IGNORE_TABLE	
+REPLICATE_DO_DB	db1
+include/assert.inc [Filter rule is empty for REPLICATE_IGNORE_TABLE.]
+#
+# Cleanup.
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
+include/start_slave.inc
+include/rpl_end.inc
