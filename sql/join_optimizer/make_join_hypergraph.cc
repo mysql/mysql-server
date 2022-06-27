@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <array>
 #include <iterator>
+#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
