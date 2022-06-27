@@ -61,6 +61,7 @@ public:
   static constexpr size_t XTS_KEY_LEN = 64;
   static constexpr size_t XTS_IV_LEN = 16;
   static constexpr size_t XTS_BLOCK_LEN = 1;
+  static constexpr size_t AESKW_EXTRA = 8;
   static_assert(KEY_LEN + IV_LEN == XTS_KEY_LEN, "xts uses double key length");
   static_assert(KEY_LEN == CBC_KEY_LEN);
   static_assert(CBC_IV_LEN <= IV_LEN);
@@ -90,8 +91,9 @@ public:
                                  size_t iter_count,
                                  const byte salt[SALT_LEN]);
   int remove_all_key_iv_pairs();
-private:
+  static int generate_key(byte key[], size_t key_len);
 
+private:
   const EVP_CIPHER *m_evp_cipher;
   bool m_padding; // used by cbc, should be false for xts
   bool m_has_key_iv;

@@ -28,6 +28,7 @@
 #include "util/ndb_openssl_evp.h"
 #include "util/ndbxfrm_iterator.h"
 #include <algorithm>
+#include <math.h>
 
 #ifndef REQUIRE
 #define REQUIRE(r)                           \
@@ -239,10 +240,10 @@ int ndbxfrm_file::create(
     bool compress,
     const byte *pwd_key,
     size_t pwd_key_len,
-    int kdf_iter_count,  // 0 - pwd_key is a key, >0 - pwd_key is password, use
-                         // PBKDF2 for deriving key
+    int kdf_iter_count,  // 0 - pwd_key is a key, using AESKW,
+                         // >0 - pwd_key is password, using PBKDF2
+                         // -1 - using PBKDF2 and default iteration count
     int key_cipher,      // 0 - none, 1 - cbc, 2 - xts (always no padding)
-    int key_selection_mode,  // 0 - same, 1 - pair, 2 - mixed
     int key_count,
     size_t key_data_unit_size,  //
     size_t file_block_size,   // typ. 32KiB phys (or logical?)
@@ -280,6 +281,45 @@ int ndbxfrm_file::create(
   m_file_block_size = file_block_size;
   if (is_definite_size(data_size)) m_data_size = data_size;
 
+  if (kdf_iter_count == -1) kdf_iter_count = 100000; // TODO use named default constant
+  static constexpr size_t MAX_KEYING_MATERIAL_SIZE = 16000;
+  if (key_count == -1)
+  {
+    const size_t max_key_count = (kdf_iter_count == 0)
+        ? (MAX_KEYING_MATERIAL_SIZE - ndb_openssl_evp::AESKW_EXTRA) / (2*32)
+        : MAX_KEYING_MATERIAL_SIZE / 32; /* PBKDF2, TODO use named constant ndb_openssl_evp::MAX_SALT_COUNT */
+    static_assert(MAX_KEYING_MATERIAL_SIZE / 32 <= INT_MAX);
+    size_t needed_key_count;
+    if (is_definite_size(data_size))
+    {
+      size_t key_reuse_unit_size;
+      if (key_cipher == ndb_ndbxfrm1::cipher_xts)
+      {
+        key_reuse_unit_size = key_data_unit_size << ndb_openssl_evp::XTS_IV_LEN;
+      }
+      else
+      {
+        key_reuse_unit_size = key_data_unit_size;
+      }
+      const size_t key_reuse_units = ndb_ceil_div(data_size, Uint64{key_reuse_unit_size});
+      needed_key_count = ceil(sqrt((double)key_reuse_units));
+      if (needed_key_count <= max_key_count)
+        key_count = (int)needed_key_count;
+      else
+        key_count = (int)max_key_count;
+    }
+    else
+    { // Unknown size
+      if (key_cipher == ndb_ndbxfrm1::cipher_cbc)
+      { // CBC allows stream mode
+        key_count = 1;
+      }
+      else if (kdf_iter_count == 0) // AESKW wraps 2x32 bytes keys
+      { // Use max number of keys
+        key_count = (int)max_key_count;
+      }
+    }
+  }
   ndbxfrm_output_iterator out = m_file_buffer.get_output_iterator();
   const byte *out_begin = out.begin();
   int r = write_header(&out,
@@ -288,7 +328,6 @@ int ndbxfrm_file::create(
                        pwd_key_len,
                        kdf_iter_count,
                        key_cipher,
-                       key_selection_mode,
                        key_count,
                        key_data_unit_size);
   if (r != 0) return r;
@@ -654,7 +693,7 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
     if (m_encrypted)
     {
       Uint32 padding = 0;
-      Uint32 kdf = 0;
+      Uint32 krm = 0;
       Uint32 kdf_iter_count = 0;
       Uint32 key_selection_mode = 0;
       byte salts[ndb_openssl_evp::SALT_LEN * ndb_openssl_evp::MAX_SALT_COUNT];
@@ -662,20 +701,16 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
       size_t salt_count = 0;
 
       require(ndbxfrm.get_encryption_padding(&padding) == 0);
-      require(ndbxfrm.get_encryption_kdf(&kdf) == 0);
-      require(ndbxfrm.get_encryption_kdf_iter_count(&kdf_iter_count) == 0);
+      require(ndbxfrm.get_encryption_krm(&krm) == 0);
+      require(ndbxfrm.get_encryption_krm_kdf_iter_count(&kdf_iter_count) == 0);
       require(ndbxfrm.get_encryption_key_selection_mode(
                   &key_selection_mode, &enc_data_unit_size) == 0);
-      require(ndbxfrm.get_encryption_salts(salts,
-                                           sizeof(salts),
-                                           &salt_size,
-                                           &salt_count) ==
-              0);                      // TODO name for sizeof(salt)
+      require(ndbxfrm.get_encryption_keying_material(
+                  salts, sizeof(salts), &salt_size, &salt_count) == 0);
       if (cipher != ndb_ndbxfrm1::cipher_cbc && cipher != ndb_ndbxfrm1::cipher_xts)
         RETURN(-1);
       if (!(padding == 0 || padding == ndb_ndbxfrm1::padding_pkcs)) RETURN(-1);
-      if (kdf != ndb_ndbxfrm1::kdf_pbkdf2_sha256)
-        RETURN(-1);
+      if (krm != ndb_ndbxfrm1::krm_pbkdf2_sha256) RETURN(-1);
       if (key_selection_mode > 2) RETURN(-1);
       if (salt_size != ndb_openssl_evp::SALT_LEN || salt_count > ndb_openssl_evp::MAX_SALT_COUNT ||
           salt_count == 0)
@@ -871,10 +906,12 @@ int ndbxfrm_file::write_header(
     size_t pwd_key_len,
     int kdf_iter_count,
     int key_cipher,
-    int key_selection_mode,  // 0 - same, 1 - pair, 2 - mixed
     int key_count,
     size_t key_data_unit_size)
 {
+  int key_selection_mode = (key_count == 1) ?
+                            ndb_ndbxfrm1::key_selection_mode_same :
+                            ndb_ndbxfrm1::key_selection_mode_mix_pair;
   bool padding = (data_page_size == 0);
   // Write file header
   if (m_file_format == FF_AZ31)
@@ -951,10 +988,10 @@ int ndbxfrm_file::write_header(
         openssl_evp.derive_and_add_key_iv_pair(
             pwd_key, pwd_key_len, kdf_iter_count, salt);
       }
-      ndbxfrm1.set_encryption_salts(
+      ndbxfrm1.set_encryption_keying_material(
           salts, ndb_openssl_evp::SALT_LEN, key_count);
-      ndbxfrm1.set_encryption_kdf(ndb_ndbxfrm1::kdf_pbkdf2_sha256);
-      ndbxfrm1.set_encryption_kdf_iter_count(kdf_iter_count);
+      ndbxfrm1.set_encryption_krm(ndb_ndbxfrm1::krm_pbkdf2_sha256);
+      ndbxfrm1.set_encryption_krm_kdf_iter_count(kdf_iter_count);
       ndbxfrm1.set_encryption_key_selection_mode(key_selection_mode,
                                                  key_data_unit_size);
     }
@@ -1593,7 +1630,6 @@ int main()
   size_t pwd_len = 5;
   int kdf_iter_count = 1;
   int key_cipher = ndb_ndbxfrm1::cipher_xts;
-  int key_selection_mode = ndb_ndbxfrm1::key_selection_mode_mix_pair;
   int key_count = ndb_openssl_evp::MAX_SALT_COUNT;
   size_t key_data_unit_size = ndbxfrm_file::BUFFER_SIZE;
   size_t file_block_size = ndbxfrm_file::BUFFER_SIZE;
@@ -1620,7 +1656,6 @@ int main()
                     pwd_len,
                     kdf_iter_count,
                     key_cipher,
-                    key_selection_mode,
                     key_count,
                     key_data_unit_size,
                     file_block_size,

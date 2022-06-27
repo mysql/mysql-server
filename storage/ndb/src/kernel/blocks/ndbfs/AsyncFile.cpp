@@ -257,7 +257,6 @@ AsyncFile::openReq(Request * request)
     int rc;
     if (created)
     {
-      int key_count;
       size_t key_data_unit_size;
       size_t file_block_size;
       if (page_size == 0 || use_gz)
@@ -266,11 +265,6 @@ AsyncFile::openReq(Request * request)
         const bool use_cbc = (enc_cipher == ndb_ndbxfrm1::cipher_cbc);
         const bool use_xts = (enc_cipher == ndb_ndbxfrm1::cipher_xts);
         key_data_unit_size = ((use_enc && use_xts) ? xts_data_unit_size : 0);
-        /*
-         * For XTS we currently use maximal set of keys since we do not know
-         * how big the file will be.
-         */
-        key_count = (use_xts ? ndb_openssl_evp::MAX_SALT_COUNT : 1);
         /*
          * For compressed files we use 512 byte file block size to be
          * compatible with old compressed files (AZ31 format).
@@ -282,26 +276,16 @@ AsyncFile::openReq(Request * request)
       }
       else
       {
-        Uint64 page_count = data_size / page_size;
-        if (page_count >= ndb_openssl_evp::MAX_SALT_COUNT *
-                            ndb_openssl_evp::MAX_SALT_COUNT)
-          key_count = ndb_openssl_evp::MAX_SALT_COUNT;
-        else if (page_count <= 1)
-          key_count = 1;
-        else
-        {
-          key_count = sqrt(double(page_count)) + 1;
-        }
         key_data_unit_size = page_size;
         file_block_size = page_size;
       }
       if (m_open_flags & FsOpenReq::OM_APPEND)
         require(!ndbxfrm_file::is_definite_size(data_size));
-      int kdf_iter_count = 0;
+      int kdf_iter_count = 0; // Use AESKW (assume OM_ENCRYPT_KEY)
       if ((m_open_flags & FsOpenReq::OM_ENCRYPT_KEY_MATERIAL_MASK) ==
           FsOpenReq::OM_ENCRYPT_PASSWORD)
       {
-        kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
+        kdf_iter_count = -1; // Use PBKDF2 let ndb_ndbxfrm decide iter count
       }
       rc = m_xfile.create(
           m_file,
@@ -310,9 +294,7 @@ AsyncFile::openReq(Request * request)
           pwd_len,
           kdf_iter_count,
           enc_cipher,
-          ((key_count == 1) ? ndb_ndbxfrm1::key_selection_mode_same
-                            : ndb_ndbxfrm1::key_selection_mode_mix_pair),
-          key_count,
+          -1, // Let ndb_ndbxfrm decide key_count
           key_data_unit_size,
           file_block_size,
           data_size);

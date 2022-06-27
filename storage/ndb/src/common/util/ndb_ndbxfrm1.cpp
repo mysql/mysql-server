@@ -288,17 +288,20 @@ int ndb_ndbxfrm1::header::set_encryption_padding(Uint32 padding)
   return 0;
 }
 
-int ndb_ndbxfrm1::header::set_encryption_kdf(Uint32 kdf)
+int ndb_ndbxfrm1::header::set_encryption_krm(Uint32 krm)
 {
-  if ((m_buffer.m_header.m_flags & fixed_header::flag_encrypt_kdf_mask) != 0)
+  if ((m_buffer.m_header.m_flags & fixed_header::flag_encrypt_krm_mask) != 0)
     RETURN(-1);  // already set
 
-  switch (kdf)
+  switch (krm)
   {
     case 0:
       break;
-    case kdf_pbkdf2_sha256:
-      m_buffer.m_header.m_flags |= fixed_header::flag_encrypt_kdf_pbkdf2_sha256;
+    case krm_pbkdf2_sha256:
+      m_buffer.m_header.m_flags |= fixed_header::flag_encrypt_krm_pbkdf2_sha256;
+      break;
+    case krm_aeskw_256:
+      m_buffer.m_header.m_flags |= fixed_header::flag_encrypt_krm_aeskw_256;
       break;
     default:
       RETURN(-1);
@@ -306,14 +309,14 @@ int ndb_ndbxfrm1::header::set_encryption_kdf(Uint32 kdf)
   return 0;
 }
 
-int ndb_ndbxfrm1::header::set_encryption_kdf_iter_count(Uint32 count)
+int ndb_ndbxfrm1::header::set_encryption_krm_kdf_iter_count(Uint32 count)
 {
-  if (m_buffer.m_header.m_encrypt_key_definition_iterator_count != 0)
+  if (m_buffer.m_header.m_encrypt_krm_kdf_iterator_count != 0)
     RETURN(-1);  // already set
 
   if (count == 0) RETURN(-1);
 
-  m_buffer.m_header.m_encrypt_key_definition_iterator_count = count;
+  m_buffer.m_header.m_encrypt_krm_kdf_iterator_count = count;
   return 0;
 }
 
@@ -347,29 +350,33 @@ int ndb_ndbxfrm1::header::set_encryption_key_selection_mode(Uint32 key_selection
   return 0;
 }
 
-int ndb_ndbxfrm1::header::set_encryption_salts(const byte* salts, size_t salt_size, size_t salt_count)
+int ndb_ndbxfrm1::header::set_encryption_keying_material(
+    const byte* keying_material,
+    size_t keying_material_size,
+    size_t keying_material_count)
 {
-  if (m_buffer.m_header.m_encrypt_key_definition_salts_position_in_octets != 0)
+  if (m_buffer.m_header.m_encrypt_krm_keying_material_position_in_octets != 0)
     RETURN(-1);
 
-  if (salts == nullptr) RETURN(-1);
+  if (keying_material == nullptr) RETURN(-1);
 
-  if (salt_size == 0) RETURN(-1);
+  if (keying_material_size == 0) RETURN(-1);
 
-  if (salt_count == 0) RETURN(-1);
+  if (keying_material_count == 0) RETURN(-1);
 
-  size_t salt_octets_size = salt_size * salt_count;
-  if (m_buffer.m_header.m_octets_size + salt_octets_size > MAX_OCTETS_SIZE)
+  size_t material_octets_size = keying_material_size * keying_material_count;
+  if (m_buffer.m_header.m_octets_size + material_octets_size > MAX_OCTETS_SIZE)
     RETURN(-1);
 
-  m_buffer.m_header.m_encrypt_key_definition_salts_position_in_octets =
+  m_buffer.m_header.m_encrypt_krm_keying_material_position_in_octets =
       m_buffer.m_header.m_octets_size;
-  m_buffer.m_header.m_encrypt_key_definition_salt_size = salt_size;
-  m_buffer.m_header.m_encrypt_key_definition_salt_count = salt_count;
-  memcpy(m_buffer.m_octets + m_buffer.m_header.m_octets_size, salts,
-         salt_octets_size);
-  m_buffer.m_header.m_octets_size += salt_octets_size;
-  m_buffer.m_header.m_magic.m_header_size += salt_octets_size;
+  m_buffer.m_header.m_encrypt_krm_keying_material_size = keying_material_size;
+  m_buffer.m_header.m_encrypt_krm_keying_material_count = keying_material_count;
+  memcpy(m_buffer.m_octets + m_buffer.m_header.m_octets_size,
+         keying_material,
+         material_octets_size);
+  m_buffer.m_header.m_octets_size += material_octets_size;
+  m_buffer.m_header.m_magic.m_header_size += material_octets_size;
   return 0;
 }
 
@@ -406,26 +413,31 @@ int ndb_ndbxfrm1::header::get_encryption_padding(Uint32* padding) const
   }
 }
 
-int ndb_ndbxfrm1::header::get_encryption_kdf(Uint32* kdf) const
+int ndb_ndbxfrm1::header::get_encryption_krm(Uint32* krm) const
 {
-  if (kdf == nullptr) RETURN(-1);
+  if (krm == nullptr) RETURN(-1);
 
-  switch (m_buffer.m_header.m_flags & fixed_header::flag_encrypt_kdf_mask)
+  switch (m_buffer.m_header.m_flags & fixed_header::flag_encrypt_krm_mask)
   {
-    case 0: *kdf = 0; return 0;
-    case fixed_header::flag_encrypt_kdf_pbkdf2_sha256:
-      *kdf = kdf_pbkdf2_sha256;
+    case 0:
+      *krm = 0;
+      return 0;
+    case fixed_header::flag_encrypt_krm_pbkdf2_sha256:
+      *krm = krm_pbkdf2_sha256;
+      return 0;
+    case fixed_header::flag_encrypt_krm_aeskw_256:
+      *krm = krm_aeskw_256;
       return 0;
     default:
       RETURN(-1);
   }
 }
 
-int ndb_ndbxfrm1::header::get_encryption_kdf_iter_count(Uint32* count) const
+int ndb_ndbxfrm1::header::get_encryption_krm_kdf_iter_count(Uint32* count) const
 {
   if (count == nullptr) RETURN(-1);
 
-  *count = m_buffer.m_header.m_encrypt_key_definition_iterator_count;
+  *count = m_buffer.m_header.m_encrypt_krm_kdf_iterator_count;
   return 0;
 }
 
@@ -453,25 +465,30 @@ int ndb_ndbxfrm1::header::get_encryption_key_selection_mode(
   return 0;
 }
 
-int ndb_ndbxfrm1::header::get_encryption_salts(byte* salts, size_t salt_space, size_t* salt_size, size_t* salt_count) const
+int ndb_ndbxfrm1::header::get_encryption_keying_material(
+    byte* keying_material,
+    size_t material_space,
+    size_t* keying_material_size,
+    size_t* keying_material_count) const
 {
-  if (salts == nullptr) RETURN(-1);
-  if (salt_size == nullptr) RETURN(-1);
-  if (salt_count == nullptr) RETURN(-1);
+  if (keying_material == nullptr) RETURN(-1);
+  if (keying_material_size == nullptr) RETURN(-1);
+  if (keying_material_count == nullptr) RETURN(-1);
 
-  const size_t salt_octets_size =
-      m_buffer.m_header.m_encrypt_key_definition_salt_size *
-      m_buffer.m_header.m_encrypt_key_definition_salt_count;
+  const size_t material_octets_size =
+      m_buffer.m_header.m_encrypt_krm_keying_material_size *
+      m_buffer.m_header.m_encrypt_krm_keying_material_count;
 
-  if (salt_space < salt_octets_size) RETURN(-1);
+  if (material_space < material_octets_size) RETURN(-1);
 
-  *salt_size = m_buffer.m_header.m_encrypt_key_definition_salt_size;
-  *salt_count = m_buffer.m_header.m_encrypt_key_definition_salt_count;
-  memcpy(salts,
-         &m_buffer
-              .m_octets[m_buffer.m_header
-                            .m_encrypt_key_definition_salts_position_in_octets],
-         salt_octets_size);
+  *keying_material_size = m_buffer.m_header.m_encrypt_krm_keying_material_size;
+  *keying_material_count =
+      m_buffer.m_header.m_encrypt_krm_keying_material_count;
+  memcpy(
+      keying_material,
+      &m_buffer.m_octets[m_buffer.m_header
+                             .m_encrypt_krm_keying_material_position_in_octets],
+      material_octets_size);
   return 0;
 }
 
@@ -859,10 +876,10 @@ int ndb_ndbxfrm1::header::fixed_header::validate() const
     if (m_encrypt_dbg_writer_library_version.validate() == -1)
       RETURN(-1);
 
-    Uint64 salt_end = Uint64{m_encrypt_key_definition_salt_size} *
-                          Uint64{m_encrypt_key_definition_salt_count} +
-                      m_encrypt_key_definition_salts_position_in_octets;
-    if (salt_end > m_octets_size)
+    Uint64 material_end = Uint64{m_encrypt_krm_keying_material_size} *
+                          Uint64{m_encrypt_krm_keying_material_count} +
+                      m_encrypt_krm_keying_material_position_in_octets;
+    if (material_end > m_octets_size)
       RETURN(-1);
 
     switch (m_flags & flag_encrypt_cipher_mask)
@@ -873,11 +890,24 @@ int ndb_ndbxfrm1::header::fixed_header::validate() const
       RETURN(-1);
     }
 
-    switch (m_flags & flag_encrypt_kdf_mask)
+    switch (m_flags & flag_encrypt_krm_mask)
     {
-    case flag_encrypt_kdf_pbkdf2_sha256: break;
-    default:
-      RETURN(-1);
+      case flag_encrypt_krm_pbkdf2_sha256:
+        if (m_encrypt_krm_kdf_iterator_count == 0 ||
+            m_encrypt_krm_keying_material_size == 0 ||
+            m_encrypt_krm_keying_material_count == 0 ||
+            m_encrypt_krm_key_count != 0)
+          RETURN(-1);
+        break;
+      case flag_encrypt_krm_aeskw_256:
+        if (m_encrypt_krm_kdf_iterator_count != 0 ||
+            m_encrypt_krm_keying_material_size == 0 ||
+            m_encrypt_krm_keying_material_count == 0 ||
+            m_encrypt_krm_key_count == 0)
+          RETURN(-1);
+        break;
+      default:
+        RETURN(-1);
     }
 
     switch (m_flags & flag_encrypt_padding_mask)
@@ -891,13 +921,11 @@ int ndb_ndbxfrm1::header::fixed_header::validate() const
     switch (m_flags & flag_encrypt_key_selection_mode_mask)
     {
     case flag_encrypt_key_selection_mode_same:
-      if (m_encrypt_key_definition_salt_count != 1)
-        RETURN(-1);
-    break;
+      if (m_encrypt_krm_keying_material_count != 1) RETURN(-1);
+      break;
     case flag_encrypt_key_selection_mode_pair:
     case flag_encrypt_key_selection_mode_mix_pair:
-      if (m_encrypt_key_definition_salt_count == 0)
-        RETURN(-1);
+      if (m_encrypt_krm_keying_material_count == 0) RETURN(-1);
       if (m_encrypt_key_data_unit_size == 0)
         RETURN(-1);
       break;
@@ -913,22 +941,16 @@ int ndb_ndbxfrm1::header::fixed_header::validate() const
     if (!is_all_zeros(&m_encrypt_dbg_writer_library_version,
                       sizeof(m_encrypt_dbg_writer_library_version)))
       RETURN(-1);
-    if (m_encrypt_key_definition_iterator_count != 0)
-      RETURN(-1);
-    if (m_encrypt_key_definition_salt_size != 0)
-      RETURN(-1);
-    if (m_encrypt_key_definition_salt_count != 0)
-      RETURN(-1);
+    if (m_encrypt_krm_kdf_iterator_count != 0) RETURN(-1);
+    if (m_encrypt_krm_keying_material_size != 0) RETURN(-1);
+    if (m_encrypt_krm_keying_material_count != 0) RETURN(-1);
+    if (m_encrypt_krm_key_count != 0) RETURN(-1);
     if (m_encrypt_key_data_unit_size != 0)
       RETURN(-1);
-    if (m_encrypt_key_definition_salts_position_in_octets != 0)
-      RETURN(-1);
+    if (m_encrypt_krm_keying_material_position_in_octets != 0) RETURN(-1);
   }
 
   if (!is_all_zeros(&m_zeros01, sizeof(m_zeros01)))
-    RETURN(-1);
-
-  if (!is_all_zeros(&m_zeros02, sizeof(m_zeros02)))
     RETURN(-1);
 
   return 0;
@@ -996,11 +1018,11 @@ int ndb_ndbxfrm1::header::fixed_header::toggle_endian()
     RETURN(-1);
   if (m_encrypt_dbg_writer_library_version.toggle_endian() == -1)
     RETURN(-1);
-  toggle_endian32(&m_encrypt_key_definition_iterator_count);
-  toggle_endian32(&m_encrypt_key_definition_salt_size);
-  toggle_endian32(&m_encrypt_key_definition_salt_count);
+  toggle_endian32(&m_encrypt_krm_kdf_iterator_count);
+  toggle_endian32(&m_encrypt_krm_keying_material_size);
+  toggle_endian32(&m_encrypt_krm_keying_material_count);
   toggle_endian32(&m_encrypt_key_data_unit_size);
-  toggle_endian32(&m_encrypt_key_definition_salts_position_in_octets);
+  toggle_endian32(&m_encrypt_krm_keying_material_position_in_octets);
   return 0;
 }
 
@@ -1136,8 +1158,9 @@ void ndb_ndbxfrm1::header::printf(FILE* out) const
   fprintf(
       out, "    flag_encrypt_cipher: %llu,\n",
       (fixed_header.m_flags & fixed_header::flag_encrypt_cipher_mask) >> 12);
-  fprintf(out, "    flag_encrypt_kdf: %llu,\n",
-          (fixed_header.m_flags & fixed_header::flag_encrypt_kdf_mask) >> 16);
+  fprintf(out,
+          "    flag_encrypt_krm: %llu,\n",
+          (fixed_header.m_flags & fixed_header::flag_encrypt_krm_mask) >> 16);
   fprintf(
       out, "    flag_encrypt_padding: %llu,\n",
       (fixed_header.m_flags & fixed_header::flag_encrypt_padding_mask) >> 20);
@@ -1160,17 +1183,20 @@ void ndb_ndbxfrm1::header::printf(FILE* out) const
   fprintf(out, "    compress_dbg_writer_library_version: { ... },\n");
   fprintf(out, "    encrypt_dbg_writer_header_version: { ... },\n");
   fprintf(out, "    encrypt_dbg_writer_library_version: { ... },\n");
-  fprintf(out, "    encrypt_key_definition_iterator_count: %u,\n",
-          fixed_header.m_encrypt_key_definition_iterator_count);
-  fprintf(out, "    encrypt_key_definition_salt_size: %u,\n",
-          fixed_header.m_encrypt_key_definition_salt_size);
-  fprintf(out, "    encrypt_key_definition_salt_count: %u,\n",
-          fixed_header.m_encrypt_key_definition_salt_count);
+  fprintf(out,
+          "    encrypt_key_definition_iterator_count: %u,\n",
+          fixed_header.m_encrypt_krm_kdf_iterator_count);
+  fprintf(out,
+          "    encrypt_krm_keying_material_size: %u,\n",
+          fixed_header.m_encrypt_krm_keying_material_size);
+  fprintf(out,
+          "    encrypt_krm_keying_material_count: %u,\n",
+          fixed_header.m_encrypt_krm_keying_material_count);
   fprintf(out, "    encrypt_key_data_unit_size: %u,\n",
           fixed_header.m_encrypt_key_data_unit_size);
-  fprintf(out, "    encrypt_key_definition_salts_position_in_octets: %u,\n",
-          fixed_header.m_encrypt_key_definition_salts_position_in_octets);
-  fprintf(out, "    zeros02: { %u },\n", fixed_header.m_zeros02[0]);
+  fprintf(out,
+          "    encrypt_krm_keying_material_position_in_octets: %u,\n",
+          fixed_header.m_encrypt_krm_keying_material_position_in_octets);
   fprintf(out, "  },\n");
   fprintf(out, "  octets: {\n");
   for (unsigned i = 0; i < fixed_header.m_octets_size; i++)

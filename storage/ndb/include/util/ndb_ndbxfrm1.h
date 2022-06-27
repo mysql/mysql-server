@@ -105,7 +105,8 @@ struct ndb_ndbxfrm1
   static constexpr Uint32 cipher_cbc = 1;
   static constexpr Uint32 cipher_xts = 2;
   static constexpr Uint32 padding_pkcs = 1;
-  static constexpr Uint32 kdf_pbkdf2_sha256 = 1;
+  static constexpr Uint32 krm_pbkdf2_sha256 = 1;
+  static constexpr Uint32 krm_aeskw_256 = 2;
   static constexpr Uint32 key_selection_mode_same = 0;
   static constexpr Uint32 key_selection_mode_pair = 1;
   static constexpr Uint32 key_selection_mode_mix_pair = 2;
@@ -116,15 +117,21 @@ class ndb_ndbxfrm1::header
 public:
   header();
 
+  static constexpr size_t get_max_keying_material_size()
+  {
+    return MAX_OCTETS_SIZE;
+  }
   int set_file_block_size(size_t file_block_size);
   int set_compression_method(Uint32 flag_compress);
   int set_compression_padding(Uint32 flag_padding);
   int set_encryption_cipher(Uint32 cipher);
   int set_encryption_padding(Uint32 padding);
-  int set_encryption_kdf(Uint32 kdf);
-  int set_encryption_kdf_iter_count(Uint32 count);
+  int set_encryption_krm(Uint32 krm);
+  int set_encryption_krm_kdf_iter_count(Uint32 count);
   int set_encryption_key_selection_mode(Uint32 key_selection_mode, Uint32 key_data_unit_size);
-  int set_encryption_salts(const byte* salts, size_t salt_size, size_t salt_count);
+  int set_encryption_keying_material(const byte* keying_material,
+                                     size_t keying_material_size,
+                                     size_t keying_material_count);
 
   int prepare_for_write(Uint32 header_size = 0);
   size_t get_size() const; // output size needed by write_header()
@@ -138,10 +145,13 @@ public:
   int get_compression_padding() const;
   int get_encryption_cipher(Uint32* cipher) const;
   int get_encryption_padding(Uint32* padding) const;
-  int get_encryption_kdf(Uint32* kdf) const;
-  int get_encryption_kdf_iter_count(Uint32* count) const;
+  int get_encryption_krm(Uint32* krm) const;
+  int get_encryption_krm_kdf_iter_count(Uint32* count) const;
   int get_encryption_key_selection_mode(Uint32* key_selection_mode, Uint32* key_data_unit_size) const;
-  int get_encryption_salts(byte* salts, size_t salt_space, size_t* salt_size, size_t* salt_count) const;
+  int get_encryption_keying_material(byte* keying_material,
+                                     size_t keying_material_space,
+                                     size_t* keying_material_size,
+                                     size_t* keying_material_count) const;
 
   void printf(FILE* out) const;
 private:
@@ -192,7 +202,7 @@ private:
     // Common part#1
 
     static constexpr Uint64 flag_extended    = 0x8000000000000000;
-    static constexpr Uint64 flag_zeros       = 0xFFFFFFFFECEECECC;
+    static constexpr Uint64 flag_zeros = 0xFFFFFFFFECECCECC;
 
     static constexpr Uint64 flag_file_checksum_mask      = 0x0000000F;
     static constexpr Uint64 flag_file_checksum_in_header = 0x00000001;
@@ -213,9 +223,11 @@ private:
     static constexpr Uint64 flag_encrypt_cipher_mask         = 0x0000F000;
     static constexpr Uint64 flag_encrypt_cipher_aes_256_cbc  = 0x00001000;
     static constexpr Uint64 flag_encrypt_cipher_aes_256_xts  = 0x00002000;
-    static constexpr Uint64 flag_encrypt_kdf_mask            = 0x000F0000;
+    static constexpr Uint64 flag_encrypt_krm_mask = 0x000F0000;
     // RFC2898 PKCS #5: Password-Based Cryptography Specification Version 2.0
-    static constexpr Uint64 flag_encrypt_kdf_pbkdf2_sha256   = 0x00010000;
+    static constexpr Uint64 flag_encrypt_krm_pbkdf2_sha256 = 0x00010000;
+    // RFC3394 Advanced Encryption Standard (AES) Key Wrap Algorithm
+    static constexpr Uint64 flag_encrypt_krm_aeskw_256 = 0x00020000;
     static constexpr Uint64 flag_encrypt_padding_mask        = 0x00F00000;
     static constexpr Uint64 flag_encrypt_padding_none        = 0x00000000;
     // PKCS#7 also RFC5652 Cryptographic Message Syntax (CMS)
@@ -292,9 +304,9 @@ private:
      */
     transform_version m_encrypt_dbg_writer_header_version;
     transform_version m_encrypt_dbg_writer_library_version;
-    Uint32 m_encrypt_key_definition_iterator_count;
-    Uint32 m_encrypt_key_definition_salt_size;
-    Uint32 m_encrypt_key_definition_salt_count;
+    Uint32 m_encrypt_krm_kdf_iterator_count;
+    Uint32 m_encrypt_krm_keying_material_size;
+    Uint32 m_encrypt_krm_keying_material_count;
     /*
      * m_encrypt_key_data_unit_size - determines how much data is encrypted as
      * an unit.
@@ -318,8 +330,8 @@ private:
      * may differ from unencrypted data size.
      */
     Uint32 m_encrypt_key_data_unit_size;
-    Uint32 m_encrypt_key_definition_salts_position_in_octets;
-    Uint32 m_zeros02[1];
+    Uint32 m_encrypt_krm_keying_material_position_in_octets;
+    Uint32 m_encrypt_krm_key_count;
 
     int toggle_endian();
     int validate() const;

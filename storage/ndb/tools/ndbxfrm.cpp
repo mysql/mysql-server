@@ -53,7 +53,7 @@ static ndb_password_from_stdin_option opt_encrypt_password_from_stdin(
 static int g_info = 0;
 static int g_encrypt_block_size = 0;
 static int g_encrypt_cipher = ndb_ndbxfrm1::cipher_cbc;
-static int g_encrypt_kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
+static int g_encrypt_kdf_iter_count = -1; // ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
 static int g_file_block_size = 512;
 #if defined(TODO_READ_REVERSE)
 static int g_read_reverse = 0;
@@ -276,8 +276,7 @@ int copy_file(const char src[], const char dst[])
                       opt_encrypt_password_state.get_password_length(),
                       g_encrypt_kdf_iter_count,
                       g_encrypt_cipher,
-                      ndb_ndbxfrm1::key_selection_mode_same,
-                      1 /* key count */,
+                      -1 /* key count */,
                       g_encrypt_block_size,
                       file_block_size,
                       ndbxfrm_file::INDEFINITE_SIZE);

@@ -349,7 +349,15 @@ int ndb_openssl_evp::remove_all_key_iv_pairs()
   return -1;
 }
 
-
+int ndb_openssl_evp::generate_key(ndb_openssl_evp::byte* key, size_t key_len)
+{
+  int r = RAND_bytes(key, key_len);
+  if (r != 1)
+  {
+    return -1;
+  }
+  return 0;
+}
 
 ndb_openssl_evp::key256_iv256_set::key256_iv256_set()
 : m_key_iv_count(0)
