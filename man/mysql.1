@@ -4196,7 +4196,7 @@ ignores Unicode byte order mark (BOM) characters at the beginning of input files
 to change its default character set\&. To do that, invoke
 \fBmysql\fR
 with an option such as
-\fB\-\-default\-character\-set=utf8\fR\&.
+\fB\-\-default\-character\-set=utf8mb4\fR\&.
 .PP
 For more information about batch mode, see
 Section\ \&3.5, \(lqUsing mysql in Batch Mode\(rq\&.
@@ -4443,9 +4443,9 @@ Go to the console window properties, select the font tab, and choose Lucida Cons
 Execute
 \fBmysql\&.exe\fR
 with the
-\fB\-\-default\-character\-set=utf8\fR
+\fB\-\-default\-character\-set=utf8mb4\fR
 (or
-utf8mb4) option\&. This option is necessary because
+utf8mb3) option\&. This option is necessary because
 utf16le
 is one of the character sets that cannot be used as the client character set\&. See
 the section called \(lqImpermissible Client Character Sets\(rq\&.
@@ -4458,9 +4458,9 @@ uses the Windows APIs to communicate with the console using UTF\-16LE, and commu
 To avoid those steps each time you run
 \fBmysql\fR, you can create a shortcut that invokes
 \fBmysql\&.exe\fR\&. The shortcut should set the console font to Lucida Console or some other compatible Unicode font, and pass the
-\fB\-\-default\-character\-set=utf8\fR
+\fB\-\-default\-character\-set=utf8mb4\fR
 (or
-utf8mb4) option to
+utf8mb3) option to
 \fBmysql\&.exe\fR\&.
 .PP
 Alternatively, create a shortcut that only sets the console font, and set the character set in the
@@ -4474,7 +4474,7 @@ file:
 .\}
 .nf
 [mysql]
-default\-character\-set=utf8
+default\-character\-set=utf8mb4
 .fi
 .if n \{\
 .RE
