@@ -493,9 +493,11 @@ void row_upd_rec_in_place(
     rec_set_info_bits_new(rec, update->info_bits);
     if (is_versioned) {
       rec_new_set_versioned(rec, true);
+      ut_ad(!rec_get_instant_flag_new(rec));
     } else if (is_instant) {
       ut_ad(index->table->has_instant_cols());
       rec_set_instant_flag_new(rec, true);
+      ut_ad(!rec_new_is_versioned(rec));
     } else {
       rec_new_set_versioned(rec, false);
       rec_set_instant_flag_new(rec, false);
