@@ -53,8 +53,12 @@ public:
   static constexpr size_t BLOCK_LEN = 16;
   static constexpr size_t KEY_LEN = 32;
   static constexpr size_t IV_LEN = 32;
+  /*
+   * MAX_KEY_IV_COUNT is 511 to keep ndb_openssl_evp::key256_iv256_set within
+   * 32KiB.
+   */
+  static constexpr size_t MAX_KEY_IV_COUNT = 511;
   static constexpr size_t SALT_LEN = 32;
-  static constexpr size_t MAX_SALT_COUNT = 500;
   static constexpr size_t CBC_KEY_LEN = 32;
   static constexpr size_t CBC_IV_LEN = 16;
   static constexpr size_t CBC_BLOCK_LEN = 16;
@@ -85,13 +89,36 @@ public:
 
   int set_aes_256_cbc(bool padding, size_t data_unit_size);
   int set_aes_256_xts(bool padding, size_t data_unit_size);
+
+  // Set CBC or XTS mode first, prior call
+  size_t get_needed_key_iv_pair_count(off_t estimated_data_size) const;
+  static constexpr size_t get_pbkdf2_max_key_iv_pair_count(
+      size_t keying_material_buffer_size);
+  static constexpr size_t get_aeskw_max_key_iv_pair_count(
+      size_t keying_material_buffer_size);
+
   int generate_salt256(byte salt[SALT_LEN]);
   int derive_and_add_key_iv_pair(const byte pwd[],
                                  size_t pwd_len,
                                  size_t iter_count,
                                  const byte salt[SALT_LEN]);
+  int add_key_iv_pairs(const byte key_iv_pairs[],
+                       size_t pair_count,
+                       size_t pair_size);
   int remove_all_key_iv_pairs();
   static int generate_key(byte key[], size_t key_len);
+  static int wrap_keys_aeskw256(byte *wrapped,
+                                size_t *wrapped_size,
+                                const byte *keys,
+                                size_t key_size,
+                                const byte *wrapping_key,
+                                size_t wrapping_key_size);
+  static int unwrap_keys_aeskw256(byte *keys,
+                                  size_t *key_size,
+                                  const byte *wrapped,
+                                  size_t wrapped_size,
+                                  const byte *wrapping_key,
+                                  size_t wrapping_key_size);
 
 private:
   const EVP_CIPHER *m_evp_cipher;
@@ -116,17 +143,16 @@ public:
 private:
   size_t m_key_iv_count;
   /*
-   * Keep key-iv pair usage less than 32768-512 bytes to let file header have
-   * 512 bytes non-key-iv data and still have keys within first 32768 bytes.
-   * 500 pairs with 32MiB data units give "unique" keys for
-   * 500x500x32MiB = 8MMiB = ~8TiB
-   * For XTS m_key_iv is used as double length key.
-   * For CBC key is at beginning and iv at end.
+   * key256_iv256_set object should fit in a 32KiB page in memory.
+   * Note both key and IV are 256 bits, although CBC will only use the first
+   * 128 bits of IV. And XTS will use key as key1 and IV as key2.
    */
-  static_assert(MAX_SALT_COUNT == 500);
-  struct { byte m_key_iv[KEY_LEN + IV_LEN]; } m_key_iv[MAX_SALT_COUNT];
+  struct
+  {
+    byte m_key_iv[KEY_LEN + IV_LEN];
+  } m_key_iv[MAX_KEY_IV_COUNT];
 };
-static_assert(sizeof(ndb_openssl_evp::key256_iv256_set) <= 32768 - 512);
+static_assert(sizeof(ndb_openssl_evp::key256_iv256_set) <= 32768);
 static_assert(alignof(ndb_openssl_evp::key256_iv256_set) ==
                 ndb_openssl_evp::MEMORY_ALIGN);
 
@@ -167,5 +193,20 @@ private:
   EVP_CIPHER_CTX *m_evp_context;
   byte m_key_iv[KEY_LEN + IV_LEN];
 };
+
+constexpr size_t ndb_openssl_evp::get_pbkdf2_max_key_iv_pair_count(
+    size_t keying_material_buffer_size)
+{
+  return std::min<size_t>(MAX_KEY_IV_COUNT,
+                          keying_material_buffer_size / SALT_LEN);
+}
+
+constexpr size_t ndb_openssl_evp::get_aeskw_max_key_iv_pair_count(
+    size_t keying_material_buffer_size)
+{
+  if (keying_material_buffer_size < 8) return 0;
+  return std::min<size_t>(
+      MAX_KEY_IV_COUNT, (keying_material_buffer_size - 8) / (KEY_LEN + IV_LEN));
+}
 
 #endif

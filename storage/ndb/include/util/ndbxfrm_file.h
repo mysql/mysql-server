@@ -24,6 +24,7 @@
 #define NDB_UTIL_NDBXFRM_FILE_H
 
 #include "portlib/ndb_file.h"
+#include "util/ndb_ndbxfrm1.h"
 #include "util/ndb_openssl_evp.h"
 #include "util/ndb_zlib.h"
 #include "util/ndbxfrm_buffer.h"
@@ -262,6 +263,15 @@ class ndbxfrm_file
   ndbxfrm_file();
   bool is_open() const;
   void reset();
+  /*
+   * open returns 0 on success, -1 on failure, -2 almost succeeded properties
+   * like is_encrypted() and is_compressed() are valid but for example
+   * unwrapping encryption keys failed.
+   * Note that -2 will require close(true) to be called.
+   * The -2 is needed to allow "ndbxfrm -i" to report a file as encrypted even
+   * if no or wrong password is provided. Closing file will reset most
+   * properties.
+   */
   int open(ndb_file& file,
            const byte* pwd_key,
            size_t pwd_key_len);
@@ -279,7 +289,7 @@ class ndbxfrm_file
    * Use abort when you for example has not fulfilled the initialization of the
    * file content and intend to remove the file after close.
    * For some transforms the data that application sofar have passed to
-   * ndxbfrm_file may not be possible to fulfil the transform for.
+   * ndbxfrm_file may not be possible to fulfil the transform for.
    * The abort flag will in such case ignore writing the pending data.
    *
    * Also when reading a file abort flag could be used when only part of file
@@ -383,6 +393,11 @@ class ndbxfrm_file
                   size_t pwd_key_len,
                   size_t* max_trailer_size);
   int read_trailer(ndbxfrm_input_reverse_iterator* in);
+  int generate_keying_material(ndb_ndbxfrm1::header* ndbxfrm1,
+                               const byte* pwd_key,
+                               size_t pwd_key_len,
+                               int key_cipher,
+                               int key_count);
   int write_header(
       ndbxfrm_output_iterator* out,
       size_t data_page_size,

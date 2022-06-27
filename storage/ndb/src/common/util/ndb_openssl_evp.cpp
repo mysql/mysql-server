@@ -42,12 +42,15 @@
 #include "openssl/engine.h"
 #endif
 
+// clang-format off
 #ifndef REQUIRE
 #define REQUIRE(r) do { if (unlikely(!(r))) { fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); require((r)); } } while (0)
 #endif
 
-#define RETURN(rv) return(rv)
+//#define RETURN(rv) return(rv)
 //#define RETURN(rv) abort()
+#define RETURN(r) do { fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); require(false); return (r); } while (0)
+// clang-format on
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static unsigned long ndb_openssl_id()
@@ -249,6 +252,39 @@ int ndb_openssl_evp::set_aes_256_xts(bool padding, size_t data_unit_size)
   return 0;
 }
 
+size_t ndb_openssl_evp::get_needed_key_iv_pair_count(
+    off_t estimated_data_size) const
+{
+  off_t key_iv_pairs = 0;
+  if (m_data_unit_size == 0)
+  {
+    // Stream mode with CBC
+    key_iv_pairs = 1;
+  }
+  else if (m_evp_cipher == EVP_aes_256_cbc())
+  {
+    key_iv_pairs = ndb_ceil_div(estimated_data_size, off_t(m_data_unit_size));
+  }
+  else if (m_evp_cipher == EVP_aes_256_xts())
+  {
+    key_iv_pairs = ndb_ceil_div(estimated_data_size,
+                                off_t(m_data_unit_size) << XTS_IV_LEN);
+  }
+  if (m_mix_key_iv_pair)
+  {
+    /*
+     * In mix key iv pair mode, all keys can combine with all ivs to form
+     * unique pairs.
+     * The number of key-iv pairs we need to generate is the square root of
+     * unique key-iv pairs needed.
+     */
+    key_iv_pairs = ceil(sqrt(double(key_iv_pairs)));
+  }
+  require(key_iv_pairs > 0);
+  if constexpr (sizeof(off_t) > sizeof(size_t))
+    if (key_iv_pairs > SIZE_T_MAX) return SIZE_T_MAX;
+  return key_iv_pairs;
+}
 
 int ndb_openssl_evp::generate_salt256(byte salt[SALT_LEN])
 {
@@ -332,6 +368,41 @@ int ndb_openssl_evp::derive_and_add_key_iv_pair(const byte pwd[],
   return 0;
 }
 
+int ndb_openssl_evp::add_key_iv_pairs(const byte key_pairs[],
+                                      size_t pair_count,
+                                      size_t pair_size)
+{
+  if (pair_size != KEY_LEN + IV_LEN) RETURN(-1);
+
+  if (m_key_iv_set == nullptr)
+  {
+    if (m_has_key_iv)
+    {
+      RETURN(-1);
+    }
+    if (pair_count != 1)
+    {
+      RETURN(-1);
+    }
+    memcpy(m_key_iv, key_pairs, pair_size);
+    m_has_key_iv = true;
+    return 0;
+  }
+
+  size_t off = 0;
+  for (size_t i = 0; i < pair_count; i++)
+  {
+    byte *key_iv;
+    if (m_key_iv_set->get_next_key_iv_slot(&key_iv) == -1)
+    {
+      RETURN(-1);
+    }
+    memcpy(key_iv, key_pairs + off, pair_size);
+    off += pair_size;
+    require(m_key_iv_set->commit_next_key_iv_slot() != -1);
+  }
+  return 0;
+}
 
 int ndb_openssl_evp::remove_all_key_iv_pairs()
 {
@@ -379,7 +450,7 @@ int ndb_openssl_evp::key256_iv256_set::clear()
 
 int ndb_openssl_evp::key256_iv256_set::get_next_key_iv_slot(byte **key_iv)
 {
-  if (m_key_iv_count >= MAX_SALT_COUNT)
+  if (m_key_iv_count >= MAX_KEY_IV_COUNT)
   {
     return -1;
   }
@@ -391,7 +462,7 @@ int ndb_openssl_evp::key256_iv256_set::get_next_key_iv_slot(byte **key_iv)
 
 int ndb_openssl_evp::key256_iv256_set::commit_next_key_iv_slot()
 {
-  if (m_key_iv_count >= MAX_SALT_COUNT)
+  if (m_key_iv_count >= MAX_KEY_IV_COUNT)
   {
     return -1;
   }
@@ -404,6 +475,7 @@ int ndb_openssl_evp::key256_iv256_set::commit_next_key_iv_slot()
 int ndb_openssl_evp::key256_iv256_set::get_key_iv_pair(
                        size_t index, const byte **key, const byte **iv) const
 {
+  if (m_key_iv_count == 0) RETURN(-1);
   size_t i = index % m_key_iv_count;
   size_t reuse = i / m_key_iv_count;
   *key = &m_key_iv[i].m_key_iv[0];
@@ -416,6 +488,7 @@ int ndb_openssl_evp::key256_iv256_set::get_key_iv_pair(
 int ndb_openssl_evp::key256_iv256_set::get_key_iv_mixed_pair(
                       size_t index, const byte **key, const byte **iv) const
 {
+  if (m_key_iv_count == 0) RETURN(-1);
   size_t iv_index = index % m_key_iv_count;
   size_t key_index = index / m_key_iv_count % m_key_iv_count;
   size_t reuse = index / m_key_iv_count / m_key_iv_count;
@@ -1105,6 +1178,77 @@ int ndb_openssl_evp::operation::decrypt_end()
 {
 //  require(m_op_mode == DECRYPT);
   m_op_mode = NO_OP;
+  return 0;
+}
+
+int ndb_openssl_evp::wrap_keys_aeskw256(byte *wrapped,
+                                        size_t *wrapped_size,
+                                        const byte *keys,
+                                        size_t keys_size,
+                                        const byte *wrapping_key,
+                                        size_t wrapping_key_size)
+{
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  EVP_CIPHER_CTX_set_flags(ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+  if (wrapping_key_size != (size_t)EVP_CIPHER_key_length(EVP_aes_256_wrap()))
+  {
+    RETURN(-1);
+  }
+  if (*wrapped_size < keys_size + AESKW_EXTRA) RETURN(-1);
+  if (EVP_EncryptInit_ex(ctx, EVP_aes_256_wrap(), nullptr, wrapping_key, nullptr) != 1)
+  {
+    RETURN(-1);
+  }
+  int outl;
+  if (EVP_EncryptUpdate(ctx, wrapped, &outl, keys, keys_size) != 1)
+  {
+    RETURN(-1);
+  }
+  require(size_t(outl) <= *wrapped_size);
+  int outl2;
+  if (EVP_EncryptFinal_ex(ctx, wrapped + outl, &outl2) != 1)
+  {
+    RETURN(-1);
+  }
+  require(outl2 == 0);
+  *wrapped_size = outl;
+  EVP_CIPHER_CTX_free(ctx);
+  return 0;
+}
+
+int ndb_openssl_evp::unwrap_keys_aeskw256(byte *keys,
+                                          size_t *keys_size,
+                                          const byte *wrapped,
+                                          size_t wrapped_size,
+                                          const byte *wrapping_key,
+                                          size_t wrapping_key_size)
+{
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  EVP_CIPHER_CTX_set_flags(ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+  if (wrapping_key_size != (size_t)EVP_CIPHER_key_length(EVP_aes_256_wrap()))
+  {
+    RETURN(-1);
+  }
+  if (wrapped_size < AESKW_EXTRA) RETURN(-1);
+  if (*keys_size < wrapped_size - AESKW_EXTRA) RETURN(-1);
+  if (EVP_DecryptInit_ex(ctx, EVP_aes_256_wrap(), nullptr, wrapping_key, nullptr) != 1)
+  {
+    RETURN(-1);
+  }
+  int outl;
+  if (EVP_DecryptUpdate(ctx, keys, &outl, wrapped, wrapped_size) != 1)
+  {
+    RETURN(-1);
+  }
+  require(size_t(outl) <= *keys_size); // Potential write beyond buffer
+  int outl2;
+  if (EVP_DecryptFinal_ex(ctx, keys + outl, &outl2) != 1)
+  {
+    RETURN(-1);
+  }
+  require(outl2 == 0);
+  *keys_size = outl;
+  EVP_CIPHER_CTX_free(ctx);
   return 0;
 }
 

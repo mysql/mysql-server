@@ -117,6 +117,10 @@ class ndb_ndbxfrm1::header
 public:
   header();
 
+  static constexpr size_t get_legacy_max_keying_material_size()
+  {
+    return LEGACY_MAX_OCTETS_SIZE;
+  }
   static constexpr size_t get_max_keying_material_size()
   {
     return MAX_OCTETS_SIZE;
@@ -341,6 +345,7 @@ private:
   static constexpr size_t MIN_HEADER_SIZE = 8;
   static constexpr size_t MAX_HEADER_SIZE = 512;
   static_assert(sizeof(fixed_header) <= MAX_HEADER_SIZE);
+  static constexpr size_t LEGACY_MAX_OCTETS_SIZE = 16000;
   static constexpr size_t MAX_OCTETS_SIZE = 32000;
   static_assert(MAX_HEADER_SIZE + MAX_OCTETS_SIZE <= 32768);
 

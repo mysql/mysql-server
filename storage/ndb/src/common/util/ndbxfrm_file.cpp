@@ -30,24 +30,13 @@
 #include <algorithm>
 #include <math.h>
 
+// clang-format off
 #ifndef REQUIRE
-#define REQUIRE(r)                           \
-  do                                         \
-  {                                          \
-    if (unlikely(!(r)))                      \
-    {                                        \
-      fprintf(stderr,                        \
-              "\nYYY: %s: %u: %s: r = %d\n", \
-              __FILE__,                      \
-              __LINE__,                      \
-              __func__,                      \
-              (r));                          \
-      require((r));                          \
-    }                                        \
-  } while (0)
+#define REQUIRE(r) do { if (unlikely(!(r))) { fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); require((r)); } } while (0)
 #endif
-//#define RETURN(r) do { REQUIRE((r) >= 0); return (r); } while (0)
-#define RETURN(r) return (r)
+#define RETURN(r) do { REQUIRE((r) >= 0); return (r); } while (0)
+//#define RETURN(r) return (r)
+// clang-format on
 
 bool ndbxfrm_file::print_file_header_and_trailer = false;
 
@@ -280,45 +269,14 @@ int ndbxfrm_file::create(
 
   m_file_block_size = file_block_size;
   if (is_definite_size(data_size)) m_data_size = data_size;
-
-  if (kdf_iter_count == -1) kdf_iter_count = 100000; // TODO use named default constant
-  static constexpr size_t MAX_KEYING_MATERIAL_SIZE = 16000;
-  if (key_count == -1)
+  if (pwd_key)
   {
-    const size_t max_key_count = (kdf_iter_count == 0)
-        ? (MAX_KEYING_MATERIAL_SIZE - ndb_openssl_evp::AESKW_EXTRA) / (2*32)
-        : MAX_KEYING_MATERIAL_SIZE / 32; /* PBKDF2, TODO use named constant ndb_openssl_evp::MAX_SALT_COUNT */
-    static_assert(MAX_KEYING_MATERIAL_SIZE / 32 <= INT_MAX);
-    size_t needed_key_count;
-    if (is_definite_size(data_size))
-    {
-      size_t key_reuse_unit_size;
-      if (key_cipher == ndb_ndbxfrm1::cipher_xts)
-      {
-        key_reuse_unit_size = key_data_unit_size << ndb_openssl_evp::XTS_IV_LEN;
-      }
-      else
-      {
-        key_reuse_unit_size = key_data_unit_size;
-      }
-      const size_t key_reuse_units = ndb_ceil_div(data_size, Uint64{key_reuse_unit_size});
-      needed_key_count = ceil(sqrt((double)key_reuse_units));
-      if (needed_key_count <= max_key_count)
-        key_count = (int)needed_key_count;
-      else
-        key_count = (int)max_key_count;
-    }
-    else
-    { // Unknown size
-      if (key_cipher == ndb_ndbxfrm1::cipher_cbc)
-      { // CBC allows stream mode
-        key_count = 1;
-      }
-      else if (kdf_iter_count == 0) // AESKW wraps 2x32 bytes keys
-      { // Use max number of keys
-        key_count = (int)max_key_count;
-      }
-    }
+    if (kdf_iter_count == -1)
+      kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
+  }
+  else
+  {
+    // no encryption - clear all encryption specifics?
   }
   ndbxfrm_output_iterator out = m_file_buffer.get_output_iterator();
   const byte *out_begin = out.begin();
@@ -628,6 +586,7 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
                               size_t pwd_key_len,
                               size_t *trailer_max_size)
 {
+  bool unwrap_keys_failed = false;
   const byte *in_begin = in->cbegin();
   size_t header_size = 0;
   if (ndb_az31::detect_header(in) == 0)
@@ -696,26 +655,50 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
       Uint32 krm = 0;
       Uint32 kdf_iter_count = 0;
       Uint32 key_selection_mode = 0;
-      byte salts[ndb_openssl_evp::SALT_LEN * ndb_openssl_evp::MAX_SALT_COUNT];
-      size_t salt_size = 0;
-      size_t salt_count = 0;
+      byte
+          keying_material[ndb_ndbxfrm1::header::get_max_keying_material_size()];
+      size_t keying_material_size = 0;
+      size_t keying_material_count = 0;
 
       require(ndbxfrm.get_encryption_padding(&padding) == 0);
       require(ndbxfrm.get_encryption_krm(&krm) == 0);
       require(ndbxfrm.get_encryption_krm_kdf_iter_count(&kdf_iter_count) == 0);
       require(ndbxfrm.get_encryption_key_selection_mode(
                   &key_selection_mode, &enc_data_unit_size) == 0);
-      require(ndbxfrm.get_encryption_keying_material(
-                  salts, sizeof(salts), &salt_size, &salt_count) == 0);
+      require(ndbxfrm.get_encryption_keying_material(keying_material,
+                                                     sizeof(keying_material),
+                                                     &keying_material_size,
+                                                     &keying_material_count) ==
+              0);
       if (cipher != ndb_ndbxfrm1::cipher_cbc && cipher != ndb_ndbxfrm1::cipher_xts)
         RETURN(-1);
       if (!(padding == 0 || padding == ndb_ndbxfrm1::padding_pkcs)) RETURN(-1);
-      if (krm != ndb_ndbxfrm1::krm_pbkdf2_sha256) RETURN(-1);
-      if (key_selection_mode > 2) RETURN(-1);
-      if (salt_size != ndb_openssl_evp::SALT_LEN || salt_count > ndb_openssl_evp::MAX_SALT_COUNT ||
-          salt_count == 0)
-      {
+      if (krm != ndb_ndbxfrm1::krm_pbkdf2_sha256 &&
+          krm != ndb_ndbxfrm1::krm_aeskw_256)
         RETURN(-1);
+      if (key_selection_mode > 2) RETURN(-1);
+      if (krm == ndb_ndbxfrm1::krm_pbkdf2_sha256)
+      {
+        if (keying_material_size != ndb_openssl_evp::SALT_LEN ||
+            keying_material_count == 0)
+        {
+          RETURN(-1);
+        }
+      }
+      else if (krm == ndb_ndbxfrm1::krm_aeskw_256)
+      {
+        if (keying_material_count != 1)
+        {
+          RETURN(-1);
+        }
+      }
+      if (krm == ndb_ndbxfrm1::krm_pbkdf2_sha256)
+      {
+        if (kdf_iter_count == 0) RETURN(-1);
+      }
+      else if (krm == ndb_ndbxfrm1::krm_aeskw_256)
+      {
+        if (kdf_iter_count != 0) RETURN(-1);
       }
 
       openssl_evp.reset();
@@ -740,10 +723,44 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
         default:
           RETURN(-1);
       }
-      for (unsigned i = 0; i < salt_count; i++)
+      if (pwd_key != nullptr)
       {
-        openssl_evp.derive_and_add_key_iv_pair(
-            pwd_key, pwd_key_len, kdf_iter_count, salts + salt_size * i);
+        if (krm == ndb_ndbxfrm1::krm_pbkdf2_sha256)
+        {
+          for (unsigned i = 0; i < keying_material_count; i++)
+          {
+            openssl_evp.derive_and_add_key_iv_pair(
+                pwd_key,
+                pwd_key_len,
+                kdf_iter_count,
+                keying_material + keying_material_size * i);
+          }
+        }
+        else if (krm == ndb_ndbxfrm1::krm_aeskw_256)
+        {
+          require(keying_material_count == 1);
+          require(keying_material_size <=
+                  ndb_ndbxfrm1::header::get_max_keying_material_size());
+          byte keys[ndb_ndbxfrm1::header::get_max_keying_material_size() -
+                     ndb_openssl_evp::AESKW_EXTRA];
+          size_t keys_size = sizeof(keys);
+          if (openssl_evp.unwrap_keys_aeskw256(keys,
+                                               &keys_size,
+                                               keying_material,
+                                               keying_material_size,
+                                               pwd_key,
+                                               pwd_key_len) != 0)
+            unwrap_keys_failed = true;
+          else
+          {
+            int key_count = (keys_size / (ndb_openssl_evp::KEY_LEN +
+                                          ndb_openssl_evp::IV_LEN));
+            openssl_evp.add_key_iv_pairs(
+                keys,
+                key_count,
+                ndb_openssl_evp::KEY_LEN + ndb_openssl_evp::IV_LEN);
+          }
+        }
       }
     }
     if (!m_compressed && m_encrypted && enc_data_unit_size > 0)
@@ -762,7 +779,12 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
     *trailer_max_size = 0;
   }
   m_payload_start = in->cbegin() - in_begin;
-  return 0;
+  if (m_encrypted && pwd_key == nullptr)
+  {
+    // Encrypted file but no password or key given
+    return -2;
+  }
+  return (unwrap_keys_failed ? -2 : 0);
 }
 
 int ndbxfrm_file::read_trailer(ndbxfrm_input_reverse_iterator *rin)
@@ -899,6 +921,122 @@ int ndbxfrm_file::write_transformed_pages(off_t data_pos,
   return 0;
 }
 
+int ndbxfrm_file::generate_keying_material(ndb_ndbxfrm1::header *ndbxfrm1,
+                                           const byte *pwd_key,
+                                           size_t pwd_key_len,
+                                           const int key_cipher,
+                                           int key_count)
+{
+  require(pwd_key != nullptr);
+
+  const off_t estimated_data_size =
+      (m_payload_end == INDEFINITE_OFFSET) ? INDEFINITE_SIZE : m_data_size;
+  constexpr size_t max_keying_material_size =
+      ndb_ndbxfrm1::header::get_max_keying_material_size();
+  size_t needed_key_iv_pair_count =
+      openssl_evp.get_needed_key_iv_pair_count(estimated_data_size);
+  size_t max_key_iv_pair_count = 0;
+
+  Uint32 krm;
+  require(ndbxfrm1->get_encryption_krm(&krm) == 0);
+
+  if (key_cipher == ndb_ndbxfrm1::cipher_cbc &&
+      krm == ndb_ndbxfrm1::krm_pbkdf2_sha256)
+  {
+    /*
+     * PBKDF2 with CBC is used by backup. We need to make sure that new backup
+     * files do not use more key-iv pairs than old Ndb programs can handle.
+     */
+    max_key_iv_pair_count = openssl_evp.get_pbkdf2_max_key_iv_pair_count(
+        ndb_ndbxfrm1::header::get_legacy_max_keying_material_size());
+  }
+  else if (krm == ndb_ndbxfrm1::krm_pbkdf2_sha256)
+  {
+    max_key_iv_pair_count =
+        openssl_evp.get_pbkdf2_max_key_iv_pair_count(max_keying_material_size);
+  }
+  else if (krm == ndb_ndbxfrm1::krm_aeskw_256)
+  {
+    max_key_iv_pair_count =
+        openssl_evp.get_aeskw_max_key_iv_pair_count(max_keying_material_size);
+  }
+  if (key_count >= 0 && size_t(key_count) > max_key_iv_pair_count)
+  {
+    // Too many keys requested
+    RETURN(-1);
+  }
+  if (key_count == -1)
+  {
+    key_count = std::min(needed_key_iv_pair_count, max_key_iv_pair_count);
+  }
+  byte keying_material[max_keying_material_size];
+
+  if (krm == ndb_ndbxfrm1::krm_pbkdf2_sha256)
+  {
+    if (key_count <= 0) RETURN(-1);
+    if (size_t(key_count) * ndb_openssl_evp::SALT_LEN >
+            ndb_ndbxfrm1::header::get_max_keying_material_size()) RETURN(-1);
+    Uint32 kdf_iter_count;
+    if (ndbxfrm1->get_encryption_krm_kdf_iter_count(&kdf_iter_count) != 0)
+      RETURN(-1);
+    for (int i = 0; i < key_count; i++)
+    {
+      byte *salt = &keying_material[i * ndb_openssl_evp::SALT_LEN];
+      openssl_evp.generate_salt256(salt);
+      openssl_evp.derive_and_add_key_iv_pair(
+          pwd_key, pwd_key_len, kdf_iter_count, salt);
+    }
+    ndbxfrm1->set_encryption_keying_material(
+        keying_material, ndb_openssl_evp::SALT_LEN, key_count);
+  }
+  else if (krm == ndb_ndbxfrm1::krm_aeskw_256)
+  {
+    if (key_count <= 0) RETURN(-1);
+    // generate and encrypt keys !!
+    if (size_t(key_count) *
+                    (ndb_openssl_evp::KEY_LEN + ndb_openssl_evp::IV_LEN) +
+                ndb_openssl_evp::AESKW_EXTRA >
+            ndb_ndbxfrm1::header::get_max_keying_material_size()) RETURN(-1);
+    byte keys[ndb_ndbxfrm1::header::get_max_keying_material_size() -
+               ndb_openssl_evp::AESKW_EXTRA];
+    for (int i = 0; i < 2 * key_count; i++)
+    {
+      static_assert(ndb_openssl_evp::KEY_LEN == ndb_openssl_evp::IV_LEN);
+      byte *key = &keys[i * ndb_openssl_evp::KEY_LEN];
+      openssl_evp.generate_key(key, ndb_openssl_evp::KEY_LEN);
+    }
+    size_t keys_size =
+        key_count * (ndb_openssl_evp::KEY_LEN + ndb_openssl_evp::IV_LEN);
+    size_t keying_material_size =
+        ndb_ndbxfrm1::header::get_max_keying_material_size();
+    openssl_evp.add_key_iv_pairs(
+        keys, key_count, ndb_openssl_evp::KEY_LEN + ndb_openssl_evp::IV_LEN);
+    require(0 == openssl_evp.wrap_keys_aeskw256(keying_material,
+                                                &keying_material_size,
+                                                keys,
+                                                keys_size,
+                                                pwd_key,
+                                                pwd_key_len));
+    ndbxfrm1->set_encryption_keying_material(
+        keying_material, keying_material_size, 1);
+  }
+  else
+    abort();  // Unknown krm
+
+  if (key_count > 0)
+  {
+    Uint32 key_selection_mode;
+    Uint32 key_data_unit_size = openssl_evp.get_random_access_block_size();
+    if (key_count == 1)
+      key_selection_mode = ndb_ndbxfrm1::key_selection_mode_same;
+    else
+      key_selection_mode = ndb_ndbxfrm1::key_selection_mode_mix_pair;
+    ndbxfrm1->set_encryption_key_selection_mode(key_selection_mode,
+                                                key_data_unit_size);
+  }
+  return 0;
+}
+
 int ndbxfrm_file::write_header(
     ndbxfrm_output_iterator *out,
     size_t data_page_size,
@@ -909,9 +1047,6 @@ int ndbxfrm_file::write_header(
     int key_count,
     size_t key_data_unit_size)
 {
-  int key_selection_mode = (key_count == 1) ?
-                            ndb_ndbxfrm1::key_selection_mode_same :
-                            ndb_ndbxfrm1::key_selection_mode_mix_pair;
   bool padding = (data_page_size == 0);
   // Write file header
   if (m_file_format == FF_AZ31)
@@ -923,7 +1058,7 @@ int ndbxfrm_file::write_header(
       RETURN(-1);
     }
     m_file_block_size = 512;  // Backward compatibility requires 512 bytes.
-    static_assert(512 % NDB_O_DIRECT_WRITE_ALIGNMENT == 0, "");
+    static_assert(512 % NDB_O_DIRECT_WRITE_ALIGNMENT == 0);
     require(ndb_az31::write_header(out) == 0);
 
     m_payload_start = 512;
@@ -940,7 +1075,8 @@ int ndbxfrm_file::write_header(
       if (key_cipher == ndb_ndbxfrm1::cipher_xts)
       {
         // XTS needs at least 16 bytes, use pkcs padding to ensure that.
-        require(ndbxfrm1.set_compression_padding(ndb_ndbxfrm1::padding_pkcs) == 0);
+        require(ndbxfrm1.set_compression_padding(ndb_ndbxfrm1::padding_pkcs) ==
+                0);
         require(zlib.set_pkcs_padding() == 0);
       }
     }
@@ -979,21 +1115,14 @@ int ndbxfrm_file::write_header(
           RETURN(-1);  // unsupported cipher
       }
       ndbxfrm1.set_encryption_padding(padding ? ndb_ndbxfrm1::padding_pkcs : 0);
-
-      byte salts[ndb_openssl_evp::MAX_SALT_COUNT * ndb_openssl_evp::SALT_LEN];
-      for (int i = 0; i < key_count; i++)
-      {
-        byte *salt = &salts[i * ndb_openssl_evp::SALT_LEN];
-        openssl_evp.generate_salt256(salt);
-        openssl_evp.derive_and_add_key_iv_pair(
-            pwd_key, pwd_key_len, kdf_iter_count, salt);
-      }
-      ndbxfrm1.set_encryption_keying_material(
-          salts, ndb_openssl_evp::SALT_LEN, key_count);
-      ndbxfrm1.set_encryption_krm(ndb_ndbxfrm1::krm_pbkdf2_sha256);
-      ndbxfrm1.set_encryption_krm_kdf_iter_count(kdf_iter_count);
-      ndbxfrm1.set_encryption_key_selection_mode(key_selection_mode,
-                                                 key_data_unit_size);
+      const int krm = (kdf_iter_count == 0) ? ndb_ndbxfrm1::krm_aeskw_256
+                                            : ndb_ndbxfrm1::krm_pbkdf2_sha256;
+      if (krm) ndbxfrm1.set_encryption_krm(krm);
+      if (kdf_iter_count != 0)
+        ndbxfrm1.set_encryption_krm_kdf_iter_count(kdf_iter_count);
+      if (generate_keying_material(
+              &ndbxfrm1, pwd_key, pwd_key_len, key_cipher, key_count) == -1)
+        RETURN(-1);
     }
     require(ndbxfrm1.prepare_for_write(m_file_block_size) == 0);
     require(ndbxfrm1.get_size() <= out->size());
@@ -1630,7 +1759,7 @@ int main()
   size_t pwd_len = 5;
   int kdf_iter_count = 1;
   int key_cipher = ndb_ndbxfrm1::cipher_xts;
-  int key_count = ndb_openssl_evp::MAX_SALT_COUNT;
+  int key_count = -1;
   size_t key_data_unit_size = ndbxfrm_file::BUFFER_SIZE;
   size_t file_block_size = ndbxfrm_file::BUFFER_SIZE;
   Uint64 data_size = ndbxfrm_file::INDEFINITE_SIZE;
