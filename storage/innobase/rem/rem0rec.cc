@@ -1029,9 +1029,11 @@ static rec_t *rec_convert_dtuple_to_rec_new(byte *buf,
       default values, dtuple->n_fields will be less than index->n_fields. In
       that case, we need to write in V1. */
       rec_set_instant_flag_new(rec, true);
+      ut_ad(!rec_new_is_versioned(rec));
     } else {
       /* For any new record insert for upgraded table, always write it in V2. */
       rec_new_set_versioned(rec, true);
+      rec_set_instant_flag_new(rec, false);
     }
   } else {
     rec_new_set_versioned(rec, false);
