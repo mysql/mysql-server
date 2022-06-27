@@ -15,8 +15,10 @@
 # 05. Cleaning up
 ################################################################################
 
+--source include/big_test.inc
 --source include/have_debug_sync.inc
 --source include/have_group_replication_xcom_communication_stack.inc
+--source include/force_restart.inc
 
 --echo
 --echo ############################################################
