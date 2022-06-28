@@ -44,6 +44,8 @@
 #include "sql/dd/impl/tables/column_statistics.h"  // Column_statistics
 #include "sql/dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
 #include "sql/histograms/histogram.h"              // histograms::Histogram
+                                                   // histograms::Error_context
+#include "sql-common/json_dom.h"                   // Json_*
 #include "template_utils.h"
 
 namespace dd {
@@ -115,10 +117,11 @@ bool Column_statistics_impl::restore_attributes(const Raw_record &r) {
     return true; /* purecov: deadcode */
 
   const Json_object *json_object = down_cast<const Json_object *>(json_dom);
+  histograms::Error_context context;
   m_histogram = histograms::Histogram::json_to_histogram(
       &m_mem_root, {m_schema_name.data(), m_schema_name.size()},
       {m_table_name.data(), m_table_name.size()},
-      {m_column_name.data(), m_column_name.size()}, *json_object);
+      {m_column_name.data(), m_column_name.size()}, *json_object, &context);
   if (m_histogram == nullptr) return true; /* purecov: deadcode */
   return false;
 }

@@ -3100,8 +3100,8 @@ Sql_cmd *PT_analyze_table_stmt::make_cmd(THD *thd) {
     return nullptr;
 
   thd->lex->alter_info = &m_alter_info;
-  auto cmd = new (thd->mem_root)
-      Sql_cmd_analyze_table(thd, &m_alter_info, m_command, m_num_buckets);
+  auto cmd = new (thd->mem_root) Sql_cmd_analyze_table(
+      thd, &m_alter_info, m_command, m_num_buckets, m_data);
   if (cmd == nullptr) return nullptr;
   if (m_command != Sql_cmd_analyze_table::Histogram_command::NONE) {
     if (cmd->set_histogram_fields(m_columns)) return nullptr;

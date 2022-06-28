@@ -1453,8 +1453,9 @@ void VerifyEquiHeightSerialization(MEM_ROOT *mem_root,
   EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   // Deserialization.
+  Error_context ctx;
   Histogram *deserialized_histogram = Histogram::json_to_histogram(
-      mem_root, "db1", "tbl1", "col1", json_object);
+      mem_root, "db1", "tbl1", "col1", json_object, &ctx);
   ASSERT_TRUE(deserialized_histogram != nullptr);
   Equi_height<T> *deserialized_equi_height =
       dynamic_cast<Equi_height<T> *>(deserialized_histogram);

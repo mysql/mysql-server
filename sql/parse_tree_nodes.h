@@ -4649,13 +4649,14 @@ class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base {
   PT_analyze_table_stmt(MEM_ROOT *mem_root, bool no_write_to_binlog,
                         Mem_root_array<Table_ident *> *table_list,
                         Sql_cmd_analyze_table::Histogram_command command,
-                        int num_buckets, List<String> *columns)
+                        int num_buckets, List<String> *columns, LEX_STRING data)
       : PT_table_ddl_stmt_base(mem_root),
         m_no_write_to_binlog(no_write_to_binlog),
         m_table_list(table_list),
         m_command(command),
         m_num_buckets(num_buckets),
-        m_columns(columns) {}
+        m_columns(columns),
+        m_data{data} {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
@@ -4665,6 +4666,7 @@ class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base {
   const Sql_cmd_analyze_table::Histogram_command m_command;
   const int m_num_buckets;
   List<String> *m_columns;
+  const LEX_STRING m_data;
 };
 
 class PT_check_table_stmt final : public PT_table_ddl_stmt_base {

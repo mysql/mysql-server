@@ -232,11 +232,13 @@ class Singleton : public Histogram {
   /**
     Populate this histogram with contents from a JSON object.
 
-    @param json_object a JSON object that represents an Singleton histogram
+    @param json_object  a JSON object that represents an Singleton histogram
+    @param context      error context for validation
 
     @return true on error, false otherwise.
-  */
-  bool json_to_histogram(const Json_object &json_object) override;
+   */
+  bool json_to_histogram(const Json_object &json_object,
+                         Error_context *context) override;
 
  private:
   /// String representation of the histogram type SINGLETON.

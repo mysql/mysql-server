@@ -297,7 +297,7 @@ class Json_dom {
     Get the path location of this dom, measured from the outermost
     document it nests inside.
   */
-  Json_path get_location();
+  Json_path get_location() const;
 
   /**
     Finds all of the json sub-documents which match the path expression.

@@ -1488,7 +1488,6 @@ void warn_about_deprecated_binary(THD *thd)
         trg_action_time trg_event
         view_check_option
         signed_num
-        opt_num_buckets
         opt_ignore_unknown_user
 
 
@@ -2096,6 +2095,7 @@ void warn_about_deprecated_binary(THD *thd)
 %type <jt_column_type> jt_column_type
 
 %type <acl_type> opt_acl_type
+%type <histogram_param> opt_histogram_update_param
 %type <histogram> opt_histogram
 
 %type <lex_cstring_list> column_list opt_column_list
@@ -9530,14 +9530,24 @@ analyze_table_stmt:
           ANALYZE_SYM opt_no_write_to_binlog table_or_tables table_list
           opt_histogram
           {
-            $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $2, $4,
-                                              $5.command, $5.num_buckets,
-                                              $5.columns);
+            if ($5.param) {
+              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $2, $4,
+                                                $5.command, $5.param->num_buckets,
+                                                $5.columns, $5.param->data);
+            } else {
+              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $2, $4,
+                                                $5.command, 0,
+                                                $5.columns, {nullptr, 0});
+            }
           }
         ;
 
-opt_num_buckets:
-          /* empty */ { $$= DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS; }
+opt_histogram_update_param:
+          /* empty */
+          {
+            $$.num_buckets= DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS;
+            $$.data= { nullptr, 0 };
+          }
         | WITH NUM BUCKETS_SYM
           {
             int error;
@@ -9551,7 +9561,13 @@ opt_num_buckets:
               MYSQL_YYABORT;
             }
 
-            $$= num;
+            $$.num_buckets= num;
+            $$.data= { nullptr, 0 };
+          }
+        | USING DATA_SYM TEXT_STRING_literal
+          {
+            $$.num_buckets= 0;
+            $$.data= $3;
           }
         ;
 
@@ -9560,21 +9576,23 @@ opt_histogram:
           {
             $$.command= Sql_cmd_analyze_table::Histogram_command::NONE;
             $$.columns= nullptr;
-            $$.num_buckets= 0;
+            $$.param= nullptr;
           }
-        | UPDATE_SYM HISTOGRAM_SYM ON_SYM ident_string_list opt_num_buckets
+        | UPDATE_SYM HISTOGRAM_SYM ON_SYM ident_string_list opt_histogram_update_param
           {
             $$.command=
               Sql_cmd_analyze_table::Histogram_command::UPDATE_HISTOGRAM;
             $$.columns= $4;
-            $$.num_buckets= $5;
+            $$.param= NEW_PTN YYSTYPE::Histogram_param($5);
+            if ($$.param == nullptr)
+              MYSQL_YYABORT; // OOM
           }
         | DROP HISTOGRAM_SYM ON_SYM ident_string_list
           {
             $$.command=
               Sql_cmd_analyze_table::Histogram_command::DROP_HISTOGRAM;
             $$.columns= $4;
-            $$.num_buckets= 0;
+            $$.param = nullptr;
           }
         ;
 

@@ -279,46 +279,117 @@ std::string Singleton<T>::histogram_type_to_str() const {
 }
 
 template <class T>
-bool Singleton<T>::json_to_histogram(const Json_object &json_object) {
-  if (Histogram::json_to_histogram(json_object))
-    return true; /* purecov: deadcode */
+bool Singleton<T>::json_to_histogram(const Json_object &json_object,
+                                     Error_context *context) {
+  if (Histogram::json_to_histogram(json_object, context)) return true;
 
   const Json_dom *buckets_dom = json_object.get(buckets_str());
-  if (buckets_dom == nullptr ||
-      buckets_dom->json_type() != enum_json_type::J_ARRAY)
-    return true; /* purecov: deadcode */
+  if (buckets_dom == nullptr) {
+    context->report_missing_attribute(Histogram::buckets_str());
+    return true;
+  }
+  if (buckets_dom->json_type() != enum_json_type::J_ARRAY) {
+    context->report_node(buckets_dom, Message::JSON_WRONG_ATTRIBUTE_TYPE);
+    return true;
+  }
 
   const Json_array *buckets = down_cast<const Json_array *>(buckets_dom);
   if (m_buckets.reserve(buckets->size())) return true;  // OOM
 
   for (size_t i = 0; i < buckets->size(); ++i) {
     const Json_dom *bucket_dom = (*buckets)[i];
-    if (bucket_dom == nullptr ||
-        bucket_dom->json_type() != enum_json_type::J_ARRAY)
-      return true; /* purecov: deadcode */
-
+    if (buckets_dom == nullptr) {
+      context->report_missing_attribute(Histogram::buckets_str());
+      return true;
+    }
+    if (bucket_dom->json_type() != enum_json_type::J_ARRAY) {
+      context->report_node(bucket_dom, Message::JSON_WRONG_ATTRIBUTE_TYPE);
+      return true;
+    }
     const Json_array *bucket = down_cast<const Json_array *>(bucket_dom);
-    if (bucket->size() != 2) return true; /* purecov: deadcode */
+    if (bucket->size() != 2) {
+      context->report_node(bucket_dom, Message::JSON_WRONG_BUCKET_TYPE_2);
+      return true;
+    }
 
     // First item is the value, second is the cumulative frequency
     const Json_dom *cumulative_frequency_dom = (*bucket)[1];
-    if (cumulative_frequency_dom->json_type() != enum_json_type::J_DOUBLE)
-      return true; /* purecov: deadcode */
+    if (cumulative_frequency_dom->json_type() != enum_json_type::J_DOUBLE) {
+      context->report_node(cumulative_frequency_dom,
+                           Message::JSON_WRONG_ATTRIBUTE_TYPE);
+      return true;
+    }
 
     const Json_double *cumulative_frequency =
         down_cast<const Json_double *>(cumulative_frequency_dom);
 
     const Json_dom *value_dom = (*bucket)[0];
     T value;
-    if (extract_json_dom_value(value_dom, &value))
-      return true; /* purecov: deadcode */
+    if (extract_json_dom_value(value_dom, &value, context)) return true;
+
+    // Bucket extraction post-check
+    {
+      if ((cumulative_frequency->value() < 0.0) ||
+          (cumulative_frequency->value() > 1.0)) {
+        context->report_node(cumulative_frequency_dom,
+                             Message::JSON_INVALID_FREQUENCY);
+        return true;
+      }
+      if (context->check_value(&value)) {
+        context->report_node(value_dom, Message::JSON_VALUE_OUT_OF_RANGE);
+        return true;
+      }
+      // Check endpoint sequence and frequency sequence.
+      if (!m_buckets.empty()) {
+        SingletonBucket<T> *last_bucket = &m_buckets[m_buckets.size() - 1];
+        if (!histograms::Histogram_comparator()(last_bucket->value, value)) {
+          context->report_node(value_dom, Message::JSON_VALUE_NOT_ASCENDING_1);
+          return true;
+        }
+        if (last_bucket->cumulative_frequency > cumulative_frequency->value()) {
+          context->report_node(
+              cumulative_frequency_dom,
+              Message::JSON_CUMULATIVE_FREQUENCY_NOT_ASCENDING);
+          return true;
+        }
+      }
+    }
 
     assert(m_buckets.capacity() > m_buckets.size());
     m_buckets.push_back(
         SingletonBucket<T>(value, cumulative_frequency->value()));
   }
-  assert(std::is_sorted(m_buckets.begin(), m_buckets.end(),
-                        Histogram_comparator()));
+  bool histogram_buckets_sorted = std::is_sorted(
+      m_buckets.begin(), m_buckets.end(), Histogram_comparator());
+  bool already_validated = context->binary();
+  assert(!already_validated || histogram_buckets_sorted);
+  if (!histogram_buckets_sorted) {
+    context->report_node(buckets_dom, Message::JSON_VALUE_NOT_ASCENDING_1);
+    return true;
+  }
+
+  // Global post-check
+  {
+    /*
+      Note that Singleton may be built on an empty table or an all-NULL
+      column. In this case the buckets array is empty.
+    */
+    if (m_buckets.empty()) {
+      if (get_null_values_fraction() != 1.0 &&
+          get_null_values_fraction() != 0.0) {
+        context->report_global(Message::JSON_INVALID_NULL_VALUES_FRACTION);
+        return true;
+      }
+    } else {
+      SingletonBucket<T> *last_bucket = &m_buckets[m_buckets.size() - 1];
+      float sum =
+          last_bucket->cumulative_frequency + get_null_values_fraction();
+      if (std::abs(sum - 1.0) > 0) {
+        context->report_global(Message::JSON_INVALID_TOTAL_FREQUENCY);
+        return true;
+      }
+    }
+  }
   return false;
 }
 

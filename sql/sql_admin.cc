@@ -291,12 +291,13 @@ static inline bool table_not_corrupt_error(uint sql_errno) {
 
 Sql_cmd_analyze_table::Sql_cmd_analyze_table(
     THD *thd, Alter_info *alter_info, Histogram_command histogram_command,
-    int histogram_buckets)
+    int histogram_buckets, LEX_STRING data)
     : Sql_cmd_ddl_table(alter_info),
       m_histogram_command(histogram_command),
       m_histogram_fields(Column_name_comparator(),
                          Mem_root_allocator<String>(thd->mem_root)),
-      m_histogram_buckets(histogram_buckets) {}
+      m_histogram_buckets(histogram_buckets),
+      m_data{data} {}
 
 bool Sql_cmd_analyze_table::drop_histogram(THD *thd, TABLE_LIST *table,
                                            histograms::results_map &results) {
@@ -424,6 +425,12 @@ bool Sql_cmd_analyze_table::send_histogram_results(
             "statistics.");
         table_name = "";
         break;
+      case histograms::Message::MULTIPLE_COLUMNS_SPECIFIED:
+        message_type.assign("Error");
+        message.assign(
+            "Only one column can be specified while modifying histogram "
+            "statistics with JSON data.");
+        break;
       case histograms::Message::COVERED_BY_SINGLE_PART_UNIQUE_INDEX:
         message_type.assign("Error");
         message.assign("The column '");
@@ -440,6 +447,157 @@ bool Sql_cmd_analyze_table::send_histogram_results(
         message_type.assign("Error");
         message.assign("The server is in read-only mode.");
         table_name = "";
+        break;
+      case histograms::Message::JSON_FORMAT_ERROR:
+        message_type.assign("Error");
+        message.assign("JSON format error.");
+        break;
+      case histograms::Message::JSON_NOT_AN_OBJECT:
+        message_type.assign("Error");
+        message.assign("JSON data is not an object");
+        break;
+      case histograms::Message::JSON_MISSING_ATTRIBUTE:
+        message_type.assign("Error");
+        message.assign("Missing attribute at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_WRONG_ATTRIBUTE_TYPE:
+        message_type.assign("Error");
+        message.assign("Wrong attribute type at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_WRONG_BUCKET_TYPE_2:
+        message_type.assign("Error");
+        message.assign("Two elements required for bucket at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_WRONG_BUCKET_TYPE_4:
+        message_type.assign("Error");
+        message.assign("Four elements required for bucket at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_WRONG_DATA_TYPE:
+        message_type.assign("Error");
+        message.assign(
+            "Histogram data type does not match column data type "
+            "at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_UNSUPPORTED_DATA_TYPE:
+        message_type.assign("Error");
+        message.assign("Unsupported data type at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_UNSUPPORTED_HISTOGRAM_TYPE:
+        message_type.assign("Error");
+        message.assign("Unsupported histogram type at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_UNSUPPORTED_CHARSET:
+        message_type.assign("Error");
+        message.assign("The charset ID does not exist at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_INVALID_SAMPLING_RATE:
+        message_type.assign("Error");
+        message.assign(
+            "The sampling rate must be greater than or equal to 0 and "
+            "less than or equal to 1 at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_INVALID_NUM_BUCKETS_SPECIFIED:
+        message_type.assign("Error");
+        message.assign(
+            "The value of attribute number-of-buckets-specified must be an "
+            "integer in the range from 1 to 1024 at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_INVALID_FREQUENCY:
+        message_type.assign("Error");
+        message.assign(
+            "The frequency must be greater than or equal to 0 and "
+            "less than or equal to 1 at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_INVALID_NUM_DISTINCT:
+        message_type.assign("Error");
+        message.assign(
+            "The number of distinct values must be a positive integer at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_VALUE_FORMAT_ERROR:
+        message_type.assign("Error");
+        message.assign("Value format error at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_VALUE_OUT_OF_RANGE:
+        message_type.assign("Error");
+        message.assign("Out of range value for column at '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::JSON_VALUE_NOT_ASCENDING_1:
+        message_type.assign("Error");
+        message.assign("The value at '");
+        message.append(pair.first);
+        message.append("' must be greater than that of previous bucket.");
+        break;
+      case histograms::Message::JSON_VALUE_NOT_ASCENDING_2:
+        message_type.assign("Error");
+        message.assign("The lower inclusive value of bucket at '");
+        message.append(pair.first);
+        message.append(
+            "' must be greater than the "
+            "upper inclusive value of previous bucket.");
+        break;
+      case histograms::Message::JSON_VALUE_DESCENDING_IN_BUCKET:
+        message_type.assign("Error");
+        message.assign("The lower inclusive value of bucket at '");
+        message.append(pair.first);
+        message.append(
+            "' must be less than or equal "
+            "to upper inclusive value.");
+        break;
+      case histograms::Message::JSON_CUMULATIVE_FREQUENCY_NOT_ASCENDING:
+        message_type.assign("Error");
+        message.assign("The cumulative frequency of bucket at '");
+        message.append(pair.first);
+        message.append(
+            "' must be greater than that of previous "
+            "bucket.");
+        break;
+      case histograms::Message::JSON_INVALID_NULL_VALUES_FRACTION:
+        message_type.assign("Error");
+        message.assign("The null values fraction should be 0 or 1.");
+        break;
+      case histograms::Message::JSON_INVALID_TOTAL_FREQUENCY:
+        message_type.assign("Error");
+        message.assign(
+            "The sum of the null values fraction and the cumulative frequency "
+            "of the last bucket should be 1.'");
+        break;
+      case histograms::Message::JSON_NUM_BUCKETS_MORE_THAN_SPECIFIED:
+        message_type.assign("Error");
+        message.assign(
+            "The number of real buckets must be less than or equal to the "
+            "number specified by attribute number-of-buckets-specified.");
+        break;
+      case histograms::Message::JSON_IMPOSSIBLE_EMPTY_EQUI_HEIGHT:
+        message_type.assign("Error");
+        message.assign("Equi-height histogram must have at least one bucket");
         break;
     }
 
@@ -467,7 +625,8 @@ bool Sql_cmd_analyze_table::update_histogram(THD *thd, TABLE_LIST *table,
     fields.emplace(column->ptr(), column->length());
 
   return histograms::update_histogram(thd, table, fields,
-                                      get_histogram_buckets(), results);
+                                      get_histogram_buckets(),
+                                      get_histogram_data_string(), results);
 }
 
 using Check_result = std::pair<bool, int>;

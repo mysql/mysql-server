@@ -1,0 +1,992 @@
+#
+# singleton histogram
+#
+CREATE TABLE tbl_int(col1 INT);
+INSERT INTO tbl_int VALUES (4), (52), (12), (12), (4), (23), (NULL), (NULL);
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	status	Histogram statistics created for column 'col1'.
+#
+# json format error of missing closing brace in buckets array
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75], "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	JSON format error.
+#
+# check if data is a json object
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	JSON format error.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA 'a';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	JSON format error.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '1';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	JSON data is not an object
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA 'null';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	JSON data is not an object
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '[]';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	JSON data is not an object
+#
+# check attribute data-type
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Missing attribute at '$."data-type"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": 1, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$."data-type"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "blob", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Histogram data type does not match column data type at '$."data-type"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Histogram data type does not match column data type at '$."data-type"'.
+#
+# check attribute null-values [0.0, 1.0]
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Missing attribute at '$."null-values"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": "0.25", "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$."null-values"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": -0.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The frequency must be greater than or equal to 0 and less than or equal to 1 at '$."null-values"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 1.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The frequency must be greater than or equal to 0 and less than or equal to 1 at '$."null-values"'.
+#
+# check attribute collation-id
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Missing attribute at '$."collation-id"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": "utf8", "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$."collation-id"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 2048, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The charset ID does not exist at '$."collation-id"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": -1, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The charset ID does not exist at '$."collation-id"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 9300000000000000000, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The charset ID does not exist at '$."collation-id"'.
+#
+# check attribute sampling-rate [0.0, 1.0]
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Missing attribute at '$."sampling-rate"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": "1.0", "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$."sampling-rate"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": -0.1, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The sampling rate must be greater than or equal to 0 and less than or equal to 1 at '$."sampling-rate"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.1, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The sampling rate must be greater than or equal to 0 and less than or equal to 1 at '$."sampling-rate"'.
+#
+# check attribute histogram-type
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Missing attribute at '$."histogram-type"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": 1, "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$."histogram-type"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "single", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Unsupported histogram type at '$."histogram-type"'.
+#
+# check attribute number-of-buckets-specified [1, 1024]
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton"}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Missing attribute at '$."number-of-buckets-specified"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": "4"}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$."number-of-buckets-specified"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": -1}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The value of attribute number-of-buckets-specified must be an integer in the range from 1 to 1024 at '$."number-of-buckets-specified"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1025}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The value of attribute number-of-buckets-specified must be an integer in the range from 1 to 1024 at '$."number-of-buckets-specified"'.
+#
+# check attribute buckets array
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Missing attribute at '$.buckets'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": "[[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]]", "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": null, "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets'.
+#
+# check bucket layout [v, cf] or none
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [4, 0.25], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets[0]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Two elements required for bucket at '$.buckets[0]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The null values fraction should be 0 or 1.
+#
+# check if real number of buckets is less than specified
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The number of real buckets must be less than or equal to the number specified by attribute number-of-buckets-specified.
+#
+# check attribute cumulative frequency [0.0, 1.0]
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, "0.5"], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets[1][1]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, -0.01], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The frequency must be greater than or equal to 0 and less than or equal to 1 at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 1.1]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The frequency must be greater than or equal to 0 and less than or equal to 1 at '$.buckets[3][1]'.
+#
+# check if cumulative frequency sequence is in strict asc order
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.7], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The cumulative frequency of bucket at '$.buckets[2][1]' must be greater than that of previous bucket.
+#
+# check if total frequency is 1 or 0
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.26, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The sum of the null values fraction and the cumulative frequency of the last bucket should be 1.'
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.24, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The sum of the null values fraction and the cumulative frequency of the last bucket should be 1.'
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	status	Histogram statistics created for column 'col1'.
+#
+# singleton histogram, INT column
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23.0, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets[2][0]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [9300000000000000000, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Out of range value for column at '$.buckets[3][0]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [2200000000, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Out of range value for column at '$.buckets[3][0]'.
+#
+# check if value sequence is in strict asc order
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [32, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The value at '$.buckets[2][0]' must be greater than that of previous bucket.
+DROP TABLE tbl_int;
+#
+# equi-height histogram
+#
+CREATE TABLE tbl_int(col1 INT);
+INSERT INTO tbl_int VALUES (4), (52), (12), (12), (4), (23);
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 WITH 3 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	status	Histogram statistics created for column 'col1'.
+#
+# check attribute data-type
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Missing attribute at '$."data-type"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": 3, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$."data-type"'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "text", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Histogram data type does not match column data type at '$."data-type"'.
+#
+# check attribute buckets array
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Missing attribute at '$.buckets'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": "[[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]]", "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": null, "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets'.
+#
+# check bucket layout [l, u, cf, d] or none
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [4, 4, 0.3333333333333333, 1], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets[0]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Four elements required for bucket at '$.buckets[0]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Four elements required for bucket at '$.buckets[1]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "null-values": 0.4, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Equi-height histogram must have at least one bucket
+#
+# check if real number of buckets is less than specified
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The number of real buckets must be less than or equal to the number specified by attribute number-of-buckets-specified.
+#
+# check attribute cumulative frequency [0.0, 1.0]
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, "0.6666666666666666", 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets[1][2]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, -0.01, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.01, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The frequency must be greater than or equal to 0 and less than or equal to 1 at '$.buckets[0][2]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.01, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The frequency must be greater than or equal to 0 and less than or equal to 1 at '$.buckets[2][2]'.
+#
+# check if cumulative frequency sequence is in strict asc order
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.7333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The cumulative frequency of bucket at '$.buckets[1][2]' must be greater than that of previous bucket.
+#
+# check if total frequency is 1
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The sum of the null values fraction and the cumulative frequency of the last bucket should be 1.'
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "null-values": 0.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Equi-height histogram must have at least one bucket
+#
+# check if equi-height has some buckets
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Equi-height histogram must have at least one bucket
+#
+# check attribute num distinct
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1.0], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets[1][3]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 0], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The number of distinct values must be a positive integer at '$.buckets[1][3]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, -1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The number of distinct values must be a positive integer at '$.buckets[1][3]'.
+#
+# equi-height histogram, INT column
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, "12", 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Wrong attribute type at '$.buckets[1][1]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[9300000000000000000, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 9300000000000000000, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Out of range value for column at '$.buckets[2][1]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 2200000000, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Out of range value for column at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 2200000000, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	Out of range value for column at '$.buckets[2][1]'.
+#
+# check if value sequence is in strict asc order
+#
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [13, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The lower inclusive value of bucket at '$.buckets[1][0]' must be less than or equal to upper inclusive value.
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 42, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
+test.tbl_int	histogram	Error	The lower inclusive value of bucket at '$.buckets[2][0]' must be greater than the upper inclusive value of previous bucket.
+DROP TABLE tbl_int;
+#
+# singleton histogram, BIGINT UNSIGNED column
+#
+CREATE TABLE tbl_uint(col1 BIGINT UNSIGNED);
+INSERT INTO tbl_uint VALUES (4), (52), (12), (12), (4), (23), (NULL), (NULL);
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23.0, 0.625], [52, 0.75]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_uint'
+test.tbl_uint	histogram	Error	Wrong attribute type at '$.buckets[2][0]'.
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [20000000000000000000, 0.75]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_uint'
+test.tbl_uint	histogram	Error	Wrong attribute type at '$.buckets[3][0]'.
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [-1, 0.75]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_uint'
+test.tbl_uint	histogram	Error	Out of range value for column at '$.buckets[3][0]'.
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [32, 0.5], [23, 0.625], [52, 0.75]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_uint'
+test.tbl_uint	histogram	Error	The value at '$.buckets[2][0]' must be greater than that of previous bucket.
+DROP TABLE tbl_uint;
+#
+# equi-height histogram, BIGINT UNSIGNED column
+#
+CREATE TABLE tbl_uint(col1 BIGINT UNSIGNED);
+INSERT INTO tbl_uint VALUES (4), (52), (12), (12), (4), (23), (NULL), (NULL);
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 WITH 3 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12.0, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_uint'
+test.tbl_uint	histogram	Error	Wrong attribute type at '$.buckets[1][0]'.
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12, "12", 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_uint'
+test.tbl_uint	histogram	Error	Wrong attribute type at '$.buckets[1][1]'.
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1, 4, 0.25, 1], [12, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_uint'
+test.tbl_uint	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12, 12, 0.5, 1], [23, 20000000000000000000, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_uint'
+test.tbl_uint	histogram	Error	Wrong attribute type at '$.buckets[2][1]'.
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [13, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_uint'
+test.tbl_uint	histogram	Error	The lower inclusive value of bucket at '$.buckets[1][0]' must be less than or equal to upper inclusive value.
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12, 42, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_uint	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_uint'
+test.tbl_uint	histogram	Error	The lower inclusive value of bucket at '$.buckets[2][0]' must be greater than the upper inclusive value of previous bucket.
+DROP TABLE tbl_uint;
+#
+# singleton histogram, DOUBLE column
+#
+CREATE TABLE tbl_double(col1 DOUBLE);
+INSERT INTO tbl_double VALUES (4.0), (52.0), (12.0), (12.0), (4.0), (23.0), (NULL), (NULL);
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 0.25], [12.0, 0.5], [23.0, 0.625], [52.0, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 0.25], [12.0, 0.5], ["23.0", 0.625], [52.0, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_double'
+test.tbl_double	histogram	Error	Wrong attribute type at '$.buckets[2][0]'.
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1e330, 0.25], [12.0, 0.5], [23.0, 0.625], [52.0, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	Error	JSON format error.
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 0.25], [12.0, 0.5], [23.0, 0.625], [1E330, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	Error	JSON format error.
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 0.25], [32.0, 0.5], [23.0, 0.625], [52.0, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_double'
+test.tbl_double	histogram	Error	The value at '$.buckets[2][0]' must be greater than that of previous bucket.
+DROP TABLE tbl_double;
+#
+# equi-height histogram, DOUBLE column
+#
+CREATE TABLE tbl_double(col1 DOUBLE);
+INSERT INTO tbl_double VALUES (4.0), (52.0), (12.0), (12.0), (4.0), (23.0), (NULL), (NULL);
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 WITH 3 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4.0, 0.25, 1], [12.0, 12.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4.0, 0.25, 1], [12.0, 12.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_double'
+test.tbl_double	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4.0, 0.25, 1], [12.0, "12.0", 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_double'
+test.tbl_double	histogram	Error	Wrong attribute type at '$.buckets[1][1]'.
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4.0, 0.25, 1], [13.0, 12.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_double'
+test.tbl_double	histogram	Error	The lower inclusive value of bucket at '$.buckets[1][0]' must be less than or equal to upper inclusive value.
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4.0, 0.25, 1], [12.0, 32.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_double	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_double'
+test.tbl_double	histogram	Error	The lower inclusive value of bucket at '$.buckets[2][0]' must be greater than the upper inclusive value of previous bucket.
+DROP TABLE tbl_double;
+#
+# singleton histogram, VARCHAR(8) column
+#
+CREATE TABLE tbl_string(col1 VARCHAR(8));
+INSERT INTO tbl_string VALUES ("Charles"), ("Mark"), ("Bill"), ("Bill"), ("Charles"), ("Vincent"), (NULL), (NULL);
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[12345, 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["QmlsbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsTWFyVmluY2VuQ2hhcmxlbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:Q2hhcmxlcw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	The value at '$.buckets[2][0]' must be greater than that of previous bucket.
+DROP TABLE tbl_string;
+#
+# equi-height histogram, VARCHAR(8) column
+#
+CREATE TABLE tbl_string(col1 VARCHAR(8));
+INSERT INTO tbl_string VALUES ("Charles"), ("Mark"), ("Bill"), ("Bill"), ("Charles"), ("Vincent"), (NULL), (NULL);
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 WITH 3 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[12345, "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", 12345, 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Wrong attribute type at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["QmlsbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Value format error at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsbA", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Value format error at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsTWFyVmluY2VuQ2hhcmxlbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsTWFyVmluY2VuQ2hhcmxlbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	Out of range value for column at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:VmluY2VudA==", "base64:type254:TWFyaw==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	The lower inclusive value of bucket at '$.buckets[2][0]' must be less than or equal to upper inclusive value.
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:TWFyaw==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_string	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_string'
+test.tbl_string	histogram	Error	The lower inclusive value of bucket at '$.buckets[1][0]' must be greater than the upper inclusive value of previous bucket.
+DROP TABLE tbl_string;
+#
+# singleton histogram, DATE column
+#
+CREATE TABLE tbl_date(col1 DATE);
+INSERT INTO tbl_date VALUES ("2018-03-21"), ("2017-02-06"), ("2017-02-10"), ("2017-02-10"), ("2018-03-21"), ("2018-02-12"), (NULL), (NULL);
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170206, 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 14:48:11", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["14:48:11", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", 0.125], ["2017-02-10", 0.375], ["2018-04-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	The value at '$.buckets[3][0]' must be greater than that of previous bucket.
+DROP TABLE tbl_date;
+#
+# equi-height histogram, DATE column
+#
+CREATE TABLE tbl_date(col1 DATE);
+INSERT INTO tbl_date VALUES ("2018-03-21"), ("2017-02-06"), ("2017-02-10"), ("2017-02-10"), ("2018-03-21"), ("2018-02-12"), (NULL), (NULL);
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 WITH 3 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "0000-00-00", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Out of range value for column at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170206, "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", 20170210, 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Wrong attribute type at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 14:48:11", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12 14:48:11", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Out of range value for column at '$.buckets[1][1]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["14:48:11", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2017-02-10", 0.375, 2], ["2018-02-12", "14:48:11", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	Value format error at '$.buckets[1][1]'.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-12", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	The lower inclusive value of bucket at '$.buckets[0][0]' must be less than or equal to upper inclusive value.
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2019-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_date	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_date'
+test.tbl_date	histogram	Error	The lower inclusive value of bucket at '$.buckets[1][0]' must be greater than the upper inclusive value of previous bucket.
+DROP TABLE tbl_date;
+#
+# singleton histogram, TIME column
+#
+CREATE TABLE tbl_time(col1 TIME);
+INSERT INTO tbl_time VALUES ("21:12:42"), ("16:22:23"), ("08:15:18"), ("08:15:18"), ("21:12:42"), ("07:04:18"), (NULL), (NULL);
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[170418, 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-10", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-10 07:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["-839:00:00.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["839:00:00.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Value format error at '$.buckets[3][0]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["09:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	The value at '$.buckets[1][0]' must be greater than that of previous bucket.
+DROP TABLE tbl_time;
+#
+# equi-height histogram, TIME column
+#
+CREATE TABLE tbl_time(col1 TIME);
+INSERT INTO tbl_time VALUES ("21:12:42"), ("16:22:23"), ("08:15:18"), ("08:15:18"), ("21:12:42"), ("07:04:18"), (NULL), (NULL);
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 WITH 3 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[170418, "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", 181518, 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Wrong attribute type at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "2017-02-10", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Value format error at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-10 07:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Out of range value for column at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["-839:00:00.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "839:00:00.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	Value format error at '$.buckets[2][1]'.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["09:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	The lower inclusive value of bucket at '$.buckets[0][0]' must be less than or equal to upper inclusive value.
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "17:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_time	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_time'
+test.tbl_time	histogram	Error	The lower inclusive value of bucket at '$.buckets[1][0]' must be greater than the upper inclusive value of previous bucket.
+DROP TABLE tbl_time;
+#
+# singleton histogram, DATETIME column
+#
+CREATE TABLE tbl_datetime(col1 DATETIME);
+INSERT INTO tbl_datetime VALUES ("2018-03-21 21:12:42"), ("2017-02-06 16:22:23"), ("2017-02-10 08:15:18"), ("2017-02-10 08:15:18"), ("2018-03-21 21:12:42"), ("2018-02-12 07:04:18"), (NULL), (NULL);
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170216162223, 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["16:22:23.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00 00:00:00.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-16 16:22:23.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	The value at '$.buckets[1][0]' must be greater than that of previous bucket.
+DROP TABLE tbl_datetime;
+#
+# equi-height histogram, DATETIME column
+#
+CREATE TABLE tbl_datetime(col1 DATETIME);
+INSERT INTO tbl_datetime VALUES ("2018-03-21 21:12:42"), ("2017-02-06 16:22:23"), ("2017-02-10 08:15:18"), ("2017-02-10 08:15:18"), ("2018-03-21 21:12:42"), ("2018-02-12 07:04:18"), (NULL), (NULL);
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 WITH 3 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170206162223, "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", 20170210081518, 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	Wrong attribute type at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	Value format error at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00 00:00:00.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "0000-00-00 00:00:00.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	Out of range value for column at '$.buckets[0][1]'.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-16 16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	The lower inclusive value of bucket at '$.buckets[0][0]' must be less than or equal to upper inclusive value.
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "2019-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_datetime	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_datetime'
+test.tbl_datetime	histogram	Error	The lower inclusive value of bucket at '$.buckets[1][0]' must be greater than the upper inclusive value of previous bucket.
+DROP TABLE tbl_datetime;
+#
+# singleton histogram, DECIMAL(5,2) column
+#
+CREATE TABLE tbl_decimal(col1 DECIMAL(5,2));
+INSERT INTO tbl_decimal VALUES (4.12), (52.12), (12.12), (12.12), (4.12), (23.12), (NULL), (NULL);
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.12, 0.25], [12.12, 0.5], [23.12, 0.625], [52.12, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], ["12.00", 0.5], [23.00, 0.625], [52.00, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	Wrong attribute type at '$.buckets[1][0]'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [12.00, 0.5], [23.00, 0.625], [9300000000000000000, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	Out of range value for column at '$.buckets[3][0]'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [12.00, 0.5], [23.00, 0.625], [1e100, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	Value format error at '$.buckets[3][0]'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [12.00, 0.5], [23.00, 0.625], [5555.00, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	Out of range value for column at '$.buckets[3][0]'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [32.00, 0.5], [23.00, 0.625], [52.00, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	The value at '$.buckets[2][0]' must be greater than that of previous bucket.
+DROP TABLE tbl_decimal;
+#
+# equi-height histogram, DECIMAL(5,2) column
+#
+CREATE TABLE tbl_decimal(col1 DECIMAL(5,2));
+INSERT INTO tbl_decimal VALUES (4.12), (52.12), (12.12), (12.12), (4.12), (23.12), (NULL), (NULL);
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 WITH 3 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.12, 4.12, 0.25, 1], [12.12, 12.12, 0.5, 1], [23.12, 52.12, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	status	Histogram statistics created for column 'col1'.
+
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["4.00", 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	Wrong attribute type at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, "12.00", 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	Wrong attribute type at '$.buckets[1][1]'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1e100, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	Value format error at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 1e100, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	Value format error at '$.buckets[2][1]'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1000.00, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	Out of range value for column at '$.buckets[0][0]'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 1000.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	Out of range value for column at '$.buckets[2][1]'.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [13.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	The lower inclusive value of bucket at '$.buckets[1][0]' must be less than or equal to upper inclusive value.
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, 32.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+Table	Op	Msg_type	Msg_text
+test.tbl_decimal	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_decimal'
+test.tbl_decimal	histogram	Error	The lower inclusive value of bucket at '$.buckets[2][0]' must be greater than the upper inclusive value of previous bucket.
+DROP TABLE tbl_decimal;
+# ENUM and SET columns are same as INT in storage, so here just for coverage.
+#
+# Singleton histogram, ENUM column
+#
+CREATE TABLE tbl_enum (col1 ENUM('red', 'black', 'blue', 'green'));
+INSERT INTO tbl_enum VALUES ('red'), ('red'), ('black'), ('blue'), ('green'),
+('green'), (NULL), (NULL), (NULL), (NULL);
+ANALYZE TABLE tbl_enum UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_enum	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_enum UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[1, 0.2], [2, 0.3], [3, 0.4], [4, 0.6]], "data-type": "enum", "null-values": 0.4, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}';
+Table	Op	Msg_type	Msg_text
+test.tbl_enum	histogram	status	Histogram statistics created for column 'col1'.
+#
+# Equi-height histogram, ENUM column
+#
+ANALYZE TABLE tbl_enum UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_enum	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_enum UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[1, 2, 0.3, 2], [3, 4, 0.6, 2]], "data-type": "enum", "null-values": 0.4, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
+Table	Op	Msg_type	Msg_text
+test.tbl_enum	histogram	status	Histogram statistics created for column 'col1'.
+DROP TABLE tbl_enum;
+#
+# Singleton histogram, SET column
+#
+CREATE TABLE tbl_set (col1 SET('red', 'black', 'blue', 'green'));
+INSERT INTO tbl_set VALUES ('red'), ('red,black'), ('black,green,blue'),
+('black,green,blue'), ('black,green,blue'),
+('green'), ('green,red'), ('red,green'),
+(NULL), (NULL);
+ANALYZE TABLE tbl_set UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_set	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_set UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[1, 0.1], [3, 0.2], [8, 0.3], [9, 0.5], [14, 0.8]], "data-type": "set", "null-values": 0.2, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}';
+Table	Op	Msg_type	Msg_text
+test.tbl_set	histogram	status	Histogram statistics created for column 'col1'.
+#
+# Equi-height histogram, SET column
+#
+ANALYZE TABLE tbl_set UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_set	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE tbl_set UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[1, 9, 0.5, 4], [14, 14, 0.8, 1]], "data-type": "set", "null-values": 0.2, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
+Table	Op	Msg_type	Msg_text
+test.tbl_set	histogram	status	Histogram statistics created for column 'col1'.
+DROP TABLE tbl_set;

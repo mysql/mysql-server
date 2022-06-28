@@ -55,7 +55,8 @@ class Sql_cmd_alter_table_analyze_partition final
     Constructor, used to represent a ALTER TABLE ANALYZE PARTITION statement.
   */
   Sql_cmd_alter_table_analyze_partition(THD *thd, Alter_info *alter_info)
-      : Sql_cmd_analyze_table(thd, alter_info, Histogram_command::NONE, 0) {}
+      : Sql_cmd_analyze_table(thd, alter_info, Histogram_command::NONE, 0,
+                              {nullptr, 0}) {}
 
   ~Sql_cmd_alter_table_analyze_partition() override = default;
 

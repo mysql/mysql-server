@@ -103,6 +103,9 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
     case MYSQL_TYPE_YEAR:
       m_max_display_width_in_codepoints = 4;  // set default value
       break;
+    case MYSQL_TYPE_LONGLONG:
+      is_unsigned = old_field->is_unsigned();
+      break;
     default:
       break;
   }

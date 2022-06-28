@@ -229,11 +229,13 @@ class Equi_height : public Histogram {
   /**
     Populate this histogram with contents from a JSON object.
 
-    @param json_object A JSON object that represents an Equi-height histogram.
+    @param json_object  a JSON object that represents an Equi-height histogram
+    @param context      error context for validation
 
     @return True on error, false otherwise.
   */
-  bool json_to_histogram(const Json_object &json_object) override;
+  bool json_to_histogram(const Json_object &json_object,
+                         Error_context *context) override;
 
  private:
   /// String representation of the histogram type EQUI-HEIGHT.
@@ -274,10 +276,13 @@ class Equi_height : public Histogram {
     the provided JSON array. Contents are allocated as needed on the current
     histograms MEM_ROOT.
 
-    @param json_bucket a JSON array containing the histogram buckets.
-    @return true on error, false otherwise.
-  */
-  bool add_bucket_from_json(const Json_array *json_bucket);
+    @param json_bucket  a JSON array containing the histogram buckets
+    @param context      error context for validation
+
+    @return true on error, false otherwise
+   */
+  bool add_bucket_from_json(const Json_array *json_bucket,
+                            Error_context *context);
 
   /// The buckets for this histogram.
   Mem_root_array<equi_height::Bucket<T>> m_buckets;

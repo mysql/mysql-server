@@ -615,10 +615,14 @@ union YYSTYPE {
     Item *where;
   } wild_or_where;
   Show_cmd_type show_cmd_type;
+  struct Histogram_param {
+    int num_buckets;
+    LEX_STRING data;
+  } histogram_param;
   struct {
     Sql_cmd_analyze_table::Histogram_command command;
     List<String> *columns;
-    int num_buckets;
+    Histogram_param *param;
   } histogram;
   Acl_type acl_type;
   Mem_root_array<LEX_CSTRING> *lex_cstring_list;

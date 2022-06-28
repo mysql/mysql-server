@@ -1874,7 +1874,7 @@ bool Json_wrapper::get_boolean() const {
 }
 
 #ifdef MYSQL_SERVER
-Json_path Json_dom::get_location() {
+Json_path Json_dom::get_location() const {
   if (m_parent == nullptr) {
     Json_path result(key_memory_JSON);
     return result;
