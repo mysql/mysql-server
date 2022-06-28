@@ -631,6 +631,15 @@ bool JOIN::optimize(bool finalize_access_paths) {
   //       All of this is never called for the hypergraph join optimizer!
   // ----------------------------------------------------------------------------
 
+  assert(!thd->lex->using_hypergraph_optimizer);
+  // Don't expect to get here if the hypergraph optimizer is enabled via an
+  // optimizer switch. We only check it for regular statements. Prepared
+  // statements and stored programs use the optimizer that was active when the
+  // statement was prepared, and don't check the optimizer switch for each
+  // subsequent execution.
+  assert(!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) ||
+         !thd->stmt_arena->is_regular());
+
   // Set up join order and initial access paths
   THD_STAGE_INFO(thd, stage_statistics);
   if (make_join_plan()) {

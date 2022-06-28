@@ -3874,6 +3874,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
           break;
         }
 
+        // Use the hypergraph optimizer if it's enabled.
+        lex->using_hypergraph_optimizer =
+            thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+
         res = sp_process_definer(thd);
         if (res) break;
 

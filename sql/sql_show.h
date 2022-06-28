@@ -174,7 +174,7 @@ class Sql_cmd_show : public Sql_cmd_select {
 
 /**
   Common base class: Represents commands that are not represented by
-  a plan that iss equivalent to a SELECT statement.
+  a plan that is equivalent to a SELECT statement.
 
   This class has a common execution framework with an execute() function
   that calls check_privileges() and execute_inner().

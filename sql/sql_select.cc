@@ -372,16 +372,7 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 #endif
 
   lex->using_hypergraph_optimizer =
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
-      (lex->sql_command == SQLCOM_SELECT || lex->sql_command == SQLCOM_DO ||
-       lex->sql_command == SQLCOM_CALL ||
-       lex->sql_command == SQLCOM_INSERT_SELECT ||
-       lex->sql_command == SQLCOM_REPLACE_SELECT ||
-       lex->sql_command == SQLCOM_INSERT ||
-       lex->sql_command == SQLCOM_DELETE_MULTI ||
-       lex->sql_command == SQLCOM_DELETE ||
-       lex->sql_command == SQLCOM_UPDATE_MULTI ||
-       lex->sql_command == SQLCOM_UPDATE);
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
   if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     goto err; /* purecov: inspected */

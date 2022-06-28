@@ -222,6 +222,7 @@ PREPARE ps1 FROM 'SHOW TABLES FROM no_such_schema';
 PREPARE ps2 FROM 'SHOW TABLES FROM mysql LIKE \'%tables%\'';
 --error ER_BAD_DB_ERROR
 EXECUTE ps1;
+--skip_if_hypergraph  # max_join_size is not supported until bug#25118903.
 --error ER_TOO_BIG_SELECT
 EXECUTE ps2;
 DEALLOCATE PREPARE ps1;

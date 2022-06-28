@@ -50,6 +50,7 @@ check table t1 changed;
 check table t1 medium;
 check table t1 extended;
 analyze table t1;
+--skip_if_hypergraph  # Different metadata.
 --replace_result 4225 # 4097 #
 show index from t1;
 --disable_metadata
@@ -76,10 +77,13 @@ drop table t1;
 show variables like "wait_timeout%";
 show variables like "WAIT_timeout%";
 show variables like "this_doesn't_exists%";
+--skip_if_hypergraph  # Different metadata.
 --replace_result 4225 # 4097 #
 show table status from test like "this_doesn't_exists%";
+--skip_if_hypergraph  # Different metadata.
 --replace_result 4225 # 4097 #
 show databases;
+--skip_if_hypergraph  # Different metadata.
 --replace_result 4225 # 4097 #
 show databases like "test%";
 --disable_metadata
@@ -326,6 +330,7 @@ CREATE TABLE t1(
   PRIMARY KEY(field1(750))
 );
 --enable_metadata
+--skip_if_hypergraph  # Different metadata.
 --replace_result 4225 # 4097 #
 show index from t1;
 --disable_metadata
@@ -560,6 +565,7 @@ SHOW CREATE DATABASE mysqltest1;
 
 --echo ----------------------------------------------------------------
 
+--skip_if_hypergraph  # Different metadata.
 --replace_result 4225 # 4097 #
 SHOW DATABASES LIKE 'mysqltest1';
 
@@ -569,6 +575,7 @@ SHOW CREATE TABLE t1;
 
 --echo ----------------------------------------------------------------
 
+--skip_if_hypergraph  # Different metadata.
 --replace_result 4225 # 4097 #
 SHOW INDEX FROM t1;
 
@@ -613,15 +620,18 @@ WHERE table_name = 't1';
 
 --echo ----------------------------------------------------------------
 
+--skip_if_hypergraph  # Different metadata.
 --replace_result 4225 # 4097 #
 SHOW TABLES LIKE 't1';
 
 --echo ----------------------------------------------------------------
 
+--skip_if_hypergraph  # Different metadata.
 SHOW COLUMNS FROM t1;
 
 --echo ----------------------------------------------------------------
 
+--skip_if_hypergraph  # Different metadata.
 --replace_column 6 #
 SHOW TRIGGERS LIKE 't1';
 
