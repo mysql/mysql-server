@@ -2102,7 +2102,14 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
     }
     keyuse++;
   } while (keyuse->table_ref == tab->table_ref && keyuse->key == key);
-  assert(keyparts > 0);
+  if (keyparts <= 0) {
+    assert(false);
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "Key not found");  // In debug build we assert, but in release we
+                                // guard against a potential server exit with an
+                                // error
+    return;
+  }
   *length_out = length;
   *keyparts_out = keyparts;
 }
@@ -2233,6 +2240,9 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   } else /* not ftkey */
     calc_length_and_keyparts(org_keyuse, j, key, used_tables, chosen_keyuses,
                              &length, &keyparts, nullptr, nullptr);
+  if (thd->is_error()) {
+    return true;
+  }
   /* set up fieldref */
   if (init_ref(thd, keyparts, length, (int)key, &j->ref())) {
     return true;
