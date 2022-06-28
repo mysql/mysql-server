@@ -266,7 +266,7 @@ class Histogram_error_handler : public Internal_error_handler {
       : Internal_error_handler{}, m_thd(thd), m_has_error{false} {
     m_thd->push_internal_handler(this);
   }
-  ~Histogram_error_handler() { m_thd->pop_internal_handler(); }
+  ~Histogram_error_handler() override { m_thd->pop_internal_handler(); }
 
   /// @return true if the condition is handled
   bool handle_condition(THD *, uint, const char *,
