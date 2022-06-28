@@ -578,6 +578,7 @@ void mtr_t::start(bool sync) {
         m_impl.m_state == MTR_STATE_COMMITTED);
 
   UNIV_MEM_INVALID(this, sizeof(*this));
+  IF_DEBUG(UNIV_MEM_VALID(&m_restart_count, sizeof(m_restart_count)););
 
   UNIV_MEM_INVALID(&m_impl, sizeof(m_impl));
 
@@ -608,7 +609,6 @@ void mtr_t::start(bool sync) {
   /* Assert there are no collisions in thread local context - it would mean
   reusing MTR without committing or destructing it. */
   ut_a(res.second);
-
   m_restart_count++;
 #endif /* UNIV_DEBUG */
 }

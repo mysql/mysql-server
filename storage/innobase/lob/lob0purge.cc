@@ -420,13 +420,10 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   mtr_t *mtr = ctx->get_mtr();
 
 #ifdef UNIV_DEBUG
-  {
-    /* Ensure that the btr_mtr is not restarted. */
-    const auto restart_count = mtr->m_restart_count;
-    auto guard = create_scope_guard([mtr, restart_count]() {
-      ut_ad(restart_count == mtr->m_restart_count);
-    });
-  }
+  /* Ensure that the btr_mtr is not restarted. */
+  const auto restart_count = mtr->m_restart_count;
+  auto guard = create_scope_guard(
+      [mtr, restart_count]() { ut_ad(restart_count == mtr->m_restart_count); });
 #endif /* UNIV_DEBUG */
 
   const mtr_log_t log_mode = mtr->get_log_mode();
