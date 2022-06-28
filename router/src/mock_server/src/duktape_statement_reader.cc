@@ -509,9 +509,9 @@ struct DuktapeStatementReader::Pimpl {
       throw std::runtime_error("expect an object");
     }
 
-    return {0,  // affected_rows
-            get_object_integer_value<uint16_t>(-1, "last_insert_id", 0),
-            0,  // status
+    return {get_object_integer_value<uint32_t>(-1, "affected_rows", 0),
+            get_object_integer_value<uint32_t>(-1, "last_insert_id", 0),
+            get_object_integer_value<uint16_t>(-1, "status", 0),
             get_object_integer_value<uint16_t>(-1, "warning_count", 0)};
   }
 
@@ -867,6 +867,8 @@ DuktapeStatementReader::server_greeting(bool with_tls) {
           -1, "status_flags", status_flags);
       character_set = pimpl_->get_object_integer_value<uint8_t>(
           -1, "character_set", character_set);
+      server_capabilities = pimpl_->get_object_integer_value<uint32_t>(
+          -1, "capabilities", server_capabilities.to_ulong());
       auth_method =
           pimpl_->get_object_string_value(-1, "auth_method", auth_method);
       nonce = pimpl_->get_object_string_value(-1, "nonce", nonce);

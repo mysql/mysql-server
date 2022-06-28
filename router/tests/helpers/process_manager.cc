@@ -644,6 +644,13 @@ void ProcessManager::dump_all() {
   FAIL() << ss.str();
 }
 
+void ProcessManager::clear() {
+  shutdown_all();
+  ensure_clean_exit();
+
+  processes_.clear();
+}
+
 void ProcessManager::ensure_clean_exit(ProcessWrapper &process) {
   for (auto &proc : processes_) {
     if ((*std::get<0>(proc)).get_pid() == process.get_pid()) {

@@ -45,13 +45,13 @@
 #include "mysql/harness/stdx/filesystem.h"
 #include "mysql/harness/tls_context.h"
 #include "mysql/harness/utility/string.h"  // join
+#include "mysqlxclient.h"
 #include "mysqlxclient/xerror.h"
 #include "mysqlxclient/xquery_result.h"
+#include "openssl_version.h"  // ROUTER_OPENSSL_VERSION
 #include "process_manager.h"
-#include "router_component_test.h"
-
-#include "mysqlxclient.h"
 #include "router/src/routing/tests/mysql_client.h"
+#include "router_component_test.h"
 #include "router_test_helpers.h"
 #include "scope_guard.h"
 #include "tcp_port_pool.h"
@@ -60,14 +60,35 @@ using namespace std::string_literals;
 using namespace std::chrono_literals;
 using namespace std::string_view_literals;
 
-#define EXPECT_NO_ERROR(x) \
-  EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
+template <class T, class E>
+::testing::AssertionResult StdxExpectedSuccess(const char *expr,
+                                               const stdx::expected<T, E> &e) {
+  if (e) return ::testing::AssertionSuccess();
 
-#define ASSERT_NO_ERROR(x) \
-  ASSERT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
+  return ::testing::AssertionFailure() << "Expected: " << expr << " succeeds.\n"
+                                       << "  Actual: " << e.error() << "\n";
+}
 
-#define ASSERT_ERROR(x) \
-  ASSERT_THAT((x), ::testing::Truly([](auto const &v) { return !bool(v); }))
+template <class T, class E>
+::testing::AssertionResult StdxExpectedFailure(const char *expr,
+                                               const stdx::expected<T, E> &e) {
+  if (!e) return ::testing::AssertionSuccess();
+
+  if constexpr (std::is_void_v<T>) {
+    return ::testing::AssertionFailure() << "Expected: " << expr << " fails.\n"
+                                         << "  Actual: succeeded\n";
+  } else {
+    return ::testing::AssertionFailure()
+           << "Expected: " << expr << " fails.\n"
+           << "  Actual: " << ::testing::PrintToString(e.value()) << "\n";
+  }
+}
+
+#define EXPECT_NO_ERROR(x) EXPECT_PRED_FORMAT1(StdxExpectedSuccess, (x))
+#define ASSERT_NO_ERROR(x) ASSERT_PRED_FORMAT1(StdxExpectedSuccess, (x))
+
+#define EXPECT_ERROR(x) EXPECT_PRED_FORMAT1(StdxExpectedFailure, (x))
+#define ASSERT_ERROR(x) ASSERT_PRED_FORMAT1(StdxExpectedFailure, (x))
 
 static constexpr const std::string_view kDisabled{"DISABLED"};
 static constexpr const std::string_view kRequired{"REQUIRED"};
@@ -363,7 +384,7 @@ class SharedServer {
       SCOPED_TRACE("// " + q);
       auto res = cli.query(q);
 
-      ASSERT_TRUE(res) << res.error() << "\n" << q;
+      ASSERT_NO_ERROR(res) << "\n" << q;
     }
 
     {
@@ -372,7 +393,7 @@ class SharedServer {
       SCOPED_TRACE("// " + q);
       auto res = cli.query(q);
 
-      ASSERT_TRUE(res) << res.error() << "\n" << q;
+      ASSERT_NO_ERROR(res) << "\n" << q;
     }
   }
 
@@ -382,7 +403,7 @@ class SharedServer {
     SCOPED_TRACE("// " + q);
     auto res = cli.query(q);
 
-    ASSERT_TRUE(res) << res.error() << "\n" << q;
+    ASSERT_NO_ERROR(res) << "\n" << q;
   }
 
   void setup_mysqld_accounts() {
@@ -401,7 +422,7 @@ class SharedServer {
 
   void setup_mysqld_xproto_test_env() {
     auto sess_res = admin_xcli();
-    ASSERT_TRUE(sess_res) << sess_res.error();
+    ASSERT_NO_ERROR(sess_res);
 
     auto sess = std::move(sess_res.value());
 
@@ -474,7 +495,7 @@ class SharedServer {
 
   void flush_prileges() {
     auto sess_res = admin_xcli();
-    ASSERT_TRUE(sess_res);
+    ASSERT_NO_ERROR(sess_res);
 
     auto sess = std::move(sess_res.value());
 
@@ -697,47 +718,10 @@ class ReuseConnectionTest
     }
   }
 
-  virtual ~ReuseConnectionTest() override {
+  ~ReuseConnectionTest() override {
     if (::testing::Test::HasFailure()) {
       shared_router_->process_manager().dump_logs();
     }
-  }
-
-  // DISABLED__DISABLED:    ok
-  // DISABLED__AS_CLIENT:   ok
-  // DISABLED__PREFERRED:   err: 1045
-  // DISABLED__REQUIRED:    err: 1045
-  // PASSTHROUGH_AS_CLIENT: ok
-  // PREFERRED__DISABLED:   err: 1045
-  // PREFERRED__AS_CLIENT:  ok
-  // PREFERRED__PREFERRED:  ok
-  // PREFERRED__REQUIRED:   ok
-  // REQUIRED__DISABLED:    err: 1045
-  // REQUIRED__AS_CLIENT:   ok
-  // REQUIRED__PREFERRED:   ok
-  // REQUIRED__REQUIRED:    ok
-  static bool both_encrypted_or_both_plaintext(
-      std::string_view client_ssl_mode, std::string_view server_ssl_mode) {
-    if (client_ssl_mode == kDisabled) {
-      if (server_ssl_mode == kDisabled || server_ssl_mode == kAsClient) {
-        return true;
-      }
-
-      return false;
-    }
-    if (client_ssl_mode == kPreferred || client_ssl_mode == kRequired) {
-      if (server_ssl_mode == kPreferred || server_ssl_mode == kRequired ||
-          server_ssl_mode == kAsClient) {
-        return true;
-      }
-
-      return false;
-    }
-    if (client_ssl_mode == kPassthrough) {
-      return true;
-    }
-
-    return false;
   }
 
   stdx::expected<std::unique_ptr<xcl::XSession>, xcl::XError> xsess(
@@ -782,7 +766,7 @@ static stdx::expected<unsigned long, MysqlError> fetch_connection_id(
   if (!query_res) return query_res.get_unexpected();
 
   // get the first field, of the first row of the first resultset.
-  for (auto result : query_res.value()) {
+  for (const auto &result : *query_res) {
     if (result.field_count() == 0) {
       return stdx::make_unexpected(MysqlError(1, "not a resultset", "HY000"));
     }
@@ -1038,12 +1022,15 @@ TEST_P(ReuseConnectionTest, classic_protocol_change_user_sha256_password) {
     ASSERT_NO_ERROR(connect_res);
   }
 
+  auto expect_success = !(GetParam().client_ssl_mode == kDisabled &&
+                          (GetParam().server_ssl_mode == kRequired ||
+                           GetParam().server_ssl_mode == kPreferred));
+
   {
     auto account = shared_server_->sha256_password_account();
     auto change_user_res =
         cli.change_user(account.username, account.password, "");
-    if (both_encrypted_or_both_plaintext(GetParam().client_ssl_mode,
-                                         GetParam().server_ssl_mode)) {
+    if (expect_success) {
       ASSERT_NO_ERROR(change_user_res);
     } else {
       ASSERT_ERROR(change_user_res);
@@ -1107,7 +1094,7 @@ TEST_P(ReuseConnectionTest, classic_protocol_query_no_result) {
   ASSERT_NO_ERROR(connect_res);
 
   auto query_res = cli.query("DO 1");
-  ASSERT_NO_ERROR(query_res) << query_res.error();
+  ASSERT_NO_ERROR(query_res);
 }
 
 TEST_P(ReuseConnectionTest, classic_protocol_query_with_result) {
@@ -1122,7 +1109,7 @@ TEST_P(ReuseConnectionTest, classic_protocol_query_with_result) {
   ASSERT_NO_ERROR(connect_res);
 
   auto query_res = cli.query("SELECT * FROM sys.version");
-  ASSERT_NO_ERROR(query_res) << query_res.error();
+  ASSERT_NO_ERROR(query_res);
 }
 
 TEST_P(ReuseConnectionTest, classic_protocol_query_multiple_packets) {
@@ -1134,7 +1121,7 @@ TEST_P(ReuseConnectionTest, classic_protocol_query_multiple_packets) {
 
   auto connect_res =
       cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-  ASSERT_TRUE(connect_res) << connect_res.error();
+  ASSERT_NO_ERROR(connect_res);
 
   std::string stmt(16L * 1024 * 1024 + 16, 'a');
   stmt.insert(0, "SELECT '");
@@ -1144,7 +1131,7 @@ TEST_P(ReuseConnectionTest, classic_protocol_query_multiple_packets) {
 
   SCOPED_TRACE("// SELECT ... <large-string>");
   auto query_res = cli.query(stmt);
-  ASSERT_TRUE(query_res) << query_res.error();
+  ASSERT_NO_ERROR(query_res);
 
   auto results = std::move(*query_res);
 
@@ -1178,12 +1165,12 @@ TEST_P(ReuseConnectionTest, classic_protocol_query_call) {
   {
     auto query_res =
         cli.query("CALL sys.table_exists('mysql', 'user', @exists)");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   {
     auto query_res = cli.query("SELECT @exists");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 }
 
@@ -1218,7 +1205,7 @@ TEST_P(ReuseConnectionTest, classic_protocol_query_load_data_local_infile) {
 
     {
       auto query_res = cli.query("SET GLOBAL local_infile=1");
-      ASSERT_NO_ERROR(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
     }
   }
 
@@ -1236,29 +1223,29 @@ TEST_P(ReuseConnectionTest, classic_protocol_query_load_data_local_infile) {
 
   {
     auto query_res = cli.query("DROP SCHEMA IF EXISTS testing");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   {
     auto query_res = cli.query("CREATE SCHEMA testing");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   {
     auto query_res = cli.query("CREATE TABLE testing.t1 (word varchar(20))");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   {
     auto query_res = cli.query("SET GLOBAL local_infile=1");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   {
     auto query_res = cli.query("LOAD DATA LOCAL INFILE '" SSL_TEST_DATA_DIR
                                "/words.dat' "
                                "INTO TABLE testing.t1");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 }
 
@@ -1277,7 +1264,7 @@ TEST_P(ReuseConnectionTest,
 
     {
       auto query_res = cli.query("SET GLOBAL local_infile=0");
-      ASSERT_NO_ERROR(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
     }
   }
 
@@ -1295,29 +1282,29 @@ TEST_P(ReuseConnectionTest,
 
   {
     auto query_res = cli.query("DROP SCHEMA IF EXISTS testing");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   {
     auto query_res = cli.query("CREATE SCHEMA testing");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   {
     auto query_res = cli.query("CREATE TABLE testing.t1 (word varchar(20))");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   {
     auto query_res = cli.query("SET GLOBAL local_infile=1");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   {
     auto query_res = cli.query("LOAD DATA LOCAL INFILE '" SSL_TEST_DATA_DIR
                                "/words.dat' "
                                "INTO TABLE testing.t1");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 }
 
@@ -1711,7 +1698,7 @@ TEST_P(ReuseConnectionTest, classic_protocol_prepare_reset) {
   auto stmt = std::move(res.value());
 
   auto reset_res = stmt.reset();
-  ASSERT_NO_ERROR(reset_res) << reset_res.error();
+  ASSERT_NO_ERROR(reset_res);
 }
 
 TEST_P(ReuseConnectionTest, classic_protocol_prepare_call) {
@@ -1727,12 +1714,12 @@ TEST_P(ReuseConnectionTest, classic_protocol_prepare_call) {
 
   {
     auto query_res = cli.query("DROP SCHEMA IF EXISTS testing");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   {
     auto query_res = cli.query("CREATE SCHEMA testing");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   SCOPED_TRACE("// create a stored proc with multiple results and outparams");
@@ -1744,12 +1731,12 @@ SELECT 1 INTO param1;
 SELECT 2 INTO param2;
 SELECT 3;
 END)");
-    ASSERT_NO_ERROR(query_res) << query_res.error();
+    ASSERT_NO_ERROR(query_res);
   }
 
   SCOPED_TRACE("// prepare 'call testing.p1()'");
   auto stmt_res = cli.prepare("CALL testing.p1(?, ?)");
-  ASSERT_TRUE(stmt_res) << stmt_res.error();
+  ASSERT_NO_ERROR(stmt_res);
 
   auto stmt = std::move(stmt_res.value());
 
@@ -1794,7 +1781,7 @@ END)");
       "// check a new query can be sent to verify all packets have received.");
   {
     auto results_res = cli.query("SELECT 1");
-    ASSERT_NO_ERROR(results_res) << results_res.error();
+    ASSERT_NO_ERROR(results_res);
 
     for (const auto &res : *results_res) {
       EXPECT_EQ(res.field_count(), 1);
@@ -1896,11 +1883,6 @@ TEST_P(ReuseConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
       EXPECT_EQ(connect_res.error().value(), 2061) << connect_res.error();
       // Authentication plugin 'caching_sha2_password' reported error:
       // Authentication requires secure connection.
-    } else if (GetParam().server_ssl_mode == kDisabled) {
-      // the server side is not encrypted, but caching-sha2 wants SSL.
-      ASSERT_ERROR(connect_res);
-      EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-      // Access denied for user 'caching_sha2'@'localhost' (using password: YES)
     } else {
       ASSERT_NO_ERROR(connect_res);
     }
@@ -2060,11 +2042,6 @@ TEST_P(ReuseConnectionTest,
       EXPECT_EQ(connect_res.error().value(), 2061) << connect_res.error();
       // Authentication plugin 'caching_sha2_password' reported error:
       // Authentication requires secure connection.
-    } else if (GetParam().server_ssl_mode == kDisabled) {
-      // the server side is not encrypted, but caching-sha2 wants SSL.
-      ASSERT_ERROR(connect_res);
-      EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-      // Access denied for user 'caching_sha2'@'localhost' (using password: YES)
     } else {
       ASSERT_NO_ERROR(connect_res);
     }
@@ -2152,13 +2129,14 @@ TEST_P(ReuseConnectionTest, classic_protocol_sha256_password_with_pass) {
 
     auto connect_res =
         cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    if (both_encrypted_or_both_plaintext(GetParam().client_ssl_mode,
-                                         GetParam().server_ssl_mode)) {
-      ASSERT_NO_ERROR(connect_res);
-    } else {
+    if (GetParam().client_ssl_mode == kDisabled &&
+        (GetParam().server_ssl_mode == kPreferred ||
+         GetParam().server_ssl_mode == kRequired)) {
       ASSERT_ERROR(connect_res);
       EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
       // Access denied for user '...'@'localhost' (using password: YES)
+    } else {
+      ASSERT_NO_ERROR(connect_res);
     }
   }
 
@@ -2201,13 +2179,14 @@ TEST_P(ReuseConnectionTest, classic_protocol_sha256_password_with_pass) {
 
     auto connect_res =
         cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    if (both_encrypted_or_both_plaintext(GetParam().client_ssl_mode,
-                                         GetParam().server_ssl_mode)) {
-      ASSERT_NO_ERROR(connect_res);
-    } else {
+    if (GetParam().client_ssl_mode == kDisabled &&
+        (GetParam().server_ssl_mode == kPreferred ||
+         GetParam().server_ssl_mode == kRequired)) {
       ASSERT_ERROR(connect_res);
       EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
       // Access denied for user '...'@'localhost' (using password: YES)
+    } else {
+      ASSERT_NO_ERROR(connect_res);
     }
   }
 }
@@ -2221,9 +2200,24 @@ TEST_P(ReuseConnectionTest,
     GTEST_SKIP() << "test requires plaintext connection.";
   }
 
-  if (GetParam().client_ssl_mode != kPassthrough) {
-    GTEST_SKIP() << "TODO";
-  }
+  bool expect_success =
+#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 0, 2)
+      // DISABLED/DISABLED will get the public-key from the server.
+      //
+      // other modes that should fail, will fail as the router can't get the
+      // public-key from the ssl-certs in openssl 1.0.1
+      (GetParam().client_ssl_mode == kDisabled &&
+       (GetParam().server_ssl_mode == kDisabled ||
+        GetParam().server_ssl_mode == kAsClient)) ||
+      (GetParam().client_ssl_mode == kPassthrough) ||
+      (GetParam().client_ssl_mode == kPreferred &&
+       (GetParam().server_ssl_mode == kDisabled ||
+        GetParam().server_ssl_mode == kAsClient));
+#else
+      !(GetParam().client_ssl_mode == kDisabled &&
+        (GetParam().server_ssl_mode == kRequired ||
+         GetParam().server_ssl_mode == kPreferred));
+#endif
 
   auto account = shared_server_->sha256_password_account();
 
@@ -2241,11 +2235,18 @@ TEST_P(ReuseConnectionTest,
 
     auto connect_res =
         cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    ASSERT_NO_ERROR(connect_res);
+    if (!expect_success) {
+      // server will treat the public-key-request as wrong password.
+      ASSERT_ERROR(connect_res);
+    } else {
+      ASSERT_NO_ERROR(connect_res);
+
+      ASSERT_NO_ERROR(cli.ping());
+    }
   }
 
   SCOPED_TRACE("// reuse");
-  {
+  if (expect_success) {
     MysqlClient cli;
     cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
     cli.set_option(MysqlClient::GetServerPublicKey(true));
@@ -2253,9 +2254,8 @@ TEST_P(ReuseConnectionTest,
     cli.username(username);
     cli.password(password);
 
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    ASSERT_NO_ERROR(connect_res);
+    ASSERT_NO_ERROR(
+        cli.connect(shared_router_->host(), shared_router_->port(GetParam())));
   }
 }
 
@@ -2275,7 +2275,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_find_unknown_collection) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2317,7 +2317,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_find) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2365,7 +2365,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_delete) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2398,7 +2398,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_delete_no_such_table) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2430,7 +2430,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_insert) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2475,7 +2475,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_insert_no_row_data) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2507,7 +2507,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_update) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2545,7 +2545,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_update_no_row_data) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2577,7 +2577,7 @@ TEST_P(ReuseConnectionTest, x_protocol_prepare_stmt) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2616,7 +2616,7 @@ TEST_P(ReuseConnectionTest, x_protocol_prepare_stmt_fail) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2656,7 +2656,7 @@ TEST_P(ReuseConnectionTest, x_protocol_prepare_deallocate_fail) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2685,7 +2685,7 @@ TEST_P(ReuseConnectionTest, x_protocol_prepare_deallocate) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2745,7 +2745,7 @@ TEST_P(ReuseConnectionTest, x_protocol_prepare_execute_fail) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2774,7 +2774,7 @@ TEST_P(ReuseConnectionTest, x_protocol_prepare_execute) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2856,7 +2856,7 @@ TEST_P(ReuseConnectionTest, x_protocol_expect_open) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2882,7 +2882,7 @@ TEST_P(ReuseConnectionTest, x_protocol_expect_close_no_open) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2909,7 +2909,7 @@ TEST_P(ReuseConnectionTest, x_protocol_expect_open_close) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -2955,7 +2955,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_create_view_no_such_table) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3010,7 +3010,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_create_view_drop_view) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3092,7 +3092,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_modify_view_fail_unknown_table) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3131,7 +3131,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_modify_view) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3258,7 +3258,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_drop_view_fail_unknown_table) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3297,7 +3297,7 @@ TEST_P(ReuseConnectionTest, x_protocol_cursor_close_not_open) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3326,7 +3326,7 @@ TEST_P(ReuseConnectionTest, x_protocol_cursor_fetch_not_open) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3355,7 +3355,7 @@ TEST_P(ReuseConnectionTest, x_protocol_cursor_open_no_stmt_prepared) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3394,7 +3394,7 @@ TEST_P(ReuseConnectionTest, x_protocol_cursor_open_fetch_close) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3595,7 +3595,7 @@ TEST_P(ReuseConnectionTest, x_protocol_session_close) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3621,7 +3621,7 @@ TEST_P(ReuseConnectionTest, x_protocol_session_reset) {
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3653,7 +3653,7 @@ TEST_P(ReuseConnectionTest,
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3683,7 +3683,7 @@ TEST_P(ReuseConnectionTest,
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3700,7 +3700,7 @@ TEST_P(ReuseConnectionTest,
 TEST_P(ReuseConnectionTest, x_protocol_session_authenticate_start_native) {
   SCOPED_TRACE("// connect");
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3719,7 +3719,7 @@ TEST_P(ReuseConnectionTest,
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3744,7 +3744,7 @@ TEST_P(ReuseConnectionTest,
   SCOPED_TRACE("// connect");
 
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3768,7 +3768,7 @@ TEST_P(ReuseConnectionTest,
        x_protocol_session_authenticate_start_caching_sha2_password_empty) {
   SCOPED_TRACE("// connect");
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 
@@ -3793,7 +3793,7 @@ TEST_P(ReuseConnectionTest,
        x_protocol_session_authenticate_start_caching_sha2_password) {
   SCOPED_TRACE("// connect");
   auto sess_res = xsess(GetParam());
-  ASSERT_TRUE(sess_res) << sess_res.error();
+  ASSERT_NO_ERROR(sess_res);
 
   auto sess = std::move(sess_res.value());
 

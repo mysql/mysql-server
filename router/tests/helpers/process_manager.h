@@ -231,6 +231,15 @@ class ProcessManager {
   void dump_all();
 
   /**
+   * reset the monitored processes.
+   *
+   * - shuts down all running processes
+   * - checks for expected exit-code
+   * - removes the monitoring of the processes
+   */
+  void clear();
+
+  /**
    * ensures given port is ready for accepting connections, prints some debug
    * data otherwise.
    *

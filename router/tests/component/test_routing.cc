@@ -229,10 +229,8 @@ TEST_P(RouterRoutingConnectTimeoutTest, ConnectTimeout) {
     FAIL() << "expected connect fail.";
   } catch (const MySQLSession::Error &e) {
     EXPECT_EQ(e.code(), 2003) << e.what();
-    EXPECT_THAT(
-        e.what(),
-        ::testing::HasSubstr(
-            "Can't connect to remote MySQL server for client connected to"))
+    EXPECT_THAT(e.what(),
+                ::testing::HasSubstr("Can't connect to remote MySQL server"))
         << e.what();
   } catch (...) {
     FAIL() << "expected connect fail with a mysql-error";
