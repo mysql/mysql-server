@@ -241,6 +241,8 @@ class Item_func : public Item_result_field {
     TRUNCATE_FUNC,
     SQRT_FUNC,
     ABS_FUNC,
+    POW_FUNC,
+    SIGN_FUNC,
     FLOOR_FUNC,
     LOG_FUNC,
     LN_FUNC,
@@ -1293,6 +1295,7 @@ class Item_func_pow final : public Item_dec_func {
   Item_func_pow(const POS &pos, Item *a, Item *b) : Item_dec_func(pos, a, b) {}
   double val_real() override;
   const char *func_name() const override { return "pow"; }
+  enum Functype functype() const override { return POW_FUNC; }
 };
 
 class Item_func_acos final : public Item_dec_func {
@@ -1452,6 +1455,7 @@ class Item_func_sign final : public Item_int_func {
  public:
   Item_func_sign(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   const char *func_name() const override { return "sign"; }
+  enum Functype functype() const override { return SIGN_FUNC; }
   longlong val_int() override;
   bool resolve_type(THD *thd) override;
 };
