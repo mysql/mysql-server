@@ -1218,6 +1218,9 @@ dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
 
     if (err != DB_SUCCESS) {
       set_error(err);
+      err = m_btr_load->finish(err);
+      ut::delete_(m_btr_load);
+      m_btr_load = nullptr;
       return get_error();
     }
   }
