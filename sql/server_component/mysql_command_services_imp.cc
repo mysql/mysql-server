@@ -604,6 +604,8 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
       case MYSQL_COMMAND_LOCAL_THD_HANDLE: {
         MYSQL_SESSION mysql_session = nullptr;
         if (static_cast<const char *>(arg) == nullptr) {
+          if (mcs_ext->is_thd_associated == true)
+            return true;  // already thd assigned
           MYSQL_THD thd;
           const char *host = MYSQL_SYS_HOST;
           const char *user = MYSQL_SESSION_USER;
