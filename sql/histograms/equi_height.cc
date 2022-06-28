@@ -525,7 +525,7 @@ bool Equi_height<T>::json_to_histogram(const Json_object &json_object,
   // and should never have errors, so assert whenever an error is encountered.
   // If it is not already validated, it is a user-defined histogram and it may
   // have errors, which should be detected and reported.
-  bool already_validated = context->binary();
+  bool already_validated [[maybe_unused]] = context->binary();
 
   const Json_dom *buckets_dom = json_object.get(buckets_str());
   assert(!already_validated ||
