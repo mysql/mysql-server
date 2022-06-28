@@ -2399,17 +2399,17 @@ class THD : public MDL_context_owner,
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong statement_id_counter;
   ulong rand_saved_seed1, rand_saved_seed2;
-  my_thread_t real_id; /* For debugging */
-                       /**
-                         This counter is 32 bit because of the client protocol.
-                     
-                         @note It is not meant to be used for my_thread_self(), see @c real_id for
-                         this.
-                     
-                         @note Set to reserved_thread_id on initialization. This is a magic
-                         value that is only to be used for temporary THDs not present in
-                         the global THD list.
-                       */
+  my_thread_t real_id;
+  /**
+    This counter is 32 bit because of the client protocol.
+
+    @note It is not meant to be used for my_thread_self(), see @c real_id for
+    this.
+
+    @note Set to reserved_thread_id on initialization. This is a magic
+    value that is only to be used for temporary THDs not present in
+    the global THD list.
+  */
  private:
   my_thread_id m_thread_id;
 

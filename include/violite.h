@@ -58,6 +58,7 @@ struct Vio;
 #if defined(__cplusplus) && defined(USE_PPOLL_IN_VIO)
 #include <signal.h>
 #include <atomic>
+#include <optional>
 #elif defined(__cplusplus) && defined(HAVE_KQUEUE)
 #include <sys/event.h>
 #include <atomic>
@@ -332,8 +333,18 @@ struct Vio {
   char *read_end = {nullptr};     /* end of unfetched data */
 
 #ifdef USE_PPOLL_IN_VIO
-  my_thread_t thread_id = {0};  // Thread PID
-  sigset_t signal_mask;         // Signal mask
+  /** Thread PID which is to be sent SIGALRM to terminate ppoll
+    wait when shutting down vio. It is made an std::optional so
+    that server code has the ability to set this to an illegal value
+    and thereby ensure that it is set before shutting down vio. In the server
+    the THD and thereby the Vio can switch between OS threads, so it does not
+    make sense to assign the thread id when creating the THD/Vio.
+
+    It is initialized to 0 here, meaning don't attempt to send a signal, to
+    keep non-server code unaffected.
+  */
+  std::optional<my_thread_t> thread_id = 0;
+  sigset_t signal_mask;  // Signal mask
   /*
     Flag to indicate whether we are in poll or shutdown.
     A true value of flag indicates either the socket

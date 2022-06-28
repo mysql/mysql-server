@@ -159,9 +159,13 @@ void thd_clear_errors(THD *thd [[maybe_unused]]) { set_my_errno(0); }
   Close the socket used by this connection
 
   @param thd                THD object
+  @note Expects lock on thd->LOCK_thd_data.
 */
 
-void thd_close_connection(THD *thd) { thd->get_protocol_classic()->shutdown(); }
+void thd_close_connection(THD *thd) {
+  mysql_mutex_assert_owner(&thd->LOCK_thd_data);
+  thd->shutdown_active_vio();
+}
 
 /**
   Get current THD object from thread local data

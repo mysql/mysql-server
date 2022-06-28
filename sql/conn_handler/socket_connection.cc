@@ -151,7 +151,9 @@ class Channel_info_local_socket : public Channel_info {
         mysql_socket_vio_new(m_connect_sock, VIO_TYPE_SOCKET, VIO_LOCALHOST);
 #ifdef USE_PPOLL_IN_VIO
     if (vio != nullptr) {
-      vio->thread_id = my_thread_self();
+      // Unset thread_id, to ensure that all shutdowns explicitly set the
+      // current real_id from the THD.
+      vio->thread_id.reset();
       vio->signal_mask = mysqld_signal_mask;
     }
 #endif
@@ -214,7 +216,7 @@ class Channel_info_tcpip_socket : public Channel_info {
     Vio *vio = mysql_socket_vio_new(m_connect_sock, VIO_TYPE_TCPIP, 0);
 #ifdef USE_PPOLL_IN_VIO
     if (vio != nullptr) {
-      vio->thread_id = my_thread_self();
+      vio->thread_id.reset();
       vio->signal_mask = mysqld_signal_mask;
     }
 #endif

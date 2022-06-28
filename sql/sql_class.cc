@@ -1698,7 +1698,7 @@ void THD::store_globals() {
   */
   set_my_thread_var_id(m_thread_id);
 #endif
-  real_id = my_thread_self();  // For debugging
+  real_id = my_thread_self();
 }
 
 /*
@@ -1706,6 +1706,8 @@ void THD::store_globals() {
   store_global call for this thread.
 */
 void THD::restore_globals() {
+  // Remove reference to specific OS thread.
+  real_id = 0;
   /*
     Assert that thread_stack is initialized: it's necessary to be able
     to track stack overrun.
@@ -1922,6 +1924,14 @@ void THD::shutdown_active_vio() {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_thd_data);
   if (active_vio) {
+#ifdef USE_PPOLL_IN_VIO
+    // Vio::thread_id may not be correct if the THD has been
+    // associated with a different OS thread since the Vio object was
+    // created. So we store the current THD::real_id here so that
+    // vio_shutdown() will not try to send SIGALRM to an incorrect, or
+    // invalid thread id.
+    active_vio->thread_id = real_id;
+#endif /* USE_PPOLL_IN_VIO */
     vio_shutdown(active_vio);
     active_vio = nullptr;
     m_SSL = nullptr;
@@ -1932,6 +1942,14 @@ void THD::shutdown_clone_vio() {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_thd_data);
   if (clone_vio != nullptr) {
+#ifdef USE_PPOLL_IN_VIO
+    // Vio::thread_id may not be correct if the THD has been
+    // associated with a different OS thread since the Vio object was
+    // created. So we store the current THD::real_id here so that
+    // vio_shutdown() will not try to send SIGALRM to an incorrect, or
+    // invalid thread id.
+    clone_vio->thread_id = real_id;
+#endif /* USE_PPOLL_IN_VIO */
     vio_shutdown(clone_vio);
     clone_vio = nullptr;
   }
