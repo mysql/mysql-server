@@ -361,7 +361,7 @@ bool Singleton<T>::json_to_histogram(const Json_object &json_object,
   }
   bool histogram_buckets_sorted = std::is_sorted(
       m_buckets.begin(), m_buckets.end(), Histogram_comparator());
-  bool already_validated = context->binary();
+  bool already_validated [[maybe_unused]] = context->binary();
   assert(!already_validated || histogram_buckets_sorted);
   if (!histogram_buckets_sorted) {
     context->report_node(buckets_dom, Message::JSON_VALUE_NOT_ASCENDING_1);
