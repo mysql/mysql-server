@@ -3957,8 +3957,11 @@ static ulonglong unique_hash_group(ORDER *group) {
   return crc;
 }
 
-/* Generate hash for unique_constraint for all visible fields of a table */
-
+/**
+  Generate hash for unique_constraint for all visible fields of a table
+  @param table the table for which we want a hash of its fields
+  @return the hash value
+*/
 static ulonglong unique_hash_fields(TABLE *table) {
   ulonglong crc = 0;
   Field **fields = table->visible_field_ptr();
@@ -4005,8 +4008,22 @@ bool check_unique_constraint(TABLE *table) {
     // Check whether records are the same.
     if (!(table->group
               ? group_rec_cmp(table->group, table->record[0], table->record[1])
-              : table_rec_cmp(table)))
+              : table_rec_cmp(table))) {
       return false;  // skip it
+    }
+    res = table->file->ha_index_next_same(
+        table->record[1], table->hash_field->field_ptr(), sizeof(hash));
+  }
+  return true;
+}
+
+bool next_same_match(TABLE *table) {
+  ulonglong hash;
+  int res = table->file->ha_index_next_same(
+      table->record[1], table->hash_field->field_ptr(), sizeof(hash));
+  while (!res) {
+    // Check whether records are the same.
+    if (!table_rec_cmp(table)) return false;  // match
     res = table->file->ha_index_next_same(
         table->record[1], table->hash_field->field_ptr(), sizeof(hash));
   }

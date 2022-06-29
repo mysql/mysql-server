@@ -153,6 +153,7 @@ class Query_result {
     @return true if it is an interceptor, false otherwise
   */
   virtual bool is_interceptor() const { return false; }
+  virtual void set_limit(ha_rows) {}
 
   /// @returns server side cursor, if associated with query result
   virtual Server_side_cursor *cursor() const {

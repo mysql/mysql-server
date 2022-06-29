@@ -1004,7 +1004,8 @@ class Query_expression {
 
   bool prepare_query_term(THD *thd, Query_term *qts,
                           Query_result *common_result, ulonglong added_options,
-                          ulonglong create_options, int level);
+                          ulonglong create_options, int level,
+                          Mem_root_array<bool> &nullable);
   void set_prepared() {
     assert(!is_prepared());
     prepared = true;

@@ -414,7 +414,14 @@ class Query_term_set_op : public Query_term {
      included. Which is why we only need to remember that query block. Is -1
      for Unary.
   */
-  int m_last_distinct;
+  int64_t m_last_distinct;
+  /**
+    Presently only needed by EXCEPT set operator: the index of the first
+    DISTINCT set operand: minimum legal value is 1. If not DISTINCT, it should
+    have the value std::numeric_limits<int64_t>::max(). The value is set
+    in PT_set_operation::merge_descendants.
+  */
+  int64_t m_first_distinct;
   /**
     true if the result of this set operation is materialized. A priori true
     unless we have a pure UNION ALL.
@@ -539,7 +546,7 @@ class Query_term_unary : public Query_term_set_op {
    */
   Query_term_unary(MEM_ROOT *mem_root, Query_term *t)
       : Query_term_set_op(mem_root) {
-    m_last_distinct = -1;
+    m_last_distinct = 0;
     m_children.push_back(t);
   }
   Query_term_type term_type() const override { return QT_UNARY; }

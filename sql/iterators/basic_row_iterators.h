@@ -58,6 +58,7 @@ class TableScanIterator final : public TableRowIterator {
   // If zero or less, no record buffer will be set up.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
+  // "limit_rows" used for EXECEPT and INTERSECT ony
   TableScanIterator(THD *thd, TABLE *table, double expected_rows,
                     ha_rows *examined_rows);
   ~TableScanIterator() override;
@@ -69,6 +70,12 @@ class TableScanIterator final : public TableRowIterator {
   uchar *const m_record;
   const double m_expected_rows;
   ha_rows *const m_examined_rows;
+  /// Used to keep track of how many more duplicates of the last read row
+  /// to remains to be written write to the next stage: used for EXCEPT and
+  /// INTERSECT computation.
+  ulonglong m_remaining_dups{0};
+  const ha_rows m_limit_rows;
+  ha_rows m_stored_rows{0};
 };
 
 /** Perform a full index scan along an index. */
@@ -498,6 +505,33 @@ class TableValueConstructorIterator final : public RowIterator {
   /// be output, this contains Item_values_column objects. In this case, each
   /// call to Read() will replace its current reference with the next row.
   mem_root_deque<Item *> *const m_output_refs;
+};
+
+/**
+  Auxiliary class to squeeze to 32 bits integers into a 64 bits one, cf.
+  logic of INTERSECT ALL in MaterializeIterator::MaterializeQueryBlock.
+  For INTERSECT ALL we need two counters: the number of duplicates in the left
+  operand, and the number of matches seen (so far) from the right operand.
+  Instead of adding another field to the temporary table, we subdivide the
+  64 bits counter we already have. This imposes an implementation restriction
+  on INTERSECT ALL: the resulting table must have <= uint32::max duplicates of
+  any row.
+ */
+class HalfCounter {
+  union {
+    /// [0]: # of duplicates on left side of INTERSECT ALL
+    /// [1]: # of duplicates on right side of INTERSECT ALL. Always <= [0].
+    uint32_t m_value[2];
+    uint64_t m_value64;
+  } data;
+
+ public:
+  HalfCounter(uint64_t packed) { data.m_value64 = packed; }
+  uint64_t value() const { return data.m_value64; }
+  uint32_t &operator[](size_t idx) {
+    assert(idx == 0 || idx == 1);
+    return data.m_value[idx];
+  }
 };
 
 #endif  // SQL_ITERATORS_BASIC_ROW_ITERATORS_H_

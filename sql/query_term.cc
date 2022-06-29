@@ -190,7 +190,8 @@ void Query_term_set_op::print(int level, std::ostringstream &buf,
   buf << std::endl;
   if (query_block() != nullptr) query_block()->qbPrint(level, buf);
   indent(level, buf);
-  buf << "last distinct index: " << m_last_distinct;
+  buf << "first distinct index: " << m_first_distinct;
+  buf << "  last distinct index: " << m_last_distinct;
   buf << std::endl;
   for (Query_term *child : m_children) {
     child->debugPrint(level + 1, buf);
@@ -315,6 +316,11 @@ static void dumpAccessPath(int level, AccessPath *p, std::ostringstream &buf) {
         str.append(p->index_scan().table->alias ? p->index_scan().table->alias
                                                 : "<no alias>");
         p = nullptr;
+        break;
+      case AccessPath::TEMPTABLE_AGGREGATE:
+        str.append("AccessPath::TEMPTABLE_AGGREGATE ");
+        str.append(p->temptable_aggregate().table->alias);
+        p = p->temptable_aggregate().subquery_path;
         break;
       default:
         assert(false);

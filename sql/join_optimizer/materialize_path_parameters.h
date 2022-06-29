@@ -46,6 +46,13 @@ struct MaterializePathParameters {
     bool copy_items;
     Temp_table_param *temp_table_param;
     bool is_recursive_reference;
+    /// The block no is the first to be materialized with DISTINCT: for EXCEPT
+    /// set operation in a materialization for EXCEPT.
+    uint first_distinct{0};
+    /// The index of this block number
+    uint block_no{0};
+    /// The number of materialized blocks, i.e. set operands
+    uint total_blocks{0};
   };
   Mem_root_array<QueryBlock> query_blocks;
   Mem_root_array<const AccessPath *> *invalidators;

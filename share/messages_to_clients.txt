@@ -9815,6 +9815,9 @@ ER_COMMAND_BACKEND_FAILED_TO_FETCH_SECURITY_CTX
 ER_COMMAND_SERVICE_BACKEND_FAILED
   eng "Error in command service backend interface, because of : "%s""
 
+ER_INTERSECT_ALL_MAX_DUPS_EXCEEDED
+  eng "Max number of duplicate rows in INTERSECT ALL exceeded."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

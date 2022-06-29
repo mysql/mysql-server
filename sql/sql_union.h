@@ -75,6 +75,7 @@ class Query_result_union : public Query_result_interceptor {
     return tmp_table_param.hidden_field_count;
   }
   bool skip_create_table() const { return tmp_table_param.skip_create_table; }
+  void set_limit(ha_rows limit_rows) override;
 };
 
 #endif /* SQL_UNION_INCLUDED */

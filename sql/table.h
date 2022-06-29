@@ -63,6 +63,7 @@
 #include "typelib.h"
 
 class Field;
+class Field_longlong;
 
 namespace histograms {
 class Histogram;
@@ -1496,6 +1497,53 @@ struct TABLE {
   Field **gen_def_fields_ptr{nullptr};
   /// Field used by unique constraint
   Field *hash_field{nullptr};
+  /// ----------------------------------------------------------------------
+  /// The next five members are used if this (temporary) file are used solely
+  /// for the materialization/computation of an INTERSECT or EXCEPT set
+  /// operation (in addition to hash_field above used to detect duplicate
+  /// rows).  For INTERSECT and EXCEPT, we always use the hash field and
+  /// compute the shape of the result set using m_set_counter. The latter is a
+  /// (new) hidden field located between the hash field and the row proper,
+  /// only present for INTERSECT or EXCEPT materialized in a temporary result
+  /// table.  The materialized table has no duplicate rows, relying instead of
+  /// the embedded counter to produce the correct number of duplicates with ALL
+  /// semantics. If we have distinct semantics, we squash duplicates. This all
+  /// happens in the reading step of the tmp table (TableScanIterator::Read),
+  /// cf. m_last_operation_is_distinct. For explanation if the logic of the set
+  /// counter, see MaterializeIterator::MaterializeQueryBlock.
+  ///
+  /// The set counter. For EXCEPT and INTERSECT DISTINCT this is a simple 64
+  /// bits counter. For INTERSECT ALL, it is subdivided into two sub counters
+  /// cf. class HalfCounter, cf. MaterializeQueryBlock.
+  Field_longlong *m_set_counter{nullptr};
+  /// A priori unlimited. We pass this on to TableScanIterator at construction
+  /// time, q.v., to limit the number of rows out of an EXCEPT or INTERSECT.
+  /// For these set operations, we do not know enough to limit when we
+  /// materialize time (as for UNION): only when reading the rows with
+  /// TableScanIterator do we check the counters. Ideally, this limit should be
+  /// communicated to TableScanIterator in some other way. FIXME.
+  ha_rows m_limit_rows{HA_POS_ERROR};
+
+  /// Test if this tmp table stores the result of a UNION set operation.
+  ///
+  /// INTERSECT: !is_union && !m_except && m_last_operation_is_distinct
+  /// EXCEPT:    !is_union && m_except m_last_operation_is_distinct
+  /// INTERSECT ALL: !is_union && !m_except && !m_last_operation_is_distinct
+  /// EXCEPT ALL:    !is_union && m_except !m_last_operation_is_distinct
+  /// @return true if so, else false.
+  bool is_union() const { return m_set_counter == nullptr; }
+
+  /// Consulted iff !is_union: true if we have EXCEPT else we have INTERSECT
+  bool m_except{false};
+
+  /// If m_set_counter is set: true if last block has DISTINCT semantics,
+  /// either because it is marked as such, or because we have computed this
+  /// to give an equivalent answer. If false, we have ALL semantics.
+  /// It will be true if any DISTINCT is given in the merged N-ary set
+  /// operation.
+  bool m_last_operation_is_distinct{false};
+  /// ----------------------------------------------------------------------
+
   Field *fts_doc_id_field{nullptr}; /* Set if FTS_DOC_ID field is present */
 
   /* Table's triggers, 0 if there are no of them */

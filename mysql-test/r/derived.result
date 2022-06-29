@@ -90,6 +90,12 @@ select * from (select * from t1 union all select * from t1 limit 2) a;
 a	b
 1	a
 2	b
+select * from (select * from t1 intersect all select * from t1 limit 2) a;
+a	b
+1	a
+2	b
+select * from (select * from t1 except all select * from t1 limit 2) a;
+a	b
 explain select * from (select * from t1 union select * from t1) a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
@@ -472,12 +478,12 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO C VALUES (2,'w','w');
 INSERT INTO C VALUES (2,'d','d');
-SELECT SUM(DISTINCT table2.col_int_key) field1, 
-table1.col_varchar_key field2 
-FROM 
+SELECT SUM(DISTINCT table2.col_int_key) field1,
+table1.col_varchar_key field2
+FROM
 (SELECT * FROM C  ) table1
 JOIN (SELECT * FROM C  ) table2
-ON table2 .`col_varchar_key` = table1 .`col_varchar_nokey` 
+ON table2 .`col_varchar_key` = table1 .`col_varchar_nokey`
 GROUP  BY field2
 ORDER  BY field1;
 field1	field2
@@ -495,12 +501,12 @@ col_varchar varchar(1) DEFAULT NULL
 INSERT INTO `C` VALUES (0,NULL);
 INSERT INTO `C` VALUES (5,'y');
 SELECT table1.col_varchar
-FROM 
-( SELECT * FROM C  ) table1  
+FROM
+( SELECT * FROM C  ) table1
 JOIN ( SELECT * FROM C  ) table2  ON table2.col_varchar = table1.col_varchar
-WHERE 
+WHERE
 table2.col_varchar < table2.col_varchar
-AND table1.col_varchar != 'k' 
+AND table1.col_varchar != 'k'
 LIMIT  1;
 col_varchar
 DROP TABLE C;
@@ -520,15 +526,15 @@ KEY `col_date_key` (`col_date_key`)
 );
 INSERT INTO C VALUES ('ok',3,1,'2003-04-02');
 CREATE ALGORITHM=TEMPTABLE VIEW viewC AS SELECT * FROM C;
-SELECT  table1.col_date_key AS field1 
+SELECT  table1.col_date_key AS field1
 FROM
 C AS table1
-WHERE 
-(table1.col_int_key <=ANY 
-( SELECT SUBQUERY1_t1.col_int_key 
-FROM viewC AS SUBQUERY1_t1 
-WHERE SUBQUERY1_t1.col_varchar_10_key <= table1.col_varchar_10_key 
-) 
+WHERE
+(table1.col_int_key <=ANY
+( SELECT SUBQUERY1_t1.col_int_key
+FROM viewC AS SUBQUERY1_t1
+WHERE SUBQUERY1_t1.col_varchar_10_key <= table1.col_varchar_10_key
+)
 )
 ;
 field1
@@ -550,12 +556,12 @@ CREATE TABLE `C` (
 `o1` varchar(1) DEFAULT NULL
 ) charset utf8mb4;
 INSERT INTO `C` VALUES ('m');
-SELECT table1 . o1 
-FROM C table1  
-JOIN ( C table2  
-JOIN ( SELECT * FROM cc ) table3  
-ON table3 .`i1`  = table2 .o1  
-) ON table3 .`i2`  = table2 .o1   
+SELECT table1 . o1
+FROM C table1
+JOIN ( C table2
+JOIN ( SELECT * FROM cc ) table3
+ON table3 .`i1`  = table2 .o1
+) ON table3 .`i2`  = table2 .o1
 ;
 o1
 m
@@ -606,15 +612,15 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2, 9, NULL), (3, 3, '1900-01-01 00:00:00'),
 (8, 8, '1900-01-01 00:00:00'), (15, 0, '2007-12-15 12:39:34');
-SELECT * FROM ( 
-SELECT DISTINCT tableb.col_datetime_key 
+SELECT * FROM (
+SELECT DISTINCT tableb.col_datetime_key
 FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key
 ) AS from_subquery;
 col_datetime_key
 1900-01-01 00:00:00
 NULL
-EXPLAIN SELECT * FROM ( 
-SELECT DISTINCT tableb.col_datetime_key 
+EXPLAIN SELECT * FROM (
+SELECT DISTINCT tableb.col_datetime_key
 FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key
 ) AS from_subquery;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -623,8 +629,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	tableb	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `from_subquery`.`col_datetime_key` AS `col_datetime_key` from (/* select#2 */ select distinct `test`.`tableb`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `tablea` left join `test`.`t1` `tableb` on((`test`.`tablea`.`pk` < `test`.`tableb`.`col_int_key`)) where true) `from_subquery`
-EXPLAIN SELECT * FROM ( 
-SELECT DISTINCT tablea.col_datetime_key 
+EXPLAIN SELECT * FROM (
+SELECT DISTINCT tablea.col_datetime_key
 FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key
 ) AS from_subquery;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -686,7 +692,7 @@ f1	f11	f2	f22
 3	3	3	3
 explain for derived with where
 FLUSH STATUS;
-EXPLAIN 
+EXPLAIN
 SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
@@ -715,7 +721,7 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	7
 join of derived
-EXPLAIN 
+EXPLAIN
 SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt JOIN
 (SELECT * FROM t1 WHERE f1 IN (1,2)) aa ON tt.f1=aa.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1164,45 +1170,45 @@ f1	f11	f2	f22
 2	2	2	2
 3	3	3	3
 merged derived in merged derived
-EXPLAIN SELECT * FROM (SELECT * FROM 
+EXPLAIN SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7))
-SELECT * FROM (SELECT * FROM 
+SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
 f1	f11
 3	3
 5	5
 materialized derived in merged derived
-EXPLAIN  SELECT * FROM (SELECT * FROM 
+EXPLAIN  SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` < 7) and (`test`.`t1`.`f1` > 2)) group by `test`.`t1`.`f1`) `tt`
-SELECT * FROM (SELECT * FROM 
+SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
 f1	f11
 3	3
 5	5
 merged derived in materialized derived
-EXPLAIN SELECT * FROM (SELECT * FROM 
+EXPLAIN SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7)) group by `test`.`t1`.`f1`) `zz`
-SELECT * FROM (SELECT * FROM 
+SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 f1	f11
 3	3
 5	5
 materialized derived in materialized derived
-EXPLAIN  SELECT * FROM (SELECT * FROM 
+EXPLAIN  SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -1210,15 +1216,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` < 7) and (`test`.`t1`.`f1` > 2)) group by `test`.`t1`.`f1`) `tt` group by `tt`.`f1`) `zz`
-SELECT * FROM (SELECT * FROM 
+SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
 f1	f11
 3	3
 5	5
 mat in merged derived join mat in merged derived
-EXPLAIN  SELECT * FROM 
+EXPLAIN  SELECT * FROM
 (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) x
-JOIN 
+JOIN
 (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) z
 ON x.f1 = z.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1229,9 +1235,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11`,`tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` < 7) and (`test`.`t1`.`f1` > 2)) group by `test`.`t1`.`f1`) `tt` join (/* select#5 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` < 7) and (`test`.`t1`.`f1` > 2)) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` = `tt`.`f1`)
 FLUSH STATUS;
-SELECT * FROM 
+SELECT * FROM
 (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) x
-JOIN 
+JOIN
 (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) z
 ON x.f1 = z.f1;
 f1	f11	f1	f11
@@ -1248,11 +1254,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	23
 FLUSH STATUS;
 merged in merged derived join merged in merged derived
-EXPLAIN  SELECT * FROM 
-(SELECT * FROM 
+EXPLAIN  SELECT * FROM
+(SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) x
-JOIN 
-(SELECT * FROM 
+JOIN
+(SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) z
 ON x.f1 = z.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1260,23 +1266,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`f1` = `test`.`t1`.`f1`) and (`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7) and (`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7))
-SELECT * FROM 
-(SELECT * FROM 
+SELECT * FROM
+(SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) x
-JOIN 
-(SELECT * FROM 
+JOIN
+(SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) z
 ON x.f1 = z.f1;
 f1	f11	f1	f11
 3	3	3	3
 5	5	5	5
-materialized in materialized derived join 
+materialized in materialized derived join
 materialized in materialized derived
-EXPLAIN  SELECT * FROM 
-(SELECT * FROM 
+EXPLAIN  SELECT * FROM
+(SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) x
-JOIN 
-(SELECT * FROM 
+JOIN
+(SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) z
 ON x.f1 = z.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1288,11 +1294,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `x`.`f1` AS `f1`,`x`.`f11` AS `f11`,`z`.`f1` AS `f1`,`z`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` < 7) and (`test`.`t1`.`f1` > 2)) group by `test`.`t1`.`f1`) `tt` group by `tt`.`f1`) `x` join (/* select#4 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#5 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` < 7) and (`test`.`t1`.`f1` > 2)) group by `test`.`t1`.`f1`) `tt` group by `tt`.`f1`) `z` where (`z`.`f1` = `x`.`f1`)
-SELECT * FROM 
-(SELECT * FROM 
+SELECT * FROM
+(SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) x
-JOIN 
-(SELECT * FROM 
+JOIN
+(SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) z
 ON x.f1 = z.f1;
 f1	f11	f1	f11
@@ -1311,7 +1317,7 @@ f2	f22
 2	2
 3	3
 materialized view in merged derived
-EXPLAIN 
+EXPLAIN
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -1387,7 +1393,7 @@ DROP VIEW v1,v2,v3,v4,v6,v7;
 #
 #
 # BUG#11783262: CRASH IN ITEM_FIELD::ITEM_FIELD IN ITEM.CC ON SUBQUERY
-#               IN FROM WITH WL5274 
+#               IN FROM WITH WL5274
 #
 CREATE TABLE t1 (
 col_int_key INT,
@@ -1425,7 +1431,7 @@ FROM  t1
 DROP TABLE t1;
 #
 #
-# Bug#11808582: VALGRIND ON WL#5274: INVALID WRITE IN MC_REPLACE_STRMEM.C:493) 
+# Bug#11808582: VALGRIND ON WL#5274: INVALID WRITE IN MC_REPLACE_STRMEM.C:493)
 #
 CREATE TABLE t1 (
 pk INT NOT NULL AUTO_INCREMENT,
@@ -1447,7 +1453,7 @@ col_time_key
 DROP TABLE t1;
 #
 # Bug#11791677 - ASSERTION FAILED IN JOIN_MATERIALIZE_TABLE IN
-#                SQL_SELECT.CC ON NESTED SUBQUERY 
+#                SQL_SELECT.CC ON NESTED SUBQUERY
 #
 CREATE TABLE t1 (
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -1460,7 +1466,7 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (10,8,'v'), (29,4,'c');
-CREATE TABLE t2 (  
+CREATE TABLE t2 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 col_int_nokey int(11) DEFAULT NULL,
 col_varchar_key varchar(1) DEFAULT NULL,
@@ -1507,7 +1513,7 @@ a
 DROP TABLE t1;
 #
 # Bug#11791649 - ASSERT: FIXED == 0, IN ITEM.CC ON EXPLAIN WITH VIEW
-#                IN SUBQUERY 
+#                IN SUBQUERY
 #
 CREATE TABLE t1 (pk int);
 INSERT INTO t1 VALUES (1);
@@ -1617,7 +1623,7 @@ CREATE TABLE t1(f1 INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 CREATE FUNCTION func1 (param1 INTEGER) RETURNS INT NOT DETERMINISTIC
 return param1;
-CREATE FUNCTION func2 (param1 INTEGER) RETURNS INT 
+CREATE FUNCTION func2 (param1 INTEGER) RETURNS INT
 return param1;
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
@@ -1664,7 +1670,7 @@ SET @@optimizer_switch="derived_merge=off";
 SELECT alias2.fk AS field1 FROM t1 AS alias1 JOIN
 (SELECT * FROM t2 ) AS alias2 ON alias1.fk = alias2.fk;
 field1
-EXPLAIN 
+EXPLAIN
 SELECT alias2.fk AS field1 FROM t1 AS alias1 JOIN
 (SELECT * FROM t2 ) AS alias2 ON alias1.fk = alias2.fk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1740,7 +1746,7 @@ SET @@optimizer_switch= @save_switch;
 DROP TABLE t1, t2, t3;
 #
 #
-# Bug#13107577: Derived table in a semi-join caused failed assertion. 
+# Bug#13107577: Derived table in a semi-join caused failed assertion.
 #
 SET @save_switch= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
@@ -1756,7 +1762,7 @@ SELECT col_int_key
 FROM t1
 WHERE ( NOT EXISTS (
 SELECT col_varchar_nokey
-FROM t1 
+FROM t1
 WHERE ( 7 ) IN (
 SELECT v1.col_int_key
 FROM ( v1 JOIN ( SELECT * FROM t1 ) AS d1
@@ -1780,7 +1786,7 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1), (2), (3);
 CREATE VIEW v1 AS SELECT DISTINCT pk FROM t1;
-SELECT pk 
+SELECT pk
 FROM t2
 WHERE pk IN ( SELECT * FROM v1 ) ;
 pk
@@ -1791,7 +1797,7 @@ DROP VIEW v1;
 #
 # Bug#13261277: Unchecked key length caused missing records.
 #
-CREATE TABLE t1 (  
+CREATE TABLE t1 (
 col_varchar varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
 stub1 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
 stub2 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
@@ -1825,13 +1831,13 @@ SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 SELECT t2.col_int
 FROM t2
-RIGHT JOIN ( SELECT * FROM t1 ) AS dt 
+RIGHT JOIN ( SELECT * FROM t1 ) AS dt
 ON t2.col_varchar = dt.col_varchar
 WHERE t2.col_int IS NOT NULL ;
 col_int
 9
 # Shouldn't use auto_key0 for derived table
-EXPLAIN 
+EXPLAIN
 SELECT t2.col_int
 FROM t2
 RIGHT JOIN ( SELECT * FROM t1 ) AS dt
@@ -1988,7 +1994,7 @@ limit 1;
 field100
 1
 Should use auto_key0 and ref access.
-explain 
+explain
 select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
 limit 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3043,7 +3049,7 @@ LEFT JOIN
 t1 AS table2
 JOIN
 (SELECT sq2_t1.* FROM t1 AS sq2_t1) AS table3
-ON table3.col_varchar_key = table2.col_varchar_key 
+ON table3.col_varchar_key = table2.col_varchar_key
 ON table3.col_varchar_key = table2.col_varchar_key;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	sq1_t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -3071,7 +3077,7 @@ LEFT JOIN
 t1 AS table2
 JOIN
 (SELECT sq2_t1.* FROM t1 AS sq2_t1) AS table3
-ON table3.col_varchar_key = table2.col_varchar_key 
+ON table3.col_varchar_key = table2.col_varchar_key
 ON table3.col_varchar_key = table2.col_varchar_key;
 field2
 DROP TABLE t1, t2, t3, t4;
