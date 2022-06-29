@@ -156,6 +156,7 @@ class Abstract_table_impl : public Entity_object_impl,
   /////////////////////////////////////////////////////////////////////////
 
   Column *add_column() override;
+  bool drop_column(const String_type &name) override;
 
   const Column_collection &columns() const override { return m_columns; }
 
