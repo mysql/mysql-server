@@ -166,6 +166,7 @@ class Abstract_table : virtual public Entity_object {
   /////////////////////////////////////////////////////////////////////////
 
   virtual Column *add_column() = 0;
+  virtual bool drop_column(const String_type &name) = 0;
 
   virtual const Column_collection &columns() const = 0;
 

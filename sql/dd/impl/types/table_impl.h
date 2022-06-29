@@ -459,6 +459,9 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
     Abstract_table_impl::set_last_altered(last_altered);
   }
   Column *add_column() override { return Abstract_table_impl::add_column(); }
+  bool drop_column(const String_type &name) override {
+    return Abstract_table_impl::drop_column(name);
+  }
   const Column_collection &columns() const override {
     return Abstract_table_impl::columns();
   }

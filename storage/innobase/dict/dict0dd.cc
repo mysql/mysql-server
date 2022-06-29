@@ -1735,10 +1735,14 @@ void dd_part_adjust_table_id(dd::Table *new_table) {
 
 /** Clear the instant ADD COLUMN information of a table
 @param[in,out]  dd_table        dd::Table
-@param[in]      clear_version   true if version metadata is to be cleared */
-void dd_clear_instant_table(dd::Table &dd_table, bool clear_version) {
+@param[in]      clear_version   true if version metadata is to be cleared
+@return DB_SUCCESS or error code */
+dberr_t dd_clear_instant_table(dd::Table &dd_table, bool clear_version) {
+  dberr_t err = DB_SUCCESS;
   dd_table.se_private_data().remove(
       dd_table_key_strings[DD_TABLE_INSTANT_COLS]);
+
+  std::vector<std::string> cols_to_drop;
 
   for (auto col : *dd_table.columns()) {
     auto fn = [&](const char *s) {
@@ -1758,6 +1762,10 @@ void dd_clear_instant_table(dd::Table &dd_table, bool clear_version) {
       fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
     } else {
       /* Possibly an INSTANT ADD/DROP column with a version */
+      if (dd_column_is_dropped(col)) {
+        cols_to_drop.push_back(col->name().c_str());
+        continue;
+      }
       fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
       fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
       fn(dd_column_key_strings[DD_INSTANT_VERSION_ADDED]);
@@ -1765,6 +1773,23 @@ void dd_clear_instant_table(dd::Table &dd_table, bool clear_version) {
       fn(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS]);
     }
   }
+
+  if (!cols_to_drop.empty()) {
+    for (auto col_name : cols_to_drop) {
+      if (!dd_drop_hidden_column(&dd_table, col_name.c_str())) {
+        ib::error(ER_IB_MSG_CLEAR_INSTANT_DROP_COLUMN_METADATA)
+            << dd_table.name().c_str();
+        my_error(
+            ER_INTERNAL_ERROR, MYF(0),
+            "Failed to truncate table. You may drop and re-create this table.");
+        ut_ad(0);
+        err = DB_ERROR;
+      }
+    }
+  }
+  cols_to_drop.clear();
+
+  return err;
 }
 
 /** Clear the instant ADD COLUMN information of a partition, to make it
