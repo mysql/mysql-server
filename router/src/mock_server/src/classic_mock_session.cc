@@ -315,14 +315,34 @@ void MySQLServerMockSessionClassic::client_greeting() {
       return;
     }
   } else {
-    log_error("unsupported auth method: %s",
-              protocol_.auth_method_name().c_str());
-    protocol_.encode_error(
-        {ER_ACCESS_DENIED_ERROR,  // 1045
-         "Access Denied for user '" + protocol_.username() + "'@'localhost'",
-         "28000"});
+    // switch to something we know.
+    protocol_.auth_method_name("caching_sha2_password");
 
-    send_response_then_disconnect();
+    // ask for the real full authentication
+    protocol_.auth_method_data(std::string(20, 'a'));
+
+    protocol_.encode_auth_switch_message(
+        {protocol_.auth_method_name(),
+         protocol_.auth_method_data() + std::string(1, '\0')});
+
+    protocol_.async_send([this, to_send = protocol_.send_buffer().size()](
+                             std::error_code ec, size_t transferred) {
+      if (ec) {
+        if (ec != std::errc::operation_canceled) {
+          log_warning("send auto result failed: %s", ec.message().c_str());
+        }
+
+        disconnect();
+        return;
+      }
+
+      if (to_send < transferred) {
+        std::terminate();
+      } else {
+        auth_switched();
+      }
+    });
+    return;
   }
 }
 
