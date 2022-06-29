@@ -105,10 +105,16 @@ external tools. */
 #include <intrin.h>
 #endif /* CRC32_x86_64_WIN */
 
-#ifdef CRC32_ARM64
+#if defined(CRC32_ARM64) && !defined(CRC32_ARM64_WINDOWS)
 #include <arm_acle.h>
 #include <arm_neon.h>
 #endif /* CRC32_ARM64 */
+
+#ifdef CRC32_ARM64_WINDOWS
+#include <arm64intr.h>
+#include <arm64_neon.h>
+#include <processthreadsapi.h>
+#endif
 
 #ifdef CRC32_ARM64_DEFAULT
 #include <asm/hwcap.h>
@@ -364,6 +370,11 @@ bool can_use_crc32() { return getauxval(AT_HWCAP) & HWCAP_CRC32; }
 bool can_use_poly_mul() { return getauxval(AT_HWCAP) & HWCAP_PMULL; }
 #endif /* CRC32_ARM64_DEFAULT */
 
+#ifdef CRC32_ARM64_WINDOWS
+bool can_use_crc32() { return IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE); }
+bool can_use_poly_mul() { return IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE); }
+#endif
+
 /** A helper template to statically unroll a loop with a fixed number of
 iterations, where the iteration number itself is constexpr. So, instead of:
 
@@ -527,19 +538,34 @@ coefficients.
 @param[in]  w   The polynomial w(x) = sum_{i=0}^{127} { a_i * x^{i} }
 @return The lowest 64 coefficients, i.e. (result & (1ULL<<i)) == a_i for 0<=i<64
 */
+#ifndef CRC32_ARM64_WINDOWS
 static inline uint64_t less_significant_half_of_poly128_t_to_uint64_t(
     poly128_t w) {
   /* This should compile down to just a single mov */
   return vgetq_lane_u64(vreinterpretq_u64_p128(w), 0);
 }
+#else
+static inline uint64_t less_significant_half_of_poly128_t_to_uint64_t(
+    poly64x2_t w) {
+  /* This should compile down to just a single mov */
+  return vgetq_lane_u64(vreinterpretq_u64_p128(w), 0);
+}
+#endif
 template <uint32_t w>
 #ifdef CRC32_ARM64_DEFAULT
 MY_ATTRIBUTE((target("+crypto")))
 #endif /* CRC32_ARM64_DEFAULT */
+#ifndef CRC32_ARM64_WINDOWS
 uint64_t use_pclmul::polynomial_mul_rev(uint32_t rev_u) {
   constexpr uint64_t flipped_w = flip_at_32(w);
   return less_significant_half_of_poly128_t_to_uint64_t(vmull_p64(
       uint64_t_to_poly_64_t(flipped_w), uint64_t_to_poly_64_t(rev_u)));
+#else
+uint64_t use_pclmul::polynomial_mul_rev(uint32_t rev_u) {
+  constexpr uint64_t flipped_w = flip_at_32(w);
+  return less_significant_half_of_poly128_t_to_uint64_t(vmull_p64(
+      vcreate_p64(flipped_w), vcreate_p64(rev_u)));
+#endif
 }
 #endif /* CRC32_ARM64 */
 
@@ -776,6 +802,9 @@ MY_ATTRIBUTE((target("sse4.2,pclmul"), flatten))
 #ifdef CRC32_ARM64_APPLE
 MY_ATTRIBUTE((flatten))
 #endif /* CRC32_ARM64_APPLE */
+#ifdef CRC32_ARM64_WINDOWS
+__forceinline
+#endif /* CRC32_ARM64_WINDOWS */
 #ifdef CRC32_ARM64_DEFAULT
 MY_ATTRIBUTE((target("+crc+crypto"), flatten))
 #endif /* CRC32_ARM64_DEFAULT */
@@ -796,6 +825,9 @@ MY_ATTRIBUTE((target("sse4.2"), flatten))
 #ifdef CRC32_ARM64_APPLE
 MY_ATTRIBUTE((flatten))
 #endif /* CRC32_ARM64_APPLE */
+#ifdef CRC32_ARM64_WINDOWS
+__forceinline
+#endif /* CRC32_ARM64_WINDOWS */
 #ifdef CRC32_ARM64_DEFAULT
 MY_ATTRIBUTE((target("+crc"), flatten))
 #endif /* CRC32_ARM64_DEFAULT */

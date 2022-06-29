@@ -548,7 +548,11 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       SET(SSL_MSVC_ARCH_SUFFIX)
       IF(OPENSSL_MINOR_VERSION VERSION_EQUAL 1)
         SET(SSL_MSVC_VERSION_SUFFIX "-1_1")
-        SET(SSL_MSVC_ARCH_SUFFIX "-x64")
+        IF(WIN_ARM64)
+          SET(SSL_MSVC_ARCH_SUFFIX "-arm64")
+        ELSE()
+          SET(SSL_MSVC_ARCH_SUFFIX "-x64")
+        ENDIF()
       ENDIF()
 
       # OpenSSL 1.1 Look for libcrypto-1_1-x64.dll or libcrypto-1_1.dll

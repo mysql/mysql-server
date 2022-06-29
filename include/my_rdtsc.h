@@ -137,5 +137,6 @@ void my_timer_init(MY_TIMER_INFO *mti);
 /* #define MY_TIMER_ROUTINE_ASM_SUNPRO_X86_64       27  - No longer used */
 #define MY_TIMER_ROUTINE_ASM_AARCH64 28
 #define MY_TIMER_ROUTINE_GET_THREAD_TIMES 29
+#define MY_TIMER_ROUTINE_INTRIN_MSVC_AARCH64 30
 
 #endif

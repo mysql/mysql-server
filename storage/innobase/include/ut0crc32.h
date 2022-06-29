@@ -49,23 +49,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
   - do you need the variant with swapped byte order?
 */
 
-#if defined(__GNUC__) && defined(__x86_64__) || defined(_WIN32)
+#if defined(__GNUC__) && defined(__x86_64__) || (defined(_WIN32) && !defined(_M_ARM64))
 #define CRC32_x86_64
 #ifdef _WIN32
 #define CRC32_x86_64_WIN
 #else /* _WIN32 */
 #define CRC32_x86_64_DEFAULT
 #endif /* _WIN32 */
-#elif defined(__aarch64__) && defined(__GNUC__)
+#elif defined(_M_ARM64) || defined(__aarch64__) && defined(__GNUC__)
 #define CRC32_ARM64
 #ifdef APPLE_ARM
 #define CRC32_ARM64_APPLE
-#else /* APPLE_ARM */
+#elif defined(_M_ARM64)
+#define CRC32_ARM64_WINDOWS
+#else
 #define CRC32_ARM64_DEFAULT
 #endif /* APPLE_ARM */
 #else
 #define CRC32_DEFAULT
-#endif /* defined(__aarch64__) && defined(__GNUC__) */
+#endif /* defined(_M_ARM64) || defined(__aarch64__) && defined(__GNUC__) */
 
 /* At this point we have classified the system statically into exactly one of
 the possible cases:
@@ -103,6 +105,11 @@ CRC32_ARM64
         expect to find sys/auxv.h header which defines getauxval() on it, yet we
         also expect the __crc32cd and vmull_p64 to "just work" on it, without
         checking getauxval().
+
+    CRC32_ARM64_WINDOWS:
+        An environment which seems to be Windows ARM64. This means that we are
+        required to use the IsProcessorFeaturePresent function to determine if
+        the processor is capable of using the CRC32 NEON intrinsics.
 
     CRC32_ARM64_DEFAULT
         An environment which seems to be like a "regular" ARM64. Note that this

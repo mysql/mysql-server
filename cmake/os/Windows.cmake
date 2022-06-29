@@ -39,6 +39,10 @@ IF(MY_COMPILER_IS_CLANG)
   ADD_DEFINITIONS(-DWIN32_CLANG)
 ENDIF()
 
+IF(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+  SET(WIN_ARM64 1)
+ENDIF()
+
 # avoid running system checks by using pre-cached check results
 # system checks are expensive on VS since every tiny program is to be compiled
 # in a VC solution.
@@ -58,7 +62,12 @@ ENDIF()
 # Used by the test suite to ignore bugs on some platforms,
 IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
   SET(SYSTEM_TYPE "Win64")
-  SET(MYSQL_MACHINE_TYPE "x86_64")
+  IF(WIN_ARM64)
+    SET(MYSQL_MACHINE_TYPE "arm64")
+  ELSE()
+    SET(MYSQL_MACHINE_TYPE "x86_64")
+  ENDIF()
+  
 ELSE()
   IF(WITHOUT_SERVER)
     MESSAGE(WARNING "32bit is experimental!!")

@@ -172,6 +172,12 @@ ulonglong my_timer_cycles(void) {
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   /* gethrtime may appear as either cycle or nanosecond counter */
   return (ulonglong)gethrtime();
+#elif defined(_M_ARM64)
+  /* MSVC doesn't allow the use of __asm for ARM64, so we use the intrinsic. */
+  /* This is equivalent to the aarch64 code above, just MSVC-friendly */
+  ulonglong result;
+  result = _ReadStatusReg(ARM64_CNTVCT);
+  return result;
 #else
   return 0;
 #endif
@@ -493,6 +499,8 @@ void my_timer_init(MY_TIMER_INFO *mti) {
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_AARCH64;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   mti->cycles.routine = MY_TIMER_ROUTINE_GETHRTIME;
+#elif defined(_M_ARM64)
+  mti->cycles.routine = MY_TIMER_ROUTINE_INTRIN_MSVC_AARCH64;
 #else
   mti->cycles.routine = 0;
 #endif
