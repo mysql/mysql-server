@@ -1861,9 +1861,13 @@ bool dd_instant_columns_consistent(const dd::Table &dd_table) {
          (n_version_drop_cols >= (n_inst_cols - n_non_instant_cols)));
 
   ut_ad(exp);
-  ut_ad(found);
 
-  return (found && exp);
+  /* found will be false iff after upgrade INSTANT ADD column was INSTANT
+  DROP. */
+  bool exp2 = found || dd_table_has_row_versions(dd_table);
+  ut_ad(exp2);
+
+  return (exp && exp2);
 }
 #endif /* UNIV_DEBUG */
 
