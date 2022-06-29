@@ -1328,8 +1328,11 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (mysql->net.vio == nullptr || net->error == NET_ERROR_SOCKET_UNUSABLE) {
     /* Do reconnect if possible */
     if (!mysql->reconnect || mysql_reconnect(mysql) || stmt_skip) {
-      set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
-      return true;  // reconnect == false OR reconnect failed
+      if (mysql->net.last_errno == 0) {
+        /* We should not override the last error, hence above check */
+        set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+      }
+      return true; /* reconnect == false OR reconnect failed */
     }
     /* reconnect succeeded */
     assert(mysql->net.vio != nullptr);
