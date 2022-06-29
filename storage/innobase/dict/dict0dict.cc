@@ -2598,15 +2598,17 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   new_index->set_instant_nullable(new_index->n_nullable);
 
   if (new_index->is_clustered()) {
+    if (new_index->table->has_row_versions()) {
+      new_index->row_versions = true;
+    }
+
     if (new_index->table->has_instant_cols()) {
       ut_ad(new_index->table->is_upgraded_instant());
       new_index->instant_cols = true;
-      new_index->set_instant_nullable(
-          new_index->get_n_nullable_before(new_index->get_instant_fields()));
-    }
-
-    if (new_index->table->has_row_versions()) {
-      new_index->row_versions = true;
+      const size_t n_instant_fields = new_index->get_instant_fields();
+      size_t new_n_nullable =
+          new_index->calculate_n_instant_nullable(n_instant_fields);
+      new_index->set_instant_nullable(new_n_nullable);
     }
   }
 

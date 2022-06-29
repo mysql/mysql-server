@@ -1331,7 +1331,11 @@ struct dict_index_t {
     ut_ad(nth <= n_total_fields);
 
     for (size_t i = 0; i < nth; ++i) {
-      if (get_field(i)->col->is_nullable()) {
+      dict_col_t *col = get_field(i)->col;
+
+      ut_ad(!col->is_instant_dropped());
+
+      if (col->is_nullable()) {
         nullable++;
       }
     }
@@ -1348,6 +1352,42 @@ struct dict_index_t {
   /** Returns the number of fields before first instant ADD COLUMN. This is
   needed only for V1 INSTANT ADD. */
   uint32_t get_instant_fields() const;
+
+  size_t calculate_n_instant_nullable(size_t _n_fields) const {
+    if (!has_row_versions()) {
+      ut_ad(has_instant_cols());
+      return get_n_nullable_before(_n_fields);
+    }
+
+    size_t n_drop_nullable_cols = 0;
+    size_t new_n_nullable = 0;
+    for (size_t i = 0; i < n_def; i++) {
+      const dict_field_t *field = &fields[i];
+      const dict_col_t *col = field->col;
+
+      if (col->is_instant_added()) {
+        continue;
+      }
+
+      if (col->is_instant_dropped()) {
+        if (col->get_col_phy_pos() < _n_fields && col->is_nullable()) {
+          n_drop_nullable_cols++;
+        }
+        continue;
+      }
+
+      /* This is regular column */
+      if (col->get_col_phy_pos() < _n_fields) {
+        if (col->is_nullable()) {
+          new_n_nullable++;
+        }
+      }
+    }
+
+    new_n_nullable += n_drop_nullable_cols;
+
+    return new_n_nullable;
+  }
 
   /** Create nullables array.
   @param[in]    current_row_version     current row version of table */
@@ -2423,6 +2463,15 @@ detect this and will eventually quit sooner. */
   @return       the number of user columns as described above */
   uint16_t get_instant_cols() const {
     return static_cast<uint16_t>(n_instant_cols - get_n_sys_cols());
+  }
+
+  size_t get_n_instant_added_col_v1() const {
+    size_t n_cols_dropped = get_n_instant_drop_cols();
+    size_t n_cols_added = get_n_instant_add_cols();
+    size_t n_instant_added_cols =
+        n_cols + n_cols_dropped - n_cols_added - n_instant_cols;
+
+    return (n_instant_added_cols);
   }
 
   /** Get number of columns added instantly */
