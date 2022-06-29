@@ -249,14 +249,14 @@ static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
     }
   }();
 
-  const bool is_set_operation = param->query_blocks.size() > 1;
+  const bool is_union = param->query_blocks.size() > 1;
   string str;
-  const bool doing_dedup = MaterializeIsDoingDeduplication(param->table);
+
   if (param->cte != nullptr) {
     if (param->cte->recursive) {
       str = "Materialize recursive CTE " + to_string(param->cte->name);
     } else {
-      if (is_set_operation) {
+      if (is_union) {
         str = "Materialize union CTE " + to_string(param->cte->name);
       } else {
         str = "Materialize CTE " + to_string(param->cte->name);
@@ -269,35 +269,17 @@ static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
         }
       }
     }
-  } else if (is_set_operation) {
-    if (param->table->is_union()) {
-      if (doing_dedup)
-        str = "Union materialize";
-      else
-        str = "Union all materialize";
-    } else {
-      if (param->table->m_except) {
-        if (param->table->m_last_operation_is_distinct)
-          str = "Except materialize";
-        else
-          str = "Except all materialize";
-      } else {
-        if (param->table->m_last_operation_is_distinct)
-          str = "Intersect materialize";
-        else
-          str = "Intersect all materialize";
-      }
-    }
+  } else if (is_union) {
+    str = "Union materialize";
   } else if (param->rematerialize) {
     str = "Temporary table";
   } else {
     str = "Materialize";
   }
-  const bool union_dedup = param->table->is_union() && doing_dedup;
-  if (union_dedup || (!param->table->is_union() &&
-                      param->table->m_last_operation_is_distinct)) {
+
+  if (MaterializeIsDoingDeduplication(param->table)) {
     str += " with deduplication";
-  }  // else: do not print deduplication for intersect, except
+  }
 
   if (param->invalidators != nullptr) {
     bool first = true;
@@ -348,17 +330,6 @@ static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
     string this_heading = heading;
 
     if (query_block.disable_deduplication_by_hash_field) {
-      if (this_heading.empty()) {
-        this_heading = "Disable deduplication";
-      } else {
-        this_heading += ", disable deduplication";
-      }
-    }
-    if (!param->table->is_union() &&
-        (param->table->m_except &&
-         param->table->m_last_operation_is_distinct) &&
-        query_block.block_no > 0 &&
-        (query_block.block_no < query_block.first_distinct)) {
       if (this_heading.empty()) {
         this_heading = "Disable deduplication";
       } else {

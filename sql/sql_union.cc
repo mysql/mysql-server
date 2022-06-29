@@ -94,6 +94,7 @@
 #include "sql/visible_fields.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"
+
 using std::move;
 using std::vector;
 
@@ -113,7 +114,7 @@ bool Query_result_union::send_data(THD *thd,
                   nullptr, false))
     return true; /* purecov: inspected */
 
-  if (table->is_union() && !check_unique_constraint(table)) return false;
+  if (!check_unique_constraint(table)) return false;
 
   const int error = table->file->ha_write_row(table->record[0]);
   if (!error) {
@@ -176,7 +177,7 @@ bool Query_result_union::create_result_table(
                     visible_fields, false, true);
   tmp_table_param.skip_create_table = !create_table;
   tmp_table_param.bit_fields_as_long = bit_fields_as_long;
-  if (unit != nullptr && op == nullptr) {
+  if (unit != nullptr) {
     if (unit->is_recursive()) {
       /*
         If the UNIQUE key specified for UNION DISTINCT were a primary key in
@@ -185,25 +186,10 @@ bool Query_result_union::create_result_table(
       */
       tmp_table_param.can_use_pk_for_unique = false;
     }
-    if (!unit->is_simple() && unit->can_materialize_directly_into_result()) {
-      op = unit->set_operation();
-    }
+    if (!unit->is_simple()) op = unit->set_operation();
   }
 
-  if (op == nullptr) {
-    ;
-  } else if (op->term_type() == QT_INTERSECT || op->term_type() == QT_EXCEPT) {
-    tmp_table_param.m_operation = op->term_type() == QT_INTERSECT
-                                      ? Temp_table_param::TTP_INTERSECT
-                                      : Temp_table_param::TTP_EXCEPT;
-    // No duplicate rows will exist after the last operation
-    tmp_table_param.m_last_operation_is_distinct = op->m_last_distinct > 0;
-    assert((op->m_first_distinct < std::numeric_limits<int64_t>::max() ||
-            !tmp_table_param.m_last_operation_is_distinct) &&
-           (op->m_first_distinct <= op->m_last_distinct ||
-            op->m_first_distinct == std::numeric_limits<int64_t>::max()));
-    tmp_table_param.force_hash_field_for_unique = true;
-  } else if (op->has_mixed_distinct_operators()) {
+  if (op != nullptr && op->has_mixed_distinct_operators()) {
     // If we have mixed UNION DISTINCT / UNION ALL, we can't use an unique
     // index to deduplicate, as we need to be able to turn off deduplication
     // checking when we get to the UNION ALL part. The handler supports
@@ -237,9 +223,6 @@ bool Query_result_union::reset() {
   return table ? table->empty_result_table() : false;
 }
 
-void Query_result_union::set_limit(ha_rows limit_rows) {
-  table->m_limit_rows = limit_rows;
-}
 /**
   This class is effectively dead. It was used for non-DISTINCT UNIONs
   in the pre-iterator executor. Now it exists only as a shell for certain
@@ -356,7 +339,6 @@ static bool create_tmp_table_for_set_op(THD *thd, Query_term *qt,
   qt->set_result_table_list(tl);
 
   char *buffer = new (thd->mem_root) char[64 + 1];
-  if (buffer == nullptr) return true;
   snprintf(buffer, 64, "<%s temporary>", parent->operator_string());
 
   if (qt->setop_query_result_union()->create_result_table(
@@ -403,15 +385,12 @@ static bool create_tmp_table_for_set_op(THD *thd, Query_term *qt,
   @param create_options
                 options to use for creating tmp table
   @param level  the current level in the query expression's query term tree
-  @param[in,out] nullable
-                computed nullability for the query's result set columns
   @returns false on success, true on error
  */
 bool Query_expression::prepare_query_term(THD *thd, Query_term *qt,
                                           Query_result *common_result,
                                           ulonglong added_options,
-                                          ulonglong create_options, int level,
-                                          Mem_root_array<bool> &nullable) {
+                                          ulonglong create_options, int level) {
   Change_current_query_block save_and_restore(thd);
   Query_term_set_op *const parent = qt->parent();
   // We have a nested set operation structure where the leaf nodes are query
@@ -481,67 +460,14 @@ bool Query_expression::prepare_query_term(THD *thd, Query_term *qt,
       }
       qb->set_query_result(qts->setop_query_result());
 
-      // To support SQL T101 "Enhanced nullability determination", the rules
-      // for computing nullability of the result columns of a set operation
-      // require that we perform different computation for UNION, INTERSECT and
-      // EXCEPT, cf. SQL 2014, Vol 2, section 7.17 <query expression>, SR 18
-      // and 20.  When preparing the leaf query blocks in
-      // Query_expression::prepare, type unification for set operations is done
-      // by calling Item_aggregate_type::join_types including setting
-      // nullability.  This works correctly for UNION, but not if we have
-      // INTERSECT and/or EXCEPT in the tree of set operations. We can only do
-      // it correctly here prepare_query_term since this visits the tree
-      // recursively as required by the rules.
-      //
-      Mem_root_array<bool> child_nullable(thd->mem_root, nullable.size(),
-                                          false);
-
-      // Prepare children
-      for (size_t i = 0; i < qts->m_children.size(); i++) {
+      for (uint i = 0; i < qts->m_children.size(); i++) {
         Query_result *const cmn_result =
             (i == 0) ? nullptr : qts->m_children[0]->setop_query_result();
         // operands 1..size-1 inherit operand 0's query_result: they all
         // contribute to the same result.
         if (prepare_query_term(thd, qts->m_children[i], cmn_result,
-                               added_options, create_options, level + 1,
-                               child_nullable))
+                               added_options, create_options, level + 1))
           return true;
-        for (size_t j = 0; j < nullable.size(); j++) {
-          if (i == 0) {  // left side
-            nullable[j] = child_nullable[j];
-          } else {
-            switch (qt->term_type()) {
-              case QT_UNION:
-                nullable[j] = nullable[j] || child_nullable[j];
-                break;
-              case QT_INTERSECT:
-                nullable[j] = nullable[j] && child_nullable[j];
-                break;
-              case QT_EXCEPT:
-                // Nothing to do, use left side unchanged
-                break;
-              default:
-                assert(false);
-            }
-          }
-        }
-      }
-
-      // Adjust tmp table fields' nullabililty. It is safe to do this because
-      // fields were created with nullability if at least one query block had
-      // nullable field during type joining (UNION semantics), so we will
-      // only ever set nullable here if result field originally was computed
-      // as nullable in join_types. And removing nullability for a Field isn't
-      // a problem.
-      size_t idx = 0;
-      for (auto f : qb->visible_fields()) {
-        f->set_nullable(nullable[idx]);
-        assert(f->type() == Item::FIELD_ITEM);
-        if (nullable[idx])
-          down_cast<Item_field *>(f)->field->clear_flag(NOT_NULL_FLAG);
-        else
-          down_cast<Item_field *>(f)->field->set_flag(NOT_NULL_FLAG);
-        idx++;
       }
 
       if (qts->m_is_materialized) {
@@ -600,7 +526,7 @@ bool Query_expression::prepare_query_term(THD *thd, Query_term *qt,
 
       if (prepare_query_term(thd, unary->m_children[0],
                              /*common_result*/ nullptr, added_options,
-                             create_options, level + 1, nullable))
+                             create_options, level + 1))
         return true;
 
       // Set up the result table for name resolution
@@ -635,9 +561,6 @@ bool Query_expression::prepare_query_term(THD *thd, Query_term *qt,
       }
       qt->set_setop_query_result(inner_qr);
       qt->query_block()->set_query_result(inner_qr);
-      int idx = 0;
-      for (auto field : qt->query_block()->visible_fields())
-        nullable[idx++] = field->is_nullable();
 
     } break;
   }
@@ -829,9 +752,9 @@ bool Query_expression::prepare(THD *thd, Query_result *sel_result,
 
   if (!simple_query_expression) {
     /*
-      Check that it was possible to aggregate all collations together for set
-      operation.  We need this in case of setop DISTINCT, to detect duplicates
-      using the proper collation.
+      Check that it was possible to aggregate all collations together for UNION.
+      We need this in case of UNION DISTINCT, to filter out duplicates using
+      the proper collation.
 
       TODO: consider removing this test in case of UNION ALL.
     */
@@ -845,21 +768,10 @@ bool Query_expression::prepare(THD *thd, Query_result *sel_result,
     ulonglong create_options =
         first_query_block()->active_options() | TMP_TABLE_ALL_COLUMNS;
 
-    // SQL feature T101 enhanced nullability determination: a priori calculated
-    // by join_types (UNION semantics), but needs adjustment for INTERSECT and
-    // EXCEPT: nullable array computed recursively
-    Mem_root_array<bool> nullable(thd->mem_root, types.size(), false);
-    for (size_t i = 0; i < types.size(); i++)
-      nullable[i] = types[i]->is_nullable();  // a priori setting
-
-    // Prepare the tree of set operations, aka the query term tree
     if (prepare_query_term(thd, query_term(),
                            /*common_result*/ nullptr, added_options,
-                           create_options, /*level*/ 0, nullable))
+                           create_options, /*level*/ 0))
       return true; /* purecov: inspected */
-
-    for (size_t i = 0; i < types.size(); i++)
-      types[i]->set_nullable(nullable[i]);
   }
 
   // Query blocks are prepared, update the state
@@ -925,62 +837,6 @@ static bool optimize_set_operand(THD *thd, Query_expression *qe,
   return false;
 }
 
-/**
-  Determine if we should set or add the contribution of the given query block to
-  the total row count estimate for the query expression.
-  If we have INTERSECT or EXCEPT, only set row estimate for left side since
-  the total number of rows in the result set can only decrease as a result
-  of the set operation.
-  @param qb query block
-  @return true if the estimate should be added
-*/
-static bool set_or_update_rowcount_estimate(Query_block *qb) {
-  if (qb->parent() == nullptr) return true;
-
-  // Find the query block's query_term
-  Query_term *query_term = nullptr;
-  for (auto qt : qb->master_query_expression()->query_terms<>()) {
-    if (qt->query_block() == qb) {
-      query_term = qt;
-      break;
-    }
-  }
-  assert(query_term != nullptr);  // should only ever be called for leaf nodes
-
-  // See if this query block is contained in a right side of an INTERSECT
-  // or EXCEPT operation anywhere in tree. If so, we can ignore its count.
-  Query_term_set_op *parent = query_term->parent();
-  while (parent != nullptr) {
-    const auto term_type = parent->term_type();
-    if ((term_type == QT_EXCEPT || term_type == QT_INTERSECT) &&
-        parent->m_children[0] != query_term)
-      return false;
-    // Even if we are on the left side of an INTERSECT, EXCEPT, the set
-    // operation itself could still be in a non-contributing side higher up, so
-    // continue checking.
-    query_term = parent;
-    parent = parent->parent();
-  }
-  return true;
-}
-
-static bool use_iterator(TABLE *materialize_destination,
-                         Query_term *query_term) {
-  if (materialize_destination == nullptr) return false;
-
-  switch (query_term->term_type()) {
-    case QT_INTERSECT:
-    case QT_EXCEPT:
-      // In corner cases for transform of scalar subquery, it can happen
-      // that the destination table isn't ready for INTERSECT or EXCEPT, so
-      // force double materialization.
-      // FIXME: find out if we can remove this exception.
-      return materialize_destination->is_union();
-    default:;
-  }
-  return false;
-}
-
 bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
                                 bool create_iterators,
                                 bool finalize_access_paths) {
@@ -1015,12 +871,10 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
       2. If GROUP BY clause is optimized away because it was a constant then
          query produces at most one row.
      */
-    if (set_or_update_rowcount_estimate(query_block))
-      estimated_rowcount += (query_block->is_implicitly_grouped() ||
-                             query_block->join->group_optimized_away)
-                                ? 1
-                                : query_block->join->best_rowcount;
-
+    estimated_rowcount += query_block->is_implicitly_grouped() ||
+                                  query_block->join->group_optimized_away
+                              ? 1
+                              : query_block->join->best_rowcount;
     estimated_cost += query_block->join->best_read;
 
     // TABLE_LIST::fetch_number_of_rows() expects to get the number of rows
@@ -1053,7 +907,6 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
   if (!is_simple()) {
     if (optimize_set_operand(thd, this, query_term())) return true;
     if (set_limit(thd, query_term()->query_block())) return true;
-    if (!is_union()) query_result()->set_limit(select_limit_cnt);
   }
 
   query_result()->estimated_rowcount = estimated_rowcount;
@@ -1066,8 +919,7 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
       thd->lex->m_sql_cmd->using_secondary_storage_engine()) {
     // Not supported when using secondary storage engine.
     create_access_paths(thd);
-  } else if (estimated_rowcount <= 1 ||
-             use_iterator(materialize_destination, query_term())) {
+  } else if (estimated_rowcount <= 1) {
     // Don't do it for const tables, as for those, optimize_derived() wants to
     // run the query during optimization, and thus needs an iterator.
     //
@@ -1373,12 +1225,10 @@ Query_term_set_op::setup_materialize_set_op(THD *thd, TABLE *dst_table,
   Mem_root_array<MaterializePathParameters::QueryBlock> query_blocks(
       thd->mem_root);
 
-  int64 idx = -1;
+  int idx = -1;
   for (Query_term *term : m_children) {
     ++idx;
-    bool activate_deduplication =
-        idx <= m_last_distinct ||
-        term_type() != QT_UNION; /* always for INTERSECT and EXCEPT */
+    bool activate_deduplication = idx <= m_last_distinct;
     JOIN *join = term->query_block()->join;
     AccessPath *child_path = join->root_access_path();
     assert(join->is_optimized() && child_path != nullptr);
@@ -1390,9 +1240,7 @@ Query_term_set_op::setup_materialize_set_op(THD *thd, TABLE *dst_table,
     MaterializePathParameters::QueryBlock param =
         term->query_block()->setup_materialize_query_block(child_path,
                                                            dst_table);
-    param.first_distinct = m_first_distinct;
-    param.block_no = idx;
-    param.total_blocks = m_children.size();
+
     param.disable_deduplication_by_hash_field =
         (has_mixed_distinct_operators() && !activate_deduplication);
     query_blocks.push_back(move(param));

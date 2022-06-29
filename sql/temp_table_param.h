@@ -192,15 +192,6 @@ class Temp_table_param {
   /// This tmp table is used for a window's frame buffer
   bool m_window_frame_buffer{false};
 
-  /// For INTERSECT and EXCEPT computation
-  enum { TTP_UNION, TTP_EXCEPT, TTP_INTERSECT } m_operation{TTP_UNION};
-  /// The tempoary table rows need a counter to keep track of its
-  /// duplicates: needed for EXCEPT and INTERSECT computation.
-  bool needs_set_counter() { return m_operation != TTP_UNION; }
-  /// For INTERSECT and EXCEPT computation.
-  /// Cf. TABLE::m_last_operation_is_distinct.
-  bool m_last_operation_is_distinct{false};
-
   /// If this is the out table of a window: the said window
   Window *m_window;
 

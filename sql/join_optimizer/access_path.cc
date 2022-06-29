@@ -953,9 +953,6 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           to.copy_items = from.copy_items;
           to.temp_table_param = from.temp_table_param;
           to.is_recursive_reference = from.is_recursive_reference;
-          to.first_distinct = from.first_distinct;
-          to.total_blocks = from.total_blocks;
-          to.block_no = from.block_no;
 
           if (to.is_recursive_reference) {
             // Find the recursive reference to ourselves; there should be

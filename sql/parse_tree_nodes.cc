@@ -1405,7 +1405,7 @@ static Surrounding_context qt2sc(Query_term_type qtt) {
 
         -> Append
            -> Stream results
-               -> Table scan on \<union temporary\>
+               -> Table scan on <union temporary>
                    -> Union materialize with deduplication
                        -> Table scan on t1
                        -> Table scan on t2
@@ -1423,7 +1423,7 @@ static Surrounding_context qt2sc(Query_term_type qtt) {
     to the temporary table, which gives a performance penalty, so we don't
     merge.
 
-        -> Table scan on \<union temporary\>
+        -> Table scan on <union temporary>
             -> Union materialize with deduplication
                 -> Table scan on t1
                 -> Table scan on t2
@@ -1440,7 +1440,7 @@ static Surrounding_context qt2sc(Query_term_type qtt) {
    will yield
 
        -> Sort: a
-           -> Table scan on \<union temporary\>
+           -> Table scan on <union temporary>
                -> Union materialize with deduplication
                    -> Table scan on t1
                    -> Table scan on t2
@@ -1464,33 +1464,6 @@ static Surrounding_context qt2sc(Query_term_type qtt) {
                 -> Table scan on t2
                 -> Table scan on t3
 
-  For INTERSECT, the presence of one DISTINCT operator effectively
-  makes any with ALL equivalent to distinct, so we only retain ALL if
-  all operators are ALL, i.e. for a N-ary INTERSECT with at least one DISTINCT,
-  has_mixed_distinct_operators always returns false.
-  We aggressively merge up all sub-nests for INTERSECT.
-
-  INTERSECT ALL are only binary due to current implementation method, no merge
-  up.
-
-  EXCEPT [ALL] not right associative, so be careful when merging: we only merge
-  up a left-most nested EXCEPT into an upper level EXCEPT, since we evaluate
-  from left to right.  Note that for EXCEPT, for an N-ary operation, a mix of
-  ALL and DISTINCT is meaningful and supported. After the first operand with
-  DISTINCT, further ALL operands is meaningsless, of course. Example explain:
-
-      SELECT * FROM r EXCEPT ALL SELECT * FROM s EXCEPT SELECT * FROM t
-
-  -> Table scan on \<except temporary\>  (cost=..)
-    -> Except materialize with deduplication  (cost=..)
-        -> Table scan on r  (cost=..)
-        -> Disable deduplication
-            -> Table scan on s  (cost=..)
-        -> Table scan on t  (cost=..)
-
-  We can see that the first two operands are compared with ALL ("disable
-  de-duplication"), whereas the final one, t, is DISTINCT.
-
   @param      pc   the parse context
   @param      setop the set operation query term to be filled in with children
   @param      ql   parsing query level
@@ -1498,55 +1471,31 @@ static Surrounding_context qt2sc(Query_term_type qtt) {
 void PT_set_operation::merge_descendants(Parse_context *pc,
                                          Query_term_set_op *setop,
                                          QueryLevel &ql) {
-  // If a child is a Query_block, include it in this set op list as is.  If a
+  // If a child is a Query_block, include it in this union list as is.  If a
   // child is itself a set operation, include its members in this set
-  // operation's descendant list if allowed.
-
+  // operation's descendant list if allowed.  If we have setop ALL, further
+  // care must be exercised: since we process set operations from left to right
+  // in each level, any DISTINCT inside the right operand means we cannot
+  // merge.
   int count = 0;  /// computes number for members if we collapse
-
-  // last_distinct is used by UNION and INTERSECT. For intersect, if DISTINCT is
-  // present at all in a N-ary, its final value will be N-1, since ALL is
-  // irrelevant once we have one DISTINCT for INTERSECT. Note that the
-  // computation of last_distinct may be wrong for EXCEPT, but it doesn't
-  // rely on it so we don't care.
-  int64_t last_distinct = 0;
-
-  // first_distinct is used EXCEPT only, so its computation for UNION and
-  // DISTINCT may be wrong/misleading.
-  int64_t first_distinct = std::numeric_limits<int64_t>::max();
-
-  const Query_term_type op = setop->term_type();
+  int last_distinct = 0;
+  Query_term_type op = setop->term_type();
   Surrounding_context sc = qt2sc(op);
 
   if (m_is_distinct) {
     for (Query_term *elt : ql.m_elts) {
       // We only merge same kind, and only if no LIMIT on it
-      if (elt->term_type() == QT_QUERY_BLOCK || /* 1 */
-          elt->term_type() != op ||             /* 2 */
-          (op == QT_EXCEPT && count > 0)) {     /* 3 */
-        // (1) Nothing nested in this operand position, or (2) it's another
-        // kind of set operation or (3) EXCEPT in non-left position (EXCEPT is
-        // not right associative), hence no merge.
+      if (elt->term_type() == QT_QUERY_BLOCK || elt->term_type() != op) {
+        // Nothing nested in this operand position, or it's another kind of
+        // set operation; hence no merge
         count++;
-        if (first_distinct == std::numeric_limits<int64_t>::max())
-          first_distinct = 1;
         last_distinct = count - 1;
         setop->m_children.push_back(elt);
       } else if (Query_term_set_op *lower = down_cast<Query_term_set_op *>(elt);
-                 elt->query_block()->select_limit == nullptr /* 4 */) {
-        // (4) we have no LIMIT in the nest, so we can merge, proceed.
-        if (lower->m_first_distinct < std::numeric_limits<int64_t>::max() &&
-            lower->m_first_distinct + count < first_distinct) {
-          assert(op != QT_EXCEPT || count == 0);
-          first_distinct = count + lower->m_first_distinct;
-        } else if (first_distinct == std::numeric_limits<int64_t>::max()) {
-          first_distinct = lower->m_children.size();
-        }
-        // upper DISTINCT trumps lower ALL or DISTINCT, so ignore nest's last
-        // distinct
+                 elt->query_block()->select_limit == nullptr) {
+        // upper DISTINCT trumps lower ALL, so we can merge
         last_distinct = count + lower->m_children.size() - 1;
         count = count + lower->m_children.size();
-        // fold in children
         for (auto child : lower->m_children) setop->m_children.push_back(child);
       } else {
         // similar kind of set operation, but contains limit, so do not merge
@@ -1557,22 +1506,17 @@ void PT_set_operation::merge_descendants(Parse_context *pc,
     }
   } else {
     for (Query_term *elt : ql.m_elts) {
-      // We only collapse same kind, and only if no LIMIT on it Also, we do
-      // not collapse INTERSECT ALL due to difficulty in computing it if we
-      // do, cf. logic in MaterializeIterator::MaterializeQueryBlock.
-      if (elt->term_type() == QT_QUERY_BLOCK || /* 1 */
-          elt->term_type() != op ||             /* 2 */
-          (op == QT_EXCEPT && count > 0) ||     /* 3 */
+      // We only collapse same kind, and only if no LIMIT on it
+      if (elt->term_type() == QT_QUERY_BLOCK || elt->term_type() != op ||
           elt->query_block()->select_limit != nullptr) {
-        // (1) Nothing nested in this operand position, or (2) it's another kind
-        // of set operation, or non-left EXCEPT (3), hence no merge
+        // Nothing nested in this operand position, or it's another kind of
+        // set operation; hence no merge
         count++;
         setop->m_children.push_back(elt);
       } else if (Query_term_set_op *lower = down_cast<Query_term_set_op *>(elt);
                  (count == 0 ||  // first operand can always be merged
-                                 // upper, lower are ALL, so ok:
-                  lower->m_last_distinct == 0 ||
-                  op == QT_INTERSECT /* maybe merge */)) {
+                  lower->m_last_distinct ==
+                      0)) {  // upper, lower are ALL, so ok
         if (lower->m_last_distinct > 0) {
           if (pc->is_top_level_union_all(sc)) {
             // If we merge we lose the chance to stream the right table,
@@ -1580,43 +1524,22 @@ void PT_set_operation::merge_descendants(Parse_context *pc,
             setop->m_children.push_back(elt);
             count++;
           } else {
-            if (lower->m_first_distinct < std::numeric_limits<int64_t>::max() &&
-                first_distinct == std::numeric_limits<int64_t>::max()) {
-              first_distinct = count + lower->m_first_distinct;
-            }
             last_distinct = count + lower->m_last_distinct;
             count = count + lower->m_children.size();
             for (auto child : lower->m_children)
               setop->m_children.push_back(child);
           }
         } else {
-          // upper and lower level are both ALL, so ok to merge, unless we have
-          // INTERSECT
-          if (op != QT_INTERSECT) {
-            if (lower->m_first_distinct < std::numeric_limits<int64_t>::max() &&
-                first_distinct == std::numeric_limits<int64_t>::max()) {
-              first_distinct = count + lower->m_first_distinct;
-            }
-            count = count + lower->m_children.size();
-            for (auto child : lower->m_children)
-              setop->m_children.push_back(child);
-          } else {
-            // do not merge INTERSECT ALL: the execution time logic can only
-            // handle binary INTERSECT ALL.
-            count++;
-            setop->m_children.push_back(elt);
-          }
+          // upper and lower level are both ALL, so ok to merge
+          count = count + lower->m_children.size();
+          for (auto child : lower->m_children)
+            setop->m_children.push_back(child);
         }
       } else if (!pc->is_top_level_union_all(sc) &&
                  lower->m_last_distinct == 0) {
         // We have a both higher and lower level setop ALL, so ok to merge
         // unless we have a top level UNION ALL in which case we prefer
         // streaming.
-        if (count + lower->m_first_distinct <
-                std::numeric_limits<int64_t>::max() &&
-            first_distinct == std::numeric_limits<int64_t>::max()) {
-          first_distinct = count + lower->m_first_distinct;
-        }
         count = count + lower->m_children.size();
         for (auto child : lower->m_children) setop->m_children.push_back(child);
       } else {
@@ -1626,10 +1549,7 @@ void PT_set_operation::merge_descendants(Parse_context *pc,
       }
     }
   }
-  if (last_distinct > 0 && op == QT_INTERSECT)  // distinct always wins
-    last_distinct = setop->m_children.size() - 1;
   setop->m_last_distinct = last_distinct;
-  setop->m_first_distinct = first_distinct;
 }
 
 bool PT_set_operation::contextualize_setop(Parse_context *pc,
@@ -1679,14 +1599,34 @@ bool PT_union::contextualize(Parse_context *pc) {
 }
 
 bool PT_except::contextualize(Parse_context *pc [[maybe_unused]]) {
-  return contextualize_setop(
-      pc, QT_EXCEPT, m_is_distinct ? SC_EXCEPT_DISTINCT : SC_EXCEPT_ALL);
+#ifdef NDEBUG
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXCEPT");
+  return true;
+#else
+  if (pc->thd->variables.debug_enable_extended_set_ops) {
+    return contextualize_setop(
+        pc, QT_EXCEPT, m_is_distinct ? SC_EXCEPT_DISTINCT : SC_EXCEPT_ALL);
+  } else {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXCEPT");
+    return true;
+  }
+#endif
 }
 
 bool PT_intersect::contextualize(Parse_context *pc [[maybe_unused]]) {
-  return contextualize_setop(
-      pc, QT_INTERSECT,
-      m_is_distinct ? SC_INTERSECT_DISTINCT : SC_INTERSECT_ALL);
+#ifdef NDEBUG
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "INTERSECT");
+  return true;
+#else
+  if (pc->thd->variables.debug_enable_extended_set_ops) {
+    return contextualize_setop(
+        pc, QT_INTERSECT,
+        m_is_distinct ? SC_INTERSECT_DISTINCT : SC_INTERSECT_ALL);
+  } else {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "INTERSECT");
+    return true;
+  }
+#endif
 }
 
 static bool setup_index(keytype key_type, const LEX_STRING name,

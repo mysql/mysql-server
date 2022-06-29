@@ -460,18 +460,6 @@ struct QueryBlock {
   /// there's a windowing iterator earlier in the chain.
   bool copy_items;
 
-  /// The number of blocks (i.e. operands) involved in the set operation:
-  /// used for INTERSECT to determine if a value is present in all operands
-  ulonglong total_blocks{0};
-  /// The current block (i.e. operand) number, starting at zero. We use this
-  /// for INTERSECT and EXCEPT materialization operand.
-  ulonglong block_no{0};
-  /// Used for EXCEPT computation: the index of the first block involved in
-  /// a N-ary except operation which has DISTINCT. This is significant for
-  /// calculating whether to set the counter to zero or just decrement it
-  /// when we see a right side block.
-  uint first_distinct{0};
-
   /// If copy_items is true, used for copying the Field objects
   /// into the temporary table row. Otherwise unused.
   Temp_table_param *temp_table_param;

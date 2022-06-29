@@ -6562,11 +6562,7 @@ bool Query_block::replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
   if (!(*expr)->has_subquery()) return false;
 
   Item_singlerow_subselect::Scalar_subquery_replacement info(
-      subquery->item,
-      // make sure to not replace with one of the hidden fields, if present,
-      // e.g. for INTERSECT:
-      tr->table->field[tr->table->hidden_field_count], this,
-      subquery->m_add_coalesce);
+      subquery->item, *tr->table->field, this, subquery->m_add_coalesce);
 
   // ROLLUP wrappers might have been added to the expression at this point. Take
   // care to transform the inner item and keep the rollup wrappers as is.

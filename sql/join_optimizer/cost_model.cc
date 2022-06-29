@@ -162,23 +162,15 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
   path->cost = 0;
   path->num_output_rows = 0;
   double cost_for_cacheable = 0.0;
-  bool left_block = true;
   for (const MaterializePathParameters::QueryBlock &block :
        path->materialize().param->query_blocks) {
     if (block.subquery_path->num_output_rows >= 0.0) {
-      // For INTERSECT and EXCEPT we can never get more rows that we have in
-      // the left block, so do not add unless we are looking at left block or
-      // we have a UNION.
-      if (left_block || path->materialize().param->table == nullptr ||
-          path->materialize().param->table->is_union()) {
-        path->num_output_rows += block.subquery_path->num_output_rows;
-      }
+      path->num_output_rows += block.subquery_path->num_output_rows;
       path->cost += block.subquery_path->cost;
       if (block.join != nullptr && block.join->query_block->is_cacheable()) {
         cost_for_cacheable += block.subquery_path->cost;
       }
     }
-    left_block = false;
   }
   path->cost += kMaterializeOneRowCost * path->num_output_rows;
 

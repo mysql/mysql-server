@@ -10270,14 +10270,7 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
       geometry_type = Field::GEOM_GEOMETRY;
   } else
     aggregate_num_type(merge_type, args, 2);
-
-  // Note: when called to join the types of a set operation's select list, the
-  // below line is correct only if we have no INTERSECT or EXCEPT in the query
-  // tree. We will recompute this value correctly during prepare_query_term. We
-  // cannot do it correctly here while traversing the leaf query block due to
-  // the recursive nature of the problem.
   set_nullable(is_nullable() || item->is_nullable());
-
   set_typelib(item);
   DBUG_PRINT("info", ("become type: %d  len: %u  dec: %u", (int)data_type(),
                       max_length, (uint)decimals));
