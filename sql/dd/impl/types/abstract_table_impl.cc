@@ -271,6 +271,18 @@ Column *Abstract_table_impl::add_column() {
   return c;
 }
 
+bool Abstract_table_impl::drop_column(const String_type &name) {
+  for (Column *c : m_columns) {
+    if (my_strcasecmp(system_charset_info, name.c_str(), c->name().c_str()) ==
+        0) {
+      m_columns.remove(down_cast<Column_impl *>(c));
+      return true;
+    }
+  }
+
+  return false;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 Column *Abstract_table_impl::get_column(Object_id column_id) {

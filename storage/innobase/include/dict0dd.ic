@@ -105,6 +105,15 @@ inline dd::Column *dd_add_hidden_column(dd::Table *dd_table, const char *name,
   return (col);
 }
 
+inline bool dd_drop_hidden_column(dd::Table *dd_table, const char *name) {
+#ifdef UNIV_DEBUG
+  const dd::Column *col = dd_find_column(dd_table, name);
+  ut_ad(col != nullptr);
+  ut_ad(dd_column_is_dropped(col));
+#endif
+  return dd_table->drop_column(name);
+}
+
 /** Add a hidden index element at the end.
 @param[in,out]  index   created index metadata
 @param[in]      column  column of the index */

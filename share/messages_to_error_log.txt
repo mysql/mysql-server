@@ -11898,6 +11898,9 @@ ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_LOCK
 ER_RES_GRP_SWITCH_FAILED_UNABLE_TO_APPLY_RES_GRP
   eng "Failed to switch resource group. Unable to apply resource group controller %s."
 
+ER_IB_MSG_CLEAR_INSTANT_DROP_COLUMN_METADATA
+  eng "Failed to clear instant drop column metadata for table %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
