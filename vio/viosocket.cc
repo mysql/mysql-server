@@ -472,7 +472,8 @@ int vio_shutdown(Vio *vio) {
 #ifdef USE_PPOLL_IN_VIO
     assert(vio->thread_id.has_value());
     DBUG_PRINT("tp_exit",
-               ("Shutting down vio for thread: %lu", vio->thread_id.value()));
+               ("Shutting down vio for thread: %lu",
+                static_cast<long unsigned int>(vio->thread_id.value())));
     if (vio->thread_id.value() != 0 && vio->poll_shutdown_flag.test_and_set()) {
       // Send signal to wake up from poll.
       int en = pthread_kill(vio->thread_id.value(), SIGALRM);
