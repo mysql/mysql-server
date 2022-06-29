@@ -1110,6 +1110,7 @@ static void update_instant_info(instant_fields_list_t f, dict_index_t *index) {
 
   index->table->initial_col_count -= n_added;
   index->table->current_col_count -= n_dropped;
+  index->table->n_cols -= n_dropped;
 }
 
 /** To populate dummy fields. Used only in case of REDUNDANT row format.
@@ -1273,8 +1274,9 @@ byte *mlog_parse_index(byte *ptr, const byte *end_ptr, dict_index_t **index) {
   /* For upgraded table from v1, set following */
   if (inst_cols > 0) {
     ind->instant_cols = true;
-    ind->n_instant_nullable =
-        ind->get_n_nullable_before(ind->get_instant_fields());
+    const size_t n_instant_fields = ind->get_instant_fields();
+    size_t new_n_nullable = ind->calculate_n_instant_nullable(n_instant_fields);
+    ind->set_instant_nullable(new_n_nullable);
   }
 
   ind->n_fields = n - n_dropped;
