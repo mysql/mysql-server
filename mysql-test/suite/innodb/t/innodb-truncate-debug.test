@@ -179,6 +179,9 @@ disconnect con1;
 
 drop table t1;
 
+# Note: Because of fix for bug#32912868,
+#       truncate table doesn't allow concurrent purge operations.
+#       So, this test might not work as intended, or not needed.
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_PATTERN = InnoDB: Record with space id \d+ belongs to table which is being truncated or tablespace which is missing therefore skipping this undo record.;
 --source include/search_pattern.inc
