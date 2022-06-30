@@ -56,7 +56,8 @@ class ColumnsTest : public ::testing::Test {
   ColumnsTest() = default;
 
  private:
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(ColumnsTest);
+  ColumnsTest(ColumnsTest const &) = delete;
+  ColumnsTest &operator=(ColumnsTest const &) = delete;
 };
 
 TEST_F(ColumnsTest, ColumnsConstIterator) {

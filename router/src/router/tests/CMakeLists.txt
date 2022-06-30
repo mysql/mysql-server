@@ -29,10 +29,6 @@ SET(TEST_MODULE router)
 # - their dependencies are properly defined.
 # - fast edit-compile-test cycles for single tests
 
-DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
-  test_config_generator.cc
-  )
-
 ADD_HARNESS_TEST_FILE(test_certificate_generator.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS

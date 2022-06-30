@@ -144,12 +144,13 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
   /*
     Add fake methods to set and get expected contents.
   */
-  type_conversion_status fake_store(const char *str) {
+  type_conversion_status fake_store(const char *str, size_t,
+                                    const CHARSET_INFO *) {
     m_fake_val = str;
     return TYPE_OK;
   }
 
-  String *fake_val_str(String *str) {
+  String *fake_val_str(String *, String *str) {
     str->set((const char *)m_fake_val, strlen(m_fake_val), &my_charset_latin1);
     return str;
   }

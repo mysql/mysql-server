@@ -142,7 +142,8 @@ class WkbParserTest : public ::testing::Test {
   WkbParserTest() = default;
 
  private:
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(WkbParserTest);
+  WkbParserTest(WkbParserTest const &) = delete;
+  WkbParserTest &operator=(WkbParserTest const &) = delete;
 };
 
 TEST_F(WkbParserTest, Invalid) {

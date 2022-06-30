@@ -54,7 +54,8 @@ class PropertiesTest : public ::testing::Test {
 
  private:
   // Declares (but does not define) copy constructor and assignment operator.
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(PropertiesTest);
+  PropertiesTest(PropertiesTest const &) = delete;
+  PropertiesTest &operator=(PropertiesTest const &) = delete;
 };
 
 static const dd::String_type value(const dd::Properties &p,

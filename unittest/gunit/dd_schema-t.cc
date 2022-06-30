@@ -132,7 +132,8 @@ class SchemaTest : public ::testing::Test {
 
  private:
   // Declares (but does not define) copy constructor and assignment operator.
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(SchemaTest);
+  SchemaTest(SchemaTest const &) = delete;
+  SchemaTest &operator=(SchemaTest const &) = delete;
 };
 
 /**
@@ -220,8 +221,7 @@ TEST_F(SchemaTest, CreateSchema) {
 
   // name->store: Called once, return 0
   ON_CALL(*name, store(schema->name().c_str(), _, _))
-      .WillByDefault(
-          WithArgs<0>(Invoke(name, &Mock_dd_field_varstring::fake_store)));
+      .WillByDefault(Invoke(name, &Mock_dd_field_varstring::fake_store));
   EXPECT_CALL(*name, store(schema->name().c_str(), _, _)).Times(1);
 
   // collation_id->store: Called once, return 0
@@ -320,8 +320,7 @@ TEST_F(SchemaTest, UpdateSchema) {
 
   // name->store: Called once, return 0
   ON_CALL(*name, store(schema->name().c_str(), _, _))
-      .WillByDefault(
-          WithArgs<0>(Invoke(name, &Mock_dd_field_varstring::fake_store)));
+      .WillByDefault(Invoke(name, &Mock_dd_field_varstring::fake_store));
   EXPECT_CALL(*name, store(schema->name().c_str(), _, _)).Times(1);
 
   // collation_id->store: Called once, return 0
@@ -429,8 +428,7 @@ TEST_F(SchemaTest, GetSchema) {
 
   // name->val_str: Called once, get faked name
   ON_CALL(*name, val_str(_, _))
-      .WillByDefault(
-          WithArgs<1>(Invoke(name, &Mock_dd_field_varstring::fake_val_str)));
+      .WillByDefault(Invoke(name, &Mock_dd_field_varstring::fake_val_str));
   EXPECT_CALL(*name, val_str(_, _)).Times(1);
 
   // collation_id->val_int: Called once, get faked id
@@ -453,7 +451,7 @@ TEST_F(SchemaTest, GetSchema) {
   // Set faked field contents.
   id->fake_store(real_id, true);
   catalog_id->fake_store(m_def_cat_id, true);
-  name->fake_store(real_name);
+  name->fake_store(real_name, 0, nullptr);
   collation_id->fake_store(real_collation_id, true);
   created->fake_store(real_created, true);
   last_altered->fake_store(real_last_altered, true);

@@ -35,9 +35,9 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
     ON_CALL(*this, xcom_client_add_node(_, _, _)).WillByDefault(Return(1));
     ON_CALL(*this, xcom_client_send_data(_, _)).WillByDefault(Return(10));
     ON_CALL(*this, new_node_address_uuid(_, _, _))
-        .WillByDefault(WithArgs<0, 1, 2>(Invoke(::new_node_address_uuid)));
+        .WillByDefault(Invoke(::new_node_address_uuid));
     ON_CALL(*this, delete_node_address(_, _))
-        .WillByDefault(WithArgs<0, 1>(Invoke(::delete_node_address)));
+        .WillByDefault(Invoke(::delete_node_address));
   }
 
   MOCK_METHOD3(new_node_address_uuid,

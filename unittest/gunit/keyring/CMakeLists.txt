@@ -28,10 +28,6 @@ SET(TESTS
   file_io
 )
 
-DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
-  keys_container-t.cc
-  )
-
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file_tests")
 
 SET(ALL_KEYRING_TESTS)

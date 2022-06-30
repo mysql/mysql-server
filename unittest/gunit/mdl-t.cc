@@ -157,7 +157,8 @@ class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
 
  private:
   CHARSET_INFO *m_charset;
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLTest);
+  MDLTest(MDLTest const &) = delete;
+  MDLTest &operator=(MDLTest const &) = delete;
 
   static ErrorHandlerFunctionPointer m_old_error_handler_hook;
 };
@@ -3832,7 +3833,8 @@ class MDLHtonNotifyTest : public MDLTest {
   void set_refuse_acquire() { m_refuse_acquire = true; }
 
  private:
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLHtonNotifyTest);
+  MDLHtonNotifyTest(MDLHtonNotifyTest const &) = delete;
+  MDLHtonNotifyTest &operator=(MDLHtonNotifyTest const &) = delete;
 
   uint m_pre_acquire_count, m_post_release_count;
   MDL_key m_pre_acquire_key, m_post_release_key;
@@ -4582,7 +4584,8 @@ class MDLKeyTest : public ::testing::Test {
   MDLKeyTest() = default;
 
  private:
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLKeyTest);
+  MDLKeyTest(MDLKeyTest const &) = delete;
+  MDLKeyTest &operator=(MDLKeyTest const &) = delete;
 };
 
 // Google Test recommends DeathTest suffix for classes use in death tests.

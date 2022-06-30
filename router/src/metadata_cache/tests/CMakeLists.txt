@@ -30,11 +30,6 @@ STATICLIB_FROM_TARGET(metadata_cache_export_all metadata_cache)
 TARGET_COMPILE_DEFINITIONS(metadata_cache_export_all
   PUBLIC METADATA_CACHE_STATIC_DEFINE=1)
 
-
-DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
-  test_metadata.cc
-  )
-
 SET(TEST_MODULE metadata_cache)
 FOREACH(test_file
     test_cache_plugin.cc

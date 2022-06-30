@@ -272,7 +272,8 @@ TEST_F(XComStateExchangeTest, StateExchangeBroadcastJoinerTest) {
 
 uchar *copied_payload = nullptr;
 uint64_t copied_length = 0;
-enum_gcs_error copy_message_content(const Gcs_message &msg) {
+enum_gcs_error copy_message_content(const Gcs_message &msg,
+                                    unsigned long long *, Cargo_type) {
   copied_length = msg.get_message_data().get_payload_length();
   copied_payload = static_cast<uchar *>(malloc(sizeof(uchar) * copied_length));
   memcpy(copied_payload, msg.get_message_data().get_payload(), copied_length);
@@ -282,7 +283,7 @@ enum_gcs_error copy_message_content(const Gcs_message &msg) {
 
 TEST_F(XComStateExchangeTest, StateExchangeProcessStatesPhase) {
   EXPECT_CALL(*comm_mock, do_send_message(_, _, _))
-      .WillOnce(WithArgs<0>(Invoke(copy_message_content)));
+      .WillOnce(Invoke(copy_message_content));
 
   /*
     Define that the first view delivered has two members, i.e.
