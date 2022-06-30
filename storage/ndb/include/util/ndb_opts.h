@@ -31,6 +31,7 @@
 #include "my_sys.h"   // loglevel needed by my_getopt.h
 #include "my_getopt.h"
 #include "util/BaseString.hpp"
+#include "util/require.h"
 
 #ifdef OPTEXPORT
 #define OPT_EXTERN(T,V,I) T V I
@@ -276,45 +277,89 @@ private:
 class ndb_password_state
 {
 public:
-  ndb_password_state(const char prefix[], const char prompt[]);
-  char* get_password() const { return m_password; }
-  size_t get_password_length() const { return m_password_length; }
+  using byte = unsigned char;
+
+  ndb_password_state(const char prefix[], const char prompt[])
+      : ndb_password_state(prefix, prompt, PASSWORD) {}
+  const byte* get_key() const;
+  size_t get_key_length() const;
+  const char* get_password() const { return m_password; }
+  size_t get_password_length() { return m_password_length; }
   bool have_password_option() const { return (m_option_count > 0); }
   BaseString get_error_message() const;
+  bool is_password() const { return (m_kind == PASSWORD); }
+  bool is_key() const { return (m_kind == KEY); }
+
+protected:
+  enum kind_t { PASSWORD = 0, KEY = 1 };
+  ndb_password_state(const char prefix[], const char prompt[], kind_t kind);
+
 private:
   friend class ndb_password_option;
   friend class ndb_password_from_stdin_option;
-  enum status {
+  enum status
+  {
     NO_PASSWORD = 0,
-    HAVE_PASSWORD = 1,
+    HAVE_PASSWORD = 1, // m_password points to valid password
+    /*
+     * PENDING_PASSWORD - m_password_buffer contains a valid password, not yet
+     * committed to m_password.
+     */
+    PENDING_PASSWORD = 2,
     ERR_MULTIPLE_SOURCES = -1,
     ERR_BAD_STDIN = -2,
     ERR_BAD_TTY = -3,
     ERR_TOO_LONG = -4,
     ERR_BAD_CHAR = -5,
-    ERR_NO_END = -6};
+    ERR_NO_END = -6,
+    ERR_ODD_HEX_LENGTH = -7
+  };
   enum password_source { PS_NONE, PS_ARG, PS_TTY, PS_STDIN };
-  static constexpr size_t MAX_PWD_LEN = 1023;
+  static constexpr size_t PWD_BUF_SIZE = 1025;
+  static constexpr size_t MAX_KEY_LEN = 512;
+  /*
+   * PWD_BUF_SIZE must be big enough to handle two hex digits per key byte
+   * plus terminating new line when reading from stdin or tty.
+   */
+  static_assert(2 * MAX_KEY_LEN + 1 <= PWD_BUF_SIZE);
+  static constexpr size_t MAX_PWD_LEN = 1024;
+  // PWD_BUF_SIZE need also to count terminating new line or null character.
+  static_assert(MAX_PWD_LEN + 1 <= PWD_BUF_SIZE);
 
   const char* get_prefix() const { return m_prefix.c_str(); }
   size_t get_prefix_length() const { return m_prefix.length(); }
   int get_from_tty();
   int get_from_stdin();
-  void set_password(const char src[], size_t len);
+  const char* kind_str() const { return kind_name[m_kind]; }
+  int set_key(const char src[], size_t len);
+  int set_password(const char src[], size_t len);
   void clear_password();
   void add_option_usage() { m_option_count++; }
   void remove_option_usage() { m_option_count--; }
   bool is_in_error() const { return m_status < 0; }
-  void set_error(enum status err) { m_status = err; }
+  void set_error(enum status err) { require(int{err} < 0); m_status = err; }
+  void set_status(enum status s) { require(int{s} >= 0); m_status = s; }
   void commit_password();
+  bool verify_option_name(const char opt_name[],
+                          const char extra[] = nullptr) const;
+
 private:
+  static constexpr const char* kind_name[2] = {"password", "key"};
   BaseString m_prompt;
   char* m_password;
+  const kind_t m_kind;
   enum status m_status;
-  int m_option_count; // How many options that is about to set password
+  int m_option_count;  // How many options that is about to set password
   size_t m_password_length;
-  char m_password_buffer[MAX_PWD_LEN + 1];
+  char m_password_buffer[PWD_BUF_SIZE];
   BaseString m_prefix;
+};
+
+class ndb_key_state : public ndb_password_state
+{
+public:
+  ndb_key_state(const char prefix[], const char prompt[])
+      : ndb_password_state(prefix, prompt, ndb_password_state::KEY) {}
 };
 
 class ndb_password_option: ndb_option
@@ -329,6 +374,12 @@ private:
   ndb_password_state::password_source m_password_source;
 };
 
+class ndb_key_option : public ndb_password_option
+{
+public:
+  ndb_key_option(ndb_key_state& pwd_buf) : ndb_password_option(pwd_buf) {}
+};
+
 class ndb_password_from_stdin_option: ndb_option
 {
 public:
@@ -341,6 +392,13 @@ private:
   ndb_password_state& m_password_state;
   // One of PS_NONE, PS_STDIN
   ndb_password_state::password_source m_password_source;
+};
+
+class ndb_key_from_stdin_option : public ndb_password_from_stdin_option
+{
+public:
+  ndb_key_from_stdin_option(ndb_key_state& pwd_buf)
+      : ndb_password_from_stdin_option(pwd_buf) {}
 };
 
 class Ndb_opts {

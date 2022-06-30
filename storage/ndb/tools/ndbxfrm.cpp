@@ -50,6 +50,16 @@ static ndb_password_option opt_encrypt_password(opt_encrypt_password_state);
 static ndb_password_from_stdin_option opt_encrypt_password_from_stdin(
                                           opt_encrypt_password_state);
 
+static ndb_key_state opt_decrypt_key_state("decrypt", nullptr);
+static ndb_key_option opt_decrypt_key(opt_decrypt_key_state);
+static ndb_key_from_stdin_option opt_decrypt_key_from_stdin(
+    opt_decrypt_key_state);
+
+static ndb_key_state opt_encrypt_key_state("encrypt", nullptr);
+static ndb_key_option opt_encrypt_key(opt_encrypt_key_state);
+static ndb_key_from_stdin_option opt_encrypt_key_from_stdin(
+    opt_encrypt_key_state);
+
 static int g_info = 0;
 static int g_encrypt_block_size = 0;
 static int g_encrypt_cipher = ndb_ndbxfrm1::cipher_cbc;
@@ -59,6 +69,7 @@ static int g_file_block_size = 512;
 static int g_read_reverse = 0;
 #endif
 
+// clang-format off
 static struct my_option my_long_options[] =
 {
   NdbStdOpt::usage,
@@ -105,6 +116,7 @@ static struct my_option my_long_options[] =
 #endif
   NdbStdOpt::end_of_options
 };
+// clang-format on
 
 static const char* load_defaults_groups[] = { "ndbxfrm", nullptr };
 
@@ -141,7 +153,17 @@ int main(int argc, char* argv[])
 
   if (ndb_option::post_process_options())
   {
-    BaseString err_msg = opt_decrypt_password_state.get_error_message();
+    BaseString err_msg = opt_decrypt_key_state.get_error_message();
+    if (!err_msg.empty())
+    {
+      fprintf(stderr, "Error: %s\n", err_msg.c_str());
+    }
+    err_msg = opt_decrypt_password_state.get_error_message();
+    if (!err_msg.empty())
+    {
+      fprintf(stderr, "Error: %s\n", err_msg.c_str());
+    }
+    err_msg = opt_encrypt_key_state.get_error_message();
     if (!err_msg.empty())
     {
       fprintf(stderr, "Error: %s\n", err_msg.c_str());
@@ -151,6 +173,18 @@ int main(int argc, char* argv[])
     {
       fprintf(stderr, "Error: %s\n", err_msg.c_str());
     }
+    return 2;
+  }
+  if (opt_decrypt_key_state.get_key() != nullptr &&
+      opt_decrypt_password_state.get_password() != nullptr)
+  {
+    fprintf(stderr, "Error: Both decrypt key and decrypt password is set.\n");
+    return 2;
+  }
+  if (opt_encrypt_key_state.get_key() != nullptr &&
+      opt_encrypt_password_state.get_password() != nullptr)
+  {
+    fprintf(stderr, "Error: Both encrypt key and encrypt password is set.\n");
     return 2;
   }
 
@@ -201,18 +235,30 @@ int dump_info(const char name[])
     return 1;
   }
 
-  r = xfrm.open(file,
-                reinterpret_cast<byte*>(
-                    opt_decrypt_password_state.get_password()),
-                opt_decrypt_password_state.get_password_length());
-  require(r == 0);
+  const byte* src_pwd_key =
+      opt_decrypt_key_state.get_key() != nullptr
+          ? opt_decrypt_key_state.get_key()
+          : reinterpret_cast<const byte*>(
+                opt_decrypt_password_state.get_password());
+  const size_t src_pwd_key_len =
+      opt_decrypt_key_state.get_key() != nullptr
+          ? opt_decrypt_key_state.get_key_length()
+          : opt_decrypt_password_state.get_password_length();
+  r = xfrm.open(file, src_pwd_key, src_pwd_key_len);
+  if (r == -1)
+  {
+    fprintf(stderr, "Error: Could not open file '%s' for read.\n", name);
+    return 1;
+  }
+  require(r == 0 || r == -2);
 
   printf("File=%s, compression=%s, encryption=%s\n",
          name,
          xfrm.is_compressed() ? "yes" : "no",
          xfrm.is_encrypted() ? "yes" : "no");
 
-  xfrm.close(false);
+  const bool abort = (r == -2);
+  xfrm.close(abort);
   file.close();
 
   return 0;
@@ -260,27 +306,55 @@ int copy_file(const char src[], const char dst[])
   ndbxfrm_file src_xfrm;
   ndbxfrm_file dst_xfrm;
 
-  r = src_xfrm.open(src_file,
-                    reinterpret_cast<byte*>(
-                        opt_decrypt_password_state.get_password()),
-                    opt_decrypt_password_state.get_password_length());
-  require(r == 0);
+  const byte* src_pwd_key =
+      opt_decrypt_key_state.get_key() != nullptr
+          ? opt_decrypt_key_state.get_key()
+          : reinterpret_cast<const byte*>(
+                opt_decrypt_password_state.get_password());
+  const size_t src_pwd_key_len =
+      opt_decrypt_key_state.get_key() != nullptr
+          ? opt_decrypt_key_state.get_key_length()
+          : opt_decrypt_password_state.get_password_length();
+  r = src_xfrm.open(src_file, src_pwd_key, src_pwd_key_len);
+  if (r != 0)
+  {
+    if (r == -2) src_xfrm.close(true);
+    src_file.close();
+    dst_file.close();
+    dst_file.remove(dst);
+    return 1;
+  }
 
   require(g_file_block_size >= 0);
   size_t file_block_size = g_file_block_size;
 
+  const byte* dst_pwd_key =
+      opt_encrypt_key_state.get_key() != nullptr
+          ? opt_encrypt_key_state.get_key()
+          : reinterpret_cast<const byte*>(
+                opt_encrypt_password_state.get_password());
+  const size_t dst_pwd_key_len =
+      opt_encrypt_key_state.get_key() != nullptr
+          ? opt_encrypt_key_state.get_key_length()
+          : opt_encrypt_password_state.get_password_length();
   r = dst_xfrm.create(dst_file,
                       g_compress,
-                      reinterpret_cast<byte*>(
-                          opt_encrypt_password_state.get_password()),
-                      opt_encrypt_password_state.get_password_length(),
+                      dst_pwd_key,
+                      dst_pwd_key_len,
                       g_encrypt_kdf_iter_count,
                       g_encrypt_cipher,
                       -1 /* key count */,
                       g_encrypt_block_size,
                       file_block_size,
                       ndbxfrm_file::INDEFINITE_SIZE);
-  require(r == 0);
+  if (r != 0)
+  {
+    src_xfrm.close(false);
+    src_file.close();
+    dst_file.close();
+    dst_file.remove(dst);
+    return 1;
+  }
 
   // Copy data
 

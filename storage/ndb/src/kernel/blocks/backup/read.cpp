@@ -44,10 +44,24 @@
 
 using byte = unsigned char;
 
+static ndb_key_state opt_backup_key_state("backup", nullptr);
+static ndb_key_option opt_backup_key(opt_backup_key_state);
+static ndb_key_from_stdin_option opt_backup_key_from_stdin(
+    opt_backup_key_state);
+
 static ndb_password_state opt_backup_password_state("backup", nullptr);
 static ndb_password_option opt_backup_password(opt_backup_password_state);
 static ndb_password_from_stdin_option opt_backup_password_from_stdin(
                                           opt_backup_password_state);
+
+/*
+ * At most one of opt_backup_key_state and opt_backup_password_state should be
+ * set.  pwd_key and pwd_key_len will be set to point to whichever key or
+ * password is set.
+ */
+static const byte* pwd_key = nullptr;
+static size_t pwd_key_len;
+
 static void print_utility_help();
 
 static bool opt_print_restored_rows = false;
@@ -63,63 +77,64 @@ static int opt_verbose_level = 0;
 
 static struct my_option my_long_options[] =
 {
-  // Generic options from NDB_STD_OPTS_COMMON
-  { "usage", '?', "Display this help and exit.",
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "help", '?', "Display this help and exit.",
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "version", 'V', "Output version information and exit.", 0, 0, 0,
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
 
   // Specific options
-  { "backup-password", 'P', "backup password",
-    nullptr, nullptr, 0,
+  { "backup-key", 'K', "backup key for lcp files",
+    nullptr, nullptr, nullptr,
+    GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_backup_key},
+  { "backup-key-from-stdin", NDB_OPT_NOSHORT, "backup key for lcp files",
+    &opt_backup_key_from_stdin.opt_value, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_backup_key_from_stdin},
+  { "backup-password", 'P', "backup password for lcp files",
+    nullptr, nullptr, nullptr,
     GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_backup_password},
   { "backup-password-from-stdin", NDB_OPT_NOSHORT, "backup password",
-    &opt_backup_password_from_stdin.opt_value, nullptr, 0,
+    &opt_backup_password_from_stdin.opt_value, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_backup_password_from_stdin},
   { "print-restored-rows", NDB_OPT_NOSHORT,
     "print restored rows, uses control file ctr/TtabFfrag.ctl as given by "
     "-c, -f, and, -t.",
-    &opt_print_restored_rows, &opt_print_restored_rows, 0, 
+    &opt_print_restored_rows, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "control-directory-number", 'c', "control directory number",
-    &opt_print_restored_rows_ctl_dir, &opt_print_restored_rows_ctl_dir, 0,
+    &opt_print_restored_rows_ctl_dir, nullptr, nullptr,
     GET_INT, REQUIRED_ARG, opt_print_restored_rows_ctl_dir,
     opt_print_restored_rows_ctl_dir, 1, nullptr, 0, nullptr },
   { "fragment-id", 'f', "fragment id",
-    &opt_print_restored_rows_fid, &opt_print_restored_rows_fid, 0,
+    &opt_print_restored_rows_fid, nullptr, nullptr,
     GET_INT, REQUIRED_ARG, opt_print_restored_rows_fid,
     opt_print_restored_rows_fid, 0, nullptr, 0, nullptr },
   { "print-header-words", 'h', "print header words",
-    &opt_num_data_words, &opt_num_data_words, 0,
+    &opt_num_data_words, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "show-ignored-rows", 'i', "show ignored rows",
-    &opt_show_ignored_rows, &opt_show_ignored_rows, 0,
+    &opt_show_ignored_rows, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "rowid-file", 'n',
     "file with row id to check, each row id is a line with: page number, "
     "space, index in page.",
-    &opt_file_input, &opt_file_input, 0,
+    &opt_file_input, nullptr, nullptr,
     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "print-rows-per-page", 'p', "print rows per page",
-    &opt_print_rows_per_page, &opt_print_rows_per_page, 0,
+    &opt_print_rows_per_page, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "table-id", 't', "table id",
-    &opt_print_restored_rows_table, &opt_print_restored_rows_table, 0,
+    &opt_print_restored_rows_table, nullptr, nullptr,
     GET_INT, REQUIRED_ARG, opt_print_restored_rows_table,
     opt_print_restored_rows_table, 0, nullptr, 0, nullptr },
   { "print-rows", 'U', "do print rows",
-    &opt_print_rows_flag, &opt_print_rows_flag, 0,
+    &opt_print_rows_flag, nullptr, nullptr,
     GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr },
   { "no-print-rows", 'u', "do not print rows",
-    nullptr, nullptr, 0,
+    nullptr, nullptr, nullptr,
     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "verbose", 'v', "verbosity",
-    &opt_verbose_level, &opt_verbose_level, 0,
+    &opt_verbose_level, nullptr, nullptr,
     GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr },
-  { nullptr, 0, nullptr, nullptr, nullptr, 0,
-    GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr}
+  NdbStdOpt::end_of_options
 };
 
 static const char* load_defaults_groups[] = { "ndb_print_backup_file",
@@ -517,13 +532,12 @@ void handle_print_restored_rows()
   int r = file.open(buf, FsOpenReq::OM_READONLY);
   if (r != -1)
   {
-    r = fo.open(file,
-                reinterpret_cast<const byte*>(
-                    opt_backup_password_state.get_password()),
-                opt_backup_password_state.get_password_length());
+    r = fo.open(file, pwd_key, pwd_key_len);
   }
-  if(r == -1)
+  if(r != 0)
   {
+    // -2 is special failure return for ndbxfrm tool
+    if (r == -2) fo.close(true);
     ndbout_c("Failed to open ctl file '%s', error: %d", buf, r);
     ndb_end_and_exit(1);
   }
@@ -624,13 +638,12 @@ void handle_print_restored_rows()
     r = file.open(buf, FsOpenReq::OM_READONLY);
     if (r != -1)
     {
-      r = fo.open(file,
-                  reinterpret_cast<const byte*>(
-                      opt_backup_password_state.get_password()),
-                  opt_backup_password_state.get_password_length());
+      r = fo.open(file, pwd_key, pwd_key_len);
     }
-    if(r == -1)
+    if(r != 0)
     {
+      // -2 is special failure return for ndbxfrm tool
+      if (r == -2) fo.close(true);
       ndbout_c("Failed to open data file '%s', error: %d", buf, r);
       //ndb_end_and_exit(1);
       continue;
@@ -781,7 +794,12 @@ main(int argc, char * argv[])
   // TODO check valid option combinations
   if (ndb_option::post_process_options())
   {
-    BaseString err_msg = opt_backup_password_state.get_error_message();
+    BaseString err_msg = opt_backup_key_state.get_error_message();
+    if (!err_msg.empty())
+    {
+      fprintf(stderr, "Error: backup key: %s\n", err_msg.c_str());
+    }
+    err_msg = opt_backup_password_state.get_error_message();
     if (!err_msg.empty())
     {
       fprintf(stderr, "Error: backup password: %s\n", err_msg.c_str());
@@ -789,6 +807,24 @@ main(int argc, char * argv[])
     print_utility_help();
     opts.usage();
     ndb_end_and_exit(1);
+  }
+  if (opt_backup_key_state.get_key() != nullptr &&
+      opt_backup_password_state.get_password() != nullptr)
+  {
+    fprintf(stderr, "Error: Both backup key and backup password are set.\n");
+    return 2;
+  }
+
+  if (opt_backup_key_state.get_key() != nullptr)
+  {
+    pwd_key = opt_backup_key_state.get_key();
+    pwd_key_len = opt_backup_key_state.get_key_length();
+  }
+  else
+  {
+    pwd_key = reinterpret_cast<const byte*>(
+                 opt_backup_password_state.get_password());
+    pwd_key_len = opt_backup_password_state.get_password_length();
   }
 
   if (opt_print_restored_rows) {
@@ -817,13 +853,11 @@ main(int argc, char * argv[])
   ndbxfrm_file fo;
 
   int r = file.open(file_name, FsOpenReq::OM_READONLY);
-  r = fo.open(file,
-              reinterpret_cast<const byte*>(
-                  opt_backup_password_state.get_password()),
-              opt_backup_password_state.get_password_length());
-
-  if(r == -1)
+  r = fo.open(file, pwd_key, pwd_key_len);
+  if(r != 0)
   {
+    // -2 is special failure return for ndbxfrm tool
+    if (r == -2) fo.close(true);
     ndbout_c("Failed to open file '%s', error: %d",
              argv[1], r);
     ndb_end_and_exit(1);

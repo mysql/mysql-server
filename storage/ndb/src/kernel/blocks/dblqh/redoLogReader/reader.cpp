@@ -34,9 +34,15 @@
 
 
 #include <ndb_global.h>
+#include <vector>
 #include "my_dir.h"
 
 #include "records.hpp"
+#include "kernel/signaldata/FsOpenReq.hpp"
+#include "portlib/ndb_file.h"
+#include "util/ndb_opts.h"
+#include "util/ndb_openssl_evp.h"
+#include "util/ndbxfrm_file.h"
 
 #define JAM_FILE_ID 449
 
@@ -46,12 +52,15 @@
 
 #define FROM_BEGINNING 0
 
+using byte = unsigned char;
+
 void usage(const char * prg);
-Uint32 readFromFile(FILE * f, Uint32 *toPtr, Uint32 sizeInWords);
-void readArguments(int argc, char** argv);
+off_t readFromFile(ndbxfrm_file * xfrm, off_t word_pos, Uint32 *toPtr, Uint32 sizeInWords);
 [[noreturn]] void doExit();
 
-FILE * f= 0;
+static ndb_file file;
+static ndbxfrm_file xfrm;
+
 char fileName[256];
 bool theDumpFlag = false;
 bool thePrintFlag = true;
@@ -68,15 +77,127 @@ Uint32 *redoLogPage;
 
 unsigned NO_MBYTE_IN_FILE = 16;
 
+static ndb_key_state opt_file_key_state("file", nullptr);
+static ndb_key_option opt_file_key(opt_file_key_state);
+static ndb_key_from_stdin_option opt_file_key_from_stdin(opt_file_key_state);
+
+static struct my_option my_long_options[] =
+{
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+
+  // Specific options
+  { "check", NDB_OPT_NOSHORT, "Check records for errors",
+    &theCheckFlag, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr},
+  { "dump", NDB_OPT_NOSHORT, "Print dump info",
+    &theDumpFlag, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+  { "file-key", 'K', "File encryption key",
+    nullptr, nullptr, nullptr,
+    GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_file_key},
+  { "file-key-from-stdin", NDB_OPT_NOSHORT, "File encryption key from stdin",
+    &opt_file_key_from_stdin.opt_value, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_file_key_from_stdin},
+  { "filedescriptors", NDB_OPT_NOSHORT, "Print file descriptors only",
+    &onlyFileDesc, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+  { "lap", NDB_OPT_NOSHORT, "Provide lap info, with max GCI started and completed",
+    &onlyLap, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+  { "mbyte", NDB_OPT_NOSHORT, "Starting megabyte",
+    &startAtMbyte, nullptr, nullptr,
+    GET_INT, NO_ARG, 0, 0, 15, nullptr, 0, nullptr},
+  { "mbyteheaders", NDB_OPT_NOSHORT, "Show only first page header of each megabyte in file",
+    &onlyMbyteHeaders, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+  { "nocheck", 'C', "Do not check records for errors",
+    nullptr, nullptr, nullptr,
+    GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+  { "noprint", 'P', "Do not print records",
+    nullptr, nullptr, nullptr,
+    GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+  { "page", NDB_OPT_NOSHORT, "Start with this page",
+    &startAtPage, nullptr, nullptr,
+    GET_INT, NO_ARG, 0, 0, 31, nullptr, 0, nullptr},
+  { "pageheaders", NDB_OPT_NOSHORT, "Show page headers only",
+    &onlyPageHeaders, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+  { "pageindex", NDB_OPT_NOSHORT, "Start with this page index",
+    &startAtPageIndex, nullptr, nullptr,
+    GET_INT, NO_ARG, 12, 12, 8191, nullptr, 0, nullptr},
+  { "print", NDB_OPT_NOSHORT, "Print records",
+    &thePrintFlag, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr},
+  { "twiddle", NDB_OPT_NOSHORT, "Bit-shifted dump",
+    &theTwiddle, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+  NdbStdOpt::end_of_options
+};
+
+static const char* load_defaults_groups[] = { "ndb_redo_log_reader",
+                                              nullptr };
+
+static bool get_one_option(int optid, const struct my_option *opt, char *argument)
+{
+  switch (optid)
+  {
+    case 'C': // nocheck
+      theCheckFlag = false;
+      break;
+    case 'P': // noprint
+      thePrintFlag = false;
+      break;
+    default:
+      return ndb_std_get_one_option(optid, opt, argument);
+  }
+  return false;
+}
+
+static void print_utility_help()
+{
+  ndbout<<"\nThis command reads a redo log file, checking it for errors, printing its contents in a human-readable format, or both.";
+}
+
 [[noreturn]] inline void ndb_end_and_exit(int exitcode)
 {
   ndb_end(0);
+  ndb_openssl_evp::library_end();
   exit(exitcode);
 }
 
+static std::vector<char*> convert_legacy_options(size_t argc, char** argv);
+
 int main(int argc, char** argv)
 {
-  ndb_init();
+  std::vector<char*> new_argv = convert_legacy_options(argc, argv);
+  argv = new_argv.data();
+
+  NDB_INIT(argv[0]);
+  ndb_openssl_evp::library_init();
+  Ndb_opts opts(argc, argv, my_long_options, load_defaults_groups);
+  if (opts.handle_options(&get_one_option))
+  {
+    print_utility_help();
+    opts.usage();
+    ndb_end_and_exit(1);
+  }
+
+  if (ndb_option::post_process_options())
+  {
+    BaseString err_msg = opt_file_key_state.get_error_message();
+    if (!err_msg.empty())
+    {
+      fprintf(stderr, "Error: file key: %s\n", err_msg.c_str());
+    }
+    print_utility_help();
+    opts.usage();
+    ndb_end_and_exit(1);
+  }
+
+  if (onlyLap) thePrintFlag = false;
+
   Int32 wordIndex = 0;
   Uint32 oldWordIndex = 0;
   Uint32 recordType = 1234567890;
@@ -91,10 +212,28 @@ int main(int argc, char** argv)
   NextMbyteRecord *nmRecord;
   AbortTransactionRecord *atRecord;
   
-  readArguments(argc, argv);
+  if (argc != 1 || strlen(argv[0]) >= sizeof(fileName))
+  {
+    print_utility_help();
+    opts.usage();
+    ndb_end_and_exit(1);
+  }
+  strcpy(fileName, argv[0]);
  
-  f = fopen(fileName, "rb");
-  if(!f){
+  int r;
+  r = file.open(fileName, FsOpenReq::OM_READONLY);
+  if (r != 0)
+  {
+    perror("Error: open file");
+    ndb_end_and_exit(RETURN_ERROR);
+  }
+  const byte* key = opt_file_key_state.get_key();
+  const size_t key_len = opt_file_key_state.get_key_length();
+  r = xfrm.open(file, key, key_len);
+  if (r != 0)
+  {
+    if (r == -2) xfrm.close(true);
+    file.close();
     perror("Error: open file");
     ndb_end_and_exit(RETURN_ERROR);
   }
@@ -109,12 +248,8 @@ int main(int argc, char** argv)
     }
   }
   
-  const Uint32 tmpFileOffset =
+  off_t tmpFileOffset =
       startAtMbyte * REDOLOG_PAGESIZE * REDOLOG_PAGES_IN_MBYTE * sizeof(Uint32);
-  if (fseek(f, tmpFileOffset, FROM_BEGINNING)) {
-    perror("Error: Move in file");
-    ndb_end_and_exit(RETURN_ERROR);
-  }
 
   redoLogPage = new Uint32[REDOLOG_PAGESIZE*REDOLOG_PAGES_IN_MBYTE];
   Uint32 words_from_previous_page = 0;
@@ -124,7 +259,9 @@ int main(int argc, char** argv)
   for (Uint32 j = startAtMbyte; j < NO_MBYTE_IN_FILE && !lastPage; j++) {
 
     ndbout_c("mb: %d", j);
-    readFromFile(f, redoLogPage, REDOLOG_PAGESIZE*REDOLOG_PAGES_IN_MBYTE);
+    off_t sz = readFromFile(&xfrm, tmpFileOffset, redoLogPage,
+                            REDOLOG_PAGESIZE * REDOLOG_PAGES_IN_MBYTE);
+    tmpFileOffset += sz;
 
     words_from_previous_page = 0;
 
@@ -368,7 +505,8 @@ int main(int argc, char** argv)
       break;
     }
   }//for
-  fclose(f);
+  xfrm.close(false);
+  file.close();
   delete [] redoLogPage;
   ndb_end_and_exit(RETURN_OK);
 }
@@ -391,9 +529,21 @@ twiddle_32(Uint32 in)
 // 
 //----------------------------------------------------------------
 
-Uint32 readFromFile(FILE * f, Uint32 *toPtr, Uint32 sizeInWords) {
-  Uint32 noOfReadWords;
-  if ( !(noOfReadWords = (Uint32)fread(toPtr, sizeof(Uint32), sizeInWords, f))){
+off_t readFromFile(ndbxfrm_file * xfrm,
+                   off_t word_pos,
+                   Uint32 *toPtr,
+                   Uint32 sizeInWords)
+{
+  ndbxfrm_output_iterator it = {(byte*)toPtr, (byte*)toPtr + sizeof(Uint32) * sizeInWords, false};
+  int r = xfrm->read_transformed_pages(word_pos * sizeof(Uint32), &it);
+  if (r == -1)
+  {
+    ndbout << "Error reading file" << endl;
+    doExit();
+  }
+  off_t noOfReadWords = (it.begin() - (byte*)toPtr) / sizeof(Uint32);
+  if (noOfReadWords == 0)
+  {
     ndbout << "Error reading file" << endl;
     doExit();
   } 
@@ -420,72 +570,46 @@ void usage(const char * prg){
 	 << endl << endl;
   
 }
-void readArguments(int argc, char** argv)
-{
-  if(argc < 2 ){
-    usage(argv[0]);
-    doExit();
-  }
 
-  int i = 1;
-  while (argc > 1)
-    {
-      if (strcmp(argv[i], "-noprint") == 0) {
-	thePrintFlag = false;
-      } else if (strcmp(argv[i], "-dump") == 0) {
-	theDumpFlag = true;
-      } else if (strcmp(argv[i], "-twiddle") == 0) {
-        theTwiddle = true;
-      } else if (strcmp(argv[i], "-nocheck") == 0) {
-	theCheckFlag = false;
-      } else if (strcmp(argv[i], "-mbyteheaders") == 0) {
-	onlyMbyteHeaders = true;
-      } else if (strcmp(argv[i], "-pageheaders") == 0) {
-	onlyPageHeaders = true;
-      } else if (strcmp(argv[i], "-filedescriptors") == 0) {
-	onlyFileDesc = true;
-      } else if (strcmp(argv[i], "-lap") == 0) {
-	thePrintFlag = false;
-	onlyLap = true;
-      } else if (strcmp(argv[i], "--help") == 0) {
-      	ndbout<<"\nThis command reads a redo log file, checking it for errors, printing its contents in a human-readable format, or both.";
-      	usage(argv[0]);
-      	exit(0);
-      } else if (strcmp(argv[i], "-mbyte") == 0) {
-	startAtMbyte = atoi(argv[i+1]);
-	argc--;
-	i++;
-      } else if (strcmp(argv[i], "-page") == 0) {
-	startAtPage = atoi(argv[i+1]);
-	if (startAtPage > 31) {
-	  usage(argv[0]);
-	  doExit();
-	}
-	argc--;
-	i++;
-      } else if (strcmp(argv[i], "-pageindex") == 0) {
-	startAtPageIndex = atoi(argv[i+1]);
-	if (startAtPageIndex > 8191 || startAtPageIndex < 12) {
-	  usage(argv[0]);
-	  doExit();
-	}
-	argc--;
-	i++;
-      } else if (i==1) {
-      	 strcpy(fileName, argv[1]);
-      } else {
-	usage(argv[0]);
-	doExit();
+std::vector<char*> convert_legacy_options(size_t argc, char** argv)
+{
+  static const char * legacy_options[][2] = {
+    { "-dump", "--dump" },
+    { "-filedescriptors", "--filedescriptors" },
+    { "-lap", "--lap" },
+    { "-mbyte", "--mbyte" },
+    { "-mbyteheaders", "--mbyteheaders" },
+    { "-nocheck", "--nocheck" },
+    { "-noprint", "--noprint" },
+    { "-page", "--page" },
+    { "-pageindex", "--pageindex" },
+    { "-pageheaders", "--pageheaders" },
+    { "-twiddle", "--twiddle" } };
+  std::vector<char*> new_argv(argc + 1);
+  new_argv[0] = argv[0];
+  for (size_t i = 1; i < argc; i++)
+  {
+    new_argv[i] = argv[i];
+    for (size_t j = 0; j < std::size(legacy_options); j++)
+      if (strcmp(new_argv[i], legacy_options[j][0]) == 0)
+      {
+        fprintf(stderr,
+                "Warning: Option '%s' is deprecated, use '%s' instead.\n",
+                new_argv[i],
+                legacy_options[j][1]);
+        new_argv[i] = (char*)legacy_options[j][1];
+        break;
       }
-      argc--;
-      i++;
-    }
-  
+  }
+  new_argv[argc] = nullptr;
+  return new_argv;
 }
 
-void doExit() {
+void doExit()
+{
   ndbout << "Error in redoLogReader(). Exiting!" << endl;
-  if (f) fclose(f);
+  xfrm.close(false);
+  file.close();
   delete [] redoLogPage;
   ndb_end_and_exit(RETURN_ERROR);
 }

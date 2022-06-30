@@ -29,22 +29,84 @@
 #include "diskpage.hpp"
 #include <ndb_limits.h>
 #include <dbtup/tuppage.hpp>
+#include "kernel/signaldata/FsOpenReq.hpp"
+#include "portlib/ndb_file.h"
+#include "util/ndb_opts.h"
+#include "util/ndb_openssl_evp.h"
+#include "util/ndbxfrm_file.h"
+
+using byte = unsigned char;
 
 static bool g_v2;
 
-static void print_usage(const char*);
+static ndb_key_state opt_file_key_state("file", nullptr);
+static ndb_key_option opt_file_key(opt_file_key_state);
+static ndb_key_from_stdin_option opt_file_key_from_stdin(opt_file_key_state);
+
+static int opt_verbose_level = 0;
+static int opt_quiet_level = 0;
+
+static struct my_option my_long_options[] =
+{
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+
+  // Specific options
+  { "file-key", 'K', "File encryption key",
+    nullptr, nullptr, nullptr,
+    GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_file_key},
+  { "file-key-from-stdin", NDB_OPT_NOSHORT, "File encryption key",
+    &opt_file_key_from_stdin.opt_value, nullptr,  nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_file_key_from_stdin},
+  { "quiet", 'q', "Reduce verbosity",
+    nullptr, nullptr, nullptr,
+    GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
+  { "verbose", 'v', "Write more log messages",
+    nullptr, nullptr, nullptr,
+    GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
+  NdbStdOpt::end_of_options
+};
+
+static const char* load_defaults_groups[] = { "ndb_print_file",
+                                              nullptr };
+
+static bool get_one_option(int optid, const struct my_option *opt, char *argument)
+{
+  switch (optid)
+  {
+    case 'q': // nocheck
+      if (argument == disabled_my_option)
+        opt_quiet_level = 0;
+      else
+        opt_quiet_level++;
+      break;
+    case 'v': // noprint
+      if (argument == disabled_my_option)
+        opt_verbose_level = 0;
+      else
+        opt_verbose_level++;
+      break;
+    default:
+      return ndb_std_get_one_option(optid, opt, argument);
+  }
+  return false;
+}
+
+static void print_utility_help() {}
 static int print_zero_page(int, void *, Uint32 sz);
 static int print_extent_page(int, void*, Uint32 sz);
 static int print_undo_page(int, void*, Uint32 sz);
 static int print_data_page(int, void*, Uint32 sz);
-static bool print_page(int page_no) 
-{ 
+static bool print_page(int page_no [[maybe_unused]])
+{
   return false;
 }
 
 [[noreturn]] inline void ndb_end_and_exit(int exitcode)
 {
   ndb_end(0);
+  ndb_openssl_evp::library_end();
   exit(exitcode);
 }
 
@@ -60,32 +122,38 @@ File_formats::Datafile::Zero_page g_df_zero;
 
 int main(int argc, char ** argv)
 {
-  ndb_init();
-  bool file_given_in_arg = false;
-  for(int i = 1; i<argc; i++){
-    if(!strncmp(argv[i], "-v", 2))
+  NDB_INIT(argv[0]);
+  ndb_openssl_evp::library_init();
+  Ndb_opts opts(argc, argv, my_long_options, load_defaults_groups);
+  if (opts.handle_options(&get_one_option))
+  {
+    print_utility_help();
+    opts.usage();
+    ndb_end_and_exit(1);
+  }
+
+  if (ndb_option::post_process_options())
+  {
+    BaseString err_msg = opt_file_key_state.get_error_message();
+    if (!err_msg.empty())
     {
-      int pos= 2;
-      do {
-	g_verbosity++;
-      } while(argv[i][pos++] == 'v');
-      continue;
+      fprintf(stderr, "Error: file key: %s\n", err_msg.c_str());
     }
-    else if(!strcmp(argv[i], "-q"))
-    {
-      g_verbosity--;
-      continue;
-    }
-    else if(!strcmp(argv[i], "-?") ||
-	    !strcmp(argv[i], "--?") ||
-	    !strcmp(argv[i], "-h") ||
-	    !strcmp(argv[i], "--help"))
-    {
-      print_usage(argv[0]);
-      ndb_end_and_exit(0);
-    }
-    
-    file_given_in_arg = true;
+    print_utility_help();
+    opts.usage();
+    ndb_end_and_exit(1);
+  }
+
+  g_verbosity = opt_verbose_level - opt_quiet_level;
+
+  if (argc == 0)
+  {
+    ndbout << "Filename not given" << endl;
+    ndb_end_and_exit(1);
+  }
+
+  for(int i = 0; i < argc; i++)
+  {
     const char * filename = argv[i];
     
     struct stat sbuf;
@@ -98,35 +166,49 @@ int main(int argc, char ** argv)
     
     UtilBuffer buffer;
     
-    FILE * f = fopen(filename, "rb");
-    if(f == 0){
+    ndb_file file;
+    ndbxfrm_file xfrm;
+    int r;
+    r = file.open(filename, FsOpenReq::OM_READONLY);
+    if (r == -1)
+    {
       ndbout << "Failed to open file" << endl;
+      continue;
+    }
+    const byte* key = opt_file_key_state.get_key();
+    const size_t key_len = opt_file_key_state.get_key_length();
+    r = xfrm.open(file, key, key_len);
+    if (r != 0)
+    {
+      if (r == -2) xfrm.close(true);
+      ndbout << "Failed to open file" << endl;
+      file.close();
       continue;
     }
     
     Uint32 sz;
     Uint32 j = 0;
+    bool eof = false;
     do {
       buffer.grow(g_page_size);
-      sz = (Uint32)fread(buffer.get_data(), 1, g_page_size, f);
+      byte* buffer_data = (byte*)buffer.get_data();
+      ndbxfrm_output_iterator it = {buffer_data, buffer_data + g_page_size, false};
+      r = xfrm.read_forward(&it);
+      if (r == -1) break;
+      eof = it.last();
+      sz = it.begin() - buffer_data;
       if((* g_print_page)(j++, buffer.get_data(), sz))
 	break;
-    } while(sz == g_page_size);
-    
-    fclose(f);
+    } while (sz == g_page_size);
+    xfrm.close(false);
+    file.close();
+    if (!eof)
+    {
+      ndbout << "Failed to read file" << endl;
+    }
     continue;
   }
-  if(!file_given_in_arg){
-    ndbout << "Filename not given" << endl;
-    ndb_end_and_exit(1);
-  }
   ndb_end_and_exit(0);
-}
-
-void
-print_usage(const char* prg)
-{
-  ndbout << prg << " [-v]+ [-q]+ <file>+" << endl;
 }
 
 int

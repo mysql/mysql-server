@@ -1690,7 +1690,7 @@ BackupFile::openFile(){
                    reinterpret_cast<const byte*>(
                        g_backup_password_state.get_password()),
                    g_backup_password_state.get_password_length());
-  bool fail = (r == -1);
+  bool fail = (r != 0);
   if (g_backup_password_state.get_password() != nullptr)
   {
     if (!m_xfile.is_encrypted())
@@ -1699,7 +1699,7 @@ BackupFile::openFile(){
                               "encrypted.");
       fail = true;
     }
-    else if (r == -1)
+    else if (r != 0)
     {
       restoreLogger.log_error("Can not read decrypted file. Might be wrong password.");
     }
@@ -1712,7 +1712,7 @@ BackupFile::openFile(){
                               "requested.");
       fail = true;
     }
-    else if (r == -1)
+    else if (r != 0)
     {
       restoreLogger.log_error("Can not read file. Might be corrupt.");
     }
