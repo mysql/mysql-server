@@ -122,7 +122,8 @@ class WkbWriterTest : public ::testing::Test {
   WkbWriterTest() = default;
 
  private:
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(WkbWriterTest);
+  WkbWriterTest(WkbWriterTest const &) = delete;
+  WkbWriterTest &operator=(WkbWriterTest const &) = delete;
 };
 
 TEST_F(WkbWriterTest, Point) {

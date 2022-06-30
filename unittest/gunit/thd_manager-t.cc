@@ -56,7 +56,8 @@ class ThreadManagerTest : public ::testing::Test {
   Global_THD_manager *thd_manager;
 
  private:
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(ThreadManagerTest);
+  ThreadManagerTest(ThreadManagerTest const &) = delete;
+  ThreadManagerTest &operator=(ThreadManagerTest const &) = delete;
 };
 
 enum TEST_TYPE { TEST_WAIT = 0, TEST_TIMED_WAIT = 1 };

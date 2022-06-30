@@ -88,18 +88,6 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_xcom_xcom_single_writer
 )
 
-DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
-  xcom/gcs_logging-t.cc
-  xcom/gcs_logging_system-t.cc
-  xcom/gcs_xcom_communication_interface-t.cc
-  xcom/gcs_xcom_control_interface-t.cc
-  xcom/gcs_xcom_group_management-t.cc
-  xcom/gcs_xcom_input_queue-t.cc
-  xcom/gcs_xcom_networking-t.cc
-  xcom/gcs_message_stage_fragmentation-t.cc
-  xcom/gcs_xcom_network_provider_manager-t.cc
-  )
-
 # When binding using IPv6 the way XCom does (dual stack IPv4/IPv6), it
 # does not detect that a port is busy when binding and overruns the
 # previous port. As such, this test cannot run on Solaris

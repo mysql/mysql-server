@@ -36,44 +36,18 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
-# googlemock uses GTEST_DISALLOW_ASSIGN_ which will generate:
-# definition of implicit copy constructor for  ....
-# is deprecated because it has a user-declared copy assignment operator
-IF(MY_COMPILER_IS_CLANG)
-  ADD_COMPILE_FLAGS(
-    account_verification_handler_t.cc
-    admin_cmd_index_t.cc
-    index_field_t.cc
-    listener_unix_socket_t.cc
-    protocol_decoder_t.cc
-    timeouts_t.cc
-    COMPILE_FLAGS "-Wno-deprecated"
-    )
-ENDIF()
-
-DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
-  account_verification_handler_t.cc
-  admin_cmd_index_t.cc
-  admin_create_collection_t.cc
-  admin_get_collection_options_t.cc
-  admin_modify_collection_options_t.cc
-  broker_input_queue_task_t.cc
-  capabilities_configurator_t.cc
-  capabilities_handlers_t.cc
-  cursor_t.cc
-  insert_statement_builder_t.cc
-  listener_tcp_t.cc
-  listener_unix_socket_t.cc
-  protocol_decoder_t.cc
-  sql_data_context_t.cc
-  timeouts_t.cc
-  )
-
 IF(MYSQLX_ADDITIONAL_TESTS_ENABLE)
   INCLUDE(mysql_function_names.cmake)
   LIST(APPEND XPL_TEST_SRC "${MYSQLX_GENERATE_DIR}/mysql_function_names_t.cc")
 ENDIF()
 
+# Fixes "C1128: number of sections exceeded object file format limit" in MSVC
+IF(MSVC)
+  ADD_COMPILE_FLAGS(
+    mock/mock.cc
+    COMPILE_FLAGS "/bigobj"
+    )
+ENDIF()
 
 MYSQL_ADD_EXECUTABLE(${XPL_UNIT_TESTS}
   ../test_main.cc

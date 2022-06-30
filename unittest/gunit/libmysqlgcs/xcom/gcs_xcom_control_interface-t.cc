@@ -247,7 +247,9 @@ class mock_gcs_xcom_state_exchange_interface
  private:
   int m_process_member_state_iteration;
 
-  bool free_xcom_member_state(Xcom_member_state *m) {
+  bool free_xcom_member_state(Xcom_member_state *m,
+                              const Gcs_member_identifier &,
+                              Gcs_protocol_version, Gcs_protocol_version) {
     delete m;
     if (m_process_member_state_iteration == 0) {
       m_process_member_state_iteration++;
@@ -256,8 +258,14 @@ class mock_gcs_xcom_state_exchange_interface
       return true;
   }
 
-  bool free_members_joined(std::vector<Gcs_member_identifier *> &total,
-                           std::vector<Gcs_member_identifier *> &joined) {
+  bool free_members_joined(synode_no,
+                           std::vector<Gcs_member_identifier *> &total,
+                           std::vector<Gcs_member_identifier *> &,
+                           std::vector<Gcs_member_identifier *> &joined,
+                           std::vector<std::unique_ptr<Gcs_message_data>> &,
+                           Gcs_view *, std::string *,
+                           const Gcs_member_identifier &,
+                           const Gcs_xcom_nodes &) {
     std::vector<Gcs_member_identifier *>::iterator it;
 
     for (it = total.begin(); it != total.end(); it++) delete (*it);
@@ -273,14 +281,14 @@ class mock_gcs_xcom_state_exchange_interface
   mock_gcs_xcom_state_exchange_interface()
       : m_process_member_state_iteration(0) {
     ON_CALL(*this, process_member_state(_, _, _, _))
-        .WillByDefault(WithArgs<0>(Invoke(
+        .WillByDefault(Invoke(
             this,
-            &mock_gcs_xcom_state_exchange_interface::free_xcom_member_state)));
+            &mock_gcs_xcom_state_exchange_interface::free_xcom_member_state));
 
     ON_CALL(*this, state_exchange(_, _, _, _, _, _, _, _, _))
-        .WillByDefault(WithArgs<1, 3>(Invoke(
+        .WillByDefault(Invoke(
             this,
-            &mock_gcs_xcom_state_exchange_interface::free_members_joined)));
+            &mock_gcs_xcom_state_exchange_interface::free_members_joined));
     ON_CALL(*this, compute_incompatible_members())
         .WillByDefault(Return(std::vector<Gcs_xcom_node_information>()));
     ON_CALL(*this, process_recovery_state()).WillByDefault(Return(true));
@@ -332,9 +340,9 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
     ON_CALL(*this, xcom_client_add_node(_, _, _)).WillByDefault(Return(false));
     ON_CALL(*this, xcom_client_send_data(_, _)).WillByDefault(Return(10));
     ON_CALL(*this, new_node_address_uuid(_, _, _))
-        .WillByDefault(WithArgs<0, 1, 2>(Invoke(::new_node_address_uuid)));
+        .WillByDefault(Invoke(::new_node_address_uuid));
     ON_CALL(*this, delete_node_address(_, _))
-        .WillByDefault(WithArgs<0, 1>(Invoke(::delete_node_address)));
+        .WillByDefault(Invoke(::delete_node_address));
     ON_CALL(*this, xcom_wait_ready()).WillByDefault(Return(GCS_OK));
     ON_CALL(*this, xcom_wait_for_xcom_comms_status_change(_))
         .WillByDefault(SetArgReferee<0>(XCOM_COMMS_OK));
@@ -1369,7 +1377,7 @@ TEST_F(XComControlTest, FailedNodeRemovalTest) {
   free_node_set(&nodes);
 }
 
-void check_view_ok(const Gcs_view &view) {
+void check_view_ok(const Gcs_view &view, const Exchanged_data &) {
   ASSERT_EQ(view.get_error_code(), Gcs_view::OK);
 }
 
@@ -1391,7 +1399,7 @@ TEST_F(XComControlTest, FailedNodeGlobalViewTest) {
 
   EXPECT_CALL(mock_ev_listener, on_view_changed(_, _))
       .Times(1)
-      .WillOnce(WithArgs<0>(Invoke(check_view_ok)));
+      .WillOnce(Invoke(check_view_ok));
 
   Gcs_xcom_uuid uuid_1 = Gcs_xcom_uuid::create_uuid();
   blob blob_1 = {{0, static_cast<char *>(malloc(uuid_1.actual_value.size()))}};
@@ -2335,13 +2343,14 @@ TEST_F(XComControlTest, DoNotDisbandEntireGroup) {
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12346", true));
   xcom_nodes.add_node(Gcs_xcom_node_information("127.0.0.1:12347", true));
 
-  auto suspect_is_me = [suspect = me.get()](node_list *nl) -> bool {
+  auto suspect_is_me = [suspect = me.get()](node_list *nl, uint32_t) -> bool {
     EXPECT_EQ(nl->node_list_len, 1);
     EXPECT_EQ(std::string{nl->node_list_val[0].address},
               suspect->get_member_id());
     return true;
   };
-  auto suspect_is_2 = [suspect = suspect_2.get()](node_list *nl) -> bool {
+  auto suspect_is_2 = [suspect = suspect_2.get()](node_list *nl,
+                                                  uint32_t) -> bool {
     EXPECT_EQ(nl->node_list_len, 1);
     EXPECT_EQ(std::string{nl->node_list_val[0].address},
               suspect->get_member_id());
@@ -2353,8 +2362,8 @@ TEST_F(XComControlTest, DoNotDisbandEntireGroup) {
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _))
       .Times(2)  // once for expulsion, once for leave
-      .WillOnce(WithArgs<0>(Invoke(suspect_is_2)))
-      .WillOnce(WithArgs<0>(Invoke(suspect_is_me)));
+      .WillOnce(Invoke(suspect_is_2))
+      .WillOnce(Invoke(suspect_is_me));
   EXPECT_CALL(proxy, delete_node_address(_, _))
       .Times(3);  // once for boot, once for expulsion, once for leave
 

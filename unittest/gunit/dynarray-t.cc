@@ -105,7 +105,8 @@ class MemRootTest : public ::testing::Test {
   static Key_use test_data[num_elements];
   static TABLE_LIST table_list[num_elements];
 
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(MemRootTest);
+  MemRootTest(MemRootTest const &) = delete;
+  MemRootTest &operator=(MemRootTest const &) = delete;
 };
 
 size_t MemRootTest::destroy_counter;

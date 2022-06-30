@@ -38,10 +38,6 @@ SET(TESTS
   group_replication_gcs_mysql_network_provider
   )
 
-DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
-  group_replication_gcs_mysql_network_provider-t.cc
-  )
-
 FOREACH(test ${TESTS})
   SET(SRC_FILES ${test}-t.cc)
   IF(WIN32)

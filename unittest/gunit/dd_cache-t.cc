@@ -180,7 +180,8 @@ class CacheStorageTest : public ::testing::Test, public Test_MDL_context_owner {
   MDL_request m_request;
 
  private:
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(CacheStorageTest);
+  CacheStorageTest(CacheStorageTest const &) = delete;
+  CacheStorageTest &operator=(CacheStorageTest const &) = delete;
 };
 
 template <typename T>
