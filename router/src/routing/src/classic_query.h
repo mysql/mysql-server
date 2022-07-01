@@ -27,7 +27,22 @@
 
 #include <system_error>
 
+#include "mysql/harness/stdx/flags.h"
 #include "processor.h"
+
+enum class StmtClassifier {
+  StateChangeOnSuccess = 1 << 0,              // even if tracker doesn't say so.
+  StateChangeOnError = 1 << 1,                // on error
+  StateChangeOnTracker = 1 << 2,              // trust the tracker.
+  NoStateChangeIgnoreTracker = 1 << 3,        // tracker is wrong.
+  ForbiddenFunctionWithConnSharing = 1 << 4,  // forbidden function
+  ForbiddenSetWithConnSharing = 1 << 5,       // forbidden set-tracker
+};
+
+namespace stdx {
+template <>
+struct is_flags<StmtClassifier> : std::true_type {};
+}  // namespace stdx
 
 class QueryForwarder : public Processor {
  public:
@@ -82,6 +97,8 @@ class QueryForwarder : public Processor {
   stdx::expected<void, std::error_code> track_session_changes(
       net::const_buffer session_trackers,
       classic_protocol::capabilities::value_type caps);
+
+  stdx::flags<StmtClassifier> stmt_classified_{};
 
   Stage stage_{Stage::Command};
 

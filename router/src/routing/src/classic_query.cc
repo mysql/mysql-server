@@ -33,7 +33,12 @@
 #include "classic_lazy_connect.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
+#include "mysqld_error.h"       // mysql errors
+#include "mysqlrouter/utils.h"  // to_string
 #include "processor.h"
+#include "sql/lex.h"
+#include "sql_lexer.h"
+#include "sql_lexer_thd.h"
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
   switch (stage()) {
@@ -72,6 +77,257 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
   harness_assert_this_should_not_execute();
 }
 
+#ifdef DEBUG_DUMP_TOKENS
+static void dump_token(SqlLexer::iterator::Token tkn) {
+  std::map<int, std::string_view> syms;
+
+  for (size_t ndx{}; ndx < sizeof(symbols) / sizeof(symbols[0]); ++ndx) {
+    auto sym = symbols[ndx];
+    syms.emplace(sym.tok, std::string_view{sym.name, sym.length});
+  }
+  std::cerr << "<" << tkn.id << ">\t| ";
+
+  auto it = syms.find(tkn.id);
+  if (it != syms.end()) {
+    std::cerr << "sym[" << std::quoted(it->second) << "]";
+  } else if (tkn.id >= 32 && tkn.id < 127) {
+    std::cerr << (char)tkn.id;
+  } else if (tkn.id == IDENT || tkn.id == IDENT_QUOTED) {
+    std::cerr << std::quoted(tkn.text, '`');
+  } else if (tkn.id == TEXT_STRING) {
+    std::cerr << std::quoted(tkn.text);
+  } else if (tkn.id == NUM) {
+    std::cerr << tkn.text;
+  } else if (tkn.id == END_OF_INPUT) {
+    std::cerr << "<END>";
+  }
+  std::cerr << "\n";
+}
+#endif
+
+static std::ostream &operator<<(std::ostream &os,
+                                stdx::flags<StmtClassifier> flags) {
+  bool one{false};
+  if (flags & StmtClassifier::ForbiddenFunctionWithConnSharing) {
+    one = true;
+    os << "forbidden_function_with_connection_sharing";
+  }
+  if (flags & StmtClassifier::ForbiddenSetWithConnSharing) {
+    one = true;
+    os << "forbidden_set_with_connection_sharing";
+  }
+  if (flags & StmtClassifier::NoStateChangeIgnoreTracker) {
+    if (one) os << ",";
+    one = true;
+    os << "ignore_tracker";
+  }
+
+  if (flags & StmtClassifier::StateChangeOnError) {
+    if (one) os << ",";
+    one = true;
+    os << "change-on-error";
+  }
+  if (flags & StmtClassifier::StateChangeOnSuccess) {
+    if (one) os << ",";
+    one = true;
+    os << "change-on-success";
+  }
+  if (flags & StmtClassifier::StateChangeOnTracker) {
+    if (one) os << ",";
+    one = true;
+    os << "change-on-tracker";
+  }
+
+  return os;
+}
+
+/*
+ * classify statements about their behaviour with the session-tracker.
+ *
+ * Statements may
+ *
+ * - set user vars, but not set the session-tracker like:
+ *
+ * @code
+ * SELECT 1 INTO @a
+ * @endcode
+ *
+ * - create global locks, but not set the session-tracker like:
+ *
+ * @code
+ * LOCK INSTANCE FOR BACKUP
+ * FLUSH TABLES WITH READ LOCK
+ * @endcode
+ */
+static stdx::flags<StmtClassifier> classify(const std::string &stmt,
+                                            bool forbid_set_trackers) {
+  stdx::flags<StmtClassifier> classified{};
+
+  MEM_ROOT mem_root;
+  THD session;
+  session.mem_root = &mem_root;
+
+  {
+    Parser_state parser_state;
+    parser_state.init(&session, stmt.data(), stmt.size());
+    session.m_parser_state = &parser_state;
+    SqlLexer lexer(&session);
+
+    auto lexer_it = lexer.begin();
+    if (lexer_it != lexer.end()) {
+      auto first = *lexer_it;
+      auto last = first;
+#ifdef DEBUG_DUMP_TOKENS
+      dump_token(first);
+#endif
+
+      ++lexer_it;
+
+      for (; lexer_it != lexer.end(); ++lexer_it) {
+        auto tkn = *lexer_it;
+#ifdef DEBUG_DUMP_TOKENS
+        dump_token(tkn);
+#endif
+
+        if (first.id == SELECT_SYM) {
+          if (tkn.id == SQL_CALC_FOUND_ROWS) {
+            classified |= StmtClassifier::StateChangeOnSuccess;
+            classified |= StmtClassifier::StateChangeOnError;
+          }
+
+          // SELECT ... INTO ...
+          if (tkn.id == INTO) {
+            classified |= StmtClassifier::StateChangeOnSuccess;
+          }
+        } else if (first.id == LOCK_SYM) {
+          // match:   LOCK INSTANCE FOR BACKUP
+          // but not: LOCK TABLES ...
+          if (tkn.id == INSTANCE_SYM) {
+            classified |= StmtClassifier::StateChangeOnSuccess;
+          }
+        } else if (first.id == FLUSH_SYM) {
+          // match:   FLUSH TABLES WITH ...
+          // but not: FLUSH TABLES t1 WITH ...
+          if (last.id == TABLES && tkn.id == WITH) {
+            classified |= StmtClassifier::StateChangeOnSuccess;
+          }
+        } else if (first.id == GET_SYM && tkn.id == DIAGNOSTICS_SYM) {
+          // GET [CURRENT] DIAGNOSTICS ...
+          classified |= StmtClassifier::ForbiddenFunctionWithConnSharing;
+        }
+
+        // check forbidden functions in DML statements:
+        //
+        // can appear more or less everywhere:
+        //
+        // - INSERT INTO tlb VALUES (GET_LOCK("abc", 1))
+        // - SELECT GET_LOCK("abc", 1)
+        // - SELECT * FROM tbl WHERE GET_LOCK(...)
+        // - CALL FOO(GET_LOCK(...))
+        // - DO GET_LOCK()
+        //
+        // It is ok, if it appears in:
+        //
+        // - DDL like CREATE|DROP|ALTER
+
+        switch (first.id) {
+          case SELECT_SYM:
+          case INSERT_SYM:
+          case UPDATE_SYM:
+          case DELETE_SYM:
+          case DO_SYM:
+          case CALL_SYM:
+          case SET_SYM:
+            if (tkn.id == '(' &&
+                (last.id == IDENT || last.id == IDENT_QUOTED)) {
+              std::string ident;
+              ident.resize(last.text.size());
+              std::transform(
+                  last.text.begin(), last.text.end(), ident.begin(),
+                  [](auto c) { return (c >= 'a' && c <= 'z') ? c - 0x20 : c; });
+
+              if (ident == "GET_LOCK" ||  //
+                  ident == "SERVICE_GET_WRITE_LOCKS" ||
+                  ident == "SERVICE_GET_READ_LOCKS" ||
+                  ident == "VERSION_TOKENS_LOCK_SHARED" ||
+                  ident == "VERSION_TOKENS_LOCK_EXCLUSIVE") {
+                classified |= StmtClassifier::StateChangeOnSuccess;
+              }
+
+              if (ident == "LAST_INSERT_ID") {
+                classified |= StmtClassifier::ForbiddenFunctionWithConnSharing;
+              }
+            }
+
+            break;
+        }
+
+        if (first.id == SET_SYM) {
+          if (last.id == LEX_HOSTNAME && (tkn.id == SET_VAR || tkn.id == EQ)) {
+            // LEX_HOSTNAME: @IDENT -> user-var
+            // SET_VAR     : :=
+            // EQ          : =
+
+            classified |= StmtClassifier::StateChangeOnSuccess;
+            classified |= StmtClassifier::StateChangeOnError;
+          } else if (forbid_set_trackers &&
+                     (last.id == IDENT || last.id == IDENT_QUOTED) &&
+                     (tkn.id == SET_VAR || tkn.id == EQ)) {
+            // SET .* session_track_gtids := ...
+            //                             ^^ or =
+            //         ^^ or quoted with backticks
+            //
+            // forbids also
+            //
+            // - SET SESSION (ident|ident_quoted)
+            // - SET @@SESSION.(ident|ident_quoted)
+            // - SET LOCAL (ident|ident_quoted)
+            // - SET @@LOCAL.(ident|ident_quoted)
+
+            std::string ident;
+            ident.resize(last.text.size());
+
+            // ascii-upper-case
+            std::transform(
+                last.text.begin(), last.text.end(), ident.begin(),
+                [](auto c) { return (c >= 'a' && c <= 'z') ? c - 0x20 : c; });
+
+            if (ident == "SESSION_TRACK_GTIDS" ||  //
+                ident == "SESSION_TRACK_TRANSACTION_INFO" ||
+                ident == "SESSION_TRACK_STATE_CHANGE" ||
+                ident == "SESSION_TRACK_SYSTEM_VARIABLES") {
+              classified |= StmtClassifier::ForbiddenSetWithConnSharing;
+            }
+          }
+        } else {
+          if (last.id == LEX_HOSTNAME && tkn.id == SET_VAR) {  // :=
+            classified |= StmtClassifier::StateChangeOnSuccess;
+            classified |= StmtClassifier::StateChangeOnError;
+          }
+        }
+        last = tkn;
+      }
+
+      if (first.id == SET_SYM) {
+        if (!classified) {
+          return StmtClassifier::NoStateChangeIgnoreTracker;
+        } else {
+          return classified;
+        }
+      } else {
+        if (!classified) {
+          return StmtClassifier::StateChangeOnTracker;
+        } else {
+          return classified;
+        }
+      }
+    }
+  }
+
+  // unknown or empty statement.
+  return StmtClassifier::StateChangeOnTracker;
+}
+
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->client_channel();
@@ -84,6 +340,53 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
 
   trace(Tracer::Event().stage("query::command: " +
                               msg_res->statement().substr(0, 1024)));
+
+  stmt_classified_ = classify(msg_res->statement(), true);
+
+  trace(Tracer::Event().stage("query::classified: " +
+                              mysqlrouter::to_string(stmt_classified_)));
+
+  // SET session_track... is forbidden if router sets session-trackers on the
+  // server-side.
+  if ((stmt_classified_ & StmtClassifier::ForbiddenSetWithConnSharing) &&
+      connection()->connection_sharing_possible()) {
+    discard_current_msg(src_channel, src_protocol);
+
+    trace(Tracer::Event().stage("query::forbidden"));
+
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+            src_channel, src_protocol,
+            {ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION,
+             "The system variable cannot be set when connection sharing is "
+             "enabled",
+             "HY000"});
+    if (!send_res) return send_client_failed(send_res.error());
+
+    stage(Stage::Done);
+    return Result::SendToClient;
+  }
+
+  // functions are forbidden if the connection can be shared
+  // (e.g. config allows sharing and outside a transaction)
+  if ((stmt_classified_ & StmtClassifier::ForbiddenFunctionWithConnSharing) &&
+      connection()->connection_sharing_allowed()) {
+    discard_current_msg(src_channel, src_protocol);
+
+    trace(Tracer::Event().stage("query::forbidden"));
+
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+            src_channel, src_protocol,
+            {ER_NO_ACCESS_TO_NATIVE_FCT,
+             "Access to native function is rejected when connection sharing is "
+             "enabled",
+             "HY000"});
+    if (!send_res) return send_client_failed(send_res.error());
+
+    stage(Stage::Done);
+    return Result::SendToClient;
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -344,6 +647,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
     trace(Tracer::Event().stage("query::more_resultsets"));
     return forward_server_to_client(true);
   } else {
+    if (stmt_classified_ & StmtClassifier::StateChangeOnSuccess) {
+      connection()->some_state_changed(true);
+    }
+
     stage(Stage::Done);  // once the message is forwarded, we are done.
     return forward_server_to_client();
   }
@@ -364,8 +671,12 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
 
   if (!msg.session_changes().empty()) {
     auto track_res = connection()->track_session_changes(
-        net::buffer(msg.session_changes()),
-        src_protocol->shared_capabilities());
+        net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
+        stmt_classified_ & StmtClassifier::NoStateChangeIgnoreTracker);
+  }
+
+  if (stmt_classified_ & StmtClassifier::StateChangeOnSuccess) {
+    connection()->some_state_changed(true);
   }
 
   if (msg.status_flags().test(
@@ -382,6 +693,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::error() {
   trace(Tracer::Event().stage("query::error"));
+
+  if (stmt_classified_ & StmtClassifier::StateChangeOnError) {
+    connection()->some_state_changed(true);
+  }
 
   stage(Stage::Done);
   return forward_server_to_client();
@@ -683,9 +998,11 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::ok() {
   if (handler_) handler_->on_ok(msg);
 
   if (!msg.session_changes().empty()) {
+    auto changes_state = classify(stmt_, false);
+
     auto track_res = connection()->track_session_changes(
-        net::buffer(msg.session_changes()),
-        src_protocol->shared_capabilities());
+        net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
+        changes_state & StmtClassifier::NoStateChangeIgnoreTracker);
   }
 
   if (msg.status_flags().test(
