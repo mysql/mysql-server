@@ -61,6 +61,7 @@ constexpr value_type session_track{23};
 constexpr value_type text_result_with_session_tracking{24};
 constexpr value_type optional_resultset_metadata{25};
 constexpr value_type compress_zstd{26};
+constexpr value_type query_attributes{27};
 //
 // 29 is an extension flag for >32 bit
 // 30 is client only
@@ -139,6 +140,7 @@ constexpr value_type compress_zstd{1 << pos::compress_zstd};
 // version_added: 8.0
 constexpr value_type optional_resultset_metadata{
     1 << pos::optional_resultset_metadata};
+constexpr value_type query_attributes{1 << pos::query_attributes};
 }  // namespace capabilities
 
 namespace status {
