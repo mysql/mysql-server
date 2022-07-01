@@ -88,6 +88,9 @@ SET @@GLOBAL.group_replication_paxos_single_leader = 1;
 --let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server1_uuid"
 --source include/assert.inc
+--let $assert_text = Single Leader must be enabled
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE from performance_schema.replication_group_communication_information]" = "1"
+--source include/assert.inc
 
 # Verify preferred and active members of member 2
 --let $rpl_connection_name= server2
@@ -98,6 +101,9 @@ SET @@GLOBAL.group_replication_paxos_single_leader = 1;
 --let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server1_uuid"
 --source include/assert.inc
+--let $assert_text = Single Leader must be enabled
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE from performance_schema.replication_group_communication_information]" = "1"
+--source include/assert.inc
 
 # Verify preferred and active members of member 3
 --let $rpl_connection_name= server3
@@ -107,6 +113,9 @@ SET @@GLOBAL.group_replication_paxos_single_leader = 1;
 --source include/assert.inc
 --let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server1_uuid"
+--source include/assert.inc
+--let $assert_text = Single Leader must be enabled
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE from performance_schema.replication_group_communication_information]" = "1"
 --source include/assert.inc
 
 --echo
@@ -140,6 +149,9 @@ SET GLOBAL group_replication_paxos_single_leader = 0;
 --let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server1_uuid"
 --source include/assert.inc
+--let $assert_text = Single Leader must be enabled
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE from performance_schema.replication_group_communication_information]" = "1"
+--source include/assert.inc
 
 # Verify preferred and active members of member 2
 --let $rpl_connection_name= server2
@@ -150,6 +162,9 @@ SET GLOBAL group_replication_paxos_single_leader = 0;
 --let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server1_uuid"
 --source include/assert.inc
+--let $assert_text = Single Leader must be enabled
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE from performance_schema.replication_group_communication_information]" = "1"
+--source include/assert.inc
 
 # Verify preferred and active members of member 3
 --let $rpl_connection_name= server3
@@ -159,6 +174,9 @@ SET GLOBAL group_replication_paxos_single_leader = 0;
 --source include/assert.inc
 --let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server1_uuid"
+--source include/assert.inc
+--let $assert_text = Single Leader must be enabled
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE from performance_schema.replication_group_communication_information]" = "1"
 --source include/assert.inc
 
 --echo
@@ -205,6 +223,9 @@ SET GLOBAL group_replication_paxos_single_leader = 0;
 --let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%'`
 --let $assert_cond = "$num_rows" = "1"
 --source include/assert.inc
+--let $assert_text = Single Leader must be disabled
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE from performance_schema.replication_group_communication_information]" = "0"
+--source include/assert.inc
 
 # Verify preferred and active members of member 2
 --let $rpl_connection_name= server2
@@ -216,6 +237,9 @@ SET GLOBAL group_replication_paxos_single_leader = 0;
 --let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL
 --let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%'`
 --let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+--let $assert_text = Single Leader must be disabled
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE from performance_schema.replication_group_communication_information]" = "0"
 --source include/assert.inc
 
 --echo

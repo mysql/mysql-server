@@ -34,12 +34,15 @@ group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
 Mode switched to single-primary successfully.
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be enabled]
 [connection server2]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be enabled]
 [connection server3]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be enabled]
 [connection server3]
 include/stop_group_replication.inc
 [connection server2]
@@ -108,12 +111,15 @@ group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
 Mode switched to single-primary successfully.
 include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be disabled]
 [connection server2]
 include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be disabled]
 [connection server3]
 include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be disabled]
 [connection server2]
 SELECT group_replication_switch_to_multi_primary_mode();
 group_replication_switch_to_multi_primary_mode()

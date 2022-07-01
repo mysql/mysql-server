@@ -34,6 +34,7 @@
 
 extern Gcs_operations *gcs_module;
 extern Group_member_info_manager_interface *group_member_mgr;
+extern Group_member_info *local_member_info;
 
 namespace gr {
 namespace perfschema {
@@ -48,6 +49,7 @@ static constexpr unsigned long long NR_ROWS{1};
 static unsigned long long s_current_pos{0};
 static uint32_t s_write_concurrency{0};
 static Member_version s_mysql_version{0x00000};
+static unsigned long s_single_writer_capable{0};
 
 /**
   Fetch preferred leaders instance.
@@ -116,6 +118,25 @@ static bool fetch_row_data() {
     if (member_id) found_actual_leaders.emplace_back(member_id);
   }
   get_actual_leaders() = found_actual_leaders;
+
+  // If we are running a version that does not support Single Leader,
+  // we will report it as not running in Single Leader.
+  // Else, we will retrieve it form the running group.
+  //
+  // The value of get_allow_single_leader must be the same in all group
+  // members if the protocol version is >=V3.
+  // Hence we retrieve the first group member, and get the value from it.
+
+  s_single_writer_capable = 0;
+  if (local_member_info != nullptr && gcs_version >= Gcs_protocol_version::V3) {
+    auto recovery_status = local_member_info->get_recovery_status();
+
+    if (recovery_status == Group_member_info::MEMBER_IN_RECOVERY ||
+        recovery_status == Group_member_info::MEMBER_ONLINE) {
+      s_single_writer_capable = static_cast<unsigned long>(
+          local_member_info->get_allow_single_leader());
+    }
+  }
 
   return OK;
 }
@@ -191,6 +212,11 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
       table_service->set_field_blob(field, ss.str().c_str(), ss.str().size());
       break;
     }
+    case 4: {  // WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE
+      table_service->set_field_utinyint(field,
+                                        {s_single_writer_capable, false});
+      break;
+    }
   }
   return 0;
 }
@@ -221,7 +247,10 @@ bool Pfs_table_communication_information::init() {
       "WRITE_CONCURRENCY BIGINT unsigned not null, "
       "PROTOCOL_VERSION LONGTEXT not null, "
       "WRITE_CONSENSUS_LEADERS_PREFERRED LONGTEXT not null, "
-      "WRITE_CONSENSUS_LEADERS_ACTUAL LONGTEXT not null";
+      "WRITE_CONSENSUS_LEADERS_ACTUAL LONGTEXT not null, "
+      "WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE BOOLEAN not null COMMENT 'What "
+      "the option group_replication_paxos_single_leader was set to at the time "
+      "this member joined the group. '";
   m_share.m_ref_length =
       sizeof pfs_table_communication_information::s_current_pos;
   m_share.m_acl = READONLY;

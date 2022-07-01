@@ -37,12 +37,15 @@ include/start_group_replication.inc
 [connection server1]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be enabled]
 [connection server2]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be enabled]
 [connection server3]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be enabled]
 
 ####
 # 3) Change the value of group_replication_paxos_single_leader to false
@@ -63,12 +66,15 @@ include/assert.inc [The value of group_replication_paxos_single_leader should be
 
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be enabled]
 [connection server2]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be enabled]
 [connection server3]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be enabled]
 
 ####
 # 6) Reboot the plugin (add only 2 of the members)
@@ -95,9 +101,11 @@ include/start_group_replication.inc
 [connection server1]
 include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be disabled]
 [connection server2]
 include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
 include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Single Leader must be disabled]
 
 ####
 # 8) Change the sysvar value on the third member to true
