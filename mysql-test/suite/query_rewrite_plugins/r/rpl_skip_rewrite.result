@@ -1,0 +1,92 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Install plugin and add rewrite rule on replica
+#
+include/sync_slave_sql_with_master.inc
+# Query rewrite plugin was installed.
+SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_VERSION, PLUGIN_TYPE_VERSION
+FROM information_schema.plugins
+WHERE plugin_name LIKE 'Rewriter';
+PLUGIN_NAME	PLUGIN_TYPE	PLUGIN_VERSION	PLUGIN_TYPE_VERSION
+Rewriter	AUDIT	0.2	4.1
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement)
+VALUES ('INSERT INTO test.t1 (a,b) VALUES (?, ?)',
+'INSERT INTO test.t1 (b,a) VALUES (?, ?)');
+CALL query_rewrite.flush_rewrite_rules();
+#
+# Replicated INSERTs not rewritten when PRIVILEGE_CHECKS_USER has
+# SKIP_QUERY_REWRITE privilege
+#
+SET @saved_binlog_format=@@global.binlog_format;
+SET SESSION binlog_format = 'STATEMENT';
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CREATE USER 'replication_applier'@'localhost';
+GRANT SYSTEM_VARIABLES_ADMIN, REPLICATION_APPLIER, CREATE, INSERT, DELETE, SKIP_QUERY_REWRITE on *.* to 'replication_applier'@'localhost';
+FLUSH PRIVILEGES;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+include/start_slave.inc
+CREATE TABLE test.t1 ( a INT, b INT , c INT, PRIMARY KEY(a));
+INSERT INTO test.t1 (a, b) VALUES (1, 2);
+include/sync_slave_sql_with_master.inc
+#
+# Replicated INSERTs are not rewritten, so rows at replica match source
+#
+include/assert.inc [Replicated INSERT should not be rewritten]
+#
+# Replicated INSERTs rewritten when PRIVILEGE_CHECKS_USER does not have
+# SKIP_QUERY_REWRITE privilege
+#
+REVOKE SKIP_QUERY_REWRITE ON *.* FROM 'replication_applier'@'localhost';
+FLUSH PRIVILEGES;
+DELETE FROM test.t1;
+INSERT INTO test.t1 (a, b) VALUES (3, 4);
+include/sync_slave_sql_with_master.inc
+#
+# Replicated INSERTs are rewritten, so rows at replica do not match source
+#
+include/assert.inc [Replicated INSERT should be rewritten]
+#
+# Replicated INSERTs not rewritten when PRIVILEGE_CHECKS_USER = NULL and
+# rewriter_enabled_for_threads_without_privilege_checks = OFF
+#
+SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = OFF;
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
+include/start_slave.inc
+DELETE FROM test.t1;
+INSERT INTO test.t1 (a, b) VALUES (5, 6);
+include/sync_slave_sql_with_master.inc
+#
+# Replicated INSERTs are not rewritten, so rows at replica match source
+#
+include/assert.inc [Replicated INSERT should not be rewritten]
+#
+# Replicated INSERTs rewritten when PRIVILEGE_CHECKS_USER = NULL and
+# rewriter_enabled_for_threads_without_privilege_checks = ON
+#
+SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = ON;
+DELETE FROM test.t1;
+INSERT INTO test.t1 (a, b) VALUES (7, 8);
+include/sync_slave_sql_with_master.inc
+#
+# Replicated INSERTs are rewritten, so rows at replica do not match source
+#
+include/assert.inc [Replicated INSERT should be rewritten]
+#
+# Cleanup and uninstall plugin.
+#
+DROP USER 'replication_applier'@'localhost';
+SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = DEFAULT;
+DROP TABLE test.t1;
+SET GLOBAL binlog_format=@saved_binlog_format;
+include/sync_slave_sql_with_master.inc
+SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = DEFAULT;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
+include/rpl_end.inc

@@ -1,0 +1,83 @@
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+CREATE USER rewrite_skipper@localhost;
+GRANT SKIP_QUERY_REWRITE on *.* to rewrite_skipper@localhost;
+
+INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+    VALUES ( 'INSERT INTO test.t1 VALUES(?, ?, ?)',
+             'INSERT INTO test.t1 VALUES(?, NULL, ?)' );
+
+INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+    VALUES ( 'REPLACE INTO test.t1 VALUES(?, ?, ?)',
+             'REPLACE INTO test.t1 VALUES(? + 1, ? + 1, ? + 1)' );
+
+INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+    VALUES ( 'UPDATE test.t1 SET b = ? WHERE a = ?',
+             'UPDATE test.t1 SET b = 123 WHERE a = ?' );
+
+INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+    VALUES ( 'DELETE FROM test.t1 WHERE a = ?',
+             'DELETE FROM test.t1' );
+
+INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+    VALUES ( 'SELECT a, b FROM test.t1',
+             'SELECT a, b, c FROM test.t1' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+CREATE TABLE t1 (a INT, b INT, c INT);
+
+--echo #
+--echo # Rewrites skipped for user 'rewrite_skipper' with SKIP_QUERY_REWRITE
+--echo #
+
+--connect (conn1, localhost, rewrite_skipper, , test)
+--connection conn1
+
+--echo Connected as rewrite_skipper
+
+SELECT a, b FROM test.t1;
+
+INSERT INTO test.t1 VALUES (2, 2, 2);
+SELECT * FROM test.t1;
+
+REPLACE INTO test.t1 VALUES (2, 2, 2);
+SELECT * FROM test.t1;
+
+UPDATE test.t1 SET b = 3 WHERE a = 2;
+SELECT * FROM test.t1;
+
+DELETE FROM test.t1 WHERE a = 1;
+SELECT * FROM test.t1;
+
+DELETE FROM test.t1;
+
+--echo #
+--echo # Rewrites never skipped for users without SKIP_QUERY_REWRITE privilege
+--echo #
+
+--connection default
+
+--echo Connected as default user
+
+INSERT INTO test.t1 VALUES (2, 2, 2);
+SELECT * FROM test.t1;
+
+REPLACE INTO test.t1 VALUES (2, 2, 2);
+SELECT * FROM test.t1;
+
+UPDATE test.t1 SET b = 3 WHERE a = 2;
+SELECT * FROM test.t1;
+
+SELECT a, b FROM test.t1;
+
+DELETE FROM test.t1 WHERE a = 1;
+SELECT * FROM test.t1;
+
+--connection default
+DROP TABLE t1;
+DROP USER rewrite_skipper@localhost;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+--source include/disconnect_connections.inc

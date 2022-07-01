@@ -1,0 +1,175 @@
+# ==== Purpose ====
+#
+# Verify that query_rewriter is enabled/disabled for the replication applier
+# user according to rewriter_enabled_for_threads_without_privilege_checks
+# and the SKIP_QUERY_REWRITE privilege.
+#
+# ==== Requirements ====
+#
+# R1. If a replication channel uses PRIVILEGE_CHECKS_USER=NULL, then replicated
+#     statements should be rewritten according to
+#     @@rewriter_enabled_for_threads_without_privilege_checks
+#
+# R2. If a replication channel uses a non-NULL PRIVILEGE_CHECKS_USER, then
+#     replicated statements should be never be rewritten if the user has the
+#     SKIP_QUERY_REWRITE privilege
+#
+# ==== Implementation ====
+#
+# - Create a table.
+# - Create a rewrite rule for INSERT statements in this table, on the replica.
+# - Issue matching INSERT statements on the source, and verify that they were
+#   (or were not) rewritten on the replica, in the following scenarios:
+#   - PRIVILEGE_CHECKS_USER is not NULL and user has SKIP_QUERY_REWRITE
+#   - PRIVILEGE_CHECKS_USER is not NULL and the user does not have
+#     SKIP_QUERY_REWRITE
+#   - PRIVILEGE_CHECKS_USER=NULL and
+#     rewriter_enabled_for_threads_without_privilege_checks=ON
+#   - PRIVILEGE_CHECKS_USER=NULL and
+#     rewriter_enabled_for_threads_without_privilege_checks=OFF
+#
+# ==== References =====
+#
+# WL#14527: System variable to disable query rewrites for system users
+
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+--source include/xplugin_wait_for_interfaces.inc
+
+--echo #
+--echo # Install plugin and add rewrite rule on replica
+--echo #
+
+--source include/sync_slave_sql_with_master.inc
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_VERSION, PLUGIN_TYPE_VERSION
+FROM information_schema.plugins
+WHERE plugin_name LIKE 'Rewriter';
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement)
+VALUES ('INSERT INTO test.t1 (a,b) VALUES (?, ?)',
+        'INSERT INTO test.t1 (b,a) VALUES (?, ?)');
+
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo #
+--echo # Replicated INSERTs not rewritten when PRIVILEGE_CHECKS_USER has
+--echo # SKIP_QUERY_REWRITE privilege
+--echo #
+
+connection master;
+SET @saved_binlog_format=@@global.binlog_format;
+SET SESSION binlog_format = 'STATEMENT';
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+CREATE USER 'replication_applier'@'localhost';
+GRANT SYSTEM_VARIABLES_ADMIN, REPLICATION_APPLIER, CREATE, INSERT, DELETE, SKIP_QUERY_REWRITE on *.* to 'replication_applier'@'localhost';
+FLUSH PRIVILEGES;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+--source include/start_slave.inc
+
+connection master;
+
+CREATE TABLE test.t1 ( a INT, b INT , c INT, PRIMARY KEY(a));
+INSERT INTO test.t1 (a, b) VALUES (1, 2);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Replicated INSERTs are not rewritten, so rows at replica match source
+--echo #
+
+--let $assert_text = Replicated INSERT should not be rewritten
+--let $assert_cond = COUNT(*) = 1 FROM t1 WHERE a = 1 AND b = 2
+--source include/assert.inc
+
+--echo #
+--echo # Replicated INSERTs rewritten when PRIVILEGE_CHECKS_USER does not have
+--echo # SKIP_QUERY_REWRITE privilege
+--echo #
+
+REVOKE SKIP_QUERY_REWRITE ON *.* FROM 'replication_applier'@'localhost';
+FLUSH PRIVILEGES;
+
+connection master;
+
+DELETE FROM test.t1;
+INSERT INTO test.t1 (a, b) VALUES (3, 4);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Replicated INSERTs are rewritten, so rows at replica do not match source
+--echo #
+
+--let $assert_text = Replicated INSERT should be rewritten
+--let $assert_cond = COUNT(*) = 1 FROM t1 WHERE a = 4 AND b = 3
+--source include/assert.inc
+
+--echo #
+--echo # Replicated INSERTs not rewritten when PRIVILEGE_CHECKS_USER = NULL and
+--echo # rewriter_enabled_for_threads_without_privilege_checks = OFF
+--echo #
+
+SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = OFF;
+
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
+--source include/start_slave.inc
+
+connection master;
+
+DELETE FROM test.t1;
+INSERT INTO test.t1 (a, b) VALUES (5, 6);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Replicated INSERTs are not rewritten, so rows at replica match source
+--echo #
+
+--let $assert_text = Replicated INSERT should not be rewritten
+--let $assert_cond = COUNT(*) = 1 FROM t1 WHERE a = 5 AND b = 6
+--source include/assert.inc
+
+--echo #
+--echo # Replicated INSERTs rewritten when PRIVILEGE_CHECKS_USER = NULL and
+--echo # rewriter_enabled_for_threads_without_privilege_checks = ON
+--echo #
+
+SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = ON;
+
+connection master;
+DELETE FROM test.t1;
+INSERT INTO test.t1 (a, b) VALUES (7, 8);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Replicated INSERTs are rewritten, so rows at replica do not match source
+--echo #
+
+--let $assert_text = Replicated INSERT should be rewritten
+--let $assert_cond = COUNT(*) = 1 FROM t1 WHERE a = 8 AND b = 7
+--source include/assert.inc
+
+--echo #
+--echo # Cleanup and uninstall plugin.
+--echo #
+
+DROP USER 'replication_applier'@'localhost';
+SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = DEFAULT;
+
+connection master;
+DROP TABLE test.t1;
+SET GLOBAL binlog_format=@saved_binlog_format;
+
+--source include/sync_slave_sql_with_master.inc
+SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = DEFAULT;
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+--source include/rpl_end.inc
+--source include/disconnect_connections.inc

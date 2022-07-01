@@ -32,10 +32,11 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
                    (MYSQL_THD thd, const char *name, void *inout_pvalue)) {
   try {
     if (inout_pvalue) {
-      if (!strcmp(name, "query_digest")) {
-        THD *t = static_cast<THD *>(thd);
+      THD *t = static_cast<THD *>(thd);
+      if (t == nullptr) return true;
 
-        if (t == nullptr || t->m_digest == nullptr) return true;
+      if (!strcmp(name, "query_digest")) {
+        if (t->m_digest == nullptr) return true;
 
         String *res = new String[1];
 
@@ -45,6 +46,10 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
         res->set_charset(&my_charset_utf8mb3_bin);
 
         *((my_h_string *)inout_pvalue) = (my_h_string)res;
+      } else if (!strcmp(name, "is_upgrade_thread")) {
+        *((bool *)inout_pvalue) = t->is_server_upgrade_thread();
+      } else if (!strcmp(name, "is_init_file_thread")) {
+        *((bool *)inout_pvalue) = t->is_init_file_system_thread();
       } else
         return true; /* invalid option */
     }

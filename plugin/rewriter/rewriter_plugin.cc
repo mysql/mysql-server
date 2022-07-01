@@ -33,7 +33,11 @@
 #include <new>
 
 #include <mysql/components/my_service.h>
+#include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/log_builtins.h>
+#include <mysql/components/services/mysql_current_thread_reader.h>
+#include <mysql/components/services/mysql_thd_attributes.h>
+#include <mysql/components/services/security_context.h>
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -46,6 +50,18 @@
 #include "template_utils.h"
 
 using std::string;
+
+/// Enabled for threads with privilege checks disabled
+static bool sys_var_enabled_for_threads_without_privilege_checks;
+
+// Component service used to check for init-file and upgrade threads
+SERVICE_TYPE(mysql_thd_attributes) *mysql_thd_attributes = nullptr;
+// Component services used to check for SKIP_QUERY_REWRITE privilege and
+// for replication users with PRIVILEGE_CHECKS_USER
+SERVICE_TYPE(dynamic_privilege_register) *dynamic_privilege_register = nullptr;
+SERVICE_TYPE(mysql_current_thread_reader) *mysql_current_thread_reader =
+    nullptr;
+SERVICE_TYPE(global_grants_check) *global_grants_check = nullptr;
 
 /**
   @file rewriter_plugin.cc
@@ -118,6 +134,29 @@ static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
+template <class T>
+T *acquire_service(const char *service_name) {
+  my_h_service my_service;
+  if (!reg_srv) return nullptr;
+  if (!reg_srv->acquire(service_name, &my_service))
+    return reinterpret_cast<T *>(my_service);
+  return nullptr;
+}
+
+template <class T, class TNoConst>
+void release_service(T *service) {
+  reg_srv->release(
+      reinterpret_cast<my_h_service>(const_cast<TNoConst *>(service)));
+}
+
+#define ACQUIRE_SERVICE(name)                        \
+  name = acquire_service<SERVICE_TYPE(name)>(#name); \
+  if (name == nullptr) return 1;
+
+#define RELEASE_SERVICE(service)                                          \
+  release_service<SERVICE_TYPE(service), SERVICE_TYPE_NO_CONST(service)>( \
+      service);
+
 /// Updater function for the status variable ..._verbose.
 static void update_verbose(MYSQL_THD, SYS_VAR *, void *, const void *save) {
   sys_var_verbose = *static_cast<const int *>(save);
@@ -126,6 +165,14 @@ static void update_verbose(MYSQL_THD, SYS_VAR *, void *, const void *save) {
 /// Updater function for the status variable ..._enabled.
 static void update_enabled(MYSQL_THD, SYS_VAR *, void *, const void *value) {
   sys_var_enabled = *static_cast<const bool *>(value);
+}
+
+/// Updater function for the status variable
+/// ..._enabled_for_threads_without_privilege_checks.
+static void update_enabled_for_threads_without_privilege_checks(
+    MYSQL_THD, SYS_VAR *, void *, const void *value) {
+  sys_var_enabled_for_threads_without_privilege_checks =
+      *static_cast<const bool *>(value);
 }
 
 static MYSQL_SYSVAR_INT(verbose,              // Name.
@@ -149,8 +196,20 @@ static MYSQL_SYSVAR_BOOL(enabled,              // Name.
                          1                // Default value.
 );
 
-SYS_VAR *rewriter_plugin_sys_vars[] = {MYSQL_SYSVAR(verbose),
-                                       MYSQL_SYSVAR(enabled), nullptr};
+static MYSQL_SYSVAR_BOOL(
+    enabled_for_threads_without_privilege_checks,          // Name.
+    sys_var_enabled_for_threads_without_privilege_checks,  // Variable.
+    PLUGIN_VAR_NOCMDARG,  // Not a command-line argument.
+    "Whether queries from threads which execute with privilege checks disabled"
+    " should be rewritten.",
+    nullptr,                                              // Check function
+    update_enabled_for_threads_without_privilege_checks,  // Update function.
+    1                                                     // Default value.
+);
+
+SYS_VAR *rewriter_plugin_sys_vars[] = {
+    MYSQL_SYSVAR(verbose), MYSQL_SYSVAR(enabled),
+    MYSQL_SYSVAR(enabled_for_threads_without_privilege_checks), nullptr};
 
 MYSQL_PLUGIN get_rewriter_plugin_info() { return plugin_info; }
 
@@ -233,12 +292,34 @@ static int rewriter_plugin_init(MYSQL_PLUGIN plugin_ref) {
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
 
+  // Initialize component services needed to disable query rewrites for
+  // skip-grant threads or users with SKIP_QUERY_REWRITE privilege.
+  ACQUIRE_SERVICE(mysql_thd_attributes);
+  ACQUIRE_SERVICE(dynamic_privilege_register);
+  ACQUIRE_SERVICE(mysql_current_thread_reader);
+  ACQUIRE_SERVICE(global_grants_check);
+
+  // register SKIP_QUERY_REWRITE privilege
+  if (dynamic_privilege_register->register_privilege(
+          STRING_WITH_LEN("SKIP_QUERY_REWRITE"))) {
+    return 1;
+  }
+
   return 0;
 }
 
 static int rewriter_plugin_deinit(void *) {
   plugin_info = nullptr;
   delete rewriter;
+
+  dynamic_privilege_register->unregister_privilege(
+      STRING_WITH_LEN("SKIP_QUERY_REWRITE"));
+
+  RELEASE_SERVICE(mysql_thd_attributes);
+  RELEASE_SERVICE(dynamic_privilege_register);
+  RELEASE_SERVICE(mysql_current_thread_reader);
+  RELEASE_SERVICE(global_grants_check);
+
   mysql_rwlock_destroy(&LOCK_table);
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
@@ -312,6 +393,67 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
 }
 
 /**
+  @brief Check if rewrite should be skipped for this query
+
+  @details Skip rewrites for
+  - init-thread queries and upgrade queries
+  - any query from a user who has the SKIP_QUERY_REWRITE privilege
+  - any replication applier query where the PRIVILEGE_CHECKS_USER has the
+    SKIP_QUERY_REWRITE privilege
+  - any replication applier query where the PRIVILEGE_CHECKS_USER is null if
+    the config var enabled_for_threads_without_privilege_checks=OFF. If the
+    config var is ON, rewrites should be allowed.
+
+  @retval true if query should not skip rewrite
+  @retval false if query should skip rewrite
+*/
+static bool allow_rewrite() {
+  MYSQL_THD current_thd;
+  if (mysql_current_thread_reader->get(&current_thd)) return true;
+
+  MYSQL_SECURITY_CONTEXT sec_ctx;
+  if (thd_get_security_context(current_thd, &sec_ctx)) {
+    assert(false);
+    return true;
+  }
+  bool is_skip_grants_user;
+  // check for thread with privilege checks disabled, such as
+  // a replication thread with PRIVILEGE_CHECKS_USER=NULL
+  if (security_context_get_option(sec_ctx, "is_skip_grants_user",
+                                  &is_skip_grants_user)) {
+    assert(false);
+    return true;
+  }
+  if (is_skip_grants_user) {
+    // Always skip rewrite for init-file and upgrade threads
+    bool is_init_file_thread, is_upgrade_thread;
+    if (mysql_thd_attributes->get(
+            current_thd, "is_init_file_thread",
+            reinterpret_cast<void *>(&is_init_file_thread))) {
+      assert(false);
+      return true;
+    }
+    if (mysql_thd_attributes->get(
+            current_thd, "is_upgrade_thread",
+            reinterpret_cast<void *>(&is_upgrade_thread))) {
+      assert(false);
+      return true;
+    }
+    if (is_init_file_thread || is_upgrade_thread) return false;
+
+    // for other skip-grant threads, check config variable
+    // rewriter_enabled_for_threads_without_privilege_checks
+    return sys_var_enabled_for_threads_without_privilege_checks;
+  } else {
+    if (global_grants_check->has_global_grant(
+            reinterpret_cast<Security_context_handle>(sec_ctx),
+            STRING_WITH_LEN("SKIP_QUERY_REWRITE")))
+      return false;
+  }
+  return true;
+}
+
+/**
   Entry point to the plugin. The server calls this function after each parsed
   query when the plugin is active. The function extracts the digest of the
   query. If the digest matches an existing rewrite rule, it is executed.
@@ -328,6 +470,8 @@ static int rewrite_query_notify(MYSQL_THD thd,
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE ||
       !sys_var_enabled)
     return 0;
+
+  if (!allow_rewrite()) return 0;
 
   uchar digest[PARSER_SERVICE_DIGEST_LENGTH];
 

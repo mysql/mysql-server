@@ -1,0 +1,86 @@
+# Query rewrite plugin was installed.
+CREATE USER rewrite_skipper@localhost;
+GRANT SKIP_QUERY_REWRITE on *.* to rewrite_skipper@localhost;
+INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+VALUES ( 'INSERT INTO test.t1 VALUES(?, ?, ?)',
+'INSERT INTO test.t1 VALUES(?, NULL, ?)' );
+INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+VALUES ( 'REPLACE INTO test.t1 VALUES(?, ?, ?)',
+'REPLACE INTO test.t1 VALUES(? + 1, ? + 1, ? + 1)' );
+INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+VALUES ( 'UPDATE test.t1 SET b = ? WHERE a = ?',
+'UPDATE test.t1 SET b = 123 WHERE a = ?' );
+INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+VALUES ( 'DELETE FROM test.t1 WHERE a = ?',
+'DELETE FROM test.t1' );
+INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+VALUES ( 'SELECT a, b FROM test.t1',
+'SELECT a, b, c FROM test.t1' );
+CALL query_rewrite.flush_rewrite_rules();
+CREATE TABLE t1 (a INT, b INT, c INT);
+#
+# Rewrites skipped for user 'rewrite_skipper' with SKIP_QUERY_REWRITE
+#
+Connected as rewrite_skipper
+SELECT a, b FROM test.t1;
+a	b
+INSERT INTO test.t1 VALUES (2, 2, 2);
+SELECT * FROM test.t1;
+a	b	c
+2	2	2
+REPLACE INTO test.t1 VALUES (2, 2, 2);
+SELECT * FROM test.t1;
+a	b	c
+2	2	2
+2	2	2
+UPDATE test.t1 SET b = 3 WHERE a = 2;
+SELECT * FROM test.t1;
+a	b	c
+2	3	2
+2	3	2
+DELETE FROM test.t1 WHERE a = 1;
+SELECT * FROM test.t1;
+a	b	c
+2	3	2
+2	3	2
+DELETE FROM test.t1;
+#
+# Rewrites never skipped for users without SKIP_QUERY_REWRITE privilege
+#
+Connected as default user
+INSERT INTO test.t1 VALUES (2, 2, 2);
+Warnings:
+Note	1105	Query 'INSERT INTO test.t1 VALUES (2, 2, 2)' rewritten to 'INSERT INTO test.t1 VALUES(2, NULL, 2)' by a query rewrite plugin
+SELECT * FROM test.t1;
+a	b	c
+2	NULL	2
+REPLACE INTO test.t1 VALUES (2, 2, 2);
+Warnings:
+Note	1105	Query 'REPLACE INTO test.t1 VALUES (2, 2, 2)' rewritten to 'REPLACE INTO test.t1 VALUES(2 + 1, 2 + 1, 2 + 1)' by a query rewrite plugin
+SELECT * FROM test.t1;
+a	b	c
+2	NULL	2
+3	3	3
+UPDATE test.t1 SET b = 3 WHERE a = 2;
+Warnings:
+Note	1105	Query 'UPDATE test.t1 SET b = 3 WHERE a = 2' rewritten to 'UPDATE test.t1 SET b = 123 WHERE a = 3' by a query rewrite plugin
+SELECT * FROM test.t1;
+a	b	c
+2	NULL	2
+3	123	3
+SELECT a, b FROM test.t1;
+a	b	c
+2	NULL	2
+3	123	3
+Warnings:
+Note	1105	Query 'SELECT a, b FROM test.t1' rewritten to 'SELECT a, b, c FROM test.t1' by a query rewrite plugin
+DELETE FROM test.t1 WHERE a = 1;
+Warnings:
+Note	1105	Query 'DELETE FROM test.t1 WHERE a = 1' rewritten to 'DELETE FROM test.t1' by a query rewrite plugin
+SELECT * FROM test.t1;
+a	b	c
+DROP TABLE t1;
+DROP USER rewrite_skipper@localhost;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

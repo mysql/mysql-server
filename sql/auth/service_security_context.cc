@@ -223,6 +223,8 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
   0 otherwise
   - privilege_execute my_svc_bool *  1 if the user account has execute
   privilege, 0 otherwise
+  - is_skip_grants_user bool      *  true if user account has skip-grants
+  privilege, false otherwise
 
   @param[in]  ctx   The handle of the security context to read from
   @param[in]  name  The option name to read
@@ -259,6 +261,8 @@ my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT ctx,
       } else if (!strcmp(name, "privilege_execute")) {
         bool checked = ctx->check_access(EXECUTE_ACL);
         *((my_svc_bool *)inout_pvalue) = checked ? MY_SVC_TRUE : MY_SVC_FALSE;
+      } else if (!strcmp(name, "is_skip_grants_user")) {
+        *((bool *)inout_pvalue) = ctx->is_skip_grants_user();
       } else
         return MY_SVC_TRUE; /* invalid option */
     }
