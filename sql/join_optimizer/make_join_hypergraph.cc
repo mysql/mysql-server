@@ -920,19 +920,18 @@ bool AlreadyExistsOnJoin(Item *cond, const RelationalExpression &expr) {
   // EarlyExpandMultipleEquals() and ExpandSameTableFromMultipleEquals()), and
   // t1.x=t2.x is implied by t1.x=t2.y and t2.x=t2.y.
   //
-  // This means we only need to check if we have another equality that comes
-  // from the same multiple equality and connects the same two tables.
-  Item_func_eq *cond_eq = is_function_of_type(cond, Item_func::EQ_FUNC)
-                              ? down_cast<Item_func_eq *>(cond)
-                              : nullptr;
-  if (cond_eq != nullptr && cond_eq->source_multiple_equality != nullptr) {
-    const table_map used_tables = cond_eq->used_tables();
-    assert(PopulationCount(used_tables) == 2);
-    for (Item *item : expr.join_conditions) {
-      if (ComesFromMultipleEquality(item, cond_eq->source_multiple_equality) &&
-          item->used_tables() == used_tables) {
-        return true;
-      }
+  // Similarly, if we have a hyperedge {t1,t2,t3}-{t4} and we already have
+  // t1.x=t4.x, we shouldn't add t2.x=t4.x if it comes from the same multiple
+  // equality, as in this case we know t1.x=t2.x will already have been applied
+  // on the {t1,t2,t3} subplan, and t2.x=t4.x is therefore implied by t1.x=t4.x.
+  //
+  // This means we only need to check if the join condition already has another
+  // equality that comes from the same multiple equality.
+  if (is_function_of_type(cond, Item_func::EQ_FUNC)) {
+    if (Item_equal *equal =
+            down_cast<Item_func_eq *>(cond)->source_multiple_equality;
+        equal != nullptr && MultipleEqualityAlreadyExistsOnJoin(equal, expr)) {
+      return true;
     }
   }
 

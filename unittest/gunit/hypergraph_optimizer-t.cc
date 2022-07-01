@@ -923,6 +923,68 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition) {
   EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY, predicate.selectivity);
 }
 
+TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition2) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 ON t1.x = t2.x "
+      "JOIN t3 LEFT JOIN t4 ON t3.x = t4.x "
+      "JOIN t5 JOIN t6 ON t5.y = t6.x ON t5.x = t3.x ON t1.x = t6.x "
+      "WHERE (t3.x IS NULL OR t6.x <> t4.x) AND t3.x <> t5.x",
+      /*nullable=*/true);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  ASSERT_EQ(6, graph.nodes.size());
+  SortNodes(&graph);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+  EXPECT_STREQ("t5", graph.nodes[4].table->alias);
+  EXPECT_STREQ("t6", graph.nodes[5].table->alias);
+
+  EXPECT_EQ(10, graph.edges.size());
+
+  // Find the edge {t1,t2,t3,t4}/{t6}
+  int edge_idx = -1;
+  for (size_t i = 0; i < graph.graph.edges.size(); ++i) {
+    if (graph.graph.edges[i].left == TablesBetween(0, 4) &&
+        graph.graph.edges[i].right == TableBitmap(5)) {
+      edge_idx = i / 2;
+      break;
+    }
+  }
+  ASSERT_NE(-1, edge_idx);
+
+  // Check the condition on the edge. In addition to a non-equijoin condition
+  // for the OR predicate, it should contain a single equijoin condition. It
+  // happens to be t2.x=t6.x, but it could equally well have been t1.x=t6.x.
+  // Because of multiple equalities, t1.x=t2.x will already have been applied on
+  // the {t1,t2,t3,t4} subplan, and t1.x=t6.x is implied by t1.x=t2.x and
+  // t2.x=t6.x. The main point of this test case is to verify that this edge
+  // contains only one of those two equijoin conditions, and that its
+  // selectivity is not double-counted.
+  const JoinPredicate &predicate = graph.edges[edge_idx];
+  ASSERT_EQ(1, predicate.expr->join_conditions.size());
+  EXPECT_EQ("((t3.x is null) or (t6.x <> t4.x))",
+            ItemToString(predicate.expr->join_conditions[0]));
+  ASSERT_EQ(1, predicate.expr->equijoin_conditions.size());
+  EXPECT_EQ("(t2.x = t6.x)",
+            ItemToString(predicate.expr->equijoin_conditions[0]));
+  EXPECT_FLOAT_EQ(
+      COND_FILTER_ALLPASS          // selectivity of non-equijoin condition
+          * COND_FILTER_EQUALITY,  // selectivity of a single equijoin condition
+      predicate.selectivity);
+}
+
 TEST_F(MakeHypergraphTest, HyperpredicatesDoNotBlockExtraCycleEdges) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 "
