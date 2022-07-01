@@ -9816,7 +9816,7 @@ ER_WARN_REMOVED_SQL_MODE
 ER_IB_MSG_FAILED_TO_ALLOCATE_WAIT
   eng "Failed to allocate memory for a pool of size %zu bytes. Will wait for %zu seconds for a thread to free a resource."
 
-ER_IB_MSG_NUM_POOLS
+OBSOLETE_ER_IB_MSG_NUM_POOLS
  eng "Number of pools: %zu"
 
 ER_IB_MSG_USING_UNDO_SPACE

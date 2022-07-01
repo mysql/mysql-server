@@ -278,8 +278,6 @@ struct PoolManager {
 
         m_pools.push_back(pool);
 
-        ib::info(ER_IB_MSG_NUM_POOLS, m_pools.size());
-
         added = true;
       }
     }
