@@ -922,7 +922,8 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
                               uint *saved_best_key_parts = nullptr);
 /**
   Calculate properties of ref key: key length, number of used key parts,
-  dependency map, possibility of null.
+  dependency map, possibility of null. After calling this function
+  thd::is_error() needs to be checked, as it can set an error.
 
   @param keyuse               Array of keys to consider
   @param tab                  join_tab to calculate ref parameters for

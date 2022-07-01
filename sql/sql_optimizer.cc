@@ -2799,6 +2799,10 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                              tab->position()->key->key, tab->prefix_tables(),
                              nullptr, &length, &keyparts, &dep_map,
                              &maybe_null);
+
+    if (thd->is_error()) {
+      return true;
+    }
     if (!maybe_null &&  // 3)
         !dep_map)       // 4)
     {
