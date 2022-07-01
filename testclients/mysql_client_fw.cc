@@ -752,7 +752,7 @@ static void do_verify_prepare_field(MYSQL_RES *result, unsigned int no,
   DIE_UNLESS(strcmp(field->db, db) == 0);
   /*
   Character set should be taken into account for multibyte encodings, such
-  as utf8. Field length is calculated as number of characters * maximum
+  as utf8mb4. Field length is calculated as number of characters * maximum
   number of bytes a character can occupy.
   */
   if (length && (field->length != expected_field_length)) {
