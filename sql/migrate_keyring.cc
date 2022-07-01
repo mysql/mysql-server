@@ -559,8 +559,10 @@ bool Migrate_keyring::enable_keyring_operations() {
   Standard destructor to close connection handle.
 */
 Migrate_keyring::~Migrate_keyring() {
-  delete[] m_argv;
-  m_argv = nullptr;
+  if (m_argv) {
+  	delete[] m_argv;
+  	m_argv = nullptr;
+  }
   if (mysql) {
     mysql_close(mysql);
     mysql = nullptr;
