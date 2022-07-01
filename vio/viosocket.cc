@@ -835,7 +835,10 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout) {
 
 #ifdef USE_PPOLL_IN_VIO
   // Check if shutdown is in progress, if so return -1
-  if (vio->poll_shutdown_flag.test_and_set()) return -1;
+  if (vio->poll_shutdown_flag.test_and_set()) {
+    MYSQL_END_SOCKET_WAIT(locker, 0);
+    return -1;
+  }
 
   timespec ts;
   timespec *ts_ptr = nullptr;
@@ -1001,7 +1004,10 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout) {
                  (static_cast<long>(timeout) % 1000) * 1000000};
 
   // Check if shutdown is in progress, if so return -1.
-  if (vio->kevent_wakeup_flag.test_and_set()) return -1;
+  if (vio->kevent_wakeup_flag.test_and_set()) {
+    MYSQL_END_SOCKET_WAIT(locker, 0);
+    return -1;
+  }
 
   int retry_count = 0;
   do {
