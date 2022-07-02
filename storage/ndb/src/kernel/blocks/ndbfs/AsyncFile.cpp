@@ -287,6 +287,17 @@ AsyncFile::openReq(Request * request)
       {
         kdf_iter_count = -1; // Use PBKDF2 let ndb_ndbxfrm decide iter count
       }
+      int key_count;
+      /*
+       * Workaround for Bug#34355596 "Creating secrets file takes long time due
+       * to excessive key derivations".
+       * PBKDF2 + XTS is only used by secrets file which has little data
+       * (512 byte), force key count to 1.
+       */
+      if (enc_cipher == ndb_ndbxfrm1::cipher_xts && kdf_iter_count != 0)
+        key_count = 1;
+      else
+        key_count = -1; // Let ndb_ndbxfrm decide key_count
       rc = m_xfile.create(
           m_file,
           use_gz,
@@ -294,7 +305,7 @@ AsyncFile::openReq(Request * request)
           pwd_len,
           kdf_iter_count,
           enc_cipher,
-          -1, // Let ndb_ndbxfrm decide key_count
+          key_count,
           key_data_unit_size,
           file_block_size,
           data_size);
