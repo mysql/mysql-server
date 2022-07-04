@@ -1,0 +1,22 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Create a event that will be automatically dropped during
+#    the event scheduler thread start.
+#
+# Bug#21041908 -  events+rpl: void close_thread_tables(thd*):
+#                 assertion `thd->get_transaction()
+#
+SET GLOBAL EVENT_SCHEDULER = OFF;
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND
+ENDS NOW() + INTERVAL 1 SECOND DO SELECT 1;
+SET GLOBAL EVENT_SCHEDULER = ON;
+DROP EVENT IF EXISTS e1;
+
+############################################################
+# 2. Clean up.
+include/group_replication_end.inc
