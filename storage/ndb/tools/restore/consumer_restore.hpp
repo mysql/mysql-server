@@ -131,6 +131,9 @@ public:
                                        const NDBCOL* dbCol);
   bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart) override;
   bool delete_epoch_tuple() override;
+  bool ndbapi_dict_operation_retry(
+      const std::function<int(NdbDictionary::Dictionary *)> &ndb_func,
+      NdbDictionary::Dictionary *);
   bool report_started(unsigned node_id, unsigned backup_id) override;
   bool report_meta_data(unsigned node_id, unsigned backup_id) override;
   bool report_data(unsigned node_id, unsigned backup_id) override;
