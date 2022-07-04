@@ -57,7 +57,7 @@ static inline int thd_partition(my_thread_id thread_id) {
 }
 
 bool Find_thd_with_id::operator()(THD *thd) {
-  if (thd->get_command() == COM_DAEMON) return false;
+  if (thd->get_command() == COM_DAEMON && !m_daemon_allowed) return false;
   return (thd->thread_id() == m_thread_id);
 }
 
