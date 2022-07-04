@@ -835,11 +835,13 @@ bool Resource_group_mgr::set_user_thread_resource_group_to_system_thread(
 
   if (opt_initialize) return false;
 
-  // Clear diagnostics area.
-  thd->get_stmt_da()->reset_diagnostics_area();
-
   resourcegroups::Resource_group_mgr *mgr_instance =
       resourcegroups::Resource_group_mgr::instance();
+
+  if (!mgr_instance->resource_group_support()) return false;
+
+  // Clear diagnostics area.
+  thd->get_stmt_da()->reset_diagnostics_area();
 
   MDL_ticket *rg_global_ticket = nullptr;
   auto release_global_rg_lock = create_scope_guard([&]() {
@@ -980,6 +982,8 @@ bool Resource_group_mgr::restore_system_thread_resource_group(
 
   resourcegroups::Resource_group_mgr *mgr_instance =
       resourcegroups::Resource_group_mgr::instance();
+
+  if (!mgr_instance->resource_group_support()) return false;
 
   // Get system thread resource group handler.
   System_thread_resource_group_switch_handler *system_thread_rg_switch_handler =
