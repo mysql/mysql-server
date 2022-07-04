@@ -12743,7 +12743,10 @@ Gtid_log_event::Gtid_log_event(
     : binary_log::Gtid_event(buffer, description_event),
       Log_event(header(), footer()) {
   DBUG_TRACE;
-  if (!is_valid()) return;
+  if (!is_valid()) {
+    sid.clear();
+    return;
+  }
 
 #ifndef NDEBUG
   uint8_t const common_header_len = description_event->common_header_len;
