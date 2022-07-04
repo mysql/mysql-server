@@ -608,14 +608,9 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
     });
 
     Sender_context_guard ctx_guard(*this, event_type);
-    Observe_transmission_guard obs_guard(
-        m_observe_transmission, event_type,
-        const_cast<const char *>(reinterpret_cast<char *>(event_ptr)),
-        m_event_checksum_alg, m_prev_event_type);
 
     log_pos = reader.position();
 
-    if (before_send_hook(log_file, log_pos)) return 1;
     /*
       TODO: Set m_exclude_gtid to NULL if all gtids in m_exclude_gtid has
       be skipped. and maybe removing the gtid from m_exclude_gtid will make
@@ -661,11 +656,16 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
         m_packet.length(tmp.length());
       }
 
-      if (unlikely(send_packet())) return 1;
-    }
+      Observe_transmission_guard obs_guard(
+          m_observe_transmission, event_type,
+          const_cast<const char *>(reinterpret_cast<char *>(event_ptr)),
+          m_event_checksum_alg, m_prev_event_type);
 
-    if (unlikely(after_send_hook(log_file, in_exclude_group ? log_pos : 0)))
-      return 1;
+      if (before_send_hook(log_file, log_pos)) return 1;
+      if (unlikely(send_packet())) return 1;
+      if (unlikely(after_send_hook(log_file, in_exclude_group ? log_pos : 0)))
+        return 1;
+    }
   }
 
   /*

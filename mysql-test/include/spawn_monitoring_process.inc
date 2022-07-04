@@ -37,6 +37,16 @@ if (!$have_windows) {
    OR VARIABLE_NAME LIKE 'enforce_gtid_consistency'
    OR VARIABLE_NAME LIKE 'gtid_mode'
    ORDER BY VARIABLE_NAME;
+
+  if(!$rpl_group_replication) {
+    INSERT INTO test.r_vars (var_name, var_value)
+     SELECT * FROM performance_schema.global_variables
+     WHERE VARIABLE_NAME LIKE 'relay_log'
+     OR VARIABLE_NAME LIKE 'rpl_semi_sync_replica_enabled'
+     OR VARIABLE_NAME LIKE 'rpl_semi_sync_source_enabled'
+     ORDER BY VARIABLE_NAME;
+  }
+
   if($rpl_group_replication)
   {
     --let $gr_ssl_disabled= `SELECT @@group_replication_ssl_mode LIKE 'DISABLED'`
