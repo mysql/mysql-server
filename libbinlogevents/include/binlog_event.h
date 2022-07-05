@@ -112,6 +112,12 @@
 #define OVER_MAX_DBS_IN_EVENT_MTS 254
 
 /**
+  Maximum length of time zone name that we support (Time zone name is
+  char(64) in db). mysqlbinlog needs it.
+*/
+#define MAX_TIME_ZONE_NAME_LENGTH (NAME_LEN + 1)
+
+/**
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
   First, an auxiliary log_event status vars estimation:
@@ -119,17 +125,19 @@
 #define MAX_SIZE_LOG_EVENT_STATUS                                             \
   (1U + 4 /* type, flags2 */ + 1U + 8 /* type, sql_mode */ + 1U + 1 +         \
    255 /* type, length, catalog */ + 1U + 4 /* type, auto_increment */ + 1U + \
-   6 /* type, charset */ + 1U + 1 + 255 /* type, length, time_zone */ + 1U +  \
+   6 /* type, charset */ + 1U + 1 +                                           \
+   MAX_TIME_ZONE_NAME_LENGTH /* type, length, time_zone */ + 1U +             \
    2 /* type, lc_time_names_number */ + 1U +                                  \
    2 /* type, charset_database_number */ + 1U +                               \
-   8 /* type, table_map_for_update */ + 1U +                                  \
-   4 /* type, master_data_written */ + /* type, db_1, db_2, ... */            \
-   1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + 3U +                        \
-   /* type, microseconds */ +1U + 32 * 3 + /* type, user_len, user */         \
-   1 + 255 /* host_len, host */ + 1U + 1 /* type, explicit_def..ts*/ + 1U +   \
-   8 /* type, xid of DDL */ + 1U +                                            \
-   2 /* type, default_collation_for_utf8mb4_number */ +                       \
-   1 /* sql_require_primary_key */ + 1 /* type, default_table_encryption */)
+   8 /* type, table_map_for_update */ + 1U + 1 +                              \
+   32 * 3 /* type, user_len, user */ + 1 + 255 /* host_len, host */           \
+   + 1U + 1 +                                                                 \
+   (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) /* type, db_1, db_2, ... */        \
+   + 1U + 3 /* type, microseconds */ + 1U + 1 /* type, explicit_def..ts*/ +   \
+   1U + 8 /* type, xid of DDL */ + 1U +                                       \
+   2 /* type, default_collation_for_utf8mb4_number */ + 1U +                  \
+   1 /* sql_require_primary_key */ + 1U +                                     \
+   1 /* type, default_table_encryption */)
 
 /**
    Uninitialized timestamp value (for either last committed or sequence number).
