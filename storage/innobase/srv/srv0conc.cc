@@ -61,6 +61,7 @@ ulong srv_n_free_tickets_to_enter = 500;
 /** Maximum sleep delay (in micro-seconds), value of 0 disables it. */
 ulong srv_adaptive_max_sleep_delay = 150000;
 
+/** Predicted sleep delay (in micro-seconds), for increasing multi core performance, not use atomic variable. */
 ulong srv_thread_sleep_delay = 10000;
 
 /** The following controls how many threads we let inside InnoDB concurrently:
