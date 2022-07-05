@@ -23043,6 +23043,8 @@ static bool send_query(MYSQL *mysql_con, const char *query) {
   return true;
 }
 
+// TODO(WL#15232) Fix MYSQL reconnect code for server using client connections
+#ifndef _WIN32
 static void test_bug34007830() {
   myheader("test_bug34007830");
   MYSQL *lmysql;
@@ -23084,6 +23086,7 @@ static void test_bug34007830() {
 
   mysql_close(lmysql);
 }
+#endif  // _WIN32
 
 static void test_bug33535746() {
   DBUG_TRACE;
@@ -23508,7 +23511,10 @@ static struct my_tests_st my_tests[] = {
     {"test_bug33164347", test_bug33164347},
     {"test_bug32915973", test_bug32915973},
     {"test_wl13075", test_wl13075},
+// TODO(WL#15232) Fix MYSQL reconnect code for server using client connections
+#ifndef _WIN32
     {"test_bug34007830", test_bug34007830},
+#endif
     {"test_bug33535746", test_bug33535746},
     {nullptr, nullptr}};
 
