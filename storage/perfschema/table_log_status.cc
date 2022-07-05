@@ -323,7 +323,7 @@ int table_log_status::read_row_values(TABLE *table [[maybe_unused]],
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /*server_uuid*/
-          set_field_char_utf8(f, m_row.server_uuid, UUID_LENGTH);
+          set_field_char_utf8mb4(f, m_row.server_uuid, UUID_LENGTH);
           break;
         case 1: /*local*/
           set_field_json(f, &m_row.w_local);

@@ -77,7 +77,7 @@ static int read_column_value(PSI_table_handle *handle [[maybe_unused]],
 
   switch (index) {
     case 0: {  // name
-      table_service->set_field_char_utf8(
+      table_service->set_field_char_utf8mb4(
           field, s_rows[s_current_row_pos].name.c_str(),
           s_rows[s_current_row_pos].name.length());
       break;

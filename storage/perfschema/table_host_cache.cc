@@ -323,12 +323,12 @@ int table_host_cache::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* IP */
-          set_field_varchar_utf8(f, m_row->m_ip, m_row->m_ip_length);
+          set_field_varchar_utf8mb4(f, m_row->m_ip, m_row->m_ip_length);
           break;
         case 1: /* HOST */
           if (m_row->m_hostname_length > 0)
-            set_field_varchar_utf8(f, m_row->m_hostname,
-                                   m_row->m_hostname_length);
+            set_field_varchar_utf8mb4(f, m_row->m_hostname,
+                                      m_row->m_hostname_length);
           else {
             f->set_null();
           }

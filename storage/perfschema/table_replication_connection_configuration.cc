@@ -343,20 +343,21 @@ int table_replication_connection_configuration::read_row_values(
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /** channel_name */
-          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          set_field_char_utf8mb4(f, m_row.channel_name,
+                                 m_row.channel_name_length);
           break;
         case 1: /** host */
-          set_field_char_utf8(f, m_row.host, m_row.host_length);
+          set_field_char_utf8mb4(f, m_row.host, m_row.host_length);
           break;
         case 2: /** port */
           set_field_ulong(f, m_row.port);
           break;
         case 3: /** user */
-          set_field_char_utf8(f, m_row.user, m_row.user_length);
+          set_field_char_utf8mb4(f, m_row.user, m_row.user_length);
           break;
         case 4: /** network_interface */
-          set_field_char_utf8(f, m_row.network_interface,
-                              m_row.network_interface_length);
+          set_field_char_utf8mb4(f, m_row.network_interface,
+                                 m_row.network_interface_length);
           break;
         case 5: /** auto_position */
           set_field_enum(f, m_row.auto_position);
@@ -365,33 +366,34 @@ int table_replication_connection_configuration::read_row_values(
           set_field_enum(f, m_row.ssl_allowed);
           break;
         case 7: /**ssl_ca_file */
-          set_field_varchar_utf8(f, m_row.ssl_ca_file,
-                                 m_row.ssl_ca_file_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_ca_file,
+                                    m_row.ssl_ca_file_length);
           break;
         case 8: /** ssl_ca_path */
-          set_field_varchar_utf8(f, m_row.ssl_ca_path,
-                                 m_row.ssl_ca_path_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_ca_path,
+                                    m_row.ssl_ca_path_length);
           break;
         case 9: /** ssl_certificate */
-          set_field_varchar_utf8(f, m_row.ssl_certificate,
-                                 m_row.ssl_certificate_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_certificate,
+                                    m_row.ssl_certificate_length);
           break;
         case 10: /** ssl_cipher */
-          set_field_varchar_utf8(f, m_row.ssl_cipher, m_row.ssl_cipher_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_cipher,
+                                    m_row.ssl_cipher_length);
           break;
         case 11: /** ssl_key */
-          set_field_varchar_utf8(f, m_row.ssl_key, m_row.ssl_key_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_key, m_row.ssl_key_length);
           break;
         case 12: /** ssl_verify_server_certificate */
           set_field_enum(f, m_row.ssl_verify_server_certificate);
           break;
         case 13: /** ssl_crl_file */
-          set_field_varchar_utf8(f, m_row.ssl_crl_file,
-                                 m_row.ssl_crl_file_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_crl_file,
+                                    m_row.ssl_crl_file_length);
           break;
         case 14: /** ssl_crl_path */
-          set_field_varchar_utf8(f, m_row.ssl_crl_path,
-                                 m_row.ssl_crl_path_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_crl_path,
+                                    m_row.ssl_crl_path_length);
           break;
         case 15: /** connection_retry_interval */
           set_field_ulong(f, m_row.connection_retry_interval);
@@ -403,23 +405,23 @@ int table_replication_connection_configuration::read_row_values(
           set_field_double(f, m_row.heartbeat_interval);
           break;
         case 18: /** tls_version */
-          set_field_varchar_utf8(f, m_row.tls_version,
-                                 m_row.tls_version_length);
+          set_field_varchar_utf8mb4(f, m_row.tls_version,
+                                    m_row.tls_version_length);
           break;
         case 19: /** master_public_key_path */
-          set_field_varchar_utf8(f, m_row.public_key_path,
-                                 m_row.public_key_path_length);
+          set_field_varchar_utf8mb4(f, m_row.public_key_path,
+                                    m_row.public_key_path_length);
           break;
         case 20: /** get_master_public_key */
           set_field_enum(f, m_row.get_public_key);
           break;
         case 21: /** network_namespace */
-          set_field_varchar_utf8(f, m_row.network_namespace,
-                                 m_row.network_namespace_length);
+          set_field_varchar_utf8mb4(f, m_row.network_namespace,
+                                    m_row.network_namespace_length);
           break;
         case 22: /** compression_algorithm */
-          set_field_char_utf8(f, m_row.compression_algorithm,
-                              m_row.compression_algorithm_length);
+          set_field_char_utf8mb4(f, m_row.compression_algorithm,
+                                 m_row.compression_algorithm_length);
           break;
         case 23: /** zstd_compression_level */
           set_field_ulong(f, m_row.zstd_compression_level);

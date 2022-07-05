@@ -977,16 +977,16 @@ void get_field_double_v1(PSI_field *f, PSI_double *value) {
 /**************************************
  * Type CHAR                          *
  **************************************/
-void set_field_char_utf8_v1(PSI_field *f, const char *value, uint len) {
+void set_field_char_utf8mb4_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0) {
-    set_field_char_utf8(f_ptr, value, len);
+    set_field_char_utf8mb4(f_ptr, value, len);
   } else {
     f_ptr->set_null();
   }
 }
 
-void get_field_char_utf8_v1(PSI_field *f, char *val, uint *len) {
+void get_field_char_utf8mb4_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
@@ -996,21 +996,12 @@ void get_field_char_utf8_v1(PSI_field *f, char *val, uint *len) {
     return;
   }
 
-  val = get_field_char_utf8(f_ptr, val, len);
+  val = get_field_char_utf8mb4(f_ptr, val, len);
 }
 
 /**************************************
  * Type VARCAHAR                      *
  **************************************/
-void set_field_varchar_utf8_len_v1(PSI_field *f, const char *str, uint len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (len > 0) {
-    set_field_varchar_utf8(f_ptr, str, len);
-  } else {
-    f_ptr->set_null();
-  }
-}
-
 void set_field_varchar_utf8mb4_len_v1(PSI_field *f, const char *str, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0) {
@@ -1020,25 +1011,16 @@ void set_field_varchar_utf8mb4_len_v1(PSI_field *f, const char *str, uint len) {
   }
 }
 
-void set_field_varchar_utf8_v1(PSI_field *f, const char *str) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (str != nullptr) {
-    set_field_varchar_utf8(f_ptr, str);
-  } else {
-    f_ptr->set_null();
-  }
-}
-
 void set_field_varchar_utf8mb4_v1(PSI_field *f, const char *str) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (str != nullptr) {
-    set_field_varchar_utf8(f_ptr, str);
+    set_field_varchar_utf8mb4(f_ptr, str);
   } else {
     f_ptr->set_null();
   }
 }
 
-void get_field_varchar_utf8_v1(PSI_field *f, char *val, uint *len) {
+void get_field_varchar_utf8mb4_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
@@ -1048,7 +1030,7 @@ void get_field_varchar_utf8_v1(PSI_field *f, char *val, uint *len) {
     return;
   }
 
-  val = get_field_varchar_utf8(f_ptr, val, len);
+  val = get_field_varchar_utf8mb4(f_ptr, val, len);
 }
 
 /**************************************
@@ -1328,11 +1310,10 @@ BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table)
     // read_key_,
     // match_key_,
 
-    set_field_char_utf8_v1, get_field_char_utf8_v1, read_key_string_v1,
+    set_field_char_utf8mb4_v1, get_field_char_utf8mb4_v1, read_key_string_v1,
     match_key_string_v1,
 
-    set_field_varchar_utf8_v1, set_field_varchar_utf8_len_v1,
-    get_field_varchar_utf8_v1,
+    get_field_varchar_utf8mb4_v1,
     // read_key_,
     // match_key_,
 
@@ -1419,13 +1400,11 @@ BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_double_v1)
 END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_string_v1)
-    set_field_char_utf8_v1,
-    get_field_char_utf8_v1,
+    set_field_char_utf8mb4_v1,
+    get_field_char_utf8mb4_v1,
     read_key_string_v1,
     match_key_string_v1,
-    set_field_varchar_utf8_v1,
-    set_field_varchar_utf8_len_v1,
-    get_field_varchar_utf8_v1,
+    get_field_varchar_utf8mb4_v1,
     set_field_varchar_utf8mb4_v1,
     set_field_varchar_utf8mb4_len_v1
 END_SERVICE_IMPLEMENTATION();

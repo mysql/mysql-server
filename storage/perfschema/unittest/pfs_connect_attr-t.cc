@@ -175,9 +175,9 @@ static void test_multibyte_lengths() {
   ok(!strncmp(value, "v2", value_len), "multibyte lengths second attr value");
 }
 
-static void test_utf8_parser() {
-  /* utf8 max byte length per character is 6 */
-  char name[33 * 6], value[1024 * 6], packet[1500 * 6], *ptr;
+static void test_utf8mb3_parser() {
+  /* utf8mb3 max byte length per character is 3 */
+  char name[33 * 3], value[1024 * 3], packet[1500 * 3], *ptr;
   uint name_len, value_len;
   bool result;
   const CHARSET_INFO *cs = &my_charset_utf8mb3_bin;
@@ -203,7 +203,7 @@ static void test_utf8_parser() {
   memcpy(ptr, val2, strlen(val2));
   ptr += strlen(val2);
 
-  diag("test_utf8_parser attr pair #1");
+  diag("test_utf8mb3_parser attr pair #1");
 
   result =
       read_nth_attr((char *)packet, ptr - packet, cs, 0, name, sizeof(name),
@@ -214,7 +214,7 @@ static void test_utf8_parser() {
   ok(value_len == strlen(val1), "value length");
   ok(!strncmp(value, val1, value_len), "value");
 
-  diag("test_utf8_parser attr pair #2");
+  diag("test_utf8mb3_parser attr pair #2");
   result =
       read_nth_attr((char *)packet, ptr - packet, cs, 1, name, sizeof(name),
                     &name_len, value, sizeof(value), &value_len);
@@ -225,8 +225,8 @@ static void test_utf8_parser() {
   ok(!strncmp(value, val2, value_len), "value");
 }
 
-static void test_utf8_parser_bad_encoding() {
-  /* utf8 max byte length per character is 3*/
+static void test_utf8mb3_parser_bad_encoding() {
+  /* utf8mb3 max byte length per character is 3*/
   char name[33 * 3], value[1024 * 3], packet[1500 * 3], *ptr;
   uint name_len, value_len;
   bool result;
@@ -239,13 +239,13 @@ static void test_utf8_parser_bad_encoding() {
   ptr = packet;
   *ptr++ = strlen(attr);
   memcpy(ptr, attr, strlen(attr));
-  ptr[0] = (char)0xFA;  // invalid UTF-8 char
+  ptr[0] = (char)0xFA;  // invalid UTF8MB3 char
   ptr += strlen(attr);
   *ptr++ = strlen(val);
   memcpy(ptr, val, strlen(val));
   ptr += strlen(val);
 
-  diag("test_utf8_parser_bad_encoding");
+  diag("test_utf8mb3_parser_bad_encoding");
 
   result =
       read_nth_attr((char *)packet, ptr - packet, cs, 0, name, sizeof(name),
@@ -256,7 +256,7 @@ static void test_utf8_parser_bad_encoding() {
 const CHARSET_INFO *cs_cp1251;
 
 static void test_cp1251_parser() {
-  /* utf8 max byte length per character is 3*/
+  /* utf8mb3 max byte length per character is 3*/
   char name[33 * 3], value[1024 * 3], packet[1500 * 3], *ptr;
   uint name_len, value_len;
   bool result;
@@ -291,7 +291,7 @@ static void test_cp1251_parser() {
       read_nth_attr((char *)packet, ptr - packet, cs_cp1251, 0, name,
                     sizeof(name), &name_len, value, sizeof(value), &value_len);
   ok(result == true, "return");
-  /* need to compare to the UTF-8 equivalents */
+  /* need to compare to the UTF8MB3 equivalents */
   ok(name_len == strlen("Георги"), "name length");
   ok(!strncmp(name, "Георги", name_len), "attr name");
   ok(value_len == strlen("Кодинов"), "value length");
@@ -302,7 +302,7 @@ static void test_cp1251_parser() {
       read_nth_attr((char *)packet, ptr - packet, cs_cp1251, 1, name,
                     sizeof(name), &name_len, value, sizeof(value), &value_len);
   ok(result == true, "return");
-  /* need to compare to the UTF-8 equivalents */
+  /* need to compare to the UTF8MB3 equivalents */
   ok(name_len == strlen("Пловдив"), "name length");
   ok(!strncmp(name, "Пловдив", name_len), "attr name");
   ok(value_len == strlen("България"), "value length");
@@ -312,8 +312,8 @@ static void test_cp1251_parser() {
 static void do_all_tests() {
   test_blob_parser();
   test_multibyte_lengths();
-  test_utf8_parser();
-  test_utf8_parser_bad_encoding();
+  test_utf8mb3_parser();
+  test_utf8mb3_parser_bad_encoding();
   test_cp1251_parser();
 }
 
@@ -321,8 +321,10 @@ int main(int, char **) {
   MY_INIT("pfs_connect_attr-t");
 
   cs_cp1251 = get_charset_by_csname("cp1251", MY_CS_PRIMARY, MYF(0));
-  if (!cs_cp1251) diag("skipping the cp1251 tests : missing character set");
-  plan(59 + (cs_cp1251 ? 10 : 0));
+  plan(69);
   do_all_tests();
-  return (exit_status());
+  charset_uninit();
+  int retval = exit_status();
+  my_end(0);
+  return retval;
 }

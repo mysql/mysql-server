@@ -288,10 +288,10 @@ int table_data_lock_waits::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* ENGINE */
-          set_field_varchar_utf8(f, m_row->m_engine);
+          set_field_varchar_utf8mb4(f, m_row->m_engine);
           break;
         case 1: /* REQUESTING_ENGINE_LOCK_ID */
-          set_field_varchar_utf8(
+          set_field_varchar_utf8mb4(
               f, m_row->m_hidden_pk.m_requesting_engine_lock_id,
               m_row->m_hidden_pk.m_requesting_engine_lock_id_length);
           break;
@@ -308,7 +308,7 @@ int table_data_lock_waits::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, (intptr)m_row->m_requesting_identity);
           break;
         case 6: /* BLOCKING_ENGINE_LOCK_ID */
-          set_field_varchar_utf8(
+          set_field_varchar_utf8mb4(
               f, m_row->m_hidden_pk.m_blocking_engine_lock_id,
               m_row->m_hidden_pk.m_blocking_engine_lock_id_length);
           break;

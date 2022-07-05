@@ -353,13 +353,13 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row.m_thread_internal_id);
           break;
         case 1: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 2: /* TYPE */
           if (m_row.m_processlist_id != 0) {
-            set_field_varchar_utf8(f, "FOREGROUND", 10);
+            set_field_varchar_utf8mb4(f, "FOREGROUND", 10);
           } else {
-            set_field_varchar_utf8(f, "BACKGROUND", 10);
+            set_field_varchar_utf8mb4(f, "BACKGROUND", 10);
           }
           break;
         case 3: /* PROCESSLIST_ID */
@@ -371,24 +371,24 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 4: /* PROCESSLIST_USER */
           if (m_row.m_user_name.length() > 0) {
-            set_field_varchar_utf8(f, m_row.m_user_name.ptr(),
-                                   m_row.m_user_name.length());
+            set_field_varchar_utf8mb4(f, m_row.m_user_name.ptr(),
+                                      m_row.m_user_name.length());
           } else {
             f->set_null();
           }
           break;
         case 5: /* PROCESSLIST_HOST */
           if (m_row.m_host_name.length() > 0) {
-            set_field_varchar_utf8(f, m_row.m_host_name.ptr(),
-                                   m_row.m_host_name.length());
+            set_field_varchar_utf8mb4(f, m_row.m_host_name.ptr(),
+                                      m_row.m_host_name.length());
           } else {
             f->set_null();
           }
           break;
         case 6: /* PROCESSLIST_DB */
           if (m_row.m_db_name.length() > 0) {
-            set_field_varchar_utf8(f, m_row.m_db_name.ptr(),
-                                   m_row.m_db_name.length());
+            set_field_varchar_utf8mb4(f, m_row.m_db_name.ptr(),
+                                      m_row.m_db_name.length());
           } else {
             f->set_null();
           }
@@ -396,7 +396,7 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
         case 7: /* PROCESSLIST_COMMAND */
           if (m_row.m_processlist_id != 0) {
             const std::string &cn = Command_names::str_session(m_row.m_command);
-            set_field_varchar_utf8(f, cn.c_str(), cn.length());
+            set_field_varchar_utf8mb4(f, cn.c_str(), cn.length());
           } else {
             f->set_null();
           }
@@ -413,8 +413,8 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 9: /* PROCESSLIST_STATE */
           if (m_row.m_processlist_state_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_processlist_state_ptr,
-                                   m_row.m_processlist_state_length);
+            set_field_varchar_utf8mb4(f, m_row.m_processlist_state_ptr,
+                                      m_row.m_processlist_state_length);
           } else {
             f->set_null();
           }
@@ -446,7 +446,7 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
         case 15: /* CONNECTION_TYPE */
           get_vio_type_name(m_row.m_connection_type, &str, &len);
           if (len > 0) {
-            set_field_varchar_utf8(f, str, len);
+            set_field_varchar_utf8mb4(f, str, len);
           } else {
             f->set_null();
           }
@@ -460,8 +460,8 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 17: /* RESOURCE_GROUP */
           if (m_row.m_groupname_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_groupname,
-                                   m_row.m_groupname_length);
+            set_field_varchar_utf8mb4(f, m_row.m_groupname,
+                                      m_row.m_groupname_length);
           } else {
             f->set_null();
           }

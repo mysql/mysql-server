@@ -199,8 +199,8 @@ int table_setup_threads::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_instr_class->m_name.str(),
-                                 m_row.m_instr_class->m_name.length());
+          set_field_varchar_utf8mb4(f, m_row.m_instr_class->m_name.str(),
+                                    m_row.m_instr_class->m_name.length());
           break;
         case 1: /* ENABLED */
           set_field_enum(f,

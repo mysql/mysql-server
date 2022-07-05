@@ -185,8 +185,8 @@ class Log_files_pfs_table {
         const auto file_name =
             log_file_path(log_sys->m_files_ctx, m_rows_array[row_index].m_id);
 
-        pfs_col_string->set_varchar_utf8(field,
-                                         is_null ? nullptr : file_name.c_str());
+        pfs_col_string->set_varchar_utf8mb4(
+            field, is_null ? nullptr : file_name.c_str());
         break;
       }
       case 2: { /* START_LSN */

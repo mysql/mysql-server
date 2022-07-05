@@ -251,13 +251,15 @@ int table_replication_group_members::read_row_values(TABLE *table,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /** channel_name */
-          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          set_field_char_utf8mb4(f, m_row.channel_name,
+                                 m_row.channel_name_length);
           break;
         case 1: /** member_id */
-          set_field_char_utf8(f, m_row.member_id, m_row.member_id_length);
+          set_field_char_utf8mb4(f, m_row.member_id, m_row.member_id_length);
           break;
         case 2: /** member_host */
-          set_field_char_utf8(f, m_row.member_host, m_row.member_host_length);
+          set_field_char_utf8mb4(f, m_row.member_host,
+                                 m_row.member_host_length);
           break;
         case 3: /** member_port */
           if (m_row.member_port > 0) {
@@ -267,18 +269,20 @@ int table_replication_group_members::read_row_values(TABLE *table,
           }
           break;
         case 4: /** member_state */
-          set_field_char_utf8(f, m_row.member_state, m_row.member_state_length);
+          set_field_char_utf8mb4(f, m_row.member_state,
+                                 m_row.member_state_length);
           break;
         case 5: /** member_role */
-          set_field_char_utf8(f, m_row.member_role, m_row.member_role_length);
+          set_field_char_utf8mb4(f, m_row.member_role,
+                                 m_row.member_role_length);
           break;
         case 6: /** member_version */
-          set_field_char_utf8(f, m_row.member_version,
-                              m_row.member_version_length);
+          set_field_char_utf8mb4(f, m_row.member_version,
+                                 m_row.member_version_length);
           break;
         case 7: /** member_incoming_protocol */
-          set_field_char_utf8(f, m_row.member_communication_stack,
-                              m_row.member_communication_stack_length);
+          set_field_char_utf8mb4(f, m_row.member_communication_stack,
+                                 m_row.member_communication_stack_length);
           break;
         default:
           assert(false);

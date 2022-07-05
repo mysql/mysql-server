@@ -233,12 +233,12 @@ int country_read_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* COUNTRY_NAME */
-      pc_string_srv->set_char_utf8(field, h->current_row.name,
-                                   h->current_row.name_length);
+      pc_string_srv->set_char_utf8mb4(field, h->current_row.name,
+                                      h->current_row.name_length);
       break;
     case 1: /* CONTINENT_NAME */
-      pc_string_srv->set_char_utf8(field, h->current_row.continent_name,
-                                   h->current_row.continent_name_length);
+      pc_string_srv->set_char_utf8mb4(field, h->current_row.continent_name,
+                                      h->current_row.continent_name_length);
       break;
     case 2: /* YEAR */
       pc_year_srv->set(field, h->current_row.year);
@@ -311,11 +311,11 @@ int country_write_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* COUNTRY_NAME */
-      pc_string_srv->get_char_utf8(field, name, name_length);
+      pc_string_srv->get_char_utf8mb4(field, name, name_length);
       break;
     case 1: /* CONTINENT_NAME */
-      pc_string_srv->get_char_utf8(field, continent_name,
-                                   continent_name_length);
+      pc_string_srv->get_char_utf8mb4(field, continent_name,
+                                      continent_name_length);
       break;
     case 2: /* YEAR */
       pc_year_srv->get(field, &h->current_row.year);
@@ -364,11 +364,11 @@ int country_update_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* COUNTRY_NAME */
-      pc_string_srv->get_char_utf8(field, name, name_length);
+      pc_string_srv->get_char_utf8mb4(field, name, name_length);
       break;
     case 1: /* CONTINENT_NAME */
-      pc_string_srv->get_char_utf8(field, continent_name,
-                                   continent_name_length);
+      pc_string_srv->get_char_utf8mb4(field, continent_name,
+                                      continent_name_length);
       break;
     case 2: /* YEAR */
       pc_year_srv->get(field, &h->current_row.year);

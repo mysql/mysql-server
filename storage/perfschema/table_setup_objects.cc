@@ -137,10 +137,10 @@ int table_setup_objects::write_row(PFS_engine_table *, TABLE *table,
           object_type = (enum_object_type)get_field_enum(f);
           break;
         case 1: /* OBJECT_SCHEMA */
-          object_schema = get_field_varchar_utf8(f, &object_schema_data);
+          object_schema = get_field_varchar_utf8mb4(f, &object_schema_data);
           break;
         case 2: /* OBJECT_NAME */
-          object_name = get_field_varchar_utf8(f, &object_name_data);
+          object_name = get_field_varchar_utf8mb4(f, &object_name_data);
           break;
         case 3: /* ENABLED */
           enabled_value = (enum_yes_no)get_field_enum(f);
@@ -305,16 +305,16 @@ int table_setup_objects::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 1: /* OBJECT_SCHEMA */
           if (m_row.m_schema_name.length())
-            set_field_varchar_utf8(f, m_row.m_schema_name.ptr(),
-                                   m_row.m_schema_name.length());
+            set_field_varchar_utf8mb4(f, m_row.m_schema_name.ptr(),
+                                      m_row.m_schema_name.length());
           else {
             f->set_null();
           }
           break;
         case 2: /* OBJECT_NAME */
           if (m_row.m_object_name.length())
-            set_field_varchar_utf8(f, m_row.m_object_name.ptr(),
-                                   m_row.m_object_name.length());
+            set_field_varchar_utf8mb4(f, m_row.m_object_name.ptr(),
+                                      m_row.m_object_name.length());
           else {
             f->set_null();
           }

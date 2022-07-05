@@ -419,20 +419,21 @@ int table_replication_connection_status::read_row_values(TABLE *table,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /** channel_name*/
-          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          set_field_char_utf8mb4(f, m_row.channel_name,
+                                 m_row.channel_name_length);
           break;
         case 1: /** group_name */
           if (m_row.group_name_is_null) {
             f->set_null();
           } else {
-            set_field_char_utf8(f, m_row.group_name, UUID_LENGTH);
+            set_field_char_utf8mb4(f, m_row.group_name, UUID_LENGTH);
           }
           break;
         case 2: /** source_uuid */
           if (m_row.source_uuid_is_null) {
             f->set_null();
           } else {
-            set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+            set_field_char_utf8mb4(f, m_row.source_uuid, UUID_LENGTH);
           }
           break;
         case 3: /** thread_id */
@@ -459,15 +460,15 @@ int table_replication_connection_status::read_row_values(TABLE *table,
           set_field_ulong(f, m_row.last_error_number);
           break;
         case 9: /*last_error_message*/
-          set_field_varchar_utf8(f, m_row.last_error_message,
-                                 m_row.last_error_message_length);
+          set_field_varchar_utf8mb4(f, m_row.last_error_message,
+                                    m_row.last_error_message_length);
           break;
         case 10: /*last_error_timestamp*/
           set_field_timestamp(f, m_row.last_error_timestamp);
           break;
         case 11: /*last_queued_trx*/
-          set_field_char_utf8(f, m_row.last_queued_trx,
-                              m_row.last_queued_trx_length);
+          set_field_char_utf8mb4(f, m_row.last_queued_trx,
+                                 m_row.last_queued_trx_length);
           break;
         case 12: /*last_queued_trx_original_commit_timestamp*/
           set_field_timestamp(f,
@@ -484,7 +485,8 @@ int table_replication_connection_status::read_row_values(TABLE *table,
           set_field_timestamp(f, m_row.last_queued_trx_end_queue_timestamp);
           break;
         case 16: /*queueing_trx*/
-          set_field_char_utf8(f, m_row.queueing_trx, m_row.queueing_trx_length);
+          set_field_char_utf8mb4(f, m_row.queueing_trx,
+                                 m_row.queueing_trx_length);
           break;
         case 17: /*queueing_trx_original_commit_timestamp*/
           set_field_timestamp(f, m_row.queueing_trx_original_commit_timestamp);

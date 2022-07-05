@@ -218,20 +218,20 @@ double get_field_double(Field *f) {
 }
 
 /* CHAR TYPE */
-void set_field_char_utf8(Field *f, const char *str, uint len) {
+void set_field_char_utf8mb4(Field *f, const char *str, uint len) {
   assert(f->real_type() == MYSQL_TYPE_STRING);
   Field_string *f2 = (Field_string *)f;
   f2->store(str, len, &my_charset_utf8mb4_bin);
 }
 
-String *get_field_char_utf8(Field *f, String *val) {
+String *get_field_char_utf8mb4(Field *f, String *val) {
   assert(f->real_type() == MYSQL_TYPE_STRING);
   Field_string *f2 = (Field_string *)f;
   val = f2->val_str(nullptr, val);
   return val;
 }
 
-char *get_field_char_utf8(Field *f, char *val, uint *len) {
+char *get_field_char_utf8mb4(Field *f, char *val, uint *len) {
   assert(f->real_type() == MYSQL_TYPE_STRING);
   String temp;
   Field_string *f2 = (Field_string *)f;
@@ -249,25 +249,13 @@ void set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str,
   f2->store(str, len, cs);
 }
 
-void set_field_varchar_utf8(Field *f, const char *str) {
-  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
-  Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
-}
-
-void set_field_varchar_utf8(Field *f, const char *str, size_t len) {
-  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
-  Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, len, &my_charset_utf8mb4_bin);
-}
-
-String *get_field_varchar_utf8(Field *f, String *val) {
+String *get_field_varchar_utf8mb4(Field *f, String *val) {
   assert(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
   val = f2->val_str(nullptr, val);
   return val;
 }
-char *get_field_varchar_utf8(Field *f, char *val, uint *len) {
+char *get_field_varchar_utf8mb4(Field *f, char *val, uint *len) {
   assert(f->real_type() == MYSQL_TYPE_VARCHAR);
   String temp;
   Field_varstring *f2 = (Field_varstring *)f;
@@ -442,13 +430,13 @@ void set_nullable_field_schema_name(Field *f, const PFS_schema_name *schema) {
   if (len == 0) {
     f->set_null();
   } else {
-    set_field_varchar_utf8(f, schema->ptr(), len);
+    set_field_varchar_utf8mb4(f, schema->ptr(), len);
   }
 }
 
 void set_field_schema_name(Field *f, const PFS_schema_name *schema) {
   assert(!f->is_nullable());
-  set_field_varchar_utf8(f, schema->ptr(), schema->length());
+  set_field_varchar_utf8mb4(f, schema->ptr(), schema->length());
 }
 
 void set_nullable_field_object_name(Field *f, const PFS_object_name *object) {
@@ -457,13 +445,13 @@ void set_nullable_field_object_name(Field *f, const PFS_object_name *object) {
   if (len == 0) {
     f->set_null();
   } else {
-    set_field_varchar_utf8(f, object->ptr(), len);
+    set_field_varchar_utf8mb4(f, object->ptr(), len);
   }
 }
 
 void set_field_object_name(Field *f, const PFS_object_name *object) {
   assert(!f->is_nullable());
-  set_field_varchar_utf8(f, object->ptr(), object->length());
+  set_field_varchar_utf8mb4(f, object->ptr(), object->length());
 }
 
 void set_nullable_field_routine_name(Field *f, const PFS_routine_name *object) {
@@ -472,18 +460,18 @@ void set_nullable_field_routine_name(Field *f, const PFS_routine_name *object) {
   if (len == 0) {
     f->set_null();
   } else {
-    set_field_varchar_utf8(f, object->ptr(), len);
+    set_field_varchar_utf8mb4(f, object->ptr(), len);
   }
 }
 
 void set_field_routine_name(Field *f, const PFS_routine_name *object) {
   assert(!f->is_nullable());
-  set_field_varchar_utf8(f, object->ptr(), object->length());
+  set_field_varchar_utf8mb4(f, object->ptr(), object->length());
 }
 
 void set_field_host_name(Field *f, const PFS_host_name *host) {
   assert(!f->is_nullable());
-  set_field_char_utf8(f, host->ptr(), host->length());
+  set_field_char_utf8mb4(f, host->ptr(), host->length());
 }
 
 void set_nullable_field_host_name(Field *f, const PFS_host_name *host) {
@@ -492,13 +480,13 @@ void set_nullable_field_host_name(Field *f, const PFS_host_name *host) {
   if (len == 0) {
     f->set_null();
   } else {
-    set_field_char_utf8(f, host->ptr(), len);
+    set_field_char_utf8mb4(f, host->ptr(), len);
   }
 }
 
 void set_field_user_name(Field *f, const PFS_user_name *user) {
   assert(!f->is_nullable());
-  set_field_char_utf8(f, user->ptr(), user->length());
+  set_field_char_utf8mb4(f, user->ptr(), user->length());
 }
 
 void set_nullable_field_user_name(Field *f, const PFS_user_name *user) {
@@ -507,7 +495,7 @@ void set_nullable_field_user_name(Field *f, const PFS_user_name *user) {
   if (len == 0) {
     f->set_null();
   } else {
-    set_field_char_utf8(f, user->ptr(), len);
+    set_field_char_utf8mb4(f, user->ptr(), len);
   }
 }
 
@@ -670,14 +658,15 @@ void PFS_digest_row::set_field(uint index, Field *f) {
   switch (index) {
     case 0: /* SCHEMA_NAME */
       if (m_schema_name.length() > 0) {
-        set_field_varchar_utf8(f, m_schema_name.ptr(), m_schema_name.length());
+        set_field_varchar_utf8mb4(f, m_schema_name.ptr(),
+                                  m_schema_name.length());
       } else {
         f->set_null();
       }
       break;
     case 1: /* DIGEST */
       if (m_digest_length > 0) {
-        set_field_varchar_utf8(f, m_digest, m_digest_length);
+        set_field_varchar_utf8mb4(f, m_digest, m_digest_length);
       } else {
         f->set_null();
       }
@@ -898,21 +887,21 @@ void PFS_column_row::set_nullable_field(uint index, Field *f) {
       break;
     case 1: /* SCHEMA_NAME */
       if (m_schema_name_length > 0) {
-        set_field_varchar_utf8(f, m_schema_name, m_schema_name_length);
+        set_field_varchar_utf8mb4(f, m_schema_name, m_schema_name_length);
       } else {
         f->set_null();
       }
       break;
     case 2: /* OBJECT_NAME */
       if (m_object_name_length > 0) {
-        set_field_varchar_utf8(f, m_object_name, m_object_name_length);
+        set_field_varchar_utf8mb4(f, m_object_name, m_object_name_length);
       } else {
         f->set_null();
       }
       break;
     case 3: /* COLUMN_NAME */
       if (m_column_name_length > 0) {
-        set_field_varchar_utf8(f, m_column_name, m_column_name_length);
+        set_field_varchar_utf8mb4(f, m_column_name, m_column_name_length);
       } else {
         f->set_null();
       }
@@ -970,7 +959,7 @@ void PFS_index_row::set_field(uint index, Field *f) {
       break;
     case 3: /* INDEX_NAME */
       if (m_index_name_length > 0) {
-        set_field_varchar_utf8(f, m_index_name, m_index_name_length);
+        set_field_varchar_utf8mb4(f, m_index_name, m_index_name_length);
       } else {
         f->set_null();
       }
@@ -989,7 +978,7 @@ void PFS_index_row::set_nullable_field(uint index, Field *f) {
       break;
     case 3: /* INDEX_NAME */
       if (m_index_name_length > 0) {
-        set_field_varchar_utf8(f, m_index_name, m_index_name_length);
+        set_field_varchar_utf8mb4(f, m_index_name, m_index_name_length);
       } else {
         f->set_null();
       }
@@ -1125,8 +1114,8 @@ void PFS_error_stat_row::set_field(uint index, Field *f,
       break;
     case 1: /* ERROR NAME */
       if (temp_error) {
-        set_field_varchar_utf8(f, temp_error->name,
-                               (uint)strlen(temp_error->name));
+        set_field_varchar_utf8mb4(f, temp_error->name,
+                                  (uint)strlen(temp_error->name));
       } else /* NULL ROW */
       {
         f->set_null();
@@ -1134,8 +1123,8 @@ void PFS_error_stat_row::set_field(uint index, Field *f,
       break;
     case 2: /* SQLSTATE */
       if (temp_error) {
-        set_field_varchar_utf8(f, temp_error->odbc_state,
-                               (uint)strlen(temp_error->odbc_state));
+        set_field_varchar_utf8mb4(f, temp_error->odbc_state,
+                                  (uint)strlen(temp_error->odbc_state));
       } else /* NULL ROW */
       {
         f->set_null();
@@ -1192,40 +1181,40 @@ void set_field_object_type(Field *f, enum_object_type object_type) {
   const char *name;
   size_t length;
   object_type_to_string(object_type, &name, &length);
-  set_field_varchar_utf8(f, name, (uint)length);
+  set_field_varchar_utf8mb4(f, name, (uint)length);
 }
 
 void set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type) {
   switch (lock_type) {
     case PFS_TL_READ:
-      set_field_varchar_utf8(f, "READ", 4);
+      set_field_varchar_utf8mb4(f, "READ", 4);
       break;
     case PFS_TL_READ_WITH_SHARED_LOCKS:
-      set_field_varchar_utf8(f, "READ WITH SHARED LOCKS", 22);
+      set_field_varchar_utf8mb4(f, "READ WITH SHARED LOCKS", 22);
       break;
     case PFS_TL_READ_HIGH_PRIORITY:
-      set_field_varchar_utf8(f, "READ HIGH PRIORITY", 18);
+      set_field_varchar_utf8mb4(f, "READ HIGH PRIORITY", 18);
       break;
     case PFS_TL_READ_NO_INSERT:
-      set_field_varchar_utf8(f, "READ NO INSERT", 14);
+      set_field_varchar_utf8mb4(f, "READ NO INSERT", 14);
       break;
     case PFS_TL_WRITE_ALLOW_WRITE:
-      set_field_varchar_utf8(f, "WRITE ALLOW WRITE", 17);
+      set_field_varchar_utf8mb4(f, "WRITE ALLOW WRITE", 17);
       break;
     case PFS_TL_WRITE_CONCURRENT_INSERT:
-      set_field_varchar_utf8(f, "WRITE CONCURRENT INSERT", 23);
+      set_field_varchar_utf8mb4(f, "WRITE CONCURRENT INSERT", 23);
       break;
     case PFS_TL_WRITE_LOW_PRIORITY:
-      set_field_varchar_utf8(f, "WRITE LOW PRIORITY", 18);
+      set_field_varchar_utf8mb4(f, "WRITE LOW PRIORITY", 18);
       break;
     case PFS_TL_WRITE:
-      set_field_varchar_utf8(f, "WRITE", 5);
+      set_field_varchar_utf8mb4(f, "WRITE", 5);
       break;
     case PFS_TL_READ_EXTERNAL:
-      set_field_varchar_utf8(f, "READ EXTERNAL", 13);
+      set_field_varchar_utf8mb4(f, "READ EXTERNAL", 13);
       break;
     case PFS_TL_WRITE_EXTERNAL:
-      set_field_varchar_utf8(f, "WRITE EXTERNAL", 14);
+      set_field_varchar_utf8mb4(f, "WRITE EXTERNAL", 14);
       break;
     case PFS_TL_NONE:
       f->set_null();
@@ -1242,37 +1231,37 @@ void set_field_mdl_type(Field *f, opaque_mdl_type mdl_type) {
   enum_mdl_type e = (enum_mdl_type)mdl_type;
   switch (e) {
     case MDL_INTENTION_EXCLUSIVE:
-      set_field_varchar_utf8(f, "INTENTION_EXCLUSIVE", 19);
+      set_field_varchar_utf8mb4(f, "INTENTION_EXCLUSIVE", 19);
       break;
     case MDL_SHARED:
-      set_field_varchar_utf8(f, "SHARED", 6);
+      set_field_varchar_utf8mb4(f, "SHARED", 6);
       break;
     case MDL_SHARED_HIGH_PRIO:
-      set_field_varchar_utf8(f, "SHARED_HIGH_PRIO", 16);
+      set_field_varchar_utf8mb4(f, "SHARED_HIGH_PRIO", 16);
       break;
     case MDL_SHARED_READ:
-      set_field_varchar_utf8(f, "SHARED_READ", 11);
+      set_field_varchar_utf8mb4(f, "SHARED_READ", 11);
       break;
     case MDL_SHARED_WRITE:
-      set_field_varchar_utf8(f, "SHARED_WRITE", 12);
+      set_field_varchar_utf8mb4(f, "SHARED_WRITE", 12);
       break;
     case MDL_SHARED_WRITE_LOW_PRIO:
-      set_field_varchar_utf8(f, "SHARED_WRITE_LOW_PRIO", 21);
+      set_field_varchar_utf8mb4(f, "SHARED_WRITE_LOW_PRIO", 21);
       break;
     case MDL_SHARED_UPGRADABLE:
-      set_field_varchar_utf8(f, "SHARED_UPGRADABLE", 17);
+      set_field_varchar_utf8mb4(f, "SHARED_UPGRADABLE", 17);
       break;
     case MDL_SHARED_READ_ONLY:
-      set_field_varchar_utf8(f, "SHARED_READ_ONLY", 16);
+      set_field_varchar_utf8mb4(f, "SHARED_READ_ONLY", 16);
       break;
     case MDL_SHARED_NO_WRITE:
-      set_field_varchar_utf8(f, "SHARED_NO_WRITE", 15);
+      set_field_varchar_utf8mb4(f, "SHARED_NO_WRITE", 15);
       break;
     case MDL_SHARED_NO_READ_WRITE:
-      set_field_varchar_utf8(f, "SHARED_NO_READ_WRITE", 20);
+      set_field_varchar_utf8mb4(f, "SHARED_NO_READ_WRITE", 20);
       break;
     case MDL_EXCLUSIVE:
-      set_field_varchar_utf8(f, "EXCLUSIVE", 9);
+      set_field_varchar_utf8mb4(f, "EXCLUSIVE", 9);
       break;
     case MDL_TYPE_END:
     default:
@@ -1287,13 +1276,13 @@ void set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration) {
   enum_mdl_duration e = (enum_mdl_duration)mdl_duration;
   switch (e) {
     case MDL_STATEMENT:
-      set_field_varchar_utf8(f, "STATEMENT", 9);
+      set_field_varchar_utf8mb4(f, "STATEMENT", 9);
       break;
     case MDL_TRANSACTION:
-      set_field_varchar_utf8(f, "TRANSACTION", 11);
+      set_field_varchar_utf8mb4(f, "TRANSACTION", 11);
       break;
     case MDL_EXPLICIT:
-      set_field_varchar_utf8(f, "EXPLICIT", 8);
+      set_field_varchar_utf8mb4(f, "EXPLICIT", 8);
       break;
     case MDL_DURATION_END:
     default:
@@ -1306,16 +1295,16 @@ void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status) {
       static_cast<MDL_ticket::enum_psi_status>(mdl_status);
   switch (e) {
     case MDL_ticket::PENDING:
-      set_field_varchar_utf8(f, "PENDING", 7);
+      set_field_varchar_utf8mb4(f, "PENDING", 7);
       break;
     case MDL_ticket::GRANTED:
-      set_field_varchar_utf8(f, "GRANTED", 7);
+      set_field_varchar_utf8mb4(f, "GRANTED", 7);
       break;
     case MDL_ticket::PRE_ACQUIRE_NOTIFY:
-      set_field_varchar_utf8(f, "PRE_ACQUIRE_NOTIFY", 18);
+      set_field_varchar_utf8mb4(f, "PRE_ACQUIRE_NOTIFY", 18);
       break;
     case MDL_ticket::POST_RELEASE_NOTIFY:
-      set_field_varchar_utf8(f, "POST_RELEASE_NOTIFY", 19);
+      set_field_varchar_utf8mb4(f, "POST_RELEASE_NOTIFY", 19);
       break;
     default:
       assert(false);
@@ -1399,16 +1388,16 @@ void PFS_session_all_memory_stat_row::set_field(uint index, Field *f) {
 void set_field_isolation_level(Field *f, enum_isolation_level iso_level) {
   switch (iso_level) {
     case TRANS_LEVEL_READ_UNCOMMITTED:
-      set_field_varchar_utf8(f, "READ UNCOMMITTED", 16);
+      set_field_varchar_utf8mb4(f, "READ UNCOMMITTED", 16);
       break;
     case TRANS_LEVEL_READ_COMMITTED:
-      set_field_varchar_utf8(f, "READ COMMITTED", 14);
+      set_field_varchar_utf8mb4(f, "READ COMMITTED", 14);
       break;
     case TRANS_LEVEL_REPEATABLE_READ:
-      set_field_varchar_utf8(f, "REPEATABLE READ", 15);
+      set_field_varchar_utf8mb4(f, "REPEATABLE READ", 15);
       break;
     case TRANS_LEVEL_SERIALIZABLE:
-      set_field_varchar_utf8(f, "SERIALIZABLE", 12);
+      set_field_varchar_utf8mb4(f, "SERIALIZABLE", 12);
       break;
     default:
       assert(false);
@@ -1418,22 +1407,22 @@ void set_field_isolation_level(Field *f, enum_isolation_level iso_level) {
 void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state) {
   switch (xa_state) {
     case TRANS_STATE_XA_NOTR:
-      set_field_varchar_utf8(f, "NOTR", 4);
+      set_field_varchar_utf8mb4(f, "NOTR", 4);
       break;
     case TRANS_STATE_XA_ACTIVE:
-      set_field_varchar_utf8(f, "ACTIVE", 6);
+      set_field_varchar_utf8mb4(f, "ACTIVE", 6);
       break;
     case TRANS_STATE_XA_IDLE:
-      set_field_varchar_utf8(f, "IDLE", 4);
+      set_field_varchar_utf8mb4(f, "IDLE", 4);
       break;
     case TRANS_STATE_XA_PREPARED:
-      set_field_varchar_utf8(f, "PREPARED", 8);
+      set_field_varchar_utf8mb4(f, "PREPARED", 8);
       break;
     case TRANS_STATE_XA_ROLLBACK_ONLY:
-      set_field_varchar_utf8(f, "ROLLBACK ONLY", 13);
+      set_field_varchar_utf8mb4(f, "ROLLBACK ONLY", 13);
       break;
     case TRANS_STATE_XA_COMMITTED:
-      set_field_varchar_utf8(f, "COMMITTED", 9);
+      set_field_varchar_utf8mb4(f, "COMMITTED", 9);
       break;
     default:
       assert(false);

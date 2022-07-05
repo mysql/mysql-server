@@ -183,7 +183,8 @@ int table_replication_applier_global_filters::read_row_values(
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* filter_name */
-          set_field_char_utf8(f, m_row.filter_name, m_row.filter_name_length);
+          set_field_char_utf8mb4(f, m_row.filter_name,
+                                 m_row.filter_name_length);
           break;
         case 1: /* filter_rule */
           if (!m_row.filter_rule.is_empty())

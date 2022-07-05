@@ -345,7 +345,8 @@ int table_replication_applier_status_by_coordinator::read_row_values(
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* channel_name */
-          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          set_field_char_utf8mb4(f, m_row.channel_name,
+                                 m_row.channel_name_length);
           break;
         case 1: /*thread_id*/
           if (!m_row.thread_id_is_null) {
@@ -361,15 +362,15 @@ int table_replication_applier_status_by_coordinator::read_row_values(
           set_field_ulong(f, m_row.last_error_number);
           break;
         case 4: /*last_error_message*/
-          set_field_varchar_utf8(f, m_row.last_error_message,
-                                 m_row.last_error_message_length);
+          set_field_varchar_utf8mb4(f, m_row.last_error_message,
+                                    m_row.last_error_message_length);
           break;
         case 5: /*last_error_timestamp*/
           set_field_timestamp(f, m_row.last_error_timestamp);
           break;
         case 6: /*last_processed_trx*/
-          set_field_char_utf8(f, m_row.last_processed_trx,
-                              m_row.last_processed_trx_length);
+          set_field_char_utf8mb4(f, m_row.last_processed_trx,
+                                 m_row.last_processed_trx_length);
           break;
         case 7: /*last_processed_trx_original_commit_timestamp*/
           set_field_timestamp(
@@ -387,8 +388,8 @@ int table_replication_applier_status_by_coordinator::read_row_values(
           set_field_timestamp(f, m_row.last_processed_trx_end_buffer_timestamp);
           break;
         case 11: /*processing_trx*/
-          set_field_char_utf8(f, m_row.processing_trx,
-                              m_row.processing_trx_length);
+          set_field_char_utf8mb4(f, m_row.processing_trx,
+                                 m_row.processing_trx_length);
           break;
         case 12: /*processing_trx_original_commit_timestamp*/
           set_field_timestamp(f,

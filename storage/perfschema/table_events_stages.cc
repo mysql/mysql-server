@@ -263,10 +263,10 @@ int table_events_stages_common::read_row_values(TABLE *table,
           }
           break;
         case 3: /* EVENT_NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 4: /* SOURCE */
-          set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
+          set_field_varchar_utf8mb4(f, m_row.m_source, m_row.m_source_length);
           break;
         case 5: /* TIMER_START */
           if (m_row.m_timer_start != 0) {

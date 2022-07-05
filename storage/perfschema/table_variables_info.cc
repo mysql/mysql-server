@@ -186,23 +186,23 @@ int table_variables_info::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* VARIABLE_NAME */
-          set_field_varchar_utf8(f, m_row.m_variable_name,
-                                 m_row.m_variable_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_variable_name,
+                                    m_row.m_variable_name_length);
           break;
         case 1: /* VARIABLE_SOURCE */
           set_field_enum(f, m_row.m_variable_source);
           break;
         case 2: /* VARIABLE_PATH */
-          set_field_varchar_utf8(f, m_row.m_variable_path,
-                                 m_row.m_variable_path_length);
+          set_field_varchar_utf8mb4(f, m_row.m_variable_path,
+                                    m_row.m_variable_path_length);
           break;
         case 3: /* MIN_VALUE */
-          set_field_varchar_utf8(f, m_row.m_min_value,
-                                 m_row.m_min_value_length);
+          set_field_varchar_utf8mb4(f, m_row.m_min_value,
+                                    m_row.m_min_value_length);
           break;
         case 4: /* MAX_VALUE */
-          set_field_varchar_utf8(f, m_row.m_max_value,
-                                 m_row.m_max_value_length);
+          set_field_varchar_utf8mb4(f, m_row.m_max_value,
+                                    m_row.m_max_value_length);
           break;
         case 5: /* SET_TIME */
           if (m_row.m_set_time != 0) {
@@ -213,16 +213,16 @@ int table_variables_info::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 6: /* SET_USER */
           if (m_row.m_set_user_str_length != 0) {
-            set_field_char_utf8(f, m_row.m_set_user_str,
-                                m_row.m_set_user_str_length);
+            set_field_char_utf8mb4(f, m_row.m_set_user_str,
+                                   m_row.m_set_user_str_length);
           } else {
             f->set_null();
           }
           break;
         case 7: /* SET_HOST */
           if (m_row.m_set_host_str_length != 0) {
-            set_field_char_utf8(f, m_row.m_set_host_str,
-                                m_row.m_set_host_str_length);
+            set_field_char_utf8mb4(f, m_row.m_set_host_str,
+                                   m_row.m_set_host_str_length);
           } else {
             f->set_null();
           }

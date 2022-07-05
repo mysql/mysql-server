@@ -393,7 +393,7 @@ int table_events_transactions_common::read_row_values(TABLE *table,
           }
           break;
         case 3: /* EVENT_NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 4: /* STATE */
           set_field_enum(f, m_row.m_state);
@@ -406,7 +406,7 @@ int table_events_transactions_common::read_row_values(TABLE *table,
           }
           break;
         case 6: /* GTID */
-          set_field_varchar_utf8(f, m_row.m_gtid, m_row.m_gtid_length);
+          set_field_varchar_utf8mb4(f, m_row.m_gtid, m_row.m_gtid_length);
           break;
         case 7: /* XID_FORMAT_ID */
           if (!m_row.m_xa || m_row.m_xid.is_null()) {
@@ -439,7 +439,7 @@ int table_events_transactions_common::read_row_values(TABLE *table,
           }
           break;
         case 11: /* SOURCE */
-          set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
+          set_field_varchar_utf8mb4(f, m_row.m_source, m_row.m_source_length);
           break;
         case 12: /* TIMER_START */
           if (m_row.m_timer_start != 0) {

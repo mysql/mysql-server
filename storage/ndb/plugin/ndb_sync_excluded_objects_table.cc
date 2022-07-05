@@ -83,11 +83,11 @@ int Ndb_sync_excluded_objects_table::read_column_value(PSI_field *field,
 
   switch (index) {
     case 0: /* SCHEMA_NAME: Name of the schema */
-      pfscol_string->set_varchar_utf8(
+      pfscol_string->set_varchar_utf8mb4(
           field, obj.m_schema_name == "" ? nullptr : obj.m_schema_name.c_str());
       break;
     case 1: /* NAME: Object name */
-      pfscol_string->set_varchar_utf8(
+      pfscol_string->set_varchar_utf8mb4(
           field, obj.m_name == "" ? nullptr : obj.m_name.c_str());
       break;
     case 2: /* TYPE */
@@ -104,7 +104,7 @@ int Ndb_sync_excluded_objects_table::read_column_value(PSI_field *field,
         automatically truncates the reason if it has more than 256 characters
       */
       assert(std::strlen(obj.m_reason.c_str()) <= 256);
-      pfscol_string->set_varchar_utf8(
+      pfscol_string->set_varchar_utf8mb4(
           field, obj.m_reason == "" ? "Unknown" : obj.m_reason.c_str());
       break;
     default:

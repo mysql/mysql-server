@@ -288,7 +288,7 @@ int table_metadata_locks::read_row_values(TABLE *table, unsigned char *buf,
           set_field_mdl_status(f, m_row.m_mdl_status);
           break;
         case 8: /* SOURCE */
-          set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
+          set_field_varchar_utf8mb4(f, m_row.m_source, m_row.m_source_length);
           break;
         case 9: /* OWNER_THREAD_ID */
           if (m_row.m_owner_thread_id != 0) {

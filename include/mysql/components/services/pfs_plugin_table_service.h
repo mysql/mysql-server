@@ -528,9 +528,9 @@ DECLARE_METHOD(void, set_field_double, (PSI_field * f, PSI_double value));
 DECLARE_METHOD(void, get_field_double, (PSI_field * f, PSI_double *value));
 
 /* CHAR */
-DECLARE_METHOD(void, set_field_char_utf8,
+DECLARE_METHOD(void, set_field_char_utf8mb4,
                (PSI_field * f, const char *value, unsigned int length));
-DECLARE_METHOD(void, get_field_char_utf8,
+DECLARE_METHOD(void, get_field_char_utf8mb4,
                (PSI_field * f, char *str, unsigned int *length));
 DECLARE_METHOD(void, read_key_string,
                (PSI_key_reader * reader, PSI_plugin_key_string *key,
@@ -540,10 +540,7 @@ DECLARE_METHOD(bool, match_key_string,
                 unsigned int record_string_length, PSI_plugin_key_string *key));
 
 /* VARCHAR */
-DECLARE_METHOD(void, set_field_varchar_utf8, (PSI_field * f, const char *str));
-DECLARE_METHOD(void, set_field_varchar_utf8_len,
-               (PSI_field * f, const char *str, unsigned int len));
-DECLARE_METHOD(void, get_field_varchar_utf8,
+DECLARE_METHOD(void, get_field_varchar_utf8mb4,
                (PSI_field * f, char *str, unsigned int *length));
 
 DECLARE_METHOD(void, set_field_varchar_utf8mb4,
@@ -724,9 +721,9 @@ END_SERVICE_DEFINITION(pfs_plugin_column_double_v1)
 
 BEGIN_SERVICE_DEFINITION(pfs_plugin_column_string_v1)
 /* CHAR */
-DECLARE_METHOD(void, set_char_utf8,
+DECLARE_METHOD(void, set_char_utf8mb4,
                (PSI_field * f, const char *value, unsigned int length));
-DECLARE_METHOD(void, get_char_utf8,
+DECLARE_METHOD(void, get_char_utf8mb4,
                (PSI_field * f, char *str, unsigned int *length));
 DECLARE_METHOD(void, read_key_string,
                (PSI_key_reader * reader, PSI_plugin_key_string *key,
@@ -735,10 +732,7 @@ DECLARE_METHOD(bool, match_key_string,
                (bool record_null, const char *record_string_value,
                 unsigned int record_string_length, PSI_plugin_key_string *key));
 /* VARCHAR */
-DECLARE_METHOD(void, set_varchar_utf8, (PSI_field * f, const char *str));
-DECLARE_METHOD(void, set_varchar_utf8_len,
-               (PSI_field * f, const char *str, unsigned int len));
-DECLARE_METHOD(void, get_varchar_utf8,
+DECLARE_METHOD(void, get_varchar_utf8mb4,
                (PSI_field * f, char *str, unsigned int *length));
 DECLARE_METHOD(void, set_varchar_utf8mb4, (PSI_field * f, const char *str));
 DECLARE_METHOD(void, set_varchar_utf8mb4_len,

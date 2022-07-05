@@ -325,13 +325,13 @@ int table_session_connect::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case FO_ATTR_NAME:
-          set_field_varchar_utf8(f, m_row.m_attr_name,
-                                 m_row.m_attr_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_attr_name,
+                                    m_row.m_attr_name_length);
           break;
         case FO_ATTR_VALUE:
           if (m_row.m_attr_value_length)
-            set_field_varchar_utf8(f, m_row.m_attr_value,
-                                   m_row.m_attr_value_length);
+            set_field_varchar_utf8mb4(f, m_row.m_attr_value,
+                                      m_row.m_attr_value_length);
           else {
             f->set_null();
           }

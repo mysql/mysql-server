@@ -261,8 +261,8 @@ int table_status_by_user::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_user.set_nullable_field(f);
           break;
         case 1: /* VARIABLE_NAME */
-          set_field_varchar_utf8(f, m_row.m_variable_name.m_str,
-                                 m_row.m_variable_name.m_length);
+          set_field_varchar_utf8mb4(f, m_row.m_variable_name.m_str,
+                                    m_row.m_variable_name.m_length);
           break;
         case 2: /* VARIABLE_VALUE */
           m_row.m_variable_value.set_field(f);

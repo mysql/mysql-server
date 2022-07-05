@@ -335,24 +335,24 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 1: /* USER */
           if (m_row.m_user_name.length() > 0) {
-            set_field_varchar_utf8(f, m_row.m_user_name.ptr(),
-                                   m_row.m_user_name.length());
+            set_field_varchar_utf8mb4(f, m_row.m_user_name.ptr(),
+                                      m_row.m_user_name.length());
           } else {
             f->set_null();
           }
           break;
         case 2: /* HOST (and PORT) */
           if (m_row.m_hostname_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_hostname,
-                                   m_row.m_hostname_length);
+            set_field_varchar_utf8mb4(f, m_row.m_hostname,
+                                      m_row.m_hostname_length);
           } else {
             f->set_null();
           }
           break;
         case 3: /* DB */
           if (m_row.m_db_name.length() > 0) {
-            set_field_varchar_utf8(f, m_row.m_db_name.ptr(),
-                                   m_row.m_db_name.length());
+            set_field_varchar_utf8mb4(f, m_row.m_db_name.ptr(),
+                                      m_row.m_db_name.length());
           } else {
             f->set_null();
           }
@@ -360,7 +360,7 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
         case 4: /* COMMAND */
           if (m_row.m_processlist_id != 0) {
             const std::string &cn = Command_names::str_session(m_row.m_command);
-            set_field_varchar_utf8(f, cn.c_str(), cn.length());
+            set_field_varchar_utf8mb4(f, cn.c_str(), cn.length());
           } else {
             f->set_null();
           }
@@ -377,8 +377,8 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 6: /* STATE */
           /* For compatibility, leave blank if state is NULL. */
-          set_field_varchar_utf8(f, m_row.m_processlist_state_ptr,
-                                 m_row.m_processlist_state_length);
+          set_field_varchar_utf8mb4(f, m_row.m_processlist_state_ptr,
+                                    m_row.m_processlist_state_length);
           break;
         case 7: /* INFO */
           if (m_row.m_processlist_info_length > 0)

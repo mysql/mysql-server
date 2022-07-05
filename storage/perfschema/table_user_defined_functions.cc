@@ -274,19 +274,19 @@ int table_user_defined_functions::read_row_values(TABLE *table,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* UDF_NAME */
-          set_field_varchar_utf8(f, m_row->m_name, m_row->m_name_length);
+          set_field_varchar_utf8mb4(f, m_row->m_name, m_row->m_name_length);
           break;
         case 1: /* UDF_RETURN_TYPE */
-          set_field_varchar_utf8(f, m_row->m_return_type,
-                                 m_row->m_return_type_length);
+          set_field_varchar_utf8mb4(f, m_row->m_return_type,
+                                    m_row->m_return_type_length);
           break;
         case 2: /* UDF_TYPE */
-          set_field_varchar_utf8(f, m_row->m_type, m_row->m_type_length);
+          set_field_varchar_utf8mb4(f, m_row->m_type, m_row->m_type_length);
           break;
         case 3: /* UDF_LIBRARY */
           if (m_row->m_library_length)
-            set_field_varchar_utf8(f, m_row->m_library,
-                                   m_row->m_library_length);
+            set_field_varchar_utf8mb4(f, m_row->m_library,
+                                      m_row->m_library_length);
           else
             f->set_null();
           break;

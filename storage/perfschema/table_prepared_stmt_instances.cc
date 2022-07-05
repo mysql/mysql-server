@@ -352,8 +352,8 @@ int table_prepared_stmt_instances::read_row_values(TABLE *table,
           break;
         case 2: /* STATEMENT_NAME */
           if (m_row.m_stmt_name_length > 0)
-            set_field_varchar_utf8(f, m_row.m_stmt_name,
-                                   m_row.m_stmt_name_length);
+            set_field_varchar_utf8mb4(f, m_row.m_stmt_name,
+                                      m_row.m_stmt_name_length);
           else {
             f->set_null();
           }

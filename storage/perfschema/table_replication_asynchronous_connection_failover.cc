@@ -230,23 +230,25 @@ int table_replication_asynchronous_connection_failover::read_row_values(
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /** channel_name */
-          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          set_field_char_utf8mb4(f, m_row.channel_name,
+                                 m_row.channel_name_length);
           break;
         case 1: /** host */
-          set_field_char_utf8(f, m_row.host, m_row.host_length);
+          set_field_char_utf8mb4(f, m_row.host, m_row.host_length);
           break;
         case 2: /** port */
           set_field_ulong(f, m_row.port);
           break;
         case 3: /** network_namespace */
-          set_field_char_utf8(f, m_row.network_namespace,
-                              m_row.network_namespace_length);
+          set_field_char_utf8mb4(f, m_row.network_namespace,
+                                 m_row.network_namespace_length);
           break;
         case 4: /** weight */
           set_field_ulong(f, m_row.weight);
           break;
         case 5: /** managed_name */
-          set_field_char_utf8(f, m_row.managed_name, m_row.managed_name_length);
+          set_field_char_utf8mb4(f, m_row.managed_name,
+                                 m_row.managed_name_length);
           break;
         default:
           assert(false);

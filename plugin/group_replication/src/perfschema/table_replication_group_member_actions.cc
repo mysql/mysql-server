@@ -81,13 +81,13 @@ static int read_column_value(PSI_table_handle *handle [[maybe_unused]],
 
   switch (index) {
     case 0: {  // name
-      table_service->set_field_char_utf8(
+      table_service->set_field_char_utf8mb4(
           field, s_rows[s_current_row_pos].name.c_str(),
           s_rows[s_current_row_pos].name.length());
       break;
     }
     case 1: {  // event
-      table_service->set_field_char_utf8(
+      table_service->set_field_char_utf8mb4(
           field, s_rows[s_current_row_pos].event.c_str(),
           s_rows[s_current_row_pos].event.length());
       break;
@@ -98,7 +98,7 @@ static int read_column_value(PSI_table_handle *handle [[maybe_unused]],
       break;
     }
     case 3: {  // type
-      table_service->set_field_char_utf8(
+      table_service->set_field_char_utf8mb4(
           field, s_rows[s_current_row_pos].type.c_str(),
           s_rows[s_current_row_pos].type.length());
       break;
@@ -109,7 +109,7 @@ static int read_column_value(PSI_table_handle *handle [[maybe_unused]],
       break;
     }
     case 5: {  // error_handling
-      table_service->set_field_char_utf8(
+      table_service->set_field_char_utf8mb4(
           field, s_rows[s_current_row_pos].error_handling.c_str(),
           s_rows[s_current_row_pos].error_handling.length());
       break;

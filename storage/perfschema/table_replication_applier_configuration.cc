@@ -270,7 +270,8 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /**channel_name*/
-          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          set_field_char_utf8mb4(f, m_row.channel_name,
+                                 m_row.channel_name_length);
           break;
         case 1: /** desired_delay */
           set_field_ulong(f, static_cast<ulong>(m_row.desired_delay));

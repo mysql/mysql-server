@@ -144,8 +144,8 @@ int machine_read_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->set_field_enum(field, h->current_row.machine_type);
       break;
     case 2: /* MACHINE_MADE */
-      table_svc->set_field_char_utf8(field, h->current_row.machine_made,
-                                     h->current_row.machine_made_length);
+      table_svc->set_field_char_utf8mb4(field, h->current_row.machine_made,
+                                        h->current_row.machine_made_length);
       break;
     case 3: /* EMPLOYEE_NUMBER */
       table_svc->set_field_integer(field, h->current_row.employee_number);
@@ -201,7 +201,8 @@ int machine_write_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_enum(field, &h->current_row.machine_type);
       break;
     case 2: /* MACHINE_MADE */
-      table_svc->get_field_char_utf8(field, machine_made, machine_made_length);
+      table_svc->get_field_char_utf8mb4(field, machine_made,
+                                        machine_made_length);
       break;
     case 3: /* EMPLOYEE_NUMBER */
       table_svc->get_field_integer(field, &h->current_row.employee_number);
@@ -244,7 +245,8 @@ int machine_update_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_enum(field, &h->current_row.machine_type);
       break;
     case 2: /* MACHINE_MADE */
-      table_svc->get_field_char_utf8(field, machine_made, machine_made_length);
+      table_svc->get_field_char_utf8mb4(field, machine_made,
+                                        machine_made_length);
       break;
     case 3: /* EMPLOYEE_NUMBER */
       table_svc->get_field_integer(field, &h->current_row.employee_number);

@@ -228,7 +228,7 @@ int table_setup_consumers::read_row_values(TABLE *table, unsigned char *,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row->m_name.str, m_row->m_name.length);
+          set_field_varchar_utf8mb4(f, m_row->m_name.str, m_row->m_name.length);
           break;
         case 1: /* ENABLED */
           set_field_enum(f, (*m_row->m_enabled_ptr) ? ENUM_YES : ENUM_NO);

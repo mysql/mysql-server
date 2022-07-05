@@ -233,32 +233,32 @@ void set_field_double(Field *f, double value);
 double get_field_double(Field *f);
 
 /**
-  Helper, assign a value to a @code char utf8 @endcode field.
+  Helper, assign a value to a @code char utf8mb4 @endcode field.
   @param f the field to set
   @param str the string to assign
   @param len the length of the string to assign
 */
-void set_field_char_utf8(Field *f, const char *str, uint len);
+void set_field_char_utf8mb4(Field *f, const char *str, uint len);
 
 /**
-  Helper, read a value from a @code char utf8 @endcode field.
+  Helper, read a value from a @code char utf8mb4 @endcode field.
   @param f the field to read
   @param[out] val the field value
   @param[out] len field value length
   @return the field value
 */
-char *get_field_char_utf8(Field *f, char *val, uint *len);
+char *get_field_char_utf8mb4(Field *f, char *val, uint *len);
 
 /**
-  Helper, read a value from a @code char utf8 @endcode field.
+  Helper, read a value from a @code char utf8mb4 @endcode field.
   @param f the field to read
   @param[out] val the field value
   @return the field value
 */
-String *get_field_char_utf8(Field *f, String *val);
+String *get_field_char_utf8mb4(Field *f, String *val);
 
 /**
-  Helper, assign a value to a @code varchar utf8 @endcode field.
+  Helper, assign a value to a @code varchar utf8mb4 @endcode field.
   @param f the field to set
   @param cs the string character set
   @param str the string to assign
@@ -268,36 +268,21 @@ void set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str,
                        uint len);
 
 /**
-  Helper, assign a value to a @code varchar utf8 @endcode field.
-  @param f the field to set
-  @param str the string to assign
-*/
-void set_field_varchar_utf8(Field *f, const char *str);
-
-/**
-  Helper, assign a value to a @code varchar utf8 @endcode field.
-  @param f the field to set
-  @param str the string to assign
-  @param len the length of the string to assign
-*/
-void set_field_varchar_utf8(Field *f, const char *str, size_t len);
-
-/**
-  Helper, read a value from a @code varchar utf8 @endcode field.
+  Helper, read a value from a @code varchar utf8mb4 @endcode field.
   @param f the field to read
   @param[out] val the field value
   @return the field value
 */
-String *get_field_varchar_utf8(Field *f, String *val);
+String *get_field_varchar_utf8mb4(Field *f, String *val);
 
 /**
-  Helper, read a value from a @code varchar utf8 @endcode field.
+  Helper, read a value from a @code varchar utf8mb4 @endcode field.
   @param f the field to read
   @param[out] val the field value
   @param[out] len field value length
   @return the field value
 */
-char *get_field_varchar_utf8(Field *f, char *val, uint *len);
+char *get_field_varchar_utf8mb4(Field *f, char *val, uint *len);
 
 /**
   Helper, assign a value to a @code varchar utf8mb4 @endcode field.
@@ -608,7 +593,7 @@ struct PFS_event_name_row {
 
   /** Set a table field from the row. */
   inline void set_field(Field *f) {
-    set_field_varchar_utf8(f, m_name, m_name_length);
+    set_field_varchar_utf8mb4(f, m_name, m_name_length);
   }
 };
 

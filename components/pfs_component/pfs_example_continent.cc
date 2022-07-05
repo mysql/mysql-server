@@ -198,8 +198,8 @@ int continent_read_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* NAME */
-      pc_string_srv->set_char_utf8(field, h->current_row.name,
-                                   h->current_row.name_length);
+      pc_string_srv->set_char_utf8mb4(field, h->current_row.name,
+                                      h->current_row.name_length);
       break;
     default: /* We should never reach here */
       assert(0);
@@ -209,8 +209,8 @@ int continent_read_column_value(PSI_table_handle *handle, PSI_field *field,
   return 0;
 }
 
-/* As this is a read-only table, we can't use continent_write_row_values function,
-   so use this function to populate rows from component code.
+/* As this is a read-only table, we can't use continent_write_row_values
+   function, so use this function to populate rows from component code.
 */
 int write_rows_from_component(Continent_Table_Handle *handle) {
   if (!handle) return 1;

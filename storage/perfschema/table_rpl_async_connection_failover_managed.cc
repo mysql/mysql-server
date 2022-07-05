@@ -239,13 +239,16 @@ int table_rpl_async_connection_failover_managed::read_row_values(
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /** channel_name */
-          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          set_field_char_utf8mb4(f, m_row.channel_name,
+                                 m_row.channel_name_length);
           break;
         case 1: /** managed_name */
-          set_field_char_utf8(f, m_row.managed_name, m_row.managed_name_length);
+          set_field_char_utf8mb4(f, m_row.managed_name,
+                                 m_row.managed_name_length);
           break;
         case 2: /** managed_type */
-          set_field_char_utf8(f, m_row.managed_type, m_row.managed_type_length);
+          set_field_char_utf8mb4(f, m_row.managed_type,
+                                 m_row.managed_type_length);
           break;
         case 3: /** configuration */
           set_field_json(f, &m_row.configuration);

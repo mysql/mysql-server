@@ -119,13 +119,13 @@ int table_setup_actors::write_row(PFS_engine_table *, TABLE *table,
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* HOST */
-          host = get_field_char_utf8(f, &host_data);
+          host = get_field_char_utf8mb4(f, &host_data);
           break;
         case 1: /* USER */
-          user = get_field_char_utf8(f, &user_data);
+          user = get_field_char_utf8mb4(f, &user_data);
           break;
         case 2: /* ROLE */
-          role = get_field_char_utf8(f, &role_data);
+          role = get_field_char_utf8mb4(f, &role_data);
           break;
         case 3: /* ENABLED */
           enabled_value = (enum_yes_no)get_field_enum(f);
@@ -269,16 +269,16 @@ int table_setup_actors::read_row_values(TABLE *table, unsigned char *,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* HOST */
-          set_field_char_utf8(f, m_row.m_host_name.ptr(),
-                              m_row.m_host_name.length());
+          set_field_char_utf8mb4(f, m_row.m_host_name.ptr(),
+                                 m_row.m_host_name.length());
           break;
         case 1: /* USER */
-          set_field_char_utf8(f, m_row.m_user_name.ptr(),
-                              m_row.m_user_name.length());
+          set_field_char_utf8mb4(f, m_row.m_user_name.ptr(),
+                                 m_row.m_user_name.length());
           break;
         case 2: /* ROLE */
-          set_field_char_utf8(f, m_row.m_role_name.ptr(),
-                              m_row.m_role_name.length());
+          set_field_char_utf8mb4(f, m_row.m_role_name.ptr(),
+                                 m_row.m_role_name.length());
           break;
         case 3: /* ENABLED */
           set_field_enum(f, (*m_row.m_enabled_ptr) ? ENUM_YES : ENUM_NO);

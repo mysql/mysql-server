@@ -444,10 +444,10 @@ int table_events_statements_common::read_row_values(TABLE *table,
           }
           break;
         case 3: /* EVENT_NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 4: /* SOURCE */
-          set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
+          set_field_varchar_utf8mb4(f, m_row.m_source, m_row.m_source_length);
           break;
         case 5: /* TIMER_START */
           if (m_row.m_timer_start != 0) {
@@ -488,8 +488,8 @@ int table_events_statements_common::read_row_values(TABLE *table,
           break;
         case 10: /* DIGEST */
           if (m_row.m_digest.m_digest_length > 0)
-            set_field_varchar_utf8(f, m_row.m_digest.m_digest,
-                                   m_row.m_digest.m_digest_length);
+            set_field_varchar_utf8mb4(f, m_row.m_digest.m_digest,
+                                      m_row.m_digest.m_digest_length);
           else {
             f->set_null();
           }
@@ -526,7 +526,7 @@ int table_events_statements_common::read_row_values(TABLE *table,
           break;
         case 18: /* RETURNED_SQLSTATE */
           if (m_row.m_sqlstate[0] != 0) {
-            set_field_varchar_utf8(f, m_row.m_sqlstate, SQLSTATE_LENGTH);
+            set_field_varchar_utf8mb4(f, m_row.m_sqlstate, SQLSTATE_LENGTH);
           } else {
             f->set_null();
           }
@@ -534,7 +534,7 @@ int table_events_statements_common::read_row_values(TABLE *table,
         case 19: /* MESSAGE_TEXT */
           len = (uint)strlen(m_row.m_message_text);
           if (len) {
-            set_field_varchar_utf8(f, m_row.m_message_text, len);
+            set_field_varchar_utf8mb4(f, m_row.m_message_text, len);
           } else {
             f->set_null();
           }

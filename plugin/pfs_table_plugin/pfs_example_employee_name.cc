@@ -229,12 +229,12 @@ int ename_read_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->set_field_integer(field, h->current_row.e_number);
       break;
     case 1: /* FIRST_NAME */
-      table_svc->set_field_char_utf8(field, h->current_row.f_name,
-                                     h->current_row.f_name_length);
+      table_svc->set_field_char_utf8mb4(field, h->current_row.f_name,
+                                        h->current_row.f_name_length);
       break;
     case 2: /* LAST_NAME */
-      table_svc->set_field_varchar_utf8_len(field, h->current_row.l_name,
-                                            h->current_row.l_name_length);
+      table_svc->set_field_varchar_utf8mb4_len(field, h->current_row.l_name,
+                                               h->current_row.l_name_length);
       break;
     default: /* We should never reach here */
       assert(0);
@@ -301,10 +301,11 @@ int ename_write_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_integer(field, &h->current_row.e_number);
       break;
     case 1: /* FIRST_NAME */
-      table_svc->get_field_char_utf8(field, (char *)f_name, f_name_length);
+      table_svc->get_field_char_utf8mb4(field, (char *)f_name, f_name_length);
       break;
     case 2: /* LAST_NAME */
-      table_svc->get_field_varchar_utf8(field, (char *)l_name, l_name_length);
+      table_svc->get_field_varchar_utf8mb4(field, (char *)l_name,
+                                           l_name_length);
       break;
     default: /* We should never reach here */
       assert(0);
@@ -348,10 +349,11 @@ int ename_update_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_integer(field, &h->current_row.e_number);
       break;
     case 1: /* FIRST_NAME */
-      table_svc->get_field_char_utf8(field, (char *)f_name, f_name_length);
+      table_svc->get_field_char_utf8mb4(field, (char *)f_name, f_name_length);
       break;
     case 2: /* LAST_NAME */
-      table_svc->get_field_varchar_utf8(field, (char *)l_name, l_name_length);
+      table_svc->get_field_varchar_utf8mb4(field, (char *)l_name,
+                                           l_name_length);
       break;
     default: /* We should never reach here */
       assert(0);

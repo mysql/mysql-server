@@ -234,7 +234,7 @@ int table_mutex_instances::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 1: /* OBJECT_INSTANCE */
           set_field_ulonglong(f, (intptr)m_row.m_identity);
@@ -450,7 +450,7 @@ int table_rwlock_instances::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 1: /* OBJECT_INSTANCE */
           set_field_ulonglong(f, (intptr)m_row.m_identity);
@@ -642,7 +642,7 @@ int table_cond_instances::read_row_values(TABLE *table, unsigned char *,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 1: /* OBJECT_INSTANCE */
           set_field_ulonglong(f, (intptr)m_row.m_identity);
