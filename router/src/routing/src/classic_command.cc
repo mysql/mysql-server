@@ -24,6 +24,7 @@
 
 #include "classic_command.h"
 
+#include <charconv>
 #include <memory>  // make_unique
 #include <string>
 
@@ -152,6 +153,121 @@ void CommandProcessor::client_idle_timeout() {
   }
 }
 
+class ShowWarningsHandler : public QuerySender::Handler {
+ public:
+  ShowWarningsHandler(MysqlRoutingClassicConnection *connection)
+      : connection_(connection) {}
+
+  void on_column_count(uint64_t count) override {
+    col_count_ = count;
+
+    if (col_count_ != 3) {
+      connection_->some_state_changed(true);
+    } else {
+      connection_->execution_context().diagnostics_area().warnings().clear();
+    }
+  }
+
+  void on_column(
+      const classic_protocol::message::server::ColumnMeta &col) override {
+    switch (col_count_) {
+      case 0:
+        if (col.name() != "Level") {
+          something_failed_ = true;
+        }
+        break;
+      case 1:
+        if (col.name() != "Code") {
+          something_failed_ = true;
+        }
+        break;
+      case 2:
+        if (col.name() != "Message") {
+          something_failed_ = true;
+        }
+        break;
+      default:
+        // more columns is ok.
+        break;
+    }
+
+    ++col_count_;
+  }
+
+  void on_row(const classic_protocol::message::server::Row &row) override {
+    if (something_failed_) return;
+
+    auto it = row.begin();  // row[0]
+
+    if (!(*it).has_value()) {
+      something_failed_ = true;
+      return;
+    }
+
+    std::string level = (*it).value();
+
+    ++it;  // row[1]
+
+    uint64_t code;
+    {
+      const auto &fld = *it;
+      if (!fld) {
+        something_failed_ = true;
+        return;
+      }
+
+      auto conv_res =
+          std::from_chars(fld->data(), fld->data() + fld->size(), code);
+
+      if (conv_res.ec != std::errc{}) {
+        something_failed_ = true;
+        return;
+      }
+    }
+
+    ++it;  // row[2]
+
+    if (!(*it).has_value()) {
+      something_failed_ = true;
+      return;
+    }
+
+    std::string msg = (*it).value();
+
+    connection_->execution_context().diagnostics_area().warnings().emplace_back(
+        level, code, msg);
+  }
+
+  void on_row_end(
+      const classic_protocol::message::server::Eof & /* eof */) override {
+    if (something_failed_) {
+      // something failed when parsing the resultset. Disable sharing for now.
+      connection_->some_state_changed(true);
+    } else {
+      // all rows received, diagnostics_area fully synced.
+      connection_->diagnostic_area_changed(false);
+    }
+  }
+
+  void on_ok(const classic_protocol::message::server::Ok & /* ok */) override {
+    // ok, shouldn't happen. Disable sharing for now.
+    connection_->some_state_changed(true);
+  }
+
+  void on_error(
+      const classic_protocol::message::server::Error & /* err */) override {
+    // error, shouldn't happen. Disable sharing for now.
+    connection_->some_state_changed(true);
+  }
+
+ private:
+  uint64_t col_count_{};
+  uint64_t col_cur_{};
+  MysqlRoutingClassicConnection *connection_;
+
+  bool something_failed_{false};
+};
+
 stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->client_channel();
@@ -177,6 +293,15 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
 
       if (server_conn.is_open() && connection()->connection_sharing_allowed()) {
         trace(Tracer::Event().stage("client::idle::starting"));
+
+        if (connection()->diagnostic_area_changed()) {
+          // inject a SHOW WARNINGS.
+          connection()->push_processor(std::make_unique<QuerySender>(
+              connection(), "SHOW WARNINGS",
+              std::make_unique<ShowWarningsHandler>(connection())));
+
+          return Result::Again;
+        }
 
         auto delay = connection()->context().connection_sharing_delay();
         if (!delay.count()) {

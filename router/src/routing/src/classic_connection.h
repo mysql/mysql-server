@@ -475,11 +475,18 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   void connect_error_code(const std::error_code &ec) { connect_ec_ = ec; }
   std::error_code connect_error_code() const { return connect_ec_; }
 
+  void diagnostic_area_changed(bool diagnostic_area_changed) {
+    diagnostic_area_changed_ = diagnostic_area_changed;
+  }
+  uint16_t diagnostic_area_changed() const { return diagnostic_area_changed_; }
+
  private:
   net::steady_timer read_timer_;
   net::steady_timer connect_timer_;
 
   std::error_code connect_ec_{};
+
+  bool diagnostic_area_changed_{};
 };
 
 #endif

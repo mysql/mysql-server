@@ -24,21 +24,29 @@
 
 #include "classic_query.h"
 
+#include <charconv>
+#include <limits>
 #include <memory>
 #include <system_error>
+#include <variant>
 
 #include "classic_connection.h"
 #include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
+#include "harness_assert.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
-#include "mysqld_error.h"       // mysql errors
+#include "mysqld_error.h"  // mysql errors
+#include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "processor.h"
 #include "sql/lex.h"
+#include "sql_exec_context.h"
 #include "sql_lexer.h"
 #include "sql_lexer_thd.h"
+
+#undef DEBUG_DUMP_TOKENS
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
   switch (stage()) {
@@ -113,6 +121,7 @@ static std::ostream &operator<<(std::ostream &os,
     os << "forbidden_function_with_connection_sharing";
   }
   if (flags & StmtClassifier::ForbiddenSetWithConnSharing) {
+    if (one) os << ",";
     one = true;
     os << "forbidden_set_with_connection_sharing";
   }
@@ -121,7 +130,6 @@ static std::ostream &operator<<(std::ostream &os,
     one = true;
     os << "ignore_tracker";
   }
-
   if (flags & StmtClassifier::StateChangeOnError) {
     if (one) os << ",";
     one = true;
@@ -185,6 +193,7 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
 
       for (; lexer_it != lexer.end(); ++lexer_it) {
         auto tkn = *lexer_it;
+
 #ifdef DEBUG_DUMP_TOKENS
         dump_token(tkn);
 #endif
@@ -242,6 +251,8 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
                 (last.id == IDENT || last.id == IDENT_QUOTED)) {
               std::string ident;
               ident.resize(last.text.size());
+
+              // ascii-upper-case
               std::transform(
                   last.text.begin(), last.text.end(), ident.begin(),
                   [](auto c) { return (c >= 'a' && c <= 'z') ? c - 0x20 : c; });
@@ -263,40 +274,42 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
         }
 
         if (first.id == SET_SYM) {
-          if (last.id == LEX_HOSTNAME && (tkn.id == SET_VAR || tkn.id == EQ)) {
-            // LEX_HOSTNAME: @IDENT -> user-var
-            // SET_VAR     : :=
-            // EQ          : =
+          if (tkn.id == SET_VAR || tkn.id == EQ) {
+            if (last.id == LEX_HOSTNAME) {
+              // LEX_HOSTNAME: @IDENT -> user-var
+              // SET_VAR     : :=
+              // EQ          : =
 
-            classified |= StmtClassifier::StateChangeOnSuccess;
-            classified |= StmtClassifier::StateChangeOnError;
-          } else if (forbid_set_trackers &&
-                     (last.id == IDENT || last.id == IDENT_QUOTED) &&
-                     (tkn.id == SET_VAR || tkn.id == EQ)) {
-            // SET .* session_track_gtids := ...
-            //                             ^^ or =
-            //         ^^ or quoted with backticks
-            //
-            // forbids also
-            //
-            // - SET SESSION (ident|ident_quoted)
-            // - SET @@SESSION.(ident|ident_quoted)
-            // - SET LOCAL (ident|ident_quoted)
-            // - SET @@LOCAL.(ident|ident_quoted)
+              classified |= StmtClassifier::StateChangeOnSuccess;
+              classified |= StmtClassifier::StateChangeOnError;
+            } else if ((last.id == IDENT || last.id == IDENT_QUOTED)) {
+              // SET .* session_track_gtids := ...
+              //                             ^^ or =
+              //         ^^ or quoted with backticks
+              //
+              // forbids also
+              //
+              // - SET SESSION (ident|ident_quoted)
+              // - SET @@SESSION.(ident|ident_quoted)
+              // - SET LOCAL (ident|ident_quoted)
+              // - SET @@LOCAL.(ident|ident_quoted)
 
-            std::string ident;
-            ident.resize(last.text.size());
+              std::string ident;
+              ident.resize(last.text.size());
 
-            // ascii-upper-case
-            std::transform(
-                last.text.begin(), last.text.end(), ident.begin(),
-                [](auto c) { return (c >= 'a' && c <= 'z') ? c - 0x20 : c; });
+              // ascii-upper-case
+              std::transform(
+                  last.text.begin(), last.text.end(), ident.begin(),
+                  [](auto c) { return (c >= 'a' && c <= 'z') ? c - 0x20 : c; });
 
-            if (ident == "SESSION_TRACK_GTIDS" ||  //
-                ident == "SESSION_TRACK_TRANSACTION_INFO" ||
-                ident == "SESSION_TRACK_STATE_CHANGE" ||
-                ident == "SESSION_TRACK_SYSTEM_VARIABLES") {
-              classified |= StmtClassifier::ForbiddenSetWithConnSharing;
+              if (ident == "SESSION_TRACK_GTIDS" ||  //
+                  ident == "SESSION_TRACK_TRANSACTION_INFO" ||
+                  ident == "SESSION_TRACK_STATE_CHANGE" ||
+                  ident == "SESSION_TRACK_SYSTEM_VARIABLES") {
+                if (forbid_set_trackers) {
+                  classified |= StmtClassifier::ForbiddenSetWithConnSharing;
+                }
+              }
             }
           }
         } else {
@@ -328,6 +341,463 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
   return StmtClassifier::StateChangeOnTracker;
 }
 
+static uint64_t get_error_count(MysqlRoutingClassicConnection *connection) {
+  uint64_t count{};
+  for (auto const &w :
+       connection->execution_context().diagnostics_area().warnings()) {
+    if (w.level() == "Error") ++count;
+  }
+
+  return count;
+}
+
+static uint64_t get_warning_count(MysqlRoutingClassicConnection *connection) {
+  return connection->execution_context().diagnostics_area().warnings().size();
+}
+
+static stdx::expected<void, std::error_code> send_resultset(
+    Channel *src_channel, ClassicProtocolState *src_protocol,
+    std::vector<classic_protocol::message::server::ColumnMeta> columns,
+    std::vector<classic_protocol::message::server::Row> rows) {
+  {
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::ColumnCount>(
+            src_channel, src_protocol, {columns.size()});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+  }
+
+  for (auto const &col : columns) {
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::ColumnMeta>(
+            src_channel, src_protocol, col);
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+  }
+
+  for (auto const &row : rows) {
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::Row>(
+            src_channel, src_protocol, row);
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+  }
+
+  {
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::Eof>(
+            src_channel, src_protocol, {});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+  }
+
+  return {};
+}
+
+std::vector<classic_protocol::message::server::Row> rows_from_warnings(
+    MysqlRoutingClassicConnection *connection, bool only_errors,
+    uint64_t row_count, uint64_t offset) {
+  std::vector<classic_protocol::message::server::Row> rows;
+
+  uint64_t r{};
+
+  for (auto const &w :
+       connection->execution_context().diagnostics_area().warnings()) {
+    if (!only_errors || w.level() == "Error") {
+      if (r++ < offset) continue;
+
+      if (row_count == rows.size()) break;
+
+      rows.emplace_back(std::vector<std::optional<std::string>>{
+          w.level(), std::to_string(w.code()), w.message()});
+    }
+  }
+
+  return rows;
+}
+
+class ShowWarnings {
+ public:
+  ShowWarnings(bool only_errors,
+               uint64_t row_count = std::numeric_limits<uint64_t>().max(),
+               uint64_t offset = 0)
+      : only_errors_(only_errors), row_count_{row_count}, offset_{offset} {}
+
+  bool only_errors() const { return only_errors_; }
+  uint64_t row_count() const { return row_count_; }
+  uint64_t offset() const { return offset_; }
+
+ private:
+  bool only_errors_;
+
+  uint64_t row_count_;
+  uint64_t offset_;
+};
+
+class ShowWarningCount {
+ public:
+  enum class Scope { Local, Session, None };
+
+  ShowWarningCount(bool only_errors, Scope scope)
+      : only_errors_(only_errors), scope_{scope} {}
+
+  bool only_errors() const { return only_errors_; }
+  Scope scope() const { return scope_; }
+
+ private:
+  bool only_errors_;
+  Scope scope_;
+};
+
+static stdx::expected<void, std::error_code> show_count(
+    MysqlRoutingClassicConnection *connection, const char *name,
+    uint64_t count) {
+  auto *socket_splicer = connection->socket_splicer();
+  auto src_channel = socket_splicer->client_channel();
+  auto src_protocol = connection->client_protocol();
+
+  auto send_res =
+      send_resultset(src_channel, src_protocol,
+                     {
+                         {
+                             "def",                // catalog
+                             "",                   // schema
+                             "",                   // table
+                             "",                   // orig_table
+                             name,                 // name
+                             "",                   // orig_name
+                             63,                   // collation (binary)
+                             21,                   // column_length
+                             FIELD_TYPE_LONGLONG,  // type
+                             UNSIGNED_FLAG | BINARY_FLAG | NUM_FLAG,  // flags
+                             0,  // decimals
+                         },
+                     },
+                     {std::vector<std::optional<std::string>>{
+                         std::optional<std::string>(std::to_string(count))}});
+  if (!send_res) return stdx::make_unexpected(send_res.error());
+
+  return {};
+}
+
+static const char *show_warning_count_name(bool only_errors,
+                                           ShowWarningCount::Scope scope) {
+  if (only_errors) {
+    switch (scope) {
+      case ShowWarningCount::Scope::Local:
+        return "@@local.error_count";
+      case ShowWarningCount::Scope::Session:
+        return "@@session.error_count";
+      case ShowWarningCount::Scope::None:
+        return "@@error_count";
+    }
+  } else {
+    switch (scope) {
+      case ShowWarningCount::Scope::Local:
+        return "@@local.warning_count";
+      case ShowWarningCount::Scope::Session:
+        return "@@session.warning_count";
+      case ShowWarningCount::Scope::None:
+        return "@@warning_count";
+    }
+  }
+
+  harness_assert_this_should_not_execute();
+}
+
+static stdx::expected<void, std::error_code> show_warning_count(
+    MysqlRoutingClassicConnection *connection, bool only_errors,
+    ShowWarningCount::Scope scope) {
+  if (only_errors) {
+    return show_count(connection, show_warning_count_name(only_errors, scope),
+                      get_error_count(connection));
+  } else {
+    return show_count(connection, show_warning_count_name(only_errors, scope),
+                      get_warning_count(connection));
+  }
+}
+
+static stdx::expected<void, std::error_code> show_warnings(
+    MysqlRoutingClassicConnection *connection, bool only_errors,
+    uint64_t row_count, uint64_t offset) {
+  auto *socket_splicer = connection->socket_splicer();
+  auto src_channel = socket_splicer->client_channel();
+  auto src_protocol = connection->client_protocol();
+
+  // character_set_results
+  uint8_t collation = 0xff;  // utf8
+
+  auto send_res = send_resultset(
+      src_channel, src_protocol,
+      {
+          {
+              "def",                  // catalog
+              "",                     // schema
+              "",                     // table
+              "",                     // orig_table
+              "Level",                // name
+              "",                     // orig_name
+              collation,              // collation
+              28,                     // column_length
+              FIELD_TYPE_VAR_STRING,  // type
+              NOT_NULL_FLAG,          // flags
+              31,                     // decimals
+          },
+          {
+              "def",            // catalog
+              "",               // schema
+              "",               // table
+              "",               // orig_table
+              "Code",           // name
+              "",               // orig_name
+              63,               // collation (binary)
+              4,                // column_length
+              FIELD_TYPE_LONG,  // type
+              NOT_NULL_FLAG | UNSIGNED_FLAG | NUM_FLAG | BINARY_FLAG,  // flags
+              0,  // decimals
+          },
+          {
+              "def",                  // catalog
+              "",                     // schema
+              "",                     // table
+              "",                     // orig_table
+              "Message",              // name
+              "",                     // orig_name
+              collation,              // collation
+              2048,                   // column_length
+              FIELD_TYPE_VAR_STRING,  // type
+              NOT_NULL_FLAG,          // flags
+              31,                     // decimals
+          },
+      },
+      rows_from_warnings(connection, only_errors, row_count, offset));
+  if (!send_res) return stdx::make_unexpected(send_res.error());
+
+  return {};
+}
+
+struct Limit {
+  uint64_t row_count{std::numeric_limits<uint64_t>::max()};
+  uint64_t offset{};
+};
+
+class Parser {
+ public:
+  Parser(SqlLexer::iterator first, SqlLexer::iterator last)
+      : cur_{first}, end_{last} {}
+
+  stdx::expected<std::variant<std::monostate, ShowWarningCount, ShowWarnings>,
+                 std::string>
+  parse() {
+    if (accept(SHOW)) {
+      if (accept(WARNINGS)) {
+        stdx::expected<Limit, std::string> limit_res;
+
+        if (accept(LIMIT)) {  // optional limit
+          limit_res = limit();
+        }
+
+        if (expect(END_OF_INPUT)) {
+          return {std::in_place,
+                  ShowWarnings{false, limit_res->row_count, limit_res->offset}};
+        }
+      } else if (accept(ERRORS)) {
+        stdx::expected<Limit, std::string> limit_res;
+
+        if (accept(LIMIT)) {
+          limit_res = limit();
+        }
+
+        if (expect(END_OF_INPUT)) {
+          return {std::in_place,
+                  ShowWarnings{true, limit_res->row_count, limit_res->offset}};
+        }
+      } else if (accept(COUNT_SYM)) {
+        expect('(');
+        expect('*');
+        expect(')');
+
+        if (accept(WARNINGS)) {
+          if (expect(END_OF_INPUT)) {
+            return {std::in_place,
+                    ShowWarningCount{false, ShowWarningCount::Scope::Session}};
+          }
+        } else if (accept(ERRORS)) {
+          if (expect(END_OF_INPUT)) {
+            return {std::in_place,
+                    ShowWarningCount{true, ShowWarningCount::Scope::Session}};
+          }
+        } else {
+          error_ = "expected WARNINGS|ERRORS.";
+        }
+      } else {
+        error_ = "expected WARNINGS|ERRORS|COUNT";
+      }
+    } else if (accept(SELECT_SYM)) {
+      // match
+      //
+      // SELECT @@((LOCAL|SESSION).)?warning_count|error_count;
+      //
+      if (accept('@')) {
+        if (accept('@')) {
+          if (accept(SESSION_SYM)) {
+            if (accept('.')) {
+              auto ident_res = warning_count_ident();
+              if (ident_res && expect(END_OF_INPUT)) {
+                return {std::in_place,
+                        ShowWarningCount(*ident_res,
+                                         ShowWarningCount::Scope::Session)};
+              }
+            }
+          } else if (accept(LOCAL_SYM)) {
+            if (accept('.')) {
+              auto ident_res = warning_count_ident();
+              if (ident_res && expect(END_OF_INPUT)) {
+                return {std::in_place,
+                        ShowWarningCount(*ident_res,
+                                         ShowWarningCount::Scope::Local)};
+              }
+            }
+          } else {
+            auto ident_res = warning_count_ident();
+            if (ident_res && expect(END_OF_INPUT)) {
+              return {
+                  std::in_place,
+                  ShowWarningCount(*ident_res, ShowWarningCount::Scope::None)};
+            }
+          }
+        }
+      }
+    }
+
+    return stdx::make_unexpected(error_);
+  }
+
+ private:
+  // convert a NUM to a number
+  //
+  // NUM is a bare number.
+  //
+  // no leading minus or plus [both independent symbols '-' and '+']
+  // no 0x... [HEX_NUM],
+  // no 0b... [BIN_NUM],
+  // no (1.0) [DECIMAL_NUM]
+  static uint64_t sv_to_num(std::string_view s) {
+    uint64_t v{};
+
+    auto conv_res = std::from_chars(s.data(), s.data() + s.size(), v);
+    if (conv_res.ec == std::errc{}) {
+      return v;
+    } else {
+      // NUM is a number without, it should always convert.
+      harness_assert_this_should_not_execute();
+    }
+  }
+
+  // accept: NUM [, NUM]
+  stdx::expected<Limit, std::string> limit() {
+    if (auto num1_tkn = expect(NUM)) {
+      auto num1 = sv_to_num(num1_tkn.text());  // offset_or_row_count
+      if (accept(',')) {
+        if (auto num2_tkn = expect(NUM)) {
+          auto num2 = sv_to_num(num2_tkn.text());  // row_count
+
+          return Limit{num2, num1};
+        }
+      } else {
+        return Limit{num1, 0};
+      }
+    }
+
+    return stdx::make_unexpected(error_);
+  }
+
+  stdx::expected<bool, std::string> warning_count_ident() {
+    if (auto sess_var_tkn = ident()) {
+      if (sess_var_tkn.text() == "warning_count") {
+        return false;
+      } else if (sess_var_tkn.text() == "error_count") {
+        return true;
+      }
+    }
+
+    return stdx::make_unexpected(error_);
+  }
+
+  class TokenText {
+   public:
+    TokenText() = default;
+    TokenText(std::string_view txt) : txt_{txt} {}
+
+    operator bool() const { return !txt_.empty(); }
+
+    [[nodiscard]] std::string_view text() const { return txt_; }
+
+   private:
+    std::string_view txt_{};
+  };
+
+  TokenText ident() {
+    if (auto ident_tkn = accept(IDENT)) {
+      return ident_tkn;
+    } else if (auto ident_tkn = accept(IDENT_QUOTED)) {
+      return ident_tkn;
+    } else {
+      return {};
+    }
+  }
+
+  TokenText accept(int sym) {
+    if (has_error()) return {};
+
+    if (cur_->id == sym) {
+      auto txt = cur_->text;
+      ++cur_;
+      return txt;
+    }
+
+    return {};
+  }
+
+  TokenText expect(int sym) {
+    if (has_error()) return {};
+
+    if (auto txt = accept(sym)) {
+      return txt;
+    }
+
+    error_ = "expected sym, got ...";
+
+    return {};
+  }
+
+  bool has_error() const { return !error_.empty(); }
+
+  SqlLexer::iterator cur_;
+  SqlLexer::iterator end_;
+
+  std::string error_{};
+};
+
+static stdx::expected<
+    std::variant<std::monostate, ShowWarningCount, ShowWarnings>,
+    std::error_code>
+intercept_diagnostics_area_queries(const std::string &stmt) {
+  MEM_ROOT mem_root;
+  THD session;
+  session.mem_root = &mem_root;
+
+  {
+    Parser_state parser_state;
+    parser_state.init(&session, stmt.data(), stmt.size());
+    session.m_parser_state = &parser_state;
+    SqlLexer lexer{&session};
+
+    auto parse_res = Parser(lexer.begin(), lexer.end()).parse();
+    if (!parse_res) {
+      return {std::in_place, std::monostate{}};
+    } else {
+      return parse_res.value();
+    }
+  }
+}
+
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->client_channel();
@@ -340,6 +810,43 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
 
   trace(Tracer::Event().stage("query::command: " +
                               msg_res->statement().substr(0, 1024)));
+
+  if (connection()->connection_sharing_allowed()) {
+    // the diagnostics-area is only maintained, if connection-sharing is
+    // allowed.
+    //
+    // Otherwise, all queries for the to the diagnostics area MUST go to the
+    // server.
+    auto intercept_res =
+        intercept_diagnostics_area_queries(msg_res->statement());
+    if (intercept_res) {
+      if (std::holds_alternative<std::monostate>(*intercept_res)) {
+        // no match
+      } else if (std::holds_alternative<ShowWarnings>(*intercept_res)) {
+        discard_current_msg(src_channel, src_protocol);
+
+        auto cmd = std::get<ShowWarnings>(*intercept_res);
+
+        auto send_res = show_warnings(connection(), cmd.only_errors(),
+                                      cmd.row_count(), cmd.offset());
+        if (!send_res) return send_client_failed(send_res.error());
+
+        stage(Stage::Done);
+        return Result::SendToClient;
+      } else if (std::holds_alternative<ShowWarningCount>(*intercept_res)) {
+        discard_current_msg(src_channel, src_protocol);
+
+        auto cmd = std::get<ShowWarningCount>(*intercept_res);
+
+        auto send_res =
+            show_warning_count(connection(), cmd.only_errors(), cmd.scope());
+        if (!send_res) return send_client_failed(send_res.error());
+
+        stage(Stage::Done);
+        return Result::SendToClient;
+      }
+    }
+  }
 
   stmt_classified_ = classify(msg_res->statement(), true);
 
@@ -651,6 +1158,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
       connection()->some_state_changed(true);
     }
 
+    if (msg.warning_count() > 0) {
+      connection()->diagnostic_area_changed(true);
+    }
+
     stage(Stage::Done);  // once the message is forwarded, we are done.
     return forward_server_to_client();
   }
@@ -686,6 +1197,13 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
     trace(Tracer::Event().stage("query::more_resultsets"));
     return forward_server_to_client(true);
   } else {
+    if (msg.warning_count() > 0) {
+      connection()->diagnostic_area_changed(true);
+    } else {
+      // there are no warnings on the server side.
+      connection()->diagnostic_area_changed(false);
+    }
+
     stage(Stage::Done);  // once the message is forwarded, we are done.
     return forward_server_to_client();
   }
@@ -697,6 +1215,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::error() {
   if (stmt_classified_ & StmtClassifier::StateChangeOnError) {
     connection()->some_state_changed(true);
   }
+
+  // at least one.
+  connection()->diagnostic_area_changed(true);
 
   stage(Stage::Done);
   return forward_server_to_client();
