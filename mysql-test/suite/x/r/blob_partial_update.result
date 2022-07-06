@@ -21,23 +21,9 @@ RUN ANALYZE TABLE tab
 Table	Op	Msg_type	Msg_text
 mysqlxplugin.tab	analyze	status	OK
 0 rows affected
-RUN EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'VISWA')
-EXPLAIN
-{
-  "query_block": {
-    "select_id": 1,
-    "table": {
-      "update": true,
-      "table_name": "tab",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 1,
-      "filtered": "100.00",
-      "partial_update_columns": [
-        "j1"
-      ]
-    }
-  }
-}
+RUN EXPLAIN UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'VISWA')
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	tab	null	ALL	null	null	null	null	1	100.00	null
 0 rows affected
 RUN UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Viswa')
 

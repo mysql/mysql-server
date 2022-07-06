@@ -328,6 +328,7 @@ enum class Explain_format_type {
   DEFAULT,
   TRADITIONAL,
   JSON,
+  JSON_WITH_EXECUTE,
   TREE,
   TREE_WITH_EXECUTE
 };

@@ -34,6 +34,7 @@ SELECT i, j, MAX(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) max FROM t
 
 --echo Check that we eliminate redundant sorting in ORDER BY even with wfs
 SELECT i, j, MIN(i+j) OVER (ROWS UNBOUNDED PRECEDING) min FROM t ORDER BY NULL DESC;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT i, j, MIN(i+j) OVER (ROWS UNBOUNDED PRECEDING) min FROM t ORDER BY NULL DESC;
 --echo With LIMIT
 --skip_if_hypergraph  # Nondeterministic query, hypergraph optimizer gives different result.

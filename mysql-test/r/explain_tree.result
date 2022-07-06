@@ -729,7 +729,7 @@ ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE FOR CONN
 EXPLAIN ANALYZE FORMAT=TRADITIONAL SELECT 1;
 ERROR 42000: This version of MySQL doesn't yet support 'FORMAT=TRADITIONAL with EXPLAIN ANALYZE'
 EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
-ERROR 42000: This version of MySQL doesn't yet support 'FORMAT=JSON with EXPLAIN ANALYZE'
+ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE with JSON format'
 EXPLAIN ANALYZE FORMAT=TREE SELECT 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0.00..0.00 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
@@ -870,10 +870,11 @@ EXPLAIN
 -> Select #2 (subquery in projection; dependent)
     -> Limit: 1 row(s)  (cost=0.45..0.45 rows=1)
         -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (cost=0.45..0.45 rows=1)
-            -> Alternative plans for IN subquery: Index lookup unless a IS NULL [other sub-iterators not shown]
+            -> Alternative plans for IN subquery: Index lookup unless a IS NULL
                 -> Covering index lookup on d using <auto_key0> (a=<cache>(t1.a) or NULL)
                     -> Materialize  (cost=0.45..0.45 rows=1)
                         -> Table scan on t1  (cost=0.35 rows=1)
+                -> Table scan on d
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
@@ -1160,8 +1161,8 @@ EXPLAIN
             -> Aggregate: max(x1.m1)  (cost=2.50..2.50 rows=1) (never executed)
                 -> Table scan on x1  (cost=2.50..2.50 rows=0) (never executed)
                     -> Materialize CTE x1  (cost=2.50..2.50 rows=0) (never executed)
-                        -> Table scan on <temporary> (never executed)
-                            -> Aggregate using temporary table (never executed)
+                        -> Table scan on <temporary>  (never executed)
+                            -> Aggregate using temporary table  (never executed)
                                 -> Table scan on t1  (cost=0.35 rows=1) (never executed)
 
 DROP TABLE t1;

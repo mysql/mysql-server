@@ -62,6 +62,7 @@ SELECT HEX(i), HEX(li), HEX(b), HEX(lb),
 --echo our dummy double d SUM which forces non-optimized mode
 --echo iff windowing_use_high_precision==TRUE
 ANALYZE TABLE t;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON
 SELECT HEX(i), HEX(li), HEX(b), HEX(lb),
        HEX(BIT_OR(i) OVER w), HEX(BIT_OR(li) OVER w),

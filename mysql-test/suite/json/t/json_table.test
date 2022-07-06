@@ -167,6 +167,7 @@ let $query= select * from
 
 eval $query;
 eval explain $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
 
 let $query= select * from

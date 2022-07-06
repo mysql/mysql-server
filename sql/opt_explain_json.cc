@@ -34,6 +34,7 @@
 #include "my_alloc.h"  // operator new
 #include "my_compiler.h"
 
+#include "sql-common/json_dom.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
@@ -2092,4 +2093,16 @@ void qep_row::format_extra(Opt_trace_object *obj) {
     else
       obj->add(json_extra_tags[e->tag], true);
   }
+}
+
+/* Convert Json object to string */
+std::string Explain_format_JSON::ExplainJsonToString(Json_object *json) {
+  // Serialize the JSON object to a string.
+  Json_wrapper wrapper(json, /*alias=*/true);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> explain;
+  if (wrapper.to_pretty_string(&explain, "ExplainJsonToString()",
+                               JsonDocumentDefaultDepthHandler)) {
+    return "";
+  }
+  return {explain.ptr(), explain.length()};
 }

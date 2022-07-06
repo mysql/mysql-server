@@ -25,7 +25,7 @@ EXPLAIN
     -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.08..0.25 rows=3)
 
 To force this plan, use:
-SET DEBUG='+d,subplan_tokens,force_subplan_0xd3135ef8a92cb9b8,force_subplan_0xeed2c0bd3e39ba93';
+SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0xd3135ef8a92cb9b8';
 
 SET DEBUG='+d,subplan_tokens,'
   'force_subplan_0x38d170e70c04e92c,'
@@ -40,7 +40,7 @@ EXPLAIN
             -> [0x079e429c703ec298] Table scan on t2  (cost=0.08..0.25 rows=3)
 
 To force this plan, use:
-SET DEBUG='+d,subplan_tokens,force_subplan_0x1836646581797f8f,force_subplan_0x38d170e70c04e92c,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x079e429c703ec298';
+SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x079e429c703ec298,force_subplan_0x38d170e70c04e92c,force_subplan_0x1836646581797f8f';
 
 SET DEBUG='-d,subplan_tokens';
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;

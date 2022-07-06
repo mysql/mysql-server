@@ -13,6 +13,7 @@ let $query=
 with qn(a) as (select 1 from t1 limit 2)
 select * from qn where qn.a=(select * from qn qn1 limit 1) ;
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
 eval explain format=traditional $query;
 
@@ -20,6 +21,7 @@ let $query=
 with qn as (select cast("x" as char(100)) as a from t1 limit 2)
 select (select * from qn) from qn, qn qn1;
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
 eval explain format=traditional $query;
 
@@ -34,6 +36,7 @@ with recursive qn as (select cast("x" as char(100)) as a from dual
                       length(qn.a)<10)
 select * from qn;
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
 eval explain format=traditional $query;
 

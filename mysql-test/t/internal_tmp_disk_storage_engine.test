@@ -32,11 +32,13 @@ set optimizer_switch='derived_merge=off';
 
 #========================begin=============================
 # use SQL_BUFFER_RESULT
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select SQL_BUFFER_RESULT * from t1;
 select SQL_BUFFER_RESULT * from t1 order by 1, 2;
 
 # If order by is not simple order
   # If not(sort_order only uses fields from head table and the head table is not left join table)
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json select * from t1 left join t2 on t1.b = t2.b order by t1.a;
   select * from t1 left join t2 on t1.b = t2.b order by t1.a;
   # If sorting by a sp or udf function due to their expensive and probably non-deterministic nature.
@@ -51,30 +53,38 @@ select SQL_BUFFER_RESULT * from t1 order by 1, 2;
     return z2;
     end|
    delimiter ;|
+--skip_if_hypergraph  # Depends on the query plan.
    explain format=json select * from t1 order by func1(a);
    select * from t1 order by func1(a);
    drop function func1;
   # order by agg  --In order to make it simple, we make group by index
   create index indx1 on t1(b);
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json SELECt a FROM t1 group by b order by sum(a);
   SELECt a FROM t1 group by b order by sum(a);
   drop index indx1 on t1;
 # a select with join and sql_big_result(only can work with group by or distinct)
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json select SQL_BIG_RESULT distinct * from t1, t2;
   select SQL_BIG_RESULT distinct * from t1, t2 order by 1, 2, 3, 4;
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json select SQL_BIG_RESULT t1.b from t1, t2 group by t1.b;
   select SQL_BIG_RESULT t1.b from t1, t2 group by t1.b order by 1;
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json select SQL_BIG_RESULT distinct t1.a from t1, t2 group by t1.b;
   select SQL_BIG_RESULT distinct t1.a from t1, t2 group by t1.b order by 1;
 
 # a select with join and grouping that uses tmp table for grouping
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json select t1.* from t1 inner join t2 where t1.a = t2.a group by t1.a;
   select t1.* from t1 inner join t2 where t1.a = t2.a group by t1.a order by 1, 2;
 
 # select distinct that uses tmp table for duplicate elimination
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json select distinct t1.a from t1, t2 where  t1.b = t2.b;
   select distinct t1.a from t1, t2 where  t1.b = t2.b order by 1;
   # remove_dup_with_hash_index
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json select distinct a from t1 group by b,a; 
   select distinct a from t1 group by b,a order by 1; 
 # remove_dup_with_compare
@@ -94,6 +104,7 @@ select SQL_BUFFER_RESULT * from t1 order by 1, 2;
   analyze table t3;
   set @old_sort_buffer_size = @@sort_buffer_size;
   set @@sort_buffer_size = 32804;
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json select distinct b from t3 group by a; 
   select distinct b from t3 group by a order by 1; 
   set @@sort_buffer_size = @old_sort_buffer_size; 
@@ -104,22 +115,27 @@ select SQL_BUFFER_RESULT * from t1 order by 1, 2;
   create table t3(a int, b int, c int, d char, e blob);
   insert into t3 values(1,2,3,'4','5');
   analyze table t3;
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json select distinct t3.a,e from t3, t1 order by t3.b;
   select distinct t3.a,e from t3, t1 order by t3.b;
   drop table t3;
 
 #union
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select * from t1 union all select * from t2;
 select * from t1 union all select * from t2;
 # union distinct with global order by
   # filesort
+--skip_if_hypergraph  # Depends on the query plan.
   explain format=json select * from t1 union select * from t2 order by 1, 2;
   select * from t1 union select * from t2 order by 1, 2;
 
 # select with a single derived table
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select tt.* from (select * from t1) as tt;
 select tt.* from (select * from t1) as tt order by 1, 2;
 # select with mutiple derived tables
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select * from (select b from t1) as t1, (select b from t2) as t2;
 select * from (select b from t1) as t1, (select b from t2) as t2 order by 1, 2;
 # derived table uses 'ref' scan
@@ -128,11 +144,13 @@ create table t3(a int, b int, c int, d char);
 insert into t3 values(1,2,3,'4');
 analyze table t3;
 create index t3_indx1 on t3(a);
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select * from t1, (select * from t3) as t where t.a =5;
 select * from t1, (select * from t3) as t where t.a =5 order by 1, 2;
 drop table t3;
 
 #materialized semi-join
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select * from t1 where t1.a in (select a from t2) ;
 select * from t1 where t1.a in (select a from t2) order by 1, 2;
 #tmp table for semi-join weedout
@@ -150,6 +168,7 @@ if (`select locate('loosescan', @@optimizer_switch) > 0`)
 {
     set optimizer_switch='loosescan=off';
 }
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select * from t1 where t1.a in (select a from t2) ;
 select * from t1 where t1.a in (select a from t2) order by 1, 2;
 set optimizer_switch= @tmp_optimizer_switch;
@@ -158,20 +177,24 @@ set optimizer_switch= @tmp_optimizer_switch;
 # Run analyze on the dictinary table, character_sets, to stabilize test
 SET DEBUG='+d,skip_dd_table_access_check';
 ANALYZE TABLE mysql.character_sets;
+--skip_if_hypergraph  # Depends on the query plan.
 --disable_warnings
 explain format=json select * from information_schema.character_sets order by 1 limit 3;
 --enable_warnings
 select * from information_schema.character_sets order by 1 limit 3;
 
 #muti-update
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a'; 
 update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a'; 
 
 #count with distinct
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select count(distinct a) from t1;
 select count(distinct a) from t1;
 
 #group_concat
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select b, group_concat(a) from t1;
 select b, group_concat(a) from t1 order by 1, 2;
 #blob
@@ -182,11 +205,14 @@ insert into t1 values(2, 'cccddd');
 insert into t1 values(2, 'cccddd');
 insert into t1 values(3, 'eeffddd'); 
 analyze table t1;
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json 
   select * from t1 left join t2 on t1.a = t2.a order by t1.b;
 select * from t1 left join t2 on t1.a = t2.a order by t1.b;
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select a from t1 group by b;
 select a from t1 group by b order by 1; 
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select distinct b from t1;
 select distinct b from t1 order by 1;
 #unique_constraint
@@ -264,6 +290,7 @@ analyze table t1,t3;
 #So changing optimizer_switch.
 set @old_optimizer_switch=@@optimizer_switch;
 set optimizer_switch='materialization=off';
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select * from t3 where b in (select a from t1);
 select * from t3 where b in (select a from t1);
 set @@optimizer_switch=@old_optimizer_switch;

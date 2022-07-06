@@ -67,6 +67,7 @@ eval EXPLAIN $query;
 # the IS NULL condition.
 # Cost value change a bit with different InnoDB page sizes, hide them
 --replace_regex /(cost.*)/cost: #/
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 eval $query;
 
@@ -96,6 +97,7 @@ SELECT * FROM t1 LEFT JOIN t1 t2
 ON (t1.a IN
 (SELECT /*+ NO_SEMIJOIN(FIRSTMATCH,LOOSESCAN,DUPSWEEDOUT) */ a FROM
 t1 t3 WHERE a > 2));
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 --sorted_result
 eval $query;
@@ -444,6 +446,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (c1 INT, c2 INT);
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON
 SELECT c1 FROM t1
  WHERE NOT EXISTS (SELECT /*+ NO_MERGE() */ c2

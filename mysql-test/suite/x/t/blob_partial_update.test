@@ -25,7 +25,7 @@ set global debug = '+d,lob_print_partial_update_hit';
 
 ANALYZE TABLE tab;
 
-EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'VISWA');
+EXPLAIN UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'VISWA');
 
 UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Viswa');
 

@@ -52,7 +52,9 @@ let query_2= SELECT i3 FROM t1 WHERE i1 = 1 AND i3 = 1;
 connect (con1,localhost,root,,);
 
 # Get cost estimates with default values
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query_1;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query_2;
 
 disconnect con1;
@@ -116,7 +118,9 @@ connect (con1,localhost,root,,);
 
 # The new cost estimates should be approximately the double compared to the
 # first run
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query_1;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query_2;
 
 disconnect con1;
@@ -180,6 +184,7 @@ connect (con1,localhost,root,,);
 # Get cost estimates with default values
 --echo # Query should be optimized for the LIMIT. Query plan should
 --echo # use index without filesort
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;
@@ -245,6 +250,7 @@ connect (con1,localhost,root,,);
 # first run. The query plan should still be the same.
 --echo # This should be optimized for the LIMIT. Query plan should
 --echo # use index without filesort
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;

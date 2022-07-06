@@ -620,6 +620,7 @@ let $query=
 select * from t2, t1, lateral (select t1.a) as dt,
                       lateral (select t1.a+1) as dt2;
 eval explain $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
 --sorted_result
 eval $query;
@@ -630,6 +631,7 @@ eval $query;
 let $query=
 select * from t2, t1, lateral (select t1.a+t2.a) as dt;
 eval explain $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
 eval $query;
 --skip_if_hypergraph  # Does not output the same optimizer trace.

@@ -76,20 +76,28 @@ ANALYZE TABLE t1;
 EXPLAIN SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
 EXPLAIN SELECT JSON_ARRAYAGG(b) FROM t1;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=json SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=json SELECT SQL_BIG_RESULT  a, JSON_ARRAYAGG(b)
 FROM t1
 GROUP BY a;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=json SELECT SQL_SMALL_RESULT  a, JSON_ARRAYAGG(b)
 FROM t1
 GROUP BY a;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=json SELECT SQL_BUFFER_RESULT  a, JSON_ARRAYAGG(b)
 FROM t1
 GROUP BY a;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=json SELECT JSON_ARRAYAGG(b) FROM t1;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=json SELECT SQL_BIG_RESULT JSON_ARRAYAGG(b) FROM t1;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=json SELECT SQL_SMALL_RESULT JSON_ARRAYAGG(b) FROM t1;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=json SELECT SQL_BUFFER_RESULT JSON_ARRAYAGG(b) FROM t1;
 
 SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a WITH ROLLUP;
@@ -141,7 +149,9 @@ ANALYZE TABLE t1;
 EXPLAIN SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
 EXPLAIN SELECT JSON_OBJECTAGG(k, b) FROM t1;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=json SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=json SELECT JSON_OBJECTAGG(k, b) FROM t1;
 
 SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a WITH ROLLUP;
@@ -173,6 +183,7 @@ SELECT JSON_OBJECTAGG(null, b) FROM t1;
 
 CREATE TABLE t(a INT);
 ANALYZE TABLE t1;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=json SELECT (SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)));
 SELECT (SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)));
 DROP TABLE t;

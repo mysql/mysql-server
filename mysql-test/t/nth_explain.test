@@ -1,6 +1,8 @@
 --echo # Test of SQL window functions NTH_VALUE
 --echo # ----------------------------------------------------------------------
 
+--source include/not_hypergraph.inc  # FORMAT=JSON output changes with hypergraph.
+
 SET NAMES utf8;
 
 CREATE TABLE t1 (d DOUBLE, id INT, sex CHAR(1));

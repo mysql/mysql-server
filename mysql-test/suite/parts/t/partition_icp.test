@@ -16,6 +16,7 @@ ANALYZE TABLE t1;
 
 let $query= SELECT a, HEX(b) FROM t1 WHERE b >= 'te' and (a % 2);
 eval EXPLAIN $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 eval $query;
 

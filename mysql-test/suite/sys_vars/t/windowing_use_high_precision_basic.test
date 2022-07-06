@@ -25,12 +25,14 @@ INSERT INTO td VALUES (1.7976931348623157E+307);
 INSERT INTO td VALUES (1);
 
 SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON
 SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
 
 --echo allow unsafe optimization: result changes
 SET SESSION windowing_use_high_precision=FALSE;
 SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON
 SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
 SET SESSION windowing_use_high_precision=TRUE; # BACK TO DEFAULT

@@ -42,6 +42,7 @@ connect (con1,localhost,root,,);
 connection con1;
 
 # Get cost estimates with default values
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 connection default;
@@ -66,6 +67,7 @@ connection con1;
 --echo #
 --echo # The cost estimates should not have changed
 --echo #
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;
@@ -93,6 +95,7 @@ connection con1;
 --echo #
 --echo # Verify that the cost estimate for evalution cost has doubled
 --echo #
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;
@@ -110,6 +113,7 @@ SET cost_value=DEFAULT;
 --echo # Result from running query with default cost constants:
 --echo #
 let query= SELECT DISTINCT(i1) FROM t1;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection: Update the value of the key_compare_cost
@@ -126,6 +130,7 @@ connection con1;
 --echo #
 --echo # Verify that the cost estimate for read cost is increased
 --echo #
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;
@@ -144,6 +149,7 @@ SET cost_value=DEFAULT;
 let query=
 SELECT * FROM t1
 WHERE i1 IN (SELECT i1 FROM t1);
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection:
@@ -162,6 +168,7 @@ connection con1;
 --echo #
 --echo # Verify that the cost estimate for the query is incrased (by 9.0)
 --echo #
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;
@@ -180,6 +187,7 @@ SET cost_value=DEFAULT;
 let query=
 SELECT * FROM t1
 WHERE i1 IN (SELECT i1 FROM t1);
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection:
@@ -201,6 +209,7 @@ connection con1;
 --echo # The cost of each insert and read is increased by 0.1, ie cost should
 --echo # be increased by 100 * 2 * 0.1 = 20.
 --echo #
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;
@@ -226,6 +235,7 @@ set max_heap_table_size= 16384;
 let query=
 SELECT * FROM t1
 WHERE c1 IN (SELECT c1 FROM t1);
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection:
@@ -246,6 +256,7 @@ set max_heap_table_size= 16384;
 --echo #
 --echo # Verify that the cost estimate for the query is incrased (by 20.0)
 --echo #
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;
@@ -264,6 +275,7 @@ SET cost_value=DEFAULT;
 let query=
 SELECT * FROM t1
 WHERE c1 IN (SELECT c1 FROM t1);
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection:
@@ -286,6 +298,7 @@ set max_heap_table_size= 16384;
 --echo # The cost of each insert and read is increased by 0.5, ie cost should
 --echo # be increased by 100 * 2 * 0.5 = 100.
 --echo #
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;
@@ -306,6 +319,7 @@ set global internal_tmp_mem_storage_engine=default;
 --echo # Result from running query with default cost constants:
 --echo #
 let query= SELECT * FROM t1;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection: Update the value of the memory_block_read_cost
@@ -322,6 +336,7 @@ connection con1;
 --echo #
 --echo # Verify that the cost estimate for read cost has doubled
 --echo #
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;

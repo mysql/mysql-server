@@ -14014,9 +14014,11 @@ opt_explain_analyze_type:
                 $$= Explain_format_type::TREE_WITH_EXECUTE;
                 break;
               case Explain_format_type::JSON:
-                my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                         "FORMAT=JSON with EXPLAIN ANALYZE");
-                MYSQL_YYABORT;
+                // Without hypergraph, we don't support JSON format. But in the
+                // parser we don't know whether hypergraph optimizer is on. So
+                // we defer raising the error here.
+                $$= Explain_format_type::JSON_WITH_EXECUTE;
+                break;
               default:
                 my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                          "FORMAT=TRADITIONAL with EXPLAIN ANALYZE");

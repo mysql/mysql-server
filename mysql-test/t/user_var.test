@@ -484,6 +484,7 @@ FROM t1
      LEFT JOIN t2 ON t1.a=t2.a AND t2.a < @var1
      LEFT JOIN t3 ON t1.a=t3.a AND t3.a < @var1;
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
 
 --sorted_result

@@ -242,6 +242,7 @@ ANALYZE TABLE t1;
 explain select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 explain select * from t1 where a >= 1 and a < 3 order by a desc;
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select * from t1 where a >= 1 and a < 3 order by a desc;
 --partially_sorted_result 1
 select * from t1 where a >= 1 and a < 3 order by a desc;

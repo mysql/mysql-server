@@ -2,6 +2,9 @@
 # WL#6526: FORCE INDEX to avoid index dives when possible
 #
 
+# Non-traditional formats differ in hypergraph. This file tests only EXPLAIN.
+--source include/not_hypergraph.inc
+
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_innodb_16k.inc

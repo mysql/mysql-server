@@ -3421,8 +3421,15 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
       lex->explain_format = new (thd->mem_root) Explain_format_traditional;
       break;
     case Explain_format_type::JSON:
-      lex->explain_format = new (thd->mem_root) Explain_format_JSON;
+    case Explain_format_type::JSON_WITH_EXECUTE: {
+      lex->explain_format = new (thd->mem_root) Explain_format_JSON(
+          thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER)
+              ? Explain_format_JSON::FormatVersion::kIteratorBased
+              : Explain_format_JSON::FormatVersion::kLinear);
+      lex->is_explain_analyze =
+          (m_format == Explain_format_type::JSON_WITH_EXECUTE);
       break;
+    }
     case Explain_format_type::TREE:
       lex->explain_format = new (thd->mem_root) Explain_format_tree;
       break;

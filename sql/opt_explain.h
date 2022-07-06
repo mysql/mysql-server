@@ -68,6 +68,7 @@ class Item;
 class Query_block;
 class Query_expression;
 class Query_term;
+class String;
 class THD;
 struct AccessPath;
 struct TABLE;
@@ -188,5 +189,9 @@ class Sql_cmd_explain_other_thread final : public Sql_cmd {
   /// connection_id in EXPLAIN FOR CONNECTION \<connection_id\>
   my_thread_id m_thread_id;
 };
+
+// Used to generate the "query" field in JSON explain object.
+void print_query_for_explain(const THD *query_thd, Query_expression *unit,
+                             String *str);
 
 #endif /* OPT_EXPLAIN_INCLUDED */

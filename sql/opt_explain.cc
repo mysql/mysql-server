@@ -1906,14 +1906,14 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
   const bool other = (query_thd != explain_thd);
   bool ret;
 
-  if (explain_thd->lex->explain_format->is_tree()) {
+  if (explain_thd->lex->explain_format->is_iterator_based()) {
     // These kinds of queries don't have a JOIN with an iterator tree.
     return ExplainIterator(explain_thd, query_thd, nullptr);
   }
 
   if (query_thd->lex->using_hypergraph_optimizer) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
-             "EXPLAIN with non-tree formats");
+             "EXPLAIN with TRADITIONAL format");
     return true;
   }
 
@@ -2100,52 +2100,11 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
   }
 
   {
-    vector<string> *token_ptr = nullptr;
-#ifndef NDEBUG
-    vector<string> tokens_for_force_subplan;
-    DBUG_EXECUTE_IF("subplan_tokens", token_ptr = &tokens_for_force_subplan;);
-#endif
-
-    std::string explain;
-    if (unit != nullptr) {
-      int base_level = 0;
-      JOIN *join = unit->first_query_block()->join;
-      const THD::Query_plan *query_plan = &query_thd->query_plan;
-      switch (query_plan->get_command()) {
-        case SQLCOM_INSERT_SELECT:
-        case SQLCOM_INSERT:
-          explain = string("-> Insert into ") +
-                    query_plan->get_lex()->insert_table_leaf->table->alias +
-                    "\n";
-          base_level = 1;
-          break;
-        case SQLCOM_REPLACE_SELECT:
-        case SQLCOM_REPLACE:
-          explain = string("-> Replace into ") +
-                    query_plan->get_lex()->insert_table_leaf->table->alias +
-                    "\n";
-          base_level = 1;
-          break;
-        default:
-          break;
-      }
-      explain += PrintQueryPlan(base_level, unit->root_access_path(),
-                                unit->is_set_operation() ? nullptr : join,
-                                /*is_root_of_join=*/!unit->is_set_operation(),
-                                token_ptr);
-    } else {
-      explain += PrintQueryPlan(0, /*path=*/nullptr, /*join=*/nullptr,
-                                /*is_root_of_join=*/false, token_ptr);
+    std::string explain = PrintQueryPlan(ethd, query_thd, unit);
+    if (explain.empty()) {
+      my_error(ER_INTERNAL_ERROR, MYF(0), "Failed to print query plan");
+      return true;
     }
-    DBUG_EXECUTE_IF("subplan_tokens", {
-      explain += "\nTo force this plan, use:\nSET DEBUG='+d,subplan_tokens";
-      for (const string &token : tokens_for_force_subplan) {
-        explain += ",force_subplan_";
-        explain += token;
-      }
-      explain += "';\n";
-    });
-
     mem_root_deque<Item *> field_list(ethd->mem_root);
     Item *item =
         new Item_string(explain.data(), explain.size(), system_charset_info);
@@ -2191,6 +2150,40 @@ class Query_result_null : public Query_result_interceptor {
 };
 
 /**
+  This code which prints the extended description is not robust
+  against malformed queries, so skip calling this function if we have an error
+  or if explaining other thread (see Explain::can_print_clauses()).
+*/
+void print_query_for_explain(const THD *query_thd, Query_expression *unit,
+                             String *str) {
+  if (unit == nullptr) return;
+
+  /* Only certain statements can be explained.  */
+  if (query_thd->query_plan.get_command() == SQLCOM_SELECT ||
+      query_thd->query_plan.get_command() == SQLCOM_INSERT_SELECT ||
+      query_thd->query_plan.get_command() == SQLCOM_REPLACE_SELECT ||
+      query_thd->query_plan.get_command() == SQLCOM_DELETE ||
+      query_thd->query_plan.get_command() == SQLCOM_DELETE_MULTI ||
+      query_thd->query_plan.get_command() == SQLCOM_UPDATE ||
+      query_thd->query_plan.get_command() == SQLCOM_UPDATE_MULTI)  // (2)
+  {
+    /*
+      The warnings system requires input in utf8, see mysqld_show_warnings().
+    */
+
+    enum_query_type eqt =
+        enum_query_type(QT_TO_SYSTEM_CHARSET | QT_SHOW_SELECT_NUMBER);
+
+    /**
+      For DML statements use QT_NO_DATA_EXPANSION to avoid over-simplification.
+    */
+    if (query_thd->query_plan.get_command() != SQLCOM_SELECT)
+      eqt = enum_query_type(eqt | QT_NO_DATA_EXPANSION);
+
+    unit->print(query_thd, str, eqt);
+  }
+}
+/**
   EXPLAIN handling for SELECT, INSERT/REPLACE SELECT, and multi-table
   UPDATE/DELETE queries
 
@@ -2230,7 +2223,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   const bool secondary_engine = SecondaryEngineHandlerton(query_thd) != nullptr;
 
   LEX *lex = explain_thd->lex;
-  if (lex->explain_format->is_tree()) {
+  if (lex->explain_format->is_iterator_based()) {
     if (lex->is_explain_analyze) {
       if (secondary_engine) {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
@@ -2261,18 +2254,25 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
     return ExplainIterator(explain_thd, query_thd, unit);
   }
 
-  // Non-tree formats are not supported with the hypergraph optimizer. But we
-  // still want to be able to use EXPLAIN with no format specified (implicitly
-  // the traditional format) to show if the query is offloaded to a secondary
-  // engine, so we return a fake plan with that information.
+  if (lex->is_explain_analyze) {
+    // With TRADITIONAL, parser would have thrown error. So it must be JSON.
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXPLAIN ANALYZE with JSON format");
+  }
+
+  // Non-iterator-based formats are not supported with the hypergraph
+  // optimizer. But we still want to be able to use EXPLAIN with no format
+  // specified (implicitly the traditional format) to show if the query is
+  // offloaded to a secondary engine, so we return a fake plan with that
+  // information.
   const bool fake_explain_for_secondary_engine =
       query_thd->lex->using_hypergraph_optimizer && secondary_engine &&
       !lex->explain_format->is_hierarchical();
 
   if (query_thd->lex->using_hypergraph_optimizer &&
       !fake_explain_for_secondary_engine) {
+    // With hypergraph, JSON is iterator-based. So it must be TRADITIONAL.
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
-             "EXPLAIN with non-tree formats");
+             "EXPLAIN with TRADITIONAL format");
     return true;
   }
 
@@ -2309,38 +2309,11 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
                                      unit->first_query_block())
                 .send()
           : mysql_explain_query_expression(explain_thd, query_thd, unit);
-  /*
-    1) The code which prints the extended description is not robust
-       against malformed queries, so skip it if we have an error.
-    2) The code also isn't thread-safe, skip if explaining other thread
-       (see Explain::can_print_clauses())
-    3) Only certain statements can be explained.
-  */
-  if (!res &&    // (1)
-      !other &&  // (2)
-      (query_thd->query_plan.get_command() == SQLCOM_SELECT ||
-       query_thd->query_plan.get_command() == SQLCOM_INSERT_SELECT ||
-       query_thd->query_plan.get_command() == SQLCOM_REPLACE_SELECT ||
-       query_thd->query_plan.get_command() == SQLCOM_DELETE ||
-       query_thd->query_plan.get_command() == SQLCOM_DELETE_MULTI ||
-       query_thd->query_plan.get_command() == SQLCOM_UPDATE ||
-       query_thd->query_plan.get_command() == SQLCOM_UPDATE_MULTI))  // (3)
-  {
+
+  // Skip this if applicable. See print_query_for_explain() comments.
+  if (!res && !other) {
     StringBuffer<1024> str;
-    /*
-      The warnings system requires input in utf8, see mysqld_show_warnings().
-    */
-
-    enum_query_type eqt =
-        enum_query_type(QT_TO_SYSTEM_CHARSET | QT_SHOW_SELECT_NUMBER);
-
-    /**
-      For DML statements use QT_NO_DATA_EXPANSION to avoid over-simplification.
-    */
-    if (query_thd->query_plan.get_command() != SQLCOM_SELECT)
-      eqt = enum_query_type(eqt | QT_NO_DATA_EXPANSION);
-
-    unit->print(explain_thd, &str, eqt);
+    print_query_for_explain(query_thd, unit, &str);
     str.append('\0');
     push_warning(explain_thd, Sql_condition::SL_NOTE, ER_YES, str.ptr());
   }

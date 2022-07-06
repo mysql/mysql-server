@@ -28,6 +28,7 @@ SET DEBUG_SYNC= 'RESET';
 # Grab output of regular explain
 --replace_regex $replace
 --output $MYSQL_TMP_DIR/EN
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN $fmt $query;
 
 
@@ -43,6 +44,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR ready_for_explain';
 SET DEBUG_SYNC= 'after_explain_other SIGNAL explained';
 --replace_regex $replace
 --output $MYSQL_TMP_DIR/EO
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN $fmt FOR CONNECTION $QID;
 
 connection cq;

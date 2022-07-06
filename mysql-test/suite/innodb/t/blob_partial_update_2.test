@@ -309,6 +309,7 @@ INSERT INTO tab2 VALUES(1, '{"a":"a","b":"b"}', DEFAULT);
 
 ANALYZE TABLE tab2;
 
+--skip_if_hypergraph  # Depends on the query plan.
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 EXPLAIN FORMAT=JSON UPDATE tab2 SET c2 = JSON_SET(c2, '$.a', 'x');
 

@@ -32,6 +32,7 @@ FLUSH STATUS;
 eval $query;
 --skip_if_hypergraph  # Creates a temporary table, even though it does not materialize into it.
 SHOW STATUS LIKE 'Created_tmp_tables';
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 # From then on, we'll be counting row reads.
@@ -852,6 +853,7 @@ eval $query;
 SHOW STATUS LIKE 'Created_tmp_tables';
 
 --echo Show sort elimination for the above
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 
@@ -1895,6 +1897,7 @@ ANALYZE TABLE t1;
 
 --echo Still unset
 SELECT t1_id, ROW_NUMBER() OVER () FROM t1;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT t1_id, ROW_NUMBER() OVER () FROM t1;
 
 --echo Now set
@@ -1905,6 +1908,7 @@ FLUSH STATUS;
 eval $query;
 --skip_if_hypergraph  # Creates an extra temporary table that is not used.
 SHOW STATUS LIKE 'Created_tmp_tables';
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 SET SQL_BUFFER_RESULT=FALSE;
@@ -1971,6 +1975,7 @@ ANALYZE TABLE t1;
 SELECT a, RANK() OVER (ORDER BY a) rank_asc,
 RANK() OVER (ORDER BY a desc) rank_desc,
 RANK() OVER (ORDER BY a) + RANK() OVER (ORDER BY a desc) rank_asc_desc FROM t1;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT a, RANK() OVER (ORDER BY a) rank_asc,
 RANK() OVER (ORDER BY a desc) rank_desc,
 RANK() OVER (ORDER BY a) + RANK() OVER (ORDER BY a desc) rank_asc_desc FROM t1;
@@ -2031,6 +2036,7 @@ INSERT INTO t1 VALUES (1,1),(2,2),(3,3),
 ANALYZE TABLE t1;
 --echo This one was ok
 SELECT a,b, RANK() OVER (ORDER BY a), RANK() OVER (order BY a) FROM t1;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT a,b, RANK() OVER (ORDER BY a), RANK() OVER (ORDER BY a) FROM t1;
 
 --echo But here the ORDER BY b was erroneously removed.
@@ -2040,6 +2046,7 @@ FLUSH STATUS;
 eval $query;
 --skip_if_hypergraph  # Creates an extra temporary table that is not used.
 SHOW STATUS LIKE 'Created_tmp_tables';
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 DROP TABLE t1;
@@ -2056,6 +2063,7 @@ ANALYZE TABLE t;
 
 SELECT * FROM t WHERE a IN (SELECT ROW_NUMBER() OVER () FROM t);
 SELECT * FROM t WHERE a IN (SELECT ROW_NUMBER() OVER () + 1 FROM t);
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT * FROM t WHERE a IN (SELECT ROW_NUMBER() OVER () FROM t);
 SELECT * FROM t WHERE a = SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 SELECT * FROM t WHERE a = ANY(SELECT ROW_NUMBER() OVER () + 1 FROM t);
@@ -2064,6 +2072,7 @@ SELECT * FROM t WHERE a >= ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 SELECT * FROM t WHERE a >= SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 
 SELECT * from t WHERE EXISTS(SELECT ROW_NUMBER() OVER () FROM t);
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT * from t WHERE EXISTS(SELECT ROW_NUMBER() OVER () FROM t);
 
 let $query=
@@ -2074,6 +2083,7 @@ FLUSH STATUS;
 eval $query;
 --skip_if_hypergraph  # Creates an extra temporary table that is not used.
 SHOW STATUS LIKE 'Created_tmp_tables';
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 DROP TABLE t;
@@ -2537,12 +2547,14 @@ INSERT INTO t VALUES (1),(2);
 ANALYZE TABLE t;
                     SELECT ROW_NUMBER() OVER (ORDER BY AVG(a)) AS rn FROM t ORDER BY rn ;
 EXPLAIN             SELECT ROW_NUMBER() OVER (ORDER BY AVG(a)) AS rn FROM t ORDER BY rn ;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (ORDER BY AVG(a)) AS rn FROM t ORDER BY rn ;
 
 --echo Even multiple windows lead to no windowing steps when we have implicit grouping
                     SELECT ROW_NUMBER() OVER (ORDER BY AVG(a)) AS rn, SUM(AVG(a)) OVER (),
                            CUME_DIST() OVER (ORDER BY AVG(a)) FROM t ORDER BY rn;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (ORDER BY AVG(a)) AS rn, SUM(AVG(a)) OVER (),
                            CUME_DIST() OVER (ORDER BY AVG(a)) FROM t ORDER BY rn;
 DROP TABLE t;

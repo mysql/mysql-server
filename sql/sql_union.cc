@@ -993,10 +993,9 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
       // TODO(sgunders): Consider adding the SET DEBUG force-subplan line here,
       // like we have on EXPLAIN FORMAT=tree if subplan_tokens is active.
       bool is_root_of_join = (join != nullptr);
-      fprintf(stderr, "Query plan:\n%s\n",
-              PrintQueryPlan(0, m_root_access_path, join, is_root_of_join,
-                             /*tokens_for_force_subplan=*/nullptr)
-                  .c_str());
+      fprintf(
+          stderr, "Query plan:\n%s\n",
+          PrintQueryPlan(0, m_root_access_path, join, is_root_of_join).c_str());
     }
   }
 

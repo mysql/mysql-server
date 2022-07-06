@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Non-traditional formats differ in hypergraph.
+
 -- source include/big_test.inc
 
 # There are expected differences in Handler_update output when run with and

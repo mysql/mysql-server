@@ -1640,6 +1640,7 @@ let $query=
 SELECT straight_join t1.vc, t1.ik
 FROM t1 JOIN t1 AS t2 ON t1.vc=t2.vc LEFT JOIN t1 AS t3 ON t1.vc=t3.vc;
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
 eval $query;
 

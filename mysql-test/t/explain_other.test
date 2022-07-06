@@ -1,5 +1,9 @@
 --echo # WL#6369: EXPLAIN for other query
 
+# JSON format is different in hypergraph. And TRADITIONAL format does not work
+# with hypergraph.
+--source include/not_hypergraph.inc
+
 #
 # We need the Debug Sync Facility.
 #

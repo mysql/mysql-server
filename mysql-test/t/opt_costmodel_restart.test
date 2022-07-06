@@ -49,6 +49,7 @@ ANALYZE TABLE t1_innodb;
 let query_innodb= SELECT * FROM t1_innodb;
 
 --echo "Explain with cost estimate against InnoDB"
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query_innodb;
 
 #
@@ -80,6 +81,7 @@ SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
 # Run the two queries and validate that the cost estimate has doubled
 #
 --echo "Explain with cost estimate against MyISAM"
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query_innodb;
 
 # Reset the cost constants
@@ -109,6 +111,7 @@ SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
 # read cost four times the original
 #
 --echo "Explain with cost estimate against InnoDB"
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query_innodb;
 
 # Delete the added entry for InnoDB

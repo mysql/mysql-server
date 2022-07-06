@@ -1087,8 +1087,9 @@ void Table_access::compute_type_and_index() const {
 
       if (m_table->in_use->lex->is_explain()) {
         // Align possible 'EXPLAIN_NO_PUSH' with explain format being used.
-        // MRR is explained as a 'Multi range' if format=tree, else 'Batched..'
-        if (m_table->in_use->lex->explain_format->is_tree()) {
+        // MRR is explained as a 'Multi range' with iterator-based formats
+        // else 'Batched..'
+        if (m_table->in_use->lex->explain_format->is_iterator_based()) {
           m_other_access_reason = "Multi-range";
         } else {
           m_other_access_reason = "Batched-key";

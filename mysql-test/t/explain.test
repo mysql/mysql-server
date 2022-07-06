@@ -16,6 +16,7 @@ insert into t1 values (1, null),(2, null),(3, "foo"),(4, "bar");
 select * from t1 where str is null;
 select * from t1 where str="foo";
 explain select * from t1 where str is null;
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=json select * from t1 where str is null;
 explain select * from t1 where str="foo";
 explain select * from t1 ignore key (str) where str="foo";
@@ -124,6 +125,7 @@ prepare s1 from
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
 execute s1;
 
+--skip_if_hypergraph  # Depends on the query plan.
 prepare s1 from 
 'EXPLAIN FORMAT=JSON SELECT 1  
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';

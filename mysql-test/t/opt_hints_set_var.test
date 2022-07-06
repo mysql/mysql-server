@@ -432,9 +432,11 @@ INSERT INTO t1(d, id, sex) VALUES (1.0, 1, 'M'),
                                   (11.0, 11, NULL);
 ANALYZE TABLE t1;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT
 id, AVG(id) over w `avg`, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt
 FROM t1 WINDOW w as (ORDER BY id RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT /*+ SET_VAR(windowing_use_high_precision=OFF)*/
 d, AVG(d) over w `avg`, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt
 FROM t1 WINDOW w as (ORDER BY d RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);

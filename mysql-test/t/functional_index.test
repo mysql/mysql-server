@@ -267,6 +267,7 @@ CREATE TABLE t1(x VARCHAR(100), KEY ((ST_GeomFromText(x))));
 CREATE TABLE t1(x VARCHAR(30), INDEX idx ((CAST(x->>'$.name' AS CHAR(30)))));
 INSERT INTO t1 VALUES ('{"name":"knut"}');
 ANALYZE TABLE t1;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE CAST(x->>'$.name' AS CHAR(30)) = 'knut';
 DROP TABLE t1;
 

@@ -1435,12 +1435,16 @@ SELECT * FROM t1 ORDER BY a DESC, b;
 --skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 --replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b DESC;
 --replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a, b;
 --replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a, b DESC;
 --replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b;
 
 --echo # Test index access in different sort order
@@ -1461,10 +1465,13 @@ SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
 --skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 --replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
 --replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
 --replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
 
 --echo # Test HANDLER statements.

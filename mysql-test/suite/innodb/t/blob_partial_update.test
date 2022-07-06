@@ -23,10 +23,12 @@ INSERT INTO tab VALUES
 ANALYZE TABLE tab;
 --echo # Sven
 select json_extract(j1, '$[0]') from tab;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'VISWA');
 UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Viswa');
 --echo # Show Viswa
 select json_extract(j1, '$[0]') from tab;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Nath');
 UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Nath');
 --echo # Show Nath
@@ -36,6 +38,7 @@ select json_extract(j1, '$[0]') from tab;
 
 ALTER TABLE tab MODIFY j1 LONGTEXT ;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setlongtext');
 
 UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setlongtext');
@@ -50,6 +53,7 @@ SELECT JSON_STORAGE_FREE(j1) FROM tab;
 --echo # Show Setlongtext
 SELECT json_extract(j1, '$[0]') FROM tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Replongtext');
 
 UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Replongtext');
@@ -67,6 +71,7 @@ SELECT json_extract(j1, '$[0]') from tab;
 --echo When column modify from LONGTEXT to JSON
 ALTER TABLE tab MODIFY j1 JSON ;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setjson');
 
 UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setjson');
@@ -76,6 +81,7 @@ ANALYZE TABLE tab;
 --echo # Show Setjson
 SELECT  json_extract(j1, '$[0]') FROM tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repjson');
 
 UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repjson');
@@ -90,6 +96,7 @@ ALTER TABLE tab ROW_FORMAT = COMPRESSED ;
 
 SHOW CREATE TABLE tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setcomp');
 
 UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setcomp');
@@ -99,6 +106,7 @@ ANALYZE TABLE tab;
 --echo # Show Setcomp
 SELECT  json_extract(j1, '$[0]') FROM tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repcomp');
 
 UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repcomp');
@@ -113,6 +121,7 @@ ANALYZE TABLE tab;
 
 SHOW CREATE TABLE tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setdyna');
 
 UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setdyna');
@@ -122,6 +131,7 @@ ANALYZE TABLE tab;
 --echo # Show Setdyna
 SELECT  json_extract(j1, '$[0]') FROM tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repdyna');
 
 UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repdyna');
@@ -136,6 +146,7 @@ ALTER TABLE tab ROW_FORMAT = REDUNDANT ;
 
 SHOW CREATE TABLE tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setredu');
 
 UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setredu');
@@ -145,6 +156,7 @@ ANALYZE TABLE tab;
 --echo # Show Setredu
 SELECT  json_extract(j1, '$[0]') FROM tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repredu');
 
 UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repredu');
@@ -159,6 +171,7 @@ SHOW CREATE TABLE tab;
 
 ANALYZE TABLE tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setcomp');
 
 UPDATE tab SET j1 = JSON_SET(j1, '$[0]', 'Setcomp');
@@ -168,6 +181,7 @@ ANALYZE TABLE tab;
 --echo # Show Setcomp
 SELECT  json_extract(j1, '$[0]') FROM tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repcomp');
 
 UPDATE tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repcomp');
@@ -178,6 +192,7 @@ SELECT json_extract(j1, '$[0]') FROM tab;
 --echo # Create a view on JSON column
 CREATE VIEW view_tab AS SELECT * FROM tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE view_tab SET j1 = JSON_SET(j1, '$[0]', 'Setview');
 
 UPDATE view_tab SET j1 = JSON_SET(j1, '$[0]', 'Setview');
@@ -192,6 +207,7 @@ SELECT JSON_STORAGE_FREE(j1) FROM view_tab;
 --echo # Show Setview
 SELECT  json_extract(j1, '$[0]') FROM view_tab;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE view_tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repview');
 
 UPDATE view_tab SET j1 = JSON_REPLACE(j1, '$[0]', 'Repview');
@@ -296,6 +312,7 @@ INSERT INTO tab2 VALUES(1, '{"a":"a","b":"b"}', DEFAULT);
 
 ANALYZE TABLE tab2;
 
+--skip_if_hypergraph  # Depends on the query plan.
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 EXPLAIN FORMAT=JSON UPDATE tab2 SET c2 = JSON_SET(c2, '$.a', 'x');
 
@@ -319,6 +336,7 @@ INSERT INTO tab3 VALUES(3, '{"Chetan": [300,400],"Sasri": [500,600]}','{"Dhoni":
 SELECT * FROM tab3 order by a;
 
 --echo Check with JSON_SET
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab3 SET j1 = JSON_SET(j1, '$.a', 'x'),
 j2 = JSON_SET(j2, '$.a', 'y'),
 j1 = JSON_SET(j1, '$.b', 'z');
@@ -330,6 +348,7 @@ j1 = JSON_SET(j1, '$.b', 'z');
 SELECT * FROM tab3 order by a;
 
 --echo Check with JSON_REPLACE
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON UPDATE tab3 SET j1 = JSON_REPLACE(j1,'$[1].A1', 'partRe') ;
 
 UPDATE tab3 SET j1 = JSON_REPLACE(j1,'$[1].A1', 'PartRe') ;

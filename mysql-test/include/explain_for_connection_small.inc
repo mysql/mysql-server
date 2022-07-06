@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Non-traditional formats differ in hypergraph.
+
   --source include/have_debug.inc
   --source include/have_debug_sync.inc
   --source include/not_windows.inc

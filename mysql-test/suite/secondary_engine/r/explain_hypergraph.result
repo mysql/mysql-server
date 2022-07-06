@@ -8,6 +8,16 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1;
 EXPLAIN FORMAT=JSON SELECT * FROM t1;
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`",
+  "operation": "Table scan on t1",
+  "table_name": "t1",
+  "access_type": "table",
+  "estimated_rows": 1.0,
+  "estimated_total_cost": 0.25,
+  "estimated_first_row_cost": 0.25
+}
 ALTER TABLE t1 SECONDARY_LOAD;
 # After table is loaded, the secondary engine should be used.
 ANALYZE TABLE t1;
@@ -19,4 +29,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN FORMAT=JSON SELECT * FROM t1;
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`",
+  "operation": "Table scan on t1",
+  "table_name": "t1",
+  "access_type": "table",
+  "estimated_rows": 1.0,
+  "estimated_total_cost": 0.5,
+  "estimated_first_row_cost": 0.5
+}
+Warnings:
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 DROP TABLE t1;

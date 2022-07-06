@@ -16,6 +16,7 @@
 #   Checking if the build is Debug build else skip the test because debug sync points are avilable in Debug build  #
 ####################################################################################################################
 
+--source include/not_hypergraph.inc  # Non-traditional formats differ in hypergraph.
 
  echo "WL6369 Explain for Connection";
 

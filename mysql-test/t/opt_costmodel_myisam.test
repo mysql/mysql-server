@@ -44,6 +44,7 @@ connect (con1,localhost,root,,);
 --echo # 1. Should be executed as an index-only range scan
 --echo # 2. Cost estimate: "read_cost" - "eval_cost" should be approximately
 --echo #    the cost of reading one page from memory, ie. about 0.5.
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON
 SELECT i1 FROM t1 WHERE i1 > 1;
 

@@ -1,6 +1,8 @@
 --echo # Explain of SQL window functions.
 --echo # ----------------------------------------------------------------------
 
+--source include/not_hypergraph.inc  # JSON format is different in hypergraph
+
 SET NAMES utf8;
 
 --echo Single window function (plus ORDER BY).

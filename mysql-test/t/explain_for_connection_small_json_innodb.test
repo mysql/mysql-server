@@ -21,6 +21,8 @@
 #                                                                             #
 ###############################################################################
 
+--source include/not_hypergraph.inc  # Non-traditional formats differ in hypergraph.
+
 # Skipping the test when binlog_format=STATEMENT due to unsafe statements:
 # unsafe auto-increment column, LIMIT clause.
 --source include/not_binlog_format_statement.inc
