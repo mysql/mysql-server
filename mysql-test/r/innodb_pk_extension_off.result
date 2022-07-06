@@ -291,7 +291,7 @@ ORDER BY pk_2 DESC LIMIT 5;
 EXPLAIN
 -> Limit: 5 row(s)  (cost=0.45 rows=2)
     -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (cost=0.45 rows=2)
-        -> Index lookup on t1 using PRIMARY (pk_1=3; iterate backwards)  (cost=0.45 rows=10)
+        -> Index lookup on t1 using PRIMARY (pk_1=3) (reverse)  (cost=0.45 rows=10)
 
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'

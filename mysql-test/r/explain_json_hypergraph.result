@@ -1,0 +1,762 @@
+#
+# Table scan, subquery, aggregates
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
+EXPLAIN
+-> Filter: (t1.f1 = (select #2))  (cost=0.55..0.55 rows=1)
+    -> Table scan on t1  (cost=0.08..0.25 rows=3)
+    -> Select #2 (subquery in condition; dependent)
+        -> Aggregate: min(i.f1)  (cost=0.85..0.85 rows=1)
+            -> Filter: (i.f1 > t1.f1)  (cost=0.18..0.55 rows=3)
+                -> Table scan on i  (cost=0.08..0.25 rows=3)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = (/* select#2 */ select min(`test`.`i`.`f1`) from `test`.`t1` `i` where (`test`.`i`.`f1` > `test`.`t1`.`f1`)))",
+  "inputs": [
+    {
+      "operation": "Table scan on t1",
+      "table_name": "t1",
+      "access_type": "table",
+      "estimated_rows": 3.0,
+      "estimated_total_cost": 0.25,
+      "estimated_first_row_cost": 0.08333333333333333
+    },
+    {
+      "inputs": [
+        {
+          "inputs": [
+            {
+              "operation": "Table scan on i",
+              "table_name": "i",
+              "access_type": "table",
+              "estimated_rows": 3.0,
+              "estimated_total_cost": 0.25,
+              "estimated_first_row_cost": 0.08333333333333333
+            }
+          ],
+          "condition": "(i.f1 > t1.f1)",
+          "operation": "Filter: (i.f1 > t1.f1)",
+          "access_type": "filter",
+          "estimated_rows": 3.0,
+          "estimated_total_cost": 0.55,
+          "estimated_first_row_cost": 0.18333333333333335
+        }
+      ],
+      "heading": "Select #2 (subquery in condition; dependent)",
+      "subquery": true,
+      "dependent": true,
+      "functions": [
+        "min(i.f1)"
+      ],
+      "operation": "Aggregate: min(i.f1)",
+      "access_type": "aggregate",
+      "estimated_rows": 1.0,
+      "subquery_location": "condition",
+      "estimated_total_cost": 0.8500000000000001,
+      "estimated_first_row_cost": 0.8500000000000001
+    }
+  ],
+  "condition": "(t1.f1 = (select #2))",
+  "operation": "Filter: (t1.f1 = (select #2))",
+  "access_type": "filter",
+  "estimated_rows": 1.0,
+  "estimated_total_cost": 0.55,
+  "estimated_first_row_cost": 0.55
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
+EXPLAIN
+-> Filter: (t1.f1 > (select #2))  (cost=0.18..0.55 rows=3)
+    -> Table scan on t1  (cost=0.08..0.25 rows=3)
+    -> Select #2 (subquery in condition; run only once)
+        -> Limit: 1 row(s)  (cost=0.08..0.08 rows=1)
+            -> Table scan on t1  (cost=0.08..0.25 rows=3)
+
+EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` limit 1))",
+  "inputs": [
+    {
+      "operation": "Table scan on t1",
+      "table_name": "t1",
+      "access_type": "table",
+      "estimated_rows": 3.0,
+      "estimated_total_cost": 0.25,
+      "estimated_first_row_cost": 0.08333333333333333
+    },
+    {
+      "limit": 1,
+      "inputs": [
+        {
+          "operation": "Table scan on t1",
+          "table_name": "t1",
+          "access_type": "table",
+          "estimated_rows": 3.0,
+          "estimated_total_cost": 0.25,
+          "estimated_first_row_cost": 0.08333333333333333
+        }
+      ],
+      "heading": "Select #2 (subquery in condition; run only once)",
+      "subquery": true,
+      "cacheable": true,
+      "operation": "Limit: 1 row(s)",
+      "access_type": "limit",
+      "limit_offset": 0,
+      "estimated_rows": 1.0,
+      "subquery_location": "condition",
+      "estimated_total_cost": 0.08333333333333333,
+      "estimated_first_row_cost": 0.08333333333333333
+    }
+  ],
+  "condition": "(t1.f1 > (select #2))",
+  "operation": "Filter: (t1.f1 > (select #2))",
+  "access_type": "filter",
+  "estimated_rows": 3.0,
+  "estimated_total_cost": 0.55,
+  "estimated_first_row_cost": 0.18333333333333335
+}
+drop table t1;
+#
+# Index range scan
+create table t1 ( a int, b int, c int, d int, primary key(a,b));
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+explain format=TREE select * from t1 where a > 2;
+EXPLAIN
+-> Index range scan on t1 using PRIMARY over (2 < a)  (cost=0.13..1.06 rows=8)
+
+explain format=JSON select * from t1 where a > 2;
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` > 2)",
+  "ranges": [
+    "(2 < a)"
+  ],
+  "covering": false,
+  "operation": "Index range scan on t1 using PRIMARY over (2 < a)",
+  "index_name": "PRIMARY",
+  "table_name": "t1",
+  "access_type": "index",
+  "estimated_rows": 8.0,
+  "index_access_type": "index_range_scan",
+  "estimated_total_cost": 1.0621367521367522,
+  "estimated_first_row_cost": 0.13276709401709402
+}
+drop table t1;
+# Index lookup. Nested loop join
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off,materialization=off,duplicateweedout=off,loosescan=on';
+CREATE TABLE t1 ( i INTEGER, PRIMARY KEY (i) );
+CREATE TABLE t2 ( i INTEGER, INDEX i1 (i) );
+INSERT INTO t1 VALUES (2), (3), (4), (5);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN format=TREE SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
+EXPLAIN
+-> Nested loop semijoin  (cost=0.31..1.25 rows=4)
+    -> Index scan on t1 using PRIMARY  (cost=0.06..0.25 rows=4)
+    -> Index lookup on t2 using i1 (i=t1.i)  (cost=0.25..0.25 rows=1)
+
+EXPLAIN format=JSON SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where multiple equal(`test`.`t1`.`i`, `test`.`t2`.`i`)",
+  "inputs": [
+    {
+      "covering": false,
+      "operation": "Index scan on t1 using PRIMARY",
+      "index_name": "PRIMARY",
+      "table_name": "t1",
+      "access_type": "index",
+      "estimated_rows": 4.0,
+      "index_access_type": "index_scan",
+      "estimated_total_cost": 0.25025,
+      "estimated_first_row_cost": 0.0625625
+    },
+    {
+      "covering": false,
+      "operation": "Index lookup on t2 using i1 (i=t1.i)",
+      "index_name": "i1",
+      "table_name": "t2",
+      "access_type": "index",
+      "estimated_rows": 1.0,
+      "lookup_condition": "i=t1.i",
+      "index_access_type": "index_lookup",
+      "estimated_total_cost": 0.25,
+      "estimated_first_row_cost": 0.25
+    }
+  ],
+  "join_type": "semijoin",
+  "operation": "Nested loop semijoin",
+  "access_type": "join",
+  "estimated_rows": 4.0,
+  "join_algorithm": "nested_loop",
+  "estimated_total_cost": 1.2502499999999999,
+  "estimated_first_row_cost": 0.31256249999999997
+}
+DROP TABLE t1,t2;
+set optimizer_switch=@old_opt_switch;
+# Index lookup. Nested loop join. Filter.
+CREATE TABLE t1 (col_int INT, pk INT) ENGINE=InnoDB STATS_PERSISTENT=0;
+INSERT INTO t1 VALUES (-100,1),(1,6);
+CREATE TABLE t2 (
+col_int_key INT,
+col_varchar VARCHAR(100) NOT NULL DEFAULT "DEFAULT",
+pk INT NOT NULL,
+PRIMARY KEY (pk),
+KEY (col_int_key)
+) ENGINE=InnoDB STATS_PERSISTENT=0;
+INSERT INTO t2 VALUES
+(1,"GOOD",1),(100,"",2),(200,"",3),(300,"",4),(400,"",5),(500,"",8);
+EXPLAIN FORMAT=TREE SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+EXPLAIN
+-> Nested loop inner join  (cost=0.95..0.95 rows=1)
+    -> Table scan on t1  (cost=0.12..0.25 rows=2)
+    -> Filter: (t2.pk < t1.pk)  (cost=0.35..0.35 rows=0.3)
+        -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int)  (cost=0.25..0.25 rows=1)
+
+EXPLAIN FORMAT=JSON SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`pk` < `test`.`t1`.`pk`) and (`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`))",
+  "inputs": [
+    {
+      "operation": "Table scan on t1",
+      "table_name": "t1",
+      "access_type": "table",
+      "estimated_rows": 2.0,
+      "estimated_total_cost": 0.25,
+      "estimated_first_row_cost": 0.125
+    },
+    {
+      "inputs": [
+        {
+          "covering": false,
+          "operation": "Index lookup on t2 using col_int_key (col_int_key=t1.col_int)",
+          "index_name": "col_int_key",
+          "table_name": "t2",
+          "access_type": "index",
+          "estimated_rows": 1.0,
+          "lookup_condition": "col_int_key=t1.col_int",
+          "index_access_type": "index_lookup",
+          "estimated_total_cost": 0.25,
+          "estimated_first_row_cost": 0.25
+        }
+      ],
+      "condition": "(t2.pk < t1.pk)",
+      "operation": "Filter: (t2.pk < t1.pk)",
+      "access_type": "filter",
+      "estimated_rows": 0.33329999446868896,
+      "estimated_total_cost": 0.35,
+      "estimated_first_row_cost": 0.35
+    }
+  ],
+  "join_type": "inner join",
+  "operation": "Nested loop inner join",
+  "access_type": "join",
+  "estimated_rows": 0.6665999889373779,
+  "join_algorithm": "nested_loop",
+  "estimated_total_cost": 0.95,
+  "estimated_first_row_cost": 0.95
+}
+DROP TABLE t1,t2;
+# Group aggregates, hash join, sort.
+CREATE TABLE t1 (
+pk int NOT NULL AUTO_INCREMENT,
+col_varchar varchar(1),
+col_varchar_key varchar(1),
+PRIMARY KEY (pk),
+KEY idx_CC_col_varchar_key (col_varchar_key)
+);
+INSERT INTO t1 VALUES (1,'n','X'),(2,'Y','8'),(3,'R','l');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT
+t1.col_varchar_key AS field1 FROM (t1, t1 as alias1)
+WHERE NOT EXISTS( SELECT alias2.col_varchar_key FROM t1 AS alias2
+WHERE alias2.col_varchar_key >= t1.col_varchar)
+GROUP BY field1;
+EXPLAIN
+-> Group (no aggregates)  (cost=1.59..1.59 rows=1)
+    -> Nested loop inner join  (cost=1.50..1.50 rows=1)
+        -> Sort: t1.col_varchar_key  (cost=1.25..1.25 rows=0.3)
+            -> Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)  (cost=1.15..1.15 rows=0.3)
+                -> Table scan on t1  (cost=0.08..0.25 rows=3)
+                -> Hash
+                    -> Table scan on alias2  (cost=0.08..0.25 rows=3)
+        -> Table scan on alias1  (cost=0.08..0.25 rows=3)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=JSON SELECT
+t1.col_varchar_key AS field1 FROM (t1, t1 as alias1)
+WHERE NOT EXISTS( SELECT alias2.col_varchar_key FROM t1 AS alias2
+WHERE alias2.col_varchar_key >= t1.col_varchar)
+GROUP BY field1;
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `field1` from `test`.`t1` join `test`.`t1` `alias1` anti join (`test`.`t1` `alias2`) on(((`test`.`alias2`.`col_varchar_key` >= `test`.`t1`.`col_varchar`))) where true group by `field1`",
+  "inputs": [
+    {
+      "inputs": [
+        {
+          "inputs": [
+            {
+              "inputs": [
+                {
+                  "operation": "Table scan on t1",
+                  "table_name": "t1",
+                  "access_type": "table",
+                  "estimated_rows": 3.0,
+                  "estimated_total_cost": 0.25,
+                  "estimated_first_row_cost": 0.08333333333333333
+                },
+                {
+                  "heading": "Hash",
+                  "operation": "Table scan on alias2",
+                  "table_name": "alias2",
+                  "access_type": "table",
+                  "estimated_rows": 3.0,
+                  "estimated_total_cost": 0.25,
+                  "estimated_first_row_cost": 0.08333333333333333
+                }
+              ],
+              "join_type": "antijoin",
+              "operation": "Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)",
+              "access_type": "join",
+              "estimated_rows": 0.30000000000000004,
+              "hash_condition": [],
+              "join_algorithm": "hash",
+              "extra_condition": [
+                "(alias2.col_varchar_key >= t1.col_varchar)"
+              ],
+              "estimated_total_cost": 1.151,
+              "estimated_first_row_cost": 1.151
+            }
+          ],
+          "operation": "Sort: t1.col_varchar_key",
+          "access_type": "sort",
+          "sort_fields": [
+            "t1.col_varchar_key"
+          ],
+          "estimated_rows": 0.30000000000000004,
+          "estimated_total_cost": 1.2510000000000001,
+          "estimated_first_row_cost": 1.2510000000000001
+        },
+        {
+          "operation": "Table scan on alias1",
+          "table_name": "alias1",
+          "access_type": "table",
+          "estimated_rows": 3.0,
+          "estimated_total_cost": 0.25,
+          "estimated_first_row_cost": 0.08333333333333333
+        }
+      ],
+      "join_type": "inner join",
+      "operation": "Nested loop inner join",
+      "access_type": "join",
+      "estimated_rows": 0.9000000000000001,
+      "join_algorithm": "nested_loop",
+      "estimated_total_cost": 1.5010000000000001,
+      "estimated_first_row_cost": 1.5010000000000001
+    }
+  ],
+  "group_by": true,
+  "functions": [],
+  "operation": "Group (no aggregates)",
+  "access_type": "aggregate",
+  "estimated_rows": 0.9000000000000001,
+  "estimated_total_cost": 1.5910000000000002,
+  "estimated_first_row_cost": 1.5910000000000002
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
+drop table t1;
+# Information Schema
+explain format=TREE select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
+EXPLAIN
+-> Filter: (e.`ENGINE` = 'MyISAM')  (cost=3.50..102.50 rows=100)
+    -> Table scan on e  (cost=0.00..2.50 rows=1000)
+        -> Fill information schema table e  (cost=0.00..2.50 rows=1000)
+
+explain format=JSON select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
+EXPLAIN
+{
+  "query": "/* select#1 */ select `e`.`ENGINE` AS `ENGINE`,`e`.`SUPPORT` AS `SUPPORT`,`e`.`COMMENT` AS `COMMENT`,`e`.`TRANSACTIONS` AS `TRANSACTIONS`,`e`.`XA` AS `XA`,`e`.`SAVEPOINTS` AS `SAVEPOINTS` from `information_schema`.`ENGINES` `e` where (`e`.`ENGINE` = 'MyISAM')",
+  "inputs": [
+    {
+      "inputs": [
+        {
+          "operation": "Fill information schema table e",
+          "table_name": "e",
+          "access_type": "materialize_information_schema",
+          "estimated_rows": 1000.0,
+          "estimated_total_cost": 2.5,
+          "estimated_first_row_cost": 0.0025
+        }
+      ],
+      "operation": "Table scan on e",
+      "table_name": "e",
+      "access_type": "table",
+      "estimated_rows": 1000.0,
+      "estimated_total_cost": 2.5,
+      "estimated_first_row_cost": 0.0025
+    }
+  ],
+  "condition": "(e.`ENGINE` = 'MyISAM')",
+  "operation": "Filter: (e.`ENGINE` = 'MyISAM')",
+  "access_type": "filter",
+  "estimated_rows": 100.00000149011612,
+  "estimated_total_cost": 102.5,
+  "estimated_first_row_cost": 3.499999985098839
+}
+# Materialize, window aggregates, Stream
+CREATE TABLE t0 (i0 INTEGER);
+INSERT INTO t0 VALUES (0),(1),(2),(3),(4);
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, f3 INTEGER,
+KEY(f1), KEY(f1,f2), KEY(f3));
+INSERT INTO t1
+SELECT i0, i0 + 10*i0,
+i0 + 10*i0 + 100*i0
+FROM t0 AS a0;
+INSERT INTO t1
+SELECT i0, i0 + 10*i0,
+i0 + 10*i0 + 100*i0
+FROM t0 AS a0;
+INSERT INTO t1 VALUES (NULL, 1, 2);
+INSERT INTO t1 VALUES (NULL, 1, 3);
+ANALYZE TABLE t0, t1;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+test.t1	analyze	status	OK
+set sql_mode="";
+EXPLAIN FORMAT=TREE SELECT * FROM
+(SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
+WHERE f1 > 2;
+EXPLAIN
+-> Filter: (dt.f1 > 2)  (cost=4.82..7.71 rows=4)
+    -> Table scan on dt  (cost=0.22..2.65 rows=12)
+        -> Materialize  (cost=2.98..6.51 rows=12)
+            -> Window aggregate with buffering: sum(t1.f2) OVER ()   (cost=0.22..2.66 rows=12)
+                -> Stream results  (cost=0.12..1.46 rows=12)
+                    -> Group (no aggregates)  (cost=0.12..1.46 rows=12)
+                        -> Index scan on t1 using f1_2  (cost=0.02..0.26 rows=12)
+
+EXPLAIN FORMAT=JSON SELECT * FROM
+(SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
+WHERE f1 > 2;
+EXPLAIN
+{
+  "query": "/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2) OVER()` AS `SUM(f2) OVER()` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) OVER ()  AS `SUM(f2) OVER()` from `test`.`t1` group by `test`.`t1`.`f1`) `dt` where (`dt`.`f1` > 2)",
+  "inputs": [
+    {
+      "inputs": [
+        {
+          "inputs": [
+            {
+              "inputs": [
+                {
+                  "inputs": [
+                    {
+                      "inputs": [
+                        {
+                          "covering": false,
+                          "operation": "Index scan on t1 using f1_2",
+                          "index_name": "f1_2",
+                          "table_name": "t1",
+                          "access_type": "index",
+                          "estimated_rows": 12.0,
+                          "index_access_type": "index_scan",
+                          "estimated_total_cost": 0.2553606237816764,
+                          "estimated_first_row_cost": 0.021280051981806367
+                        }
+                      ],
+                      "group_by": true,
+                      "functions": [],
+                      "operation": "Group (no aggregates)",
+                      "access_type": "aggregate",
+                      "estimated_rows": 12.0,
+                      "estimated_total_cost": 1.4553606237816765,
+                      "estimated_first_row_cost": 0.12128005198180637
+                    }
+                  ],
+                  "operation": "Stream results",
+                  "access_type": "stream",
+                  "estimated_rows": 12.0,
+                  "estimated_total_cost": 1.4553606237816765,
+                  "estimated_first_row_cost": 0.12128005198180637
+                }
+              ],
+              "buffering": true,
+              "functions": [
+                "sum(t1.f2) OVER () "
+              ],
+              "operation": "Window aggregate with buffering: sum(t1.f2) OVER () ",
+              "access_type": "window",
+              "estimated_rows": 12.0,
+              "estimated_total_cost": 2.655360623781677,
+              "estimated_first_row_cost": 0.22128005198180642
+            }
+          ],
+          "operation": "Materialize",
+          "access_type": "materialize",
+          "estimated_rows": 12.0,
+          "estimated_total_cost": 6.505360623781677,
+          "estimated_first_row_cost": 2.9761939571150102
+        }
+      ],
+      "operation": "Table scan on dt",
+      "table_name": "dt",
+      "access_type": "table",
+      "estimated_rows": 12.0,
+      "estimated_total_cost": 2.65,
+      "estimated_first_row_cost": 0.22083333333333333
+    }
+  ],
+  "condition": "(dt.f1 > 2)",
+  "operation": "Filter: (dt.f1 > 2)",
+  "access_type": "filter",
+  "estimated_rows": 3.9995999336242676,
+  "estimated_total_cost": 7.705360623781677,
+  "estimated_first_row_cost": 4.817956899382495
+}
+# Filter, nested loop
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
+(SELECT f1, f2, f3 FROM t1) as dt, t0
+WHERE f1 > 3 and f2 < 50 and i0 > 3;
+EXPLAIN
+-> Nested loop inner join  (cost=1.72..1.91 rows=1)
+    -> Filter: (t1.f2 < 50)  (cost=1.16..1.16 rows=1)
+        -> Index range scan on t1 using f1 over (3 < f1)  (cost=0.48..0.96 rows=2)
+    -> Filter: (t0.i0 > 3)  (cost=0.45..0.75 rows=2)
+        -> Table scan on t0  (cost=0.05..0.25 rows=5)
+
+EXPLAIN FORMAT=JSON SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
+(SELECT f1, f2, f3 FROM t1) as dt, t0
+WHERE f1 > 3 and f2 < 50 and i0 > 3;
+EXPLAIN
+{
+  "query": "/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t0`,`dt`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t0`.`i0` AS `i0` from `test`.`t1` join `test`.`t0` where ((`test`.`t1`.`f1` > 3) and (`test`.`t1`.`f2` < 50) and (`test`.`t0`.`i0` > 3))",
+  "inputs": [
+    {
+      "inputs": [
+        {
+          "ranges": [
+            "(3 < f1)"
+          ],
+          "covering": false,
+          "operation": "Index range scan on t1 using f1 over (3 < f1)",
+          "index_name": "f1",
+          "table_name": "t1",
+          "access_type": "index",
+          "estimated_rows": 2.0,
+          "index_access_type": "index_range_scan",
+          "estimated_total_cost": 0.96,
+          "estimated_first_row_cost": 0.48
+        }
+      ],
+      "condition": "(t1.f2 < 50)",
+      "operation": "Filter: (t1.f2 < 50)",
+      "access_type": "filter",
+      "estimated_rows": 0.6665999889373779,
+      "estimated_total_cost": 1.16,
+      "estimated_first_row_cost": 1.16
+    },
+    {
+      "inputs": [
+        {
+          "operation": "Table scan on t0",
+          "table_name": "t0",
+          "access_type": "table",
+          "estimated_rows": 5.0,
+          "estimated_total_cost": 0.25,
+          "estimated_first_row_cost": 0.05
+        }
+      ],
+      "condition": "(t0.i0 > 3)",
+      "operation": "Filter: (t0.i0 > 3)",
+      "access_type": "filter",
+      "estimated_rows": 1.6664999723434448,
+      "estimated_total_cost": 0.75,
+      "estimated_first_row_cost": 0.45004501196921376
+    }
+  ],
+  "join_type": "inner join",
+  "operation": "Nested loop inner join",
+  "access_type": "join",
+  "estimated_rows": 1.110888863128281,
+  "join_algorithm": "nested_loop",
+  "estimated_total_cost": 1.91,
+  "estimated_first_row_cost": 1.7193439086439386
+}
+drop table t0, t1;
+# Explain analyze; Temporary table.
+CREATE TABLE t1 (a INT NOT NULL, b CHAR(3) NOT NULL, PRIMARY KEY (a));
+INSERT INTO t1 VALUES (1,'ABC'), (2,'EFG'), (3,'HIJ');
+CREATE TABLE t2 (a INT NOT NULL,b CHAR(3) NOT NULL,PRIMARY KEY (a, b));
+INSERT INTO t2 VALUES (1,'a'),(1,'b'),(3,'F');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN analyze FORMAT=TREE SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
+EXPLAIN
+-> Sort: t1.b  (cost=2.88..2.88 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+    -> Table scan on <temporary>  (cost=0.85..2.54 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+        -> Temporary table  (cost=2.45..4.14 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+            -> Group aggregate: group_concat(t2.b separator ',')  (cost=0.43..1.30 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+                -> Nested loop left join  (cost=0.33..1.00 rows=3) (actual time=N.NNN..N.NNN rows=4 loops=1)
+                    -> Index scan on t1 using PRIMARY  (cost=0.08..0.25 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+                    -> Index lookup on t2 using PRIMARY (a=t1.a)  (cost=0.25..0.25 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=3)
+
+EXPLAIN FORMAT=JSON SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,group_concat(`test`.`t2`.`b` separator ',') AS `b` from `test`.`t1` left join `test`.`t2` on(multiple equal(`test`.`t1`.`a`, `test`.`t2`.`a`)) group by `test`.`t1`.`a` order by `test`.`t1`.`b`",
+  "inputs": [
+    {
+      "inputs": [
+        {
+          "inputs": [
+            {
+              "inputs": [
+                {
+                  "inputs": [
+                    {
+                      "covering": false,
+                      "operation": "Index scan on t1 using PRIMARY",
+                      "index_name": "PRIMARY",
+                      "table_name": "t1",
+                      "access_type": "index",
+                      "estimated_rows": 3.0,
+                      "index_access_type": "index_scan",
+                      "estimated_total_cost": 0.25025,
+                      "estimated_first_row_cost": 0.08341666666666665
+                    },
+                    {
+                      "covering": false,
+                      "operation": "Index lookup on t2 using PRIMARY (a=t1.a)",
+                      "index_name": "PRIMARY",
+                      "table_name": "t2",
+                      "access_type": "index",
+                      "estimated_rows": 1.0,
+                      "lookup_condition": "a=t1.a",
+                      "index_access_type": "index_lookup",
+                      "estimated_total_cost": 0.25,
+                      "estimated_first_row_cost": 0.25
+                    }
+                  ],
+                  "join_type": "left join",
+                  "operation": "Nested loop left join",
+                  "access_type": "join",
+                  "estimated_rows": 3.0,
+                  "join_algorithm": "nested_loop",
+                  "estimated_total_cost": 1.0002499999999999,
+                  "estimated_first_row_cost": 0.33341666666666664
+                }
+              ],
+              "group_by": true,
+              "functions": [
+                "group_concat(t2.b separator ',')"
+              ],
+              "operation": "Group aggregate: group_concat(t2.b separator ',')",
+              "access_type": "aggregate",
+              "estimated_rows": 3.0,
+              "estimated_total_cost": 1.30025,
+              "estimated_first_row_cost": 0.4334166666666666
+            }
+          ],
+          "operation": "Temporary table",
+          "temp_table": true,
+          "access_type": "materialize",
+          "estimated_rows": 3.0,
+          "estimated_total_cost": 4.1377500000000005,
+          "estimated_first_row_cost": 2.4460833333333336
+        }
+      ],
+      "operation": "Table scan on <temporary>",
+      "table_name": "<temporary>",
+      "access_type": "table",
+      "estimated_rows": 3.0,
+      "estimated_total_cost": 2.5375,
+      "estimated_first_row_cost": 0.8458333333333333
+    }
+  ],
+  "operation": "Sort: t1.b",
+  "access_type": "sort",
+  "sort_fields": [
+    "t1.b"
+  ],
+  "estimated_rows": 3.0,
+  "estimated_total_cost": 2.875738750216347,
+  "estimated_first_row_cost": 2.875738750216347
+}
+drop table t1;
+drop table t2;
+# Zero rows.
+CREATE TABLE t1 (a INTEGER NOT NULL);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
+LEFT JOIN t1 AS c ON b.a=c.a;
+EXPLAIN
+-> Nested loop left join  (cost=0.06..0.25 rows=4)
+    -> Table scan on a  (cost=0.06..0.25 rows=4)
+    -> Zero rows (Join condition rejects all rows)  (cost=0.00..0.00 rows=0)
+
+EXPLAIN FORMAT=JSON SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
+LEFT JOIN t1 AS c ON b.a=c.a;
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`b`.`a` AS `a`,`test`.`c`.`a` AS `a` from `test`.`t1` `a` left join `test`.`t1` `b` on(false) left join `test`.`t1` `c` on(multiple equal(`test`.`b`.`a`, `test`.`c`.`a`))",
+  "inputs": [
+    {
+      "operation": "Table scan on a",
+      "table_name": "a",
+      "access_type": "table",
+      "estimated_rows": 4.0,
+      "estimated_total_cost": 0.25,
+      "estimated_first_row_cost": 0.0625
+    },
+    {
+      "operation": "Zero rows (Join condition rejects all rows)",
+      "access_type": "zero_rows",
+      "estimated_rows": 0.0,
+      "zero_rows_cause": "Join condition rejects all rows",
+      "estimated_total_cost": 0.0,
+      "estimated_first_row_cost": 0.0
+    }
+  ],
+  "join_type": "left join",
+  "operation": "Nested loop left join",
+  "access_type": "join",
+  "estimated_rows": 4.0,
+  "join_algorithm": "nested_loop",
+  "estimated_total_cost": 0.25,
+  "estimated_first_row_cost": 0.0625
+}
+DROP TABLE t1;

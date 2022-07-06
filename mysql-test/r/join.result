@@ -1796,7 +1796,7 @@ EXPLAIN
 -> Index scan on t1 using j  (cost=411.60 rows=4096)
 -> Select #2 (subquery in projection; dependent)
     -> Limit: 1 row(s)  (cost=410.97 rows=1)
-        -> Covering index lookup on t2 using j (j=t1.j; iterate backwards)  (cost=410.97 rows=4096)
+        -> Covering index lookup on t2 using j (j=t1.j) (reverse)  (cost=410.97 rows=4096)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.j' of SELECT #2 was resolved in SELECT #1

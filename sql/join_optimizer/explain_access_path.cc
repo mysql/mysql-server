@@ -77,7 +77,7 @@ struct ExplainChild {
   Json_object *obj = nullptr;
 };
 
-/// Convenience function to add a json field
+/// Convenience function to add a json field.
 template <class T, class... Args>
 static bool AddMemberToObject(Json_object *obj, const char *alias,
                               Args &&... ctor_args) {
@@ -85,8 +85,17 @@ static bool AddMemberToObject(Json_object *obj, const char *alias,
       alias, create_dom_ptr<T, Args...>(std::forward<Args>(ctor_args)...));
 }
 
-static string PrintRanges(const QUICK_RANGE *const *ranges, unsigned num_ranges,
-                          const KEY_PART_INFO *key_part, bool single_part_only);
+template <class T, class... Args>
+static bool AddElementToArray(const std::unique_ptr<Json_array> &array,
+                              Args &&... ctor_args) {
+  return array->append_alias(
+      create_dom_ptr<T, Args...>(std::forward<Args>(ctor_args)...));
+}
+
+static bool PrintRanges(const QUICK_RANGE *const *ranges, unsigned num_ranges,
+                        const KEY_PART_INFO *key_part, bool single_part_only,
+                        const std::unique_ptr<Json_array> &range_array,
+                        string *ranges_out);
 static std::unique_ptr<Json_object> ExplainAccessPath(
     const AccessPath *path, JOIN *join, bool is_root_of_join,
     Json_object *input_obj = nullptr);
@@ -94,6 +103,67 @@ static std::unique_ptr<Json_object> AssignParentPath(
     AccessPath *parent_path, std::unique_ptr<Json_object> obj, JOIN *join);
 inline static double GetJSONDouble(const Json_object *obj, const char *key) {
   return down_cast<const Json_double *>(obj->get(key))->value();
+}
+
+/*
+  The index information is displayed like this :
+
+  [<Prefix>] [COVERING] INDEX <index_operation>
+    ON table_alias USING index_name [ (<lookup_condition>) ]
+    [ OVER <range> [, <range>, ...] ]
+    [ (REVERSE) ]
+    [ WITH INDEX CONDITION: <pushed_idx_cond> ]
+
+  where <index_operation> =
+     {scan|skip scan|range scan|lookup|search|
+      skip scan for grouping|skip scan for deduplication}
+  where <Prefix> = {Single-row|Multi-range}
+
+  Return obj. Not necessary, but for the sake of AddMemberToObject() returning
+  NULL in case of failure, we need to return something non-NULL to indicate
+  success.
+*/
+static bool SetIndexInfoInObject(
+    string *str, const char *json_index_access_type, const char *prefix,
+    TABLE *table, const KEY *key, const char *index_access_type,
+    const string lookup_condition, const string *ranges_text,
+    std::unique_ptr<Json_array> range_arr, bool reverse, Item *pushed_idx_cond,
+    Json_object *obj) {
+  string idx_cond_str = pushed_idx_cond ? ItemToString(pushed_idx_cond) : "";
+  string covering_index =
+      string(table->key_read ? "Covering index " : "Index ");
+  int error = 0;
+
+  if (prefix) covering_index[0] = tolower(covering_index[0]);
+
+  *str += (prefix ? string(prefix) + " " : "") + covering_index +
+          index_access_type +  // lookup/scan/search
+          " on " + table->alias + " using " + key->name +
+          (!lookup_condition.empty() ? " (" + lookup_condition + ")" : "") +
+          (ranges_text != nullptr ? " over " + *ranges_text : "") +
+          (reverse ? " (reverse)" : "") +
+          (pushed_idx_cond ? ", with index condition: " + idx_cond_str : "");
+  *str += table->file->explain_extra();
+
+  error |= AddMemberToObject<Json_string>(obj, "access_type", "index");
+  error |= AddMemberToObject<Json_string>(obj, "index_access_type",
+                                          json_index_access_type);
+  error |= AddMemberToObject<Json_boolean>(obj, "covering", table->key_read);
+  error |= AddMemberToObject<Json_string>(obj, "table_name", table->alias);
+  error |= AddMemberToObject<Json_string>(obj, "index_name", key->name);
+  if (!lookup_condition.empty())
+    error |= AddMemberToObject<Json_string>(obj, "lookup_condition",
+                                            lookup_condition);
+  if (range_arr) error |= obj->add_alias("ranges", move(range_arr));
+  if (reverse) error |= AddMemberToObject<Json_boolean>(obj, "reverse", true);
+  if (pushed_idx_cond)
+    error |= AddMemberToObject<Json_string>(obj, "pushed_index_condition",
+                                            idx_cond_str);
+  if (!table->file->explain_extra().empty())
+    error |= AddMemberToObject<Json_string>(obj, "message",
+                                            table->file->explain_extra());
+
+  return error;
 }
 
 string JoinTypeToString(JoinType join_type) {
@@ -112,16 +182,25 @@ string JoinTypeToString(JoinType join_type) {
   }
 }
 
-string HashJoinTypeToString(RelationalExpression::Type join_type) {
+string HashJoinTypeToString(RelationalExpression::Type join_type,
+                            string *explain_json_value) {
   switch (join_type) {
     case RelationalExpression::INNER_JOIN:
     case RelationalExpression::STRAIGHT_INNER_JOIN:
+      if (explain_json_value)
+        *explain_json_value = JoinTypeToString(JoinType::INNER);
       return "Inner hash join";
     case RelationalExpression::LEFT_JOIN:
+      if (explain_json_value)
+        *explain_json_value = JoinTypeToString(JoinType::OUTER);
       return "Left hash join";
     case RelationalExpression::ANTIJOIN:
+      if (explain_json_value)
+        *explain_json_value = JoinTypeToString(JoinType::ANTI);
       return "Hash antijoin";
     case RelationalExpression::SEMIJOIN:
+      if (explain_json_value)
+        *explain_json_value = JoinTypeToString(JoinType::SEMI);
       return "Hash semijoin";
     default:
       assert(false);
@@ -162,8 +241,23 @@ static bool GetAccessPathsFromItem(Item *item_arg, const char *source_text,
         } else {
           path = subselect->unit->item->root_access_path();
         }
-        children->push_back({path, description, query_block->join});
-        return false;
+        Json_object *child_obj = new (std::nothrow) Json_object();
+        if (child_obj == nullptr) return true;
+        // Populate the subquery-specific json fields.
+        int error = 0;
+        error |= AddMemberToObject<Json_boolean>(child_obj, "subquery", true);
+        error |= AddMemberToObject<Json_string>(child_obj, "subquery_location",
+                                                source_text);
+        if (query_block->is_dependent())
+          error |=
+              AddMemberToObject<Json_boolean>(child_obj, "dependent", true);
+        if (query_block->is_cacheable())
+          error |=
+              AddMemberToObject<Json_boolean>(child_obj, "cacheable", true);
+
+        children->push_back({path, description, query_block->join, child_obj});
+
+        return error != 0;
       });
 }
 
@@ -195,6 +289,7 @@ static bool GetAccessPathsFromSelectList(JOIN *join,
 static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
     const AccessPath *path, JOIN *join, std::unique_ptr<Json_object> ret_obj,
     vector<ExplainChild> *children, bool explain_analyze) {
+  Json_object *obj = ret_obj.get();
   int error = 0;
   MaterializePathParameters *param = path->materialize().param;
 
@@ -231,11 +326,14 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
   string str;
 
   if (param->cte != nullptr) {
+    error |= AddMemberToObject<Json_boolean>(obj, "cte", true);
     if (param->cte->recursive) {
+      error |= AddMemberToObject<Json_boolean>(obj, "recursive", true);
       str = "Materialize recursive CTE " + to_string(param->cte->name);
     } else {
       if (is_union) {
         str = "Materialize union CTE " + to_string(param->cte->name);
+        error |= AddMemberToObject<Json_boolean>(obj, "union", true);
       } else {
         str = "Materialize CTE " + to_string(param->cte->name);
       }
@@ -248,18 +346,24 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
       }
     }
   } else if (is_union) {
+    error |= AddMemberToObject<Json_boolean>(obj, "union", true);
     str = "Union materialize";
   } else if (param->rematerialize) {
+    error |= AddMemberToObject<Json_boolean>(obj, "temp_table", true);
     str = "Temporary table";
   } else {
     str = "Materialize";
   }
 
   if (MaterializeIsDoingDeduplication(param->table)) {
+    error |= AddMemberToObject<Json_boolean>(obj, "deduplication", true);
     str += " with deduplication";
   }
 
   if (param->invalidators != nullptr) {
+    std::unique_ptr<Json_array> cache_invalidators(new (std::nothrow)
+                                                       Json_array());
+    if (cache_invalidators == nullptr) return nullptr;
     bool first = true;
     str += " (invalidate on row from ";
     for (const AccessPath *invalidator : *param->invalidators) {
@@ -269,11 +373,15 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
 
       first = false;
       str += invalidator->cache_invalidator().name;
+      error |= AddElementToArray<Json_string>(
+          cache_invalidators, invalidator->cache_invalidator().name);
     }
     str += ")";
+    error |=
+        obj->add_alias("cache_invalidators", std::move(cache_invalidators));
   }
 
-  error |= AddMemberToObject<Json_string>(ret_obj.get(), "operation", str);
+  error |= AddMemberToObject<Json_string>(obj, "operation", str);
 
   /* Move the Materialize to the bottom of its table path, and return a new
    * object for this table path.
@@ -361,108 +469,119 @@ static std::unique_ptr<Json_object> AssignParentPath(
   return newobj;
 }
 
-static void ExplainIndexSkipScanAccessPath(const AccessPath *path,
+static bool ExplainIndexSkipScanAccessPath(Json_object *obj,
+                                           const AccessPath *path,
                                            JOIN *join [[maybe_unused]],
                                            string *description) {
   TABLE *table = path->index_skip_scan().table;
   KEY *key_info = table->key_info + path->index_skip_scan().index;
-
-  // NOTE: Currently, index skip scan is always covering, but there's no
-  // good reason why we cannot fix this limitation in the future.
-  *description = string(table->key_read ? "Covering index skip scan on "
-                                        : "Index skip scan on ") +
-                 table->alias + " using " + key_info->name + " over ";
+  string ranges;
   IndexSkipScanParameters *param = path->index_skip_scan().param;
 
   // Print out any equality ranges.
   bool first = true;
+  std::unique_ptr<Json_array> range_arr(new (std::nothrow) Json_array());
+  if (range_arr == nullptr) return true;
   for (unsigned key_part_idx = 0; key_part_idx < param->eq_prefix_key_parts;
        ++key_part_idx) {
     if (!first) {
-      *description += ", ";
+      ranges += ", ";
     }
     first = false;
 
-    *description += param->index_info->key_part[key_part_idx].field->field_name;
+    string range = param->index_info->key_part[key_part_idx].field->field_name;
+    string range_short_text;
     Bounds_checked_array<unsigned char *> prefixes =
         param->eq_prefixes[key_part_idx].eq_key_prefixes;
     if (prefixes.size() == 1) {
-      *description += " = ";
+      range += " = ";
       String out;
       print_key_value(&out, &param->index_info->key_part[key_part_idx],
                       prefixes[0]);
-      *description += to_string(out);
+      range += to_string(out);
     } else {
-      *description += " IN (";
+      range += " IN (";
       for (unsigned i = 0; i < prefixes.size(); ++i) {
         if (i == 2 && prefixes.size() > 3) {
-          *description += StringPrintf(", (%zu more)", prefixes.size() - 2);
-          break;
-        } else if (i != 0) {
-          *description += ", ";
+          range_short_text =
+              range + StringPrintf(", (%zu more))", prefixes.size() - 2);
+        }
+        if (i != 0) {
+          range += ", ";
         }
         String out;
         print_key_value(&out, &param->index_info->key_part[key_part_idx],
                         prefixes[i]);
-        *description += to_string(out);
+        range += to_string(out);
       }
-      *description += ")";
+      range += ")";
     }
+    if (AddElementToArray<Json_string>(range_arr, range)) return true;
+    // For IN clause above, we have made range_short_text; so use that if it's
+    // available, rather than the full string stored in 'range'.
+    ranges += (range_short_text.empty() ? range : range_short_text);
   }
 
   // Then the ranges.
   if (!first) {
-    *description += ", ";
+    ranges += ", ";
   }
   String out;
   append_range(&out, param->range_key_part, param->min_range_key,
                param->max_range_key, param->range_cond_flag);
-  *description += to_string(out);
+  ranges += to_string(out);
+  if (AddElementToArray<Json_string>(range_arr, to_string(out))) return true;
+
+  // NOTE: Currently, index skip scan is always covering, but there's no
+  // good reason why we cannot fix this limitation in the future.
+  return SetIndexInfoInObject(
+      description, "index_skip_scan", nullptr, table, key_info, "skip scan",
+      /*lookup condition*/ "", &ranges, move(range_arr), /*reverse*/ false,
+      /*push_condition*/ nullptr, obj);
 }
 
-static void ExplainGroupIndexSkipScanAccessPath(const AccessPath *path,
+static bool ExplainGroupIndexSkipScanAccessPath(Json_object *obj,
+                                                const AccessPath *path,
                                                 JOIN *join [[maybe_unused]],
                                                 string *description) {
   TABLE *table = path->group_index_skip_scan().table;
   KEY *key_info = table->key_info + path->group_index_skip_scan().index;
   GroupIndexSkipScanParameters *param = path->group_index_skip_scan().param;
-
-  // NOTE: Currently, group index skip scan is always covering, but there's no
-  // good reason why we cannot fix this limitation in the future.
-  if (param->min_max_arg_part != nullptr) {
-    *description =
-        string(table->key_read ? "Covering index skip scan for grouping on "
-                               : "Index skip scan for grouping on ") +
-        table->alias + " using " + key_info->name;
-  } else {
-    *description = string(table->key_read
-                              ? "Covering index skip scan for deduplication on "
-                              : "Index skip scan for deduplication on ") +
-                   table->alias + " using " + key_info->name;
-  }
+  string ranges;
+  int error = 0;
+  std::unique_ptr<Json_array> range_arr(new (std::nothrow) Json_array());
+  if (range_arr == nullptr) return true;
 
   // Print out prefix ranges, if any.
   if (!param->prefix_ranges.empty()) {
-    *description += " over ";
-    *description +=
-        PrintRanges(param->prefix_ranges.data(), param->prefix_ranges.size(),
-                    key_info->key_part, /*single_part_only=*/false);
+    error |= PrintRanges(param->prefix_ranges.data(),
+                         param->prefix_ranges.size(), key_info->key_part,
+                         /*single_part_only=*/false, range_arr, &ranges);
   }
 
   // Print out the ranges on the MIN/MAX keypart, if we have them.
   // (We don't print infix ranges, because they seem to be in an unusual
   // format.)
   if (!param->min_max_ranges.empty()) {
-    if (param->prefix_ranges.empty()) {
-      *description += " over ";
-    } else {
-      *description += ", ";
+    if (!param->prefix_ranges.empty()) {
+      ranges += ", ";
     }
-    *description +=
-        PrintRanges(param->min_max_ranges.data(), param->min_max_ranges.size(),
-                    param->min_max_arg_part,
-                    /*single_part_only=*/true);
+    error |= PrintRanges(param->min_max_ranges.data(),
+                         param->min_max_ranges.size(), param->min_max_arg_part,
+                         /*single_part_only=*/true, range_arr, &ranges);
   }
+
+  // NOTE: Currently, group index skip scan is always covering, but there's no
+  // good reason why we cannot fix this limitation in the future.
+  error |= SetIndexInfoInObject(
+      description, "group_index_skip_scan", nullptr, table, key_info,
+      (param->min_max_arg_part ? "skip scan for grouping"
+                               : "skip scan for deduplication"),
+      /*lookup condition*/ "", (!ranges.empty() ? &ranges : nullptr),
+      std::move(range_arr),
+      /*reverse*/ false, /*push_condition*/ nullptr, obj);
+
+  return error;
 }
 
 static bool AddChildrenFromPushedCondition(const TABLE *table,
@@ -484,19 +603,27 @@ static bool AddChildrenFromPushedCondition(const TABLE *table,
   return false;
 }
 
-static string PrintRanges(const QUICK_RANGE *const *ranges, unsigned num_ranges,
-                          const KEY_PART_INFO *key_part,
-                          bool single_part_only) {
-  string ret;
+/*
+   Returns the range through the return value (to be used in TREE format
+   synopsis), and also appends the range to the range_array (to be used for
+   JSON format field). The only reason the return value cannot be used for JSON
+   format is because we truncate it when there are too many ranges; we do
+   want to keep the full range for JSON format.
+*/
+static bool PrintRanges(const QUICK_RANGE *const *ranges, unsigned num_ranges,
+                        const KEY_PART_INFO *key_part, bool single_part_only,
+                        const std::unique_ptr<Json_array> &range_array,
+                        string *ranges_out) {
+  string range, shortened_range;
   for (unsigned range_idx = 0; range_idx < num_ranges; ++range_idx) {
     if (range_idx == 2 && num_ranges > 3) {
       char str[256];
       snprintf(str, sizeof(str), " OR (%u more)", num_ranges - 2);
-      ret += str;
-      break;
-    } else if (range_idx > 0) {
-      ret += " OR ";
+      // Save the shortened version for TREE format.
+      shortened_range = range + str;
     }
+    if (range_idx > 0) range += " OR ";
+
     String str;
     if (single_part_only) {
       // key_part is the part we are printing on,
@@ -508,9 +635,11 @@ static string PrintRanges(const QUICK_RANGE *const *ranges, unsigned num_ranges,
       // NOTE: key_part is the first keypart in the key.
       append_range_to_string(ranges[range_idx], key_part, &str);
     }
-    ret += "(" + to_string(str) + ")";
+    range += "(" + to_string(str) + ")";
   }
-  return ret;
+  if (AddElementToArray<Json_string>(range_array, range)) return true;
+  *ranges_out = (shortened_range.empty() ? range : shortened_range);
+  return false;
 }
 
 static bool AddChildrenToObject(Json_object *obj,
@@ -675,6 +804,12 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       TABLE *table = path->table_scan().table;
       description += string("Table scan on ") + table->alias +
                      table->file->explain_extra();
+
+      error |= AddMemberToObject<Json_string>(obj, "table_name", table->alias);
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "table");
+      if (!table->file->explain_extra().empty())
+        error |= AddMemberToObject<Json_string>(obj, "message",
+                                                table->file->explain_extra());
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
@@ -683,66 +818,44 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       assert(table->file->pushed_idx_cond == nullptr);
 
       const KEY *key = &table->key_info[path->index_scan().idx];
-      description += string(table->key_read ? "Covering index scan on "
-                                            : "Index scan on ") +
-                     table->alias + " using " + key->name;
-      if (path->index_scan().reverse) {
-        description += " (reverse)";
-      }
-      description += table->file->explain_extra();
+      error |= SetIndexInfoInObject(&description, "index_scan", nullptr, table,
+                                    key, "scan",
+                                    /*lookup condition*/ "", /*range*/ nullptr,
+                                    nullptr, path->index_scan().reverse,
+                                    /*push_condition*/ nullptr, obj);
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
     case AccessPath::REF: {
       TABLE *table = path->ref().table;
       const KEY *key = &table->key_info[path->ref().ref->key];
-      description +=
-          string(table->key_read ? "Covering index lookup on "
-                                 : "Index lookup on ") +
-          table->alias + " using " + key->name + " (" +
-          RefToString(*path->ref().ref, key, /*include_nulls=*/false);
-      if (path->ref().reverse) {
-        description += "; iterate backwards";
-      }
-      description += ")";
-      if (table->file->pushed_idx_cond != nullptr) {
-        description += ", with index condition: " +
-                       ItemToString(table->file->pushed_idx_cond);
-      }
-      description += table->file->explain_extra();
+      error |= SetIndexInfoInObject(
+          &description, "index_lookup", nullptr, table, key, "lookup",
+          RefToString(*path->ref().ref, key, /*include_nulls=*/false),
+          /*ranges=*/nullptr, nullptr, path->ref().reverse,
+          table->file->pushed_idx_cond, obj);
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
     case AccessPath::REF_OR_NULL: {
       TABLE *table = path->ref_or_null().table;
       const KEY *key = &table->key_info[path->ref_or_null().ref->key];
-      description =
-          string(table->key_read ? "Covering index lookup on "
-                                 : "Index lookup on ") +
-          table->alias + " using " + key->name + " (" +
-          RefToString(*path->ref_or_null().ref, key, /*include_nulls=*/true) +
-          ")";
-      if (table->file->pushed_idx_cond != nullptr) {
-        description += ", with index condition: " +
-                       ItemToString(table->file->pushed_idx_cond);
-      }
-      description += table->file->explain_extra();
+      error |= SetIndexInfoInObject(
+          &description, "index_lookup", nullptr, table, key, "lookup",
+          RefToString(*path->ref_or_null().ref, key, /*include_nulls=*/true),
+          /*ranges=*/nullptr, nullptr, false, table->file->pushed_idx_cond,
+          obj);
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
     case AccessPath::EQ_REF: {
       TABLE *table = path->eq_ref().table;
       const KEY *key = &table->key_info[path->eq_ref().ref->key];
-      description =
-          string(table->key_read ? "Single-row covering index lookup on "
-                                 : "Single-row index lookup on ") +
-          table->alias + " using " + key->name + " (" +
-          RefToString(*path->eq_ref().ref, key, /*include_nulls=*/false) + ")";
-      if (table->file->pushed_idx_cond != nullptr) {
-        description += ", with index condition: " +
-                       ItemToString(table->file->pushed_idx_cond);
-      }
-      description += table->file->explain_extra();
+      error |= SetIndexInfoInObject(
+          &description, "index_lookup", "Single-row", table, key, "lookup",
+          RefToString(*path->eq_ref().ref, key, /*include_nulls=*/false),
+          /*ranges=*/nullptr, nullptr, false, table->file->pushed_idx_cond,
+          obj);
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
@@ -750,30 +863,26 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       TABLE *table = path->pushed_join_ref().table;
       assert(table->file->pushed_idx_cond == nullptr);
       const KEY *key = &table->key_info[path->pushed_join_ref().ref->key];
-      if (path->pushed_join_ref().is_unique) {
-        description =
-            table->key_read ? "Single-row covering index" : "Single-row index";
-      } else {
-        description += table->key_read ? "Covering index" : "Index";
-      }
-      description += " lookup on " + string(table->alias) + " using " +
-                     key->name + " (" +
-                     RefToString(*path->pushed_join_ref().ref, key,
-                                 /*include_nulls=*/false) +
-                     ")" + table->file->explain_extra();
+      error |= SetIndexInfoInObject(
+          &description, "pushed_join_ref",
+          path->pushed_join_ref().is_unique ? "Single-row" : nullptr, table,
+          key, "lookup",
+          RefToString(*path->pushed_join_ref().ref, key,
+                      /*include_nulls=*/false),
+          /*ranges=*/nullptr, nullptr,
+          /*reverse=*/false, nullptr, obj);
       break;
     }
     case AccessPath::FULL_TEXT_SEARCH: {
       TABLE *table = path->full_text_search().table;
       assert(table->file->pushed_idx_cond == nullptr);
       const KEY *key = &table->key_info[path->full_text_search().ref->key];
-      description +=
-          string(table->key_read ? "Full-text covering index search on "
-                                 : "Full-text index search on ") +
-          table->alias + " using " + key->name + " (" +
+      error |= SetIndexInfoInObject(
+          &description, "full_text_search", "Full-text", table, key, "search",
           RefToString(*path->full_text_search().ref, key,
-                      /*include_nulls=*/false) +
-          ")" + table->file->explain_extra();
+                      /*include_nulls=*/false),
+          /*ranges=*/nullptr, nullptr,
+          /*reverse=*/false, nullptr, obj);
       break;
     }
     case AccessPath::CONST_TABLE: {
@@ -781,27 +890,29 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       assert(table->file->pushed_idx_cond == nullptr);
       assert(table->file->pushed_cond == nullptr);
       description = string("Constant row from ") + table->alias;
+      error |=
+          AddMemberToObject<Json_string>(obj, "access_type", "constant_row");
+      error |= AddMemberToObject<Json_string>(obj, "table_name", table->alias);
       break;
     }
     case AccessPath::MRR: {
       TABLE *table = path->mrr().table;
       const KEY *key = &table->key_info[path->mrr().ref->key];
-      description =
-          string(table->key_read ? "Multi-range covering index lookup on "
-                                 : "Multi-range index lookup on ") +
-          table->alias + " using " + key->name + " (" +
-          RefToString(*path->mrr().ref, key, /*include_nulls=*/false) + ")";
-      if (table->file->pushed_idx_cond != nullptr) {
-        description += ", with index condition: " +
-                       ItemToString(table->file->pushed_idx_cond);
-      }
-      description += table->file->explain_extra();
+      error |= SetIndexInfoInObject(
+          &description, "multi_range_read", "Multi-range", table, key, "lookup",
+          RefToString(*path->mrr().ref, key, /*include_nulls=*/false),
+          /*ranges=*/nullptr, nullptr, false, table->file->pushed_idx_cond,
+          obj);
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
     case AccessPath::FOLLOW_TAIL:
       description =
           string("Scan new records on ") + path->follow_tail().table->alias;
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "scan_new_records");
+      error |= AddMemberToObject<Json_string>(obj, "table_name",
+                                              path->follow_tail().table->alias);
       error |=
           AddChildrenFromPushedCondition(path->follow_tail().table, children);
       break;
@@ -809,25 +920,24 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       const auto &param = path->index_range_scan();
       TABLE *table = param.used_key_part[0].field->table;
       KEY *key_info = table->key_info + param.index;
-      description = string(table->key_read ? "Covering index range scan on "
-                                           : "Index range scan on ") +
-                    table->alias + " using " + key_info->name + " over ";
-      description +=
-          PrintRanges(param.ranges, param.num_ranges, key_info->key_part,
-                      /*single_part_only=*/false);
-      if (path->index_range_scan().reverse) {
-        description += " (reverse)";
-      }
-      if (table->file->pushed_idx_cond != nullptr) {
-        description += ", with index condition: " +
-                       ItemToString(table->file->pushed_idx_cond);
-      }
-      description += table->file->explain_extra();
+
+      std::unique_ptr<Json_array> range_arr(new (std::nothrow) Json_array());
+      if (range_arr == nullptr) return nullptr;
+      string ranges;
+      error |= PrintRanges(param.ranges, param.num_ranges, key_info->key_part,
+                           /*single_part_only=*/false, range_arr, &ranges);
+      error |= SetIndexInfoInObject(
+          &description, "index_range_scan", nullptr, table, key_info,
+          "range scan", /*lookup condition*/ "", &ranges, move(range_arr),
+          path->index_range_scan().reverse, table->file->pushed_idx_cond, obj);
+
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
     case AccessPath::INDEX_MERGE: {
       const auto &param = path->index_merge();
+      error |=
+          AddMemberToObject<Json_string>(obj, "access_type", "index_merge");
       description = "Sort-deduplicate by row ID";
       for (AccessPath *child : *path->index_merge().children) {
         if (param.allow_clustered_primary_key_scan &&
@@ -842,6 +952,8 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       break;
     }
     case AccessPath::ROWID_INTERSECTION: {
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "rowid_intersection");
       description = "Intersect rows sorted by row ID";
       for (AccessPath *child : *path->rowid_intersection().children) {
         children->push_back({child});
@@ -849,6 +961,8 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       break;
     }
     case AccessPath::ROWID_UNION: {
+      error |=
+          AddMemberToObject<Json_string>(obj, "access_type", "rowid_union");
       description = "Deduplicate rows sorted by row ID";
       for (AccessPath *child : *path->rowid_union().children) {
         children->push_back({child});
@@ -856,11 +970,12 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       break;
     }
     case AccessPath::INDEX_SKIP_SCAN: {
-      ExplainIndexSkipScanAccessPath(path, join, &description);
+      error |= ExplainIndexSkipScanAccessPath(obj, path, join, &description);
       break;
     }
     case AccessPath::GROUP_INDEX_SKIP_SCAN: {
-      ExplainGroupIndexSkipScanAccessPath(path, join, &description);
+      error |=
+          ExplainGroupIndexSkipScanAccessPath(obj, path, join, &description);
       break;
     }
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN: {
@@ -873,36 +988,68 @@ static std::unique_ptr<Json_object> SetObjectMembers(
                        ItemToString(table->file->pushed_idx_cond);
       }
       description += table->file->explain_extra();
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "index");
+      error |= AddMemberToObject<Json_string>(obj, "index_access_type",
+                                              "dynamic_index_range_scan");
+      error |=
+          AddMemberToObject<Json_boolean>(obj, "covering", table->key_read);
+      error |= AddMemberToObject<Json_string>(obj, "table_name", table->alias);
+      if (table->file->pushed_idx_cond)
+        error |= AddMemberToObject<Json_string>(
+            obj, "pushed_index_condition",
+            ItemToString(table->file->pushed_idx_cond));
+      if (!table->file->explain_extra().empty())
+        error |= AddMemberToObject<Json_string>(obj, "message",
+                                                table->file->explain_extra());
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
     case AccessPath::TABLE_VALUE_CONSTRUCTOR:
     case AccessPath::FAKE_SINGLE_ROW:
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "rows_fetched_before_execution");
       description = "Rows fetched before execution";
       break;
     case AccessPath::ZERO_ROWS:
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "zero_rows");
+      error |= AddMemberToObject<Json_string>(obj, "zero_rows_cause",
+                                              path->zero_rows().cause);
       description = string("Zero rows (") + path->zero_rows().cause + ")";
       // The child is not printed as part of the iterator tree.
       break;
     case AccessPath::ZERO_ROWS_AGGREGATED:
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "zero_rows_aggregated");
+      error |= AddMemberToObject<Json_string>(
+          obj, "zero_rows_cause", path->zero_rows_aggregated().cause);
       description = string("Zero input rows (") +
                     path->zero_rows_aggregated().cause +
                     "), aggregated into one output row";
       break;
     case AccessPath::MATERIALIZED_TABLE_FUNCTION:
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "materialized_table_function");
       description = "Materialize table function";
       break;
     case AccessPath::UNQUALIFIED_COUNT:
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "count_rows");
+      error |= AddMemberToObject<Json_string>(obj, "table_name",
+                                              join->qep_tab->table()->alias);
       description = "Count rows in " + string(join->qep_tab->table()->alias);
       break;
-    case AccessPath::NESTED_LOOP_JOIN:
-      description =
-          "Nested loop " + JoinTypeToString(path->nested_loop_join().join_type);
-
+    case AccessPath::NESTED_LOOP_JOIN: {
+      string join_type = JoinTypeToString(path->nested_loop_join().join_type);
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "join");
+      error |= AddMemberToObject<Json_string>(obj, "join_type", join_type);
+      error |=
+          AddMemberToObject<Json_string>(obj, "join_algorithm", "nested_loop");
+      description = "Nested loop " + join_type;
       children->push_back({path->nested_loop_join().outer});
       children->push_back({path->nested_loop_join().inner});
       break;
+    }
     case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
+      // No json fields since this path is not supported in hypergraph
       description =
           string("Nested loop semijoin with duplicate removal on ") +
           path->nested_loop_semijoin_with_duplicate_removal().key->name;
@@ -911,18 +1058,29 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       children->push_back(
           {path->nested_loop_semijoin_with_duplicate_removal().inner});
       break;
-    case AccessPath::BKA_JOIN:
-      description =
-          "Batched key access " + JoinTypeToString(path->bka_join().join_type);
+    case AccessPath::BKA_JOIN: {
+      string join_type = JoinTypeToString(path->bka_join().join_type);
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "join");
+      error |= AddMemberToObject<Json_string>(obj, "join_type", join_type);
+      error |= AddMemberToObject<Json_string>(obj, "join_algorithm",
+                                              "batch_key_access");
+      description = "Batched key access " + join_type;
       children->push_back({path->bka_join().outer, "Batch input rows"});
       children->push_back({path->bka_join().inner});
       break;
+    }
     case AccessPath::HASH_JOIN: {
       const JoinPredicate *predicate = path->hash_join().join_predicate;
       RelationalExpression::Type type = path->hash_join().rewrite_semi_to_inner
                                             ? RelationalExpression::INNER_JOIN
                                             : predicate->expr->type;
-      description = HashJoinTypeToString(type);
+
+      string json_join_type;
+      description = HashJoinTypeToString(type, &json_join_type);
+
+      std::unique_ptr<Json_array> hash_condition(new (std::nothrow)
+                                                     Json_array());
+      if (hash_condition == nullptr) return nullptr;
 
       if (predicate->expr->equijoin_conditions.empty()) {
         description.append(" (no condition)");
@@ -931,45 +1089,72 @@ static std::unique_ptr<Json_object> SetObjectMembers(
           if (cond != predicate->expr->equijoin_conditions[0]) {
             description.push_back(',');
           }
+          string condition_str;
           HashJoinCondition hj_cond(cond, *THR_MALLOC);
           if (!hj_cond.store_full_sort_key()) {
-            description.append(
-                " (<hash>(" + ItemToString(hj_cond.left_extractor()) +
-                ")=<hash>(" + ItemToString(hj_cond.right_extractor()) + "))");
+            condition_str =
+                "(<hash>(" + ItemToString(hj_cond.left_extractor()) +
+                ")=<hash>(" + ItemToString(hj_cond.right_extractor()) + "))";
           } else {
-            description.append(" " + ItemToString(cond));
+            condition_str = ItemToString(cond);
           }
+          error |=
+              AddElementToArray<Json_string>(hash_condition, condition_str);
+          description.append(" " + condition_str);
         }
       }
+      error |= obj->add_alias("hash_condition", std::move(hash_condition));
+
+      std::unique_ptr<Json_array> extra_condition(new (std::nothrow)
+                                                      Json_array());
+      if (extra_condition == nullptr) return nullptr;
       for (Item *cond : predicate->expr->join_conditions) {
         if (cond == predicate->expr->join_conditions[0]) {
           description.append(", extra conditions: ");
         } else {
           description += " and ";
         }
-        description += ItemToString(cond);
+        string condition_str = ItemToString(cond);
+        description += condition_str;
+        error |= AddElementToArray<Json_string>(extra_condition, condition_str);
       }
+      if (extra_condition->size() > 0)
+        error |= obj->add_alias("extra_condition", std::move(extra_condition));
+
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "join");
+      error |= AddMemberToObject<Json_string>(obj, "join_type", json_join_type);
+      error |= AddMemberToObject<Json_string>(obj, "join_algorithm", "hash");
       children->push_back({path->hash_join().outer});
       children->push_back({path->hash_join().inner, "Hash"});
       break;
     }
-    case AccessPath::FILTER:
-      description = "Filter: " + ItemToString(path->filter().condition);
+    case AccessPath::FILTER: {
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "filter");
+      string filter = ItemToString(path->filter().condition);
+      error |= AddMemberToObject<Json_string>(obj, "condition", filter);
+      description = "Filter: " + filter;
       children->push_back({path->filter().child});
       GetAccessPathsFromItem(path->filter().condition, "condition", children);
       break;
+    }
     case AccessPath::SORT: {
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "sort");
       if (path->sort().force_sort_rowids) {
         description = "Sort row IDs";
+        error |= AddMemberToObject<Json_boolean>(obj, "row_ids", true);
       } else {
         description = "Sort";
       }
       if (path->sort().remove_duplicates) {
         description += " with duplicate removal: ";
+        error |=
+            AddMemberToObject<Json_boolean>(obj, "duplicate_removal", true);
       } else {
         description += ": ";
       }
 
+      std::unique_ptr<Json_array> sort_fields(new (std::nothrow) Json_array());
+      if (sort_fields == nullptr) return nullptr;
       for (ORDER *order = path->sort().order; order != nullptr;
            order = order->next) {
         if (order != path->sort().order) {
@@ -980,19 +1165,24 @@ static std::unique_ptr<Json_object> SetObjectMembers(
         // the alias instead of the full expression when there is an alias. If
         // it is a field reference, we prefer ItemToString() because item_name
         // in Item_field doesn't include the table name.
+        string sort_field;
         if (const Item *item = *order->item;
             item->item_name.is_set() && item->type() != Item::FIELD_ITEM) {
-          description += item->item_name.ptr();
+          sort_field = item->item_name.ptr();
         } else {
-          description += ItemToString(item);
+          sort_field = ItemToString(item);
         }
         if (order->direction == ORDER_DESC) {
-          description += " DESC";
+          sort_field += " DESC";
         }
+        description += sort_field;
+        error |= AddElementToArray<Json_string>(sort_fields, sort_field);
       }
+      error |= obj->add_alias("sort_fields", std::move(sort_fields));
 
       if (const ha_rows limit = path->sort().limit; limit != HA_POS_ERROR) {
         char buf[256];
+        error |= AddMemberToObject<Json_int>(obj, "per_chunk_limit", limit);
         snprintf(buf, sizeof(buf), ", limit input to %llu row(s) per chunk",
                  limit);
         description += buf;
@@ -1001,10 +1191,14 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       break;
     }
     case AccessPath::AGGREGATE: {
+      string ret;
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "aggregate");
       if (join->grouped || join->group_optimized_away) {
+        error |= AddMemberToObject<Json_boolean>(obj, "group_by", true);
         if (*join->sum_funcs == nullptr) {
           description = "Group (no aggregates)";
         } else if (path->aggregate().rollup) {
+          error |= AddMemberToObject<Json_boolean>(obj, "rollup", true);
           description = "Group aggregate with rollup: ";
         } else {
           description = "Group aggregate: ";
@@ -1013,6 +1207,8 @@ static std::unique_ptr<Json_object> SetObjectMembers(
         description = "Aggregate: ";
       }
 
+      std::unique_ptr<Json_array> funcs(new (std::nothrow) Json_array());
+      if (funcs == nullptr) return nullptr;
       bool first = true;
       for (Item_sum **item = join->sum_funcs; *item != nullptr; ++item) {
         if (first) {
@@ -1020,16 +1216,23 @@ static std::unique_ptr<Json_object> SetObjectMembers(
         } else {
           description += ", ";
         }
-        if (path->aggregate().rollup) {
-          description += ItemToString((*item)->unwrap_sum());
-        } else {
-          description += ItemToString(*item);
-        }
+        string func =
+            (path->aggregate().rollup ? ItemToString((*item)->unwrap_sum())
+                                      : ItemToString(*item));
+        description += func;
+        error |= AddElementToArray<Json_string>(funcs, func);
       }
+
+      // If there are no aggs, still let this field print a "" rather than
+      // omit this field.
+      error |= obj->add_alias("functions", std::move(funcs));
+
       children->push_back({path->aggregate().child});
       break;
     }
     case AccessPath::TEMPTABLE_AGGREGATE: {
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "temp_table_aggregate");
       ret_obj = AssignParentPath(path->temptable_aggregate().table_path,
                                  move(ret_obj), join);
       if (ret_obj == nullptr) return nullptr;
@@ -1038,6 +1241,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       break;
     }
     case AccessPath::LIMIT_OFFSET: {
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "limit");
       char buf[256];
       if (path->limit_offset().offset == 0) {
         snprintf(buf, sizeof(buf), "Limit: %llu row(s)",
@@ -1050,7 +1254,12 @@ static std::unique_ptr<Json_object> SetObjectMembers(
                  path->limit_offset().limit - path->limit_offset().offset,
                  path->limit_offset().offset);
       }
+      error |=
+          AddMemberToObject<Json_int>(obj, "limit", path->limit_offset().limit);
+      error |= AddMemberToObject<Json_int>(obj, "limit_offset",
+                                           path->limit_offset().offset);
       if (path->limit_offset().count_all_rows) {
+        error |= AddMemberToObject<Json_boolean>(obj, "count_all_rows", true);
         description =
             string(buf) + " (no early end due to SQL_CALC_FOUND_ROWS)";
       } else {
@@ -1060,25 +1269,33 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       break;
     }
     case AccessPath::STREAM:
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "stream");
       description = "Stream results";
       children->push_back({path->stream().child});
       break;
     case AccessPath::MATERIALIZE:
+      error |=
+          AddMemberToObject<Json_string>(obj, "access_type", "materialize");
       ret_obj =
           ExplainMaterializeAccessPath(path, join, move(ret_obj), children,
                                        current_thd->lex->is_explain_analyze);
       if (ret_obj == nullptr) return nullptr;
       break;
-    case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
+    case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE: {
       ret_obj = AssignParentPath(
           path->materialize_information_schema_table().table_path,
           move(ret_obj), join);
       if (ret_obj == nullptr) return nullptr;
-      description = "Fill information schema table " +
-                    string(path->materialize_information_schema_table()
-                               .table_list->table->alias);
+      const char *table =
+          path->materialize_information_schema_table().table_list->table->alias;
+      error |= AddMemberToObject<Json_string>(obj, "table_name", table);
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "materialize_information_schema");
+      description = "Fill information schema table " + string(table);
       break;
+    }
     case AccessPath::APPEND:
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "append");
       description = "Append";
       for (const AppendPathParameters &child : *path->append().children) {
         children->push_back({child.path, "", child.join});
@@ -1087,34 +1304,46 @@ static std::unique_ptr<Json_object> SetObjectMembers(
     case AccessPath::WINDOW: {
       Window *const window = path->window().window;
       if (path->window().needs_buffering) {
+        error |= AddMemberToObject<Json_boolean>(obj, "buffering", true);
         if (window->optimizable_row_aggregates() ||
             window->optimizable_range_aggregates() ||
             window->static_aggregates()) {
           description = "Window aggregate with buffering: ";
         } else {
+          error |= AddMemberToObject<Json_boolean>(obj, "multi_pass", true);
           description = "Window multi-pass aggregate with buffering: ";
         }
       } else {
         description = "Window aggregate: ";
       }
 
+      std::unique_ptr<Json_array> funcs(new (std::nothrow) Json_array());
+      if (funcs == nullptr) return nullptr;
       bool first = true;
       for (const Item_sum &func : window->functions()) {
         if (!first) {
           description += ", ";
         }
-        description += ItemToString(&func);
+        string func_str = ItemToString(&func);
+        description += func_str;
+        error |= AddElementToArray<Json_string>(funcs, func_str);
         first = false;
       }
+      error |= obj->add_alias("functions", std::move(funcs));
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "window");
       children->push_back({path->window().child});
       break;
     }
     case AccessPath::WEEDOUT: {
       SJ_TMP_TABLE *sj = path->weedout().weedout_table;
+      std::unique_ptr<Json_array> tables(new (std::nothrow) Json_array());
+      if (tables == nullptr) return nullptr;
 
       description = "Remove duplicate ";
       if (sj->tabs_end == sj->tabs + 1) {  // Only one table.
         description += sj->tabs->qep_tab->table()->alias;
+        error |= AddElementToArray<Json_string>(
+            tables, sj->tabs->qep_tab->table()->alias);
       } else {
         description += "(";
         for (SJ_TMP_TABLE_TAB *tab = sj->tabs; tab != sj->tabs_end; ++tab) {
@@ -1122,29 +1351,45 @@ static std::unique_ptr<Json_object> SetObjectMembers(
             description += ", ";
           }
           description += tab->qep_tab->table()->alias;
+          error |= AddElementToArray<Json_string>(tables,
+                                                  tab->qep_tab->table()->alias);
         }
         description += ")";
       }
       description += " rows using temporary table (weedout)";
+      error |= obj->add_alias("tables", std::move(tables));
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "weedout");
       children->push_back({path->weedout().child});
       break;
     }
     case AccessPath::REMOVE_DUPLICATES: {
       description = "Remove duplicates from input grouped on ";
+      std::unique_ptr<Json_array> group_items(new (std::nothrow) Json_array());
+      if (group_items == nullptr) return nullptr;
       for (int i = 0; i < path->remove_duplicates().group_items_size; ++i) {
+        string group_item =
+            ItemToString(path->remove_duplicates().group_items[i]);
         if (i != 0) {
           description += ", ";
         }
-        description += ItemToString(path->remove_duplicates().group_items[i]);
+        description += group_item;
+        error |= AddElementToArray<Json_string>(group_items, group_item);
       }
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "remove_duplicates_from_groups");
+      error |= obj->add_alias("group_items", std::move(group_items));
       children->push_back({path->remove_duplicates().child});
       break;
     }
-    case AccessPath::REMOVE_DUPLICATES_ON_INDEX:
-      description = string("Remove duplicates from input sorted on ") +
-                    path->remove_duplicates_on_index().key->name;
+    case AccessPath::REMOVE_DUPLICATES_ON_INDEX: {
+      const char *keyname = path->remove_duplicates_on_index().key->name;
+      description = string("Remove duplicates from input sorted on ") + keyname;
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "remove_duplicates_on_index");
+      error |= AddMemberToObject<Json_string>(obj, "index_name", keyname);
       children->push_back({path->remove_duplicates_on_index().child});
       break;
+    }
     case AccessPath::ALTERNATIVE: {
       const TABLE *table =
           path->alternative().table_scan_path->table_scan().table;
@@ -1178,6 +1423,8 @@ static std::unique_ptr<Json_object> SetObjectMembers(
         description += ")";
       }
       description += " IS NULL";
+      error |= AddMemberToObject<Json_string>(
+          obj, "access_type", "alternative_plans_for_in_subquery");
       children->push_back({path->alternative().child});
       children->push_back({path->alternative().table_scan_path});
       break;
@@ -1185,9 +1432,15 @@ static std::unique_ptr<Json_object> SetObjectMembers(
     case AccessPath::CACHE_INVALIDATOR:
       description = string("Invalidate materialized tables (row from ") +
                     path->cache_invalidator().name + ")";
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "invalidate_materialized_tables");
+      error |= AddMemberToObject<Json_string>(obj, "table_name",
+                                              path->cache_invalidator().name);
       children->push_back({path->cache_invalidator().child});
       break;
     case AccessPath::DELETE_ROWS: {
+      error |=
+          AddMemberToObject<Json_string>(obj, "access_type", "delete_rows");
       string tables;
       for (TABLE_LIST *t = join->query_block->leaf_tables; t != nullptr;
            t = t->next_leaf) {
@@ -1203,6 +1456,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
           }
         }
       }
+      error |= AddMemberToObject<Json_string>(obj, "tables", tables);
       description = string("Delete from ") + tables;
       children->push_back({path->delete_rows().child});
       break;
