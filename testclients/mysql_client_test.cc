@@ -23017,6 +23017,8 @@ static void test_wl13075() {
   }
 }
 
+// TODO(WL#15232) Fix MYSQL reconnect code for server using client connections
+#ifndef _WIN32
 static void finish_with_error(MYSQL *con) {
   fprintf(stderr, "[%i] %s\n", mysql_errno(con), mysql_error(con));
   mysql_close(con);
@@ -23043,8 +23045,6 @@ static bool send_query(MYSQL *mysql_con, const char *query) {
   return true;
 }
 
-// TODO(WL#15232) Fix MYSQL reconnect code for server using client connections
-#ifndef _WIN32
 static void test_bug34007830() {
   myheader("test_bug34007830");
   MYSQL *lmysql;
