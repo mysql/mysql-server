@@ -27,6 +27,8 @@
 
 #include "consumer.hpp"
 
+#include <functional>
+
 struct restore_callback_t {
   class BackupRestore *restore;
   class TupleS tup;
