@@ -30,6 +30,9 @@
 
 #include "sql/system_variables.h"
 
+#include <functional>
+#include <vector>
+
 class Gtid_set;
 class Sid_map;
 class THD;
@@ -306,6 +309,7 @@ class Rpl_thd_context {
   Dependency_tracker_ctx m_dependency_tracker_ctx;
   Last_used_gtid_tracker_ctx m_last_used_gtid_tracker_ctx;
   Transaction_compression_ctx m_transaction_compression_ctx;
+  std::vector<std::function<bool()>> m_post_filters_actions;
   /** If this thread is a channel, what is its type*/
   enum_rpl_channel_type rpl_channel_type;
 
@@ -341,6 +345,10 @@ class Rpl_thd_context {
 
   inline Transaction_compression_ctx &transaction_compression_ctx() {
     return m_transaction_compression_ctx;
+  }
+
+  std::vector<std::function<bool()>> &post_filters_actions() {
+    return m_post_filters_actions;
   }
 
   /**

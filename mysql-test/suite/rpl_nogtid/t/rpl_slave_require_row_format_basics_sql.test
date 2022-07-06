@@ -53,7 +53,8 @@
 # Suppressions
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("Slave SQL for channel '': The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found*");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("The query does not comply with variable require_row_format restrictions.");
 
 # Test include
 
@@ -71,19 +72,18 @@ call mtr.add_suppression("Slave SQL for channel '': The application of relay eve
 
   --source include/stop_slave.inc
 
-  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='$relay_log_file';
+  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 
   START SLAVE;
 
-  --let $slave_sql_errno= convert_error(ER_RPL_SLAVE_APPLY_LOG_EVENT_FAILED_INVALID_NON_ROW_FORMAT)
-  --let $show_slave_sql_error= 1
+  --let $slave_sql_errno= convert_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT)
   --source include/wait_for_slave_sql_error.inc
 
   STOP SLAVE;
 
   --let $assert_text = The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT
   --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
-  --let $assert_select = The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found
+  --let $assert_select = Error 'The query does not comply with variable require_row_format restrictions.'
   --let $assert_count = $error_count
   --source include/assert_grep.inc
 
@@ -92,7 +92,7 @@ call mtr.add_suppression("Slave SQL for channel '': The application of relay eve
 
   --echo # No issues when REQUIRE_ROW_FORMAT = 0
 
-  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='$relay_log_file';
+  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 
   --source include/start_slave.inc
 

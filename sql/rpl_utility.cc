@@ -1229,7 +1229,16 @@ THD_instance_guard::~THD_instance_guard() {
 
 THD_instance_guard::operator THD *() { return this->m_target; }
 
-bool evaluate_command_row_only_restrictions(THD *thd) {
+/**
+  This method shall evaluate if a command being executed goes against any of
+  the restrictions of server variable session.require_row_format.
+
+  @param thd The thread associated to the command
+  @return true if it violates any restrictions
+          false otherwise
+ */
+bool is_require_row_format_violation(const THD *thd) {
+  DBUG_TRACE;
   LEX *const lex = thd->lex;
 
   switch (lex->sql_command) {

@@ -257,6 +257,32 @@ class Command_names {
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
+/**
+  @brief This function checks if the sql_command is one that identifies the
+  boundaries (begin, end or savepoint) of a transaction.
+
+  @note this is used for replication purposes.
+
+  @param command The parsed SQL_COMM to check.
+  @return true if this is either a BEGIN, COMMIT, SAVEPOINT, ROLLBACK,
+  ROLLBACK_TO_SAVEPOINT.
+  @return false any other SQL command.
+ */
+bool is_normal_transaction_boundary_stmt(enum enum_sql_command command);
+
+/**
+  @brief This function checks if the sql_command is one that identifies the
+  boundaries (begin, end or savepoint) of an XA transaction. It does not
+  consider PREPARE statements.
+
+  @note this is used for replication purposes.
+
+  @param command The parsed SQL_COMM to check.
+  @return true if this is either a XA_START, XA_END, XA_COMMIT, XA_ROLLBACK.
+  @return false any other SQL command.
+ */
+bool is_xa_transaction_boundary_stmt(enum enum_sql_command command);
+
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 

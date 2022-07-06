@@ -1,0 +1,34 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (word CHAR(20) NOT NULL);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CREATE USER u1;
+GRANT replication_applier ON *.* TO u1;
+GRANT session_variables_admin ON *.* TO u1;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1';
+include/start_slave.inc
+SET @@SESSION.GTID_NEXT='SERVER_UUID:2';
+COMMIT;
+SET @@SESSION.GTID_NEXT='AUTOMATIC';
+[connection master]
+SET @@SESSION.binlog_format='statement';
+SET @@SESSION.GTID_NEXT='SERVER_UUID:2';
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+SET @@SESSION.GTID_NEXT='AUTOMATIC';
+SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+DROP USER 'u1';
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/rpl_reset.inc
+include/rpl_end.inc

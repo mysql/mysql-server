@@ -10563,7 +10563,7 @@ ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT
 ER_WARN_LOG_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV
   eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to `%.64s`@`%.255s`, but this user does not have REPLICATION_APPLIER privilege. Correct this before starting the replication threads."
 
-ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS
+ER_OBSOLETE_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS
   eng "The PRIVILEGE_CHECKS_USER for channel '%.192s' would need FILE privilege to execute a LOAD DATA INFILE statement replicated in statement format. Consider using binlog_format=ROW on master. If the replicated events are trusted, recover from the failure by temporarily granting FILE to the PRIVILEGE_CHECKS_USER."
 
 ER_RPL_SLAVE_SQL_THREAD_STARTING_WITH_PRIVILEGE_CHECKS
@@ -10596,7 +10596,7 @@ ER_CANT_PROCESS_EXPRESSION_FOR_GENERATED_COLUMN_TO_DD
 ER_RPL_SLAVE_QUEUE_EVENT_FAILED_INVALID_NON_ROW_FORMAT
   eng "The queue event failed for channel '%s' as an invalid event according to REQUIRE_ROW_FORMAT was found."
 
-ER_RPL_SLAVE_APPLY_LOG_EVENT_FAILED_INVALID_NON_ROW_FORMAT
+ER_OBSOLETE_REQUIRE_ROW_FORMAT_VIOLATION
   eng "The application of relay events failed for channel '%s' as an invalid event according to REQUIRE_ROW_FORMAT was found."
 
 ER_LOG_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET

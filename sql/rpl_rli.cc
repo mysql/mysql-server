@@ -3196,9 +3196,10 @@ void Relay_log_info::report_privilege_check_error(
       if (!to_client) {
         THD_instance_guard thd{current_thd != nullptr ? current_thd
                                                       : this->info_thd};
-        this->report(level, ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS,
-                     ER_THD(thd, ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS),
-                     channel_name);
+        this->report(
+            level, ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS,
+            ER_THD(thd, ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS),
+            channel_name);
       }
       break;
     }

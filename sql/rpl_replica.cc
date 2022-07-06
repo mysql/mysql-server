@@ -4842,34 +4842,6 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
   }
 
   if (ev) {
-    if (rli->is_row_format_required()) {
-      bool info_error{false};
-      binary_log::Log_event_basic_info log_event_info;
-      std::tie(info_error, log_event_info) = extract_log_event_basic_info(ev);
-
-      if (info_error ||
-          rli->transaction_parser.feed_event(log_event_info, true)) {
-        /* purecov: begin inspected */
-        LogErr(WARNING_LEVEL,
-               ER_RPL_SLAVE_SQL_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE);
-        /* purecov: end */
-      }
-
-      if (info_error || rli->transaction_parser.check_row_logging_constraints(
-                            log_event_info)) {
-        rli->report(
-            ERROR_LEVEL,
-            ER_RPL_SLAVE_APPLY_LOG_EVENT_FAILED_INVALID_NON_ROW_FORMAT,
-            ER_THD(thd,
-                   ER_RPL_SLAVE_APPLY_LOG_EVENT_FAILED_INVALID_NON_ROW_FORMAT),
-            rli->mi->get_channel());
-        rli->abort_slave = true;
-        mysql_mutex_unlock(&rli->data_lock);
-        delete ev;
-        return 1;
-      }
-    }
-
     enum enum_slave_apply_event_and_update_pos_retval exec_res;
 
     ptr_ev = &ev;
@@ -7615,18 +7587,6 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
     LogErr(WARNING_LEVEL,
            ER_RPL_SLAVE_IO_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE,
            mi->get_master_log_name(), mi->get_master_log_pos());
-  }
-
-  if (rli->is_row_format_required()) {
-    if (info_error ||
-        mi->transaction_parser.check_row_logging_constraints(log_event_info)) {
-      mi->report(ERROR_LEVEL,
-                 ER_RPL_SLAVE_QUEUE_EVENT_FAILED_INVALID_NON_ROW_FORMAT,
-                 ER_THD(current_thd,
-                        ER_RPL_SLAVE_QUEUE_EVENT_FAILED_INVALID_NON_ROW_FORMAT),
-                 mi->get_channel());
-      goto err;
-    }
   }
 
   switch (event_type) {

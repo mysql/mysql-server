@@ -81,7 +81,7 @@ CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped
 CREATE TABLE t1(word CHAR(20) NOT NULL);
 
 START SLAVE;
---let $slave_sql_errno= convert_error(ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
+--let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
 --source include/wait_for_slave_sql_error.inc
 
 --eval GRANT FILE, INSERT  ON *.* TO $grant_to
@@ -102,7 +102,7 @@ eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPOR
 
 START SLAVE;
 SET DEBUG_SYNC= "now WAIT_FOR skipped_the_priv_check_in_begin_load";
---let $slave_sql_errno= convert_error(ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
+--let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
 --source include/wait_for_slave_sql_error.inc
 
 SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
@@ -149,7 +149,7 @@ CREATE TABLE t1 (c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE = MyISAM;
 # So doing a change master and start replicating from master_log_pos_1
 
 START SLAVE;
---let $slave_sql_errno= convert_error(ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
+--let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
 --source include/wait_for_slave_sql_error.inc
 
 --eval GRANT FILE  ON *.* TO $grant_to
@@ -170,7 +170,7 @@ eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPOR
 
 START SLAVE;
 SET DEBUG_SYNC = "now WAIT_FOR skipped_the_priv_check_in_begin_load";
---let $slave_sql_errno= convert_error(ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
+--let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
 --source include/wait_for_slave_sql_error.inc
 
 SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
@@ -188,4 +188,6 @@ DROP TABLE t1;
 --let $rpl_only_running_threads=1
 --remove_file $MYSQLTEST_VARDIR/tmp/data01
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp SQL_LOAD*
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
 --source include/rpl_end.inc

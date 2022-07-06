@@ -289,6 +289,35 @@ bool all_tables_not_ok(THD *thd, TABLE_LIST *tables) {
          !rpl_filter->tables_ok(thd->db().str, tables);
 }
 
+bool is_normal_transaction_boundary_stmt(enum_sql_command sql_cmd) {
+  switch (sql_cmd) {
+    case SQLCOM_BEGIN:
+    case SQLCOM_COMMIT:
+    case SQLCOM_SAVEPOINT:
+    case SQLCOM_ROLLBACK:
+    case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+      return true;
+    default:
+      return false;
+  }
+
+  return false;
+}
+
+bool is_xa_transaction_boundary_stmt(enum_sql_command sql_cmd) {
+  switch (sql_cmd) {
+    case SQLCOM_XA_START:
+    case SQLCOM_XA_END:
+    case SQLCOM_XA_COMMIT:
+    case SQLCOM_XA_ROLLBACK:
+      return true;
+    default:
+      return false;
+  }
+
+  return false;
+}
+
 /**
   Checks whether the event for the given database, db, should
   be ignored or not. This is done by checking whether there are
@@ -313,27 +342,11 @@ inline bool check_database_filters(THD *thd, const char *db,
                                    enum_sql_command sql_cmd) {
   DBUG_TRACE;
   assert(thd->slave_thread);
-  if (!db) return true;
+  if (!db || is_normal_transaction_boundary_stmt(sql_cmd)) return true;
+
   Rpl_filter *rpl_filter = thd->rli_slave->rpl_filter;
-
-  bool need_increase_counter = true;
-  switch (sql_cmd) {
-    case SQLCOM_BEGIN:
-    case SQLCOM_COMMIT:
-    case SQLCOM_SAVEPOINT:
-    case SQLCOM_ROLLBACK:
-    case SQLCOM_ROLLBACK_TO_SAVEPOINT:
-      return true;
-    case SQLCOM_XA_START:
-    case SQLCOM_XA_END:
-    case SQLCOM_XA_COMMIT:
-    case SQLCOM_XA_ROLLBACK:
-      need_increase_counter = false;
-    default:
-      break;
-  }
-
-  bool db_ok = rpl_filter->db_ok(db, need_increase_counter);
+  auto need_increase_counter{!is_xa_transaction_boundary_stmt(sql_cmd)};
+  auto db_ok{rpl_filter->db_ok(db, need_increase_counter)};
   /*
     No filters exist in ignore/do_db ? Then, just check
     wild_do_table filtering for 'DATABASE' related
@@ -405,6 +418,65 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask) {
     default:
       return true;
   }
+}
+
+/**
+  @brief Iterates over all post replication filter actions registered and
+  executes them.
+
+  All actions registered will be executed at most once. They are executed in
+  the order that they were registered. Shall there be an error while iterating
+  through the list of actions and executing them, then the process stops and an
+  error is returned immediately. This means that in that case, some actions may
+  have executed successfully and some not. In other words, this procedure is
+  not atomic.
+
+  This function will consume all actions from the list if there is no error.
+  This means that actions run only once per statement. Should there be any
+  sub-statements then actions only run on the top level statement execution.
+
+  @param thd The thread context.
+  @return true If there was an error while executing the registered actions.
+  @return false If all actions executed successfully.
+*/
+static bool run_post_replication_filters_actions(THD *thd) {
+  DBUG_TRACE;
+  auto &actions{thd->rpl_thd_ctx.post_filters_actions()};
+  for (auto &action : actions) {
+    if (action()) return true;
+  }
+  actions.clear();
+  return false;
+}
+
+/**
+  @brief This function determines if the current statement parsed violates the
+  require_row_format check.
+
+  Given a parsed context within the THD object, this function will infer
+  whether the require row format check is violated or not. If it is, this
+  function returns true, false otherwise. Note that this function can be called
+  from both, normal sessions and replication applier, execution paths.
+
+  @param thd The session context holding the parsed statement.
+  @return true if there was a require row format validation failure.
+  @return false if the check was successful, meaning no require row format
+  validation failure.
+*/
+static bool check_and_report_require_row_format_violation(THD *thd) {
+  DBUG_TRACE;
+  assert(thd != nullptr);
+  auto perform_check{thd->slave_thread
+                         ? thd->rli_slave->is_row_format_required()
+                         : thd->variables.require_row_format};
+  if (!perform_check) return false;
+
+  if (is_require_row_format_violation(thd)) {
+    if (thd->slave_thread) thd->is_slave_error = true;
+    my_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT, MYF(0));
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -3114,12 +3186,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
       return 0;
   }
 
-  if (thd->variables.require_row_format) {
-    if (evaluate_command_row_only_restrictions(thd)) {
-      my_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT, MYF(0));
-      return -1;
-    }
-  }
+  if (check_and_report_require_row_format_violation(thd) ||
+      run_post_replication_filters_actions(thd))
+    return -1;
 
   /*
     End a active transaction so that this command will have it's

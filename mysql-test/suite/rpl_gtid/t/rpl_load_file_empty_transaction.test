@@ -1,0 +1,78 @@
+# ==== Purpose ====
+#
+# Replicated LOAD DATA log event require FILE privilege to apply. This test
+# checks that lack of privilege does not cause error when the transaction is
+# skipped due to GTID auto-skip.
+#
+# ==== Requirements ====
+#
+# FR1. When a LOAD DATA INFILE is replicated in statement format, and the
+#      applier lacks FILE privilege, and the transaction is skipped due to GTID
+#      auto-skip, the statement shall not fail.
+#
+# ==== Implementation ====
+#
+# 1. Applier user does not have FILE privileges
+# 2. Issue a LOAD DATA GTID on the source
+# 3. Commit the same GTID, but empty, on the replica
+# 4. Watch replication NOT fail because the transaction was filtered.
+#
+# ==== References =====
+#
+# WL#15032: Validate row format and check privileges after applying replication filters
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+#
+# This test checks that a transaction that a transaction is successfully
+# skipped on the applier before erroring out due to lack of FILE privileges
+#
+
+CREATE TABLE t1 (word CHAR(20) NOT NULL);
+--let $server_uuid=`SELECT @@GLOBAL.SERVER_UUID`
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+CREATE USER u1;
+GRANT replication_applier ON *.* TO u1;
+GRANT session_variables_admin ON *.* TO u1;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1';
+--source include/start_slave.inc
+
+# empty transaction, so the applier skips the load data transaction later on
+--replace_result $server_uuid SERVER_UUID
+--eval SET @@SESSION.GTID_NEXT='$server_uuid:2'
+COMMIT;
+SET @@SESSION.GTID_NEXT='AUTOMATIC';
+
+--source include/rpl_connection_master.inc
+--let $saved_binlog_format=`SELECT @@session.binlog_format`
+SET @@SESSION.binlog_format='statement';
+
+--replace_result $server_uuid SERVER_UUID
+--eval SET @@SESSION.GTID_NEXT='$server_uuid:2'
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+SET @@SESSION.GTID_NEXT='AUTOMATIC';
+
+--replace_result $saved_binlog_format SAVED_BINLOG_FORMAT
+--eval SET @@SESSION.binlog_format='$saved_binlog_format'
+
+--source include/sync_slave_sql_with_master.inc
+
+# if this did not work, the test would fail here
+
+# clean up
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+DROP USER 'u1';
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--source include/rpl_end.inc

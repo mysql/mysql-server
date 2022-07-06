@@ -1,0 +1,249 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Setup
+#
+[connection slave]
+CREATE USER u1_wl15032;
+GRANT REPLICATION_APPLIER on *.* to u1_wl15032;
+#
+# Case #1.0: DML in statement format against a filtered out table (STMT)
+#
+[connection master]
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (word CHAR(20) NOT NULL);
+SET @@SESSION.binlog_format='statement';
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
+CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
+include/start_slave.inc
+# DMLs as STATEMENTS and replicate them to ignored table
+[connection master]
+INSERT INTO t1 VALUES ('abz');
+UPDATE t1 SET word = 'luis';
+DELETE FROM t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE REPLICATION FILTER replicate_ignore_table=();
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+include/start_slave.inc
+[connection master]
+SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
+DROP DATABASE db1;
+USE test;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/rpl_reset.inc
+#
+# Case #1.1: DML in statement format against a filtered out table (ROW)
+#
+[connection master]
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (word CHAR(20) NOT NULL);
+SET @@SESSION.binlog_format='ROW';
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
+CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
+include/start_slave.inc
+# DMLs as STATEMENTS and replicate them to ignored table
+[connection master]
+INSERT INTO t1 VALUES ('abz');
+UPDATE t1 SET word = 'luis';
+DELETE FROM t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE REPLICATION FILTER replicate_ignore_table=();
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+include/start_slave.inc
+[connection master]
+SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
+DROP DATABASE db1;
+USE test;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/rpl_reset.inc
+#
+# Case 2: DDL against a table that is in an ignored database
+#
+[connection slave]
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
+CHANGE REPLICATION FILTER replicate_ignore_db=(db1_wl15032);
+include/start_slave.inc
+[connection master]
+CREATE DATABASE db1_wl15032;
+USE db1_wl15032;;
+include/sync_slave_sql_with_master.inc
+[connection master]
+# Issue DDLs and replicate them to ignored database
+[connection master]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@SESSION.sql_require_primary_key = TRUE;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
+DROP TABLE t1;
+SET @@SESSION.sql_require_primary_key = FALSE;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@SESSION.default_table_encryption = TRUE;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
+DROP TABLE t1;
+SET @@SESSION.default_table_encryption = FALSE;
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP DATABASE db1_wl15032;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE REPLICATION FILTER replicate_ignore_db=();
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+include/start_slave.inc
+[connection master]
+include/rpl_reset.inc
+#
+# Case #3: SAVEPOINTs in statement format against a filtered out table
+#
+[connection master]
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (word CHAR(20) NOT NULL);
+SET @@SESSION.binlog_format='statement';
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
+CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
+include/start_slave.inc
+# Issue SAVEPOINTS and ROLLBACK to SAVEPOINTS and replicate them to ignored table
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES ('abz');
+INSERT INTO t1 VALUES ('blah');
+SAVEPOINT sp;
+INSERT INTO t1 VALUES ('foo');
+ROLLBACK TO SAVEPOINT sp;
+INSERT INTO t1 VALUES ('bar');
+COMMIT;
+include/sync_slave_sql_with_master.inc
+#
+# clean up
+#
+include/stop_slave.inc
+CHANGE REPLICATION FILTER replicate_ignore_table=();
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+include/start_slave.inc
+[connection master]
+SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
+DROP DATABASE db1;
+USE test;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/rpl_reset.inc
+#
+# Case 4: Offending LOAD DATA is ignored because applies to ignored database
+#
+[connection master]
+CREATE DATABASE db1_wl15032;
+CREATE TABLE db1_wl15032.tload (c1 TEXT);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = (db1_wl15032);
+include/start_slave.inc
+[connection master]
+USE db1_wl15032;
+SET SESSION binlog_format=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION binlog_format=ROW;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+USE test;
+include/sync_slave_sql_with_master.inc
+include/assert.inc [table is empty on the secondary]
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
+include/start_slave.inc
+[connection master]
+DROP DATABASE db1_wl15032;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/rpl_reset.inc
+#
+# Case 5: Offending LOAD DATA is ignored because applies to ignored table
+#
+[connection master]
+CREATE TABLE tload (c1 TEXT);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = (test.tload);
+include/start_slave.inc
+[connection master]
+SET SESSION binlog_format=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION binlog_format=ROW;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+include/sync_slave_sql_with_master.inc
+include/assert.inc [table is empty on the secondary]
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = ();
+include/start_slave.inc
+[connection master]
+DROP TABLE tload;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/rpl_reset.inc
+#
+# Offending LOAD DATA is ignored because of empty transactions on replica
+#
+[connection master]
+CREATE TABLE tload (c1 TEXT);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
+include/start_slave.inc
+SET GTID_NEXT='00000000-0000-0000-0000-000000000000:1';
+BEGIN;
+COMMIT;
+SET GTID_NEXT='00000000-0000-0000-0000-000000000000:2';
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+[connection master]
+SET SESSION binlog_format=STATEMENT;
+SET GTID_NEXT='00000000-0000-0000-0000-000000000000:1';
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION binlog_format=ROW;
+SET GTID_NEXT='00000000-0000-0000-0000-000000000000:2';
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET GTID_NEXT=AUTOMATIC;
+include/sync_slave_sql_with_master.inc
+include/assert.inc [table is empty on the secondary]
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+include/start_slave.inc
+[connection master]
+DROP TABLE tload;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/rpl_reset.inc
+#
+# Global Cleanup
+#
+[connection slave]
+include/stop_slave.inc
+DROP USER u1_wl15032;
+include/start_slave.inc
+[connection master]
+include/rpl_end.inc

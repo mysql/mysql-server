@@ -1,0 +1,348 @@
+# ==== Purpose ====
+#
+# This test file covers the interaction between require_row_format,
+# and replication filters.
+#
+# ==== Requirements ====
+#
+# FR1: Receiver thread does not error on an event that violates
+#      require_row_format
+#
+# FR2: An empty GTID transaction can be used to skip a transaction
+#      that violates require_row_format
+#
+# FR3: Applier thread shall not error out if the offending statement
+#      is filtered out
+#
+# FR4: Applier thread shall not error out if the offending LOAD DATA
+#      statement applies to an ignored database
+#
+# FR5: Applier thread shall not error out if the offending LOAD DATA
+#      statement applies to an ignored table
+#
+# FR6: Applier thread shall not error out if the offending LOAD DATA
+#      statement is skipped on the replica because the transaction is
+#      automatically skipped (GTID had already been processed).
+#
+# FR7: Applier thread shall error out if the offending LOAD DATA
+#      statement is not filtered out nor skipped.
+#
+# ==== Implementation ====
+#
+# FR1:
+#    1. Create an offending transaction and watch it break replication
+#    2. Assert that the table does not have the row that the offending
+#       transaction tries to insert.
+# FR2:
+#    1. Commit an empty transaction to skip the offending one and watch
+#       replication resume gracefully.
+#    2. Assert that the table remains with the current data.
+#
+# FR3:
+#    1. Create an offending transaction and watch it not break replication
+#       because the transaction is filtered out.
+# FR4:
+#    1. LOAD data, in statement based replication, into a table in an ignored
+#       database and watch the system not break.
+#
+# FR5:
+#    1. LOAD data, in statement based replication, into an ignored table
+#       and watch the system not break.
+#
+# FR6:
+#    1. LOAD data, in statement based replication, but replica already knows
+#       about that particular GTID.
+#
+# FR7:
+#    1. LOAD data, in statement based replication, into a table that is
+#       not ignored. Watch replication break.
+#
+# ==== References =====
+#
+# WL#15032: Validate row format and check privileges after applying replication filters
+
+# test needs to execute only once
+--source include/have_binlog_format_row.inc
+--source include/not_rpl_gtid_only.inc
+
+# even though the code that triggers this is shared between MTA and
+# single threaded applier (therefore the conditions are valid in both
+# cases) the error reporting is not. MTA reports the error in the
+# workers PFS table. The single threaded applier in the reports in the
+# coordinator PFS table. We cover the most common case which is the
+# MTA (and is the default configuration).
+--source include/only_mts_replica_parallel_workers.inc
+
+--source include/master-slave.inc
+
+--echo #
+--echo # Setup
+--echo #
+--let $ignored_db = ignored_db
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression("The query does not comply with variable require_row_format restrictions");
+--source include/start_slave.inc
+
+# FR1 ####################################
+
+--echo # FR1: Receiver thread does not error on an event that violates
+--echo #      require_row_format when that is not filtered out.
+
+--source include/rpl_connection_master.inc
+CREATE TABLE test.t1 (c1 INT PRIMARY KEY);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--let $offending_gtid='00000000-0000-0000-0000-000000000000:1'
+
+# Add an event that violates require row format
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+SET SESSION binlog_format=STATEMENT;
+--eval SET GTID_NEXT=$offending_gtid
+INSERT INTO t1 VALUES (2);
+SET GTID_NEXT=AUTOMATIC;
+SET SESSION binlog_format=ROW;
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+
+# now that the receiver has not failed, let's start the
+# applier and watch it fail, just for completeness
+# it also shows that an offending event that is not filtered
+# out will eventually lead to the applier stop
+
+--source include/rpl_connection_slave.inc
+START REPLICA SQL_THREAD;
+
+# this makes sure that the applier started and worked fine
+# at some point
+--let $count= 1
+--let $table= t1
+--source include/wait_until_rows_count.inc
+
+# but it will eventually stop with an error, wait for that
+# to happen
+--let $slave_sql_errno = convert_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT)
+--source include/wait_for_slave_sql_error.inc
+
+# FR2 ####################################
+
+--echo # FR2: An empty GTID transaction can be used to skip a transaction
+--echo #      that violates require_row_format
+
+# ok, now lets just commit an empty transaction to skip the
+# offending statement
+--eval SET GTID_NEXT=$offending_gtid
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+
+# applier should start normally and proceed
+--source include/start_slave_sql.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# assert that the transaction was indeed skipped
+--let $assert_cond= count(*) = 1 FROM t1
+--let $assert_text=Assert that there is only one row in the replica table
+--source include/assert.inc
+
+# clean up
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_reset.inc
+
+# FR3 ####################################
+
+--echo # FR3: Applier thread shall not error out if the offending statement
+--echo #      is filtered out
+
+--source include/rpl_connection_master.inc
+--eval CREATE DATABASE $ignored_db
+--eval CREATE TABLE $ignored_db.t1 (c1 INT PRIMARY KEY)
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ($ignored_db);
+--source include/start_slave_io.inc
+
+--source include/rpl_connection_master.inc
+
+# Add an event that violates require row format
+--eval use $ignored_db
+SET SESSION binlog_format=STATEMENT;
+INSERT INTO t1 VALUES (1);
+SET SESSION binlog_format=ROW;
+use test;
+
+# observe that the event does not cause the applier to fail
+--source include/rpl_connection_slave.inc
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# assert that the change was not applied
+--let $assert_cond= count(*) = 0 FROM $ignored_db.t1
+--let $assert_text=Assert there are no rows in the table as the change was filtered
+--source include/assert.inc
+
+--echo # clean up
+
+--source include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--eval DROP DATABASE $ignored_db
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_reset.inc
+
+# FR4 ####################################
+
+--echo # FR4: Applier thread shall not error out if the offending LOAD DATA
+--echo #      statement applies to an ignored database
+
+--source include/rpl_connection_master.inc
+--eval CREATE DATABASE $ignored_db;
+--eval CREATE TABLE $ignored_db.tload (c1 TEXT);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ($ignored_db)
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+
+--eval USE $ignored_db
+SET SESSION binlog_format=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION binlog_format=ROW;
+use test;
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_cond=count(*) = 0 FROM $ignored_db.tload
+--let $assert_text=table is empty on the secondary
+--source include/assert.inc
+
+# clean up
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ()
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--eval DROP DATABASE $ignored_db
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+# FR5 ####################################
+
+--echo # FR5: Applier thread shall not error out if the offending LOAD DATA
+--echo #      statement applies to an ignored table
+
+--source include/rpl_connection_master.inc
+CREATE TABLE tload (c1 TEXT);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = (test.tload)
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+
+SET SESSION binlog_format=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION binlog_format=ROW;
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_cond=count(*) = 0 FROM test.tload
+--let $assert_text=table is empty on the secondary
+--source include/assert.inc
+
+# clean up
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = ()
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+DROP TABLE tload;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+# FR6 ####################################
+
+--echo # FR6: Applier thread shall not error out if the offending LOAD DATA
+--echo #      statement is skipped on the replica because the transaction is
+--echo #      automatically skipped (GTID had already been processed).
+
+--let $offending_gtid='00000000-0000-0000-0000-000000000000:1'
+--source include/rpl_connection_master.inc
+CREATE TABLE tload (c1 TEXT);
+--source include/sync_slave_sql_with_master.inc
+
+# commit empty transaction on the secondary
+--eval SET GTID_NEXT=$offending_gtid
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+
+# issue the transaction on the source
+--source include/rpl_connection_master.inc
+SET SESSION binlog_format=STATEMENT;
+--eval SET GTID_NEXT=$offending_gtid
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET GTID_NEXT=AUTOMATIC;
+SET SESSION binlog_format=ROW;
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_cond=count(*) = 0 FROM test.tload
+--let $assert_text=table is empty on the secondary
+--source include/assert.inc
+
+# clean up
+--source include/rpl_connection_master.inc
+DROP TABLE tload;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+# FR7 ####################################
+
+--echo # FR7: Applier thread shall error out if the offending LOAD DATA
+--echo #      statement is not filtered out nor skipped.
+
+--source include/rpl_connection_master.inc
+CREATE TABLE tload (c1 TEXT);
+SET SESSION binlog_format=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION binlog_format=ROW;
+
+--source include/rpl_connection_slave.inc
+--let $slave_sql_errno = convert_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT)
+--source include/wait_for_slave_sql_error.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_slave.inc
+RESET REPLICA;
+DROP TABLE tload;
+RESET MASTER;
+
+--source include/rpl_connection_master.inc
+DROP TABLE tload;
+RESET MASTER;
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--echo # Tear down
+--source include/rpl_connection_master.inc
+--source include/rpl_end.inc

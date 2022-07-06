@@ -8,7 +8,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    Create a test include.
 #    Create tables for the test
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("Slave SQL for channel '': The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found*");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("The query does not comply with variable require_row_format restrictions.");
 [connection slave]
 [connection master]
 CREATE TABLE t1 (i INT);
@@ -28,19 +29,18 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_sql_error.inc [errno=13508]
-Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was inserted on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -62,19 +62,18 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_sql_error.inc [errno=13508]
-Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -97,19 +96,18 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_sql_error.inc [errno=13508]
-Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -133,19 +131,18 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_sql_error.inc [errno=13508]
-Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -167,19 +164,18 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_sql_error.inc [errno=13508]
-Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -201,19 +197,18 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_sql_error.inc [errno=13508]
-Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [No temporary table was created]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -237,19 +232,18 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_sql_error.inc [errno=13508]
-Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [There is still a temporary table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc

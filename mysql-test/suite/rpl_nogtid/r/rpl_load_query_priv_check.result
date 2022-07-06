@@ -19,7 +19,7 @@ CREATE TABLE t1(word CHAR(20) NOT NULL);
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_sql_error.inc [errno=13497]
+include/wait_for_slave_sql_error.inc [errno=4117]
 GRANT FILE, INSERT  ON *.* TO 'u1'@'localhost';
 START SLAVE;
 Warnings:
@@ -38,7 +38,7 @@ START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 SET DEBUG_SYNC= "now WAIT_FOR skipped_the_priv_check_in_begin_load";
-include/wait_for_slave_sql_error.inc [errno=13497]
+include/wait_for_slave_sql_error.inc [errno=4117]
 SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
 STOP SLAVE;
 Warnings:
@@ -74,7 +74,7 @@ CREATE TABLE t1 (c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE = MyISAM;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_sql_error.inc [errno=13497]
+include/wait_for_slave_sql_error.inc [errno=4117]
 GRANT FILE  ON *.* TO 'u1'@'localhost';
 START SLAVE;
 Warnings:
@@ -93,7 +93,7 @@ START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 SET DEBUG_SYNC = "now WAIT_FOR skipped_the_priv_check_in_begin_load";
-include/wait_for_slave_sql_error.inc [errno=13497]
+include/wait_for_slave_sql_error.inc [errno=4117]
 SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
 STOP SLAVE;
 Warnings:
@@ -112,4 +112,6 @@ STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 DROP TABLE t1;
+[connection master]
+include/rpl_reset.inc
 include/rpl_end.inc

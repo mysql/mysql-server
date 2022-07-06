@@ -615,7 +615,7 @@ std::string replace_all_in_str(std::string from, std::string find,
   @return true if it violates any restrictions
           false otherwise
  */
-bool evaluate_command_row_only_restrictions(THD *thd);
+bool is_require_row_format_violation(const THD *thd);
 
 /**
   This function shall blindly replace some deprecated terms used in the

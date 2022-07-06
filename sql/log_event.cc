@@ -65,6 +65,7 @@
 #include "mysql_time.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/binlog_reader.h"
 #include "sql/field_common_properties.h"
@@ -4494,6 +4495,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                     const char *query_arg, size_t q_len_arg) {
   DBUG_TRACE;
   int expected_error, actual_error = 0;
+  auto post_filters_actions_guard = create_scope_guard(
+      [&]() { thd->rpl_thd_ctx.post_filters_actions().clear(); });
 
   DBUG_PRINT("info", ("query=%s, q_len_arg=%lu", query,
                       static_cast<unsigned long>(q_len_arg)));
@@ -4592,26 +4595,32 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   }
 
   {
-    Applier_security_context_guard security_context{rli, thd};
     if (!thd->variables.require_row_format) {
-      if (!security_context.skip_priv_checks() &&
-          !security_context.has_access({SUPER_ACL}) &&
-          !security_context.has_access({"SYSTEM_VARIABLES_ADMIN"}) &&
-          !security_context.has_access({"SESSION_VARIABLES_ADMIN"})) {
-        rli->report(ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED_ERROR,
-                    ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED_ERROR),
-                    "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
-        thd->is_slave_error = true;
-        goto end;
-      }
-      thd->variables.pseudo_thread_id = thread_id;  // for temp tables
+      auto f = [&]() {
+        if (is_normal_transaction_boundary_stmt(thd->lex->sql_command))
+          return false;
+
+        Applier_security_context_guard security_context{rli, thd};
+        if (!security_context.skip_priv_checks() &&
+            !security_context.has_access({SUPER_ACL}) &&
+            !security_context.has_access({"SYSTEM_VARIABLES_ADMIN"}) &&
+            !security_context.has_access({"SESSION_VARIABLES_ADMIN"})) {
+          my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                   "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
+          thd->is_slave_error = true;
+          return true;
+        }
+        thd->variables.pseudo_thread_id = thread_id;  // for temp tables
+        attach_temp_tables_worker(thd, rli);
+        return false;
+      };
+      thd->rpl_thd_ctx.post_filters_actions().push_back(f);
     }
 
     thd->set_time(&(common_header->when));
     thd->set_query(query_arg, q_len_arg);
     thd->set_query_for_display(query_arg, q_len_arg);
     thd->set_query_id(next_query_id());
-    attach_temp_tables_worker(thd, rli);
     DBUG_PRINT("query", ("%s", thd->query().str));
 
     DBUG_EXECUTE_IF("simulate_error_in_ddl", error_code = 1051;);
@@ -4753,36 +4762,47 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           Relay_log_info::PK_CHECK_STREAM ==
               rli->get_require_table_primary_key_check()) {
         assert(sql_require_primary_key == 0 || sql_require_primary_key == 1);
-        if (!security_context.skip_priv_checks() &&
-            !security_context.has_access({SUPER_ACL}) &&
-            !security_context.has_access({"SYSTEM_VARIABLES_ADMIN"}) &&
-            !security_context.has_access({"SESSION_VARIABLES_ADMIN"})) {
-          rli->report(
-              ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED_ERROR,
-              ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED_ERROR),
-              "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
-          thd->is_slave_error = true;
-          goto end;
-        }
-        thd->variables.sql_require_primary_key = sql_require_primary_key;
+        auto f = [&]() {
+          Applier_security_context_guard security_context{rli, thd};
+          if (!security_context.skip_priv_checks() &&
+              !security_context.has_access({SUPER_ACL}) &&
+              !security_context.has_access({"SYSTEM_VARIABLES_ADMIN"}) &&
+              !security_context.has_access({"SESSION_VARIABLES_ADMIN"})) {
+            my_error(
+                ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
+            thd->is_slave_error = true;
+            return true;
+          }
+          thd->variables.sql_require_primary_key = sql_require_primary_key;
+          return false;
+        };
+        thd->rpl_thd_ctx.post_filters_actions().push_back(f);
       }
 
       if (default_table_encryption != 0xff) {
         assert(default_table_encryption == 0 || default_table_encryption == 1);
         if (thd->variables.default_table_encryption !=
-                static_cast<bool>(default_table_encryption) &&
-            !security_context.skip_priv_checks() &&
-            !security_context.has_access({SUPER_ACL}) &&
-            !security_context.has_access(
-                {"SYSTEM_VARIABLES_ADMIN", "TABLE_ENCRYPTION_ADMIN"})) {
-          rli->report(
-              ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED_ERROR,
-              ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED_ERROR),
-              "SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN");
-          thd->is_slave_error = true;
-          goto end;
+            static_cast<bool>(default_table_encryption)) {
+          auto f = [&]() {
+            Applier_security_context_guard security_context{rli, thd};
+            if (thd->variables.default_table_encryption !=
+                    static_cast<bool>(default_table_encryption) &&
+                !security_context.skip_priv_checks() &&
+                !security_context.has_access({SUPER_ACL}) &&
+                !security_context.has_access(
+                    {"SYSTEM_VARIABLES_ADMIN", "TABLE_ENCRYPTION_ADMIN"})) {
+              my_error(
+                  ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                  "SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN");
+              thd->is_slave_error = true;
+              return true;
+            }
+            thd->variables.default_table_encryption = default_table_encryption;
+            return false;
+          };
+          thd->rpl_thd_ctx.post_filters_actions().push_back(f);
         }
-        thd->variables.default_table_encryption = default_table_encryption;
       }
 
       thd->table_map_for_update = (table_map)table_map_for_update;
@@ -7048,6 +7068,28 @@ int Append_block_log_event::get_create_or_append() const {
   return 0; /* append to the file, fail if not exists */
 }
 
+/**
+  @brief This function is used inside Append_block_log_event and
+  Execute_load_query_log_event apply member functions to determine if
+  a file is to be created (Append_block_log_event) or has been created
+  (Execute_load_query_log_event).
+
+  @param thd The applier thread context.
+  @param rli The applier relay log info global context.
+  @return true if no row format is required and enough FILE privileges to
+  create a file.
+  @return false If either row format is required or no FILE privileges and
+  therefore file is not to be created.
+*/
+static bool is_load_data_file_allowed(THD *thd, Relay_log_info const *rli) {
+  Applier_security_context_guard security_context{rli, thd};
+  bool has_file_priv_or_equivalent{security_context.skip_priv_checks() ||
+                                   security_context.has_access({FILE_ACL})};
+  auto does_not_require_row_format{!rli->is_row_format_required()};
+
+  return does_not_require_row_format && has_file_priv_or_equivalent;
+}
+
 /*
   Append_block_log_event::do_apply_event()
 */
@@ -7058,19 +7100,24 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli) {
   int error = 1;
   DBUG_TRACE;
 
-  Applier_security_context_guard security_context{rli, thd};
-  if (DBUG_EVALUATE_IF("skip_the_priv_check_in_begin_load", false, true)) {
-    if (!security_context.skip_priv_checks()) {
-      if (!security_context.has_access({FILE_ACL})) {
-        rli->report_privilege_check_error(
-            ERROR_LEVEL,
-            Relay_log_info::enum_priv_checks_status::
-                LOAD_DATA_EVENT_NOT_ALLOWED,
-            false /* to client */);
-        return ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS;
-      }
-    }
-  }
+  /*
+    If PRIVILEGE_CHECKS_USER does not have FILE permission, this event
+    cannot be applied. If require_row_format is set, then this event
+    is not to be applied either. Then, ultimately, there are two
+    possible outcomes down the execution:
+
+    - If the table is filtered-out, we shall not write the file, not
+      update the table, not generate an error, and not stop replication.
+
+    - Otherwise, we shall not write the file, not update the table,
+      but generate an error and stop replication.
+
+      We will only know later (when applying Execute_load_query_log_event)
+      if the table will be filtered-out or not. So we postpone error
+      generation until then, and just silently skip writing the file here.
+  */
+  if (!is_load_data_file_allowed(thd, rli)) return 0;
+
 #ifndef NDEBUG
   else {  // Let's ensure that we actually skipped the privilege check since the
           // error code caugth in test scripts would be the same as the no-skip
@@ -7214,7 +7261,7 @@ int Delete_file_log_event::do_apply_event(Relay_log_info const *rli) {
           ERROR_LEVEL,
           Relay_log_info::enum_priv_checks_status::LOAD_DATA_EVENT_NOT_ALLOWED,
           false /* to client */);
-      return ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS;
+      return ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS;
     }
   }
 
@@ -7411,15 +7458,21 @@ int Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli) {
   char *fname;
   char *fname_end;
   int error;
+  DBUG_TRACE;
+  auto post_filters_actions_guard = create_scope_guard(
+      [&]() { thd->rpl_thd_ctx.post_filters_actions().clear(); });
 
   Applier_security_context_guard security_context{rli, thd};
   if (!security_context.skip_priv_checks()) {
     if (!security_context.has_access({FILE_ACL})) {
-      rli->report_privilege_check_error(
-          ERROR_LEVEL,
-          Relay_log_info::enum_priv_checks_status::LOAD_DATA_EVENT_NOT_ALLOWED,
-          false /* to client */);
-      return ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS;
+      auto f = [&]() {
+        my_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS, MYF(0),
+                 rli->get_channel());
+        thd->is_slave_error = true;
+        return true;
+      };
+
+      thd->rpl_thd_ctx.post_filters_actions().push_back(f);
     }
   }
 
@@ -7468,7 +7521,20 @@ int Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli) {
     If there was an error the slave is going to stop, leave the
     file so that we can re-execute this event at START SLAVE.
   */
-  if (!error) mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
+  if (!error) {
+    /*
+      We may come to this point without having created the file, in case either
+      the privilege_checks_user lacks FILE privilege or we require row format.
+      Those conditions usually make do_apply_event return an error, in which
+      case the "!error" condition prevents us from trying to delete the file.
+      However, in case the transaction is skipped by the GTID auto-skip
+      mechanism, do_apply_event will return success. In this case we protect
+      against trying to delete a non-existing file, by checking the conditions
+      under which the file was actually created.
+    */
+    if (is_load_data_file_allowed(thd, rli))
+      mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
+  }
 
   my_free(buf);
   return error;

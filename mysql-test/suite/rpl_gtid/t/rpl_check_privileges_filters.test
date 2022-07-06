@@ -1,0 +1,413 @@
+# ==== Purpose ====
+#
+# This test case checks that check replicated statements that violate privilege
+# checks, but which are filtered out do not have no side effects # and leave
+# replication running without error.
+#
+# ==== Requirements ====
+#
+# FR1. Applying a DML against a table, for which the applier does not
+#      have privileges to change, will not error out if the DML statement
+#      is filtered out.
+#
+# FR2. Applying a DDL against a table, for which the applier does not
+#      have privileges to change, will not error out if the DDL statement
+#      is filtered out.
+#
+# FR3. Applying a SAVEPOINT statement will not cause the applier to break.
+#
+# FR4: Applier thread without FILE privilege shall not error out if the #
+#      offending LOAD DATA statement applies to an ignored database
+#
+# FR5: Applier thread without FILE privilege shall not error out if the
+#      offending LOAD DATA statement applies to an ignored table
+#
+# FR6: Applier thread without FILE privilege shall not error out if the
+#      offending LOAD DATA statement is skipped on the replica because the
+#      transaction is automatically skipped (GTID had already been processed).
+#
+# ==== Implementation ====
+#
+# In the following cases, we issue CREATE TABLE with privilege checks disabled,
+# then configure a PRIVILEGE_CHECKS_USER that lacks FILE privilege and lacks
+# privileges for the tables used and execute the 'offending, filtered' statement.
+#
+# FR1:
+#    1. Create an offending DMLs (insert, update, delete) against an ignored
+#       table.
+#    2. Assert that replication will not break even though the user does not
+#       have privileges to modify the table.
+#    3. Do this for ROW and STATEMENT based replication (1.0 and 1.1)
+#
+# FR2:
+#    1. Create an offending DDL against an ignored table.
+#    2. Assert that replication will not break even though the user does not
+#       have privileges to modify the table.
+#    3. We do this while exercising some of the variables that are
+#       replicated.
+#
+# FR2:
+#    1. Create an offending transaction that has a SAVEPOINT against an
+#       ignored table.
+#    2. Assert that replication will not break even though the user does not
+#       have privileges to modify the table.
+#
+# FR4:
+#    1. LOAD data, in statement based replication, into a table in an ignored
+#       database and watch the system not break.
+#    2. We do this for RBR and SBR.
+#
+# FR5:
+#    1. LOAD data, in statement based replication, into an ignored table
+#       and watch the system not break.
+#    2. We do this for RBR and SBR.
+#
+# FR6:
+#    1. LOAD data, in statement based replication, but replica already knows
+#       about that particular GTID.
+#    2. We do this for RBR and SBR.
+#
+#
+# ==== References =====
+#
+# WL#15032: Validate row format and check privileges after applying replication filters
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--let $user=u1_wl15032
+
+--echo #
+--echo # Setup
+--echo #
+--source include/rpl_connection_slave.inc
+--eval CREATE USER $user
+--eval GRANT REPLICATION_APPLIER on *.* to $user
+
+--echo #
+--echo # Case #1.0: DML in statement format against a filtered out table (STMT)
+--echo #
+#
+#          Watch the DML being filtered out properly and replication
+#          not breaking.
+#
+
+# setup
+--source include/rpl_connection_master.inc
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (word CHAR(20) NOT NULL);
+--let $saved_binlog_format=`SELECT @@session.binlog_format`
+SET @@SESSION.binlog_format='statement';
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
+CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
+--source include/start_slave.inc
+
+--echo # DMLs as STATEMENTS and replicate them to ignored table
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES ('abz');
+UPDATE t1 SET word = 'luis';
+DELETE FROM t1;
+--source include/sync_slave_sql_with_master.inc
+
+# clean up
+--source include/stop_slave.inc
+CHANGE REPLICATION FILTER replicate_ignore_table=();
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--replace_result $saved_binlog_format SAVED_BINLOG_FORMAT
+--eval SET @@SESSION.binlog_format='$saved_binlog_format'
+DROP DATABASE db1;
+USE test;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--echo #
+--echo # Case #1.1: DML in statement format against a filtered out table (ROW)
+--echo #
+#
+#          Watch the DML being filtered out properly and replication
+#          not breaking.
+#
+
+# setup
+--source include/rpl_connection_master.inc
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (word CHAR(20) NOT NULL);
+--let $saved_binlog_format=`SELECT @@session.binlog_format`
+SET @@SESSION.binlog_format='ROW';
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
+CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
+--source include/start_slave.inc
+
+--echo # DMLs as STATEMENTS and replicate them to ignored table
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES ('abz');
+UPDATE t1 SET word = 'luis';
+DELETE FROM t1;
+--source include/sync_slave_sql_with_master.inc
+
+# clean up
+--source include/stop_slave.inc
+CHANGE REPLICATION FILTER replicate_ignore_table=();
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--replace_result $saved_binlog_format SAVED_BINLOG_FORMAT
+--eval SET @@SESSION.binlog_format='$saved_binlog_format'
+DROP DATABASE db1;
+USE test;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--echo #
+--echo # Case 2: DDL against a table that is in an ignored database
+--echo #
+#
+#         Watch the DDL being replicated and filtered out and
+#         not triggering errors due to lack of privileges for
+#         pseudo_thread_id or sql_require_primary_key or
+#         default_table_encryption
+#
+
+# setup
+--let $ignored_db=db1_wl15032
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
+--eval CHANGE REPLICATION FILTER replicate_ignore_db=($ignored_db)
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--eval CREATE DATABASE $ignored_db
+--eval USE $ignored_db;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+
+--echo # Issue DDLs and replicate them to ignored database
+
+# with pseudo_thread_id set (which is always)
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+# with sql_require_primary_key set
+--source include/rpl_connection_master.inc
+SET @@SESSION.sql_require_primary_key = TRUE;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
+DROP TABLE t1;
+SET @@SESSION.sql_require_primary_key = FALSE;
+--source include/sync_slave_sql_with_master.inc
+
+# with default_table_encryption set
+--source include/rpl_connection_master.inc
+SET @@SESSION.default_table_encryption = TRUE;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
+DROP TABLE t1;
+SET @@SESSION.default_table_encryption = FALSE;
+--source include/sync_slave_sql_with_master.inc
+
+# Clean up
+
+--source include/rpl_connection_master.inc
+--eval DROP DATABASE $ignored_db
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+CHANGE REPLICATION FILTER replicate_ignore_db=();
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--echo #
+--echo # Case #3: SAVEPOINTs in statement format against a filtered out table
+--echo #
+
+# setup
+--source include/rpl_connection_master.inc
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (word CHAR(20) NOT NULL);
+--let $saved_binlog_format=`SELECT @@session.binlog_format`
+SET @@SESSION.binlog_format='statement';
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
+CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
+--source include/start_slave.inc
+
+--echo # Issue SAVEPOINTS and ROLLBACK to SAVEPOINTS and replicate them to ignored table
+--source include/rpl_connection_master.inc
+BEGIN;
+INSERT INTO t1 VALUES ('abz');
+INSERT INTO t1 VALUES ('blah');
+SAVEPOINT sp;
+INSERT INTO t1 VALUES ('foo');
+ROLLBACK TO SAVEPOINT sp;
+INSERT INTO t1 VALUES ('bar');
+COMMIT;
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # clean up
+--echo #
+
+--source include/stop_slave.inc
+CHANGE REPLICATION FILTER replicate_ignore_table=();
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--replace_result $saved_binlog_format SAVED_BINLOG_FORMAT
+--eval SET @@SESSION.binlog_format='$saved_binlog_format'
+DROP DATABASE db1;
+USE test;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--echo #
+--echo # Case 4: Offending LOAD DATA is ignored because applies to ignored database
+--echo #
+
+--source include/rpl_connection_master.inc
+--eval CREATE DATABASE $ignored_db
+--eval CREATE TABLE $ignored_db.tload (c1 TEXT)
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
+--eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ($ignored_db)
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+
+# check both types of load file, statement and row
+--eval USE $ignored_db
+SET SESSION binlog_format=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION binlog_format=ROW;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+USE test;
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_cond=count(*) = 0 FROM $ignored_db.tload
+--let $assert_text=table is empty on the secondary
+--source include/assert.inc
+
+# clean up
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--eval DROP DATABASE $ignored_db
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--echo #
+--echo # Case 5: Offending LOAD DATA is ignored because applies to ignored table
+--echo #
+
+--source include/rpl_connection_master.inc
+CREATE TABLE tload (c1 TEXT);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
+--eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = (test.tload)
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+
+SET SESSION binlog_format=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION binlog_format=ROW;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_cond=count(*) = 0 FROM test.tload
+--let $assert_text=table is empty on the secondary
+--source include/assert.inc
+
+# clean up
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = ();
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+DROP TABLE tload;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--echo #
+--echo # Offending LOAD DATA is ignored because of empty transactions on replica
+--echo #
+
+--let $offending_gtid1='00000000-0000-0000-0000-000000000000:1'
+--let $offending_gtid2='00000000-0000-0000-0000-000000000000:2'
+
+--source include/rpl_connection_master.inc
+CREATE TABLE tload (c1 TEXT);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
+--source include/start_slave.inc
+
+# commit empty transaction on the secondary
+--eval SET GTID_NEXT=$offending_gtid1
+BEGIN;
+COMMIT;
+--eval SET GTID_NEXT=$offending_gtid2
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+
+# issue the transaction on the source
+--source include/rpl_connection_master.inc
+SET SESSION binlog_format=STATEMENT;
+--eval SET GTID_NEXT=$offending_gtid1
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION binlog_format=ROW;
+--eval SET GTID_NEXT=$offending_gtid2
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET GTID_NEXT=AUTOMATIC;
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_cond=count(*) = 0 FROM test.tload
+--let $assert_text=table is empty on the secondary
+--source include/assert.inc
+
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+--source include/start_slave.inc
+
+# clean up
+--source include/rpl_connection_master.inc
+DROP TABLE tload;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--echo #
+--echo # Global Cleanup
+--echo #
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--eval DROP USER $user
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/rpl_end.inc
