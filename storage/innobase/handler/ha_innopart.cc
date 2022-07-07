@@ -137,7 +137,9 @@ bool Ha_innopart_share::open_one_table_part(
   if (part_table != nullptr) {
     cached = true;
     if (part_table->is_corrupted()) {
-      dict_table_remove_from_cache(part_table);
+      if (part_table->get_ref_count() == 0) {
+        dict_table_remove_from_cache(part_table);
+      }
       part_table = nullptr;
     } else if (part_table->discard_after_ddl) {
       btr_drop_ahi_for_table(part_table);
@@ -825,7 +827,13 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     dict_table_t **table_parts = Ha_innopart_share::open_table_parts(
         thd, table, table_def, m_part_info, norm_name);
 
-    if (table_parts == nullptr) return HA_ERR_INTERNAL_ERROR;
+    if (table_parts == nullptr) {
+      ib::warn(ER_IB_MSG_557)
+          << "Cannot open table " << norm_name << TROUBLESHOOTING_MSG;
+      set_my_errno(ENOENT);
+
+      return HA_ERR_NO_SUCH_TABLE;
+    }
 
     /* Now acquire TABLE_SHARE::LOCK_ha_data again and assign table
     and index information. set_table_parts_and_indexes() will check
