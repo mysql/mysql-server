@@ -73,8 +73,8 @@ SERVICE_TYPE(pfs_plugin_column_double_v1)
 SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_double_v1){
     nullptr, nullptr};
 
-SERVICE_TYPE(pfs_plugin_column_string_v1)
-SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_string_v1){
+SERVICE_TYPE(pfs_plugin_column_string_v2)
+SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_string_v2){
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 SERVICE_TYPE(pfs_plugin_column_blob_v1)

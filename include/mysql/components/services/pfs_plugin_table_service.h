@@ -719,7 +719,7 @@ DECLARE_METHOD(void, get, (PSI_field * f, PSI_double *value));
 /* No support for indexes. */
 END_SERVICE_DEFINITION(pfs_plugin_column_double_v1)
 
-BEGIN_SERVICE_DEFINITION(pfs_plugin_column_string_v1)
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_string_v2)
 /* CHAR */
 DECLARE_METHOD(void, set_char_utf8mb4,
                (PSI_field * f, const char *value, unsigned int length));
@@ -737,7 +737,7 @@ DECLARE_METHOD(void, get_varchar_utf8mb4,
 DECLARE_METHOD(void, set_varchar_utf8mb4, (PSI_field * f, const char *str));
 DECLARE_METHOD(void, set_varchar_utf8mb4_len,
                (PSI_field * f, const char *str, unsigned int len));
-END_SERVICE_DEFINITION(pfs_plugin_column_string_v1)
+END_SERVICE_DEFINITION(pfs_plugin_column_string_v2)
 
 BEGIN_SERVICE_DEFINITION(pfs_plugin_column_blob_v1)
 DECLARE_METHOD(void, set, (PSI_field * f, const char *val, unsigned int len));

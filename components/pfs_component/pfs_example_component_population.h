@@ -31,7 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   placeholders for Service dependencies. */
 
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_table_v1, pt_srv);
-extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_string_v1,
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_string_v2,
                                        pc_string_srv);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_year_v1, pc_year_srv);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_bigint_v1,

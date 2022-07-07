@@ -28,7 +28,7 @@
 #include "storage/ndb/plugin/ndb_mysql_services.h"
 
 static SERVICE_TYPE_NO_CONST(pfs_plugin_table_v1) *pfs_table = nullptr;
-SERVICE_TYPE_NO_CONST(pfs_plugin_column_string_v1) *pfscol_string = nullptr;
+SERVICE_TYPE_NO_CONST(pfs_plugin_column_string_v2) *pfscol_string = nullptr;
 SERVICE_TYPE_NO_CONST(pfs_plugin_column_enum_v1) *pfscol_enum = nullptr;
 
 extern PFS_engine_table_share_proxy *ndb_sync_pending_objects_share;
@@ -54,7 +54,7 @@ bool ndb_pfs_init() {
   // Get table service
   if (services.acquire_service(pfs_table, "pfs_plugin_table_v1")) return true;
   // Get column services
-  if (services.acquire_service(pfscol_string, "pfs_plugin_column_string_v1"))
+  if (services.acquire_service(pfscol_string, "pfs_plugin_column_string_v2"))
     return true;
   if (services.acquire_service(pfscol_enum, "pfs_plugin_column_enum_v1"))
     return true;

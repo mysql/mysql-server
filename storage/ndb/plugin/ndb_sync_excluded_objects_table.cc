@@ -70,7 +70,7 @@ int Ndb_sync_excluded_objects_table::rnd_init() {
   return 0;
 }
 
-extern SERVICE_TYPE_NO_CONST(pfs_plugin_column_string_v1) * pfscol_string;
+extern SERVICE_TYPE_NO_CONST(pfs_plugin_column_string_v2) * pfscol_string;
 extern SERVICE_TYPE_NO_CONST(pfs_plugin_column_enum_v1) * pfscol_enum;
 
 int Ndb_sync_excluded_objects_table::read_column_value(PSI_field *field,

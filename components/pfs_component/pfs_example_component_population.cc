@@ -234,14 +234,14 @@ END_COMPONENT_PROVIDES();
 
 /* pfs_example_component requires/uses pfs_plugin_table service */
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_table_v1, pt_srv);
-REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_string_v1, pc_string_srv);
+REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_string_v2, pc_string_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_year_v1, pc_year_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_bigint_v1, pc_bigint_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_double_v1, pc_double_srv);
 
 BEGIN_COMPONENT_REQUIRES(pfs_example_component_population)
 REQUIRES_SERVICE_AS(pfs_plugin_table_v1, pt_srv),
-    REQUIRES_SERVICE_AS(pfs_plugin_column_string_v1, pc_string_srv),
+    REQUIRES_SERVICE_AS(pfs_plugin_column_string_v2, pc_string_srv),
     REQUIRES_SERVICE_AS(pfs_plugin_column_year_v1, pc_year_srv),
     REQUIRES_SERVICE_AS(pfs_plugin_column_bigint_v1, pc_bigint_srv),
     REQUIRES_SERVICE_AS(pfs_plugin_column_double_v1, pc_double_srv),

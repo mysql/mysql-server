@@ -1399,7 +1399,7 @@ BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_double_v1)
     set_field_double_v1, get_field_double_v1
 END_SERVICE_IMPLEMENTATION();
 
-BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_string_v1)
+BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_string_v2)
     set_field_char_utf8mb4_v1,
     get_field_char_utf8mb4_v1,
     read_key_string_v1,

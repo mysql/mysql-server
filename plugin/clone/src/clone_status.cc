@@ -38,7 +38,7 @@ SERVICE_TYPE_NO_CONST(pfs_plugin_table_v1) *mysql_pfs_table = nullptr;
 SERVICE_TYPE_NO_CONST(pfs_plugin_column_integer_v1) *mysql_pfscol_int = nullptr;
 SERVICE_TYPE_NO_CONST(pfs_plugin_column_bigint_v1) *mysql_pfscol_bigint =
     nullptr;
-SERVICE_TYPE_NO_CONST(pfs_plugin_column_string_v1) *mysql_pfscol_string =
+SERVICE_TYPE_NO_CONST(pfs_plugin_column_string_v2) *mysql_pfscol_string =
     nullptr;
 SERVICE_TYPE_NO_CONST(pfs_plugin_column_timestamp_v2) *mysql_pfscol_timestamp =
     nullptr;
@@ -135,7 +135,7 @@ bool Table_pfs::acquire_services() {
   /* Get column services. */
   ACQUIRE_SERVICE(mysql_pfscol_int, "pfs_plugin_column_integer_v1")
   ACQUIRE_SERVICE(mysql_pfscol_bigint, "pfs_plugin_column_bigint_v1")
-  ACQUIRE_SERVICE(mysql_pfscol_string, "pfs_plugin_column_string_v1")
+  ACQUIRE_SERVICE(mysql_pfscol_string, "pfs_plugin_column_string_v2")
   ACQUIRE_SERVICE(mysql_pfscol_timestamp, "pfs_plugin_column_timestamp_v2")
 
   auto err = create_proxy_tables();
