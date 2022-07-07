@@ -455,7 +455,7 @@ bool migrate_table_to_dd(THD *thd, Ndb_dd_client *dd_client,
   uint key_count;
 
   // Foreign keys are handled at later stage by retrieving info from SE.
-  FOREIGN_KEY *dummy_fk_key_info = NULL;
+  FOREIGN_KEY *dummy_fk_key_info = nullptr;
   uint dummy_fk_key_count = 0;
 
   if (mysql_prepare_create_table(

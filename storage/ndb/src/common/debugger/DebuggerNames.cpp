@@ -43,13 +43,13 @@ int
 initSignalNames(const char * dst[], const GsnName src[], unsigned short len){
   unsigned i;
   for(i = 0; i<=MAX_GSN; i++)
-    dst[i] = 0;
+    dst[i] = nullptr;
   
   for(i = 0; i<len; i++){
     unsigned short gsn = src[i].gsn;
     const char * name  = src[i].name;
     
-    if(dst[gsn] != 0 && name != 0){
+    if(dst[gsn] != nullptr && name != nullptr){
       if(strcmp(dst[gsn], name) != 0){
         g_eventLogger->info(
             "Multiple definition of signal name for gsn: %d (%s, %s)", gsn,
@@ -68,13 +68,13 @@ initSignalPrinters(SignalDataPrintFunction dst[],
 		   const NameFunctionPair src[]){
   unsigned i;
   for(i = 0; i<=MAX_GSN; i++)
-    dst[i] = 0;
+    dst[i] = nullptr;
   
   unsigned short gsn;
   for(i = 0; (gsn = src[i].gsn) > 0; i++){
     SignalDataPrintFunction fun = src[i].function;
     
-    if(dst[gsn] != 0 && fun != 0){
+    if(dst[gsn] != nullptr && fun != nullptr){
       if(dst[gsn] != fun){
         g_eventLogger->info(
             "Multiple definition of signal print function for gsn: %d", gsn);
@@ -93,13 +93,13 @@ initBlockNames(const char * dst[],
 	       unsigned len){
   unsigned i;
   for(i = 0; i<NO_OF_BLOCKS; i++)
-    dst[i] = 0;
+    dst[i] = nullptr;
 
   for(i = 0; i<len; i++){
     const int index = src[i].number - MIN_BLOCK_NO;
     if(index < 0 ||             // Too small
        index >= NO_OF_BLOCKS || // Too large
-       dst[index] != 0)         // Already occupied
+       dst[index] != nullptr)         // Already occupied
     {
       g_eventLogger->info("Invalid block name definition: %d %s", src[i].number,
                           src[i].name);
@@ -137,7 +137,7 @@ const char *
 getBlockName(unsigned short blockNo, const char * ret){
   if(blockNo >= MIN_BLOCK_NO && blockNo <= MAX_BLOCK_NO)
     return localBlockNames[blockNo-MIN_BLOCK_NO];
-  if (ret == 0) {
+  if (ret == nullptr) {
     static char buf[20];
     BaseString::snprintf(buf, sizeof(buf), "BLOCK#%d", (int)blockNo);
     return buf;
@@ -148,7 +148,7 @@ getBlockName(unsigned short blockNo, const char * ret){
 unsigned short
 getBlockNo(const char * blockName){
   for(int i = 0; i<NO_OF_BLOCKS; i++)
-    if(localBlockNames[i] != 0 && strcmp(localBlockNames[i], blockName) == 0)
+    if(localBlockNames[i] != nullptr && strcmp(localBlockNames[i], blockName) == 0)
       return i + MIN_BLOCK_NO;
   return 0;
 }
@@ -157,5 +157,5 @@ SignalDataPrintFunction
 findPrintFunction(unsigned short gsn){
   if(gsn > 0 && gsn <= MAX_GSN)
     return localPrintFunctions[gsn];
-  return 0;
+  return nullptr;
 }

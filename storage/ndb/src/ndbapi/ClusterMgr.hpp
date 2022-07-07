@@ -304,7 +304,7 @@ private:
 
     inline void init(GlobalSignalNumber aGsn, const Uint32* aData) {
       gsn = aGsn;
-      if (aData != NULL)
+      if (aData != nullptr)
         memcpy(&data, aData, sizeof(data));
       else
         memset(&data, 0, sizeof(data));

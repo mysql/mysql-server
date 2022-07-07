@@ -464,7 +464,7 @@ public:
 
   // ::paramValue() is a placeholder for a parameter value to be specified when
   // a query instance is created for execution.
-  NdbParamOperand* paramValue(const char* name = 0);  // Parameterized
+  NdbParamOperand* paramValue(const char* name = nullptr);  // Parameterized
 
   // ::linkedValue() defines a value available from execution of a previously defined
   // NdbQueryOperationDef. This NdbQueryOperationDef will become the 'parent' of the
@@ -485,27 +485,27 @@ public:
   const NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Table*,          // Primary key lookup
                                 const NdbQueryOperand* const keys[],  // Terminated by NULL element
-                                const NdbQueryOptions* options = 0,
-                                const char* ident = 0);
+                                const NdbQueryOptions* options = nullptr,
+                                const char* ident = nullptr);
 
   const NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Index*,          // Unique key lookup w/ index
 			        const NdbDictionary::Table*,
                                 const NdbQueryOperand* const keys[],  // Terminated by NULL element
-                                const NdbQueryOptions* options = 0,
-                                const char* ident = 0);
+                                const NdbQueryOptions* options = nullptr,
+                                const char* ident = nullptr);
 
   const NdbQueryTableScanOperationDef* scanTable(
                                 const NdbDictionary::Table*,
-                                const NdbQueryOptions* options = 0,
-                                const char* ident = 0);
+                                const NdbQueryOptions* options = nullptr,
+                                const char* ident = nullptr);
 
   const NdbQueryIndexScanOperationDef* scanIndex(
                                 const NdbDictionary::Index*, 
 	                        const NdbDictionary::Table*,
-                                const NdbQueryIndexBound* bound = 0,
-                                const NdbQueryOptions* options = 0,
-                                const char* ident = 0);
+                                const NdbQueryIndexBound* bound = nullptr,
+                                const NdbQueryOptions* options = nullptr,
+                                const char* ident = nullptr);
 
 
   /** 

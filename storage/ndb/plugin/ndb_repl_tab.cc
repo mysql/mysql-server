@@ -137,12 +137,14 @@ const char *Ndb_rep_tab_reader::nrt_binlog_type = "binlog_type";
 const char *Ndb_rep_tab_reader::nrt_conflict_fn = "conflict_fn";
 
 Ndb_rep_tab_reader::Ndb_rep_tab_reader()
-    : binlog_flags(NBT_DEFAULT), conflict_fn_spec(NULL), warning_msg(NULL) {}
+    : binlog_flags(NBT_DEFAULT),
+      conflict_fn_spec(nullptr),
+      warning_msg(nullptr) {}
 
 int Ndb_rep_tab_reader::check_schema(const NdbDictionary::Table *reptab,
                                      const char **error_str) {
   DBUG_TRACE;
-  *error_str = NULL;
+  *error_str = nullptr;
 
   const NdbDictionary::Column *col_db, *col_table_name, *col_server_id,
       *col_binlog_type, *col_conflict_fn;
@@ -151,23 +153,23 @@ int Ndb_rep_tab_reader::check_schema(const NdbDictionary::Table *reptab,
     return -2;
   }
   col_db = reptab->getColumn(*error_str = nrt_db);
-  if (col_db == NULL || !col_db->getPrimaryKey() ||
+  if (col_db == nullptr || !col_db->getPrimaryKey() ||
       col_db->getType() != NdbDictionary::Column::Varbinary)
     return -1;
   col_table_name = reptab->getColumn(*error_str = nrt_table_name);
-  if (col_table_name == NULL || !col_table_name->getPrimaryKey() ||
+  if (col_table_name == nullptr || !col_table_name->getPrimaryKey() ||
       col_table_name->getType() != NdbDictionary::Column::Varbinary)
     return -1;
   col_server_id = reptab->getColumn(*error_str = nrt_server_id);
-  if (col_server_id == NULL || !col_server_id->getPrimaryKey() ||
+  if (col_server_id == nullptr || !col_server_id->getPrimaryKey() ||
       col_server_id->getType() != NdbDictionary::Column::Unsigned)
     return -1;
   col_binlog_type = reptab->getColumn(*error_str = nrt_binlog_type);
-  if (col_binlog_type == NULL || col_binlog_type->getPrimaryKey() ||
+  if (col_binlog_type == nullptr || col_binlog_type->getPrimaryKey() ||
       col_binlog_type->getType() != NdbDictionary::Column::Unsigned)
     return -1;
   col_conflict_fn = reptab->getColumn(*error_str = nrt_conflict_fn);
-  if (col_conflict_fn != NULL) {
+  if (col_conflict_fn != nullptr) {
     if ((col_conflict_fn->getPrimaryKey()) ||
         (col_conflict_fn->getType() != NdbDictionary::Column::Varbinary))
       return -1;
@@ -190,7 +192,7 @@ int Ndb_rep_tab_reader::scan_candidates(Ndb *ndb,
   while (true) {
     ndberror = ok; /* reset */
     NdbTransaction *trans = ndb->startTransaction();
-    if (trans == NULL) {
+    if (trans == nullptr) {
       ndberror = ndb->getNdbError();
 
       if (ndberror.status == NdbError::TemporaryError) {
@@ -201,28 +203,29 @@ int Ndb_rep_tab_reader::scan_candidates(Ndb *ndb,
       }
       break;
     }
-    NdbRecAttr *ra_binlog_type = NULL;
-    NdbRecAttr *ra_conflict_fn_spec = NULL;
+    NdbRecAttr *ra_binlog_type = nullptr;
+    NdbRecAttr *ra_conflict_fn_spec = nullptr;
     Ndb_rep_tab_row row;
-    bool have_conflict_fn_col = (reptab->getColumn(nrt_conflict_fn) != NULL);
+    bool have_conflict_fn_col = (reptab->getColumn(nrt_conflict_fn) != nullptr);
 
     /* Define scan op on ndb_replication */
     NdbScanOperation *scanOp = trans->getNdbScanOperation(reptab);
-    if (scanOp == NULL) {
+    if (scanOp == nullptr) {
       ndberror = trans->getNdbError();
       break;
     }
 
     if ((scanOp->readTuples(NdbScanOperation::LM_CommittedRead) != 0) ||
-        (scanOp->getValue(nrt_db, (char *)row.key.db) == NULL) ||
+        (scanOp->getValue(nrt_db, (char *)row.key.db) == nullptr) ||
         (scanOp->getValue(nrt_table_name, (char *)row.key.table_name) ==
-         NULL) ||
-        (scanOp->getValue(nrt_server_id, (char *)&row.key.server_id) == NULL) ||
+         nullptr) ||
+        (scanOp->getValue(nrt_server_id, (char *)&row.key.server_id) ==
+         nullptr) ||
         ((ra_binlog_type = scanOp->getValue(
-              nrt_binlog_type, (char *)&row.binlog_type)) == NULL) ||
+              nrt_binlog_type, (char *)&row.binlog_type)) == nullptr) ||
         (have_conflict_fn_col &&
          ((ra_conflict_fn_spec = scanOp->getValue(
-               nrt_conflict_fn, (char *)row.conflict_fn_spec)) == NULL))) {
+               nrt_conflict_fn, (char *)row.conflict_fn_spec)) == nullptr))) {
       ndberror = scanOp->getNdbError();
       break;
     }
@@ -338,14 +341,14 @@ int Ndb_rep_tab_reader::lookup(Ndb *ndb,
 
   /* Set results to defaults */
   binlog_flags = NBT_DEFAULT;
-  conflict_fn_spec = NULL;
-  warning_msg = NULL;
+  conflict_fn_spec = nullptr;
+  warning_msg = nullptr;
 
   Ndb_table_guard ndbtab_g(ndb, ndb_rep_db, ndb_replication_table);
   const NdbDictionary::Table *reptab = ndbtab_g.get_table();
 
   do {
-    if (reptab == NULL) {
+    if (reptab == nullptr) {
       if (ndbtab_g.getNdbError().classification == NdbError::SchemaError ||
           ndbtab_g.getNdbError().code == NDB_ERR_CLUSTER_FAILURE) {
         DBUG_PRINT("info",
@@ -373,7 +376,7 @@ int Ndb_rep_tab_reader::lookup(Ndb *ndb,
 
     if (best_match_quality == -1) {
       /* Problem in matching, message already set */
-      assert(warning_msg != NULL);
+      assert(warning_msg != nullptr);
       error = -3;
       break;
     }
@@ -389,7 +392,7 @@ int Ndb_rep_tab_reader::lookup(Ndb *ndb,
       if (best_match_row.cfs_is_null) {
         DBUG_PRINT("info", ("Conflict FN SPEC is Null"));
         /* No conflict fn spec */
-        conflict_fn_spec = NULL;
+        conflict_fn_spec = nullptr;
       } else {
         const char *conflict_fn = best_match_row.get_conflict_fn_spec();
         uint len = (uint)strlen(conflict_fn);
@@ -436,10 +439,10 @@ int Ndb_rep_tab_reader::lookup(Ndb *ndb,
     error = 0; /* No real error, just use defaults */
   }
 
-  DBUG_PRINT(
-      "info",
-      ("Rc : %d Retrieved Binlog flags : %u and function spec : %s", error,
-       binlog_flags, (conflict_fn_spec != NULL ? conflict_fn_spec : "NULL")));
+  DBUG_PRINT("info",
+             ("Rc : %d Retrieved Binlog flags : %u and function spec : %s",
+              error, binlog_flags,
+              (conflict_fn_spec != nullptr ? conflict_fn_spec : "NULL")));
 
   return error;
 }

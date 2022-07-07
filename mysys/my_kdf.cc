@@ -101,7 +101,7 @@ int Key_hkdf_function::derive_key(const unsigned char *key,
 
   /* Set initial key  */
   memset(rkey, 0, key_size);
-  pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+  pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
   if (!pctx) {
     return 1;
   }

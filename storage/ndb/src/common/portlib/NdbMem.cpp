@@ -102,7 +102,7 @@ int NdbMem_MemLock(const void * ptr [[maybe_unused]],
 int NdbMem_ReserveSpace(void** ptr, size_t len)
 {
   void * p;
-  if (ptr == NULL)
+  if (ptr == nullptr)
   {
     return -1;
   }
@@ -138,14 +138,14 @@ int NdbMem_ReserveSpace(void** ptr, size_t len)
            0);
   if (p == MAP_FAILED)
   {
-    *ptr = NULL;
+    *ptr = nullptr;
     return -1;
   }
 #if defined(MADV_DONTDUMP)
   if (-1 == madvise(p, len, MADV_DONTDUMP))
   {
     require(0 == munmap(p, len));
-    *ptr = NULL;
+    *ptr = nullptr;
     return -1;
   }
 #endif

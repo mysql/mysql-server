@@ -50,9 +50,9 @@ Ndb::checkFailedNode()
        * Release all connections in idle list (for node)
        */
       NdbTransaction * tNdbCon = theConnectionArray[node_id];
-      theConnectionArray[node_id] = NULL;
-      theConnectionArrayLast[node_id] = NULL;
-      while (tNdbCon != NULL) {
+      theConnectionArray[node_id] = nullptr;
+      theConnectionArrayLast[node_id] = nullptr;
+      while (tNdbCon != nullptr) {
         NdbTransaction* tempNdbCon = tNdbCon;
         tNdbCon = tNdbCon->next();
         releaseNdbCon(tempNdbCon);
@@ -231,13 +231,13 @@ NdbRecAttr*
 Ndb::getRecAttr()
 {
   NdbRecAttr* tRecAttr = theImpl->theRecAttrIdleList.seize(this);
-  if (tRecAttr != NULL) 
+  if (tRecAttr != nullptr) 
   {
     tRecAttr->init();
     return tRecAttr;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 /***************************************************************************
@@ -358,12 +358,12 @@ void
 Ndb::releaseOperation(NdbOperation* anOperation)
 {
   if(anOperation->m_tcReqGSN == GSN_TCKEYREQ){
-    anOperation->theNdbCon = NULL;
+    anOperation->theNdbCon = nullptr;
     anOperation->theMagicNumber = 0xFE11D0;
     theImpl->theOpIdleList.release(anOperation);
   } else {
     assert(anOperation->m_tcReqGSN == GSN_TCINDXREQ);
-    anOperation->theNdbCon = NULL;
+    anOperation->theNdbCon = nullptr;
     anOperation->theMagicNumber = 0xFE11D1;
     theImpl->theIndexOpIdleList.release((NdbIndexOperation*)anOperation);
   }
@@ -388,7 +388,7 @@ Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
     }
   }
 #endif
-  aScanOperation->theNdbCon = NULL;
+  aScanOperation->theNdbCon = nullptr;
   aScanOperation->theMagicNumber = 0xFE11D2;
   theImpl->theScanOpIdleList.release(aScanOperation);
   DBUG_VOID_RETURN;
@@ -418,7 +418,7 @@ Ndb::releaseSignal(NdbApiSignal* aSignal)
 {
 #if defined VM_TRACE
   // Check that signal is not null
-  assert(aSignal != NULL);
+  assert(aSignal != nullptr);
 #if 0
   // Check that signal is not already in list
   NdbApiSignal* tmp = theSignalIdleList;
@@ -446,7 +446,7 @@ Ndb::releaseSignals(Uint32 cnt, NdbApiSignal* head, NdbApiSignal* tail)
 void
 Ndb::releaseSignalsInList(NdbApiSignal** pList){
   NdbApiSignal* tmp;
-  while (*pList != NULL){
+  while (*pList != nullptr){
     tmp = *pList;
     *pList = (*pList)->next();
     releaseSignal(tmp);
@@ -484,7 +484,7 @@ Ndb::releaseConnectToNdb(NdbTransaction* a_con)
 // I need to close the connection irrespective of whether I
 // manage to reach NDB or not.
 
-  if (a_con == NULL)
+  if (a_con == nullptr)
     DBUG_VOID_RETURN;
 
   Uint32 node_id = a_con->getConnectedNodeId();
@@ -536,12 +536,12 @@ update(Ndb::Free_list_usage* curr,
 Ndb::Free_list_usage*
 Ndb::get_free_list_usage(Ndb::Free_list_usage* curr)
 {
-  if (curr == 0)
+  if (curr == nullptr)
   {
-    return 0;
+    return nullptr;
   } 
 
-  if(curr->m_name == 0)
+  if(curr->m_name == nullptr)
   {
     update(curr, theImpl->theConIdleList, "NdbTransaction");
   }
@@ -595,7 +595,7 @@ Ndb::get_free_list_usage(Ndb::Free_list_usage* curr)
   }
   else if(!strcmp(curr->m_name, "NdbLockHandle"))
   {
-    return 0;
+    return nullptr;
   }
   else
   {

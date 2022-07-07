@@ -123,7 +123,7 @@ parse_mask(const char *str, T& mask)
     char * delim = const_cast<char*>(strchr(list[i].c_str(), '-'));
     unsigned first = 0;
     unsigned last = 0;
-    if (delim == 0)
+    if (delim == nullptr)
     {
       int res = sscanf(list[i].c_str(), "%u", &first);
       if (res != 1)

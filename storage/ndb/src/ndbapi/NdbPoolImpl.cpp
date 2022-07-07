@@ -24,8 +24,8 @@
 
 #include "NdbPoolImpl.hpp"
 
-NdbMutex *NdbPool::pool_mutex = NULL;
-NdbPool *the_pool = NULL;
+NdbMutex *NdbPool::pool_mutex = nullptr;
+NdbPool *the_pool = nullptr;
 
 NdbPool*
 NdbPool::create_instance(Ndb_cluster_connection* cc,
@@ -34,26 +34,26 @@ NdbPool::create_instance(Ndb_cluster_connection* cc,
                          Uint32 init_no_ndb_objects)
 {
   if (!initPoolMutex()) {
-    return NULL;
+    return nullptr;
   }
   NdbMutex_Lock(pool_mutex);
   NdbPool* a_pool;
-  if (the_pool != NULL) {
-    a_pool = NULL;
+  if (the_pool != nullptr) {
+    a_pool = nullptr;
   } else {
     the_pool = new NdbPool(cc, max_ndb_obj, no_conn_obj);
     if (!the_pool->init(init_no_ndb_objects)) {
       delete the_pool;
-      the_pool = NULL;
+      the_pool = nullptr;
     }
     a_pool = the_pool;
   }
   NdbMutex* temp = pool_mutex;
-  if (a_pool == NULL) {
-    pool_mutex = NULL;
+  if (a_pool == nullptr) {
+    pool_mutex = nullptr;
   }
   NdbMutex_Unlock(pool_mutex);
-  if (a_pool == NULL) {
+  if (a_pool == nullptr) {
     NdbMutex_Destroy(temp);
   }
   return a_pool;
@@ -62,13 +62,13 @@ NdbPool::create_instance(Ndb_cluster_connection* cc,
 void
 NdbPool::drop_instance()
 {
-  if (pool_mutex == NULL) {
+  if (pool_mutex == nullptr) {
     return;
   }
   NdbMutex_Lock(pool_mutex);
   the_pool->release_all();
   delete the_pool;
-  the_pool = NULL;
+  the_pool = nullptr;
   NdbMutex* temp = pool_mutex;
   NdbMutex_Unlock(temp);
   NdbMutex_Destroy(temp);
@@ -78,9 +78,9 @@ bool
 NdbPool::initPoolMutex()
 {
   bool ret_result = false;
-  if (pool_mutex == NULL) {
+  if (pool_mutex == nullptr) {
     pool_mutex = NdbMutex_Create();
-    ret_result = ((pool_mutex == NULL) ? false : true);
+    ret_result = ((pool_mutex == nullptr) ? false : true);
   }
   return ret_result;
 }
@@ -101,13 +101,13 @@ NdbPool::NdbPool(Ndb_cluster_connection* cc,
   m_no_of_conn_objects = no_conn_objects;
   m_no_of_objects = 0;
   m_waiting = 0;
-  m_pool_reference = NULL;
-  m_hash_entry = NULL;
+  m_pool_reference = nullptr;
+  m_hash_entry = nullptr;
   m_first_free = NULL_POOL;
   m_first_not_in_use = NULL_POOL;
   m_last_free = NULL_POOL;
-  input_pool_cond = NULL;
-  output_pool_cond = NULL;
+  input_pool_cond = nullptr;
+  output_pool_cond = nullptr;
   m_output_queue = 0;
   m_input_queue = 0;
   m_signal_count = 0;
@@ -125,7 +125,7 @@ NdbPool::release_all()
 {
   int i;
   for (i = 0; i < m_max_ndb_objects + 1; i++) {
-    if (m_pool_reference[i].ndb_reference != NULL) {
+    if (m_pool_reference[i].ndb_reference != nullptr) {
       assert(m_pool_reference[i].in_use);
       assert(m_pool_reference[i].free_entry);
       delete m_pool_reference[i].ndb_reference;
@@ -133,8 +133,8 @@ NdbPool::release_all()
   }
   delete [] m_pool_reference;
   delete [] m_hash_entry;
-  m_pool_reference = NULL;
-  m_hash_entry = NULL;
+  m_pool_reference = nullptr;
+  m_hash_entry = nullptr;
 }
 
 bool
@@ -145,7 +145,7 @@ NdbPool::init(Uint32 init_no_objects)
   do {
     input_pool_cond = NdbCondition_Create();
     output_pool_cond = NdbCondition_Create();
-    if (input_pool_cond == NULL || output_pool_cond == NULL) {
+    if (input_pool_cond == nullptr || output_pool_cond == nullptr) {
       break;
     }
     if (init_no_objects > m_max_ndb_objects) {
@@ -157,13 +157,13 @@ NdbPool::init(Uint32 init_no_objects)
     m_pool_reference = new NdbPool::POOL_STRUCT[m_max_ndb_objects + 1];
     m_hash_entry     = new Uint8[POOL_HASH_TABLE_SIZE];
 
-    if ((m_pool_reference == NULL) || (m_hash_entry == NULL)) {
+    if ((m_pool_reference == nullptr) || (m_hash_entry == nullptr)) {
       delete [] m_pool_reference;
       delete [] m_hash_entry;
       break;
     }
     for (i = 0; i < m_max_ndb_objects + 1; i++) {
-      m_pool_reference[i].ndb_reference = NULL;
+      m_pool_reference[i].ndb_reference = nullptr;
       m_pool_reference[i].in_use = false;
       m_pool_reference[i].next_free_object = i+1;
       m_pool_reference[i].prev_free_object = i-1;
@@ -179,7 +179,7 @@ NdbPool::init(Uint32 init_no_objects)
     m_no_of_objects = init_no_objects;
     for (i = init_no_objects; i > 0 ; i--) {
       Uint32 fake_id;
-      if (!allocate_ndb(fake_id, (const char*)NULL, (const char*)NULL)) {
+      if (!allocate_ndb(fake_id, (const char*)nullptr, (const char*)nullptr)) {
         release_all();
         break;
       }
@@ -206,14 +206,14 @@ NdbPool::get_ndb_object(Uint32 &hint_id,
                         const char* a_catalog_name,
                         const char* a_schema_name)
 {
-  Ndb* ret_ndb = NULL;
+  Ndb* ret_ndb = nullptr;
   Uint32 hash_entry = compute_hash(a_schema_name);
   NdbMutex_Lock(pool_mutex);
   while (1) {
     /*
     We start by checking if we can use the hinted Ndb object.
     */
-    if ((ret_ndb = get_hint_ndb(hint_id, hash_entry)) != NULL) {
+    if ((ret_ndb = get_hint_ndb(hint_id, hash_entry)) != nullptr) {
       break;
     }
     /*
@@ -230,7 +230,7 @@ NdbPool::get_ndb_object(Uint32 &hint_id,
     No Ndb object connected to the preferred database was found.
     We look for a free Ndb object in general.
     */
-    if ((ret_ndb = get_free_list(hint_id, hash_entry)) != NULL) {
+    if ((ret_ndb = get_free_list(hint_id, hash_entry)) != nullptr) {
       break;
     }
     /*
@@ -239,7 +239,7 @@ NdbPool::get_ndb_object(Uint32 &hint_id,
     */
     if (m_no_of_objects < m_max_ndb_objects) {
       if (allocate_ndb(hint_id, a_catalog_name, a_schema_name)) {
-        assert((ret_ndb = get_hint_ndb(hint_id, hash_entry)) != NULL);
+        assert((ret_ndb = get_hint_ndb(hint_id, hash_entry)) != nullptr);
         break;
       }
     }
@@ -247,18 +247,18 @@ NdbPool::get_ndb_object(Uint32 &hint_id,
     We need to wait until an Ndb object becomes
     available.
     */
-    if ((ret_ndb = wait_free_ndb(hint_id)) != NULL) {
+    if ((ret_ndb = wait_free_ndb(hint_id)) != nullptr) {
       break;
     }
     /*
     Not even after waiting were we able to get hold of an Ndb object. We
     return NULL to indicate this problem.
     */
-    ret_ndb = NULL;
+    ret_ndb = nullptr;
     break;
   }
   NdbMutex_Unlock(pool_mutex);
-  if (ret_ndb != NULL) {
+  if (ret_ndb != nullptr) {
     /*
     We need to set the catalog and schema name of the Ndb object before
     returning it to the caller.
@@ -308,7 +308,7 @@ NdbPool::allocate_ndb(Uint32 &id,
   } else {
     a_ndb = new Ndb(m_cluster_connection, "");
   }
-  if (a_ndb == NULL) {
+  if (a_ndb == nullptr) {
     return false;
   }
   a_ndb->init(m_no_of_conn_objects);
@@ -357,11 +357,11 @@ Ndb*
 NdbPool::get_free_list(Uint32 &id, Uint32 hash_entry)
 {
   if (m_first_free == NULL_POOL) {
-    return NULL;
+    return nullptr;
   }
   id = m_first_free;
   Ndb* ret_ndb = get_hint_ndb(m_first_free, hash_entry);
-  assert(ret_ndb != NULL);
+  assert(ret_ndb != nullptr);
   return ret_ndb;
 }
 
@@ -388,29 +388,29 @@ NdbPool::get_db_hash(Uint32 &id,
   if (found) {
     id = entry_id;
     Ndb* ret_ndb = get_hint_ndb(entry_id, hash_entry);
-    assert(ret_ndb != NULL);
+    assert(ret_ndb != nullptr);
     return ret_ndb;
   }
-  return NULL;
+  return nullptr;
 }
 
 Ndb*
 NdbPool::get_hint_ndb(Uint32 hint_id, Uint32 hash_entry)
 {
-  Ndb* ret_ndb = NULL;
+  Ndb* ret_ndb = nullptr;
   do {
     if ((hint_id != 0) &&
         (hint_id <= m_max_ndb_objects) &&
         (m_pool_reference[hint_id].in_use) &&
         (m_pool_reference[hint_id].free_entry)) {
       ret_ndb = m_pool_reference[hint_id].ndb_reference;
-      if (ret_ndb != NULL) {
+      if (ret_ndb != nullptr) {
         break;
       } else {
         assert(false);
       }
     }
-    return NULL;
+    return nullptr;
   } while (1);
   /*
   This is where we remove the entry from the free list and from the db hash
@@ -495,7 +495,7 @@ NdbPool::wait_free_ndb(Uint32 &id)
     m_waiting--;
   } while (res == 0 && m_first_wait == NULL_POOL);
   if (res != 0 && m_first_wait == NULL_POOL) {
-    return NULL;
+    return nullptr;
   }
   id = m_first_wait;
   remove_wait_list();

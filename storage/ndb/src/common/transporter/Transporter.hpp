@@ -324,7 +324,7 @@ protected:
 
   TransporterRegistry &m_transporter_registry;
   TransporterCallback *get_callback_obj() { return m_transporter_registry.callbackObj; }
-  void report_error(enum TransporterError err, const char *info = 0)
+  void report_error(enum TransporterError err, const char *info = nullptr)
     { m_transporter_registry.report_error(remoteNodeId, err, info); }
 
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);

@@ -1155,7 +1155,7 @@ bool Ndb_dd_client::lookup_tablespace_id(const char *tablespace_name,
       MDL_key::TABLESPACE, "", tablespace_name, MDL_INTENTION_EXCLUSIVE));
 
   // Acquire tablespace.
-  const dd::Tablespace *ts_obj = NULL;
+  const dd::Tablespace *ts_obj = nullptr;
   if (m_client->acquire(tablespace_name, &ts_obj)) {
     // acquire() always fails with an error being reported.
     return false;

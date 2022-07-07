@@ -263,7 +263,7 @@ FileLogHandler::setMaxFiles(const BaseString &files) {
 
 bool
 FileLogHandler::checkParams() {
-  if(m_pLogFile == NULL)
+  if(m_pLogFile == nullptr)
   {
     setErrorStr("Log file cannot be null.");
     return false;

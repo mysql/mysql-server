@@ -61,8 +61,8 @@ private:
                                              sizeof(BlockHeader));
     E* e = (E*) A::mem_calloc(allocatorContext, blockElements, sizeof(E));
 
-    h->next = NULL;
-    h->prev = NULL;
+    h->next = nullptr;
+    h->prev = nullptr;
     h->elements = e;
 
     return h;
@@ -72,8 +72,8 @@ private:
   {
     if (stackTop)
     {
-      assert(firstBlock != NULL);
-      assert(currBlock != NULL);
+      assert(firstBlock != nullptr);
+      assert(currBlock != nullptr);
       /* Check that currBlock is positioned on correct
        * block, except for block boundary case
        */
@@ -87,7 +87,7 @@ private:
     }
     else
     {
-      assert(currBlock == NULL);
+      assert(currBlock == nullptr);
     }
     return true;
   }
@@ -103,10 +103,10 @@ private:
   Uint32 blockElements;
 
 public:
-  LinkedStack(Uint32 _blockElements, void* _allocatorContext=NULL)
+  LinkedStack(Uint32 _blockElements, void* _allocatorContext=nullptr)
     : allocatorContext(_allocatorContext),
-      firstBlock(NULL),
-      currBlock(NULL),
+      firstBlock(nullptr),
+      currBlock(nullptr),
       stackTop(0),
       blockElements(_blockElements)
   {
@@ -199,7 +199,7 @@ public:
   {
     assert(valid());
     stackTop = 0;
-    currBlock = NULL;
+    currBlock = nullptr;
     assert(valid());
   }
 
@@ -215,7 +215,7 @@ public:
       h = n;
     };
     stackTop = 0;
-    firstBlock = currBlock = NULL;
+    firstBlock = currBlock = nullptr;
     assert(valid());
   }
 };

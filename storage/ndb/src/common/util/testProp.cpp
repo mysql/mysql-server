@@ -57,7 +57,7 @@ TAPTEST(Properties)
 
   Properties::Iterator it(p);
   const char * name;
-  for (name = it.first(); name != NULL; name = it.next())
+  for (name = it.first(); name != nullptr; name = it.next())
   {
     count++;
   }

@@ -40,8 +40,8 @@ int decimal_str2bin(const char *str, int str_len,
     decimal_digit_t digits[9];                /* for dec->buf */
     const char *end = str + str_len;
     
-    assert(str != 0);   
-    assert(bin != 0);
+    assert(str != nullptr);   
+    assert(bin != nullptr);
     if(prec < 1) return E_DEC_BAD_PREC;
     if((scale < 0) || (scale > prec)) return E_DEC_BAD_SCALE;
     
@@ -66,8 +66,8 @@ int decimal_bin2str(const void *bin, int bin_len,
   decimal_digit_t digits[9]; /* for dec->buf */
   int to_len;
 
-  assert(bin != 0);
-  assert(str != 0);
+  assert(bin != nullptr);
+  assert(str != nullptr);
   if (prec < 1) return E_DEC_BAD_PREC;
   if ((scale < 0) || (scale > prec)) return E_DEC_BAD_SCALE;
 

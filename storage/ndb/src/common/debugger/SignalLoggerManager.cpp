@@ -48,12 +48,12 @@ SignalLoggerManager::SignalLoggerManager()
   for (int i = 0; i < NO_OF_BLOCKS; i++){
       logModes[i] = 0;
   }
-  outputStream = 0;
+  outputStream = nullptr;
   m_ownNodeId = 0;
   m_logDistributed = false;
 
   // using mutex avoids MT log mixups but has some serializing effect
-  m_mutex = 0;
+  m_mutex = nullptr;
 
 #ifdef NDB_USE_GET_ENV
   const char* p = NdbEnv_GetEnv("NDB_SIGNAL_LOG_MUTEX", (char*)0, 0);
@@ -64,21 +64,21 @@ SignalLoggerManager::SignalLoggerManager()
 
 SignalLoggerManager::~SignalLoggerManager()
 {
-  if(outputStream != 0){
+  if(outputStream != nullptr){
     fflush(outputStream);
     fclose(outputStream);
-    outputStream = 0;
+    outputStream = nullptr;
   }
-  if (m_mutex != 0) {
+  if (m_mutex != nullptr) {
     NdbMutex_Destroy(m_mutex);
-    m_mutex = 0;
+    m_mutex = nullptr;
   }
 }
 
 FILE *
 SignalLoggerManager::setOutputStream(FILE * output)
 {
-  if (outputStream != 0)
+  if (outputStream != nullptr)
   {
     lock();
     fflush(outputStream);
@@ -99,7 +99,7 @@ SignalLoggerManager::getOutputStream() const
 void
 SignalLoggerManager::flushSignalLog()
 {
-  if (outputStream != 0)
+  if (outputStream != nullptr)
   {
     lock();
     fflush(outputStream);
@@ -133,7 +133,7 @@ static int
 getParameter(char *blocks[NO_OF_BLOCKS], const char * par, const char * line)
 {
   const char * loc = strstr(line, par);
-  if(loc == NULL)
+  if(loc == nullptr)
     return 0;
 
   loc += strlen(par);
@@ -276,7 +276,7 @@ SignalLoggerManager::executeDirect(const SignalHeader& sh,
   Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
   Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
   
-  if(outputStream != 0 && 
+  if(outputStream != nullptr && 
      (traceId == 0 || traceId == trace) &&
      (logMatch(senderBlockNo, LogOut) || logMatch(receiverBlockNo, LogIn))){
     lock();
@@ -306,7 +306,7 @@ SignalLoggerManager::executeSignal(const SignalHeader& sh, Uint8 prio,
   Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
   Uint32 senderNode = refToNode(sh.theSendersBlockRef);
 
-  if(outputStream != 0 && 
+  if(outputStream != nullptr && 
      (traceId == 0 || traceId == trace) &&
      (logMatch(receiverBlockNo, LogOut) ||
       (m_logDistributed && m_ownNodeId != senderNode))){
@@ -335,7 +335,7 @@ SignalLoggerManager::executeSignal(const SignalHeader& sh, Uint8 prio,
   Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
   Uint32 senderNode = refToNode(sh.theSendersBlockRef);
 
-  if(outputStream != 0 && 
+  if(outputStream != nullptr && 
      (traceId == 0 || traceId == trace) &&
      (logMatch(receiverBlockNo, LogOut) ||
       (m_logDistributed && m_ownNodeId != senderNode))){
@@ -367,7 +367,7 @@ SignalLoggerManager::sendSignal(const SignalHeader& sh,
   Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
   //Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
 
-  if(outputStream != 0 && 
+  if(outputStream != nullptr && 
      (traceId == 0 || traceId == trace) &&
      (logMatch(senderBlockNo, LogOut) ||
       (m_logDistributed && m_ownNodeId != node))){
@@ -398,7 +398,7 @@ SignalLoggerManager::sendSignal(const SignalHeader& sh, Uint8 prio,
   Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
   //Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
 
-  if(outputStream != 0 && 
+  if(outputStream != nullptr && 
      (traceId == 0 || traceId == trace) &&
      (logMatch(senderBlockNo, LogOut) ||
       (m_logDistributed && m_ownNodeId != node))){
@@ -427,7 +427,7 @@ SignalLoggerManager::sendSignal(const SignalHeader& sh,
   Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
   //Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
 
-  if(outputStream != 0 && 
+  if(outputStream != nullptr && 
      (traceId == 0 || traceId == trace) &&
      (logMatch(senderBlockNo, LogOut) ||
       (m_logDistributed && m_ownNodeId != node))){
@@ -456,7 +456,7 @@ SignalLoggerManager::sendSignalWithDelay(Uint32 delayInMilliSeconds,
   Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
   //Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
 
-  if(outputStream != 0 && 
+  if(outputStream != nullptr && 
      (traceId == 0 || traceId == trace) &&
      logMatch(senderBlockNo, LogOut)){
     lock();
@@ -488,7 +488,7 @@ SignalLoggerManager::log(BlockNumber bno, const char * msg, ...)
   const BlockNumber bno2 = bno - MIN_BLOCK_NO;
   assert(bno2<NO_OF_BLOCKS);
 
-  if(outputStream != 0 &&
+  if(outputStream != nullptr &&
      logModes[bno2] != LogOff){
     lock();
     va_list ap;
@@ -616,7 +616,7 @@ SignalLoggerManager::printSignalData(FILE * output,
     findPrintFunction(sh.theVerId_signalNumber);
   
   bool ok = false;      // done with printing
-  if(printFunction != 0){
+  if(printFunction != nullptr){
     ok = (* printFunction)(output, signalData, len, sh.theReceiversBlockNumber);
   }
   if(!ok){

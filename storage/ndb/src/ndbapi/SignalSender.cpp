@@ -45,8 +45,8 @@ SimpleSignal::SimpleSignal(const SimpleSignal& src)
 
   for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
   {
-    ptr[i].p = 0;
-    if (src.ptr[i].p != 0)
+    ptr[i].p = nullptr;
+    if (src.ptr[i].p != nullptr)
     {
       Uint32* p = new Uint32[src.ptr[i].sz];
       memcpy(p, src.ptr[i].p, 4 * src.ptr[i].sz);
@@ -64,8 +64,8 @@ SimpleSignal::operator=(const SimpleSignal& src)
   header = src.header;
   for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
   {
-    ptr[i].p = 0;
-    if (src.ptr[i].p != 0)
+    ptr[i].p = nullptr;
+    if (src.ptr[i].p != nullptr)
     {
       Uint32* p = new Uint32[src.ptr[i].sz];
       memcpy(p, src.ptr[i].p, 4 * src.ptr[i].sz);
@@ -82,7 +82,7 @@ SimpleSignal::~SimpleSignal(){
 
   for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
   {
-    if (ptr[i].p != 0)
+    if (ptr[i].p != nullptr)
     {
       delete [] ptr[i].p;
     }
@@ -249,10 +249,10 @@ SimpleSignal *
 SignalSender::waitFor(Uint32 timeOutMillis, T & t)
 {
   SimpleSignal * s = t.check(m_jobBuffer);
-  if(s != 0){
+  if(s != nullptr){
     if (m_usedBuffer.push_back(s))
     {
-      return 0;
+      return nullptr;
     }
     assert(s->header.theLength > 0);
     return s;
@@ -271,10 +271,10 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     do_poll(wait);
     
     SimpleSignal * s = t.check(m_jobBuffer);
-    if(s != 0){
+    if(s != nullptr){
       if (m_usedBuffer.push_back(s))
       {
-        return 0;
+        return nullptr;
       }
       assert(s->header.theLength > 0);
       return s;
@@ -286,7 +286,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
 
   } while(timeOutMillis == 0 || waited < timeOutMillis);
   
-  return 0;
+  return nullptr;
 } 
 
 class WaitForAny {
@@ -298,7 +298,7 @@ public:
       m_jobBuffer.erase(0);
       return s;
     }
-    return 0;
+    return nullptr;
   }
 };
   

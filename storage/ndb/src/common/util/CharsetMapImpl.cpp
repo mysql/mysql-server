@@ -89,8 +89,8 @@ void CharsetMapImpl::build_map()
     for(unsigned int i = 0 ; i < NDB_ARRAY_SIZE(mysql_charset_name) ; i++)
     {
         CHARSET_INFO *cs = get_charset(i, MYF(0));
-        const char *mysql_name = 0;
-        const char *mapped_name = 0;
+        const char *mysql_name = nullptr;
+        const char *mapped_name = nullptr;
         
         if(cs) 
         {
@@ -128,7 +128,7 @@ const char * CharsetMapImpl::getName(int csnum)
 {
     if((csnum >= (int)NDB_ARRAY_SIZE(mysql_charset_name)) || (csnum < 0))
     {
-        return 0;
+        return nullptr;
     }
     return mysql_charset_name[csnum];
 }
@@ -173,5 +173,5 @@ const char * CharsetMapImpl::get(const char *name) const
             if(! strcmp(name, i->name)) return i->value;
         }
     }
-    return 0;
+    return nullptr;
 }

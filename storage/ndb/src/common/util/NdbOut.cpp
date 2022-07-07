@@ -111,7 +111,7 @@ NdbOut::NdbOut(OutputStream & out, bool autoflush)
 }
 
 NdbOut::NdbOut()
-  : m_out(NULL), isHex(0)
+  : m_out(nullptr), isHex(0)
 {
    /**
     * m_out set to NULL!
@@ -129,7 +129,7 @@ NdbOut::~NdbOut()
 void
 NdbOut::print(const char * fmt, ...)
 {
-  if (fmt == NULL)
+  if (fmt == nullptr)
   {
     /*
      Function was called with fmt being NULL, this is an error
@@ -154,7 +154,7 @@ NdbOut::print(const char * fmt, ...)
 void
 NdbOut::println(const char * fmt, ...)
 {
-  if (fmt == NULL)
+  if (fmt == nullptr)
   {
     /*
      Function was called with fmt being NULL, this is an error
@@ -188,7 +188,7 @@ static
 void
 vndbout_c(const char * fmt, va_list ap)
 {
-  if (fmt == NULL)
+  if (fmt == nullptr)
   {
     /*
      Function was called with fmt being NULL, this is an error
@@ -259,8 +259,8 @@ FilteredNdbOut::getThreshold() const {
   return m_threshold;
 }
 
-static FileOutputStream ndbouts_fileoutputstream(0);
-static FileOutputStream ndberrs_fileoutputstream(0);
+static FileOutputStream ndbouts_fileoutputstream(nullptr);
+static FileOutputStream ndberrs_fileoutputstream(nullptr);
 
 void
 NdbOut_Init()

@@ -64,19 +64,19 @@ InitConfigFileParser::Context::Context()
 }
 
 InitConfigFileParser::Context::~Context(){
-  if(m_config != 0)
+  if(m_config != nullptr)
     delete m_config;
 
-  if(m_defaults != 0)
+  if(m_defaults != nullptr)
     delete m_defaults;
 }
 
 Config *
 InitConfigFileParser::parseConfig(const char * filename) {
   FILE * file = fopen(filename, "r");
-  if(file == 0){
+  if(file == nullptr){
     g_eventLogger->error("Error opening '%s', error: %d, %s", filename, errno, strerror(errno));
-    return 0;
+    return nullptr;
   }
   
   Config * ret = parseConfig(file);
@@ -91,13 +91,13 @@ InitConfigFileParser::parseConfig(FILE * file) {
 
   Context ctx;
   ctx.m_lineno = 0;
-  ctx.m_currentSection = 0;
+  ctx.m_currentSection = nullptr;
 
   /*************
    * Open file *
    *************/
-  if (file == NULL) {
-    return 0;
+  if (file == nullptr) {
+    return nullptr;
   }
 
   /***********************
@@ -124,17 +124,18 @@ InitConfigFileParser::parseConfig(FILE * file) {
 	ctx.reportError("Could not store previous default section "
 			"of configuration file.");
         delete ctx.m_currentSection;
-        ctx.m_currentSection = NULL;
-        return 0;
+        ctx.m_currentSection = nullptr;
+        return nullptr;
       }
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", section);
       free(section);
       ctx.type             = InitConfigFileParser::DefaultSection;
       ctx.m_sectionLineno  = ctx.m_lineno;
       ctx.m_currentSection = new Properties(true);
-      ctx.m_userDefaults   = NULL;
-      require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != 0);
-      require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
+      ctx.m_userDefaults   = nullptr;
+      require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != nullptr);
+      require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname))
+              != nullptr);
       continue;
     }
     
@@ -147,8 +148,8 @@ InitConfigFileParser::parseConfig(FILE * file) {
 	ctx.reportError("Could not store previous section "
 			"of configuration file.");
         delete ctx.m_currentSection;
-        ctx.m_currentSection = NULL;
-        return 0;
+        ctx.m_currentSection = nullptr;
+        return nullptr;
       }
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", section);
       free(section);
@@ -156,8 +157,9 @@ InitConfigFileParser::parseConfig(FILE * file) {
       ctx.m_sectionLineno  = ctx.m_lineno;      
       ctx.m_currentSection = new Properties(true);
       ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
-      require((ctx.m_currentInfo    = m_info->getInfo(ctx.fname)) != 0);
-      require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
+      require((ctx.m_currentInfo    = m_info->getInfo(ctx.fname)) != nullptr);
+      require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname))
+              != nullptr);
       continue;
     }
     
@@ -167,23 +169,23 @@ InitConfigFileParser::parseConfig(FILE * file) {
     if (!parseNameValuePair(ctx, line)) {
       ctx.reportError("Could not parse name-value pair in config file.");
       delete ctx.m_currentSection;
-      ctx.m_currentSection = NULL;
-      return 0;
+      ctx.m_currentSection = nullptr;
+      return nullptr;
     }
   }
   
   if (ferror(file)){
     ctx.reportError("Failure in reading");
     delete ctx.m_currentSection;
-    ctx.m_currentSection = NULL;
-    return 0;
+    ctx.m_currentSection = nullptr;
+    return nullptr;
   } 
 
   if(!storeSection(ctx)) {
     ctx.reportError("Could not store section of configuration file.");
     delete ctx.m_currentSection;
-    ctx.m_currentSection = NULL;
-    return 0;
+    ctx.m_currentSection = nullptr;
+    return nullptr;
   }
 
   return run_config_rules(ctx);
@@ -192,18 +194,18 @@ InitConfigFileParser::parseConfig(FILE * file) {
 Config*
 InitConfigFileParser::run_config_rules(Context& ctx)
 {
-  for(size_t i = 0; ConfigInfo::m_ConfigRules[i].m_configRule != 0; i++){
+  for(size_t i = 0; ConfigInfo::m_ConfigRules[i].m_configRule != nullptr; i++){
     ctx.type             = InitConfigFileParser::Undefined;
     ctx.m_info           = m_info;
-    ctx.m_currentSection = 0;
-    ctx.m_userDefaults   = 0;
-    ctx.m_currentInfo    = 0;
-    ctx.m_systemDefaults = 0;
+    ctx.m_currentSection = nullptr;
+    ctx.m_userDefaults   = nullptr;
+    ctx.m_currentInfo    = nullptr;
+    ctx.m_systemDefaults = nullptr;
     
     Vector<ConfigInfo::ConfigRuleSection> tmp;
     if(!(* ConfigInfo::m_ConfigRules[i].m_configRule)(tmp, ctx,
 						      ConfigInfo::m_ConfigRules[i].m_ruleData))
-      return 0;
+      return nullptr;
 
     for(unsigned j = 0; j<tmp.size(); j++){
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname),
@@ -212,22 +214,23 @@ InitConfigFileParser::run_config_rules(Context& ctx)
       //Memory that belongs to m_sectionData is transferred to
       //ctx.m_currentSection and will be released by ctx.
       ctx.m_currentSection = tmp[j].m_sectionData;
-      tmp[j].m_sectionData = NULL;
+      tmp[j].m_sectionData = nullptr;
       ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
-      require((ctx.m_currentInfo    = m_info->getInfo(ctx.fname)) != 0);
-      require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
+      require((ctx.m_currentInfo    = m_info->getInfo(ctx.fname)) != nullptr);
+      require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname))
+              != nullptr);
       if(!storeSection(ctx))
       {
         //Memory at ctx.m_currentSection will be released by storeSection() in
         //Success case. So, releasing memory on failure.
         delete ctx.m_currentSection;
-        ctx.m_currentSection = NULL;
+        ctx.m_currentSection = nullptr;
         //Releasing memory referenced by tmp[].m_sectionData
         for (unsigned itr = j + 1; itr < tmp.size(); itr++)
         {
           delete tmp[itr].m_sectionData;
         }
-        return 0;
+        return nullptr;
       }
     }
   }
@@ -260,7 +263,7 @@ InitConfigFileParser::run_config_rules(Context& ctx)
 
 bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line)
 {
-  if (ctx.m_currentSection == NULL){
+  if (ctx.m_currentSection == nullptr){
     ctx.reportError("Value specified outside section");
     return false;
   }
@@ -573,7 +576,7 @@ bool InitConfigFileParser::convertStringToUint64(const char* s,
 }
 
 bool InitConfigFileParser::convertStringToBool(const char* s, bool& val) {
-  if (s == NULL) return false;
+  if (s == nullptr) return false;
   if (strlen(s) == 0) return false;
 
   if (!strcmp(s, "Y") || !strcmp(s, "y") || 
@@ -627,12 +630,12 @@ InitConfigFileParser::parseSectionHeader(const char* line) const {
 
   if(tmp[0] != '['){
     free(tmp);
-    return NULL;
+    return nullptr;
   }
 
   if(tmp[strlen(tmp)-1] != ']'){
     free(tmp);
-    return NULL;
+    return nullptr;
   }
   tmp[strlen(tmp)-1] = 0;
 
@@ -651,12 +654,12 @@ InitConfigFileParser::parseSectionHeader(const char* line) const {
   // Lookup token among sections
   if(!m_info->isSection(tmp)) {
     free(tmp);
-    return NULL;
+    return nullptr;
   }
   if(m_info->getInfo(tmp)) return tmp;
 
   free(tmp);
-  return NULL;
+  return nullptr;
 }
 
 //****************************************************************************
@@ -671,14 +674,14 @@ InitConfigFileParser::parseDefaultSectionHeader(const char* line) const {
 
   // Not correct no of tokens 
   if (no != 2)
-    return NULL;
+    return nullptr;
 
   // Not correct keyword at end
   if (native_strcasecmp(token2, "DEFAULT") != 0)
-    return NULL;
+    return nullptr;
 
   const char *token1_alias= m_info->getAlias(token1);
-  if (token1_alias == 0)
+  if (token1_alias == nullptr)
     token1_alias= token1;
 
   if(m_info->getInfo(token1_alias)){
@@ -686,7 +689,7 @@ InitConfigFileParser::parseDefaultSectionHeader(const char* line) const {
   }
   
   // Did not find section
-  return NULL;
+  return nullptr;
 }
 
 const Properties *
@@ -695,7 +698,7 @@ InitConfigFileParser::getSection(const char * name, const Properties * src){
   if(src && src->get(name, &p))
     return p;
 
-  return 0;
+  return nullptr;
 }
 
 //****************************************************************************
@@ -703,7 +706,7 @@ InitConfigFileParser::getSection(const char * name, const Properties * src){
 //****************************************************************************
 bool
 InitConfigFileParser::storeSection(Context& ctx){
-  if(ctx.m_currentSection == NULL)
+  if(ctx.m_currentSection == nullptr)
     return true;
   for(int i = (int)strlen(ctx.fname) - 1; i>=0; i--){
     ctx.fname[i] = toupper(ctx.fname[i]);
@@ -735,7 +738,7 @@ InitConfigFileParser::storeSection(Context& ctx){
   }
   if(ctx.type == InitConfigFileParser::Section)
     require(ctx.m_config->put(ctx.pname, ctx.m_currentSection));
-  delete ctx.m_currentSection; ctx.m_currentSection = NULL;
+  delete ctx.m_currentSection; ctx.m_currentSection = nullptr;
   return true;
 }
 
@@ -745,7 +748,7 @@ InitConfigFileParser::Context::reportError(const char * fmt, ...){
   char buf[1000];
   
   va_start(ap, fmt);
-  if (fmt != 0)
+  if (fmt != nullptr)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   va_end(ap);
   g_eventLogger->error("at line %d: %s",
@@ -760,7 +763,7 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
   char buf[1000];
   
   va_start(ap, fmt);
-  if (fmt != 0)
+  if (fmt != nullptr)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   va_end(ap);
   g_eventLogger->warning("at line %d: %s",
@@ -795,7 +798,7 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
 {
   for(unsigned i = 0; i<options.size(); i++)
   {
-    if (options[i].app_type == 0)
+    if (options[i].app_type == nullptr)
     {
       // Option not found in in my.cnf
       continue;
@@ -810,7 +813,7 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
 
     if (strcmp(section, name) == 0)
     {
-      const char* value = NULL;
+      const char* value = nullptr;
       char buf[32];
       switch(options[i].var_type){
       case GET_BOOL:
@@ -852,9 +855,9 @@ InitConfigFileParser::handle_mycnf_defaults(Vector<struct my_option>& options,
   strcpy(ctx.fname, name);
   ctx.type = InitConfigFileParser::DefaultSection;
   ctx.m_currentSection = new Properties(true);
-  ctx.m_userDefaults   = NULL;
-  require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != 0);
-  require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
+  ctx.m_userDefaults   = nullptr;
+  require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != nullptr);
+  require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != nullptr);
   if(store_in_properties(options, ctx, name))
   {
     if(storeSection(ctx))
@@ -863,7 +866,7 @@ InitConfigFileParser::handle_mycnf_defaults(Vector<struct my_option>& options,
     }
   }
   delete ctx.m_currentSection;
-  ctx.m_currentSection = NULL;
+  ctx.m_currentSection = nullptr;
   return false;
 }
 
@@ -872,7 +875,7 @@ int
 load_defaults(Vector<struct my_option>& options, const char* groups[])
 {
   int argc = 1;
-  const char * argv[] = { "ndb_mgmd", 0, 0, 0, 0 };
+  const char * argv[] = { "ndb_mgmd", nullptr, nullptr, nullptr, nullptr };
   BaseString file;
   BaseString extra_file;
   BaseString group_suffix;
@@ -935,7 +938,7 @@ InitConfigFileParser::load_mycnf_groups(Vector<struct my_option> & options,
   {
     if(options[i].comment && strcmp(options[i].comment, name) == 0)
     {
-      options[i].app_type = 0;
+      options[i].app_type = nullptr;
       copy.push_back(options[i]);
     }
   }
@@ -957,7 +960,7 @@ InitConfigFileParser::load_mycnf_groups(Vector<struct my_option> & options,
 Config *
 InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 {
-  Config * res = 0;
+  Config * res = nullptr;
   bool release_current_section = true;
   Vector<struct my_option> options;
   for(int i = 0 ; i < ConfigInfo::m_NoOfParams ; ++ i)
@@ -991,7 +994,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
       }
       opt.name = param._fname;
       opt.id = 256;
-      opt.app_type = 0;
+      opt.app_type = nullptr;
       opt.arg_type = REQUIRED_ARG;
       opt.comment = param._section;
       options.push_back(opt);
@@ -1049,7 +1052,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
   }
 
   Context ctx;
-  const char *groups[]= { "cluster_config", 0 };
+  const char *groups[]= { "cluster_config", nullptr };
   const char *save_group_suffix = my_defaults_group_suffix;
   if (cluster_config_suffix != nullptr)
   {
@@ -1103,7 +1106,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 	Vector<BaseString> list;
 	str.split(list, ",");
 	
-	const char * defaults_groups[] = { 0,  0, 0 };
+	const char * defaults_groups[] = { nullptr,  nullptr, nullptr };
 	for(unsigned j = 0; j<list.size(); j++)
 	{
           // Remove leading and trailing spaces from hostname
@@ -1119,12 +1122,13 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 	  if(list[j].length())
 	    defaults_groups[1] = group_host.c_str();
 	  else
-	    defaults_groups[1] = 0;
+	    defaults_groups[1] = nullptr;
 	  
 	  ctx.m_currentSection = new Properties(true);
 	  ctx.m_userDefaults = getSection(ctx.fname, ctx.m_defaults);
-	  require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != 0);
-	  require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname))!= 0);
+	  require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != nullptr);
+	  require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname))
+                  != nullptr);
 	  if(!load_mycnf_groups(options, ctx, sections[i].name, 
 				defaults_groups))
 	    goto end;
@@ -1188,7 +1192,7 @@ end:
   if (release_current_section)
   {
     delete ctx.m_currentSection;
-    ctx.m_currentSection = NULL;
+    ctx.m_currentSection = nullptr;
   }
   return res;
 }

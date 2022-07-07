@@ -131,8 +131,8 @@ class Ndb_table_guard {
      a need to distinguish between the two cases the user need to examine the
      NDB error.
 
-     @return pointer to the NdbApi table definition or nullptr when table doesn't
-     exist or error occurs
+     @return pointer to the NdbApi table definition or nullptr when table
+     doesn't exist or error occurs
    */
   const NdbDictionary::Table *get_table() const { return m_ndbtab; }
 
@@ -144,7 +144,7 @@ class Ndb_table_guard {
     DBUG_TRACE;
     const NdbDictionary::Table *tmp = m_ndbtab;
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
-    m_ndbtab = 0;
+    m_ndbtab = nullptr;
     return tmp;
   }
 

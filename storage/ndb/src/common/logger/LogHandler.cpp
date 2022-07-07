@@ -34,7 +34,7 @@
 //
 LogHandler::LogHandler() : 
   m_errorCode(0),
-  m_errorStr(NULL)
+  m_errorStr(nullptr)
 {
   m_max_repeat_frequency= 3; // repeat messages maximum every 3 seconds
   m_count_repeated_messages= 0;

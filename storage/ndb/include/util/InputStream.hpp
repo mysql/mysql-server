@@ -34,7 +34,7 @@
  */
 class InputStream {
 public:
-  InputStream() { m_mutex= NULL; }
+  InputStream() { m_mutex= nullptr; }
   virtual ~InputStream() {}
   virtual char* gets(char * buf, int bufLen) = 0;
   /**

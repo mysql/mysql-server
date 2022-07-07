@@ -38,8 +38,8 @@ static inline bool is_separator(char c)
 const char *
 ndb_basename(const char * path)
 {
-  if (path == NULL)
-    return NULL;
+  if (path == nullptr)
+    return nullptr;
 
   const char * p = path + strlen(path);
   while (p > path && ! is_separator(p[0]))

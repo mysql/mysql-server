@@ -57,7 +57,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 {
   DBUG_ENTER("NdbOperation::equal_impl");
   DBUG_PRINT("enter", ("col: %s  op: %d  val: %p",
-                       (tAttrInfo == NULL) ? "NULL" :
+                       (tAttrInfo == nullptr) ? "NULL" :
                        tAttrInfo->m_name.c_str(), 
                        theOperationType,
                        aValuePassed));
@@ -67,8 +67,8 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
   Uint64 tempData[ MaxKeyLenInLongWords ];
 
   if ((theStatus == OperationDefined) &&
-      (aValue != NULL) &&
-      (tAttrInfo != NULL )) {
+      (aValue != nullptr) &&
+      (tAttrInfo != nullptr )) {
 /******************************************************************************
  *	Start by checking that the attribute is a tuple key. 
  *      This value is also the word order in the tuple key of this 
@@ -265,9 +265,9 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
           if (tOpType == DeleteRequest && m_currentTable->m_noOfBlobs != 0) {
             for (unsigned i = 0; i < m_currentTable->m_columns.size(); i++) {
               NdbColumnImpl* c = m_currentTable->m_columns[i];
-              assert(c != 0);
+              assert(c != nullptr);
               if (c->getBlobType()) {
-                if (getBlobHandle(theNdbCon, c) == NULL)
+                if (getBlobHandle(theNdbCon, c) == nullptr)
                   DBUG_RETURN(-1);
               }
             }
@@ -288,13 +288,13 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     DBUG_RETURN(0);
   }
   
-  if (aValue == NULL) {
+  if (aValue == nullptr) {
     // NULL value in primary key
     setErrorCodeAbort(4505);
     DBUG_RETURN(-1);
   }//if
   
-  if ( tAttrInfo == NULL ) {      
+  if ( tAttrInfo == nullptr ) {      
     // Attribute name not found in table
     setErrorCodeAbort(4004);
     DBUG_RETURN(-1);
@@ -389,7 +389,7 @@ NdbOperation::insertKEYINFO(const char* aValue,
   while(tEndPos > theTotalNrOfKeyWordInSignal)
   {
     tSignal = theNdb->getSignal();
-    if (tSignal == NULL)
+    if (tSignal == nullptr)
     {
       setErrorCodeAbort(4000);
       return -1;
@@ -400,13 +400,13 @@ NdbOperation::insertKEYINFO(const char* aValue,
       return -1;
     }
     tSignal->setLength(KeyInfo::MaxSignalLength);
-    if (theTCREQ->next() != NULL)
+    if (theTCREQ->next() != nullptr)
        theLastKEYINFO->next(tSignal);
     else
       theTCREQ->next(tSignal);
 
     theLastKEYINFO = tSignal;
-    theLastKEYINFO->next(NULL);
+    theLastKEYINFO->next(nullptr);
     theTotalNrOfKeyWordInSignal += 20;
   }
 

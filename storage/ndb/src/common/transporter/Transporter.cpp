@@ -141,7 +141,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   m_timeOutMillis = 3000;
 
   if (isServer)
-    m_socket_client= 0;
+    m_socket_client= nullptr;
   else
   {
     m_socket_client= new SocketClient(new SocketAuthSimple("ndbd",
@@ -405,7 +405,7 @@ Transporter::connect_client(ndb_socket_t sockfd)
   DBUG_PRINT("info", ("Reading reply"));
   char buf[256];
   SocketInputStream s_input(sockfd);
-  if (s_input.gets(buf, 256) == 0)
+  if (s_input.gets(buf, 256) == nullptr)
   {
     DBUG_PRINT("error", ("Failed to read reply"));
     ndb_socket_close(sockfd);

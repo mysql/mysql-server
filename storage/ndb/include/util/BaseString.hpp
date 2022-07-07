@@ -365,7 +365,7 @@ BaseString::operator!=(const char *str) const
 inline bool
 operator!(const BaseString& str)
 {
-    return str.m_chr == NULL;
+    return str.m_chr == nullptr;
 }
 
 inline BaseString&

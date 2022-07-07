@@ -327,7 +327,7 @@ DictTabInfo::isBlobTableName(const char* name, Uint32* ptab_id, Uint32* pcol_no)
 { 
   const char* const prefix = "NDB$BLOB_";
   const char* s = strrchr(name, table_name_separator);
-  s = (s == NULL ? name : s + 1);
+  s = (s == nullptr ? name : s + 1);
   if (strncmp(s, prefix, strlen(prefix)) != 0)
     return false;
   s += strlen(prefix);

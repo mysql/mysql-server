@@ -111,7 +111,7 @@ public:
    * runs from the receive thread.
    */
   virtual void reportError(NodeId nodeId, TransporterError errorCode,
-                           const char *info = 0) = 0;
+                           const char *info = nullptr) = 0;
 
   /**
    * Called from transporter code after a successful receive from a node.

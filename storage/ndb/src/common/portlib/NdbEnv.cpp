@@ -29,10 +29,10 @@
 
 const char* NdbEnv_GetEnv(const char* name, char * buf, int buflen)
 {
-  char* p = NULL;
+  char* p = nullptr;
   p = getenv(name);
 
-  if (p != NULL && buf != NULL){
+  if (p != nullptr && buf != nullptr){
     strncpy(buf, p, buflen);
     buf[buflen-1] = 0;
   }

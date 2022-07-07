@@ -35,10 +35,10 @@
 bool ndb_tdc_close_cached_tables(void) {
   DBUG_TRACE;
 
-  const int res = close_cached_tables(NULL,   // No need for thd pointer
-                                      NULL,   // Close all tables
-                                      false,  // Don't wait
-                                      0       // Timeout unused when not waiting
+  const int res = close_cached_tables(nullptr,  // No need for thd pointer
+                                      nullptr,  // Close all tables
+                                      false,    // Don't wait
+                                      0  // Timeout unused when not waiting
   );
   return res;
 }

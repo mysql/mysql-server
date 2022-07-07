@@ -161,13 +161,13 @@ static const struct syslog_facility {
   { "local5", LOG_LOCAL5 },
   { "local6", LOG_LOCAL6 },
   { "local7", LOG_LOCAL7 },
-  { NULL, -1 }
+  { nullptr, -1 }
 };
 
 bool
 SysLogHandler::setFacility(const BaseString &facility) {
   const struct syslog_facility *c;
-  for(c = facilitynames; c->name != NULL; c++) {
+  for(c = facilitynames; c->name != nullptr; c++) {
     if(facility == c->name) {
       m_facility = c->value;
       close();

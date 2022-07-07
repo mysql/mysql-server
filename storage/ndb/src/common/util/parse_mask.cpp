@@ -46,7 +46,7 @@ ParseThreadConfiguration::ParseThreadConfiguration(const char *str,
 
 ParseThreadConfiguration::~ParseThreadConfiguration()
 {
-  if (m_save_str != NULL)
+  if (m_save_str != nullptr)
   {
     free(m_save_str);
   }
@@ -69,7 +69,7 @@ ParseThreadConfiguration::read_params(ParamValue values[],
     *ret_code = -1;
     goto end_return;
   }
-  if (m_curr_str == NULL)
+  if (m_curr_str == nullptr)
   {
     if (allow_empty)
     {
@@ -147,8 +147,8 @@ ParseThreadConfiguration::read_params(ParamValue values[],
   return 0;
 end_return:
   free(m_save_str);
-  m_save_str = NULL;
-  m_curr_str = NULL;
+  m_save_str = nullptr;
+  m_curr_str = nullptr;
   return 1;
 }
 
@@ -428,7 +428,7 @@ int
 ParseThreadConfiguration::parse_unsigned(unsigned * dst)
 {
   skipblank();
-  char * endptr = 0;
+  char * endptr = nullptr;
   errno = 0;
   long long val = my_strtoll(m_curr_str, &endptr, 0);
   if (errno == ERANGE)

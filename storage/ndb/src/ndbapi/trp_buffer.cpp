@@ -80,8 +80,8 @@ TFBuffer::validate() const
   }
   else
   {
-    assert(m_head != 0);
-    assert(m_tail != 0);
+    assert(m_head != nullptr);
+    assert(m_tail != nullptr);
   }
   Uint32 sum [[maybe_unused]] = 0;
   TFPage * p = m_head;
@@ -94,11 +94,11 @@ TFBuffer::validate() const
     assert(p->m_next != p);
     if (p == m_tail)
     {
-      assert(p->m_next == 0);
+      assert(p->m_next == nullptr);
     }
     else
     {
-      assert(p->m_next != 0);
+      assert(p->m_next != nullptr);
     }
     sum += p->m_bytes;
     p = p->m_next;

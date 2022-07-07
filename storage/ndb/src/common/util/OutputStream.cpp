@@ -31,7 +31,7 @@
 
 BufferedOutputStream::BufferedOutputStream(LogBuffer* plogBuf){
   logBuf = plogBuf;
-  assert(logBuf != NULL);
+  assert(logBuf != nullptr);
 }
 
 int
@@ -120,7 +120,7 @@ SocketOutputStream::print(const char * fmt, ...){
   char *buf2 = buf;
   size_t size;
 
-  if (fmt != 0 && fmt[0] != 0) {
+  if (fmt != nullptr && fmt[0] != 0) {
     va_start(ap, fmt);
     size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
@@ -154,7 +154,7 @@ SocketOutputStream::println(const char * fmt, ...){
   char *buf2 = buf;
   size_t size;
 
-  if (fmt != 0 && fmt[0] != 0) {
+  if (fmt != nullptr && fmt[0] != 0) {
     va_start(ap, fmt);
     size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap)+1;// extra byte for '/n'
     va_end(ap);
@@ -229,7 +229,7 @@ BufferedSockOutputStream::print(const char * fmt, ...){
 
   // Allocate a temp buffer for the string
   UtilBuffer tmp;
-  if (tmp.append(len+1) == 0)
+  if (tmp.append(len+1) == nullptr)
     return -1;
 
   // Print to temp buffer
@@ -238,7 +238,7 @@ BufferedSockOutputStream::print(const char * fmt, ...){
   va_end(ap);
 
   // Grow real buffer so it can hold the string
-  if ((pos= (char*)m_buffer.append(len)) == 0)
+  if ((pos= (char*)m_buffer.append(len)) == nullptr)
     return -1;
 
   // Move everything except ending 0 to real buffer
@@ -260,7 +260,7 @@ BufferedSockOutputStream::println(const char * fmt, ...){
   va_end(ap);
 
   // Grow buffer so it can hold the string and the new line
-  if ((pos= (char*)m_buffer.append(len+1)) == 0)
+  if ((pos= (char*)m_buffer.append(len+1)) == nullptr)
     return -1;
 
   // Print string to buffer

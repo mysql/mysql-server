@@ -9213,7 +9213,7 @@ const char *STDCALL mysql_info(MYSQL *mysql) {
 #if defined(CLIENT_PROTOCOL_TRACING)
     return "protocol tracing enabled";
 #else
-    return NULL;
+    return nullptr;
 #endif
   }
   return mysql->info;

@@ -68,7 +68,7 @@ static const NDBINDEX *find_matching_index(
     matches_primary_key = false;
 
     uint cnt_pk = 0, cnt_col = 0;
-    for (unsigned i = 0; columns[i] != 0; i++) {
+    for (unsigned i = 0; columns[i] != nullptr; i++) {
       cnt_col++;
       if (columns[i]->getPrimaryKey()) cnt_pk++;
     }
@@ -76,7 +76,7 @@ static const NDBINDEX *find_matching_index(
     // check if all columns was part of full primary key
     if (cnt_col == (uint)tab->getNoOfPrimaryKeys() && cnt_col == cnt_pk) {
       matches_primary_key = true;
-      return 0;
+      return nullptr;
     }
   }
 
@@ -87,7 +87,7 @@ static const NDBINDEX *find_matching_index(
    */
   const int noinvalidate = 0;
   uint best_matching_columns = 0;
-  const NDBINDEX *best_matching_index = 0;
+  const NDBINDEX *best_matching_index = nullptr;
 
   NDBDICT::List index_list;
   dict->listIndexes(index_list, *tab);
@@ -96,7 +96,7 @@ static const NDBINDEX *find_matching_index(
     const NDBINDEX *index = dict->getIndexGlobal(index_name, *tab);
     if (index->getType() == NDBINDEX::UniqueHashIndex) {
       uint cnt = 0, j;
-      for (j = 0; columns[j] != 0; j++) {
+      for (j = 0; columns[j] != nullptr; j++) {
         /*
          * Search for matching columns in any order
          * since order does not matter for unique index
@@ -113,7 +113,7 @@ static const NDBINDEX *find_matching_index(
         else
           break;
       }
-      if (cnt == index->getNoOfColumns() && columns[j] == 0) {
+      if (cnt == index->getNoOfColumns() && columns[j] == nullptr) {
         /**
          * Full match...return this index, no need to look further
          */
@@ -131,9 +131,9 @@ static const NDBINDEX *find_matching_index(
       continue;
     } else if (index->getType() == NDBINDEX::OrderedIndex) {
       uint cnt = 0;
-      for (; columns[cnt] != 0; cnt++) {
+      for (; columns[cnt] != nullptr; cnt++) {
         const NDBCOL *ndbcol = index->getColumn(cnt);
-        if (ndbcol == 0) break;
+        if (ndbcol == nullptr) break;
 
         if (strcmp(columns[cnt]->getName(), ndbcol->getName()) != 0) break;
       }
@@ -204,7 +204,7 @@ class Fk_util {
     const NdbDictionary::Column *columns[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
     {
       unsigned num_columns = 0;
-      for (unsigned i = 0; column_names[i] != 0; i++) {
+      for (unsigned i = 0; column_names[i] != nullptr; i++) {
         DBUG_PRINT("info", ("column: %s", column_names[i]));
         const NdbDictionary::Column *col =
             new_parent_tab.get_table()->getColumn(column_names[i]);
@@ -219,7 +219,7 @@ class Fk_util {
         }
         columns[num_columns++] = col;
       }
-      columns[num_columns] = 0;
+      columns[num_columns] = nullptr;
     }
 
     NdbDictionary::ForeignKey new_fk(fk);
@@ -247,7 +247,7 @@ class Fk_util {
     DBUG_PRINT("info", ("parent_primary_key: %d", parent_primary_key));
 
     // Check if either pk or index matched
-    if (!parent_primary_key && parent_index == 0) {
+    if (!parent_primary_key && parent_index == nullptr) {
       warn(
           "Could not resolve '%s' as fk parent for '%s' since no matching "
           "index "
@@ -256,13 +256,13 @@ class Fk_util {
       return false;
     }
 
-    if (parent_index != 0) {
+    if (parent_index != nullptr) {
       DBUG_PRINT("info",
                  ("Setting parent with index %s", parent_index->getName()));
       new_fk.setParent(*new_parent_tab.get_table(), parent_index, columns);
     } else {
       DBUG_PRINT("info", ("Setting parent without index"));
-      new_fk.setParent(*new_parent_tab.get_table(), 0, columns);
+      new_fk.setParent(*new_parent_tab.get_table(), nullptr, columns);
     }
 
     // Old fk is dropped by cascading when the mock table is dropped
@@ -329,17 +329,17 @@ class Fk_util {
           const NdbDictionary::Column *col =
               mock_tab.get_table()->getColumn(fk.getParentColumnNo(j));
           if (!col) {
-            error(NULL, "Could not find column %d in mock table '%s'",
+            error(nullptr, "Could not find column %d in mock table '%s'",
                   fk.getParentColumnNo(j), mock_name);
             continue;
           }
           col_names[num_columns++] = col->getName();
         }
-        col_names[num_columns] = 0;
+        col_names[num_columns] = nullptr;
 
         if (num_columns != fk.getParentColumnCount()) {
           error(
-              NULL,
+              nullptr,
               "Could not find all columns referenced by fk in mock table '%s'",
               mock_name);
           continue;
@@ -428,7 +428,8 @@ class Fk_util {
       if (!format_name(mock_name, sizeof(mock_name),
                        child_tab.get_table()->getObjectId(), fk_index,
                        parent_name)) {
-        error(NULL, "Failed to create mock parent table, too long mock name");
+        error(nullptr,
+              "Failed to create mock parent table, too long mock name");
         return false;
       }
 
@@ -443,7 +444,7 @@ class Fk_util {
               table->getColumn(fk.getParentColumnNo(j));
           DBUG_PRINT("col", ("[%u] %s", i, col->getName()));
           if (!col) {
-            error(NULL, "Could not find column %d in parent table '%s'",
+            error(nullptr, "Could not find column %d in parent table '%s'",
                   fk.getParentColumnNo(j), table->getName());
             continue;
           }
@@ -451,11 +452,11 @@ class Fk_util {
           col_types[num_columns] = col;
           num_columns++;
         }
-        col_names[num_columns] = 0;
-        col_types[num_columns] = 0;
+        col_names[num_columns] = nullptr;
+        col_types[num_columns] = nullptr;
 
         if (num_columns != fk.getParentColumnCount()) {
-          error(NULL,
+          error(nullptr,
                 "Could not find all columns referenced by fk in parent table "
                 "'%s'",
                 table->getName());
@@ -526,9 +527,10 @@ class Fk_util {
     }
   }
 
-  static bool split_mock_name(const char *name, unsigned *child_id_ptr = NULL,
-                              unsigned *child_index_ptr = NULL,
-                              const char **parent_name = NULL) {
+  static bool split_mock_name(const char *name,
+                              unsigned *child_id_ptr = nullptr,
+                              unsigned *child_index_ptr = nullptr,
+                              const char **parent_name = nullptr) {
     const struct {
       const char *str;
       size_t len;
@@ -567,7 +569,7 @@ class Fk_util {
                                 fk_index, parent_name);
     if (len >= buf_size - 1) {
       DBUG_PRINT("info", ("Size of buffer too small"));
-      return NULL;
+      return nullptr;
     }
     DBUG_PRINT("exit", ("buf: '%s'", buf));
     return buf;
@@ -584,13 +586,13 @@ class Fk_util {
       for (const Key_part_spec *key : key_part_list) {
         col_names[i++] = strdup(key->get_field_name());
       }
-      col_names[i] = 0;
+      col_names[i] = nullptr;
     }
 
     const bool ret = create(dict, mock_name, child_name, col_names, col_types);
 
     // Free the strings in col_names array
-    for (unsigned i = 0; col_names[i] != 0; i++) {
+    for (unsigned i = 0; col_names[i] != nullptr; i++) {
       const char *col_name = col_names[i];
       free(const_cast<char *>(col_name));
     }
@@ -833,7 +835,7 @@ class Fk_util {
       }
 
       const char *parent_name;
-      if (!Fk_util::split_mock_name(el.name, NULL, NULL, &parent_name))
+      if (!Fk_util::split_mock_name(el.name, nullptr, nullptr, &parent_name))
         continue;
 
       // Check if this mock table should reference the new table
@@ -950,7 +952,7 @@ class Fk_util {
       fk_string.append("`.`");
     }
     const char *real_parent_name;
-    if (Fk_util::split_mock_name(parenttab->getName(), NULL, NULL,
+    if (Fk_util::split_mock_name(parenttab->getName(), nullptr, nullptr,
                                  &real_parent_name)) {
       /* print the real table name */
       DBUG_PRINT("info", ("real_parent_name: %s", real_parent_name));
@@ -1240,7 +1242,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
   // return real mysql error to avoid total randomness..
   const int err_default = HA_ERR_CANNOT_ADD_FOREIGN;
 
-  assert(thd->lex != 0);
+  assert(thd->lex != nullptr);
   for (const Key_spec *key : thd->lex->alter_info->key_list) {
     if (key->type != KEYTYPE_FOREIGN) continue;
 
@@ -1271,7 +1273,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
       const NDBTAB *tab = child_tab.get_table();
       for (const Key_part_spec *col : fk->columns) {
         const NDBCOL *ndbcol = tab->getColumn(col->get_field_name());
-        if (ndbcol == 0) {
+        if (ndbcol == nullptr) {
           push_warning_printf(
               thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN,
               "Child table %s has no column %s in NDB",
@@ -1280,7 +1282,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
         }
         childcols[pos++] = ndbcol;
       }
-      childcols[pos] = 0;  // NULL terminate
+      childcols[pos] = nullptr;  // NULL terminate
     }
 
     bool child_primary_key = false;
@@ -1290,7 +1292,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
       child_index_releaser.add_index_to_release(child_index);
     }
 
-    if (!child_primary_key && child_index == 0) {
+    if (!child_primary_key && child_index == nullptr) {
       push_warning_printf(
           thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN,
           "Child table %s foreign key columns match no index in NDB",
@@ -1304,14 +1306,14 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
      * Looking at Table_ident, testing for db.str first is safer
      * for valgrind.  Do same with table.str too.
      */
-    if (fk->ref_db.str != 0 && fk->ref_db.length != 0) {
+    if (fk->ref_db.str != nullptr && fk->ref_db.length != 0) {
       snprintf(parent_db, sizeof(parent_db), "%*s", (int)fk->ref_db.length,
                fk->ref_db.str);
     } else {
       /* parent db missing - so the db is same as child's */
       snprintf(parent_db, sizeof(parent_db), "%s", dbname);
     }
-    if (fk->ref_table.str != 0 && fk->ref_table.length != 0) {
+    if (fk->ref_table.str != nullptr && fk->ref_table.length != 0) {
       snprintf(parent_name, sizeof(parent_name), "%*s",
                (int)fk->ref_table.length, fk->ref_table.str);
     } else {
@@ -1382,7 +1384,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
       const NDBTAB *tab = parent_tab.get_table();
       for (const Key_part_spec *col : fk->ref_columns) {
         const NDBCOL *ndbcol = tab->getColumn(col->get_field_name());
-        if (ndbcol == 0) {
+        if (ndbcol == nullptr) {
           push_warning_printf(
               thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN,
               "Parent table %s has no column %s in NDB",
@@ -1391,7 +1393,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
         }
         parentcols[pos++] = ndbcol;
       }
-      parentcols[pos] = 0;  // NULL terminate
+      parentcols[pos] = nullptr;  // NULL terminate
     }
 
     bool parent_primary_key = false;
@@ -1401,7 +1403,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
       parent_index_releaser.add_index_to_release(parent_index);
     }
 
-    if (!parent_primary_key && parent_index == 0) {
+    if (!parent_primary_key && parent_index == nullptr) {
       my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk->name.str ? fk->name.str : "",
                parent_tab.get_table()->getName());
       return err_default;
@@ -1412,7 +1414,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
        * Check that columns match...this happens to be same
        *   condition as the one for SPJ...
        */
-      for (unsigned i = 0; parentcols[i] != 0; i++) {
+      for (unsigned i = 0; parentcols[i] != nullptr; i++) {
         if (parentcols[i]->isBindable(*childcols[i]) == -1) {
           // Should never happen thanks to SQL-layer doing compatibility check.
           assert(0);
@@ -1511,7 +1513,7 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
 
   const char *src_db = thd->lex->query_block->table_list.first->db;
   const char *src_tab = thd->lex->query_block->table_list.first->table_name;
-  if (src_db == 0 || src_tab == 0) {
+  if (src_db == nullptr || src_tab == nullptr) {
     assert(false);
     return 0;
   }
@@ -1581,13 +1583,13 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
         const NDBCOL *orgcol = srctab.get_table()->getColumn(parent_col_index);
         cols[j] = dsttab.get_table()->getColumn(orgcol->getName());
       }
-      cols[fk.getParentColumnCount()] = 0;
-      if (fk.getParentIndex() != 0) {
+      cols[fk.getParentColumnCount()] = nullptr;
+      if (fk.getParentIndex() != nullptr) {
         const char *parent_index_name =
             fk_split_name(parent_db_name, fk.getParentIndex(), true);
         const NDBINDEX *idx =
             dict->getIndexGlobal(parent_index_name, *dsttab.get_table());
-        if (idx == 0) {
+        if (idx == nullptr) {
           ERR_RETURN(dict->getNdbError());
         }
         fk.setParent(*dsttab.get_table(), idx, cols);
@@ -1602,7 +1604,7 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
         bool parent_primary = false;
         const NDBINDEX *idx =
             find_matching_index(dict, dsttab.get_table(), cols, parent_primary);
-        if (!parent_primary && idx == 0) {
+        if (!parent_primary && idx == nullptr) {
           my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(),
                    dsttab.get_table()->getName());
           return HA_ERR_CANNOT_ADD_FOREIGN;
@@ -1633,18 +1635,18 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
         const NDBCOL *orgcol = srctab.get_table()->getColumn(child_col_index);
         cols[j] = dsttab.get_table()->getColumn(orgcol->getName());
       }
-      cols[fk.getChildColumnCount()] = 0;
-      if (fk.getChildIndex() != 0) {
+      cols[fk.getChildColumnCount()] = nullptr;
+      if (fk.getChildIndex() != nullptr) {
         bool child_primary_key = false;
         const NDBINDEX *idx = find_matching_index(dict, dsttab.get_table(),
                                                   cols, child_primary_key);
-        if (!child_primary_key && idx == 0) {
+        if (!child_primary_key && idx == nullptr) {
           ERR_RETURN(dict->getNdbError());
         }
         fk.setChild(*dsttab.get_table(), idx, cols);
         if (idx) dict->removeIndexGlobal(*idx, 0);
       } else {
-        fk.setChild(*dsttab.get_table(), 0, cols);
+        fk.setChild(*dsttab.get_table(), nullptr, cols);
       }
     }
 
@@ -1671,7 +1673,7 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
 int ha_ndbcluster::inplace__drop_fks(THD *thd, Ndb *ndb, const char *dbname,
                                      const char *tabname) {
   DBUG_TRACE;
-  if (thd->lex == 0) {
+  if (thd->lex == nullptr) {
     assert(false);
     return 0;
   }
@@ -1798,7 +1800,7 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
 
       for (unsigned i = 0; i < fk.getChildColumnCount(); i++) {
         const NDBCOL *ndbcol = table->getColumn(fk.getChildColumnNo(i));
-        if (ndbcol == 0) {
+        if (ndbcol == nullptr) {
           push_warning_printf(
               thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN,
               "Child table %s has no column referred by the FK %s",
@@ -1808,14 +1810,14 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
         }
         child_cols[pos++] = ndbcol;
       }
-      child_cols[pos] = 0;
+      child_cols[pos] = nullptr;
     }
 
     bool child_primary_key = false;
     const NDBINDEX *child_index =
         find_matching_index(dict, table, child_cols, child_primary_key);
 
-    if (!child_primary_key && child_index == 0) {
+    if (!child_primary_key && child_index == nullptr) {
       assert(false);
       my_error(ER_FK_NO_INDEX_CHILD, MYF(0), fk.getName(), table->getName());
       return err_default;
@@ -1836,7 +1838,7 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
         unsigned pos = 0;
         for (unsigned i = 0; i < fk.getParentColumnCount(); i++) {
           const NDBCOL *ndbcol = table->getColumn(fk.getParentColumnNo(i));
-          if (ndbcol == 0) {
+          if (ndbcol == nullptr) {
             push_warning_printf(
                 thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN,
                 "parent table %s has no column referred by the FK %s",
@@ -1846,14 +1848,14 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
           }
           parent_cols[pos++] = ndbcol;
         }
-        parent_cols[pos] = 0;
+        parent_cols[pos] = nullptr;
       }
 
       bool parent_primary_key = false;
       parent_index =
           find_matching_index(dict, table, parent_cols, parent_primary_key);
 
-      if (!parent_primary_key && parent_index == 0) {
+      if (!parent_primary_key && parent_index == nullptr) {
         assert(false);
         my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(), table->getName());
         return err_default;

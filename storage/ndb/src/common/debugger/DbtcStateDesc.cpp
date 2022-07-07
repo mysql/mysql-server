@@ -64,5 +64,5 @@ struct ndbkernel_state_desc g_dbtc_apiconnect_state_desc[] =
   SDESC(CS_START_SCAN, "Scanning", ""),
   SDESC(CS_SEND_FIRE_TRIG_REQ, "Precomitting", ""),
   SDESC(CS_WAIT_FIRE_TRIG_REQ, "Precomitting", ""),
-  { 0, 0, 0, 0 }
+  { 0, nullptr, nullptr, nullptr }
 };

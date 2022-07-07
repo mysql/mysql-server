@@ -416,7 +416,7 @@ NdbReceiver::getTransaction(ReceiverType type) const
   {
   case NDB_UNINITIALIZED:
     assert(false);
-    return NULL;
+    return nullptr;
   case NDB_QUERY_OPERATION:
     return &((NdbQueryOperationImpl*)m_owner)->getQuery().getNdbTransaction();
   default:
@@ -450,7 +450,7 @@ inline
 Ndb_free_list_t<T>::Ndb_free_list_t()
  : m_used_cnt(0),
    m_free_cnt(0),
-   m_free_list(NULL),
+   m_free_list(nullptr),
    m_is_growing(false),
    m_samples_skipped(0),
    m_sample_max(0),
@@ -481,10 +481,10 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
 {
 #ifndef HAVE_VALGRIND
   m_is_growing = true;
-  if (m_free_list == 0)
+  if (m_free_list == nullptr)
   {
     m_free_list = new T(ndb);
-    if (m_free_list == 0)
+    if (m_free_list == nullptr)
     {
       NdbImpl::setNdbError(*ndb, 4000);
       assert(false);
@@ -495,7 +495,7 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
   while(m_free_cnt < cnt)
   {
     T* obj= new T(ndb);
-    if(obj == 0)
+    if(obj == nullptr)
     {
       NdbImpl::setNdbError(*ndb, 4000);
       assert(false);
@@ -519,13 +519,13 @@ Ndb_free_list_t<T>::seize(Ndb* ndb)
 #ifndef HAVE_VALGRIND
   T* tmp = m_free_list;
   m_is_growing = true;
-  if (likely(tmp != NULL))
+  if (likely(tmp != nullptr))
   {
     m_free_list = (T*)tmp->next();
-    tmp->next(NULL);
+    tmp->next(nullptr);
     m_free_cnt--;
   }
-  else if (unlikely((tmp = new T(ndb)) == NULL))
+  else if (unlikely((tmp = new T(ndb)) == nullptr))
   {
     NdbImpl::setNdbError(*ndb, 4000);
     assert(false);
@@ -578,13 +578,13 @@ Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
   {
     T* tmp = head;
     Uint32 tmp_cnt = 0;
-    while (tmp != 0 && tmp != tail)
+    while (tmp != nullptr && tmp != tail)
     {
       tmp = (T*)tmp->next();
       tmp_cnt++;
     }
     assert(tmp == tail);
-    assert((tail==NULL && tmp_cnt==0) || tmp_cnt+1 == cnt);
+    assert((tail==nullptr && tmp_cnt==0) || tmp_cnt+1 == cnt);
   }
 #endif
 

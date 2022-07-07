@@ -48,7 +48,7 @@ class NdbTableImpl;
 template<class T>
 struct Free_list_element 
 {
-  Free_list_element() { theNext = 0;}
+  Free_list_element() { theNext = nullptr;}
   void next(T* obj) { theNext = obj;}
   T* next() { return theNext;}
 

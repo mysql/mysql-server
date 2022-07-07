@@ -130,9 +130,9 @@ NdbElement_t<C>::NdbElement_t() :
   len(0),
   hash(0),
   localkey1(0),
-  str(NULL),
-  next(NULL),
-  theData(NULL)
+  str(nullptr),
+  next(nullptr),
+  theData(nullptr)
 { 
 }
 
@@ -157,11 +157,11 @@ NdbLinHash<C>::createHashTable() {
  
   /* The first segment cleared before used */
   for(i  = 0; i < SEGMENTSIZE; i++ )
-    directory[0]->elements[i] = 0;
+    directory[0]->elements[i] = nullptr;
   
   /* clear the rest of the directory */
   for(i = 1; i < DIRECTORYSIZE; i++)
-    directory[i] = 0;
+    directory[i] = nullptr;
 }
 
 template <class C>
@@ -191,9 +191,9 @@ NdbLinHash<C>::insertKey( const char* str, Uint32 len, Uint32 lkey1, C* data )
    * Check if the string already are in the hash table
    * chain=chainp will copy the contents of HASH_T into chain  
    */
-  NdbElement_t<C> * oldChain = 0;  
+  NdbElement_t<C> * oldChain = nullptr;  
   NdbElement_t<C> * chain;
-  for(chain = *chainp; chain != 0; chain = chain->next){
+  for(chain = *chainp; chain != nullptr; chain = chain->next){
     if(chain->len == len && !memcmp(chain->str, str, len)) 
       return -1; /* Element already exists */
     else 
@@ -205,12 +205,12 @@ NdbLinHash<C>::insertKey( const char* str, Uint32 len, Uint32 lkey1, C* data )
   chain->len = len;
   chain->hash = hash;
   chain->localkey1 = lkey1;
-  chain->next = 0;
+  chain->next = nullptr;
   chain->theData = data;
   len++; // Null terminated
   chain->str = new Uint32[((len + 3) >> 2)];
   memcpy( &chain->str[0], str, len);
-  if (oldChain != 0) 
+  if (oldChain != nullptr) 
     oldChain->next = chain;
   else
     *chainp =  chain; 
@@ -241,7 +241,7 @@ NdbLinHash<C>::getKey( const char* str, Uint32 len )
       return &key->localkey1;  
     }
   }
-  return NULL ; /* The key was not found */	
+  return nullptr ; /* The key was not found */	
 }
 
 template <class C>
@@ -256,12 +256,12 @@ NdbLinHash<C>::getData( const char* str, Uint32 len ){
   NdbElement_t<C> ** keyp = &directory[dir]->elements[seg];
     
   /*Check if the string are in the hash table*/
-  for(NdbElement_t<C> * key = *keyp; key != 0; key = key->next ) {
+  for(NdbElement_t<C> * key = *keyp; key != nullptr; key = key->next ) {
     if(key->len == len && !memcmp(key->str, str, len)) {
       return key->theData;  
     }
   }
-  return NULL ; /* The key was not found */	
+  return nullptr ; /* The key was not found */	
 }
 
 template <class C>
@@ -272,12 +272,12 @@ NdbLinHash<C>::deleteKey ( const char* str, Uint32 len){
   int dir, seg;
   getBucket(hash, &dir, &seg);
   
-  NdbElement_t<C> *oldChain = 0;
+  NdbElement_t<C> *oldChain = nullptr;
   NdbElement_t<C> **chainp = &directory[dir]->elements[seg];
-  for(NdbElement_t<C> * chain = *chainp; chain != 0; chain = chain->next){
+  for(NdbElement_t<C> * chain = *chainp; chain != nullptr; chain = chain->next){
     if(chain->len == len && !memcmp(chain->str, str, len)){
       C *data= chain->theData;
-      if (oldChain == 0) {
+      if (oldChain == nullptr) {
 	* chainp = chain->next;
       } else {
 	oldChain->next = chain->next;
@@ -288,7 +288,7 @@ NdbLinHash<C>::deleteKey ( const char* str, Uint32 len){
       oldChain = chain;
     }
   }
-  return 0; /* Element doesn't exist */
+  return nullptr; /* Element doesn't exist */
 }
 
 template <class C>
@@ -300,17 +300,17 @@ NdbLinHash<C>::releaseHashTable( void ){
   
   //Traverse the whole directory structure
   for(int countd = 0; countd < DIRECTORYSIZE;countd++ ){
-    if (directory[countd] != 0) {
+    if (directory[countd] != nullptr) {
       //Traverse whole hashtable
       for(int counts = 0; counts < SEGMENTSIZE; counts++ )
-	if (directory[countd]->elements[counts] != 0) {
+	if (directory[countd]->elements[counts] != nullptr) {
 	  tElement = directory[countd]->elements[counts];
 	  //Delete all elements even those who is linked
 	  do {
 	    tNextElement = tElement->next;	       
 	    delete tElement;
 	    tElement = tNextElement;
-	  } while (tNextElement != 0);
+	  } while (tNextElement != nullptr);
 	}
       delete directory[countd];
     }   
@@ -411,12 +411,12 @@ template <class C>
 inline
 NdbElement_t<C> *
 NdbLinHash<C>::getNext(NdbElement_t<C> * curr){
-  if(curr != 0 && curr->next != 0)
+  if(curr != nullptr && curr->next != nullptr)
     return curr->next;
   
   int dir = 0, seg = 0;
   int counts;
-  if(curr != 0)
+  if(curr != nullptr)
   {
     getBucket(curr->hash, &dir, &seg);
     counts = seg + 1;
@@ -427,9 +427,9 @@ NdbLinHash<C>::getNext(NdbElement_t<C> * curr){
   }
   
   for(int countd = dir; countd < DIRECTORYSIZE;countd++ ){
-    if (directory[countd] != 0) {
+    if (directory[countd] != nullptr) {
       for(; counts < SEGMENTSIZE; counts++ ){
-	if (directory[countd]->elements[counts] != 0) {
+	if (directory[countd]->elements[counts] != nullptr) {
 	  return directory[countd]->elements[counts];
 	}   
       }
@@ -437,7 +437,7 @@ NdbLinHash<C>::getNext(NdbElement_t<C> * curr){
     counts = 0;
   }
 
-  return 0;
+  return nullptr;
 }
 
 #endif

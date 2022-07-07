@@ -116,8 +116,8 @@ public:
   EventBufDataHead *m_main; // Head of set of events
 
   EventBufData()
-    : memory(NULL),
-      m_event_op(NULL), m_next(NULL), m_next_blob(NULL)
+    : memory(nullptr),
+      m_event_op(nullptr), m_next(nullptr), m_next_blob(nullptr)
   {}
 
   size_t get_this_size() const;
@@ -214,7 +214,7 @@ public:
     const Uint32 pad = ALIGN_SIZE(data_offs) - data_offs;
     m_used = pad;
     m_expiry_epoch = MonotonicEpoch::max;
-    m_next = NULL;
+    m_next = nullptr;
   }
 
   void destruct()
@@ -231,7 +231,7 @@ public:
   void* alloc(unsigned size)
   {
     if (unlikely(m_used + size > m_size))
-      return NULL;
+      return nullptr;
 
     char *mem = m_data + m_used;
     m_used += ALIGN_SIZE(size);  //Keep alignment for next object
@@ -348,10 +348,10 @@ public:
        m_gcp_complete_rep_count(0),
        m_gcp_complete_rep_sub_data_streams(),
        m_gci(0),
-       m_head(NULL),
-       m_tail(NULL),
+       m_head(nullptr),
+       m_tail(nullptr),
        m_data_hash(event_buffer),
-       m_gci_op_list(NULL),
+       m_gci_op_list(nullptr),
        m_gci_op_count(0),
        m_gci_op_alloc(0)
  {
@@ -359,21 +359,21 @@ public:
 
   void clear()
   {
-    assert(m_event_buffer != NULL);
+    assert(m_event_buffer != nullptr);
     m_state = 0;
     m_gcp_complete_rep_count = 0;
     m_gcp_complete_rep_sub_data_streams.clear();
     m_gci = 0;
-    m_head = m_tail = NULL;
+    m_head = m_tail = nullptr;
     m_data_hash.clear();
 
-    m_gci_op_list = NULL;
+    m_gci_op_list = nullptr;
     m_gci_op_count = 0;
     m_gci_op_alloc = 0;
   }
 
   bool is_empty() const
-  { return (m_head == NULL); }
+  { return (m_head == nullptr); }
 
   enum State 
   {
@@ -440,7 +440,7 @@ public:
       m_gci_op_count(count),
       m_gci_op_list(gci_op_list),
       m_data(data),
-      m_next(NULL)
+      m_next(nullptr)
     {}
   ~EpochData() {}
 
@@ -467,14 +467,14 @@ class EpochDataList
 {
 public:
   EpochDataList()
-    : m_head(NULL), m_tail(NULL) {}
+    : m_head(nullptr), m_tail(nullptr) {}
 
   // Gci list is cleared to an empty state.
   void clear()
-  { m_head = m_tail = NULL; }
+  { m_head = m_tail = nullptr; }
   
   bool is_empty() const
-  { return (m_head == NULL); }
+  { return (m_head == nullptr); }
 
   // append EpochData to list
   void append(EpochData *epoch)
@@ -483,7 +483,7 @@ public:
       m_tail->m_next = epoch;
     else
     {
-      assert(m_head == NULL);
+      assert(m_head == nullptr);
       m_head = epoch;
     }
     m_tail = epoch;
@@ -498,7 +498,7 @@ public:
       m_head= list->m_head;
     m_tail= list->m_tail;
 
-    list->m_head = list->m_tail = NULL;
+    list->m_head = list->m_tail = nullptr;
   }
 
   EpochData *first_epoch() const
@@ -508,8 +508,8 @@ public:
   EpochData *next_epoch()
   {
     m_head = m_head->m_next;
-    if (m_head == NULL)
-      m_tail = NULL;
+    if (m_head == nullptr)
+      m_tail = nullptr;
 
     return m_head;
   }
@@ -518,27 +518,27 @@ public:
   EventBufDataHead *get_first_event_data() const
   {
     EpochData *epoch = m_head;
-    while (epoch != NULL)
+    while (epoch != nullptr)
     {
-      if (epoch->m_data != NULL)
+      if (epoch->m_data != nullptr)
         return epoch->m_data;
       epoch = epoch->m_next;
     }
-    return NULL;
+    return nullptr;
   }
 
   // get and consume first EventData
   EventBufDataHead *consume_first_event_data()
   {
     EpochData *epoch = m_head;
-    if (epoch != NULL)
+    if (epoch != nullptr)
     {
       EventBufDataHead *data = epoch->m_data;
-      if (data != NULL)
+      if (data != nullptr)
         m_head->m_data = data->m_next_main;
       return data;
     }
-    return NULL;
+    return nullptr;
   }
 
   // get number of EventBufData in EpochDataList (For debug)
@@ -877,7 +877,7 @@ public:
   Uint64 getHighestQueuedEpoch();
   void setEventBufferQueueEmptyEpoch(bool queue_empty_epoch);
 
-  int pollEvents(Uint64 *HighestQueuedEpoch= NULL);
+  int pollEvents(Uint64 *HighestQueuedEpoch= nullptr);
   int flushIncompleteEvents(Uint64 gci);
 
   void remove_consumed_memory(MonotonicEpoch consumedGci);

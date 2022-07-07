@@ -48,7 +48,7 @@ getSignalName(GlobalSignalNumber gsn, const char * defualtValue = "Unknown");
  *          defValue if not a valid block number
  */
 const char * 
-getBlockName(BlockNumber blockNo, const char * defValue = 0);
+getBlockName(BlockNumber blockNo, const char * defValue = nullptr);
 
 /**
  * getBlockNo

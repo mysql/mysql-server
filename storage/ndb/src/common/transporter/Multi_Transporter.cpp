@@ -52,9 +52,9 @@ Multi_Transporter::Multi_Transporter(TransporterRegistry &t_reg,
   m_num_not_used_transporters = 0;
   for (Uint32 i = 0; i < MAX_NODE_GROUP_TRANSPORTERS; i++)
   {
-    m_active_transporters[i] = 0;
-    m_inactive_transporters[i] = 0;
-    m_not_used_transporters[i] = 0;
+    m_active_transporters[i] = nullptr;
+    m_inactive_transporters[i] = nullptr;
+    m_not_used_transporters[i] = nullptr;
   }
 }
 
@@ -127,7 +127,7 @@ Multi_Transporter::set_num_inactive_transporters(Uint32 num_used)
         Transporter *t = m_inactive_transporters[i];
         m_not_used_transporters[i] = t;
         require(t);
-        m_inactive_transporters[i] = 0;
+        m_inactive_transporters[i] = nullptr;
         m_num_inactive_transporters--;
         m_num_not_used_transporters++;
       }
@@ -141,7 +141,7 @@ Multi_Transporter::set_num_inactive_transporters(Uint32 num_used)
       {
         Transporter *t = m_not_used_transporters[i];
         m_inactive_transporters[i] = t;
-        m_not_used_transporters[i] = 0;
+        m_not_used_transporters[i] = nullptr;
         require(t);
         m_num_inactive_transporters++;
         m_num_not_used_transporters--;

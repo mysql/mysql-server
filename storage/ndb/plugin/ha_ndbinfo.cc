@@ -47,32 +47,32 @@ static MYSQL_THDVAR_UINT(
     max_rows, /* name */
     PLUGIN_VAR_RQCMDARG,
     "Specify max number of rows to fetch per roundtrip to cluster",
-    NULL, /* check func. */
-    NULL, /* update func. */
-    10,   /* default */
-    1,    /* min */
-    256,  /* max */
-    0     /* block */
+    nullptr, /* check func. */
+    nullptr, /* update func. */
+    10,      /* default */
+    1,       /* min */
+    256,     /* max */
+    0        /* block */
 );
 
 static MYSQL_THDVAR_UINT(
     max_bytes, /* name */
     PLUGIN_VAR_RQCMDARG,
     "Specify approx. max number of bytes to fetch per roundtrip to cluster",
-    NULL,  /* check func. */
-    NULL,  /* update func. */
-    0,     /* default */
-    0,     /* min */
-    65535, /* max */
-    0      /* block */
+    nullptr, /* check func. */
+    nullptr, /* update func. */
+    0,       /* default */
+    0,       /* min */
+    65535,   /* max */
+    0        /* block */
 );
 
 static MYSQL_THDVAR_BOOL(show_hidden, /* name */
                          PLUGIN_VAR_RQCMDARG,
                          "Control if tables should be visible or not",
-                         NULL, /* check func. */
-                         NULL, /* update func. */
-                         false /* default */
+                         nullptr, /* check func. */
+                         nullptr, /* update func. */
+                         false    /* default */
 );
 
 static char *opt_ndbinfo_dbname = const_cast<char *>("ndbinfo");
@@ -81,9 +81,9 @@ static MYSQL_SYSVAR_STR(database,           /* name */
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
                             PLUGIN_VAR_NOCMDOPT,
                         "Name of the database used by ndbinfo",
-                        NULL, /* check func. */
-                        NULL, /* update func. */
-                        NULL  /* default */
+                        nullptr, /* check func. */
+                        nullptr, /* update func. */
+                        nullptr  /* default */
 );
 
 static char *opt_ndbinfo_table_prefix = const_cast<char *>("ndb$");
@@ -92,9 +92,9 @@ static MYSQL_SYSVAR_STR(table_prefix,             /* name */
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
                             PLUGIN_VAR_NOCMDOPT,
                         "Prefix used for all virtual tables loaded from NDB",
-                        NULL, /* check func. */
-                        NULL, /* update func. */
-                        NULL  /* default */
+                        nullptr, /* check func. */
+                        nullptr, /* update func. */
+                        nullptr  /* default */
 );
 
 static Uint32 opt_ndbinfo_version = NDB_VERSION_D;
@@ -102,12 +102,13 @@ static MYSQL_SYSVAR_UINT(version,             /* name */
                          opt_ndbinfo_version, /* var */
                          PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY |
                              PLUGIN_VAR_NOPERSIST,
-                         "Compile version for ndbinfo", NULL, /* check func. */
-                         NULL,                                /* update func. */
-                         0,                                   /* default */
-                         0,                                   /* min */
-                         0,                                   /* max */
-                         0                                    /* block */
+                         "Compile version for ndbinfo",
+                         nullptr, /* check func. */
+                         nullptr, /* update func. */
+                         0,       /* default */
+                         0,       /* min */
+                         0,       /* max */
+                         0        /* block */
 );
 
 static bool opt_ndbinfo_offline;
@@ -135,7 +136,7 @@ static MYSQL_SYSVAR_BOOL(offline,             /* name */
                          "Set ndbinfo in offline mode, tables and views can "
                          "be opened even if they don't exist or have different "
                          "definition in NDB. No rows will be returned.",
-                         NULL,           /* check func. */
+                         nullptr,        /* check func. */
                          offline_update, /* update func. */
                          0               /* default */
 );
@@ -151,7 +152,7 @@ static bool ndbcluster_is_disabled(void) {
     if ndbcluster is not enabled, ndbinfo won't start
   */
   if (g_ndb_cluster_connection) return false;
-  assert(g_ndbinfo == NULL);
+  assert(g_ndbinfo == nullptr);
   return true;
 }
 
@@ -195,7 +196,7 @@ static struct error_message {
     {ERR_INCOMPAT_TABLE_DEF, "Incompatible table definitions"},
     {HA_ERR_NO_CONNECTION, "Connection to NDB failed"},
 
-    {0, 0}};
+    {0, nullptr}};
 
 static const char *find_error_message(int error) {
   struct error_message *err = error_messages;
@@ -206,7 +207,7 @@ static const char *find_error_message(int error) {
     }
     err++;
   }
-  return NULL;
+  return nullptr;
 }
 
 static int err2mysql(int error) {
@@ -290,7 +291,7 @@ static void warn_incompatible(const NdbInfo::Table *ndb_tab, bool fatal,
   BaseString msg;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s, fatal: %d", ndb_tab->getName(), fatal));
-  assert(format != NULL);
+  assert(format != nullptr);
 
   va_list args;
   char explanation[128];
@@ -353,7 +354,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
 
   int err = g_ndbinfo->openTable(name, &m_impl.m_table);
   if (err) {
-    assert(m_impl.m_table == 0);
+    assert(m_impl.m_table == nullptr);
     ndb_log_info("NdbInfo::openTable failed for %s", name);
     if (err == NdbInfo::ERR_NoSuchTable) {
       if (g_ndb_cluster_connection->get_min_db_version() < NDB_VERSION_D) {
@@ -392,7 +393,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
       warn_incompatible(ndb_tab, true, "column '%s' is NOT NULL",
                         field->field_name);
       delete m_impl.m_table;
-      m_impl.m_table = 0;
+      m_impl.m_table = nullptr;
       return ERR_INCOMPAT_TABLE_DEF;
     }
 
@@ -432,7 +433,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
       ndb_log_info("Incompatible ndbinfo column: %s, type: %d,%d",
                    field->field_name, field->type(), field->real_type());
       delete m_impl.m_table;
-      m_impl.m_table = 0;
+      m_impl.m_table = nullptr;
       return ERR_INCOMPAT_TABLE_DEF;
     }
   }
@@ -457,7 +458,7 @@ int ha_ndbinfo::close(void) {
   assert(is_open());
   if (m_impl.m_table) {
     g_ndbinfo->closeTable(m_impl.m_table);
-    m_impl.m_table = NULL;
+    m_impl.m_table = nullptr;
     m_impl.m_status = ha_ndbinfo_impl::Table_Status::CLOSED;
   }
   return 0;
@@ -519,13 +520,13 @@ int ha_ndbinfo::rnd_init(bool scan) {
 
     // Release the scan operation
     g_ndbinfo->releaseScanOperation(m_impl.m_scan_op);
-    m_impl.m_scan_op = NULL;
+    m_impl.m_scan_op = nullptr;
 
     // Release pointers to the columns
     m_impl.m_columns.clear();
   }
 
-  assert(m_impl.m_scan_op == NULL);  // No scan already ongoing
+  assert(m_impl.m_scan_op == nullptr);  // No scan already ongoing
 
   if (m_impl.m_first_use) {
     m_impl.m_first_use = false;
@@ -565,7 +566,7 @@ int ha_ndbinfo::rnd_init(bool scan) {
 
   THD *thd = current_thd;
   int err;
-  NdbInfoScanOperation *scan_op = NULL;
+  NdbInfoScanOperation *scan_op = nullptr;
   if ((err = g_ndbinfo->createScanOperation(m_impl.m_table, &scan_op,
                                             THDVAR(thd, max_rows),
                                             THDVAR(thd, max_bytes))) != 0)
@@ -583,7 +584,7 @@ int ha_ndbinfo::rnd_init(bool scan) {
     if (bitmap_is_set(table->read_set, i))
       m_impl.m_columns.push_back(scan_op->getValue(field->field_name));
     else
-      m_impl.m_columns.push_back(NULL);
+      m_impl.m_columns.push_back(nullptr);
   }
 
   if ((err = scan_op->execute()) != 0) {
@@ -607,7 +608,7 @@ int ha_ndbinfo::rnd_end() {
 
   if (m_impl.m_scan_op) {
     g_ndbinfo->releaseScanOperation(m_impl.m_scan_op);
-    m_impl.m_scan_op = NULL;
+    m_impl.m_scan_op = nullptr;
   }
   m_impl.m_columns.clear();
 
@@ -642,7 +643,7 @@ int ha_ndbinfo::rnd_next(uchar *buf) {
 int ha_ndbinfo::rnd_pos(uchar *buf, uchar *pos) {
   DBUG_TRACE;
   assert(is_open());
-  assert(m_impl.m_scan_op == NULL);  // No scan started
+  assert(m_impl.m_scan_op == nullptr);  // No scan started
 
   /* Copy the saved row into "buf" and set all fields to not null */
   memcpy(buf, pos, ref_length);
@@ -938,7 +939,7 @@ static int ndbinfo_init(void *plugin) {
     ndb_log_error("Failed to init NdbInfo");
 
     delete g_ndbinfo;
-    g_ndbinfo = NULL;
+    g_ndbinfo = nullptr;
 
     return 1;
   }
@@ -951,7 +952,7 @@ static int ndbinfo_deinit(void *) {
 
   if (g_ndbinfo) {
     delete g_ndbinfo;
-    g_ndbinfo = NULL;
+    g_ndbinfo = nullptr;
   }
 
   return 0;
@@ -965,7 +966,7 @@ SYS_VAR *ndbinfo_system_variables[] = {MYSQL_SYSVAR(max_rows),
                                        MYSQL_SYSVAR(version),
                                        MYSQL_SYSVAR(offline),
 
-                                       NULL};
+                                       nullptr};
 
 struct st_mysql_storage_engine ndbinfo_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
@@ -978,10 +979,10 @@ struct st_mysql_plugin ndbinfo_plugin = {
     "MySQL Cluster system information storage engine",
     PLUGIN_LICENSE_GPL,
     ndbinfo_init,             /* plugin init */
-    NULL,                     /* plugin uninstall check */
+    nullptr,                  /* plugin uninstall check */
     ndbinfo_deinit,           /* plugin deinit */
     0x0001,                   /* plugin version */
-    NULL,                     /* status variables */
+    nullptr,                  /* status variables */
     ndbinfo_system_variables, /* system variables */
-    NULL,                     /* config options */
+    nullptr,                  /* config options */
     0};

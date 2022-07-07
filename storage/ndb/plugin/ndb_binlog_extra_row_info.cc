@@ -153,5 +153,5 @@ uchar *Ndb_binlog_extra_row_info::generateBuffer() {
 
     return buff;
   }
-  return 0;
+  return nullptr;
 }

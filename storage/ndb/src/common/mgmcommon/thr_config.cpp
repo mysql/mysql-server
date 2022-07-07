@@ -128,7 +128,7 @@ THRConfig::getEntryName(Uint32 type)
       return m_parse_entries[i].m_name;
     }
   }
-  return 0;
+  return nullptr;
 }
 
 THRConfig::THRConfig()
@@ -1561,7 +1561,7 @@ const char *
 THRConfig::getErrorMessage() const
 {
   if (m_err_msg.empty())
-    return 0;
+    return nullptr;
   return m_err_msg.c_str();
 }
 
@@ -1569,7 +1569,7 @@ const char *
 THRConfig::getInfoMessage() const
 {
   if (m_info_msg.empty())
-    return 0;
+    return nullptr;
   return m_info_msg.c_str();
 }
 
@@ -1931,7 +1931,7 @@ TAPTEST(thr_config)
         "main,rep={count=0},recv,ldm", /* 0 rep allowed */
         "main={count=0},rep={count=0},recv,ldm", /* 0 rep and 0 main allowed */
         "main={count=0},rep={count=0},recv,ldm={count=0}", /* 0 rep and 0 main and 0 ldm allowed */
-        0
+        nullptr
       };
 
     const char * fail [] =
@@ -1968,7 +1968,7 @@ TAPTEST(thr_config)
         "idxbld={ spintime=12 }",
         "rep,recv,ldm", /* missing mandatory main */
         "rep={count=1},main={count=0},recv,ldm", /* rep count=1 requires main count=1 */
-        0
+        nullptr
       };
 
     for (Uint32 i = 0; ok[i]; i++)
@@ -2014,14 +2014,14 @@ TAPTEST(thr_config)
     
       {
         "string_type={string=\"abc\"}",
-        0
+        nullptr
       };
     const char * fail[] =
       {
         "string_type", /* Empty specification not allowed here */
         "string_type={string=\"01234567890123456789012345678901234\"}",
                        /* String too long */
-        0
+        nullptr
       };
     for (Uint32 i = 0; ok[i]; i++)
     {
@@ -2124,7 +2124,7 @@ TAPTEST(thr_config)
       "Too few CPU's specifed with LockExecuteThreadToCPU. This is not supported when using multiple TC threads",
 
       // END
-      0
+      nullptr
     };
 
     for (unsigned i = 0; t[i]; i+= 4)

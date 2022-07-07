@@ -47,11 +47,11 @@ bool Ndb_server_hooks::register_server_hooks(hook_t *before_connections_hook,
 
       // before clients are allowed to connect
       (before_handle_connection_t)before_connections_hook,
-      NULL,                                 // before recovery
-      NULL,                                 // after engine recovery
-      NULL,                                 // after recovery
-      NULL,                                 // before shutdown
-      NULL,                                 // after shutdown
+      nullptr,                              // before recovery
+      nullptr,                              // after engine recovery
+      nullptr,                              // after recovery
+      nullptr,                              // before shutdown
+      nullptr,                              // after shutdown
       (after_dd_upgrade_t)dd_upgrade_hook,  // after DD upgrade
   };
 
@@ -80,15 +80,15 @@ bool Ndb_server_hooks::register_applier_start(hook_t *hook_func) {
   m_binlog_relay_io_observer = new Binlog_relay_IO_observer{
       sizeof(Binlog_relay_IO_observer),
 
-      NULL,                        // thread_start
-      NULL,                        // thread_stop
+      nullptr,                     // thread_start
+      nullptr,                     // thread_stop
       (applier_start_t)hook_func,  // applier_start
-      NULL,                        // applier_stop
-      NULL,                        // before_request_transmit
-      NULL,                        // after_read_event
-      NULL,                        // after_queue_event
-      NULL,                        // after_reset
-      NULL                         // applier_log_event
+      nullptr,                     // applier_stop
+      nullptr,                     // before_request_transmit
+      nullptr,                     // after_read_event
+      nullptr,                     // after_queue_event
+      nullptr,                     // after_reset
+      nullptr                      // applier_log_event
   };
 
   // Install replication observer to be called when applier thread start

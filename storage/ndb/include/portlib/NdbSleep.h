@@ -92,7 +92,7 @@ void NdbSleep_MilliSleep(int milliseconds)
   struct timeval t;
   t.tv_sec =  milliseconds / 1000L;
   t.tv_usec = (milliseconds % 1000L) * 1000L;
-  select(0,0,0,0,&t);
+  select(0,nullptr,nullptr,nullptr,&t);
 #endif
 }
 

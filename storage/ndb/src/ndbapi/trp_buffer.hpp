@@ -54,7 +54,7 @@ struct TFPage
     m_bytes = 0;
     m_start = 0;
     m_ref_count = 0;
-    m_next = 0;
+    m_next = nullptr;
   }
 
   static TFPage* ptr(struct iovec p) {
@@ -101,13 +101,13 @@ struct TFPage
 
 struct TFBuffer
 {
-  TFBuffer() : m_head(NULL), m_tail(NULL), m_bytes_in_buffer(0) {}
+  TFBuffer() : m_head(nullptr), m_tail(nullptr), m_bytes_in_buffer(0) {}
   struct TFPage * m_head;
   struct TFPage * m_tail;
   Uint32 m_bytes_in_buffer;
 
   void validate() const;
-  void clear() { m_bytes_in_buffer = 0; m_head = m_tail = NULL;}
+  void clear() { m_bytes_in_buffer = 0; m_head = m_tail = nullptr;}
 };
 
 struct TFBufferGuard
@@ -137,12 +137,12 @@ class TFPool
   TFPage * m_first_free;
 public:
   TFPool():
-    m_alloc_ptr(0),
+    m_alloc_ptr(nullptr),
     m_tot_send_buffer_pages(0),
     m_pagesize(SENDBUFFER_DEFAULT_PAGE_SIZE),
     m_free_send_buffer_pages(0),
     m_reserved_send_buffer_pages(0),
-    m_first_free(0)
+    m_first_free(nullptr)
     {}
 
   ~TFPool();
@@ -150,7 +150,7 @@ public:
   bool init(size_t total_memory, 
             size_t reserved_memory = 0,
             size_t page_sz = SENDBUFFER_DEFAULT_PAGE_SIZE);
-  bool inited() const { return m_alloc_ptr != 0;}
+  bool inited() const { return m_alloc_ptr != nullptr;}
 
   TFPage* try_alloc(Uint32 N, bool reserved = false); // Return linked list of most N pages
   Uint32 try_alloc(struct iovec tmp[], Uint32 cnt);
@@ -181,7 +181,7 @@ class TFMTPool : private TFPool
 {
   NdbMutex m_mutex;
 public:
-  explicit TFMTPool(const char * name = 0);
+  explicit TFMTPool(const char * name = nullptr);
 
   bool init(size_t total_memory, 
             size_t reserved_memory = 0, 
@@ -207,7 +207,7 @@ public:
   void release_list(TFPage* head) {
     TFPage * tail = head;
     Uint32 page_count = 1;
-    while (tail->m_next != 0)
+    while (tail->m_next != nullptr)
     {
       tail = tail->m_next;
       page_count++;
@@ -264,7 +264,7 @@ TFPool::try_alloc(Uint32 n, bool reserved)
   {
     TFPage * h = m_first_free;
     TFPage * p = h;
-    TFPage * prev = 0;
+    TFPage * prev = nullptr;
     m_free_send_buffer_pages -= n;
     while (n != 0)
     {
@@ -273,12 +273,12 @@ TFPool::try_alloc(Uint32 n, bool reserved)
       p = p->m_next;
       n--;
     }
-    prev->m_next = 0;
+    prev->m_next = nullptr;
     m_first_free = p;
     return h;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 inline
@@ -315,7 +315,7 @@ TFPool::release_list(TFPage* head)
 {
   TFPage * tail = head;
   Uint32 page_count = 1;
-  while (tail->m_next != 0)
+  while (tail->m_next != nullptr)
   {
     tail = tail->m_next;
     page_count++;

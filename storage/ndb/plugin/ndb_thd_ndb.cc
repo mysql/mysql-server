@@ -68,8 +68,8 @@ bool Thd_ndb::recycle_ndb(void) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("ndb: %p", ndb));
 
-  assert(global_schema_lock_trans == NULL);
-  assert(trans == NULL);
+  assert(global_schema_lock_trans == nullptr);
+  assert(trans == nullptr);
 
   delete ndb;
 

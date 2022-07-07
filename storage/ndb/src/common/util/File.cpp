@@ -72,13 +72,13 @@ File_class::remove(const char* aFileName)
 }
 
 File_class::File_class() : 
-  m_file(NULL), 
+  m_file(nullptr), 
   m_fileMode("r")
 {
 }
 
 File_class::File_class(const char* aFileName, const char* mode) :	
-  m_file(NULL), 
+  m_file(nullptr), 
   m_fileMode(mode)
 {
   BaseString::snprintf(m_fileName, PATH_MAX, "%s", aFileName);
@@ -93,7 +93,7 @@ File_class::open()
 bool 
 File_class::open(const char* aFileName, const char* mode) 
 {
-  assert(m_file == NULL); // Not already open
+  assert(m_file == nullptr); // Not already open
   if(m_fileName != aFileName){
     /**
      * Only copy if it's not the same string
@@ -102,7 +102,7 @@ File_class::open(const char* aFileName, const char* mode)
   }
   m_fileMode = mode;
   bool rc = true;
-  if ((m_file = ::fopen(m_fileName, m_fileMode))== NULL)
+  if ((m_file = ::fopen(m_fileName, m_fileMode))== nullptr)
   {
     rc = false;      
   }
@@ -113,7 +113,7 @@ File_class::open(const char* aFileName, const char* mode)
 bool
 File_class::is_open()
 {
-  return (m_file != NULL);
+  return (m_file != nullptr);
 }
 
 File_class::~File_class()
@@ -135,7 +135,7 @@ File_class::close()
   bool rc = true;
   int retval = 0;
 
-  if (m_file != NULL)
+  if (m_file != nullptr)
   { 
     ::fflush(m_file);
     retval = ::fclose(m_file);
@@ -151,7 +151,7 @@ File_class::close()
                           strerror(errno));
     }   
   }  
-  m_file = NULL;
+  m_file = nullptr;
 
   return rc;
 }

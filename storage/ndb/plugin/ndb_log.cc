@@ -149,7 +149,7 @@ static void ndb_log_detect_prefix(const char *fmt, const char **prefix,
 
   // Format string specifier accepted as is and no prefix was used
   // this would be the default case
-  *prefix = NULL;
+  *prefix = nullptr;
   *fmt_start = fmt;
   return;
 }

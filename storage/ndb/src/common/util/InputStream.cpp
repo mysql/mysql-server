@@ -40,7 +40,7 @@ FileInputStream::gets(char * buf, int bufLen){
   if(!feof(f)){
     return fgets(buf, bufLen, f);
   }
-  return 0;
+  return nullptr;
 }
 
 SocketInputStream::SocketInputStream(ndb_socket_t socket,
@@ -55,7 +55,7 @@ SocketInputStream::SocketInputStream(ndb_socket_t socket,
 char*
 SocketInputStream::gets(char * buf, int bufLen) {
   if(timedout())
-    return 0;
+    return nullptr;
   assert(bufLen >= 2);
   int offset= 0;
   if(m_startover)
@@ -83,7 +83,7 @@ SocketInputStream::gets(char * buf, int bufLen) {
 
   if(res == -1)
   {
-    return 0;
+    return nullptr;
   }
 
   return buf;

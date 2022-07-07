@@ -376,9 +376,9 @@ NdbIndexStatImpl::StatBound::StatBound()
 inline
 NdbIndexStatImpl::Stat::Stat()
 {
-  m_rule[0] = 0;
-  m_rule[1] = 0;
-  m_rule[2] = 0;
+  m_rule[0] = nullptr;
+  m_rule[1] = nullptr;
+  m_rule[2] = nullptr;
 }
  
 #endif

@@ -64,5 +64,5 @@ struct ndbkernel_state_desc g_dblqh_tcconnect_state_desc[] =
   SDESC(PREPARED_RECEIVED_COMMIT, "Committing", ""),
   SDESC(LOG_COMMIT_WRITTEN, "Committing", ""),
 
-  { 0, 0, 0, 0 }
+  { 0, nullptr, nullptr, nullptr }
 };

@@ -37,7 +37,7 @@ NdbInfoScanNodes::NdbInfoScanNodes(Ndb_cluster_connection* connection,
                                    Uint32 max_nodes) :
   m_state(Undefined),
   m_connection(connection),
-  m_signal_sender(NULL),
+  m_signal_sender(nullptr),
   m_table(table),
   m_recAttrs(table->columns()),
   m_node_id(0),
@@ -99,11 +99,11 @@ const NdbInfoRecAttr *
 NdbInfoScanNodes::getValue(const char * anAttrName)
 {
   if (m_state != Prepared)
-    return NULL;
+    return nullptr;
 
   const NdbInfo::Column* column = m_table->getColumn(anAttrName);
   if (!column)
-    return NULL;
+    return nullptr;
   return getValue(column->m_column_id);
 }
 
@@ -111,10 +111,10 @@ const NdbInfoRecAttr *
 NdbInfoScanNodes::getValue(Uint32 anAttrId)
 {
   if (m_state != Prepared)
-    return NULL;
+    return nullptr;
 
   if (anAttrId >= m_table->columns())
-    return NULL;
+    return nullptr;
 
   return m_recAttrs.get_value(anAttrId);
 }

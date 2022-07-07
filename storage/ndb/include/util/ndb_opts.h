@@ -422,12 +422,12 @@ class Ndb_opts {
 public:
   Ndb_opts(int & argc_ref, char** & argv_ref,
            struct my_option * long_options,
-           const char * default_groups[] = 0);
+           const char * default_groups[] = nullptr);
 
   ~Ndb_opts();
 
   void set_usage_funcs(void(*short_usage_fn)(void),
-                       void(* long_usage_fn)(void) = 0);
+                       void(* long_usage_fn)(void) = nullptr);
 
   int handle_options(bool (*get_opt_fn)(int, const struct my_option *,
                                         char *) = ndb_std_get_one_option) const;

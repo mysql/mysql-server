@@ -460,8 +460,8 @@ class VirtualScanContext {
 
   bool scanTable(const NdbRecord *result_record,
                  NdbOperation::LockMode lock_mode = NdbOperation::LM_Read,
-                 const unsigned char *result_mask = 0,
-                 const NdbScanOperation::ScanOptions *options = 0,
+                 const unsigned char *result_mask = nullptr,
+                 const NdbScanOperation::ScanOptions *options = nullptr,
                  Uint32 sizeOfOptions = 0) {
     assert(m_trans != nullptr);
     m_scan_op = m_trans->scanTable(result_record, lock_mode, result_mask,
@@ -619,7 +619,7 @@ NdbInfoScanVirtual::NdbInfoScanVirtual(Ndb_cluster_connection *connection,
       m_table(table),
       m_virt(virt),
       m_recAttrs(table->columns()),
-      m_buffer(NULL),
+      m_buffer(nullptr),
       m_buffer_size(0),
       m_row_counter(0),
       m_ctx(new VirtualScanContext(connection))
@@ -691,12 +691,12 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table("blocks", this,
                                              NO_OF_BLOCK_NAMES);
     if (!tab)
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("block_number", 0,
                                         NdbInfo::Column::Number)) ||
         !tab->addColumn(NdbInfo::Column("block_name", 1,
                                         NdbInfo::Column::String)))
-      return NULL;
+      return nullptr;
     return tab;
   }
 };
@@ -766,12 +766,12 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types", this,
                                              OBJ_TYPES_TABLE_SIZE);
     if (!tab)
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("type_id", 0,
                                         NdbInfo::Column::Number)) ||
         !tab->addColumn(NdbInfo::Column("type_name", 1,
                                         NdbInfo::Column::String)))
-      return NULL;
+      return nullptr;
     return tab;
   }
 };
@@ -898,7 +898,7 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table("error_messages", this,
                                              m_error_messages.size());
     if (!tab)
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("error_code", 0,
                                         NdbInfo::Column::Number)) ||
         !tab->addColumn(NdbInfo::Column("error_description", 1,
@@ -907,7 +907,7 @@ public:
                                         NdbInfo::Column::String)) ||
         !tab->addColumn(NdbInfo::Column("error_classification", 3,
                                         NdbInfo::Column::String)))
-      return NULL;
+      return nullptr;
     return tab;
   }
 
@@ -925,7 +925,7 @@ public:
   {
     // Build an index to allow further lookup
     // of the values by "row_number"
-    const ConfigInfo::ParamInfo* pinfo= NULL;
+    const ConfigInfo::ParamInfo* pinfo= nullptr;
     ConfigInfo::ParamInfoIter param_iter(m_config_info,
                                          CFG_SECTION_NODE,
                                          NODE_TYPE_DB);
@@ -1076,7 +1076,7 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table("config_params", this,
                                              m_config_params.size());
     if (!tab)
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("param_number", 0,
                                         NdbInfo::Column::Number)) ||
         !tab->addColumn(NdbInfo::Column("param_name", 1,
@@ -1096,7 +1096,7 @@ public:
         !tab->addColumn(NdbInfo::Column("param_status", 8,
                                         NdbInfo::Column::String)))
 
-      return NULL;
+      return nullptr;
     return tab;
   }
 };
@@ -1119,7 +1119,7 @@ public:
     m_array_count(0),
     m_table_name(table_name)
   {
-    while(m_array[m_array_count].name != 0)
+    while(m_array[m_array_count].name != nullptr)
     {
        m_index[m_array[m_array_count].value] = m_array_count;
        m_array_count++;
@@ -1151,7 +1151,7 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table(m_table_name, this, m_array_count);
 
     if (!tab)
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("state_int_value", 0,
                                         NdbInfo::Column::Number)) ||
         !tab->addColumn(NdbInfo::Column("state_name", 1,
@@ -1160,7 +1160,7 @@ public:
                                         NdbInfo::Column::String)) ||
         !tab->addColumn(NdbInfo::Column("state_description", 3,
                                         NdbInfo::Column::String)))
-      return NULL;
+      return nullptr;
     return tab;
   }
 };
@@ -1251,16 +1251,16 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table("backup_id", this, 1);
 
     if (!tab)
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("id", 0,
                                         NdbInfo::Column::Number64)))
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("fragment", 1,
                                         NdbInfo::Column::Number)))
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("row_id", 2,
                                         NdbInfo::Column::Number64)))
-      return NULL;
+      return nullptr;
     return tab;
   }
 };
@@ -1341,16 +1341,16 @@ public:
                                              64, // Hard-coded estimate
                                              false);
     if (!tab)
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("index_id", 0,
                                         NdbInfo::Column::Number)))
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("index_version", 1,
                                         NdbInfo::Column::Number)))
-      return NULL;
+      return nullptr;
     if (!tab->addColumn(NdbInfo::Column("sample_version", 2,
                                         NdbInfo::Column::Number)))
-      return NULL;
+      return nullptr;
     return tab;
   }
 };

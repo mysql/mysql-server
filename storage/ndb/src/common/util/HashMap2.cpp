@@ -134,7 +134,7 @@ TAPTEST(HashMap2)
     {
       pool[i].a = i;
       pool[i].b = 3 * i;
-      pool[i].next = NULL;
+      pool[i].next = nullptr;
     }
 
     /* Add the pool elements to the hash table */
@@ -146,7 +146,7 @@ TAPTEST(HashMap2)
     /* Now attempt to add a duplicate */
     pool[100].a = 0;
     pool[100].b = 999;
-    pool[100].next = NULL;
+    pool[100].next = nullptr;
 
     OK(hash1.getElementCount() == 100);
 
@@ -178,7 +178,7 @@ TAPTEST(HashMap2)
 
     hash1.reset();
     it.reset();
-    OK( it.next() == NULL );
+    OK( it.next() == nullptr );
   }
 
   printf("int -> int (Static, !unique) \n");
@@ -197,7 +197,7 @@ TAPTEST(HashMap2)
     {
       pool[i].a = i;
       pool[i].b = 3 * i;
-      pool[i].next = NULL;
+      pool[i].next = nullptr;
     }
 
     /* Add the pool elements to the hash table */
@@ -209,7 +209,7 @@ TAPTEST(HashMap2)
     /* Now attempt to add a duplicate */
     pool[100].a = 0;
     pool[100].b = 999;
-    pool[100].next = NULL;
+    pool[100].next = nullptr;
 
     OK(hash1.getElementCount() == 100);
 
@@ -240,7 +240,7 @@ TAPTEST(HashMap2)
     {
       pool[i].a = i;
       pool[i].b = 3 * i;
-      pool[i].next = NULL;
+      pool[i].next = nullptr;
     }
 
     /* Add the pool elements to the hash table */
@@ -252,7 +252,7 @@ TAPTEST(HashMap2)
     /* Now attempt to add a duplicate */
     pool[100].a = 0;
     pool[100].b = 999;
-    pool[100].next = NULL;
+    pool[100].next = nullptr;
 
     OK(hash1.getElementCount() == 100);
 
@@ -282,7 +282,7 @@ TAPTEST(HashMap2)
       {
         pool[i].a = i;
         pool[i].b = 3 * i;
-        pool[i].next = NULL;
+        pool[i].next = nullptr;
       }
 
       /* Add the pool elements to the hash table */
@@ -294,7 +294,7 @@ TAPTEST(HashMap2)
       /* Now attempt to add a duplicate */
       pool[100].a = 0;
       pool[100].b = 999;
-      pool[100].next = NULL;
+      pool[100].next = nullptr;
 
       OK(hash1.getElementCount() == 100);
 
@@ -330,7 +330,7 @@ TAPTEST(HashMap2)
       {
         pool[i].a = i;
         pool[i].b = 3 * i;
-        pool[i].next = NULL;
+        pool[i].next = nullptr;
       }
 
       /* Add the pool elements to the hash table */
@@ -342,7 +342,7 @@ TAPTEST(HashMap2)
       /* Now attempt to add a duplicate */
       pool[100].a = 0;
       pool[100].b = 999;
-      pool[100].next = NULL;
+      pool[100].next = nullptr;
 
       OK(hash1.getElementCount() == 100);
 
@@ -364,7 +364,7 @@ TAPTEST(HashMap2)
       {
         pool2[i].a = i;
         pool2[i].b = 4 * i;
-        pool2[i].next = NULL;
+        pool2[i].next = nullptr;
       }
 
       for (int k=0; k < 4; k++)

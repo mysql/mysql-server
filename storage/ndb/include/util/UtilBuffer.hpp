@@ -136,7 +136,7 @@ private:
       return -1;
     }
     void *newdata;
-    if((newdata = realloc(data, newsize)) == NULL) {
+    if((newdata = realloc(data, newsize)) == nullptr) {
       errno = ENOMEM;
       return -1;
     }

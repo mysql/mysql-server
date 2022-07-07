@@ -38,207 +38,207 @@ const NdbSqlUtil::Type
 NdbSqlUtil::m_typeList[] = {
   { // 0
     Type::Undefined,
-    NULL,
-    NULL,
-    NULL
+    nullptr,
+    nullptr,
+    nullptr
   },
   { // 1
     Type::Tinyint,
     cmpTinyint,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 2
     Type::Tinyunsigned,
     cmpTinyunsigned,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 3
     Type::Smallint,
     cmpSmallint,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 4
     Type::Smallunsigned,
     cmpSmallunsigned,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 5
     Type::Mediumint,
     cmpMediumint,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 6
     Type::Mediumunsigned,
     cmpMediumunsigned,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 7
     Type::Int,
     cmpInt,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 8
     Type::Unsigned,
     cmpUnsigned,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 9
     Type::Bigint,
     cmpBigint,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 10
     Type::Bigunsigned,
     cmpBigunsigned,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 11
     Type::Float,
     cmpFloat,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 12
     Type::Double,
     cmpDouble,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 13
     Type::Olddecimal,
     cmpOlddecimal,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 14
     Type::Char,
     cmpChar,
     likeChar,
-    NULL
+    nullptr
   },
   { // 15
     Type::Varchar,
     cmpVarchar,
     likeVarchar,
-    NULL
+    nullptr
   },
   { // 16
     Type::Binary,
     cmpBinary,
     likeBinary,
-    NULL
+    nullptr
   },
   { // 17
     Type::Varbinary,
     cmpVarbinary,
     likeVarbinary,
-    NULL
+    nullptr
   },
   { // 18
     Type::Datetime,
     cmpDatetime,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 19
     Type::Date,
     cmpDate,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 20
     Type::Blob,
-    NULL,
-    NULL,
-    NULL
+    nullptr,
+    nullptr,
+    nullptr
   },
   { // 21
     Type::Text,
-    NULL,
-    NULL,
-    NULL
+    nullptr,
+    nullptr,
+    nullptr
   },
   { // 22
     Type::Bit,
     cmpBit,
-    NULL,
+    nullptr,
     maskBit
   },
   { // 23
     Type::Longvarchar,
     cmpLongvarchar,
     likeLongvarchar,
-    NULL
+    nullptr
   },
   { // 24
     Type::Longvarbinary,
     cmpLongvarbinary,
     likeLongvarbinary,
-    NULL
+    nullptr
   },
   { // 25
     Type::Time,
     cmpTime,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 26
     Type::Year,
     cmpYear,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 27
     Type::Timestamp,
     cmpTimestamp,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 28
     Type::Olddecimalunsigned,
     cmpOlddecimalunsigned,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 29
     Type::Decimal,
     cmpDecimal,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 30
     Type::Decimalunsigned,
     cmpDecimalunsigned,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 31
     Type::Time2,
     cmpTime2,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 32
     Type::Datetime2,
     cmpDatetime2,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
   { // 33
     Type::Timestamp2,
     cmpTimestamp2,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
   },
 };
 
@@ -262,7 +262,7 @@ int NdbSqlUtil::cmpTinyint(const void* info [[maybe_unused]],
                            const void* p2,
                            unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 1 && n2 == 1);
+  assert(info == nullptr && n1 == 1 && n2 == 1);
   Int8 v1, v2;
   memcpy(&v1, p1, 1);
   memcpy(&v2, p2, 1);
@@ -277,7 +277,7 @@ int NdbSqlUtil::cmpTinyunsigned(const void* info [[maybe_unused]],
                                 const void* p2,
                                 unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 1 && n2 == 1);
+  assert(info == nullptr && n1 == 1 && n2 == 1);
   Uint8 v1, v2;
   memcpy(&v1, p1, 1);
   memcpy(&v2, p2, 1);
@@ -292,7 +292,7 @@ int NdbSqlUtil::cmpSmallint(const void* info [[maybe_unused]],
                             const void* p2,
                             unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 2 && n2 == 2);
+  assert(info == nullptr && n1 == 2 && n2 == 2);
   Int16 v1, v2;
   memcpy(&v1, p1, 2);
   memcpy(&v2, p2, 2);
@@ -307,7 +307,7 @@ int NdbSqlUtil::cmpSmallunsigned(const void* info [[maybe_unused]],
                                  const void* p2,
                                  unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 2 && n2 == 2);
+  assert(info == nullptr && n1 == 2 && n2 == 2);
   Uint16 v1, v2;
   memcpy(&v1, p1, 2);
   memcpy(&v2, p2, 2);
@@ -322,7 +322,7 @@ int NdbSqlUtil::cmpMediumint(const void* info [[maybe_unused]],
                              const void* p2,
                              unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 3 && n2 == 3);
+  assert(info == nullptr && n1 == 3 && n2 == 3);
   uchar b1[4];
   uchar b2[4];
   memcpy(b1, p1, 3);
@@ -340,7 +340,7 @@ int NdbSqlUtil::cmpMediumunsigned(const void* info [[maybe_unused]],
                                   const void* p2,
                                   unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 3 && n2 == 3);
+  assert(info == nullptr && n1 == 3 && n2 == 3);
   uchar b1[4];
   uchar b2[4];
   memcpy(b1, p1, 3);
@@ -358,7 +358,7 @@ int NdbSqlUtil::cmpInt(const void* info [[maybe_unused]],
                        const void* p2,
                        unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 4 && n2 == 4);
+  assert(info == nullptr && n1 == 4 && n2 == 4);
   Int32 v1, v2;
   memcpy(&v1, p1, 4);
   memcpy(&v2, p2, 4);
@@ -375,7 +375,7 @@ int NdbSqlUtil::cmpUnsigned(const void* info [[maybe_unused]],
                             const void* p2,
                             unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 4 && n2 == 4);
+  assert(info == nullptr && n1 == 4 && n2 == 4);
   Uint32 v1, v2;
   memcpy(&v1, p1, 4);
   memcpy(&v2, p2, 4);
@@ -392,7 +392,7 @@ int NdbSqlUtil::cmpBigint(const void* info [[maybe_unused]],
                           const void* p2,
                           unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 8 && n2 == 8);
+  assert(info == nullptr && n1 == 8 && n2 == 8);
   Int64 v1, v2;
   memcpy(&v1, p1, 8);
   memcpy(&v2, p2, 8);
@@ -409,7 +409,7 @@ int NdbSqlUtil::cmpBigunsigned(const void* info [[maybe_unused]],
                                const void* p2,
                                unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 8 && n2 == 8);
+  assert(info == nullptr && n1 == 8 && n2 == 8);
   Uint64 v1, v2;
   memcpy(&v1, p1, 8);
   memcpy(&v2, p2, 8);
@@ -426,7 +426,7 @@ int NdbSqlUtil::cmpFloat(const void* info [[maybe_unused]],
                          const void* p2,
                          unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 4 && n2 == 4);
+  assert(info == nullptr && n1 == 4 && n2 == 4);
   float v1, v2;
   memcpy(&v1, p1, 4);
   memcpy(&v2, p2, 4);
@@ -444,7 +444,7 @@ int NdbSqlUtil::cmpDouble(const void* info [[maybe_unused]],
                           const void* p2,
                           unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 8 && n2 == 8);
+  assert(info == nullptr && n1 == 8 && n2 == 8);
   double v1, v2;
   memcpy(&v1, p1, 8);
   memcpy(&v2, p2, 8);
@@ -462,7 +462,7 @@ int NdbSqlUtil::cmpOlddecimal(const void* info [[maybe_unused]],
                               const void* p2,
                               unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == n2);
+  assert(info == nullptr && n1 == n2);
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
   int sgn = +1;
@@ -499,7 +499,7 @@ int NdbSqlUtil::cmpDecimal(const void* info [[maybe_unused]],
                            const void* p2,
                            unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == n2);
+  assert(info == nullptr && n1 == n2);
   return memcmp(p1, p2, n1);
 }
 
@@ -509,7 +509,7 @@ int NdbSqlUtil::cmpDecimalunsigned(const void* info [[maybe_unused]],
                                    const void* p2,
                                    unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == n2);
+  assert(info == nullptr && n1 == n2);
   return memcmp(p1, p2, n1);
 }
 
@@ -517,7 +517,7 @@ int
 NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   // Require same lengths
-  assert(info != 0 && n1 == n2);
+  assert(info != nullptr && n1 == n2);
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
   const CHARSET_INFO* cs = (const CHARSET_INFO*)info;
@@ -534,7 +534,7 @@ NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p
 int
 NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  assert(info != 0);
+  assert(info != nullptr);
   const uint lb = 1;
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
@@ -553,7 +553,7 @@ int NdbSqlUtil::cmpBinary(const void* info [[maybe_unused]],
                           unsigned n2 [[maybe_unused]])
 {
   // Require same lengths
-  assert(info == 0 && n1 == n2);
+  assert(info == nullptr && n1 == n2);
   return memcmp(p1, p2, n1);
 }
 
@@ -582,7 +582,7 @@ int NdbSqlUtil::cmpVarbinary(const void* info [[maybe_unused]],
                              const void* p2,
                              unsigned n2)
 {
-  assert(info == 0);
+  assert(info == nullptr);
   const uint lb = 1;
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
@@ -598,7 +598,7 @@ int NdbSqlUtil::cmpDatetime(const void* info [[maybe_unused]],
                             const void* p2,
                             unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 8 && n2 == 8);
+  assert(info == nullptr && n1 == 8 && n2 == 8);
   Int64 v1, v2;
   memcpy(&v1, p1, sizeof(Int64));
   memcpy(&v2, p2, sizeof(Int64));
@@ -615,7 +615,7 @@ int NdbSqlUtil::cmpDate(const void* info [[maybe_unused]],
                         const void* p2,
                         unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 3 && n2 == 3);
+  assert(info == nullptr && n1 == 3 && n2 == 3);
   uchar b1[4];
   uchar b2[4];
   memcpy(b1, p1, 3);
@@ -703,7 +703,7 @@ int NdbSqlUtil::cmpTime(const void* info [[maybe_unused]],
                         const void* p2,
                         unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 3 && n2 == 3);
+  assert(info == nullptr && n1 == 3 && n2 == 3);
   uchar b1[4];
   uchar b2[4];
   memcpy(b1, p1, 3);
@@ -725,7 +725,7 @@ int NdbSqlUtil::cmpTime(const void* info [[maybe_unused]],
 int
 NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  assert(info != 0);
+  assert(info != nullptr);
   const uint lb = 2;
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
@@ -743,7 +743,7 @@ int NdbSqlUtil::cmpLongvarbinary(const void* info [[maybe_unused]],
                                  const void* p2,
                                  unsigned n2)
 {
-  assert(info == 0);
+  assert(info == nullptr);
   const uint lb = 2;
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
@@ -759,7 +759,7 @@ int NdbSqlUtil::cmpYear(const void* info [[maybe_unused]],
                         const void* p2,
                         unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 1 && n2 == 1);
+  assert(info == nullptr && n1 == 1 && n2 == 1);
   Uint8 v1, v2;
   memcpy(&v1, p1, 1);
   memcpy(&v2, p2, 1);
@@ -774,7 +774,7 @@ int NdbSqlUtil::cmpTimestamp(const void* info [[maybe_unused]],
                              const void* p2,
                              unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == 4 && n2 == 4);
+  assert(info == nullptr && n1 == 4 && n2 == 4);
   Uint32 v1, v2;
   memcpy(&v1, p1, 4);
   memcpy(&v2, p2, 4);
@@ -793,7 +793,7 @@ int NdbSqlUtil::cmpTime2(const void* info [[maybe_unused]],
                          const void* p2,
                          unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == n2);
+  assert(info == nullptr && n1 == n2);
   return memcmp(p1, p2, n1);
 }
 
@@ -803,7 +803,7 @@ int NdbSqlUtil::cmpDatetime2(const void* info [[maybe_unused]],
                              const void* p2,
                              unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == n2);
+  assert(info == nullptr && n1 == n2);
   return memcmp(p1, p2, n1);
 }
 
@@ -813,7 +813,7 @@ int NdbSqlUtil::cmpTimestamp2(const void* info [[maybe_unused]],
                               const void* p2,
                               unsigned n2 [[maybe_unused]])
 {
-  assert(info == 0 && n1 == n2);
+  assert(info == nullptr && n1 == n2);
   return memcmp(p1, p2, n1);
 }
 
@@ -841,7 +841,7 @@ int NdbSqlUtil::likeBinary(const void* info [[maybe_unused]],
                            const void* p2,
                            unsigned n2)
 {
-  assert(info == 0);
+  assert(info == nullptr);
   return likeChar(&my_charset_bin, p1, n1, p2, n2);
 }
 
@@ -871,7 +871,7 @@ int NdbSqlUtil::likeVarbinary(const void* info [[maybe_unused]],
                               const void* p2,
                               unsigned n2)
 {
-  assert(info == 0);
+  assert(info == nullptr);
   return likeVarchar(&my_charset_bin, p1, n1, p2, n2);
 }
 
@@ -901,7 +901,7 @@ int NdbSqlUtil::likeLongvarbinary(const void* info [[maybe_unused]],
                                   const void* p2,
                                   unsigned n2)
 {
-  assert(info == 0);
+  assert(info == nullptr);
   return likeLongvarchar(&my_charset_bin, p1, n1, p2, n2);
 }
 
@@ -996,9 +996,9 @@ NdbSqlUtil::check_column_for_pk(Uint32 typeId, const void* info)
   case Type::Longvarchar:
     {
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
-      if(cs != 0 &&
-         cs->cset != 0 &&
-         cs->coll != 0)
+      if(cs != nullptr &&
+         cs->cset != nullptr &&
+         cs->coll != nullptr)
       {
 	/**
          * Check that we can produce a hash value
@@ -1007,7 +1007,7 @@ NdbSqlUtil::check_column_for_pk(Uint32 typeId, const void* info)
          */
         if (cs->pad_attribute == NO_PAD)
         {
-          if (cs->coll->hash_sort != NULL)
+          if (cs->coll->hash_sort != nullptr)
             return 0;
         }
         /**
@@ -1045,7 +1045,7 @@ uint
 NdbSqlUtil::check_column_for_ordered_index(Uint32 typeId, const void* info)
 {
   const Type& type = getType(typeId);
-  if (type.m_cmp == NULL)
+  if (type.m_cmp == nullptr)
     return false;
   switch (type.m_typeId) {
   case Type::Char:
@@ -1054,10 +1054,10 @@ NdbSqlUtil::check_column_for_ordered_index(Uint32 typeId, const void* info)
     {
       // Note: Only strnncollsp used for compare - no strnxfrm! 
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
-      if (cs != 0 &&
-          cs->cset != 0 &&
-          cs->coll != 0 &&
-          cs->coll->strnncollsp != 0)
+      if (cs != nullptr &&
+          cs->cset != nullptr &&
+          cs->coll != nullptr &&
+          cs->coll->strnncollsp != nullptr)
         return 0;
       else
         return 743;

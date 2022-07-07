@@ -223,7 +223,7 @@ int initSequence(RandomSequence *seq, SequenceValues *inputValues)
    seq->length = totalLength;
    seq->values = (unsigned int *)calloc(totalLength, sizeof(unsigned int));
 
-   if( seq->values == 0 ) return(-1);
+   if( seq->values == nullptr ) return(-1);
 
    /*----------------------*/
    /* set the array values */

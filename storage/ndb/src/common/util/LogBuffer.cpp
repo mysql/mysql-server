@@ -50,7 +50,7 @@ bool ByteStreamLostMsgHandler::writeLostMsg(char* buf,
 }
 
 LogBuffer::LogBuffer(size_t size, LostMsgHandler* lost_msg_handler) :
-    m_log_buf(0),
+    m_log_buf(nullptr),
     m_max_size(size),
     m_size(0),
     m_lost_bytes(0),
@@ -59,7 +59,7 @@ LogBuffer::LogBuffer(size_t size, LostMsgHandler* lost_msg_handler) :
     m_stop(false)
 {
   m_log_buf = (char*)malloc(size+1);
-  assert(m_log_buf != NULL);
+  assert(m_log_buf != nullptr);
 
   m_read_ptr = m_log_buf;
   m_write_ptr = m_log_buf;
@@ -83,7 +83,7 @@ LogBuffer::~LogBuffer()
 char*
 LogBuffer::getWritePtr(size_t bytes) const
 {
-  char* ret = NULL;
+  char* ret = nullptr;
 
   if(bytes == 0)
   {
@@ -104,7 +104,7 @@ LogBuffer::getWritePtr(size_t bytes) const
     else
     {
       // Log buffer is either full or empty with insufficient space
-      ret = NULL;
+      ret = nullptr;
     }
   }
   else if(m_write_ptr > m_read_ptr)
@@ -150,7 +150,7 @@ LogBuffer::wrapWritePtr()
 void
 LogBuffer::updateWritePtr(size_t written_bytes)
 {
-  assert(getWritePtr(written_bytes) != NULL);
+  assert(getWritePtr(written_bytes) != nullptr);
 
   m_write_ptr = m_write_ptr + written_bytes; // update m_write_ptr
   assert(m_write_ptr <= m_top);
@@ -179,7 +179,7 @@ LogBuffer::checkForBufferSpace(size_t write_bytes)
   if(m_lost_bytes)// there are lost bytes
   {
     assert(m_lost_messages != 0);
-    char* write_ptr = NULL;
+    char* write_ptr = nullptr;
     int lost_msg_len = m_lost_msg_handler->getSizeOfLostMsg(m_lost_bytes, m_lost_messages);
     assert(lost_msg_len > 0);
 
@@ -214,7 +214,7 @@ size_t LogBuffer::append(const void* buf, size_t write_bytes)
   Guard g(m_mutex);
   assert(checkInvariants());
   assert(write_bytes <= m_max_size);
-  char* write_ptr = NULL;
+  char* write_ptr = nullptr;
   size_t ret = 0;
   bool buffer_was_empty = (m_size == 0);
 
@@ -263,7 +263,7 @@ LogBuffer::append(const char* fmt, va_list ap, size_t len, bool append_ln)
 {
   Guard g(m_mutex);
   assert(checkInvariants());
-  char* write_ptr = NULL;
+  char* write_ptr = nullptr;
   int ret = 0;
   bool buffer_was_empty = (m_size == 0);
 
@@ -520,7 +520,7 @@ void fun(const char* fmt, ...)
   va_list arguments;
 
   va_start(arguments, fmt);
-  int len = vsnprintf(NULL, 0, fmt, arguments);
+  int len = vsnprintf(nullptr, 0, fmt, arguments);
   va_end(arguments);
 
   va_start(arguments, fmt);
@@ -540,8 +540,8 @@ void* thread_producer1(void*)
     string = string.assfmt("Log %*d\n", 5, i);
     buf_t2->append(string.c_str(), string.length());
   }
-  NdbThread_Exit(NULL);
-  return NULL;
+  NdbThread_Exit(nullptr);
+  return nullptr;
 }
 
 void* thread_producer2(void*)
@@ -554,8 +554,8 @@ void* thread_producer2(void*)
     }
     fun("Log %*d\n", 5, -i);
   }
-  NdbThread_Exit(NULL);
-  return NULL;
+  NdbThread_Exit(nullptr);
+  return nullptr;
 }
 
 void* thread_producer3(void*)
@@ -563,7 +563,7 @@ void* thread_producer3(void*)
   char buf[10];
   memset(buf, '$', 10);
   size_t to_write_bytes = 0;
-  srand((unsigned int)time(NULL));
+  srand((unsigned int)time(nullptr));
   int sleep_when = rand() % 10 + 1;
   for(int i = 0; i < 20; i++)
   {
@@ -586,8 +586,8 @@ void* thread_producer3(void*)
     }
   }
 
-  NdbThread_Exit(NULL);
-  return NULL;
+  NdbThread_Exit(nullptr);
+  return nullptr;
 }
 
 void* thread_consumer1(void*)
@@ -596,7 +596,7 @@ void* thread_consumer1(void*)
   size_t bytes = 0;
   int i = 0;
   size_t get_bytes= 256;
-  setbuf(stdout, NULL);
+  setbuf(stdout, nullptr);
   while(!stop_t2)
   {
     get_bytes= 256;
@@ -624,8 +624,8 @@ void* thread_consumer1(void*)
     fprintf(stdout, LostMsgHandler::LOST_BYTES_FMT, lost_count);
   }
 
-  NdbThread_Exit(NULL);
-  return NULL;
+  NdbThread_Exit(nullptr);
+  return nullptr;
 }
 
 void* thread_consumer2(void*)
@@ -649,8 +649,8 @@ void* thread_consumer2(void*)
   total_bytes_read_t3 += bytes_flushed;
   free(flush);
 
-  NdbThread_Exit(NULL);
-  return NULL;
+  NdbThread_Exit(nullptr);
+  return nullptr;
 }
 
 #include <util/NdbTap.hpp>
@@ -839,18 +839,18 @@ TAPTEST(LogBuffer)
   struct NdbThread* prod_threadvar1;
   struct NdbThread* prod_threadvar2;
   prod_threadvar1 = NdbThread_Create(
-      thread_producer1, (void**)NULL, 0, "thread_test1", NDB_THREAD_PRIO_MEAN);
+      thread_producer1, (void**)nullptr, 0, "thread_test1", NDB_THREAD_PRIO_MEAN);
 
   prod_threadvar2 = NdbThread_Create(
-      thread_producer2, (void**)NULL, 0, "thread_test2", NDB_THREAD_PRIO_MEAN);
+      thread_producer2, (void**)nullptr, 0, "thread_test2", NDB_THREAD_PRIO_MEAN);
 
   log_threadvar1 = NdbThread_Create(
-      thread_consumer1, (void**)NULL, 0, "thread_io1", NDB_THREAD_PRIO_MEAN);
+      thread_consumer1, (void**)nullptr, 0, "thread_io1", NDB_THREAD_PRIO_MEAN);
 
-  NdbThread_WaitFor(prod_threadvar1, NULL);
-  NdbThread_WaitFor(prod_threadvar2, NULL);
+  NdbThread_WaitFor(prod_threadvar1, nullptr);
+  NdbThread_WaitFor(prod_threadvar2, nullptr);
   stop_t2 = true;
-  NdbThread_WaitFor(log_threadvar1, NULL);
+  NdbThread_WaitFor(log_threadvar1, nullptr);
 
   NdbThread_Destroy(&log_threadvar1);
   NdbThread_Destroy(&prod_threadvar1);
@@ -863,13 +863,13 @@ TAPTEST(LogBuffer)
   struct NdbThread* log_threadvar2;
   struct NdbThread* prod_threadvar3;
   prod_threadvar3 = NdbThread_Create(
-      thread_producer3, (void**)NULL, 0, "thread_test3", NDB_THREAD_PRIO_MEAN);
+      thread_producer3, (void**)nullptr, 0, "thread_test3", NDB_THREAD_PRIO_MEAN);
 
   log_threadvar2 = NdbThread_Create(
-      thread_consumer2, (void**)NULL, 0, "thread_io2", NDB_THREAD_PRIO_MEAN);
-  NdbThread_WaitFor(prod_threadvar3, NULL);
+      thread_consumer2, (void**)nullptr, 0, "thread_io2", NDB_THREAD_PRIO_MEAN);
+  NdbThread_WaitFor(prod_threadvar3, nullptr);
   stop_t3 = true;
-  NdbThread_WaitFor(log_threadvar2, NULL);
+  NdbThread_WaitFor(log_threadvar2, nullptr);
   printf("Total bytes to have been written = %d\n", total_to_write_t3);
   printf("Total bytes written successfully = %d\n", bytes_written_t3);
   printf("Total bytes lost = %d\n", bytes_lost_t3);

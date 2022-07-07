@@ -181,10 +181,10 @@ NdbPack::Type::complete()
       return -1;
     }
 
-    if (unlikely(all_charsets[m_csNumber] == 0))
+    if (unlikely(all_charsets[m_csNumber] == nullptr))
     {
       CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
-      if (unlikely(cs == 0))
+      if (unlikely(cs == nullptr))
       {
         set_error(CharsetNotFound, __LINE__);
         return -1;
@@ -364,7 +364,7 @@ NdbPack::DataArray::init_poai(const Uint32 *buffer,
     else
     {
       m_null_cnt++;
-      m_entries[i].m_data_ptr = 0;
+      m_entries[i].m_data_ptr = nullptr;
       m_entries[i].m_data_len = 0;
     }
   }
@@ -507,7 +507,7 @@ NdbPack::DataC::cmp(const DataC& d2, Uint32 cnt, Uint32& num_eq) const
 int
 NdbPack::Data::add(const void* data, Uint32* len_out)
 {
-  assert(data != 0);
+  assert(data != nullptr);
   const Uint8* item = (const Uint8*)data;
   const Uint32 i = m_cnt; // item index
   if (unlikely(i >= m_spec.m_cnt))
@@ -544,7 +544,7 @@ NdbPack::Data::add(const void* data, Uint32 cnt, Uint32* len_out)
     Uint32 len;
     if (unlikely(add(data_ptr, &len) == -1))
       return -1;
-    if (data != 0)
+    if (data != nullptr)
       data_ptr += len;
     len_tot += len;
   }
@@ -1377,9 +1377,9 @@ struct Tdata {
     m_isBound(isBound)
   {
     m_cnt = tspec.m_spec.get_cnt();
-    m_xbuf = 0;
-    m_poaiBuf = 0;
-    m_packBuf = 0;
+    m_xbuf = nullptr;
+    m_poaiBuf = nullptr;
+    m_packBuf = nullptr;
   }
   ~Tdata() {
     delete [] m_xbuf;
@@ -1596,7 +1596,7 @@ Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
         switch (typeId) {
         case NDB_TYPE_INT:
           {
-            require(cs == 0);
+            require(cs == nullptr);
             Int32 x1 = *(const Int32*)xptr1;
             Int32 x2 = *(const Int32*)xptr2;
             if (x1 < x2)
@@ -1608,7 +1608,7 @@ Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
           break;
         case NDB_TYPE_UNSIGNED:
           {
-            require(cs == 0);
+            require(cs == nullptr);
             Uint32 x1 = *(const Uint32*)xptr1;
             Uint32 x2 = *(const Uint32*)xptr2;
             if (x1 < x2)
@@ -1620,7 +1620,7 @@ Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
           break;
         case NDB_TYPE_CHAR:
           {
-            require(cs != 0 && cs->coll != 0);
+            require(cs != nullptr && cs->coll != nullptr);
             const uint n1 = xlen1;
             const uint n2 = xlen2;
             const uchar* t1 = &xptr1[0];
@@ -1635,7 +1635,7 @@ Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
           break;
         case NDB_TYPE_VARCHAR:
           {
-            require(cs != 0 && cs->coll != 0);
+            require(cs != nullptr && cs->coll != nullptr);
             const uint n1 = xptr1[0];
             const uint n2 = xptr2[0];
             const uchar* t1 = &xptr1[1];
@@ -1650,7 +1650,7 @@ Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
           break;
         case NDB_TYPE_LONGVARCHAR:
           {
-            require(cs != 0 && cs->coll != 0);
+            require(cs != nullptr && cs->coll != nullptr);
             const uint n1 = xptr1[0] | (xptr1[1] << 8);
             const uint n2 = xptr2[0] | (xptr2[1] << 8);
             const uchar* t1 = &xptr1[2];
@@ -2128,8 +2128,8 @@ testmain()
 {
   ndb_init();
   signal(SIGABRT, SIG_DFL);
-  { const char* p = NdbEnv_GetEnv("TEST_NDB_PACK_VERBOSE", (char*)0, 0);
-    if (p != 0)
+  { const char* p = NdbEnv_GetEnv("TEST_NDB_PACK_VERBOSE", (char*)nullptr, 0);
+    if (p != nullptr)
       verbose = atoi(p);
   }
   if (seed == 0)

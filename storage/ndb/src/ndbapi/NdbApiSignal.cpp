@@ -67,7 +67,7 @@ NdbApiSignal::NdbApiSignal(BlockReference ref)
     theData[i] = 0x13579753;
   
   setDataPtr(&theData[0]);
-  theNextSignal = 0;
+  theNextSignal = nullptr;
 }
 
 NdbApiSignal::NdbApiSignal(Ndb* ndb)
@@ -87,7 +87,7 @@ NdbApiSignal::NdbApiSignal(Ndb* ndb)
   assert(theSendersBlockRef != 0);
   
   setDataPtr(&theData[0]);
-  theNextSignal = 0;
+  theNextSignal = nullptr;
 }
 
 /**

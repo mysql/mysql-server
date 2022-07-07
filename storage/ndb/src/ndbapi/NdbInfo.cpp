@@ -33,7 +33,7 @@ NdbInfo::NdbInfo(class Ndb_cluster_connection* connection, const char* prefix) :
   m_connect_count(connection->get_connect_count()),
   m_min_db_version(0),
   m_connection(connection),
-  m_tables_table(NULL), m_columns_table(NULL),
+  m_tables_table(nullptr), m_columns_table(nullptr),
   m_full_prefix(prefix),
   m_id_counter(0)
 {
@@ -128,7 +128,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
 
   {
     // Create tables by scanning the TABLES table
-    NdbInfoScanOperation* scanOp = NULL;
+    NdbInfoScanOperation* scanOp = nullptr;
     if (createScanOperation(m_tables_table, &scanOp) != 0)
       DBUG_RETURN(false);
 
@@ -189,7 +189,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
 
   {
     // Fill tables with columns by scanning the COLUMNS table
-    NdbInfoScanOperation* scanOp = NULL;
+    NdbInfoScanOperation* scanOp = nullptr;
     if (createScanOperation(m_columns_table, &scanOp) != 0)
       DBUG_RETURN(false);
 
@@ -335,7 +335,7 @@ int NdbInfo::createScanOperation(const Table* table,
                                  NdbInfoScanOperation** ret_scan_op,
                                  Uint32 max_rows, Uint32 max_bytes)
 {
-  if (table->m_virt != NULL)
+  if (table->m_virt != nullptr)
   {
     // The table is a virtual table which does not exist in the data nodes,
     // instead it returns hardcoded values or dynamic information about the
@@ -466,7 +466,7 @@ NdbInfo::openTable(Uint32 tableId,
   }
 
   // Find the table with correct id
-  const Table* table = NULL;
+  const Table* table = nullptr;
   for (auto &key_and_value : m_tables)
   {
     const Table* tmp = key_and_value.second.get();
@@ -476,7 +476,7 @@ NdbInfo::openTable(Uint32 tableId,
       break;
     }
   }
-  if (table == NULL)
+  if (table == nullptr)
   {
     // No such table existed
     native_mutex_unlock(&m_mutex);
@@ -572,7 +572,7 @@ Uint32 NdbInfo::Table::getTableId() const
 bool NdbInfo::Table::addColumn(const NdbInfo::Column aCol)
 {
   NdbInfo::Column* col = new NdbInfo::Column(aCol);
-  if (col == NULL)
+  if (col == nullptr)
   {
     errno = ENOMEM;
     return false;
@@ -602,7 +602,7 @@ const NdbInfo::Column* NdbInfo::Table::getColumn(const char * name) const
 {
   DBUG_ENTER("Column::getColumn");
   DBUG_PRINT("info", ("columns: %d", m_columns.size()));
-  const NdbInfo::Column* column = NULL;
+  const NdbInfo::Column* column = nullptr;
   for (uint i = 0; i < m_columns.size(); i++)
   {
     DBUG_PRINT("info", ("col: %d %s", i, m_columns[i]->m_name.c_str()));

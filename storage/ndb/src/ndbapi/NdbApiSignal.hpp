@@ -56,7 +56,8 @@ public:
   			NdbApiSignal(BlockReference ref);
   			NdbApiSignal(const NdbApiSignal &);
                         NdbApiSignal(const SignalHeader &header)
-			  : SignalHeader(header), theNextSignal(0), theRealData(0) {}
+			  : SignalHeader(header), theNextSignal(nullptr), 
+                            theRealData(nullptr) {}
   			~NdbApiSignal();
 
   void                  set(Uint8  trace,

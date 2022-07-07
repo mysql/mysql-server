@@ -335,7 +335,7 @@ class Ndb_expect_stack {
   }
   ~Ndb_expect_stack() {
     if (next) destroy(next);
-    next = NULL;
+    next = nullptr;
   }
   void push(Ndb_expect_stack *expect_next) { next = expect_next; }
   void pop() {
@@ -428,7 +428,7 @@ class Ndb_expect_stack {
   void expect_collation(const CHARSET_INFO *col) { collation = col; }
   bool expecting_collation(const CHARSET_INFO *col) {
     bool matching = (!collation) ? true : (collation == col);
-    collation = NULL;
+    collation = nullptr;
 
     return matching;
   }
@@ -458,7 +458,7 @@ class Ndb_expect_stack {
 class Ndb_rewrite_context {
  public:
   Ndb_rewrite_context(const Item_func *func)
-      : func_item(func), left_hand_item(NULL), count(0) {}
+      : func_item(func), left_hand_item(nullptr), count(0) {}
   ~Ndb_rewrite_context() {
     if (next) destroy(next);
   }
@@ -486,7 +486,7 @@ class Ndb_cond_traverse_context {
         m_param_expr_tables(param_expr_tables),
         supported(true),
         skip(0),
-        rewrite_stack(NULL) {}
+        rewrite_stack(nullptr) {}
   ~Ndb_cond_traverse_context() {
     if (rewrite_stack) destroy(rewrite_stack);
   }
@@ -702,7 +702,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
         cmp_func->update_used_tables();
 
         // Traverse and serialize the rewritten predicate
-        context->rewrite_stack = NULL;  // Disable rewrite mode
+        context->rewrite_stack = nullptr;  // Disable rewrite mode
         context->expect_only(Item::FUNC_ITEM);
         context->expect(Item::COND_ITEM);
         cmp_func->traverse_cond(&ndb_serialize_cond, context, Item::PREFIX);
@@ -717,7 +717,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
           context->items.push_back(new (*THR_MALLOC) Ndb_end_cond());
           // Pop rewrite stack
           context->rewrite_stack = rewrite_context->next;
-          rewrite_context->next = NULL;
+          rewrite_context->next = nullptr;
           destroy(rewrite_context);
         }
       }
@@ -2249,7 +2249,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(
     for (uint j = 0; j <= 1; j++) {
       char buf[8192];
       const key_range *key = keylist[j];
-      if (key == 0) {
+      if (key == nullptr) {
         sprintf(buf, "key range %u: none", j);
       } else {
         sprintf(buf, "key range %u: flag:%u part", j, key->flag);
@@ -2284,8 +2284,8 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(
       Not seen with index(x,y) for any combination of bounds
       which include "is not null".
     */
-    if (start_key != 0 && start_key->flag == HA_READ_AFTER_KEY &&
-        end_key == 0 && key_info->user_defined_key_parts == 1) {
+    if (start_key != nullptr && start_key->flag == HA_READ_AFTER_KEY &&
+        end_key == nullptr && key_info->user_defined_key_parts == 1) {
       const KEY_PART_INFO *key_part = key_info->key_part;
       if (key_part->null_bit != 0)  // nullable (must be)
       {
@@ -2308,8 +2308,8 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(
       Seen only when all key parts are present (but there is
       no reason to limit the code to this case).
     */
-    if (start_key != 0 && start_key->flag == HA_READ_KEY_EXACT &&
-        end_key != 0 && end_key->flag == HA_READ_AFTER_KEY &&
+    if (start_key != nullptr && start_key->flag == HA_READ_KEY_EXACT &&
+        end_key != nullptr && end_key->flag == HA_READ_AFTER_KEY &&
         start_key->length == end_key->length &&
         memcmp(start_key->key, end_key->key, start_key->length) == 0) {
       const KEY_PART_INFO *key_part = key_info->key_part;

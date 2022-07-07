@@ -28,9 +28,9 @@
 #include <NdbLockCpuUtil.h>
 #include <NdbSpin.h>
 
-class EventLogger *g_eventLogger = NULL;
+class EventLogger *g_eventLogger = nullptr;
 
-NdbMutex *g_ndb_connection_mutex = NULL;
+NdbMutex *g_ndb_connection_mutex = nullptr;
 
 extern class EventLogger * create_event_logger();
 extern void destroy_event_logger(class EventLogger ** g_eventLogger);
@@ -97,7 +97,7 @@ ndb_init_internal(Uint32 caller)
       g_ndb_connection_mutex = NdbMutex_Create();
     if (!g_eventLogger)
       g_eventLogger = create_event_logger();
-    if ((g_ndb_connection_mutex == NULL) || (g_eventLogger == NULL))
+    if ((g_ndb_connection_mutex == nullptr) || (g_eventLogger == nullptr))
     {
       {
         const char* err = "ndb_init() failed - exit\n";
@@ -173,7 +173,7 @@ ndb_end_internal(Uint32 caller)
     if (g_ndb_connection_mutex) 
     {
       NdbMutex_Destroy(g_ndb_connection_mutex);
-      g_ndb_connection_mutex=NULL;
+      g_ndb_connection_mutex=nullptr;
     }
     if (g_eventLogger)
       destroy_event_logger(&g_eventLogger);

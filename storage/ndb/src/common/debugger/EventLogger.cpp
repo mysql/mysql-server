@@ -62,7 +62,7 @@ void getTextConnectedApiVersion(char *m_text,
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %u: API %s",
 		       theData[1],
-		       ndbGetVersionString(theData[2], mysql_version, 0,
+		       ndbGetVersionString(theData[2], mysql_version, nullptr,
                                            tmp, sizeof(tmp)));
 }
 
@@ -112,7 +112,7 @@ void getTextNDBStartStarted(char *m_text,
   Uint32 mysql_version = theData[2];
   BaseString::snprintf(m_text, m_text_len, 
 		       "Start initiated (%s)", 
-		       ndbGetVersionString(theData[1], mysql_version, 0,
+		       ndbGetVersionString(theData[1], mysql_version, nullptr,
                                            tmp, sizeof(tmp)));
 }
 void getTextNDBStopStarted(char *m_text,
@@ -205,7 +205,7 @@ void getTextNDBStartCompleted(char *m_text,
   Uint32 mysql_version = theData[2];
   BaseString::snprintf(m_text, m_text_len, 
 		       "Started (%s)", 
-		       ndbGetVersionString(theData[1], mysql_version, 0,
+		       ndbGetVersionString(theData[1], mysql_version, nullptr,
                                            tmp, sizeof(tmp)));
 }
 
@@ -1753,7 +1753,7 @@ void getTextConnectCheckStarted(char *m_text,
   if (reason)
   {
     /* Connect check started for specific reason */
-    const char * reasonText = NULL;
+    const char * reasonText = nullptr;
     switch (reason)
     {
     case FailRep::ZHEARTBEAT_FAILURE:
@@ -2127,5 +2127,5 @@ void
 destroy_event_logger(class EventLogger ** g_eventLogger)
 {
   delete *g_eventLogger;
-  *g_eventLogger = 0;
+  *g_eventLogger = nullptr;
 }

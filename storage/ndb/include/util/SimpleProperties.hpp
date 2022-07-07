@@ -94,8 +94,8 @@ public:
   static UnpackStatus unpack(class Reader &,
 			     void * struct_dst,
                              const SP2StructMapping[], Uint32 mapSz,
-                             IndirectReader *indirectReader = 0,
-                             void * readerExtra = 0);
+                             IndirectReader *indirectReader = nullptr,
+                             void * readerExtra = nullptr);
   
   class Writer;
 
@@ -108,8 +108,8 @@ public:
   static UnpackStatus pack(class Writer &,
 			   const void * struct_src,
 			   const SP2StructMapping[], Uint32 mapSz,
-                           IndirectWriter *indirectWriter = 0,
-                           const void * writerExtra = 0);
+                           IndirectWriter *indirectWriter = nullptr,
+                           const void * writerExtra = nullptr);
   
   /**
    * Reader class

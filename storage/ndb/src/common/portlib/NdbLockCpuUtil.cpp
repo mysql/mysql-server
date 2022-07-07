@@ -43,7 +43,7 @@ struct processor_set_handler
   int is_exclusive;
 };
 static std::unique_ptr<processor_set_handler[]> proc_set_array;
-static NdbMutex *ndb_lock_cpu_mutex = 0;
+static NdbMutex *ndb_lock_cpu_mutex = nullptr;
  
 /* Used from Ndb_Lock* functions */
 static void
@@ -66,7 +66,7 @@ remove_use_processor_set(Uint32 proc_set_id)
     }
     delete[] handler->cpu_ids;
     handler->num_cpu_ids = 0;
-    handler->cpu_ids = NULL;
+    handler->cpu_ids = nullptr;
     handler->is_exclusive = false;
   }
 }
@@ -77,7 +77,7 @@ find_processor_set(struct NdbThread *pThread)
 {
   const struct processor_set_handler *handler =
     NdbThread_LockGetCPUSetKey(pThread);
-  if (handler == NULL)
+  if (handler == nullptr)
     return UNDEFINED_PROCESSOR_SET;
   return handler->index;
 }
@@ -87,7 +87,7 @@ init_handler(struct processor_set_handler *handler,
              unsigned int i)
 {
   handler->ref_count = 0;
-  handler->cpu_ids = NULL;
+  handler->cpu_ids = nullptr;
   handler->num_cpu_ids = 0;
   handler->index = i;
   handler->is_exclusive = false;
@@ -150,7 +150,7 @@ use_processor_set(const Uint32 *cpu_ids,
         if (ret != 0)
         {
           handler->num_cpu_ids = 0;
-          handler->cpu_ids = NULL;
+          handler->cpu_ids = nullptr;
           return ret;
         }
         memcpy(new_cpu_ids.get(), cpu_ids, num_cpu_ids * sizeof(Uint32));
@@ -262,7 +262,7 @@ Ndb_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
   NdbMutex_Lock(ndb_lock_cpu_mutex);
   error_no = NdbThread_LockCPU(pThread,
                                cpu_id,
-                               NULL);
+                               nullptr);
   NdbMutex_Unlock(ndb_lock_cpu_mutex);
   return error_no;
 }
@@ -285,7 +285,7 @@ NdbLockCpu_Init()
     init_handler(&proc_set_array[i], i);
   }
   ndb_lock_cpu_mutex = NdbMutex_Create();
-  if (ndb_lock_cpu_mutex == NULL)
+  if (ndb_lock_cpu_mutex == nullptr)
   {
     proc_set_array.reset();
     return 1;
@@ -312,5 +312,5 @@ NdbLockCpu_End()
   proc_set_array.reset();
   NdbMutex_Unlock(ndb_lock_cpu_mutex);
   NdbMutex_Destroy(ndb_lock_cpu_mutex);
-  ndb_lock_cpu_mutex = NULL;
+  ndb_lock_cpu_mutex = nullptr;
 }

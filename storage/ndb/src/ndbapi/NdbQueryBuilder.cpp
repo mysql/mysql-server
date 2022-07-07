@@ -329,7 +329,7 @@ NdbQueryDef::getQueryOperation(Uint32 index) const
 const NdbQueryOperationDef*
 NdbQueryDef::getQueryOperation(const char* ident) const
 { const NdbQueryOperationDefImpl *opDef = m_impl.getQueryOperation(ident);
-  return (opDef!=NULL) ? &opDef->getInterface() : NULL;
+  return (opDef!=nullptr) ? &opDef->getInterface() : nullptr;
 }
 
 bool
@@ -452,7 +452,7 @@ NdbQueryOptions::setOrdering(ScanOrdering ordering)
   if (m_pimpl==&defaultOptions)
   {
     m_pimpl = new NdbQueryOptionsImpl;
-    if (unlikely(m_pimpl==0))
+    if (unlikely(m_pimpl==nullptr))
     {
       return Err_MemoryAlloc;
     }
@@ -467,7 +467,7 @@ NdbQueryOptions::setMatchType(MatchType matchType)
   if (m_pimpl==&defaultOptions)
   {
     m_pimpl = new NdbQueryOptionsImpl;
-    if (unlikely(m_pimpl==0))
+    if (unlikely(m_pimpl==nullptr))
     {
       return Err_MemoryAlloc;
     }
@@ -483,7 +483,7 @@ NdbQueryOptions::setParent(const NdbQueryOperationDef* parent)
   if (m_pimpl==&defaultOptions)
   {
     m_pimpl = new NdbQueryOptionsImpl;
-    if (unlikely(m_pimpl==0))
+    if (unlikely(m_pimpl==nullptr))
     {
       return Err_MemoryAlloc;
     }
@@ -528,7 +528,7 @@ NdbQueryOptions::setInterpretedCode(const NdbInterpretedCode& code)
   if (m_pimpl==&defaultOptions)
   {
     m_pimpl = new NdbQueryOptionsImpl;
-    if (unlikely(m_pimpl==0))
+    if (unlikely(m_pimpl==nullptr))
     {
       return Err_MemoryAlloc;
     }
@@ -606,7 +606,7 @@ NdbQueryOptionsImpl::copyInterpretedCode(const NdbInterpretedCode& src)
   }
 
   NdbInterpretedCode* interpretedCode = new NdbInterpretedCode();
-  if (unlikely(interpretedCode==NULL))
+  if (unlikely(interpretedCode==nullptr))
   {
     return Err_MemoryAlloc;
   }
@@ -657,14 +657,14 @@ NdbQueryIndexScanOperationDef::~NdbQueryIndexScanOperationDef()
 NdbQueryOperationDefImpl::~NdbQueryOperationDefImpl()
 {
   // Unlink any parent and child referring this object
-  if (m_parent != NULL)
+  if (m_parent != nullptr)
   {
     m_parent->removeChild(this);
   }
   for (Uint32 i = 0; i<m_children.size(); i++)
   {
     assert(m_children[i]->m_parent == this);
-    m_children[i]->m_parent = NULL;
+    m_children[i]->m_parent = nullptr;
   }
 }
 
@@ -756,13 +756,13 @@ NdbQueryOperationDef::getIndex() const
 NdbQueryBuilder* NdbQueryBuilder::create()
 {
   NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl();
-  if (likely (impl != NULL))
+  if (likely (impl != nullptr))
   {
     return &impl->m_interface;
   }
   else
   {
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -808,7 +808,7 @@ NdbQueryBuilder::getNdbError() const
 NdbConstOperand* 
 NdbQueryBuilder::constValue(const char* value)
 {
-  returnErrIf(value==0,QRY_REQ_ARG_IS_NULL);
+  returnErrIf(value==nullptr,QRY_REQ_ARG_IS_NULL);
   return static_cast<NdbConstOperand*>
     (m_impl.addOperand(new NdbCharConstOperandImpl(value)));
 }
@@ -816,7 +816,7 @@ NdbQueryBuilder::constValue(const char* value)
 NdbConstOperand* 
 NdbQueryBuilder::constValue(const void* value, Uint32 len)
 {
-  returnErrIf(value == 0, QRY_REQ_ARG_IS_NULL);
+  returnErrIf(value == nullptr, QRY_REQ_ARG_IS_NULL);
   return static_cast<NdbConstOperand*>
     (m_impl.addOperand(new NdbGenericConstOperandImpl(value,len)));
 }
@@ -867,7 +867,7 @@ NdbLinkedOperand*
 NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* attr)
 {
   // Required non-NULL arguments
-  returnErrIf(parent==0 || attr==0, QRY_REQ_ARG_IS_NULL);
+  returnErrIf(parent==nullptr || attr==nullptr, QRY_REQ_ARG_IS_NULL);
   NdbQueryOperationDefImpl& parentImpl = parent->getImpl();
 
   // Parent should be a OperationDef contained in this query builder context
@@ -875,7 +875,7 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
 
   // 'attr' should refer a column from the underlying table in parent:
   const NdbColumnImpl* column = parentImpl.getTable().getColumn(attr);
-  returnErrIf(column==0, Err_UnknownColumn); // Unknown column
+  returnErrIf(column==nullptr, Err_UnknownColumn); // Unknown column
 
   // Locate referred parent column in parent operations SPJ projection list;
   // Add if not already present
@@ -884,7 +884,7 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
   if (unlikely(error != 0))
   {
     m_impl.setErrorCode(error);
-    return NULL;
+    return nullptr;
   }
 
   return static_cast<NdbLinkedOperand*>
@@ -895,7 +895,7 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
 static bool hasLinkedOperand(const NdbQueryOperand* const keys[])
 {
   int i = 0;
-  while (keys[i] != NULL)
+  while (keys[i] != nullptr)
   {
     if (keys[i]->getImpl().getKind() == NdbQueryOperandImpl::Linked)
     {
@@ -914,9 +914,9 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
 {
   int i;
   if (m_impl.hasError())
-    return NULL;
+    return nullptr;
 
-  returnErrIf(table==0 || keys==0, QRY_REQ_ARG_IS_NULL);
+  returnErrIf(table==nullptr || keys==nullptr, QRY_REQ_ARG_IS_NULL);
   // All operations but the first one must depend on some other operation.
   returnErrIf(m_impl.m_operations.size() > 0 && !hasLinkedOperand(keys),
               QRY_UNKNOWN_PARENT);
@@ -931,10 +931,10 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
   for (i=0; i<keyfields; ++i)
   {
     // A 'Key' value is undefined
-    returnErrIf(keys[i]==NULL, QRY_TOO_FEW_KEY_VALUES);
+    returnErrIf(keys[i]==nullptr, QRY_TOO_FEW_KEY_VALUES);
   }
   // Check for proper NULL termination of keys[] spec
-  returnErrIf(keys[keyfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
+  returnErrIf(keys[keyfields]!=nullptr, QRY_TOO_MANY_KEY_VALUES);
 
   int error = 0;
   NdbQueryPKLookupOperationDefImpl* op =
@@ -979,9 +979,9 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
   int i;
 
   if (m_impl.hasError())
-    return NULL;
+    return nullptr;
 
-  returnErrIf(table==0 || index==0 || keys==0, QRY_REQ_ARG_IS_NULL);
+  returnErrIf(table==nullptr || index==nullptr || keys==nullptr, QRY_REQ_ARG_IS_NULL);
   // All operations but the first one must depend on some other operation.
   returnErrIf(m_impl.m_operations.size() > 0 && !hasLinkedOperand(keys),
               QRY_UNKNOWN_PARENT);
@@ -1005,10 +1005,10 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
   for (i=0; i<inxfields; ++i)
   {
     // A 'Key' value is undefined
-    returnErrIf(keys[i]==NULL, QRY_TOO_FEW_KEY_VALUES);
+    returnErrIf(keys[i]==nullptr, QRY_TOO_FEW_KEY_VALUES);
   }
   // Check for proper NULL termination of keys[] spec
-  returnErrIf(keys[inxfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
+  returnErrIf(keys[inxfields]!=nullptr, QRY_TOO_MANY_KEY_VALUES);
 
   int error = 0;
   NdbQueryIndexOperationDefImpl* op = 
@@ -1043,8 +1043,8 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
                            const char* ident)
 {
   if (m_impl.hasError())
-    return NULL;
-  returnErrIf(table==0, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
+    return nullptr;
+  returnErrIf(table==nullptr, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
   /**
    * A table scan does not depend on other operations, since there cannot be
    * linked operands in a scan filter. Therefore, it must be the first
@@ -1076,14 +1076,14 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                            const char* ident)
 {
   if (m_impl.hasError())
-    return NULL;
+    return nullptr;
   // Required non-NULL arguments
-  returnErrIf(table==0 || index==0, QRY_REQ_ARG_IS_NULL);
+  returnErrIf(table==nullptr || index==nullptr, QRY_REQ_ARG_IS_NULL);
 
   if (m_impl.m_operations.size() > 0)
   {
     // All operations but the first one must depend on some other operation.
-    returnErrIf(bound == NULL ||
+    returnErrIf(bound == nullptr ||
                 (!hasLinkedOperand(bound->m_low) &&
                  !hasLinkedOperand(bound->m_high)),
                 QRY_UNKNOWN_PARENT);
@@ -1092,7 +1092,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     returnErrIf(!m_impl.m_operations[0]->isScanOperation(),
                 QRY_WRONG_OPERATION_TYPE);
 
-    if (options != NULL)
+    if (options != nullptr)
     {
       // A child scan should not be sorted.
       const NdbQueryOptions::ScanOrdering order =
@@ -1210,13 +1210,13 @@ const NdbQueryDef*
 NdbQueryBuilder::prepare(const Ndb *ndb)
 {
   const NdbQueryDefImpl* def = m_impl.prepare(ndb);
-  return (def) ? &def->getInterface() : NULL;
+  return (def) ? &def->getInterface() : nullptr;
 }
 
 const NdbQueryDef*
 NdbQueryBuilder::prepare()
 {
-  return prepare(0);
+  return prepare(nullptr);
 }
 
 ////////////////////////////////////////
@@ -1268,12 +1268,12 @@ NdbQueryBuilderImpl::prepare(const Ndb *ndb)
 {
   if (hasError())
   {
-    return NULL;
+    return nullptr;
   }
   if (m_operations.size() == 0)
   {
     setErrorCode(QRY_HAS_ZERO_OPERATIONS);
-    return NULL;
+    return nullptr;
   }
 
   int error;
@@ -1282,11 +1282,11 @@ NdbQueryBuilderImpl::prepare(const Ndb *ndb)
   m_operands.clear();
   m_paramCnt = 0;
 
-  returnErrIf(def==0, Err_MemoryAlloc);
+  returnErrIf(def==nullptr, Err_MemoryAlloc);
   if(unlikely(error!=0)){
     delete def;
     setErrorCode(error);
-    return NULL;
+    return nullptr;
   }
 
   if (doPrintQueryTree)
@@ -1302,7 +1302,7 @@ NdbQueryBuilderImpl::prepare(const Ndb *ndb)
 inline int 
 NdbQueryBuilderImpl::takeOwnership(NdbQueryOperandImpl* operand)
 {
-  if (unlikely(operand == NULL))
+  if (unlikely(operand == nullptr))
   {
     return Err_MemoryAlloc;
   }
@@ -1318,7 +1318,7 @@ NdbQueryBuilderImpl::takeOwnership(NdbQueryOperandImpl* operand)
 inline int 
 NdbQueryBuilderImpl::takeOwnership(NdbQueryOperationDefImpl* operation)
 {
-  if (unlikely(operation == NULL))
+  if (unlikely(operation == nullptr))
   {
     return Err_MemoryAlloc;
   }
@@ -1403,17 +1403,17 @@ NdbQueryDefImpl::~NdbQueryDefImpl()
 const NdbQueryOperationDefImpl*
 NdbQueryDefImpl::getQueryOperation(const char* ident) const
 {
-  if (ident==NULL)
-    return NULL;
+  if (ident==nullptr)
+    return nullptr;
 
   Uint32 sz = m_operations.size();
   const NdbQueryOperationDefImpl* const* opDefs = m_operations.getBase();
   for(Uint32 i = 0; i<sz; i++, opDefs++){
     const char* opName = (*opDefs)->getName();
-    if(opName!=NULL && strcmp(opName, ident) == 0)
+    if(opName!=nullptr && strcmp(opName, ident) == 0)
       return *opDefs;
   }
-  return NULL;
+  return nullptr;
 }
 
 NdbQueryDef::QueryType
@@ -1536,7 +1536,7 @@ int NdbCharConstOperandImpl::convertChar()
   }
 
   char* dst = m_converted.getCharBuffer(len);
-  if (unlikely(dst==NULL))
+  if (unlikely(dst==nullptr))
     return Err_MemoryAlloc;
 
   memcpy (dst, m_value, srclen);
@@ -1558,7 +1558,7 @@ int NdbCharConstOperandImpl::convertVChar()
   }
 
   char* dst = m_converted.getCharBuffer(len);
-  if (unlikely(dst==NULL))
+  if (unlikely(dst==nullptr))
     return Err_MemoryAlloc;
 
   memcpy (dst, m_value, len);
@@ -1575,7 +1575,7 @@ NdbGenericConstOperandImpl::convert2ColumnType()
   Uint32 len = m_len;
   Uint32 maxSize = m_column->getSizeInBytes();
 
-  char* dst = NULL;
+  char* dst = nullptr;
 
   if (likely(m_column->m_arrayType == NDB_ARRAYTYPE_FIXED))
   {
@@ -1583,7 +1583,7 @@ NdbGenericConstOperandImpl::convert2ColumnType()
       return QRY_OPERAND_HAS_WRONG_TYPE;
 
     dst = m_converted.getCharBuffer(len);
-    if (unlikely(dst==NULL))
+    if (unlikely(dst==nullptr))
       return Err_MemoryAlloc;
   }
   else if (m_column->m_arrayType == NDB_ARRAYTYPE_SHORT_VAR)
@@ -1592,7 +1592,7 @@ NdbGenericConstOperandImpl::convert2ColumnType()
       return QRY_CHAR_OPERAND_TRUNCATED;
 
     dst = m_converted.getCharBuffer(len+1);
-    if (unlikely(dst==NULL))
+    if (unlikely(dst==nullptr))
       return Err_MemoryAlloc;
 
     *(Uint8*)dst++ = (Uint8)len;
@@ -1603,7 +1603,7 @@ NdbGenericConstOperandImpl::convert2ColumnType()
       return QRY_CHAR_OPERAND_TRUNCATED;
 
     dst = m_converted.getCharBuffer(len+2);
-    if (unlikely(dst==NULL))
+    if (unlikely(dst==nullptr))
       return Err_MemoryAlloc;
 
     *(Uint8*)dst++ = (Uint8)(len & 0xFF);
@@ -1746,13 +1746,13 @@ NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
 {
   int i;
   for (i=0; i<MAX_ATTRIBUTES_IN_INDEX; ++i)
-  { if (keys[i] == NULL)
+  { if (keys[i] == nullptr)
       break;
     m_keys[i] = &keys[i]->getImpl();
   }
   assert (i > 0);
-  assert (keys[i] == NULL);
-  m_keys[i] = NULL;
+  assert (keys[i] == nullptr);
+  m_keys[i] = nullptr;
 }
 
 NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
@@ -1771,11 +1771,11 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
   m_paramInPruneKey(false)
 {
   memset(&m_bound, 0, sizeof m_bound);
-  if (bound!=NULL) {
+  if (bound!=nullptr) {
 
-    if (bound->m_low!=NULL) {
+    if (bound->m_low!=nullptr) {
       int i;
-      for (i=0; bound->m_low[i] != NULL; ++i)
+      for (i=0; bound->m_low[i] != nullptr; ++i)
       { assert (i<MAX_ATTRIBUTES_IN_INDEX);
         m_bound.low[i] = &bound->m_low[i]->getImpl();
       }
@@ -1784,9 +1784,9 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
       m_bound.lowKeys = 0;
     }
 
-    if (bound->m_high!=NULL) {
+    if (bound->m_high!=nullptr) {
       int i;
-      for (i=0; bound->m_high[i] != NULL; ++i)
+      for (i=0; bound->m_high[i] != nullptr; ++i)
       { assert (i<MAX_ATTRIBUTES_IN_INDEX);
         m_bound.high[i] = &bound->m_high[i]->getImpl();
       }
@@ -1849,7 +1849,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
   {
     const Uint32 keyEnd = keyPos + (keyInfo.get(keyPos) >> 16);
     Ndb::Key_part_ptr distKey[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1]
-      = {{NULL, 0}};
+      = {{nullptr, 0}};
     
     // Loop over the fields in each bound.
     Uint32 keyPartNo = 0;
@@ -1953,7 +1953,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
           }
         }
           
-        assert(distKeyPtr->len == 0 && distKeyPtr->ptr == NULL);
+        assert(distKeyPtr->len == 0 && distKeyPtr->ptr == nullptr);
         *distKeyPtr = keyPart1;
         distKeyPartNo++;
       }
@@ -1974,7 +1974,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
     // hi/low are equal and prunable bounds.
     Uint32 newHashValue = 0;
     const int error = Ndb::computeHash(&newHashValue, &getTable(), distKey, 
-                                       NULL, 0);
+                                       nullptr, 0);
     if (unlikely(error))
       return error;
 
@@ -2072,7 +2072,7 @@ NdbQueryOperationDefImpl::removeChild(const NdbQueryOperationDefImpl* childOp)
 bool
 NdbQueryOperationDefImpl::isChildOf(const NdbQueryOperationDefImpl* parentOp) const
 {
-  if (m_parent != NULL)
+  if (m_parent != nullptr)
   { if (this->m_parent == parentOp)
     {
 #ifndef NDEBUG
@@ -2099,7 +2099,7 @@ NdbQueryOperationDefImpl::linkWithParent(NdbQueryOperationDefImpl* parentOp)
     return 0;
   }
 
-  if (m_parent != NULL)
+  if (m_parent != nullptr)
   {
     /**
      * Multiple parental relationship not allowed.
@@ -2111,7 +2111,7 @@ NdbQueryOperationDefImpl::linkWithParent(NdbQueryOperationDefImpl* parentOp)
     if (parentOp->isChildOf(m_parent))
     { // Remove existing grandparent linkage being replaced by parentOp.
       m_parent->removeChild(this);
-      m_parent = NULL;
+      m_parent = nullptr;
     }
     else
     { // This is a real multiparent error.
@@ -2165,7 +2165,7 @@ int NdbQueryOperationDefImpl::addParamRef(const NdbParamOperandImpl* param)
 class Uint16Sequence{
 public:
   explicit Uint16Sequence(Uint32Buffer& buffer, Uint32 size):
-    m_seq(NULL),
+    m_seq(nullptr),
     m_size(size),
     m_pos(0),
     m_finished(false)
@@ -2220,7 +2220,7 @@ private:
 Uint32
 NdbQueryOperationDefImpl::appendParentList(Uint32Buffer& serializedDef) const
 {
-  if (getParentOperation() != NULL)
+  if (getParentOperation() != nullptr)
   {
     Uint16Sequence parentSeq(serializedDef, 1);
     assert (getParentOperation()->getInternalOpNo() < getInternalOpNo());
@@ -2312,7 +2312,7 @@ NdbQueryOperationDefImpl::printTree(Uint32 depth,
          << " (internal: " << getInternalOpNo() << ")" << endl;
   printMargin(depth, hasMoreSiblingsMask, false);
   ndbout << " table: " << getTable().getName() << endl;
-  if (getIndex() != NULL)
+  if (getIndex() != nullptr)
   {
     printMargin(depth, hasMoreSiblingsMask, false);
     ndbout << " index: " << getIndex()->getName() << endl; 
@@ -2351,7 +2351,7 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
   if (getOpNo() == 0)
     return 0;
 
-  if (m_keys[0]!=NULL)
+  if (m_keys[0]!=nullptr)
   {
     Uint32 startPos = serializedDef.getSize();
     serializedDef.append(0);     // Grab first word for length field, updated at end
@@ -2374,7 +2374,7 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
           else
             levels+=1;
           parent = parent->getParentOperation();
-          assert(parent != NULL);
+          assert(parent != nullptr);
         }
         if (levels > 0)
         {
@@ -2405,7 +2405,7 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
         assert(false);
       }
       key = m_keys[++keyNo];
-    } while (key!=NULL);
+    } while (key!=nullptr);
 
     // Set total length of key pattern.
     Uint32 len = serializedDef.getSize() - startPos -1;
@@ -2485,7 +2485,7 @@ NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDe
               else
                 levels+=1;
               parent = parent->getParentOperation();
-              assert(parent != NULL);
+              assert(parent != nullptr);
             }
             if (levels > 0)
             {
@@ -2555,7 +2555,7 @@ NdbQueryIndexScanOperationDefImpl::appendBoundValue(
         else
           levels+=1;
         parent = parent->getParentOperation();
-        assert(parent != NULL);
+        assert(parent != nullptr);
       }
       if (levels > 0)
       {
@@ -2735,7 +2735,7 @@ NdbQueryOperationDefImpl::appendParamConstructor(Uint32Buffer& serializedDef) co
 int NdbQueryPKLookupOperationDefImpl ::serializeOperation(
     const Ndb* /*ndb*/, Uint32Buffer& serializedDef)
 {
-  assert (m_keys[0]!=NULL);
+  assert (m_keys[0]!=nullptr);
   // This method should only be invoked once.
   assert (!m_isPrepared);
   m_isPrepared = true;
@@ -2782,7 +2782,7 @@ int NdbQueryPKLookupOperationDefImpl ::serializeOperation(
 
   // Fill in LookupNode contents (Already allocated, 'startPos' is our handle:
   QN_LookupNode* node = reinterpret_cast<QN_LookupNode*>(serializedDef.addr(startPos));
-  if (unlikely(node==NULL)) {
+  if (unlikely(node==nullptr)) {
     return Err_MemoryAlloc;
   }
   node->tableId = getTable().getObjectId();
@@ -2811,7 +2811,7 @@ int NdbQueryPKLookupOperationDefImpl ::serializeOperation(
 int NdbQueryIndexOperationDefImpl ::serializeOperation(
     const Ndb* /*ndb*/, Uint32Buffer& serializedDef)
 {
-  assert (m_keys[0]!=NULL);
+  assert (m_keys[0]!=nullptr);
   // This method should only be invoked once.
   assert (!m_isPrepared);
   m_isPrepared = true;
@@ -2861,7 +2861,7 @@ int NdbQueryIndexOperationDefImpl ::serializeOperation(
 
     // Fill in LookupNode contents (Already allocated, 'startPos' is our handle:
     QN_LookupNode* node = reinterpret_cast<QN_LookupNode*>(serializedDef.addr(startPos));
-    if (unlikely(node==NULL)) {
+    if (unlikely(node==nullptr)) {
       return Err_MemoryAlloc;
     }
     node->tableId = getIndex()->getObjectId();
@@ -2923,7 +2923,7 @@ int NdbQueryIndexOperationDefImpl ::serializeOperation(
 
   // Fill in LookupNode contents (Already allocated, 'startPos' is our handle:
   QN_LookupNode* node = reinterpret_cast<QN_LookupNode*>(serializedDef.addr(startPos)); 
-  if (unlikely(node==NULL)) {
+  if (unlikely(node==nullptr)) {
     return Err_MemoryAlloc;
   }
   node->tableId = getTable().getObjectId();
@@ -3025,7 +3025,7 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
   {
     QN_ScanFragNode* node =
       reinterpret_cast<QN_ScanFragNode*>(serializedDef.addr(startPos)); 
-    if (unlikely(node==NULL)) {
+    if (unlikely(node==nullptr)) {
       return Err_MemoryAlloc;
     }
     // Need NI_REPEAT_SCAN_RESULT if there are star-joined child scans
@@ -3042,7 +3042,7 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
   {
     QN_ScanFragNode_v1* node =
       reinterpret_cast<QN_ScanFragNode_v1*>(serializedDef.addr(startPos)); 
-    if (unlikely(node==NULL)) {
+    if (unlikely(node==nullptr)) {
       return Err_MemoryAlloc;
     }
     node->tableId = tableOrIndex.getObjectId();
@@ -3054,7 +3054,7 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
   {
     QN_ScanIndexNode_v1* node =
       reinterpret_cast<QN_ScanIndexNode_v1*>(serializedDef.addr(startPos)); 
-    if (unlikely(node==NULL)) {
+    if (unlikely(node==nullptr)) {
       return Err_MemoryAlloc;
     }
     node->tableId = tableOrIndex.getObjectId();

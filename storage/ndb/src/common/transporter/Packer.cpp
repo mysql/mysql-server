@@ -488,7 +488,7 @@ importGeneric(Uint32 * & insertPtr, const GenericSectionPtr & ptr){
     const Uint32* next= ptr.sectionIter->getNextWords(len);
 
     assert(len <= remain);
-    assert(next != NULL);
+    assert(next != nullptr);
 
     memcpy(insertPtr, next, 4 * len);
     insertPtr+= len;
@@ -498,7 +498,7 @@ importGeneric(Uint32 * & insertPtr, const GenericSectionPtr & ptr){
   /* Check that there were no more words available from the
    * Signal iterator
    */
-  assert(ptr.sectionIter->getNextWords(remain) == NULL);
+  assert(ptr.sectionIter->getNextWords(remain) == nullptr);
 }
 
 void copy(Uint32 * & insertPtr, 

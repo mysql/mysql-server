@@ -119,7 +119,7 @@ ProcessInfo * ProcessInfo::forNodeId(Uint16 nodeId)
 */
 void ProcessInfo::release(ProcessInfo *self)
 {
-  if((self != 0) && (self != getOwnProcessInfo(0)))
+  if((self != nullptr) && (self != getOwnProcessInfo(0)))
     delete self;
 }
 
@@ -135,7 +135,7 @@ bool ProcessInfo::isValidUri(const char *scheme, const char *path)
 
 void ProcessInfo::setProcessName(const char * name) {
   size_t len = 0;
-  if (name != NULL)
+  if (name != nullptr)
   {
     len = truncateUtf8(name, ProcessNameLength);
     strncpy(process_name, name, len);
@@ -154,7 +154,7 @@ int ProcessInfo::getPid() const {
 
 void ProcessInfo::setUriPath(const char * path) {
   size_t len = 0;
-  if (path != NULL)
+  if (path != nullptr)
   {
     len = truncateUtf8(path, UriPathLength);
     strncpy(uri_path, path, len);

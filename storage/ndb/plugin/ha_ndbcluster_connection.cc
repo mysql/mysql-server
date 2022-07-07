@@ -51,10 +51,10 @@
 // This is the "global Ndb object", it's main purpose is to open the connection
 // to NDB and keep it open. It also serves as a "factory" for releasing
 // resources
-Ndb *g_ndb = NULL;
+Ndb *g_ndb = nullptr;
 
-Ndb_cluster_connection *g_ndb_cluster_connection = NULL;
-static Ndb_cluster_connection **g_pool = NULL;
+Ndb_cluster_connection *g_ndb_cluster_connection = nullptr;
+static Ndb_cluster_connection **g_pool = nullptr;
 static uint g_pool_alloc = 0;
 static uint g_pool_pos = 0;
 static mysql_mutex_t g_pool_mutex;
@@ -343,7 +343,7 @@ int ndbcluster_connect(ulong wait_connected,  // Timeout in seconds
         waited = NdbTick_Elapsed(start, now).seconds();
       } while (res != 0 && waited < wait_connected);
 
-      const char *msg = 0;
+      const char *msg = nullptr;
       if (res == 0) {
         msg = "all storage nodes connected";
       } else if (res > 0) {
@@ -384,7 +384,7 @@ int ndbcluster_connect(ulong wait_connected,  // Timeout in seconds
 void ndbcluster_disconnect(void) {
   DBUG_TRACE;
   if (g_ndb) delete g_ndb;
-  g_ndb = NULL;
+  g_ndb = nullptr;
   {
     if (g_pool) {
       /* first in pool is the main one, wait with release */
@@ -393,13 +393,13 @@ void ndbcluster_disconnect(void) {
       }
       my_free(g_pool);
       mysql_mutex_destroy(&g_pool_mutex);
-      g_pool = 0;
+      g_pool = nullptr;
     }
     g_pool_alloc = 0;
     g_pool_pos = 0;
   }
   if (g_ndb_cluster_connection) delete g_ndb_cluster_connection;
-  g_ndb_cluster_connection = NULL;
+  g_ndb_cluster_connection = nullptr;
 }
 
 Ndb_cluster_connection *ndb_get_cluster_connection() {
@@ -491,7 +491,7 @@ static ST_FIELD_INFO ndb_transid_mysql_connection_map_fields_info[] = {
     {"ndb_transid", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
      MY_I_S_UNSIGNED, "", 0},
 
-    {0, 0, MYSQL_TYPE_NULL, 0, 0, "", 0}};
+    {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, "", 0}};
 
 static int ndb_transid_mysql_connection_map_fill_table(THD *thd,
                                                        TABLE_LIST *tables,
@@ -505,7 +505,7 @@ static int ndb_transid_mysql_connection_map_fill_table(THD *thd,
   for (uint i = 0; i < g_pool_alloc; i++) {
     if (g_pool[i]) {
       g_pool[i]->lock_ndb_objects();
-      const Ndb *p = g_pool[i]->get_next_ndb_object(0);
+      const Ndb *p = g_pool[i]->get_next_ndb_object(nullptr);
       while (p) {
         Uint64 connection_id = p->getCustomData64();
         if ((connection_id == self) || all) {
@@ -549,12 +549,12 @@ struct st_mysql_plugin ndb_transid_mysql_connection_map_table = {
     "Map between MySQL connection ID and NDB transaction ID",
     PLUGIN_LICENSE_GPL,
     ndb_transid_mysql_connection_map_init,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     0x0001,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
     0};
 
 /**

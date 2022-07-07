@@ -242,7 +242,7 @@ public:
     if (f)
     {
       fclose(f);
-      f = 0;
+      f = nullptr;
     }
   }
 

@@ -37,11 +37,11 @@ NDB_Modifiers::NDB_Modifiers(const char *prefix,
                              const NDB_Modifier modifiers[]) {
   m_prefix = prefix;
   m_prefixLen = strlen(prefix);
-  for (m_len = 0; modifiers[m_len].m_name != 0; m_len++) {
+  for (m_len = 0; modifiers[m_len].m_name != nullptr; m_len++) {
   }
   m_modifiers = new NDB_Modifier[m_len + 1];
   memcpy(m_modifiers, modifiers, (m_len + 1) * sizeof(NDB_Modifier));
-  m_comment_buf = NULL;
+  m_comment_buf = nullptr;
   m_comment_len = 0;
   m_mod_start_offset = 0;
   m_mod_len = 0;
@@ -51,9 +51,9 @@ NDB_Modifiers::NDB_Modifiers(const char *prefix,
 NDB_Modifiers::~NDB_Modifiers() {
   for (uint32 i = 0; i < m_len; i++) {
     if (m_modifiers[i].m_type == NDB_Modifier::M_STRING &&
-        m_modifiers[i].m_val_str.str != NULL) {
+        m_modifiers[i].m_val_str.str != nullptr) {
       delete[] m_modifiers[i].m_val_str.str;
-      m_modifiers[i].m_val_str.str = NULL;
+      m_modifiers[i].m_val_str.str = nullptr;
     }
   }
   delete[] m_modifiers;
@@ -102,7 +102,7 @@ int NDB_Modifiers::parse_modifier(struct NDB_Modifier *m, const char *str) {
 
       uint32 len = str - start_str;
       char *tmp = new (std::nothrow) char[len + 1];
-      if (tmp == 0) {
+      if (tmp == nullptr) {
         snprintf(m_errmsg, sizeof(m_errmsg), "Memory allocation error");
         return -1;
       }
@@ -186,7 +186,7 @@ int NDB_Modifiers::parseModifierListString(const char *string) {
 }
 
 int NDB_Modifiers::loadComment(const char *str, size_t len) {
-  if (m_comment_buf != NULL) return -1;
+  if (m_comment_buf != nullptr) return -1;
 
   if (len == 0) {
     return 0;
@@ -194,7 +194,7 @@ int NDB_Modifiers::loadComment(const char *str, size_t len) {
 
   /* Load into internal string buffer */
   m_comment_buf = new (std::nothrow) char[len + 1];
-  if (m_comment_buf == NULL) {
+  if (m_comment_buf == nullptr) {
     snprintf(m_errmsg, sizeof(m_errmsg), "Memory allocation failed");
     return -1;
   }
@@ -206,7 +206,7 @@ int NDB_Modifiers::loadComment(const char *str, size_t len) {
   const char *pos = m_comment_buf;
 
   /* Check for comment prefix */
-  if ((pos = strstr(pos, m_prefix)) == 0) {
+  if ((pos = strstr(pos, m_prefix)) == nullptr) {
     /* No prefix - nothing to do */
     return 0;
   }
@@ -234,7 +234,7 @@ NDB_Modifier *NDB_Modifiers::find(const char *name) const {
       return m_modifiers + i;
     }
   }
-  return 0;
+  return nullptr;
 }
 
 const NDB_Modifier *NDB_Modifiers::get(const char *name) const {
@@ -249,7 +249,7 @@ const NDB_Modifier *NDB_Modifiers::notfound() const {
 
 bool NDB_Modifiers::set(const char *name, bool value) {
   NDB_Modifier *mod = find(name);
-  if (mod != NULL) {
+  if (mod != nullptr) {
     if (mod->m_type == NDB_Modifier::M_BOOL) {
       mod->m_val_bool = value;
       mod->m_found = true;
@@ -261,11 +261,11 @@ bool NDB_Modifiers::set(const char *name, bool value) {
 
 bool NDB_Modifiers::set(const char *name, const char *string) {
   NDB_Modifier *mod = find(name);
-  if (mod != NULL) {
+  if (mod != nullptr) {
     if (mod->m_type == NDB_Modifier::M_STRING) {
       uint32 len = strlen(string);
       char *tmp = new (std::nothrow) char[len + 1];
-      if (tmp == NULL) {
+      if (tmp == nullptr) {
         return false;
       }
       memcpy(tmp, string, len);
@@ -342,7 +342,7 @@ const char *NDB_Modifiers::generateCommentString() {
   /* Calculate new comment length */
 
   /* Determine new modifier string length, could be zero */
-  const uint32 newModListStringLen = generateModifierListString(NULL, 0);
+  const uint32 newModListStringLen = generateModifierListString(nullptr, 0);
   uint32 newModLen = 0;
   bool extraSpace = false;
   if (newModListStringLen > 0) {
@@ -368,9 +368,9 @@ const char *NDB_Modifiers::generateCommentString() {
               newModListStringLen, newModLen, newCommentLen));
 
   char *newBuf = new (std::nothrow) char[newCommentLen + 1];
-  if (newBuf == NULL) {
+  if (newBuf == nullptr) {
     snprintf(m_errmsg, sizeof(m_errmsg), "Memory allocation failed");
-    return NULL;
+    return nullptr;
   }
 
   char *insertPos = newBuf;

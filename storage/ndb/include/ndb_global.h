@@ -224,8 +224,8 @@ struct SegmentedSectionPtrPOD
   struct SectionSegment * p;
 
 #ifdef __cplusplus
-  void setNull() { p = 0;}
-  bool isNull() const { return p == 0;}
+  void setNull() { p = nullptr;}
+  bool isNull() const { return p == nullptr;}
   inline SegmentedSectionPtrPOD& assign(struct SegmentedSectionPtr&);
 #endif
 };
@@ -246,8 +246,8 @@ struct SegmentedSectionPtr
     :sz(src.sz), i(src.i), p(src.p)
   {}
 
-  void setNull() { p = 0;}
-  bool isNull() const { return p == 0;}
+  void setNull() { p = nullptr;}
+  bool isNull() const { return p == nullptr;}
 #endif
 };
 

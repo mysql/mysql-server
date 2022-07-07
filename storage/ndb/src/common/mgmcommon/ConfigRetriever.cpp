@@ -60,7 +60,7 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
 
   m_handle= ndb_mgm_create_handle();
 
-  if (m_handle == 0) {
+  if (m_handle == nullptr) {
     setError(CR_ERROR, "Unable to allocate mgm handle");
     DBUG_VOID_RETURN;
   }
@@ -226,7 +226,7 @@ ConfigRetriever::getConfig(const char * filename)
   }
 
   FILE * f = fopen(filename, "rb");
-  if(f == 0)
+  if(f == nullptr)
   {
     setError(CR_ERROR, "Failed to open file");
     return {};
@@ -271,7 +271,7 @@ ConfigRetriever::setError(ErrorType et, BaseString err){
 
 void
 ConfigRetriever::resetError(){
-  setError(CR_NO_ERROR,0);
+  setError(CR_NO_ERROR,nullptr);
 }
 
 int
@@ -363,7 +363,7 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
     }
 
     char msg[150];
-    if (!SocketServer::tryBind(port, NULL, msg, sizeof(msg))) {
+    if (!SocketServer::tryBind(port, nullptr, msg, sizeof(msg))) {
       BaseString::snprintf(buf, 255,
                            "Mgmd node is started on port that is "
                            "already in use. Attempt to bind '*:%d' "

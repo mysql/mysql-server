@@ -28,7 +28,7 @@
 #include <NdbEnv.h>
 #include <NdbHost.h>
 
-static const char *datadir_path= 0;
+static const char *datadir_path= nullptr;
 
 const char *
 NdbConfig_get_path(int *_len)
@@ -36,7 +36,7 @@ NdbConfig_get_path(int *_len)
 #ifdef NDB_USE_GET_ENV
   const char *path= NdbEnv_GetEnv("NDB_HOME", 0, 0);
 #else
-  const char *path = NULL;
+  const char *path = nullptr;
 #endif
   int path_len= 0;
   if (path)

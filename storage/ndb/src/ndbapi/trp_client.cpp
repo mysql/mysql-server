@@ -29,15 +29,15 @@
 
 trp_client::trp_client()
   : m_blockNo(~Uint32(0)),
-    m_facade(NULL),
+    m_facade(nullptr),
     m_locked_for_poll(false),
     m_is_receiver_thread(false),
-    m_mutex(NULL),
+    m_mutex(nullptr),
     m_poll(),
     m_enabled_nodes_mask(),
     m_send_nodes_mask(),
     m_send_nodes_cnt(0),
-    m_send_buffers(NULL),
+    m_send_buffers(nullptr),
     m_flushed_nodes_mask()
 {
   m_mutex = NdbMutex_Create();
@@ -49,7 +49,7 @@ trp_client::~trp_client()
   close();
   NdbMutex_Destroy(m_mutex);
 
-  m_mutex = NULL;
+  m_mutex = nullptr;
   assert(m_send_nodes_cnt == 0);
   assert(m_locked_for_poll == false);
   delete [] m_send_buffers;
@@ -60,9 +60,9 @@ trp_client::PollQueue::PollQueue()
     m_locked(false),
     m_poll_owner(false),
     m_poll_queue(false),
-    m_prev(NULL),
-    m_next(NULL),
-    m_condition(NULL)
+    m_prev(nullptr),
+    m_next(nullptr),
+    m_condition(nullptr)
 {
   m_condition = NdbCondition_Create();
 }
@@ -78,8 +78,8 @@ trp_client::PollQueue::~PollQueue()
       m_locked == true ||
       m_poll_owner == true ||
       m_poll_queue == true ||
-      m_next != 0 ||
-      m_prev != 0))
+      m_next != nullptr ||
+      m_prev != nullptr))
   {
     g_eventLogger->info(
         "ERR: ::~PollQueue: Deleting trp_clnt in use:"
@@ -88,7 +88,7 @@ trp_client::PollQueue::~PollQueue()
     require(false);
   }
   NdbCondition_Destroy(m_condition);
-  m_condition = NULL;
+  m_condition = nullptr;
 }
 
 Uint32
@@ -96,8 +96,8 @@ trp_client::open(TransporterFacade* tf, int blockNo)
 {
   Uint32 res = 0;
   assert(m_enabled_nodes_mask.isclear());
-  assert(m_facade == NULL);
-  if (m_facade == NULL)
+  assert(m_facade == nullptr);
+  if (m_facade == nullptr)
   {
     m_facade = tf;
 
@@ -111,7 +111,7 @@ trp_client::open(TransporterFacade* tf, int blockNo)
     }
     else
     {
-      m_facade = NULL;
+      m_facade = nullptr;
     }
   }
   return res;
@@ -130,7 +130,7 @@ trp_client::close()
   {
     m_facade->close_clnt(this);
 
-    m_facade = NULL;
+    m_facade = nullptr;
     m_blockNo = ~Uint32(0);
   }
   m_enabled_nodes_mask.clear();
@@ -370,7 +370,7 @@ Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
   if (likely(found))
   {
     TFPage * page = b->m_tail;
-    assert(page != 0);
+    assert(page != nullptr);
     if (page->m_bytes + page->m_start + lenBytes <= page->max_data_bytes())
     {
       return (Uint32 *)(page->m_data + page->m_start + page->m_bytes);
@@ -391,11 +391,11 @@ Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
   else
   {
     TFPage* page = m_facade->alloc_sb_page(node);
-    if (likely(page != 0))
+    if (likely(page != nullptr))
     {
       page->init();
 
-      if (b->m_tail == NULL)
+      if (b->m_tail == nullptr)
       {
         assert(!found);
         b->m_head = page;
@@ -404,7 +404,7 @@ Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
       else
       {
         assert(found);
-        assert(b->m_head != NULL);
+        assert(b->m_head != nullptr);
         b->m_tail->m_next = page;
         b->m_tail = page;
       }
@@ -413,7 +413,7 @@ Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
     *error = SEND_BUFFER_FULL;
   }
 
-  if (b->m_tail == 0)
+  if (b->m_tail == nullptr)
   {
     assert(!found);
     m_send_nodes_mask.clear(node);
@@ -424,7 +424,7 @@ Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
     assert(found);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 Uint32 trp_client::updateWritePtr(NodeId node, TrpId /*trp_id*/,
@@ -434,8 +434,8 @@ Uint32 trp_client::updateWritePtr(NodeId node, TrpId /*trp_id*/,
   TFBuffer* b = m_send_buffers+node;
   TFBufferGuard g0(* b);
   assert(m_send_nodes_mask.get(node));
-  assert(b->m_head != 0);
-  assert(b->m_tail != 0);
+  assert(b->m_head != nullptr);
+  assert(b->m_tail != nullptr);
 
   TFPage *page = b->m_tail;
   assert(page->m_bytes + lenBytes <= page->max_data_bytes());

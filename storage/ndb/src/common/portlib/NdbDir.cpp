@@ -57,7 +57,7 @@ class DirIteratorImpl {
 
 public:
   DirIteratorImpl():
-    m_dirp(NULL) {
+    m_dirp(nullptr) {
      m_buf = new char[PATH_MAX];
   }
 
@@ -67,7 +67,7 @@ public:
   }
 
   int open(const char* path){
-    if ((m_dirp = opendir(path)) == NULL){
+    if ((m_dirp = opendir(path)) == nullptr){
       return -1;
     }
     m_path= path;
@@ -78,15 +78,15 @@ public:
   {
     if (m_dirp)
       closedir(m_dirp);
-    m_dirp = NULL;
+    m_dirp = nullptr;
   }
 
   const char* next_entry(bool& is_reg)
   {
     struct dirent* dp = readdir(m_dirp);
 
-    if (dp == NULL)
-      return NULL;
+    if (dp == nullptr)
+      return nullptr;
 
     is_reg = is_regular_file(dp);
     return dp->d_name;
@@ -178,11 +178,11 @@ const char* NdbDir::Iterator::next_file(void)
 {
   bool is_reg;
   const char* name;
-  while((name = m_impl.next_entry(is_reg)) != NULL){
+  while((name = m_impl.next_entry(is_reg)) != nullptr){
     if (is_reg == true)
       return name; // Found regular file
   }
-  return NULL;
+  return nullptr;
 }
 
 const char* NdbDir::Iterator::next_entry(void)
@@ -302,7 +302,7 @@ loop:
       return false;
     }
 
-    while ((name = iter.next_entry()) != NULL)
+    while ((name = iter.next_entry()) != nullptr)
     {
       if ((strcmp(".", name) == 0) || (strcmp("..", name) == 0))
         continue;
@@ -439,7 +439,7 @@ TAPTEST(DirIterator)
     CHECK(iter.open(path) == 0);
     const char* name;
     int num_files = 0;  
-    while((name = iter.next_file()) != NULL)
+    while((name = iter.next_file()) != nullptr)
     {
       //printf("%s\n", name);
       num_files++;

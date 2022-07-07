@@ -30,8 +30,8 @@
 #include <NdbSleep.h>
 #include <EventLogger.hpp>
 
-static NdbTableImpl * f_invalid_table = 0;
-static NdbTableImpl * f_altered_table = 0;
+static NdbTableImpl * f_invalid_table = nullptr;
+static NdbTableImpl * f_altered_table = nullptr;
 
 // If we are linked with libstdc++ then thread safe
 // initialization of the shared table objects can be simplified
@@ -58,8 +58,8 @@ Ndb_local_table_info::create(NdbTableImpl *table_impl, Uint32 sz)
   Uint32 tot_size= sizeof(Ndb_local_table_info) - sizeof(Uint64)
     + ((sz+7) & ~7); // round to Uint64
   void *data= malloc(tot_size);
-  if (data == 0)
-    return 0;
+  if (data == nullptr)
+    return nullptr;
   memset(data, 0, tot_size);
   new (data) Ndb_local_table_info(table_impl);
   return (Ndb_local_table_info *) data;
@@ -106,7 +106,7 @@ LocalDictCache::drop(const BaseString& name){
   ASSERT_NOT_MYSQLD;
   Ndb_local_table_info *info=
       m_tableHash.deleteKey(name.c_str(), name.length());
-  assert(info != 0);
+  assert(info != nullptr);
   Ndb_local_table_info::destroy(info);
 }
 
@@ -120,9 +120,9 @@ GlobalDictCache::GlobalDictCache(){
   my_pthread_once(&once_control, init_static_variables);
 #else
   NdbMutex_Lock(g_ndb_connection_mutex);
-  if (f_invalid_table == NULL)
+  if (f_invalid_table == nullptr)
     f_invalid_table = new NdbTableImpl();
-  if (f_altered_table == NULL)
+  if (f_altered_table == nullptr)
     f_altered_table = new NdbTableImpl();
   ndb_dict_cache_count++;
   NdbMutex_Unlock(g_ndb_connection_mutex);
@@ -141,25 +141,25 @@ GlobalDictCache::~GlobalDictCache(){
     if (f_invalid_table)
     {
       delete f_invalid_table;
-      f_invalid_table = 0;
+      f_invalid_table = nullptr;
     }
     if (f_altered_table)
     {
       delete f_altered_table;
-      f_altered_table = 0;
+      f_altered_table = nullptr;
     }
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 #endif
-  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
-  while(curr != 0){
+  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(nullptr);
+  while(curr != nullptr){
     Vector<TableVersion> * vers = curr->theData;
     const unsigned sz = vers->size();
     for(unsigned i = 0; i<sz ; i++){
       TableVersion tv= (*vers)[i];
       DBUG_PRINT("  ", ("vers[%d]: ver: %d, refCount: %d, status: %d",
                         i, tv.m_version, tv.m_refCount, tv.m_status));
-      if(tv.m_impl != 0)
+      if(tv.m_impl != nullptr)
       {
         DBUG_PRINT("  ", ("m_impl: internalname: %s",
                           tv.m_impl->m_internalName.c_str()));
@@ -167,7 +167,7 @@ GlobalDictCache::~GlobalDictCache(){
       }
     }
     delete curr->theData;
-    curr->theData= NULL;
+    curr->theData= nullptr;
     curr = m_tableHash.getNext(curr);
   }
   m_tableHash.releaseHashTable();
@@ -178,8 +178,8 @@ GlobalDictCache::~GlobalDictCache(){
 void GlobalDictCache::printCache()
 {
   DBUG_ENTER("GlobalDictCache::printCache");
-  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
-  while(curr != 0){
+  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(nullptr);
+  while(curr != nullptr){
     DBUG_PRINT("curr", ("len: %d, hash: %d, lk: %d, str: %s",
                         curr->len, curr->hash, curr->localkey1,
                         (char*) curr->str));
@@ -190,7 +190,7 @@ void GlobalDictCache::printCache()
         TableVersion tv= (*vers)[i];
         DBUG_PRINT("  ", ("impl: %p  vers[%d]: ver: %d, refCount: %d, status: %d",
                           tv.m_impl, i, tv.m_version, tv.m_refCount, tv.m_status));
-        if(tv.m_impl != 0)
+        if(tv.m_impl != nullptr)
         {
           DBUG_PRINT("  ", ("m_impl: internalname: %s",
                             tv.m_impl->m_internalName.c_str()));
@@ -213,11 +213,11 @@ GlobalDictCache::get(const BaseString& name, int *error)
   DBUG_PRINT("enter", ("name: %s", name.c_str()));
 
   const Uint32 len = name.length();
-  Vector<TableVersion> * versions = 0;
+  Vector<TableVersion> * versions = nullptr;
   versions = m_tableHash.getData(name.c_str(), len);
-  if(versions == 0){
+  if(versions == nullptr){
     versions = new Vector<TableVersion>(2);
-    if (versions == NULL)
+    if (versions == nullptr)
     {
       *error = -1;
       DBUG_RETURN(0);
@@ -265,7 +265,7 @@ GlobalDictCache::get(const BaseString& name, int *error)
    */
   TableVersion tmp;
   tmp.m_version = 0;
-  tmp.m_impl = 0;
+  tmp.m_impl = nullptr;
   tmp.m_status = RETREIVING;
   tmp.m_refCount = 1; // The one retrieving it
   if (versions->push_back(tmp))
@@ -289,7 +289,7 @@ GlobalDictCache::put(const BaseString& name, NdbTableImpl * tab)
 
   Vector<TableVersion> * vers =
       m_tableHash.getData(name.c_str(), name.length());
-  if(vers == 0){
+  if(vers == nullptr){
     // Should always tried to retrieve it first 
     // and thus there should be a record
     abort(); 
@@ -304,19 +304,19 @@ GlobalDictCache::put(const BaseString& name, NdbTableImpl * tab)
   
   TableVersion & ver = vers->back();
   if(ver.m_status != RETREIVING || 
-     !(ver.m_impl == 0 || 
+     !(ver.m_impl == nullptr || 
        ver.m_impl == f_invalid_table || ver.m_impl == f_altered_table) || 
      ver.m_version != 0 || 
      ver.m_refCount == 0){
     abort();
   }
   
-  if(tab == 0)
+  if(tab == nullptr)
   {
     DBUG_PRINT("info", ("No table found in db"));
     vers->erase(sz - 1);
   } 
-  else if (ver.m_impl == 0) {
+  else if (ver.m_impl == nullptr) {
     DBUG_PRINT("info", ("Table OK"));
     ver.m_impl = tab;
     ver.m_version = tab->m_version;
@@ -349,9 +349,9 @@ GlobalDictCache::put(const BaseString& name, NdbTableImpl * tab)
 unsigned
 GlobalDictCache::get_size()
 {
-  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
+  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(nullptr);
   int sz = 0;
-  while(curr != 0){
+  while(curr != nullptr){
     sz += curr->theData->size();
     curr = m_tableHash.getNext(curr);
   }
@@ -366,8 +366,8 @@ void
 GlobalDictCache::invalidate_all()
 {
   DBUG_ENTER("GlobalDictCache::invalidate_all");
-  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
-  while(curr != 0){
+  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(nullptr);
+  while(curr != nullptr){
     Vector<TableVersion> * vers = curr->theData;
     if (vers->size())
     {
@@ -392,8 +392,8 @@ void
 GlobalDictCache::invalidateDb(const char * name, size_t len)
 {
   DBUG_ENTER("GlobalDictCache::invalidateDb");
-  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
-  while(curr != 0)
+  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(nullptr);
+  while(curr != nullptr)
   {
     Vector<TableVersion> * vers = curr->theData;
     if (vers->size())
@@ -429,7 +429,7 @@ GlobalDictCache::release(const NdbTableImpl * tab, int invalidate)
   Vector<TableVersion> * vers = 
     m_tableHash.getData(tab->m_internalName.c_str(),
                         tab->m_internalName.length());
-  if(vers == 0){
+  if(vers == nullptr){
     // Should always tried to retrieve it first 
     // and thus there should be a record
     abort(); 
@@ -488,7 +488,7 @@ GlobalDictCache::alter_table_rep(const BaseString& name,
   Vector<TableVersion> * vers =
     m_tableHash.getData(name.c_str(), name.length());
   
-  if(vers == 0)
+  if(vers == nullptr)
   {
     DBUG_VOID_RETURN;
   }
@@ -533,7 +533,7 @@ GlobalDictCache::chg_ref_count(const NdbTableImpl * impl, int value)
   Vector<TableVersion> * vers = 
     m_tableHash.getData(impl->m_internalName.c_str(),
                         impl->m_internalName.length());
-  if(vers == 0)
+  if(vers == nullptr)
   {
     DBUG_RETURN(-1);
   }

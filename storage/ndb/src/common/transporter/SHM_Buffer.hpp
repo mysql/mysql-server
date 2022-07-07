@@ -49,7 +49,7 @@
 class SHM_Reader {
 public:
   SHM_Reader() :
-    m_startOfBuffer(0),
+    m_startOfBuffer(nullptr),
     m_readIndex(0)
   {
   }
@@ -181,10 +181,10 @@ SHM_Reader::updateReadPtr(Uint32 *ptr)
 class SHM_Writer {
 public:
   SHM_Writer() :
-    m_startOfBuffer(0),
+    m_startOfBuffer(nullptr),
     m_totalBufferSize(0),
     m_bufferSize(0),
-    m_sharedWriteIndex(0)
+    m_sharedWriteIndex(nullptr)
   {
   }
   SHM_Writer(char * const _startOfBuffer,

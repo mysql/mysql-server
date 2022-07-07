@@ -254,7 +254,8 @@ public:
 
   // used 1) until type BlobTable added 2) in upgrade code
   static bool
-  isBlobTableName(const char* name, Uint32* ptab_id = 0, Uint32* pcol_no = 0);
+  isBlobTableName(const char* name, Uint32* ptab_id = nullptr,
+                  Uint32* pcol_no = nullptr);
   
   static inline bool
   isTable(int tableType) {

@@ -42,7 +42,7 @@ NdbWaitGroup::NdbWaitGroup(Ndb_cluster_connection *_conn, int ndbs) :
   m_pos_new(0),
   m_pos_wait(0),
   m_pos_ready(0),
-  m_multiWaitHandler(0),
+  m_multiWaitHandler(nullptr),
   m_pos_overflow(0),
   m_nodeId(0),
   m_conn(_conn)
@@ -208,7 +208,7 @@ int NdbWaitGroup::wait(Uint32 timeout_millis, int pct_ready)
 
 Ndb * NdbWaitGroup::pop()
 {
-  Ndb * r = 0;
+  Ndb * r = nullptr;
 
   lock();
   if(m_pos_ready < m_pos_wait) 

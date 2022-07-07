@@ -76,9 +76,9 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   _shmSegCreated = false;
   _attached = false;
 
-  shmBuf = 0;
-  reader = 0;
-  writer = 0;
+  shmBuf = nullptr;
+  reader = nullptr;
+  writer = nullptr;
   
   setupBuffersDone = false;
   m_server_locked = false;
@@ -115,9 +115,9 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   _shmSegCreated = false;
   _attached = false;
 
-  shmBuf = 0;
-  reader = 0;
-  writer = 0;
+  shmBuf = nullptr;
+  reader = nullptr;
+  writer = nullptr;
 
   setupBuffersDone = false;
   m_server_locked = false;
@@ -219,13 +219,13 @@ SHM_Transporter::setupBuffers()
     NdbMutex_Unlock(serverMutex);
   }
 
-  if (reader != 0)
+  if (reader != nullptr)
   {
     DEBUG_FPRINTF((stderr, "(%u)reader = %p, m_shm_reader: %p (%u) LINE:%d",
                    localNodeId, reader, &m_shm_reader, remoteNodeId, __LINE__));
   }
-  assert(reader == 0);
-  assert(writer == 0);
+  assert(reader == nullptr);
+  assert(writer == nullptr);
   if(isServer)
   {
     * serverStatusFlag = 0;
@@ -379,7 +379,7 @@ SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
   // Wait for ok from client
   char buf[256];
   DBUG_PRINT("info", ("Wait for ok from client"));
-  if (s_input.gets(buf, sizeof(buf)) == 0) 
+  if (s_input.gets(buf, sizeof(buf)) == nullptr) 
   {
     DEBUG_FPRINTF((stderr, "(%u)connect_server_impl failed LINE:%d,"
                            " to remote node %d\n",
@@ -406,7 +406,7 @@ SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
     // Send ok to client
     s_output.println("shm server 2 ok");
     // Wait for ok from client
-    if (s_input.gets(buf, 256) == 0)
+    if (s_input.gets(buf, 256) == nullptr)
     {
       DEBUG_FPRINTF((stderr, "(%u)connect_server_impl failed LINE:%d,"
                              " to remote node %d\n",
@@ -447,7 +447,7 @@ SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
 
   // Wait for server to create and attach
   DBUG_PRINT("info", ("Wait for server to create and attach"));
-  if (s_input.gets(buf, 256) == 0)
+  if (s_input.gets(buf, 256) == nullptr)
   {
     DEBUG_FPRINTF((stderr, "(%u)connect_client_impl failed LINE:%d,"
                            " to remote node %d\n",
@@ -528,7 +528,7 @@ SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
   {
     // Wait for ok from server
     DBUG_PRINT("info", ("Wait for ok from server"));
-    if (s_input.gets(buf, 256) == 0)
+    if (s_input.gets(buf, 256) == nullptr)
     {
       DEBUG_FPRINTF((stderr, "(%u)connect_client_impl failed LINE:%d,"
                              " to remote node %d\n",

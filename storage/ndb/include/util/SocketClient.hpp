@@ -35,7 +35,7 @@ class SocketClient
   unsigned short m_last_used_port;
   SocketAuthenticator *m_auth;
 public:
-  SocketClient(SocketAuthenticator *sa = 0);
+  SocketClient(SocketAuthenticator *sa = nullptr);
   ~SocketClient();
   bool init();
   void set_connect_timeout(unsigned int timeout_millisec) {

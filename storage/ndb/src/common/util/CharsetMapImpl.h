@@ -35,7 +35,7 @@
 class MapTableItem 
 {
 public:
-    MapTableItem() : name(0), value(0), next(0) {}
+    MapTableItem() : name(nullptr), value(nullptr), next(nullptr) {}
     const char *name;
     const char *value;
     MapTableItem *next;

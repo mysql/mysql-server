@@ -53,8 +53,8 @@ NdbIndexStatImpl::NdbIndexStatImpl(NdbIndexStat& facade) :
 {
   init();
   m_query_mutex = NdbMutex_Create();
-  assert(m_query_mutex != 0);
-  m_eventOp = 0;
+  assert(m_query_mutex != nullptr);
+  m_eventOp = nullptr;
   m_mem_handler = &c_mem_default_handler;
 }
 
@@ -68,14 +68,14 @@ NdbIndexStatImpl::init()
   m_keyAttrs = 0;
   m_valueAttrs = 0;
   // buffers
-  m_keySpecBuf = 0;
-  m_valueSpecBuf = 0;
-  m_keyDataBuf = 0;
-  m_valueDataBuf = 0;
+  m_keySpecBuf = nullptr;
+  m_valueSpecBuf = nullptr;
+  m_keyDataBuf = nullptr;
+  m_valueDataBuf = nullptr;
   // cache
-  m_cacheBuild = 0;
-  m_cacheQuery = 0;
-  m_cacheClean = 0;
+  m_cacheBuild = nullptr;
+  m_cacheQuery = nullptr;
+  m_cacheClean = nullptr;
   // head
   init_head(m_facadeHead);
 }
@@ -83,10 +83,10 @@ NdbIndexStatImpl::init()
 NdbIndexStatImpl::~NdbIndexStatImpl()
 {
   reset_index();
-  if (m_query_mutex != 0)
+  if (m_query_mutex != nullptr)
   {
     NdbMutex_Destroy(m_query_mutex);
-    m_query_mutex = 0;
+    m_query_mutex = nullptr;
   }
 }
  
@@ -97,9 +97,9 @@ NdbIndexStatImpl::Sys::Sys(NdbIndexStatImpl* impl, Ndb* ndb) :
   m_ndb(ndb)
 {
   m_dic = m_ndb->getDictionary();
-  m_headtable = 0;
-  m_sampletable = 0;
-  m_sampleindex1 = 0;
+  m_headtable = nullptr;
+  m_sampletable = nullptr;
+  m_sampleindex1 = nullptr;
   m_obj_cnt = 0;
 }
 
@@ -115,20 +115,20 @@ NdbIndexStatImpl::sys_release(Sys& sys)
   NdbDictionary::Dictionary* const dic = sys.m_dic;
   (void)dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
 
-  if (sys.m_headtable != 0)
+  if (sys.m_headtable != nullptr)
   {
     sys.m_dic->removeTableGlobal(*sys.m_headtable, false);
-    sys.m_headtable = 0;
+    sys.m_headtable = nullptr;
   }
-  if (sys.m_sampletable != 0)
+  if (sys.m_sampletable != nullptr)
   {
     sys.m_dic->removeTableGlobal(*sys.m_sampletable, false);
-    sys.m_sampletable = 0;
+    sys.m_sampletable = nullptr;
   }
-  if (sys.m_sampleindex1 != 0)
+  if (sys.m_sampleindex1 != nullptr)
   {
     sys.m_dic->removeIndexGlobal(*sys.m_sampleindex1, false);
-    sys.m_sampleindex1 = 0;
+    sys.m_sampleindex1 = nullptr;
   }
 }
 
@@ -273,7 +273,7 @@ NdbIndexStatImpl::check_table(const NdbDictionary::Table& tab1,
   {
     const NdbDictionary::Column* col1 = tab1.getColumn(i);
     const NdbDictionary::Column* col2 = tab2.getColumn(i);
-    require(col1 != 0 && col2 != 0);
+    require(col1 != nullptr && col2 != nullptr);
     if (!col1->equal(*col2))
       return -1;
   }
@@ -291,7 +291,7 @@ NdbIndexStatImpl::check_index(const NdbDictionary::Index& ind1,
   {
     const NdbDictionary::Column* col1 = ind1.getColumn(i);
     const NdbDictionary::Column* col2 = ind2.getColumn(i);
-    require(col1 != 0 && col2 != 0);
+    require(col1 != nullptr && col2 != nullptr);
     // getColumnNo() does not work on non-retrieved
     if (!col1->equal(*col2))
       return -1;
@@ -308,7 +308,7 @@ NdbIndexStatImpl::get_systables(Sys& sys)
   const int NoSuchIndex = 4243;
 
   sys.m_headtable = dic->getTableGlobal(g_headtable_name);
-  if (sys.m_headtable == 0)
+  if (sys.m_headtable == nullptr)
   {
     int code = dic->getNdbError().code;
     if (code != NoSuchTable) {
@@ -329,7 +329,7 @@ NdbIndexStatImpl::get_systables(Sys& sys)
   }
 
   sys.m_sampletable = dic->getTableGlobal(g_sampletable_name);
-  if (sys.m_sampletable == 0)
+  if (sys.m_sampletable == nullptr)
   {
     int code = dic->getNdbError().code;
     if (code != NoSuchTable) {
@@ -349,10 +349,10 @@ NdbIndexStatImpl::get_systables(Sys& sys)
     sys.m_obj_cnt++;
   }
 
-  if (sys.m_sampletable != 0)
+  if (sys.m_sampletable != nullptr)
   {
     sys.m_sampleindex1 = dic->getIndexGlobal(g_sampleindex1_name, *sys.m_sampletable);
-    if (sys.m_sampleindex1 == 0)
+    if (sys.m_sampleindex1 == nullptr)
     {
       int code = dic->getNdbError().code;
       if (code != NoSuchIndex) {
@@ -424,7 +424,7 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
     }
 
     sys.m_headtable = dic->getTableGlobal(tab.getName());
-    if (sys.m_headtable == 0)
+    if (sys.m_headtable == nullptr)
     {
       setError(dic->getNdbError().code, __LINE__);
       dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
@@ -463,7 +463,7 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
     }
 
     sys.m_sampletable = dic->getTableGlobal(tab.getName());
-    if (sys.m_sampletable == 0)
+    if (sys.m_sampletable == nullptr)
     {
       setError(dic->getNdbError().code, __LINE__);
       dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
@@ -486,7 +486,7 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
     }
 
     sys.m_sampleindex1 = dic->getIndexGlobal(ind.getName(), sys.m_sampletable->getName());
-    if (sys.m_sampleindex1 == 0)
+    if (sys.m_sampleindex1 == nullptr)
     {
       setError(dic->getNdbError().code, __LINE__);
       dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
@@ -523,7 +523,7 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
     return -1;
   }
 
-  if (sys.m_headtable != 0)
+  if (sys.m_headtable != nullptr)
   {
     if (dic->dropTableGlobal(*sys.m_headtable) == -1)
     {
@@ -533,7 +533,7 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
     }
   }
 
-  if (sys.m_sampletable != 0)
+  if (sys.m_sampletable != nullptr)
   {
 
 #ifdef VM_TRACE
@@ -611,13 +611,13 @@ NdbIndexStatImpl::Con::Con(NdbIndexStatImpl* impl, Head& head, Ndb* ndb) :
   head.m_indexId = m_impl->m_indexId;
   head.m_indexVersion = m_impl->m_indexVersion;
   m_dic = m_ndb->getDictionary();
-  m_headtable = 0;
-  m_sampletable = 0;
-  m_sampleindex1 = 0;
-  m_tx = 0;
-  m_op = 0;
-  m_scanop = 0;
-  m_cacheBuild = 0;
+  m_headtable = nullptr;
+  m_sampletable = nullptr;
+  m_sampleindex1 = nullptr;
+  m_tx = nullptr;
+  m_op = nullptr;
+  m_scanop = nullptr;
+  m_cacheBuild = nullptr;
   m_cachePos = 0;
   m_cacheKeyOffset = 0;
   m_cacheValueOffset = 0;
@@ -625,15 +625,15 @@ NdbIndexStatImpl::Con::Con(NdbIndexStatImpl* impl, Head& head, Ndb* ndb) :
 
 NdbIndexStatImpl::Con::~Con()
 {
-  if (m_cacheBuild != 0)
+  if (m_cacheBuild != nullptr)
   {
     m_impl->free_cache(m_cacheBuild);
-    m_cacheBuild = 0;
+    m_cacheBuild = nullptr;
   }
-  if (m_tx != 0)
+  if (m_tx != nullptr)
   {
     m_ndb->closeTransaction(m_tx);
-    m_tx = 0;
+    m_tx = nullptr;
   }
   m_impl->sys_release(*this);
 }
@@ -641,13 +641,13 @@ NdbIndexStatImpl::Con::~Con()
 int
 NdbIndexStatImpl::Con::startTransaction()
 {
-  assert(m_headtable != 0 && m_ndb != 0 && m_tx == 0);
+  assert(m_headtable != nullptr && m_ndb != nullptr && m_tx == nullptr);
   Uint32 key[2] = {
     m_head.m_indexId,
     m_head.m_indexVersion
   };
   m_tx = m_ndb->startTransaction(m_headtable, (const char*)key, sizeof(key));
-  if (m_tx == 0)
+  if (m_tx == nullptr)
     return -1;
   return 0;
 }
@@ -655,13 +655,13 @@ NdbIndexStatImpl::Con::startTransaction()
 int
 NdbIndexStatImpl::Con::execute(bool commit)
 {
-  assert(m_tx != 0);
+  assert(m_tx != nullptr);
   if (commit)
   {
     if (m_tx->execute(NdbTransaction::Commit) == -1)
       return -1;
     m_ndb->closeTransaction(m_tx);
-    m_tx = 0;
+    m_tx = nullptr;
   }
   else
   {
@@ -674,10 +674,10 @@ NdbIndexStatImpl::Con::execute(bool commit)
 int
 NdbIndexStatImpl::Con::getNdbOperation()
 {
-  assert(m_headtable != 0);
-  assert(m_tx != 0 && m_op == 0);
+  assert(m_headtable != nullptr);
+  assert(m_tx != nullptr && m_op == nullptr);
   m_op = m_tx->getNdbOperation(m_headtable);
-  if (m_op == 0)
+  if (m_op == nullptr)
     return -1;
   return 0;
 }
@@ -685,10 +685,10 @@ NdbIndexStatImpl::Con::getNdbOperation()
 int
 NdbIndexStatImpl::Con::getNdbIndexScanOperation()
 {
-  assert(m_sampletable != 0 && m_sampleindex1 != 0);
-  assert( m_tx != 0 && m_scanop == 0);
+  assert(m_sampletable != nullptr && m_sampleindex1 != nullptr);
+  assert( m_tx != nullptr && m_scanop == nullptr);
   m_scanop = m_tx->getNdbIndexScanOperation(m_sampleindex1, m_sampletable);
-  if (m_scanop == 0)
+  if (m_scanop == nullptr)
     return -1;
   return 0;
 }
@@ -737,7 +737,7 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
   // spec buffers
   m_keySpecBuf = new NdbPack::Type [m_keyAttrs];
   m_valueSpecBuf = new NdbPack::Type [m_valueAttrs];
-  if (m_keySpecBuf == 0 || m_valueSpecBuf == 0)
+  if (m_keySpecBuf == nullptr || m_valueSpecBuf == nullptr)
   {
     setError(NoMemError, __LINE__);
     return -1;
@@ -750,7 +750,7 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
     for (uint i = 0; i < m_keyAttrs; i++)
     {
       const NdbDictionary::Column* icol = index.getColumn(i);
-      if (icol == 0)
+      if (icol == nullptr)
       {
         setError(UsageError, __LINE__);
         return -1;
@@ -759,7 +759,7 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
         icol->getType(),
         icol->getSizeInBytes(),
         icol->getNullable(),
-        icol->getCharset() != 0 ? icol->getCharset()->number : 0
+        icol->getCharset() != nullptr ? icol->getCharset()->number : 0
       );
       if (m_keySpec.add(type) == -1)
       {
@@ -782,7 +782,7 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
   // data buffers (rounded to word)
   m_keyDataBuf = new Uint8 [m_keyData.get_max_len4()];
   m_valueDataBuf = new Uint8 [m_valueData.get_max_len4()];
-  if (m_keyDataBuf == 0 || m_valueDataBuf == 0)
+  if (m_keyDataBuf == nullptr || m_valueDataBuf == nullptr)
   {
     setError(NoMemError, __LINE__);
     return -1;
@@ -835,21 +835,21 @@ NdbIndexStatImpl::sys_init(Con& con)
   sys_release(con);
 
   con.m_headtable = dic->getTableGlobal(g_headtable_name);
-  if (con.m_headtable == 0)
+  if (con.m_headtable == nullptr)
   {
     setError(con, __LINE__);
     mapError(ERR_NoSuchObject, NoSysTables);
     return -1;
   }
   con.m_sampletable = dic->getTableGlobal(g_sampletable_name);
-  if (con.m_sampletable == 0)
+  if (con.m_sampletable == nullptr)
   {
     setError(con, __LINE__);
     mapError(ERR_NoSuchObject, NoSysTables);
     return -1;
   }
   con.m_sampleindex1 = dic->getIndexGlobal(g_sampleindex1_name, *con.m_sampletable);
-  if (con.m_sampleindex1 == 0)
+  if (con.m_sampleindex1 == nullptr)
   {
     setError(con, __LINE__);
     mapError(ERR_NoSuchObject, NoSysTables);
@@ -861,20 +861,20 @@ NdbIndexStatImpl::sys_init(Con& con)
 void
 NdbIndexStatImpl::sys_release(Con& con)
 {
-  if (con.m_headtable != 0)
+  if (con.m_headtable != nullptr)
   {
     con.m_dic->removeTableGlobal(*con.m_headtable, false);
-    con.m_headtable = 0;
+    con.m_headtable = nullptr;
   }
-  if (con.m_sampletable != 0)
+  if (con.m_sampletable != nullptr)
   {
     con.m_dic->removeTableGlobal(*con.m_sampletable, false);
-    con.m_sampletable = 0;
+    con.m_sampletable = nullptr;
   }
-  if (con.m_sampleindex1 != 0)
+  if (con.m_sampleindex1 != nullptr)
   {
     con.m_dic->removeIndexGlobal(*con.m_sampleindex1, false);
-    con.m_sampleindex1 = 0;
+    con.m_sampleindex1 = nullptr;
   }
 }
 
@@ -942,37 +942,37 @@ NdbIndexStatImpl::sys_head_getvalue(Con& con)
 {
   Head& head = con.m_head;
   NdbOperation* op = con.m_op;
-  if (op->getValue("table_id", (char*)&head.m_tableId) == 0)
+  if (op->getValue("table_id", (char*)&head.m_tableId) == nullptr)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("frag_count", (char*)&head.m_fragCount) == 0)
+  if (op->getValue("frag_count", (char*)&head.m_fragCount) == nullptr)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("value_format", (char*)&head.m_valueFormat) == 0)
+  if (op->getValue("value_format", (char*)&head.m_valueFormat) == nullptr)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("sample_version", (char*)&head.m_sampleVersion) == 0)
+  if (op->getValue("sample_version", (char*)&head.m_sampleVersion) == nullptr)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("load_time", (char*)&head.m_loadTime) == 0)
+  if (op->getValue("load_time", (char*)&head.m_loadTime) == nullptr)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("sample_count", (char*)&head.m_sampleCount) == 0)
+  if (op->getValue("sample_count", (char*)&head.m_sampleCount) == nullptr)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("key_bytes", (char*)&head.m_keyBytes) == 0)
+  if (op->getValue("key_bytes", (char*)&head.m_keyBytes) == nullptr)
   {
     setError(con, __LINE__);
     return -1;
@@ -1012,12 +1012,12 @@ int
 NdbIndexStatImpl::sys_sample_getvalue(Con& con)
 {
   NdbIndexScanOperation* op = con.m_scanop;
-  if (op->getValue("stat_key", (char*)m_keyData.get_full_buf()) == 0)
+  if (op->getValue("stat_key", (char*)m_keyData.get_full_buf()) == nullptr)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("stat_value", (char*)m_valueData.get_full_buf()) == 0)
+  if (op->getValue("stat_value", (char*)m_valueData.get_full_buf()) == nullptr)
   {
     setError(con, __LINE__);
     return -1;
@@ -1240,13 +1240,13 @@ NdbIndexStatImpl::read_commit(Con& con)
 int
 NdbIndexStatImpl::save_start(Con& con)
 {
-  if (m_cacheBuild != 0)
+  if (m_cacheBuild != nullptr)
   {
     free_cache(m_cacheBuild);
-    m_cacheBuild = 0;
+    m_cacheBuild = nullptr;
   }
   con.m_cacheBuild = new Cache;
-  if (con.m_cacheBuild == 0)
+  if (con.m_cacheBuild == nullptr)
   {
     setError(NoMemError, __LINE__);
     return -1;
@@ -1271,7 +1271,7 @@ NdbIndexStatImpl::save_commit(Con& con)
   if (cache_commit(con) == -1)
     return -1;
   m_cacheBuild = con.m_cacheBuild;
-  con.m_cacheBuild = 0;
+  con.m_cacheBuild = nullptr;
   return 0;
 }
 
@@ -1482,10 +1482,10 @@ NdbIndexStatImpl::Cache::Cache()
   m_valueBytes = 0;
   m_addrLen = 0;
   m_addrBytes = 0;
-  m_addrArray = 0;
-  m_keyArray = 0;
-  m_valueArray = 0;
-  m_nextClean = 0;
+  m_addrArray = nullptr;
+  m_keyArray = nullptr;
+  m_valueArray = nullptr;
+  m_nextClean = nullptr;
   // performance
   m_save_time = 0;
   m_sort_time = 0;
@@ -1849,19 +1849,19 @@ NdbIndexStatImpl::cache_init(Con& con)
 
   // wl4124_todo omit addrArray if keys have fixed size
   c.m_addrArray = (Uint8*)mem->mem_alloc(c.m_addrBytes);
-  if (c.m_addrArray == 0)
+  if (c.m_addrArray == nullptr)
   {
     setError(NoMemError, __LINE__);
     return -1;
   }
   c.m_keyArray = (Uint8*)mem->mem_alloc(c.m_keyBytes);
-  if (c.m_keyArray == 0)
+  if (c.m_keyArray == nullptr)
   {
     setError(NoMemError, __LINE__);
     return -1;
   }
   c.m_valueArray = (Uint8*)mem->mem_alloc(c.m_valueBytes);
-  if (c.m_valueArray == 0)
+  if (c.m_valueArray == nullptr)
   {
     setError(NoMemError, __LINE__);
     return -1;
@@ -2184,9 +2184,9 @@ NdbIndexStatImpl::move_cache()
   NdbMutex_Lock(m_query_mutex);
   m_cacheQuery = m_cacheBuild;
   NdbMutex_Unlock(m_query_mutex);
-  m_cacheBuild = 0;
+  m_cacheBuild = nullptr;
 
-  if (cacheTmp != 0)
+  if (cacheTmp != nullptr)
   {
     cacheTmp->m_nextClean = m_cacheClean;
     m_cacheClean = cacheTmp;
@@ -2196,7 +2196,7 @@ NdbIndexStatImpl::move_cache()
 void
 NdbIndexStatImpl::clean_cache()
 {
-  while (m_cacheClean != 0)
+  while (m_cacheClean != nullptr)
   {
     NdbIndexStatImpl::Cache* tmp = m_cacheClean;
     m_cacheClean = tmp->m_nextClean;
@@ -2237,7 +2237,7 @@ NdbIndexStatImpl::CacheIter::CacheIter(const NdbIndexStatImpl& impl) :
 int
 NdbIndexStatImpl::dump_cache_start(CacheIter& iter)
 {
-  if (m_cacheQuery == 0)
+  if (m_cacheQuery == nullptr)
   {
     setError(UsageError, __LINE__);
     return -1;
@@ -2310,7 +2310,7 @@ NdbIndexStatImpl::convert_range(Range& range,
                                 const NdbRecord* key_record,
                                 const NdbIndexScanOperation::IndexBound* ib)
 {
-  if (ib == 0)
+  if (ib == nullptr)
     return 0;
   if (ib->low_key_count == 0 && ib->high_key_count == 0)
     return 0;
@@ -2415,7 +2415,7 @@ int
 NdbIndexStatImpl::query_stat(const Range& range, Stat& stat)
 {
   NdbMutex_Lock(m_query_mutex);
-  if (unlikely(m_cacheQuery == 0))
+  if (unlikely(m_cacheQuery == nullptr))
   {
     NdbMutex_Unlock(m_query_mutex);
     setError(UsageError, __LINE__);
@@ -2866,7 +2866,7 @@ NdbIndexStatImpl::create_sysevents(Ndb* ndb)
   if (check_systables(sys) == -1)
     return -1;
   const NdbDictionary::Table* tab = sys.m_headtable;
-  require(tab != 0);
+  require(tab != nullptr);
 
   const char* const evname = NDB_INDEX_STAT_HEAD_EVENT;
   NdbDictionary::Event ev(evname, *tab);
@@ -2928,14 +2928,14 @@ NdbIndexStatImpl::check_sysevents(Ndb* ndb)
 int
 NdbIndexStatImpl::create_listener(Ndb* ndb)
 {
-  if (m_eventOp != 0)
+  if (m_eventOp != nullptr)
   {
     setError(UsageError, __LINE__);
     return -1;
   }
   const char* const evname = NDB_INDEX_STAT_HEAD_EVENT;
   m_eventOp = ndb->createEventOperation(evname);
-  if (m_eventOp == 0)
+  if (m_eventOp == nullptr)
   {
     setError(ndb->getNdbError().code, __LINE__);
     return -1;
@@ -2943,30 +2943,30 @@ NdbIndexStatImpl::create_listener(Ndb* ndb)
 
   // all columns are non-nullable
   Head& head = m_facadeHead;
-  if (m_eventOp->getValue("index_id", (char*)&head.m_indexId) == 0 ||
-      m_eventOp->getValue("index_version", (char*)&head.m_indexVersion) == 0 ||
-      m_eventOp->getValue("table_id", (char*)&head.m_tableId) == 0 ||
-      m_eventOp->getValue("frag_count", (char*)&head.m_fragCount) == 0 ||
-      m_eventOp->getValue("value_format", (char*)&head.m_valueFormat) == 0 ||
-      m_eventOp->getValue("sample_version", (char*)&head.m_sampleVersion) == 0 ||
-      m_eventOp->getValue("load_time", (char*)&head.m_loadTime) == 0 ||
-      m_eventOp->getValue("sample_count", (char*)&head.m_sampleCount) == 0 ||
-      m_eventOp->getValue("key_bytes", (char*)&head.m_keyBytes) == 0)
+  if (m_eventOp->getValue("index_id", (char*)&head.m_indexId) == nullptr ||
+      m_eventOp->getValue("index_version", (char*)&head.m_indexVersion) == nullptr ||
+      m_eventOp->getValue("table_id", (char*)&head.m_tableId) == nullptr ||
+      m_eventOp->getValue("frag_count", (char*)&head.m_fragCount) == nullptr ||
+      m_eventOp->getValue("value_format", (char*)&head.m_valueFormat) == nullptr ||
+      m_eventOp->getValue("sample_version", (char*)&head.m_sampleVersion) == nullptr ||
+      m_eventOp->getValue("load_time", (char*)&head.m_loadTime) == nullptr ||
+      m_eventOp->getValue("sample_count", (char*)&head.m_sampleCount) == nullptr ||
+      m_eventOp->getValue("key_bytes", (char*)&head.m_keyBytes) == nullptr)
   {
     setError(m_eventOp->getNdbError().code, __LINE__);
     return -1;
   }
   // wl4124_todo why this
   static Head xxx;
-  if (m_eventOp->getPreValue("index_id", (char*)&xxx.m_indexId) == 0 ||
-      m_eventOp->getPreValue("index_version", (char*)&xxx.m_indexVersion) == 0 ||
-      m_eventOp->getPreValue("table_id", (char*)&xxx.m_tableId) == 0 ||
-      m_eventOp->getPreValue("frag_count", (char*)&xxx.m_fragCount) == 0 ||
-      m_eventOp->getPreValue("value_format", (char*)&xxx.m_valueFormat) == 0 ||
-      m_eventOp->getPreValue("sample_version", (char*)&xxx.m_sampleVersion) == 0 ||
-      m_eventOp->getPreValue("load_time", (char*)&xxx.m_loadTime) == 0 ||
-      m_eventOp->getPreValue("sample_count", (char*)&xxx.m_sampleCount) == 0 ||
-      m_eventOp->getPreValue("key_bytes", (char*)&xxx.m_keyBytes) == 0)
+  if (m_eventOp->getPreValue("index_id", (char*)&xxx.m_indexId) == nullptr ||
+      m_eventOp->getPreValue("index_version", (char*)&xxx.m_indexVersion) == nullptr ||
+      m_eventOp->getPreValue("table_id", (char*)&xxx.m_tableId) == nullptr ||
+      m_eventOp->getPreValue("frag_count", (char*)&xxx.m_fragCount) == nullptr ||
+      m_eventOp->getPreValue("value_format", (char*)&xxx.m_valueFormat) == nullptr ||
+      m_eventOp->getPreValue("sample_version", (char*)&xxx.m_sampleVersion) == nullptr ||
+      m_eventOp->getPreValue("load_time", (char*)&xxx.m_loadTime) == nullptr ||
+      m_eventOp->getPreValue("sample_count", (char*)&xxx.m_sampleCount) == nullptr ||
+      m_eventOp->getPreValue("key_bytes", (char*)&xxx.m_keyBytes) == nullptr)
   {
     setError(m_eventOp->getNdbError().code, __LINE__);
     return -1;
@@ -2976,7 +2976,7 @@ NdbIndexStatImpl::create_listener(Ndb* ndb)
 
 int NdbIndexStatImpl::execute_listener(Ndb* /*ndb*/)
 {
-  if (m_eventOp == 0)
+  if (m_eventOp == nullptr)
   {
     setError(UsageError, __LINE__);
     return -1;
@@ -3005,7 +3005,7 @@ int
 NdbIndexStatImpl::next_listener(Ndb* ndb)
 {
   NdbEventOperation* op = ndb->nextEvent();
-  if (op == 0)
+  if (op == nullptr)
     return 0;
 
   Head& head = m_facadeHead;
@@ -3016,14 +3016,14 @@ NdbIndexStatImpl::next_listener(Ndb* ndb)
 int
 NdbIndexStatImpl::drop_listener(Ndb* ndb)
 {
-  if (m_eventOp != 0)
+  if (m_eventOp != nullptr)
   {
     // NOTE! dropEventoperation always return 0
     int ret;
     (void)ret; //USED
     ret = ndb->dropEventOperation(m_eventOp);
     assert(ret == 0);
-    m_eventOp = 0;
+    m_eventOp = nullptr;
   }
   return 0;
 }
@@ -3048,7 +3048,7 @@ NdbIndexStatImpl::MemDefault::mem_alloc(UintPtr size)
 void
 NdbIndexStatImpl::MemDefault::mem_free(void* ptr)
 {
-  if (ptr != 0)
+  if (ptr != nullptr)
     free(ptr);
 }
 
@@ -3075,23 +3075,23 @@ void
 NdbIndexStatImpl::setError(const Con& con, int line)
 {
   int code = 0;
-  if (code == 0 && con.m_op != 0)
+  if (code == 0 && con.m_op != nullptr)
   {
     code = con.m_op->getNdbError().code;
   }
-  if (code == 0 && con.m_scanop != 0)
+  if (code == 0 && con.m_scanop != nullptr)
   {
     code = con.m_scanop->getNdbError().code;
   }
-  if (code == 0 && con.m_tx != 0)
+  if (code == 0 && con.m_tx != nullptr)
   {
     code = con.m_tx->getNdbError().code;
   }
-  if (code == 0 && con.m_dic != 0)
+  if (code == 0 && con.m_dic != nullptr)
   {
     code = con.m_dic->getNdbError().code;
   }
-  if (code == 0 && con.m_ndb != 0)
+  if (code == 0 && con.m_ndb != nullptr)
   {
     code = con.m_ndb->getNdbError().code;
   }

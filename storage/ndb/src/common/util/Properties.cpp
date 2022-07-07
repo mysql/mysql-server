@@ -37,7 +37,7 @@
 static
 char * f_strdup(std::string_view s)
 {
-  if(s.data() == nullptr) return 0;
+  if(s.data() == nullptr) return nullptr;
   char* p = (char*) malloc(s.size() + 1);
   memcpy(p, s.data(), s.size());
   p[s.size()] = 0;
@@ -151,12 +151,12 @@ Property::~Property(){
  * Methods for Properties
  */
 Properties::Properties(bool case_insensitive){
-  parent = 0;
+  parent = nullptr;
   impl = new PropertiesImpl(this, case_insensitive);
 }
 
 Properties::Properties(const Properties & org){
-  parent = 0;
+  parent = nullptr;
   impl = new PropertiesImpl(this, * org.impl);
 }
 
@@ -187,7 +187,7 @@ Properties::~Properties(){
 
 void
 Properties::put(const Property * anArray, int arrayLen){
-  if(anArray == 0)
+  if(anArray == nullptr)
     return;
   for(int i = 0; i<arrayLen; i++)
     impl->put(anArray[i].impl);
@@ -196,20 +196,20 @@ Properties::put(const Property * anArray, int arrayLen){
 template <class T>
 bool
 put(PropertiesImpl * impl, const char * name, T value, bool replace){
-  if(name == 0){
+  if(name == nullptr){
     impl->setErrno(E_PROPERTIES_INVALID_NAME);
     return false;
   }
 
-  PropertiesImpl * tmp = 0;
+  PropertiesImpl * tmp = nullptr;
   const char * short_name = impl->getPropsPut(name, &tmp);
 
-  if(tmp == 0){
+  if(tmp == nullptr){
     impl->setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
     return false;
   }
   
-  if(tmp->get(short_name) != 0){
+  if(tmp->get(short_name) != nullptr){
     if(!replace)
     {
       impl->setErrno(E_PROPERTIES_ELEMENT_ALREADY_EXISTS);
@@ -219,7 +219,7 @@ put(PropertiesImpl * impl, const char * name, T value, bool replace){
   }
   PropertyImpl toPut = PropertyImpl(short_name, value);
 
-  return (tmp->put(toPut) != 0);
+  return (tmp->put(toPut) != nullptr);
 }
 
 bool
@@ -252,7 +252,7 @@ bool
 Properties::append(const char * name, std::string_view value)
 {
   PropertyImpl * nvp = impl->get(name);
-  if (nvp == NULL)
+  if (nvp == nullptr)
   {
     setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
     return false;
@@ -282,7 +282,7 @@ Properties::put(const char * name, const Properties * value, bool replace){
 bool
 Properties::getTypeOf(const char * name, PropertiesType * type) const {
   PropertyImpl * nvp = impl->get(name);
-  if(nvp == 0){
+  if(nvp == nullptr){
     setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
     return false;
   }
@@ -294,13 +294,13 @@ Properties::getTypeOf(const char * name, PropertiesType * type) const {
 bool
 Properties::contains(const char * name) const {
   PropertyImpl * nvp = impl->get(name);
-  return nvp != 0;
+  return nvp != nullptr;
 }
 
 bool
 Properties::get(const char * name, Uint32 * value) const {
   PropertyImpl * nvp = impl->get(name);
-  if(nvp == 0){
+  if(nvp == nullptr){
     setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
     return false;
   }
@@ -327,7 +327,7 @@ Properties::get(const char * name, Uint32 * value) const {
 bool
 Properties::get(const char * name, Uint64 * value) const {
   PropertyImpl * nvp = impl->get(name);
-  if(nvp == 0){
+  if(nvp == nullptr){
     setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
     return false;
   }
@@ -351,7 +351,7 @@ Properties::get(const char * name, Uint64 * value) const {
 bool
 Properties::get(const char * name, const char ** value) const {
   PropertyImpl * nvp = impl->get(name);
-  if(nvp == 0){
+  if(nvp == nullptr){
     setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
     return false;
   }
@@ -377,7 +377,7 @@ Properties::get(const char * name, BaseString& value) const {
 bool
 Properties::get(const char * name, const Properties ** value) const {
   PropertyImpl * nvp = impl->get(name);
-  if(nvp == 0){
+  if(nvp == nullptr){
     setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
     return false;
   }
@@ -393,7 +393,7 @@ Properties::get(const char * name, const Properties ** value) const {
 bool
 Properties::getCopy(const char * name, char ** value) const {
   PropertyImpl * nvp = impl->get(name);
-  if(nvp == 0){
+  if(nvp == nullptr){
     setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
     return false;
   }
@@ -410,7 +410,7 @@ Properties::getCopy(const char * name, char ** value) const {
 bool
 Properties::getCopy(const char * name, Properties ** value) const {
   PropertyImpl * nvp = impl->get(name);
-  if(nvp == 0){
+  if(nvp == nullptr){
     setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
     return false;
   }
@@ -519,7 +519,7 @@ IteratorImpl::next()
   }
   else
   {
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -608,10 +608,10 @@ PropertiesImpl::setCaseInsensitiveNames(bool value){
 
 PropertyImpl *
 PropertiesImpl::get(const char * name) {
-  PropertiesImpl * tmp = 0;
+  PropertiesImpl * tmp = nullptr;
   const char * short_name = getProps(name, &tmp);
-  if(tmp == 0){
-    return 0;
+  if(tmp == nullptr){
+    return nullptr;
   }
 
   std::string str(short_name);
@@ -626,7 +626,7 @@ PropertiesImpl::get(const char * name) {
     return &iter->second;
   }
 
-  return 0;
+  return nullptr;
 }
 
 
@@ -719,7 +719,7 @@ PropertiesImpl::getProps(const char * name,
 			 PropertiesImpl ** impl) {
   const char * ret = name;
   const char * tmp = strchr(name, Properties::delimiter);
-  if(tmp == 0){
+  if(tmp == nullptr){
     * impl = this;
     return ret;
   } else {
@@ -732,12 +732,12 @@ PropertiesImpl::getProps(const char * name,
 
     free(tmp2);
 
-    if(nvp == 0){
-      * impl = 0;
-      return 0;
+    if(nvp == nullptr){
+      * impl = nullptr;
+      return nullptr;
     }
     if(nvp->valueType != PropertiesType_Properties){
-      * impl = 0;
+      * impl = nullptr;
       return name;
     }
     return ((Properties*)nvp->value)->impl->getProps(tmp+1, impl);
@@ -749,7 +749,7 @@ PropertiesImpl::getPropsPut(const char * name,
 			    PropertiesImpl ** impl) {
   const char * ret = name;
   const char * tmp = strchr(name, Properties::delimiter);
-  if(tmp == 0){
+  if(tmp == nullptr){
     * impl = this;
     return ret;
   } else {
@@ -760,7 +760,7 @@ PropertiesImpl::getPropsPut(const char * name,
     
     PropertyImpl * nvp = get(tmp2);
 
-    if(nvp == 0){
+    if(nvp == nullptr){
       Properties   * tmpP  = new Properties();
       PropertyImpl tmpPI = PropertyImpl(tmp2, tmpP);
       PropertyImpl * nvp2 = put(tmpPI);
@@ -772,7 +772,7 @@ PropertiesImpl::getPropsPut(const char * name,
     }
     free(tmp2);
     if(nvp->valueType != PropertiesType_Properties){
-      * impl = 0;
+      * impl = nullptr;
       return name;
     }
     return ((Properties*)nvp->value)->impl->getPropsPut(tmp+1, impl);
@@ -826,7 +826,7 @@ struct CharBuf {
   Uint32 contentLen;
 
   CharBuf(){
-    buffer     = 0;
+    buffer     = nullptr;
     bufLen     = 0;
     contentLen = 0;
   }
@@ -854,11 +854,11 @@ struct CharBuf {
       
       char * tmp = (char*)malloc(newSize + 1024);
       memset(tmp, 0, newSize + 1024);
-      if(tmp == 0)
+      if(tmp == nullptr)
 	return false;
       if(contentLen > 0)
 	memcpy(tmp, buffer, contentLen);
-      if(buffer != 0)
+      if(buffer != nullptr)
 	free(buffer);
       buffer = tmp;
       bufLen = newSize + 1024;
@@ -1102,13 +1102,13 @@ bool
 PropertyImpl::append(std::string_view value)
 {
   assert(this->valueType == PropertiesType_char);
-  assert(this->value != NULL);
-  assert(value.data() != NULL);
+  assert(this->value != nullptr);
+  assert(value.data() != nullptr);
 
   const size_t old_len = strlen(reinterpret_cast<char*>(this->value));
   const size_t new_len = old_len + value.size();
   char * new_value = reinterpret_cast<char*>(realloc(this->value, new_len + 1));
-  if (new_value == NULL)
+  if (new_value == nullptr)
   {
     return false;
   }
@@ -1139,7 +1139,7 @@ const Uint32 E_PROPERTIES_BUFFER_TO_SMALL_WHILE_UNPACKING         = 10;
  */
 void
 Properties::setErrno(Uint32 pErr, Uint32 osErr) const {
-  if(parent != 0){
+  if(parent != nullptr){
     parent->setErrno(pErr, osErr);
     return ;
   }

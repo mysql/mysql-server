@@ -144,7 +144,7 @@ bool ExceptionsTableWriter::check_pk_columns(
     if (col->getPrimaryKey()) {
       const NdbDictionary::Column *ex_col =
           exceptionsTable->getColumn(fixed_cols + k);
-      if (!(ex_col != NULL && col->getType() == ex_col->getType() &&
+      if (!(ex_col != nullptr && col->getType() == ex_col->getType() &&
             col->getLength() == ex_col->getLength() &&
             col->getNullable() == ex_col->getNullable())) {
         /*
@@ -320,7 +320,7 @@ bool ExceptionsTableWriter::check_optional_columns(
         or have a default value.
       */
       if (column_version != DEFAULT && match_k != -1) {
-        if ((!col->getNullable()) && col->getDefaultValue() == NULL) {
+        if ((!col->getNullable()) && col->getDefaultValue() == nullptr) {
           snprintf(error_details, error_details_len,
                    "Old or new column reference %s in table %s is not nullable "
                    "and doesn't have a default value",
@@ -337,7 +337,7 @@ bool ExceptionsTableWriter::check_optional_columns(
            if column is nullable or has a default value,
            continue checking, but give a warning to user
         */
-        if ((!col->getNullable()) && col->getDefaultValue() == NULL) {
+        if ((!col->getNullable()) && col->getDefaultValue() == nullptr) {
           snprintf(error_details, error_details_len,
                    "Extra column %s in table %s is not nullable and doesn't "
                    "have a default value",
@@ -370,7 +370,7 @@ bool ExceptionsTableWriter::check_optional_columns(
             Check that column is nullable
             or has a default value.
           */
-          if (col->getNullable() || col->getDefaultValue() != NULL) {
+          if (col->getNullable() || col->getDefaultValue() != nullptr) {
             DBUG_PRINT("info", ("Mapping column %s %s(%i) to %s(%i)",
                                 col->getName(), mainTable->getName(), match,
                                 exceptionsTable->getName(), i));
@@ -467,7 +467,7 @@ int ExceptionsTableWriter::init(const NdbDictionary::Table *mainTable,
   DBUG_TRACE;
   const char *ex_tab_name = exceptionsTable->getName();
   const int fixed_cols = 4;
-  *msg = NULL;
+  *msg = nullptr;
   *msg_buf = '\0';
 
   DBUG_PRINT("info",
@@ -534,7 +534,7 @@ void ExceptionsTableWriter::mem_free(Ndb *ndb) {
   if (m_ex_tab) {
     NdbDictionary::Dictionary *dict = ndb->getDictionary();
     dict->removeTableGlobal(*m_ex_tab, 0);
-    m_ex_tab = 0;
+    m_ex_tab = nullptr;
   }
 }
 
@@ -551,7 +551,7 @@ int ExceptionsTableWriter::writeRow(
        "(%u)",
        op_type, m_op_type_pos, conflict_cause, m_conflict_cause_pos,
        orig_transid, m_orig_transid_pos));
-  assert(write_set != NULL);
+  assert(write_set != nullptr);
   assert(err.code == 0);
   const uchar *rowPtr = (op_type == DELETE_ROW) ? oldRowPtr : newRowPtr;
 
@@ -561,7 +561,7 @@ int ExceptionsTableWriter::writeRow(
 
     /* get insert op */
     NdbOperation *ex_op = trans->getNdbOperation(ex_tab);
-    if (ex_op == NULL) {
+    if (ex_op == nullptr) {
       err = trans->getNdbError();
       break;
     }
@@ -623,7 +623,7 @@ int ExceptionsTableWriter::writeRow(
               m_ex_tab->getColumn(m_orig_transid_pos);
           if (orig_transid == Ndb_binlog_extra_row_info::InvalidTransactionId &&
               col->getNullable()) {
-            if (ex_op->setValue((Uint32)m_orig_transid_pos, (char *)NULL)) {
+            if (ex_op->setValue((Uint32)m_orig_transid_pos, (char *)nullptr)) {
               err = ex_op->getNdbError();
               break;
             }
@@ -645,7 +645,7 @@ int ExceptionsTableWriter::writeRow(
       int nkey = m_pk_cols;
       int k;
       for (k = 0; k < nkey; k++) {
-        assert(rowPtr != NULL);
+        assert(rowPtr != nullptr);
         if (m_key_data_pos[k] != -1) {
           const uchar *data = (const uchar *)NdbDictionary::getValuePtr(
               keyRecord, (const char *)rowPtr, m_key_attrids[k]);
@@ -666,9 +666,9 @@ int ExceptionsTableWriter::writeRow(
         const uchar *default_value = (const uchar *)col->getDefaultValue();
         DBUG_PRINT("info", ("Checking column %s(%i)%s", col->getName(), i,
                             (default_value) ? ", has default value" : ""));
-        assert(rowPtr != NULL);
+        assert(rowPtr != nullptr);
         if (m_data_pos[i] != -1) {
-          const uchar *row_vPtr = NULL;
+          const uchar *row_vPtr = nullptr;
           switch (m_column_version[i]) {
             case DEFAULT:
               row_vPtr = rowPtr;
@@ -679,17 +679,17 @@ int ExceptionsTableWriter::writeRow(
             case NEW:
               if (op_type != DELETE_ROW) row_vPtr = newRowPtr;
           }
-          if (row_vPtr == NULL ||
+          if (row_vPtr == nullptr ||
               (m_col_nullable[m_data_pos[i]] &&
                NdbDictionary::isNull(dataRecord, (const char *)row_vPtr,
                                      m_data_pos[i]))) {
             DBUG_PRINT("info", ("Column %s is set to NULL because it is NULL",
                                 col->getName()));
-            if (ex_op->setValue((Uint32)i, (char *)NULL)) {
+            if (ex_op->setValue((Uint32)i, (char *)nullptr)) {
               err = ex_op->getNdbError();
               break;
             }
-          } else if (write_set != NULL &&
+          } else if (write_set != nullptr &&
                      bitmap_is_set(write_set, m_data_pos[i])) {
             DBUG_PRINT("info", ("Column %s is set", col->getName()));
             const uchar *data = (const uchar *)NdbDictionary::getValuePtr(
@@ -698,7 +698,7 @@ int ExceptionsTableWriter::writeRow(
               err = ex_op->getNdbError();
               break;
             }
-          } else if (default_value != NULL) {
+          } else if (default_value != nullptr) {
             DBUG_PRINT(
                 "info",
                 ("Column %s is not set to NULL because it has a default value",
@@ -713,7 +713,7 @@ int ExceptionsTableWriter::writeRow(
             DBUG_PRINT("info",
                        ("Column %s is set to NULL because it not in write_set",
                         col->getName()));
-            if (ex_op->setValue((Uint32)i, (char *)NULL)) {
+            if (ex_op->setValue((Uint32)i, (char *)nullptr)) {
               err = ex_op->getNdbError();
               break;
             }
@@ -732,7 +732,7 @@ int ExceptionsTableWriter::writeRow(
        */
       NdbDictionary::Dictionary *dict = trans->getNdb()->getDictionary();
       dict->removeTableGlobal(*m_ex_tab, false);
-      m_ex_tab = NULL;
+      m_ex_tab = nullptr;
       return 0;
     }
     return -1;
@@ -772,7 +772,7 @@ st_ndb_slave_state::st_ndb_slave_state()
       trans_in_conflict_count(0),
       trans_conflict_commit_count(0),
       trans_conflict_apply_state(SAS_NORMAL),
-      trans_dependency_tracker(NULL) {
+      trans_dependency_tracker(nullptr) {
   memset(current_violation_count, 0, sizeof(current_violation_count));
   memset(total_violation_count, 0, sizeof(total_violation_count));
 
@@ -844,9 +844,9 @@ void st_ndb_slave_state::atTransactionAbort() {
    Called by Slave SQL thread after transaction commit
 */
 void st_ndb_slave_state::atTransactionCommit(Uint64 epoch) {
-  assert(((trans_dependency_tracker == NULL) &&
+  assert(((trans_dependency_tracker == nullptr) &&
           (trans_conflict_apply_state == SAS_NORMAL)) ||
-         ((trans_dependency_tracker != NULL) &&
+         ((trans_dependency_tracker != nullptr) &&
           (trans_conflict_apply_state == SAS_TRACK_TRANS_DEPENDENCIES)));
   assert(trans_conflict_apply_state != SAS_APPLY_TRANS_DEPENDENCIES);
 
@@ -1283,7 +1283,7 @@ void st_ndb_slave_state::atEndTransConflictHandling() {
   if (trans_dependency_tracker) {
     current_trans_in_conflict_count =
         trans_dependency_tracker->get_conflict_count();
-    trans_dependency_tracker = NULL;
+    trans_dependency_tracker = nullptr;
     conflict_mem_root.ClearForReuse();
   }
 }
@@ -1300,7 +1300,7 @@ void st_ndb_slave_state::atBeginTransConflictHandling() {
      Allocate and initialise Transactional Conflict
      Resolution Handling Structures
   */
-  assert(trans_dependency_tracker == NULL);
+  assert(trans_dependency_tracker == nullptr);
   trans_dependency_tracker =
       DependencyTracker::newDependencyTracker(&conflict_mem_root);
 }
@@ -1425,7 +1425,7 @@ int st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id) {
          considered in-conflict, and any dependent transactions are also
          considered in-conflict.
       */
-      assert(trans_dependency_tracker != NULL);
+      assert(trans_dependency_tracker != nullptr);
       int res = trans_dependency_tracker->mark_conflict(transaction_id);
 
       if (res != 0) {
@@ -2194,7 +2194,7 @@ int parse_conflict_fn_spec(const char *conflict_fn_spec,
 
       if (type == CFAT_END) {
         args[no_args].type = type;
-        error_str = NULL;
+        error_str = nullptr;
         break;
       }
 
@@ -2216,7 +2216,7 @@ int parse_conflict_fn_spec(const char *conflict_fn_spec,
            * Must be at end of args, finish parsing
            */
           args[no_args].type = CFAT_END;
-          error_str = NULL;
+          error_str = nullptr;
           break;
         }
       }
@@ -2325,7 +2325,7 @@ static int slave_set_resolve_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
 
   NDB_CONFLICT_FN_SHARE *cfn_share = *ppcfn_share;
   const char *ex_suffix = NDB_EXCEPTIONS_TABLE_SUFFIX;
-  if (cfn_share == NULL) {
+  if (cfn_share == nullptr) {
     *ppcfn_share = cfn_share = (NDB_CONFLICT_FN_SHARE *)my_malloc(
         PSI_INSTRUMENT_ME, sizeof(NDB_CONFLICT_FN_SHARE),
         MYF(MY_WME | ME_FATALERROR));
@@ -2352,7 +2352,7 @@ static int slave_set_resolve_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
     const NDBTAB *ex_tab = ndbtab_g.get_table();
     if (ex_tab) {
       char msgBuf[FN_REFLEN];
-      const char *msg = NULL;
+      const char *msg = nullptr;
       if (cfn_share->m_ex_tab_writer.init(ndbtab, ex_tab, msgBuf,
                                           sizeof(msgBuf), &msg) == 0) {
         /* Ok */

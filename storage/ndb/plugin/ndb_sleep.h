@@ -41,7 +41,7 @@ static inline void ndb_milli_sleep(time_t milliseconds) {
   struct timeval t;
   t.tv_sec = milliseconds / 1000L;
   t.tv_usec = 1000L * (milliseconds % 1000L);
-  select(0, 0, 0, 0, &t); /* sleep */
+  select(0, nullptr, nullptr, nullptr, &t); /* sleep */
 #endif
 }
 

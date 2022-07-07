@@ -178,7 +178,7 @@ class ExceptionsTableWriter {
       : m_pk_cols(0),
         m_cols(0),
         m_xcols(0),
-        m_ex_tab(NULL),
+        m_ex_tab(nullptr),
         m_count(0),
         m_extended(false),
         m_op_type_pos(0),
@@ -192,7 +192,7 @@ class ExceptionsTableWriter {
 
      Returns true if there is an Exceptions table
   */
-  bool hasTable() const { return m_ex_tab != NULL; }
+  bool hasTable() const { return m_ex_tab != nullptr; }
 
   /**
     init

@@ -88,7 +88,7 @@ inline const char* dbugExplain(char* buffer, int length [[maybe_unused]])
     if (!MY_DBUG_EXPLAIN(buffer, length)) {
         return buffer;
     }
-    return NULL;
+    return nullptr;
 }
 
 /** Print a message */

@@ -1750,7 +1750,7 @@ static int Ndb_ReloadCPUData(struct ndb_hwinfo *hwinfo)
   char * c = nullptr;
   while (fgets(buf, sizeof(buf), stat_file))
   {
-    if (curr_cpu > max_cpu_no || (c = strstr(p, "cpu")) == 0)
+    if (curr_cpu > max_cpu_no || (c = strstr(p, "cpu")) == nullptr)
     {
       break;
     }
@@ -1762,7 +1762,7 @@ static int Ndb_ReloadCPUData(struct ndb_hwinfo *hwinfo)
       continue;
     }
     // c + 3 should be a number
-    char * endptr = 0;
+    char * endptr = nullptr;
     long val = strtol(c + 3, &endptr, 10);
     if (endptr == c + 3)
     {
@@ -2127,7 +2127,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo * hwinfo)
   while (fgets(buf, sizeof(buf), cpuinfo))
   {
     Uint32 val;
-    char * p = 0;
+    char * p = nullptr;
     if (sscanf(buf, "processor : %u", &val) == 1)
     {
       if (val > max_cpu_no)
@@ -2184,7 +2184,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo * hwinfo)
     {
       num_cpu_cores_per_socket = val;
     }
-    else if ((p = strstr(buf, "model name")) != 0)
+    else if ((p = strstr(buf, "model name")) != nullptr)
     {
       if (! (curr_cpu >= 0 && curr_cpu <= (int)max_cpu_no))
       {
@@ -2912,7 +2912,7 @@ TAPTEST(NdbCPU)
   /**
    * Test of CPU info
    */
-  OK(info != 0);
+  OK(info != nullptr);
   if (sysconf_ncpu_conf)
   {
     OK(sysconf_ncpu_conf == (long)info->cpu_cnt);

@@ -46,7 +46,7 @@ static bool g_force_acc_table_scans = false;
 
 Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
 	  const char* aDataBase , const char* aSchema)
-  : theImpl(NULL)
+  : theImpl(nullptr)
 {
   DBUG_ENTER("Ndb::Ndb()");
   DBUG_PRINT("enter",("Ndb::Ndb this: %p", this));
@@ -59,22 +59,22 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 {
   DBUG_ENTER("Ndb::setup");
 
-  assert(theImpl == NULL);
+  assert(theImpl == nullptr);
   theImpl= new NdbImpl(ndb_cluster_connection,*this);
   theDictionary= &(theImpl->m_dictionary);
 
-  thePreparedTransactionsArray= NULL;
-  theSentTransactionsArray= NULL;
-  theCompletedTransactionsArray= NULL;
+  thePreparedTransactionsArray= nullptr;
+  theSentTransactionsArray= nullptr;
+  theCompletedTransactionsArray= nullptr;
   theNoOfPreparedTransactions= 0;
   theNoOfSentTransactions= 0;
   theNoOfCompletedTransactions= 0;
   theRemainingStartTransactions= 0;
   theMaxNoOfTransactions= 0;
   theMinNoOfEventsToWakeUp= 0;
-  theTransactionList= NULL;
-  theConnectionArray= NULL;
-  theConnectionArrayLast= NULL;
+  theTransactionList= nullptr;
+  theConnectionArray= nullptr;
+  theConnectionArrayLast= nullptr;
   the_last_check_time = NdbTick_CurrentMillisecond();
   theFirstTransId= 0;
   theRestartGCI= 0;
@@ -95,15 +95,15 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 
   theConnectionArray = new NdbConnection * [MAX_NDB_NODES];
   theConnectionArrayLast = new NdbConnection * [MAX_NDB_NODES];
-  theCommitAckSignal = NULL;
+  theCommitAckSignal = nullptr;
   theCachedMinDbNodeVersion = 0;
   
   int i;
   for (i = 0; i < MAX_NDB_NODES ; i++) {
-    theConnectionArray[i] = NULL;
-    theConnectionArrayLast[i] = NULL;
+    theConnectionArray[i] = nullptr;
+    theConnectionArrayLast[i] = nullptr;
   }//for
-  m_sys_tab_0 = NULL;
+  m_sys_tab_0 = nullptr;
 
   theImpl->m_dbname.assign(aDataBase);
   theImpl->m_schemaname.assign(aSchema);
@@ -115,7 +115,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   {
     // theImpl->theWaiter.m_mutex must be set before this
     theEventBuffer= new NdbEventBuffer(this);
-    if (theEventBuffer == NULL) {
+    if (theEventBuffer == nullptr) {
       g_eventLogger->info("Failed NdbEventBuffer()");
       exit(-1);
     }
@@ -137,7 +137,7 @@ Ndb::~Ndb()
   DBUG_ENTER("Ndb::~Ndb()");
   DBUG_PRINT("enter",("this: %p", this));
 
-  if (theImpl == NULL)
+  if (theImpl == nullptr)
   {
     /* Help users find their bugs */
     g_eventLogger->warning("Deleting Ndb-object @%p which is already deleted?",
@@ -148,7 +148,7 @@ Ndb::~Ndb()
   if (m_sys_tab_0)
     getDictionary()->removeTableGlobal(*m_sys_tab_0, 0);
 
-  if (theImpl->m_ev_op != 0)
+  if (theImpl->m_ev_op != nullptr)
   {
     g_eventLogger->warning("Deleting Ndb-object with NdbEventOperation still"
                            " active");
@@ -159,7 +159,7 @@ Ndb::~Ndb()
     }
   }
 
-  assert(theImpl->m_ev_op == 0); // user should return NdbEventOperation's
+  assert(theImpl->m_ev_op == nullptr); // user should return NdbEventOperation's
   for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
   {
     if (op->m_state == NdbEventOperation::EO_EXECUTING && op->stop())
@@ -184,23 +184,23 @@ Ndb::~Ndb()
   theImpl->close();
 
   delete theEventBuffer;
-  theEventBuffer = NULL;
+  theEventBuffer = nullptr;
 
   releaseTransactionArrays();
 
   delete []theConnectionArray;
-  theConnectionArray = NULL;
+  theConnectionArray = nullptr;
   delete []theConnectionArrayLast;
-  theConnectionArrayLast = NULL;
-  if(theCommitAckSignal != NULL){
+  theConnectionArrayLast = nullptr;
+  if(theCommitAckSignal != nullptr){
     delete theCommitAckSignal; 
-    theCommitAckSignal = NULL;
+    theCommitAckSignal = nullptr;
   }
 
   theImpl->m_ndb_cluster_connection.unlink_ndb_object(this);
 
   delete theImpl;
-  theImpl = NULL;
+  theImpl = nullptr;
 
 #ifdef POORMANSPURIFY
 #ifdef POORMANSGUI
@@ -220,8 +220,8 @@ Ndb::~Ndb()
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 		 Ndb& ndb)
   : m_ndb(ndb),
-    m_next_ndb_object(0),
-    m_prev_ndb_object(0),
+    m_next_ndb_object(nullptr),
+    m_prev_ndb_object(nullptr),
     m_ndb_cluster_connection(ndb_cluster_connection->m_impl),
     m_transporter_facade(ndb_cluster_connection->m_impl.m_transporter_facade),
     m_dictionary(ndb),
@@ -237,8 +237,8 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 #endif
     theNoOfDBnodes(0),
     theWaiter(this),
-    wakeHandler(0),
-    m_ev_op(0),
+    wakeHandler(nullptr),
+    m_ev_op(nullptr),
     customData(0),
     send_TC_COMMIT_ACK_immediate_flag(false)
 {
@@ -255,14 +255,14 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
   if (g_first_create_ndb)
   {
     g_first_create_ndb = false;
-    const char* f= NdbEnv_GetEnv("NDB_FORCE_SHORT_REQUESTS", (char*)0, 0);
-    if (f != 0 && *f != 0 && *f != '0' && *f != 'n' && *f != 'N')
+    const char* f= NdbEnv_GetEnv("NDB_FORCE_SHORT_REQUESTS", (char*)nullptr, 0);
+    if (f != nullptr && *f != 0 && *f != '0' && *f != 'n' && *f != 'N')
     {
       g_force_short_signals = true;
     }
 
-    f= NdbEnv_GetEnv("NDB_FORCE_ACC_TABLE_SCANS", (char*)0, 0);
-    if (f != 0 && *f != 0 && *f != '0' && *f != 'n' && *f != 'N')
+    f= NdbEnv_GetEnv("NDB_FORCE_ACC_TABLE_SCANS", (char*)nullptr, 0);
+    if (f != nullptr && *f != 0 && *f != '0' && *f != 'n' && *f != 'N')
     {
       g_force_acc_table_scans = true;
     }
@@ -277,9 +277,9 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 
 NdbImpl::~NdbImpl()
 {
-  m_next_ndb_object = NULL;
-  m_prev_ndb_object = NULL;
-  wakeHandler = NULL;
-  m_ev_op = NULL;
+  m_next_ndb_object = nullptr;
+  m_prev_ndb_object = nullptr;
+  wakeHandler = nullptr;
+  m_ev_op = nullptr;
 }
 

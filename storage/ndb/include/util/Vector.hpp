@@ -84,7 +84,7 @@ private:
  */
 template<class T>
 Vector<T>::Vector(unsigned sz, unsigned inc_sz):
-  m_items(NULL),
+  m_items(nullptr),
   m_size(0),
   m_incSize((inc_sz > 0) ? inc_sz : 50),
   m_arraySize(0)
@@ -93,7 +93,7 @@ Vector<T>::Vector(unsigned sz, unsigned inc_sz):
     return;
 
   m_items = new T[sz];
-  if (m_items == NULL)
+  if (m_items == nullptr)
   {
     errno = ENOMEM;
     return;
@@ -108,7 +108,7 @@ Vector<T>::expand(unsigned sz){
     return 0;
 
   T * tmp = new T[sz];
-  if(tmp == NULL)
+  if(tmp == nullptr)
   {
     errno = ENOMEM;
     return -1;
@@ -130,7 +130,7 @@ Vector<T>::expand(unsigned sz){
  */
 template<class T>
 Vector<T>::Vector(const Vector& src):
-  m_items(NULL),
+  m_items(nullptr),
   m_size(0),
   m_incSize(src.m_incSize),
   m_arraySize(0)
@@ -140,7 +140,7 @@ Vector<T>::Vector(const Vector& src):
     return;
 
   m_items = new T[sz];
-  if (unlikely(m_items == NULL)){
+  if (unlikely(m_items == nullptr)){
     errno = ENOMEM;
     return;
   }
@@ -155,7 +155,7 @@ template<class T>
 Vector<T>::~Vector(){
   delete[] m_items;
   // safety for placement new usage
-  m_items = 0;
+  m_items = nullptr;
   m_size = 0;
   m_arraySize = 0;
 }
@@ -370,7 +370,7 @@ private:
  */
 template<class T>
 MutexVector<T>::MutexVector(unsigned sz, unsigned inc_sz):
-  m_items(NULL),
+  m_items(nullptr),
   m_size(0),
   m_incSize((inc_sz > 0) ? inc_sz : 50),
   m_arraySize(0)
@@ -379,7 +379,7 @@ MutexVector<T>::MutexVector(unsigned sz, unsigned inc_sz):
     return;
 
   m_items = new T[sz];
-  if (m_items == NULL)
+  if (m_items == nullptr)
   {
     errno = ENOMEM;
     return;
@@ -394,7 +394,7 @@ MutexVector<T>::expand(unsigned sz){
     return 0;
 
   T * tmp = new T[sz];
-  if(tmp == NULL)
+  if(tmp == nullptr)
   {
     errno = ENOMEM;
     return -1;
@@ -411,7 +411,7 @@ template<class T>
 MutexVector<T>::~MutexVector(){
   delete[] m_items;
   // safety for placement new usage
-  m_items = 0;
+  m_items = nullptr;
   m_size = 0;
   m_arraySize = 0;
 }

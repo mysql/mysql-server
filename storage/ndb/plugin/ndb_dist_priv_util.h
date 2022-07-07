@@ -50,7 +50,8 @@ class Ndb_dist_priv_util {
 #endif
     };
 
-    if (m_iter_curr_table >= (sizeof(tables) / sizeof(tables[0]))) return NULL;
+    if (m_iter_curr_table >= (sizeof(tables) / sizeof(tables[0])))
+      return nullptr;
     m_iter_curr_table++;
     return tables[m_iter_curr_table - 1];
   }

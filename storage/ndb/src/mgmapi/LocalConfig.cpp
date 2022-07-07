@@ -61,7 +61,7 @@ LocalConfig::init(const char *connectString,
   _ownNodeId= 0;
 
   //1. Check connectString
-  if(connectString != 0 && connectString[0] != 0){
+  if(connectString != nullptr && connectString[0] != 0){
     if(readConnectString(connectString, "connect string")){
       if (ids.size())
 	return true;
@@ -267,8 +267,8 @@ LocalConfig::parseString(const char * connectString, BaseString &err)
   bind_address_port = 0;
   bind_address.assign("");
 
-  for (char *tok = my_strtok_r(copy,";,",&for_strtok); tok != 0;
-       tok = my_strtok_r(NULL, ";,", &for_strtok))
+  for (char *tok = my_strtok_r(copy,";,",&for_strtok); tok != nullptr;
+       tok = my_strtok_r(nullptr, ";,", &for_strtok))
   {
     bool ok = false;
     for (size_t i = 0; i < std::size(param_prefixes); i++)
@@ -298,7 +298,7 @@ bool LocalConfig::readFile(const char * filename, bool &fopenError)
   fopenError = false;
   
   FILE * file = fopen(filename, "r");
-  if(file == 0){
+  if(file == nullptr){
     BaseString::snprintf(line, sizeof(line),
 	     "Unable to open local config file: %s", filename);
     setError(0, line);

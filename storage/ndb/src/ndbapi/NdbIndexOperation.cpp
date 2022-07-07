@@ -31,7 +31,7 @@
 
 NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   NdbOperation(aNdb, NdbOperation::UniqueIndexAccess),
-  m_theIndex(NULL)
+  m_theIndex(nullptr)
 {
   m_tcReqGSN = GSN_TCINDXREQ;
   m_attrInfoGSN = GSN_INDXATTRINFO;

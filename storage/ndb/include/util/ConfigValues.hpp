@@ -338,7 +338,7 @@ ConfigValues::pack_v1(UtilBuffer& buf) const
 {
   Uint32 len = get_v1_packed_size();
   void * tmp = buf.append(len);
-  if(unlikely(tmp == 0))
+  if(unlikely(tmp == nullptr))
   {
     return 0;
   }
@@ -352,7 +352,7 @@ ConfigValues::pack_v2(UtilBuffer& buf, Uint32 node_id) const
 {
   Uint32 len = get_v2_packed_size(node_id);
   void * tmp = buf.append(len);
-  if(unlikely(tmp == 0))
+  if(unlikely(tmp == nullptr))
   {
     return 0;
   }

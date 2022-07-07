@@ -146,7 +146,7 @@ public:
 
   void remove(const char * name);
   
-  void print(FILE * file = stdout, const char * prefix = 0) const;
+  void print(FILE * file = stdout, const char * prefix = nullptr) const;
   /**
    *  Iterator over names 
    */

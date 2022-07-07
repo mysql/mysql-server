@@ -56,7 +56,7 @@ NdbSubroutine::~NdbSubroutine()
 }
 
 NdbBranch::NdbBranch(Ndb*) :
-  theSignal(NULL)
+  theSignal(nullptr)
 {
 }
 
@@ -65,7 +65,7 @@ NdbBranch::~NdbBranch()
 }
 
 NdbCall::NdbCall(Ndb*) :
-  theSignal(NULL)
+  theSignal(nullptr)
 {
 }
 
@@ -83,10 +83,10 @@ void
 NdbLockHandle::init()
 {
   m_state = ALLOCATED;
-  m_table = NULL;
+  m_table = nullptr;
   m_lockRef[0] = 0;
   m_openBlobCount = 0;
-  thePrev = NULL;
+  thePrev = nullptr;
 }
 
 void NdbLockHandle::release(Ndb*) { m_state = FREE; }

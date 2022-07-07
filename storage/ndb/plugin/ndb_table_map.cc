@@ -42,8 +42,8 @@ Ndb_table_map::Ndb_table_map(const TABLE *mysqlTable,
     m_map_by_col = new int[m_array_size];
 
     /* Initialize the two bitmaps */
-    bitmap_init(&m_moved_fields, 0, m_array_size);
-    bitmap_init(&m_rewrite_set, 0, m_array_size);
+    bitmap_init(&m_moved_fields, nullptr, m_array_size);
+    bitmap_init(&m_rewrite_set, nullptr, m_array_size);
 
     /* Initialize both arrays full of -1 */
     for (uint i = 0; i < m_array_size; i++) {
@@ -84,7 +84,7 @@ uint Ndb_table_map::get_field_for_column(uint colId) const {
 }
 
 unsigned char *Ndb_table_map::get_column_mask(const MY_BITMAP *field_mask) {
-  unsigned char *map = 0;
+  unsigned char *map = nullptr;
   if (field_mask) {
     map = (unsigned char *)(field_mask->bitmap);
     if ((!m_trivial) && bitmap_is_overlapping(&m_moved_fields, field_mask)) {
@@ -111,7 +111,7 @@ Ndb_table_map::~Ndb_table_map() {
 }
 
 bool Ndb_table_map::has_virtual_gcol(const TABLE *table) {
-  if (table->vfield == NULL) return false;
+  if (table->vfield == nullptr) return false;
   for (Field **gc = table->vfield; *gc; gc++) {
     if (!(*gc)->stored_in_db) return true;
   }
@@ -119,7 +119,7 @@ bool Ndb_table_map::has_virtual_gcol(const TABLE *table) {
 }
 
 uint Ndb_table_map::num_stored_fields(const TABLE *table) {
-  if (table->vfield == NULL) {
+  if (table->vfield == nullptr) {
     // Table has no virtual fields, just return number of fields
     return table->s->fields;
   }
@@ -152,7 +152,7 @@ void Ndb_table_map::print_record(const TABLE *table, const uchar *record) {
 }
 
 void Ndb_table_map::print_table(const char *info, const TABLE *table) {
-  if (table == 0) {
+  if (table == nullptr) {
     DBUG_PRINT("info", ("%s: (null)", info));
     return;
   }

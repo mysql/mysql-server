@@ -41,15 +41,15 @@
 
 void
 NdbOperation::initInterpreter(){
-  theFirstLabel = NULL;
-  theLastLabel = NULL;
-  theFirstBranch = NULL;
-  theLastBranch = NULL;
+  theFirstLabel = nullptr;
+  theLastLabel = nullptr;
+  theFirstBranch = nullptr;
+  theLastBranch = nullptr;
   
-  theFirstCall = NULL;
-  theLastCall = NULL;
-  theFirstSubroutine = NULL;
-  theLastSubroutine = NULL;
+  theFirstCall = nullptr;
+  theLastCall = nullptr;
+  theFirstSubroutine = nullptr;
+  theLastSubroutine = nullptr;
   
   theNoOfLabels = 0;
   theNoOfSubroutines = 0;
@@ -72,7 +72,7 @@ NdbOperation::isNdbRecordOperation()
    */
   return !(((m_type == PrimaryKeyAccess) ||
             (m_type == UniqueIndexAccess)) &&
-           (m_attribute_record == NULL));
+           (m_attribute_record == nullptr));
 }
 
 int
@@ -85,7 +85,7 @@ NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
   }
 
   if (theInterpretIndicator == 1) {
-    if (tNdbColumnImpl == NULL)
+    if (tNdbColumnImpl == nullptr)
       goto inc_check_error1;
     if ((tNdbColumnImpl->getInterpretableType() != true) ||
         (tNdbColumnImpl->m_pk != false) ||
@@ -144,7 +144,7 @@ NdbOperation::write_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
   }
 
   if (theInterpretIndicator == 1) {
-    if (tNdbColumnImpl == NULL)
+    if (tNdbColumnImpl == nullptr)
       goto write_attr_check_error1;
     if ((tNdbColumnImpl->getInterpretableType() == false) ||
         (tNdbColumnImpl->m_pk))
@@ -195,7 +195,7 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
   }
 
   if (theInterpretIndicator == 1) {
-    if (tNdbColumnImpl == NULL)
+    if (tNdbColumnImpl == nullptr)
       goto read_attr_check_error1;
     if (tNdbColumnImpl->getInterpretableType() == false)
       goto read_attr_check_error2;
@@ -515,18 +515,18 @@ NdbOperation::def_label(int tLabelNo)
   if (tLabelIndex == 0)
   {
     NdbLabel* tNdbLabel = theNdb->getNdbLabel();
-    if (tNdbLabel == NULL)
+    if (tNdbLabel == nullptr)
     {
       setErrorCodeAbort(4000);
       return -1;
     }
-    if (theFirstLabel == NULL)
+    if (theFirstLabel == nullptr)
       theFirstLabel = tNdbLabel;
     else
       theLastLabel->theNext = tNdbLabel;
 
     theLastLabel = tNdbLabel;
-    tNdbLabel->theNext = NULL;
+    tNdbLabel->theNext = nullptr;
   }
 
   /**
@@ -617,18 +617,18 @@ NdbOperation::def_subroutine(int tSubNo)
   if (tSubroutineIndex == 0)
   {
     NdbSubroutine* tNdbSubroutine = theNdb->getNdbSubroutine();
-    if (tNdbSubroutine == NULL)
+    if (tNdbSubroutine == nullptr)
     {
       setErrorCodeAbort(4000);
       return -1;
     }
-    if (theFirstSubroutine == NULL)
+    if (theFirstSubroutine == nullptr)
       theFirstSubroutine = tNdbSubroutine;
     else
       theLastSubroutine->theNext = tNdbSubroutine;
 
     theLastSubroutine = tNdbSubroutine;
-    tNdbSubroutine->theNext = NULL;
+    tNdbSubroutine->theNext = nullptr;
   }
   theLastSubroutine->theSubroutineAddress[tSubroutineIndex] = theTotalCurrAI_Len - 
     (AttrInfo::SectionSizeInfoLength + theInitialReadSize + theInterpretedSize + 
@@ -1032,9 +1032,9 @@ NdbOperation::insertBranch(Uint32 aLabel)
 {
   Uint32 tAddress;
   NdbBranch* tBranch = theNdb->getNdbBranch();
-  if (tBranch == NULL)
+  if (tBranch == nullptr)
     goto insertBranch_error1;
-  if (theFirstBranch == NULL)
+  if (theFirstBranch == nullptr)
     theFirstBranch = tBranch;
   else
     theLastBranch->theNext = tBranch;
@@ -1063,12 +1063,12 @@ int
 NdbOperation::insertCall(Uint32 aCall)
 {
   NdbCall* tCall = theNdb->getNdbCall();
-  if (tCall == NULL)
+  if (tCall == nullptr)
   {
     setErrorCodeAbort(4000);
     return -1;
   }
-  if (theFirstCall == NULL)
+  if (theFirstCall == nullptr)
     theFirstCall = tCall;
   else
     theLastCall->theNext = tCall;
@@ -1088,7 +1088,7 @@ NdbOperation::branch_col(Uint32 type,
   DBUG_ENTER("NdbOperation::branch_col");
   DBUG_PRINT("enter", ("type: %u  col:%u  val: %p  len: %u  label: %u",
                        type, ColId, val, len, Label));
-  if (val != NULL) DBUG_DUMP("value", (const uchar*)val, len);
+  if (val != nullptr) DBUG_DUMP("value", (const uchar*)val, len);
 
   if (initial_interpreterCheck() == -1)
     DBUG_RETURN(-1);
@@ -1098,12 +1098,12 @@ NdbOperation::branch_col(Uint32 type,
   const NdbColumnImpl * col = 
     m_currentTable->getColumn(ColId);
   
-  if(col == 0){
+  if(col == nullptr){
     abort();
   }
 
   Uint32 lastWordMask= ~0;
-  if (val == NULL)
+  if (val == nullptr)
     len = 0;
   else {
     if (! col->getStringType())

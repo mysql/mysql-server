@@ -52,12 +52,12 @@ void* async_log_function(void* args)
 
   delete data;
 
-  return NULL;
+  return nullptr;
 }
 
 BufferedLogHandler::BufferedLogHandler(LogHandler* dest_loghandler)
  : LogHandler(), m_dest_loghandler(dest_loghandler),
-   m_log_threadvar(NULL), m_stop_logging(false)
+   m_log_threadvar(nullptr), m_stop_logging(false)
 {
   m_logbuf = new LogBuffer(32768, new MessageStreamLostMsgHandler()); // 32kB
   ThreadData *thr_data = new ThreadData();
@@ -68,7 +68,7 @@ BufferedLogHandler::BufferedLogHandler(LogHandler* dest_loghandler)
                                      0,
                                      "async_local_log_thread",
                                      NDB_THREAD_PRIO_MEAN);
-  if (m_log_threadvar == NULL)
+  if (m_log_threadvar == nullptr)
   {
     abort();
   }
@@ -78,7 +78,7 @@ BufferedLogHandler::~BufferedLogHandler()
 {
   m_stop_logging = true;
   m_logbuf->stop();
-  NdbThread_WaitFor(m_log_threadvar, NULL);
+  NdbThread_WaitFor(m_log_threadvar, nullptr);
   NdbThread_Destroy(&m_log_threadvar);
   delete m_logbuf;
   delete m_dest_loghandler;
@@ -99,7 +99,7 @@ BufferedLogHandler::close()
 bool
 BufferedLogHandler::is_open()
 {
-  if (m_log_threadvar == NULL)
+  if (m_log_threadvar == nullptr)
   {
     return false;
   }
@@ -226,7 +226,7 @@ bool MessageStreamLostMsgHandler::writeLostMsg(char* buf,
 {
   BufferedLogHandler::LogMessageFixedPart lost_message_fixedpart;
   lost_message_fixedpart.level = Logger::LL_DEBUG;
-  lost_message_fixedpart.log_timestamp = time((time_t*)NULL);
+  lost_message_fixedpart.log_timestamp = time((time_t*)nullptr);
 
   const size_t sz_fixedpart = sizeof(lost_message_fixedpart);
   require(sz_fixedpart <= buf_size);

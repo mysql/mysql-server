@@ -47,10 +47,10 @@
 
 NdbInterpretedCode::NdbInterpretedCode(const NdbDictionary::Table *table,
                                        Uint32 *buffer, Uint32 buffer_word_size) :
-  m_table_impl(NULL),
+  m_table_impl(nullptr),
   m_buffer(buffer),
   m_buffer_length(buffer_word_size),
-  m_internal_buffer(NULL),
+  m_internal_buffer(nullptr),
   m_number_of_labels(0),
   m_number_of_subs(0),
   m_number_of_calls(0),
@@ -62,14 +62,14 @@ NdbInterpretedCode::NdbInterpretedCode(const NdbDictionary::Table *table,
   m_error(),
   m_unknown_action(CmpHasNoUnknowns)
 {
-  if (table != NULL)
+  if (table != nullptr)
     m_table_impl= & NdbTableImpl::getImpl(*table);
   m_error.code= 0;
 }
 
 NdbInterpretedCode::NdbInterpretedCode(const NdbRecord &record, Uint32 *buffer,
                                        Uint32 buffer_word_size) :
-  NdbInterpretedCode(NULL, buffer, buffer_word_size)
+  NdbInterpretedCode(nullptr, buffer, buffer_word_size)
 {
   m_table_impl = record.table;
 }
@@ -77,7 +77,7 @@ NdbInterpretedCode::NdbInterpretedCode(const NdbRecord &record, Uint32 *buffer,
 
 NdbInterpretedCode::~NdbInterpretedCode()
 {
-  if (m_internal_buffer != NULL)
+  if (m_internal_buffer != nullptr)
   {
     delete [] m_internal_buffer;
   }
@@ -92,15 +92,15 @@ NdbInterpretedCode::set_sql_null_semantics(UnknownHandling unknown_action)
 void
 NdbInterpretedCode::reset()
 {
-  if (m_internal_buffer != NULL)
+  if (m_internal_buffer != nullptr)
   {
     if (m_buffer == m_internal_buffer)
     {
-      m_buffer = NULL;
+      m_buffer = nullptr;
       m_buffer_length = 0;
     }
     delete [] m_internal_buffer;
-    m_internal_buffer = NULL;
+    m_internal_buffer = nullptr;
   }
   m_number_of_labels = 0;
   m_number_of_subs = 0;
@@ -136,7 +136,7 @@ NdbInterpretedCode::have_space_for(Uint32 wordsRequired)
   if (likely(m_available_length >= wordsRequired))
     return true;
 
-  if ((m_internal_buffer != NULL) || (m_buffer_length == 0))
+  if ((m_internal_buffer != nullptr) || (m_buffer_length == 0))
   {
     Uint32 newSize= m_buffer_length;
     const Uint32 extraRequired= wordsRequired - m_available_length; 
@@ -161,7 +161,7 @@ NdbInterpretedCode::have_space_for(Uint32 wordsRequired)
     {
       Uint32 *newBuf= new Uint32[ newSize ];
       
-      if (newBuf != NULL)
+      if (newBuf != nullptr)
       {
         Uint32 metaInfoWords= m_buffer_length - m_last_meta_pos;
         Uint32 newLastMetaInfoPos= newSize - metaInfoWords;
@@ -321,11 +321,11 @@ NdbInterpretedCode::read_attr_impl(const NdbColumnImpl *c, Uint32 RegDest)
 int
 NdbInterpretedCode::read_attr(Uint32 RegDest, Uint32 attrId)
 {
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
-  if (unlikely(c == NULL))
+  if (unlikely(c == nullptr))
     return error(BadAttributeId);
   return read_attr_impl(c, RegDest);
 }
@@ -334,7 +334,7 @@ int
 NdbInterpretedCode::read_attr(Uint32 RegDest, 
                               const NdbDictionary::Column *column)
 {
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   // TODO : Check column is from the correct table
@@ -352,11 +352,11 @@ NdbInterpretedCode::write_attr_impl(const NdbColumnImpl *c, Uint32 RegSource)
 int
 NdbInterpretedCode::write_attr(Uint32 attrId, Uint32 RegSource)
 {
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
-  if (unlikely(c == NULL))
+  if (unlikely(c == nullptr))
     return error(BadAttributeId);
   return write_attr_impl(c, RegSource);
 }
@@ -365,7 +365,7 @@ int
 NdbInterpretedCode::write_attr(const NdbDictionary::Column *column,
                                Uint32 RegSource)
 {
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   // TODO : Check column is from the right table
@@ -483,12 +483,12 @@ int NdbInterpretedCode::branch_col_eq_null(Uint32 attrId, Uint32 label)
 {
   int res= 0;
 
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
 
-  if (unlikely(c == NULL))
+  if (unlikely(c == nullptr))
     return error(BadAttributeId);
 
   if (c->m_storageType == NDB_STORAGETYPE_DISK)
@@ -506,12 +506,12 @@ int NdbInterpretedCode::branch_col_ne_null(Uint32 attrId, Uint32 label)
 {
   int res= 0;
 
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
 
-  if (unlikely(c == NULL))
+  if (unlikely(c == nullptr))
     return error(BadAttributeId);
 
   if (c->m_storageType == NDB_STORAGETYPE_DISK)
@@ -535,7 +535,7 @@ NdbInterpretedCode::branch_col_val(Uint32 branch_type,
   DBUG_ENTER("NdbInterpretedCode::branch_col_val");
   DBUG_PRINT("enter", ("type: %u  col:%u  val: %p  len: %u  label: %u",
                        branch_type, attrId, val, len, label));
-  if (val != NULL)
+  if (val != nullptr)
     DBUG_DUMP("value", (const uchar *)val, len);
   else
     DBUG_PRINT("info", ("value == NULL"));
@@ -543,19 +543,19 @@ NdbInterpretedCode::branch_col_val(Uint32 branch_type,
   Interpreter::BinaryCondition cond =
     (Interpreter::BinaryCondition)branch_type;
   
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     DBUG_RETURN(error(4538));
 
   const NdbColumnImpl * col = 
     m_table_impl->getColumn(attrId);
   
-  if(col == NULL){
+  if(col == nullptr){
     DBUG_RETURN(error(BadAttributeId));
   }
 
   Uint32 lastWordMask= ~0;
-  if (val == NULL)
+  if (val == nullptr)
     len = 0;
   else {
     if (! col->getStringType())
@@ -642,7 +642,7 @@ NdbInterpretedCode::branch_col_col(Uint32 branch_type,
     (Interpreter::BinaryCondition)branch_type;
   assert(cond != Interpreter::LIKE && cond != Interpreter::NOT_LIKE);
 
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     DBUG_RETURN(error(4538));
 
@@ -1160,8 +1160,8 @@ static void update(NdbError &error)
 const NdbDictionary::Table * 
 NdbInterpretedCode::getTable() const
 {
-  return (m_table_impl == NULL) ? 
-    NULL : 
+  return (m_table_impl == nullptr) ? 
+    nullptr : 
     m_table_impl->m_facade;
 }
 
@@ -1193,13 +1193,13 @@ NdbInterpretedCode::copy(const NdbInterpretedCode& src)
   /**
    * Each NdbInterpretedCode manages life cycle of m_internal_buffer.
    */
-  if (m_internal_buffer!=NULL)
+  if (m_internal_buffer!=nullptr)
   {
     delete[] m_internal_buffer;
-    m_internal_buffer = NULL;
+    m_internal_buffer = nullptr;
   }
 
-  if (src.m_internal_buffer==NULL)
+  if (src.m_internal_buffer==nullptr)
   {
     // External buffer with externally managed life cycle.
     m_buffer = src.m_buffer;
@@ -1207,7 +1207,7 @@ NdbInterpretedCode::copy(const NdbInterpretedCode& src)
   else
   {
     m_buffer = m_internal_buffer = new Uint32[m_buffer_length];
-    if (unlikely(m_internal_buffer==NULL))
+    if (unlikely(m_internal_buffer==nullptr))
     {
       return 4000; // Allocation failed.
     }
@@ -1278,7 +1278,7 @@ NdbInterpretedCode::finalise()
         return -1;
   }
 
-  assert (m_buffer != NULL);
+  assert (m_buffer != nullptr);
 
   /* Use label and subroutine meta-info at
    * the end of the code buffer to determine
@@ -1309,7 +1309,7 @@ NdbInterpretedCode::finalise()
     Interpreter::InstructionPreProcessing action;
     nextIp= Interpreter::getInstructionPreProcessingInfo(ip,
                                                          action);
-    if (nextIp == NULL)
+    if (nextIp == nullptr)
     {
       m_error.code= 4516; // Illegal instruction in interpreted program
       return -1;

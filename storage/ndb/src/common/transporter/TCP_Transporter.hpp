@@ -178,7 +178,7 @@ void
 ReceiveBuffer::destroy(){
   delete[] startOfBuffer;
   sizeOfBuffer  = 0;
-  startOfBuffer = 0;
+  startOfBuffer = nullptr;
   clear();
 }
 

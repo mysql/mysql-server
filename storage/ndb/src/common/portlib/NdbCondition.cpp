@@ -119,7 +119,7 @@ NdbCondition_Init(struct NdbCondition* ndb_cond)
   }
   else
   {
-    result = pthread_cond_init(&ndb_cond->cond, NULL);
+    result = pthread_cond_init(&ndb_cond->cond, nullptr);
   }
 #else
   result = native_cond_init(&ndb_cond->cond);
@@ -135,8 +135,8 @@ NdbCondition_Create(void)
   struct NdbCondition* tmpCond;
 
   tmpCond = (struct NdbCondition*)malloc(sizeof(struct NdbCondition));
-  if (tmpCond == NULL)
-    return NULL;
+  if (tmpCond == nullptr)
+    return nullptr;
 
   (void)NdbCondition_Init(tmpCond);
   return tmpCond;
@@ -148,7 +148,7 @@ NdbCondition_Wait(struct NdbCondition* p_cond,
 {
   int result;
 
-  if (p_cond == NULL || p_mutex == NULL)
+  if (p_cond == nullptr || p_mutex == nullptr)
     return 1;
   
 #ifdef NDB_MUTEX_STRUCT
@@ -249,7 +249,7 @@ NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
   const struct timespec * waitarg = abstime;
 #endif
 
-  if (p_cond == NULL || p_mutex == NULL)
+  if (p_cond == nullptr || p_mutex == nullptr)
     return 1;
 
 #ifdef NDB_MUTEX_STRUCT
@@ -263,7 +263,7 @@ int
 NdbCondition_Signal(struct NdbCondition* p_cond){
   int result;
 
-  if (p_cond == NULL)
+  if (p_cond == nullptr)
     return 1;
 
   result = native_cond_signal(&p_cond->cond);
@@ -276,7 +276,7 @@ int NdbCondition_Broadcast(struct NdbCondition* p_cond)
 {
   int result;
 
-  if (p_cond == NULL)
+  if (p_cond == nullptr)
     return 1;
 
   result = native_cond_broadcast(&p_cond->cond);
@@ -288,7 +288,7 @@ int NdbCondition_Broadcast(struct NdbCondition* p_cond)
 int NdbCondition_Destroy(struct NdbCondition* p_cond)
 {
 
-  if (p_cond == NULL)
+  if (p_cond == nullptr)
     return 1;
 
   int result [[maybe_unused]];

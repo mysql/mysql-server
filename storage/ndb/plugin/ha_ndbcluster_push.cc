@@ -106,7 +106,7 @@ ndb_pushed_join::ndb_pushed_join(const ndb_pushed_builder_ctx &builder,
     : m_query_def(query_def),
       m_operation_count(0),
       m_field_count(builder.m_fld_refs) {
-  assert(query_def != NULL);
+  assert(query_def != nullptr);
   assert(builder.m_fld_refs <= MAX_REFERRED_FIELDS);
   ndb_table_access_map searched;
   for (uint tab_no = 0; searched != builder.m_join_scope; tab_no++) {
@@ -149,12 +149,12 @@ bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
   // Check that we still use the same index as when the query was prepared.
   switch (def_type) {
     case NdbQueryOperationDef::PrimaryKeyAccess:
-      assert(idx != NULL);
+      assert(idx != nullptr);
       assert(idx->unique_index == expected_index);
       break;
 
     case NdbQueryOperationDef::UniqueIndexAccess:
-      assert(idx != NULL);
+      assert(idx != nullptr);
       // assert(idx->unique_index == expected_index);
       if (idx->unique_index != expected_index) {
         DBUG_PRINT("info",
@@ -167,11 +167,11 @@ bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
       break;
 
     case NdbQueryOperationDef::TableScan:
-      assert(idx == NULL && expected_index == NULL);
+      assert(idx == nullptr && expected_index == nullptr);
       break;
 
     case NdbQueryOperationDef::OrderedIndexScan:
-      assert(idx != NULL);
+      assert(idx != nullptr);
       // assert(idx->index == expected_index);
       if (idx->index != expected_index) {
         DBUG_PRINT("info", ("Actual index %s differs from expected index %s. "
@@ -270,7 +270,7 @@ NdbQuery *ndb_pushed_join::make_query_instance(
    * after the keyFieldParams[].
    */
   uint outer_fields = get_field_referrences_count();
-  NdbQueryParamValue *extendedParams = NULL;
+  NdbQueryParamValue *extendedParams = nullptr;
   if (unlikely(outer_fields > 0)) {
     uint size = sizeof(NdbQueryParamValue) * (paramCnt + outer_fields);
     extendedParams = reinterpret_cast<NdbQueryParamValue *>(my_alloca(size));
@@ -307,7 +307,7 @@ NdbQuery *ndb_pushed_join::make_query_instance(
   }
 
   NdbQuery *query = trans->createQuery(&get_query_def(), paramValues);
-  if (unlikely(extendedParams != NULL)) {
+  if (unlikely(extendedParams != nullptr)) {
     for (uint i = 0; i < paramCnt + outer_fields; i++) {
       extendedParams[i].~NdbQueryParamValue();
     }
@@ -487,7 +487,7 @@ ndb_table_access_map ndb_pushed_builder_ctx::get_table_map(
 int ndb_pushed_builder_ctx::make_pushed_join(
     const ndb_pushed_join *&pushed_join) {
   DBUG_TRACE;
-  pushed_join = NULL;
+  pushed_join = nullptr;
 
   if (is_pushable_with_root()) {
     int error;
@@ -498,11 +498,11 @@ int ndb_pushed_builder_ctx::make_pushed_join(
     if (unlikely(error)) return error;
 
     const NdbQueryDef *const query_def = m_builder->prepare(m_thd_ndb->ndb);
-    if (unlikely(query_def == NULL))
+    if (unlikely(query_def == nullptr))
       return -1;  // Get error with ::getNdbError()
 
     pushed_join = new ndb_pushed_join(*this, query_def);
-    if (unlikely(pushed_join == NULL)) return HA_ERR_OUT_OF_MEM;
+    if (unlikely(pushed_join == nullptr)) return HA_ERR_OUT_OF_MEM;
 
     DBUG_PRINT("info", ("Created pushed join with %d child operations",
                         pushed_join->get_operation_count() - 1));
@@ -2154,7 +2154,7 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
     }  // Item::FIELD_ITEM
   }
 
-  key_refs[table->get_no_of_key_fields()] = NULL;
+  key_refs[table->get_no_of_key_fields()] = nullptr;
 }  // ndb_pushed_builder_ctx::collect_key_refs()
 
 /**
@@ -2191,17 +2191,17 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
   assert(m_join_scope.contain(tab_no));
 
   const KEY *const key = &table->get_table()->key_info[table->get_index_no()];
-  op_key[0] = NULL;
+  op_key[0] = nullptr;
 
   if (table == m_join_root) {
     if (!m_scan_operations.contain(tab_no)) {
       for (uint i = 0; i < key->user_defined_key_parts; i++) {
         op_key[i] = m_builder->paramValue();
-        if (unlikely(op_key[i] == NULL)) {
+        if (unlikely(op_key[i] == nullptr)) {
           return -1;
         }
       }
-      op_key[key->user_defined_key_parts] = NULL;
+      op_key[key->user_defined_key_parts] = nullptr;
     }
   } else {
     const uint key_fields = table->get_no_of_key_fields();
@@ -2226,7 +2226,7 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
     const KEY_PART_INFO *key_part = key->key_part;
     for (uint i = 0; i < key_fields; i++, key_part++) {
       const Item *const item = join_items[i];
-      op_key[map[i]] = NULL;
+      op_key[map[i]] = nullptr;
 
       if (item->const_for_execution()) {
         /**
@@ -2253,7 +2253,7 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
           // May refer any of the preceding parent tables
           const NdbQueryOperationDef *const parent_op =
               m_tables[referred_table_no].m_op;
-          assert(parent_op != NULL);
+          assert(parent_op != nullptr);
 
           // TODO use field_index ??
           op_key[map[i]] = m_builder->linkedValue(
@@ -2272,18 +2272,18 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
         }
       }
 
-      if (unlikely(op_key[map[i]] == NULL)) {
+      if (unlikely(op_key[map[i]] == nullptr)) {
         return -1;
       }
     }
-    op_key[key_fields] = NULL;
+    op_key[key_fields] = nullptr;
 
     // Might have to explicit set the designated parent.
     const uint tab_no = table->get_access_no();
     const uint parent_no = m_tables[tab_no].m_parent;
     if (!referred_parents.contain(parent_no)) {
       // Add the parent as a new dependency
-      assert(m_tables[parent_no].m_op != NULL);
+      assert(m_tables[parent_no].m_op != nullptr);
       key_options->setParent(m_tables[parent_no].m_op);
     }
   }
@@ -2302,9 +2302,9 @@ int ndb_pushed_builder_ctx::build_query() {
   const uint root_no = m_join_root->get_access_no();
   assert(m_join_scope.contain(root_no));
 
-  if (m_builder == NULL) {
+  if (m_builder == nullptr) {
     m_builder = NdbQueryBuilder::create();
-    if (unlikely(m_builder == NULL)) {
+    if (unlikely(m_builder == nullptr)) {
       return HA_ERR_OUT_OF_MEM;
     }
   }
@@ -2487,7 +2487,7 @@ int ndb_pushed_builder_ctx::build_query() {
       }
     }
 
-    const NdbQueryOperationDef *query_op = NULL;
+    const NdbQueryOperationDef *query_op = nullptr;
     if (!m_scan_operations.contain(tab_no)) {
       // Primary key access assumed
       if (access_type == AQP::AT_PRIMARY_KEY ||
@@ -2515,7 +2515,7 @@ int ndb_pushed_builder_ctx::build_query() {
     else if (access_type == AQP::AT_ORDERED_INDEX_SCAN ||
              access_type == AQP::AT_MULTI_MIXED) {
       assert(table->get_index_no() >= 0);
-      assert(handler->m_index[table->get_index_no()].index != NULL);
+      assert(handler->m_index[table->get_index_no()].index != nullptr);
 
       DBUG_PRINT("info", ("Operation is 'equal-range-lookup'"));
       DBUG_PRINT(

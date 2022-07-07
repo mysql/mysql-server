@@ -388,12 +388,11 @@ class ha_ndbcluster : public handler, public Partition_handler {
       TABLE *altered_table, Alter_inplace_info *ha_alter_info) override;
 
  private:
-  static bool inplace_parse_comment(NdbDictionary::Table *new_tab,
-                                    const NdbDictionary::Table *old_tab,
-                                    HA_CREATE_INFO *create_info, THD *thd,
-                                    Ndb *ndb, const char **unsupported_reason,
-                                    bool &max_rows_changed,
-                                    bool *partition_balance_in_comment = NULL);
+  static bool inplace_parse_comment(
+      NdbDictionary::Table *new_tab, const NdbDictionary::Table *old_tab,
+      HA_CREATE_INFO *create_info, THD *thd, Ndb *ndb,
+      const char **unsupported_reason, bool &max_rows_changed,
+      bool *partition_balance_in_comment = nullptr);
 
  public:
   bool prepare_inplace_alter_table(TABLE *altered_table,
@@ -491,7 +490,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool check_if_pushable(int type,  // NdbQueryOperationDef::Type,
                          uint idx = MAX_KEY) const;
   bool check_is_pushed() const;
-  int create_pushed_join(const NdbQueryParamValue *keyFieldParams = NULL,
+  int create_pushed_join(const NdbQueryParamValue *keyFieldParams = nullptr,
                          uint paramCnt = 0);
 
   int ndb_pk_update_row(THD *thd, const uchar *old_data, uchar *new_data);

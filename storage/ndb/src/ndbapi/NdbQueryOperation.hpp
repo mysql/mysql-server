@@ -292,10 +292,10 @@ public:
    *                     the attribute, or a NULL pointer 
    *                     (indicating error).
    */
-  NdbRecAttr* getValue(const char* anAttrName, char* resultBuffer = 0);
-  NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer = 0);
+  NdbRecAttr* getValue(const char* anAttrName, char* resultBuffer = nullptr);
+  NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer = nullptr);
   NdbRecAttr* getValue(const NdbDictionary::Column* column, 
-		       char* resultBuffer = 0);
+		       char* resultBuffer = nullptr);
 
   /**
    * Retrieval of entire or partial rows may also be specified. For partial
@@ -318,11 +318,11 @@ public:
    */
   int setResultRowBuf (const NdbRecord *rec,
                        char* resBuffer,
-                       const unsigned char* result_mask = 0);
+                       const unsigned char* result_mask = nullptr);
 
   int setResultRowRef (const NdbRecord* rec,
                        const char* & bufRef,
-                       const unsigned char* result_mask = 0);
+                       const unsigned char* result_mask = nullptr);
 
   // TODO: define how BLOB/CLOB should be retrieved.
   // ... Replicate ::getBlobHandle() from NdbOperation class?

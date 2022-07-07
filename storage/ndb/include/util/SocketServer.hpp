@@ -96,15 +96,16 @@ public:
    *  then  close the socket
    * Returns true if succeeding in binding
    */
-  static bool tryBind(unsigned short port, const char* intface = 0,
-                      char* error = NULL, size_t error_size = 0);
+  static bool tryBind(unsigned short port, const char* intface = nullptr,
+                      char* error = nullptr, size_t error_size = 0);
 
   /**
    * Setup socket
    *   bind & listen
    * Returns false if no success
    */
-  bool setup(Service *, unsigned short *port, const char * pinterface = 0);
+  bool setup(Service *, unsigned short *port, 
+             const char * pinterface = nullptr);
   
   /**
    * start/stop the server

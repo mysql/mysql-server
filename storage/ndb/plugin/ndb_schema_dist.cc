@@ -773,7 +773,7 @@ uint32 Ndb_schema_dist_client::calculate_anyvalue(bool force_nologging) const {
     This tests code filtering ServerIds on the value of server-id-bits.
   */
   const char *p = getenv("NDB_TEST_ANYVALUE_USERDATA");
-  if (p != 0 && *p != 0 && *p != '0' && *p != 'n' && *p != 'N') {
+  if (p != nullptr && *p != 0 && *p != '0' && *p != 'n' && *p != 'N') {
     dbug_ndbcluster_anyvalue_set_userbits(anyValue);
   }
 #endif

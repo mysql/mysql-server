@@ -65,7 +65,7 @@ public:
 private:
   friend class NdbInfoRecAttrCollection;
   NdbInfoRecAttr() :
-    m_data(NULL),
+    m_data(nullptr),
     m_len(0),
     m_defined(false),
     m_requested(false)

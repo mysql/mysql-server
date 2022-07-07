@@ -70,7 +70,7 @@ MultiNdbWakeupHandler::~MultiNdbWakeupHandler()
   if (localWakeupMutexPtr)
   {
     NdbMutex_Destroy(localWakeupMutexPtr);
-    localWakeupMutexPtr = NULL;
+    localWakeupMutexPtr = nullptr;
   }
   PollGuard pg(* wakeNdb->theImpl);
   bool rc = wakeNdb->theImpl->m_transporter_facade->
@@ -115,7 +115,7 @@ void MultiNdbWakeupHandler::registerNdb(Ndb* obj)
 
 void MultiNdbWakeupHandler::unregisterNdb(Ndb *obj)
 {
-  obj->theImpl->wakeHandler = 0;
+  obj->theImpl->wakeHandler = nullptr;
 }
 
 

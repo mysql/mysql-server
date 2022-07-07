@@ -413,7 +413,7 @@ NdbRecAttr*
 NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 {
   NdbRecAttr* tRecAttr;
-  if ((tAttrInfo != NULL) &&
+  if ((tAttrInfo != nullptr) &&
       (theStatus != Init)){
     if (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK)
     {
@@ -428,7 +428,7 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 	  ; // Simply continue with getValue
 	} else if (theStatus == ExecInterpretedValue) {
 	  if (insertATTRINFO(Interpreter::EXIT_OK) == -1)
-	    return NULL;
+	    return nullptr;
 	  theInterpretedSize = theTotalCurrAI_Len -
 	    (theInitialReadSize + 5);
 	} else if (theStatus == SetValueInterpreted) {
@@ -436,13 +436,13 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 	    (theInitialReadSize + theInterpretedSize + 5);
 	} else {
 	  setErrorCodeAbort(4230);
-	  return NULL;
+	  return nullptr;
 	}//if
         /* Final read, after running interpreted instructions. */
 	theStatus = FinalGetValue;
       } else {
 	setErrorCodeAbort(4230);
-	return NULL;
+	return nullptr;
       }//if
     }//if
     AttributeHeader ah(tAttrInfo->m_attrId, 0);
@@ -452,24 +452,24 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
       /************************************************************************
        * Get a Receive Attribute object and link it into the operation object.
        ***********************************************************************/
-      if((tRecAttr = theReceiver.getValue(tAttrInfo, aValue)) != 0){
+      if((tRecAttr = theReceiver.getValue(tAttrInfo, aValue)) != nullptr){
 	theErrorLine++;
 	return tRecAttr;
       } else {  
 	setErrorCodeAbort(4000);
-	return NULL;
+	return nullptr;
       }
     } else {
-      return NULL;
+      return nullptr;
     }//if insertATTRINFO failure
   } else {
-    if (tAttrInfo == NULL) {
+    if (tAttrInfo == nullptr) {
       setErrorCodeAbort(4004);      
-      return NULL;
+      return nullptr;
     }//if
   }//if
   setErrorCodeAbort(4200);
-  return NULL;
+  return nullptr;
 }
 
 NdbRecAttr*
@@ -486,12 +486,12 @@ NdbOperation::getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue)
     For getValue with NdbRecord operations, we just allocate the NdbRecAttr,
     the signal data will be constructed later.
   */
-  if((tRecAttr = theReceiver.getValue(tAttrInfo, aValue)) != 0) {
+  if((tRecAttr = theReceiver.getValue(tAttrInfo, aValue)) != nullptr) {
     theErrorLine++;
     return tRecAttr;
   } else {
     setErrorCodeAbort(4000);
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -600,7 +600,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
     setErrorCodeAbort(4108);
     DBUG_RETURN(-1);
   }//if
-  if (tAttrInfo == NULL) {
+  if (tAttrInfo == nullptr) {
     setErrorCodeAbort(4004);      
     DBUG_RETURN(-1);
   }//if
@@ -620,7 +620,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
     m_flags &= ~Uint8(OF_NO_DISK);
   }
   const char *aValue = aValuePassed; 
-  if (aValue == NULL) {
+  if (aValue == nullptr) {
     if (tAttrInfo->m_nullable) {
       AttributeHeader ah(tAttrId, 0);
       ah.setNULL();
@@ -738,8 +738,8 @@ NdbBlob*
 NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo)
 {
   NdbBlob* tBlob = theBlobList;
-  NdbBlob* tLastBlob = NULL;
-  while (tBlob != NULL) {
+  NdbBlob* tLastBlob = nullptr;
+  while (tBlob != nullptr) {
     if (tBlob->theColumn == tAttrInfo)
       return tBlob;
     tLastBlob = tBlob;
@@ -757,7 +757,7 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
   if (m_attribute_record)
   {
     setErrorCodeAbort(4288);
-    return NULL;
+    return nullptr;
   }
 
   /* Check key fully defined for key operations */
@@ -776,22 +776,22 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
     /* Unexpected state to be obtaining Blob handle */
     /* Invalid usage of blob attribute */
     setErrorCodeAbort(4264);
-    return NULL;
+    return nullptr;
   }
   }
 
   tBlob = theNdb->getNdbBlob();
-  if (tBlob == NULL)
-    return NULL;
+  if (tBlob == nullptr)
+    return nullptr;
   if (tBlob->atPrepare(aCon, this, tAttrInfo) == -1) {
     theNdb->releaseNdbBlob(tBlob);
-    return NULL;
+    return nullptr;
   }
-  if (tLastBlob == NULL)
+  if (tLastBlob == nullptr)
     theBlobList = tBlob;
   else
     tLastBlob->theNext = tBlob;
-  tBlob->theNext = NULL;
+  tBlob->theNext = nullptr;
   theNdbCon->theBlobFlag = true;
   theNdbCon->m_userDefinedBlobOps = true;
   return tBlob;
@@ -802,7 +802,7 @@ NdbBlob* NdbOperation::getBlobHandle(NdbTransaction* /*aCon*/,
                                      const NdbColumnImpl* tAttrInfo) const
 {
   NdbBlob* tBlob = theBlobList;
-  while (tBlob != NULL) {
+  while (tBlob != nullptr) {
     if (tBlob->theColumn == tAttrInfo)
       return tBlob;
     tBlob = tBlob->theNext;
@@ -813,7 +813,7 @@ NdbBlob* NdbOperation::getBlobHandle(NdbTransaction* /*aCon*/,
     or NdbRecAttr
   */
   setErrorCodeAbort(4288);
-  return NULL;
+  return nullptr;
 }
 
 /*
@@ -839,15 +839,15 @@ NdbOperation::linkInBlobHandle(NdbTransaction *aCon,
   int res;
 
   NdbBlob *bh= theNdb->getNdbBlob();
-  if (bh == NULL)
-    return NULL;
+  if (bh == nullptr)
+    return nullptr;
 
   if (theOperationType == OpenScanRequest ||
       theOperationType == OpenRangeScanRequest)
   {
     res= bh->atPrepareNdbRecordScan(aCon, this, column);
   }
-  else if (m_key_record == NULL)
+  else if (m_key_record == nullptr)
   {
     /* This means that we have a scan take-over operation, and we should
        obtain the key from KEYINFO20 data.
@@ -862,14 +862,14 @@ NdbOperation::linkInBlobHandle(NdbTransaction *aCon,
   if (res == -1)
   {
     theNdb->releaseNdbBlob(bh);
-    return NULL;
+    return nullptr;
   }
   if (lastPtr)
     lastPtr->theNext= bh;
   else
     theBlobList= bh;
   lastPtr= bh;
-  bh->theNext= NULL;
+  bh->theNext= nullptr;
   theNdbCon->theBlobFlag= true;
   theNdbCon->m_userDefinedBlobOps = true;
 
@@ -887,7 +887,7 @@ int
 NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon, 
                                       const Uint32 * m_read_mask)
 {
-  NdbBlob *lastBlob= NULL;
+  NdbBlob *lastBlob= nullptr;
 
   for (Uint32 i= 0; i<m_attribute_record->noOfColumns; i++)
   {
@@ -901,10 +901,10 @@ NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon,
       continue;
 
     const NdbColumnImpl *tableColumn= m_currentTable->getColumn(attrId);
-    assert(tableColumn != NULL);
+    assert(tableColumn != nullptr);
 
     NdbBlob *bh= linkInBlobHandle(aCon, tableColumn, lastBlob);
-    if (bh == NULL)
+    if (bh == nullptr)
       return -1;
 
     if (theOperationType == ReadRequest || theOperationType == ReadExclusive)
@@ -931,14 +931,14 @@ NdbOperation::getBlobHandlesNdbRecordDelete(NdbTransaction* aCon,
                                             bool checkReadSet,
                                             const Uint32 * m_read_mask)
 {
-  NdbBlob *lastBlob= NULL;
+  NdbBlob *lastBlob= nullptr;
 
   assert(theOperationType == DeleteRequest);
 
   for (Uint32 i= 0; i < m_currentTable->m_columns.size(); i++)
   {
     const NdbColumnImpl* c= m_currentTable->m_columns[i];
-    assert(c != 0);
+    assert(c != nullptr);
     if (!c->getBlobType())
       continue;
 
@@ -952,7 +952,7 @@ NdbOperation::getBlobHandlesNdbRecordDelete(NdbTransaction* aCon,
     }
 
     NdbBlob *bh= linkInBlobHandle(aCon, c, lastBlob);
-    if (bh == NULL)
+    if (bh == nullptr)
       return -1;
   }
 
@@ -964,8 +964,8 @@ NdbOperation::getVarValue(const NdbColumnImpl* tAttrInfo,
                           char* aBareValue, Uint16* aLenLoc)
 {
   NdbRecAttr* ra = getValue(tAttrInfo, aBareValue);
-  if (ra != NULL) {
-    assert(aLenLoc != NULL);
+  if (ra != nullptr) {
+    assert(aLenLoc != nullptr);
     ra->m_getVarValue = aLenLoc;
   }
   return ra;
@@ -1013,16 +1013,16 @@ NdbOperation::insertATTRINFO( Uint32 aData )
     NdbApiSignal* tFirstAttrinfo = theFirstATTRINFO;
     tAI_LenInCurrAI = 3;
     tSignal = tNdb->getSignal();
-    if (tSignal != NULL) {
+    if (tSignal != nullptr) {
       tSignal->setSignal(m_attrInfoGSN, refToBlock(theNdbCon->m_tcRef));
       tAttrPtr = &tSignal->getDataPtrSend()[3];
-      if (tFirstAttrinfo == NULL) {
-        tSignal->next(NULL);
+      if (tFirstAttrinfo == nullptr) {
+        tSignal->next(nullptr);
         theFirstATTRINFO = tSignal;
         theCurrentATTRINFO = tSignal;
       } else {
         NdbApiSignal* tCurrentAttrinfoBeforeUpdate = theCurrentATTRINFO;
-        tSignal->next(NULL);
+        tSignal->next(nullptr);
         theCurrentATTRINFO = tSignal;
         tCurrentAttrinfoBeforeUpdate->next(tSignal);
       }//if
@@ -1070,16 +1070,16 @@ NdbOperation::insertATTRINFOloop(const Uint32* aDataPtr,
       NdbApiSignal* tFirstAttrinfo = theFirstATTRINFO;
       tAI_LenInCurrAI = 3;
       tSignal = tNdb->getSignal();
-      if (tSignal != NULL) {
+      if (tSignal != nullptr) {
         tSignal->setSignal(m_attrInfoGSN, refToBlock(theNdbCon->m_tcRef));
         tAttrPtr = &tSignal->getDataPtrSend()[3];
-        if (tFirstAttrinfo == NULL) {
-          tSignal->next(NULL);
+        if (tFirstAttrinfo == nullptr) {
+          tSignal->next(nullptr);
           theFirstATTRINFO = tSignal;
           theCurrentATTRINFO = tSignal;
         } else {
           NdbApiSignal* tCurrentAttrinfoBeforeUpdate = theCurrentATTRINFO;
-          tSignal->next(NULL);
+          tSignal->next(nullptr);
           theCurrentATTRINFO = tSignal;
           tCurrentAttrinfoBeforeUpdate->next(tSignal);
         }//if
@@ -1144,7 +1144,7 @@ NdbOperation::prepareGetLockHandleNdbRecord()
    * when the OO_LOCKHANDLE flag is set on an NdbRecord
    * operation.
    */
-  assert(theLockHandle == NULL);
+  assert(theLockHandle == nullptr);
   theLockHandle = theNdbCon->getLockHandle();
   if (!theLockHandle)
   {
@@ -1224,7 +1224,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
     return 4297;
   }
 
-  bool isScanTakeoverOp = (op->m_key_record == NULL); 
+  bool isScanTakeoverOp = (op->m_key_record == nullptr); 
   
   if (opts->optionsPresent & OperationOptions::OO_ABORTOPTION)
   {
@@ -1249,7 +1249,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
   if ((opts->optionsPresent & OperationOptions::OO_GETVALUE) &&
       (opts->numExtraGetValues > 0))
   {
-    if (opts->extraGetValues == NULL)
+    if (opts->extraGetValues == nullptr)
     {
       // Incorrect combination of OperationOptions optionsPresent, 
       // extraGet/SetValues ptr and numExtraGet/SetValues
@@ -1271,9 +1271,9 @@ NdbOperation::handleOperationOptions (const OperationType type,
         GetValueSpec *pvalSpec 
           = &(opts->extraGetValues[i]);
 
-        pvalSpec->recAttr=NULL;
+        pvalSpec->recAttr=nullptr;
 
-        if (pvalSpec->column == NULL)
+        if (pvalSpec->column == nullptr)
         {
           // Column is NULL in Get/SetValueSpec structure
           return 4295;
@@ -1283,7 +1283,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
           op->getValue_NdbRecord(&NdbColumnImpl::getImpl(*pvalSpec->column),
                                  (char *) pvalSpec->appStorage);
         
-        if (pra == NULL)
+        if (pra == nullptr)
         {
           return -1;
         }
@@ -1311,7 +1311,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
   if ((opts->optionsPresent & OperationOptions::OO_SETVALUE) &&
       (opts->numExtraSetValues > 0))
   {
-    if (opts->extraSetValues == NULL)
+    if (opts->extraSetValues == nullptr)
     {
       // Incorrect combination of OperationOptions optionsPresent, 
       // extraGet/SetValues ptr and numExtraGet/SetValues
@@ -1331,7 +1331,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
         const NdbDictionary::Column *pcol=opts->extraSetValues[i].column;
         const void *pvalue=opts->extraSetValues[i].value;
 
-        if (pcol == NULL)
+        if (pcol == nullptr)
         {
           // Column is NULL in Get/SetValueSpec structure
           return 4295;
@@ -1345,7 +1345,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
           return 4202;
         }
 
-        if (pvalue == NULL)
+        if (pvalue == nullptr)
         {
           if (!pcol->getNullable())
           {
@@ -1378,7 +1378,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
   if (opts->optionsPresent & OperationOptions::OO_PARTITION_ID)
   {
     /* Should not have any blobs defined at this stage */
-    assert(op->theBlobList == NULL);
+    assert(op->theBlobList == nullptr);
 
     /* Not allowed for scan takeover ops */
     if (unlikely(isScanTakeoverOp))
@@ -1393,7 +1393,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
      */
     if (unlikely( ! (((op->m_attribute_record->flags & 
                        NdbRecord::RecHasUserDefinedPartitioning) &&
-                      (op->m_key_record->table->m_index == NULL)) ||
+                      (op->m_key_record->table->m_index == nullptr)) ||
                      (type == UnlockRequest))))
     {
       /* Explicit partitioning info not allowed for table and operation*/
@@ -1426,7 +1426,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
      * Perhaps NdbInterpretedCode should not contain the table
      */
     const NdbDictionary::Table* codeTable= opts->interpretedCode->getTable();
-    if (codeTable != NULL)
+    if (codeTable != nullptr)
     {
       NdbTableImpl* impl= &NdbTableImpl::getImpl(*codeTable);
       

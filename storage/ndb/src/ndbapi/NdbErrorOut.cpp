@@ -35,7 +35,7 @@
  */
 NdbOut &
 operator<<(NdbOut & out, const NdbError & error){
-  if(error.message != 0)
+  if(error.message != nullptr)
     out << error.code << ": " << error.message;
   else
     out << error.code << ": ";

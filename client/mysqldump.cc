@@ -453,8 +453,8 @@ static struct my_option my_long_options[] = {
     {"mysqld-long-query-time", OPT_LONG_QUERY_TIME,
      "Set long_query_time for the session of this dump. Ommitting flag means "
      "using the server value.",
-     &opt_long_query_time, &opt_long_query_time, 0, GET_ULONG, REQUIRED_ARG, 0,
-     0, LONG_TIMEOUT, nullptr, 0, nullptr},
+     &opt_long_query_time, &opt_long_query_time, nullptr, GET_ULONG,
+     REQUIRED_ARG, 0, 0, LONG_TIMEOUT, nullptr, 0, nullptr},
     {"source-data", OPT_SOURCE_DATA,
      "This causes the binary log position and filename to be appended to the "
      "output. If equal to 1, will print it as a CHANGE MASTER command; if equal"

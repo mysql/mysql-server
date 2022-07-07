@@ -70,7 +70,7 @@ public:
    */
   class Context {
   public:
-    Context() { m_mutex= NULL; }
+    Context() { m_mutex= nullptr; }
     ParserStatus m_status;
     const ParserRow<T> * m_currentCmd;
     const ParserRow<T> * m_currentArg;
@@ -91,7 +91,7 @@ public:
   /**
    * Run parser
    */
-  bool run(Context &, T &, volatile bool * stop = 0) const;
+  bool run(Context &, T &, volatile bool * stop = nullptr) const;
 
   /**
    * Parse only one entry and return Properties object representing
@@ -213,7 +213,7 @@ Parser<T>::parse(Context &ctx, T &t) {
 
   if(impl->run((ParserImpl::Context*)&ctx, &p, &stop)){
     const ParserRow<T> * cmd = ctx.m_currentCmd; // Cast to correct type
-    if(cmd == 0){
+    if(cmd == nullptr){
       /**
        * Should happen if run returns true
        */
@@ -222,7 +222,7 @@ Parser<T>::parse(Context &ctx, T &t) {
 
     for(unsigned i = 0; i<ctx.m_aliasUsed.size(); i++){
       const ParserRow<T> * alias = ctx.m_aliasUsed[i];
-      if(alias->function != 0){
+      if(alias->function != nullptr){
 	/**
 	 * Report alias usage with callback (if specified by user)
 	 */
@@ -231,7 +231,7 @@ Parser<T>::parse(Context &ctx, T &t) {
       }
     }
 
-    if(cmd->function == 0){
+    if(cmd->function == nullptr){
       DEBUG("CommandWithoutFunction");
       ctx.m_status = CommandWithoutFunction;
       return p;
@@ -239,7 +239,7 @@ Parser<T>::parse(Context &ctx, T &t) {
     return p;
   }
   DEBUG("");
-  return NULL;
+  return nullptr;
 }
 
 #endif

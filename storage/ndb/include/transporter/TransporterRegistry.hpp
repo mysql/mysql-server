@@ -96,10 +96,10 @@ class TransporterService : public SocketServer::Service {
   SocketAuthenticator * m_auth;
   TransporterRegistry * m_transporter_registry;
 public:
-  TransporterService(SocketAuthenticator *auth= 0)
+  TransporterService(SocketAuthenticator *auth= nullptr)
   {
     m_auth= auth;
-    m_transporter_registry= 0;
+    m_transporter_registry= nullptr;
   }
   void setTransporterRegistry(TransporterRegistry *t)
   {
@@ -362,7 +362,7 @@ private:
   void report_connect(TransporterReceiveHandle&, NodeId node_id);
   void report_disconnect(TransporterReceiveHandle&, NodeId node_id, int errnum);
   void report_error(NodeId nodeId, TransporterError errorCode,
-                    const char *errorInfo = 0);
+                    const char *errorInfo = nullptr);
   void dump_and_report_bad_message(const char file[], unsigned line,
                     TransporterReceiveHandle & recvHandle,
                     Uint32 * readPtr,
@@ -665,7 +665,7 @@ public:
   void wakeup();
 
   inline bool setup_wakeup_socket() {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     return setup_wakeup_socket(* receiveHandle);
   }
 private:
@@ -713,27 +713,27 @@ public:
                           Uint32 max_spintime = UINT32_MAX);
 
   inline Uint32 pollReceive(Uint32 timeOutMillis) {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     return pollReceive(timeOutMillis, * receiveHandle);
   }
 
   inline Uint32 performReceive() {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     return performReceive(* receiveHandle, 0);
   }
 
   inline void update_connections() {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     update_connections(* receiveHandle);
   }
   inline Uint32 get_total_spintime()
   {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     return receiveHandle->m_total_spintime;
   }
   inline void reset_total_spintime()
   {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     receiveHandle->m_total_spintime = 0;
   }
 

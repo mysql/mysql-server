@@ -491,7 +491,7 @@ ConfigSection::get_default_section() const
       break;
     }
   }
-  return 0;
+  return nullptr;
 }
 
 Uint32

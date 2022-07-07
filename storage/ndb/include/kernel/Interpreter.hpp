@@ -480,7 +480,7 @@ Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
     return op + 1;
 
   default:
-    return NULL;
+    return nullptr;
   }
 }
 

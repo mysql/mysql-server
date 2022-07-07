@@ -27,7 +27,7 @@
 #include "NdbPoolImpl.hpp"
 #include <NdbPool.hpp>
 
-static NdbPool* m_pool = 0;
+static NdbPool* m_pool = nullptr;
 
 bool
 create_instance(Ndb_cluster_connection* cc,
@@ -35,14 +35,14 @@ create_instance(Ndb_cluster_connection* cc,
                 Uint32 no_conn_obj,
                 Uint32 init_no_ndb_objects)
 {
-  if (m_pool != NULL) {
+  if (m_pool != nullptr) {
     return false;
   }
   m_pool = NdbPool::create_instance(cc, 
 				    max_ndb_objects,
                                     no_conn_obj,
                                     init_no_ndb_objects);
-  if (m_pool == NULL) {
+  if (m_pool == nullptr) {
     return false;
   }
   return true;
@@ -51,11 +51,11 @@ create_instance(Ndb_cluster_connection* cc,
 void
 drop_instance()
 {
-  if (m_pool == NULL) {
+  if (m_pool == nullptr) {
     return;
   }
   NdbPool::drop_instance();
-  m_pool = NULL;
+  m_pool = nullptr;
 }
 
 Ndb*
@@ -63,8 +63,8 @@ get_ndb_object(Uint32 &hint_id,
                const char* a_catalog_name,
                const char* a_schema_name)
 {
-  if (m_pool == NULL) {
-    return NULL;
+  if (m_pool == nullptr) {
+    return nullptr;
   }
   return m_pool->get_ndb_object(hint_id, a_catalog_name, a_schema_name);
 }
@@ -72,7 +72,7 @@ get_ndb_object(Uint32 &hint_id,
 void
 return_ndb_object(Ndb* returned_object, Uint32 id)
 {
-  if (m_pool == NULL) {
+  if (m_pool == nullptr) {
     return;
   }
   m_pool->return_ndb_object(returned_object, id);

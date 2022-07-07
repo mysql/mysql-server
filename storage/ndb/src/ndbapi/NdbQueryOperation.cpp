@@ -836,17 +836,17 @@ private:
 NdbBulkAllocator::NdbBulkAllocator(size_t objSize)
   :m_objSize(objSize),
    m_maxObjs(0),
-   m_buffer(NULL),
+   m_buffer(nullptr),
    m_nextObjNo(0)
 {}
 
 int NdbBulkAllocator::init(Uint32 maxObjs)
 {
-  assert(m_buffer == NULL);
+  assert(m_buffer == nullptr);
   m_maxObjs = maxObjs;
   // Add check for buffer overrun.
   m_buffer = new char[m_objSize*m_maxObjs+1];
-  if (unlikely(m_buffer == NULL))
+  if (unlikely(m_buffer == nullptr))
   {
     return Err_MemoryAlloc;
   }
@@ -856,9 +856,9 @@ int NdbBulkAllocator::init(Uint32 maxObjs)
 
 void NdbBulkAllocator::reset(){
   // Overrun check.
-  assert(m_buffer == NULL || m_buffer[m_maxObjs * m_objSize] == endMarker); 
+  assert(m_buffer == nullptr || m_buffer[m_maxObjs * m_objSize] == endMarker); 
   delete [] m_buffer;
-  m_buffer = NULL;
+  m_buffer = nullptr;
   m_nextObjNo = 0;
   m_maxObjs = 0;
 }
@@ -868,15 +868,15 @@ void* NdbBulkAllocator::allocObjMem(Uint32 noOfObjs)
   assert(m_nextObjNo + noOfObjs <=  m_maxObjs);
   void * const result = m_buffer+m_objSize*m_nextObjNo;
   m_nextObjNo += noOfObjs;
-  return m_nextObjNo > m_maxObjs ? NULL : result;
+  return m_nextObjNo > m_maxObjs ? nullptr : result;
 }
 
 ///////////////////////////////////////////
 /////////  NdbResultSet methods ///////////
 ///////////////////////////////////////////
 NdbResultSet::NdbResultSet() :
-  m_buffer(NULL),
-  m_correlations(NULL),
+  m_buffer(nullptr),
+  m_correlations(nullptr),
   m_rowCount(0)
 {}
 
@@ -942,7 +942,7 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
   m_iterState(Iter_finished),
   m_currentRow(tupleNotFound),
   m_maxRows(0),
-  m_tupleSet(NULL)
+  m_tupleSet(nullptr)
 {
   if (m_parent != nullptr)
   {
@@ -1021,7 +1021,7 @@ NdbResultStream::prepare()
   const Uint32 rowSize = m_operation.getRowSize();
   assert((rowSize % sizeof(Uint32)) == 0);
   char *rowBuffer = reinterpret_cast<char*>(query.getRowBufferAlloc().allocObjMem(rowSize));
-  assert(rowBuffer != NULL);
+  assert(rowBuffer != nullptr);
 
   m_receiver.init(NdbReceiver::NDB_QUERY_OPERATION, &m_operation);
   m_receiver.do_setup_ndbrecord(
@@ -1042,11 +1042,11 @@ NdbResultStream::prepare()
 Uint16
 NdbResultStream::findTupleWithParentId(Uint16 parentId) const
 {
-  assert ((parentId==tupleNotFound) == (m_parent==NULL));
+  assert ((parentId==tupleNotFound) == (m_parent==nullptr));
 
   if (likely(m_resultSets[m_read].m_rowCount>0))
   {
-    if (m_tupleSet==NULL)
+    if (m_tupleSet==nullptr)
     {
       assert (m_resultSets[m_read].m_rowCount <= 1);
       return 0;
@@ -1076,7 +1076,7 @@ NdbResultStream::findTupleWithParentId(Uint16 parentId) const
 Uint16
 NdbResultStream::findNextTuple(Uint16 tupleNo) const
 {
-  if (tupleNo!=tupleNotFound && m_tupleSet!=NULL)
+  if (tupleNo!=tupleNotFound && m_tupleSet!=nullptr)
   {
     assert(tupleNo < m_maxRows);
     Uint16 parentId = m_tupleSet[tupleNo].m_parentId;
@@ -1101,7 +1101,7 @@ Uint16
 NdbResultStream::firstResult()
 {
   Uint16 parentId = tupleNotFound;
-  if (m_parent!=NULL)
+  if (m_parent!=nullptr)
   {
     if (!m_worker.hasValidRow(m_parent) ||
         (parentId = m_parent->getCurrentTupleId()) == tupleNotFound)
@@ -1116,7 +1116,7 @@ NdbResultStream::firstResult()
   {
     m_iterState = Iter_started;
     const char *p = m_receiver.getRow(m_resultSets[m_read].m_buffer, m_currentRow);
-    assert(p != NULL);  ((void)p);
+    assert(p != nullptr);  ((void)p);
     m_worker.setValidRow(this);
     return m_currentRow;
   }
@@ -1135,7 +1135,7 @@ NdbResultStream::nextResult()
   {
     m_iterState = Iter_started;
     const char *p = m_receiver.getRow(m_resultSets[m_read].m_buffer, m_currentRow);
-    assert(p != NULL);  ((void)p);
+    assert(p != nullptr);  ((void)p);
     m_worker.setValidRow(this);
     return m_currentRow;
   }
@@ -1528,7 +1528,7 @@ NdbResultStream::buildResultCorrelations()
     for (Uint32 tupleNo=0; tupleNo<readResult.m_rowCount; tupleNo++)
     {
       const Uint16 tupleId  = readResult.m_correlations[tupleNo].getTupleId();
-      const Uint16 parentId = (m_parent!=NULL) 
+      const Uint16 parentId = (m_parent!=nullptr) 
                                 ? readResult.m_correlations[tupleNo].getParentTupleId()
                                 : tupleNotFound;
 
@@ -1542,7 +1542,7 @@ NdbResultStream::buildResultCorrelations()
 
       /* Insert into parentId-hashmap */
       const Uint16 hash = (parentId % m_maxRows);
-      if (m_parent==NULL)
+      if (m_parent==nullptr)
       {
         /* Root stream: Insert sequentially in hash_next to make it
          * possible to use ::findTupleWithParentId() and ::findNextTuple()
@@ -1608,7 +1608,7 @@ NdbWorker::receiverIdLookup(NdbWorker* workers,
   }
   if (unlikely (current < 0))
   {
-    return NULL;
+    return nullptr;
   }
   else
   {
@@ -1617,9 +1617,9 @@ NdbWorker::receiverIdLookup(NdbWorker* workers,
 }
 
 NdbWorker::NdbWorker():
-  m_query(NULL),
+  m_query(nullptr),
   m_workerNo(voidWorkerNo),
-  m_resultStreams(NULL),
+  m_resultStreams(nullptr),
   m_pendingRequests(0),
   m_availResultSets(0),
   m_outstandingResults(0),
@@ -1636,7 +1636,7 @@ NdbWorker::NdbWorker():
 
 NdbWorker::~NdbWorker()
 {
-  assert(m_resultStreams==NULL);
+  assert(m_resultStreams==nullptr);
 }
 
 void NdbWorker::init(NdbQueryImpl& query, Uint32 workerNo)
@@ -1647,7 +1647,7 @@ void NdbWorker::init(NdbQueryImpl& query, Uint32 workerNo)
 
   m_resultStreams = reinterpret_cast<NdbResultStream*>
      (query.getResultStreamAlloc().allocObjMem(query.getNoOfOperations()));
-  assert(m_resultStreams!=NULL);
+  assert(m_resultStreams!=nullptr);
 
   for (unsigned opNo=0; opNo<query.getNoOfOperations(); opNo++) 
   {
@@ -1664,7 +1664,7 @@ void NdbWorker::init(NdbQueryImpl& query, Uint32 workerNo)
 void
 NdbWorker::postFetchRelease()
 {
-  if (m_resultStreams != NULL)
+  if (m_resultStreams != nullptr)
   { 
     for (unsigned opNo=0; opNo<m_query->getNoOfOperations(); opNo++) 
     {
@@ -1676,7 +1676,7 @@ NdbWorker::postFetchRelease()
    * ResultStreamAlloc'ed memory. Memory is released by
    * ResultStreamAlloc::reset().
    */
-  m_resultStreams = NULL;
+  m_resultStreams = nullptr;
 }
 
 NdbResultStream&
@@ -1709,7 +1709,7 @@ NdbWorker::setValidRow(const NdbResultStream* resultStream)
 //static
 void NdbWorker::clear(NdbWorker* workers, Uint32 noOfWorkers)
 {
-  if (workers != NULL)
+  if (workers != nullptr)
   {
     for (Uint32 workerNo = 0; workerNo < noOfWorkers; workerNo++)
     {
@@ -1863,7 +1863,7 @@ NdbQueryOperation*
 NdbQuery::getQueryOperation(const char* ident) const
 {
   NdbQueryOperationImpl* op = m_impl.getQueryOperation(ident);
-  return (op) ? &op->getInterface() : NULL;
+  return (op) ? &op->getInterface() : nullptr;
 }
 
 int
@@ -1972,9 +1972,9 @@ NdbRecAttr*
 NdbQueryOperation::getValue(const NdbDictionary::Column* column, 
 			    char* resultBuffer)
 {
-  if (unlikely(column==NULL)) {
+  if (unlikely(column==nullptr)) {
     m_impl.getQuery().setErrorCode(QRY_REQ_ARG_IS_NULL);
-    return NULL;
+    return nullptr;
   }
   return m_impl.getValue(NdbColumnImpl::getImpl(*column), resultBuffer);
 }
@@ -1985,7 +1985,7 @@ NdbQueryOperation::setResultRowBuf (
                        char* resBuffer,
                        const unsigned char* result_mask)
 {
-  if (unlikely(rec==0 || resBuffer==0)) {
+  if (unlikely(rec==nullptr || resBuffer==nullptr)) {
     m_impl.getQuery().setErrorCode(QRY_REQ_ARG_IS_NULL);
     return -1;
   }
@@ -2247,19 +2247,19 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_interface(*this),
   m_state(Initial),
   m_tcState(Inactive),
-  m_next(NULL),
+  m_next(nullptr),
   m_queryDef(&queryDef),
   m_error(),
   m_errorReceived(0),
   m_transaction(trans),
-  m_scanTransaction(NULL),
-  m_operations(0),
+  m_scanTransaction(nullptr),
+  m_operations(nullptr),
   m_countOperations(0),
   m_globalCursor(0),
   m_pendingWorkers(0),
   m_workerCount(0),
   m_fragsPerWorker(0),
-  m_workers(NULL),
+  m_workers(nullptr),
   m_applFrags(),
   m_finalWorkers(0),
   m_num_bounds(0),
@@ -2301,7 +2301,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
       { 
         m_operations[j].~NdbQueryOperationImpl();
       }
-      m_operations = NULL;
+      m_operations = nullptr;
       return;
     }
   }
@@ -2318,16 +2318,16 @@ NdbQueryImpl::~NdbQueryImpl()
    *  allowed to destruct the Def's.
    */
   assert(m_state==Closed);
-  assert(m_workers==NULL);
+  assert(m_workers==nullptr);
 
   // NOTE: m_operations[] was allocated as a single memory chunk with
   // placement new construction of each operation.
   // Requires explicit call to d'tor of each operation before memory is free'ed.
-  if (m_operations != NULL) {
+  if (m_operations != nullptr) {
     for (int i=m_countOperations-1; i>=0; --i)
     { m_operations[i].~NdbQueryOperationImpl();
     }
-    m_operations = NULL;
+    m_operations = nullptr;
   }
   m_state = Destructed;
 }
@@ -2335,14 +2335,14 @@ NdbQueryImpl::~NdbQueryImpl()
 void
 NdbQueryImpl::postFetchRelease()
 {
-  if (m_workers != NULL)
+  if (m_workers != nullptr)
   {
     for (unsigned i=0; i<m_workerCount; i++)
     {
       m_workers[i].postFetchRelease();
     }
   }
-  if (m_operations != NULL)
+  if (m_operations != nullptr)
   {
     for (unsigned i=0; i<m_countOperations; i++)
     {
@@ -2350,7 +2350,7 @@ NdbQueryImpl::postFetchRelease()
     }
   }
   delete[] m_workers;
-  m_workers = NULL;
+  m_workers = nullptr;
 
   m_rowBufferAlloc.reset();
   m_tupleSetAlloc.reset();
@@ -2365,15 +2365,15 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
 {
   assert(queryDef.getNoOfOperations() > 0);
   NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef);
-  if (unlikely(query==NULL)) {
+  if (unlikely(query==nullptr)) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
-    return NULL;
+    return nullptr;
   }
   if (unlikely(query->m_error.code != 0))
   {
     // Transaction error code set already.
     query->release();
-    return NULL;
+    return nullptr;
   }
   assert(query->m_state==Initial);
   return query;
@@ -2467,7 +2467,7 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
                        const NdbIndexScanOperation::IndexBound *bound)
 {
   m_prunability = Prune_Unknown;
-  if (unlikely(key_record == NULL || bound==NULL))
+  if (unlikely(key_record == nullptr || bound==nullptr))
     return QRY_REQ_ARG_IS_NULL;
 
   if (unlikely(getRoot().getQueryOperationDef().getType()
@@ -2507,8 +2507,8 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
     m_shortestBound = common_key_count;
   }
   /* Has the user supplied an open range (no bounds)? */
-  const bool openRange= ((bound->low_key == NULL || bound->low_key_count == 0) && 
-                         (bound->high_key == NULL || bound->high_key_count == 0));
+  const bool openRange= ((bound->low_key == nullptr || bound->low_key_count == 0) && 
+                         (bound->high_key == nullptr || bound->high_key_count == 0));
   if (likely(!openRange))
   {
     /* If low and high key pointers are the same and key counts are
@@ -2609,7 +2609,7 @@ int
 NdbQueryImpl::getRangeNo() const
 {
   const NdbWorker* worker = m_applFrags.getCurrent();
-  if (worker != NULL) {
+  if (worker != nullptr) {
     const int range_no = worker->getResultStream(0).getCurrentRangeNo();
     if (range_no >= 0) return range_no;
     assert(!needRangeNo());
@@ -2644,7 +2644,7 @@ NdbQueryImpl::getQueryOperation(const char* ident) const
       return &m_operations[i];
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -2730,7 +2730,7 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
   while (m_state != EndOfData)  // Or likely:  return when 'gotRow' or error
   {
     const NdbWorker* worker = m_applFrags.getCurrent();
-    if (unlikely(worker==NULL))
+    if (unlikely(worker==nullptr))
     {
       /* m_applFrags is empty, so we cannot get more results without 
        * possibly blocking.
@@ -2745,12 +2745,12 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
       case FetchResult_ok:          // OK - got data wo/ error
         assert(m_state != Failed);
         worker = m_applFrags.getCurrent();
-        assert (worker!=NULL);
+        assert (worker!=nullptr);
         break;
 
       case FetchResult_noMoreData:  // No data, no error
         assert(m_state != Failed);
-        assert (m_applFrags.getCurrent()==NULL);
+        assert (m_applFrags.getCurrent()==nullptr);
         getRoot().nullifyResult();
         m_state = EndOfData;
         postFetchRelease();
@@ -2758,7 +2758,7 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
 
       case FetchResult_noMoreCache: // No cached data, no error
         assert(m_state != Failed);
-        assert (m_applFrags.getCurrent()==NULL);
+        assert (m_applFrags.getCurrent()==nullptr);
         getRoot().nullifyResult();
         if (fetchAllowed)
         {
@@ -2799,7 +2799,7 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
       }
     }
 
-    if (worker!=NULL)
+    if (worker!=nullptr)
     {
       if (unlikely(getRoot().fetchRow(worker->getResultStream(0)) == -1))
         return NdbQuery::NextResult_error;
@@ -2820,7 +2820,7 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
 NdbQueryImpl::FetchResult
 NdbQueryImpl::awaitMoreResults(bool forceSend)
 {
-  assert(m_applFrags.getCurrent() == NULL);
+  assert(m_applFrags.getCurrent() == nullptr);
 
   /* Check if there are any more completed fragments available.*/
   if (getQueryDef().isScanQuery())
@@ -2844,7 +2844,7 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
          * which has delivered a complete batch. Add these to m_applFrags.
          */
         m_applFrags.prepareMoreResults(m_workers,m_workerCount);
-        if (m_applFrags.getCurrent() != NULL)
+        if (m_applFrags.getCurrent() != nullptr)
         {
           return FetchResult_ok;
         }
@@ -2894,7 +2894,7 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
      * be accessing m_workers at this time.
      */
     m_applFrags.prepareMoreResults(m_workers,m_workerCount);
-    if (m_applFrags.getCurrent() != NULL)
+    if (m_applFrags.getCurrent() != nullptr)
     {
       return FetchResult_ok;
     }
@@ -2988,14 +2988,14 @@ NdbQueryImpl::close(bool forceSend)
     m_applFrags.clear();
 
     Ndb* const ndb = m_transaction.getNdb();
-    if (m_scanTransaction != NULL)
+    if (m_scanTransaction != nullptr)
     {
       assert (m_state != Closed);
       assert (m_scanTransaction->m_scanningQuery == this);
-      m_scanTransaction->m_scanningQuery = NULL;
+      m_scanTransaction->m_scanningQuery = nullptr;
       ndb->closeTransaction(m_scanTransaction);
       ndb->theRemainingStartTransactions--;  // Compensate; m_scanTransaction was not a real Txn
-      m_scanTransaction = NULL;
+      m_scanTransaction = nullptr;
     }
 
     postFetchRelease();
@@ -3006,7 +3006,7 @@ NdbQueryImpl::close(bool forceSend)
    *  Don't refer NdbQueryDef or its NdbQueryOperationDefs after ::close()
    *  as the application is allowed to destruct the Def's after this point.
    */
-  m_queryDef= NULL;
+  m_queryDef= nullptr;
 
   return res;
 } //NdbQueryImpl::close
@@ -3029,7 +3029,7 @@ NdbQueryImpl::setErrorCode(int aErrorCode)
   assert (aErrorCode!=0);
   m_error.code = aErrorCode;
   m_transaction.theErrorLine = 0;
-  m_transaction.theErrorOperation = NULL;
+  m_transaction.theErrorOperation = nullptr;
 
   switch(aErrorCode)
   {
@@ -3210,7 +3210,7 @@ NdbQueryImpl::prepareSend()
     Ndb* const ndb = m_transaction.getNdb();
     ndb->theRemainingStartTransactions++; // Compensate; does not start a real Txn
     NdbTransaction *scanTxn = ndb->hupp(&m_transaction);
-    if (scanTxn==NULL) {
+    if (scanTxn==nullptr) {
       ndb->theRemainingStartTransactions--;
       m_transaction.setOperationErrorCodeAbort(ndb->getNdbError().code);
       return -1;
@@ -3243,7 +3243,7 @@ NdbQueryImpl::prepareSend()
   }
     
   // Some preparation for later batchsize calculations pr. (sub) scan
-  getRoot().calculateBatchedRows(NULL);
+  getRoot().calculateBatchedRows(nullptr);
   getRoot().setBatchedRows(1);
 
   /**
@@ -3288,7 +3288,7 @@ NdbQueryImpl::prepareSend()
    * NdbReceiver to be constructed for each operation in QueryTree
    */
   m_workers = new NdbWorker[m_workerCount];
-  if (m_workers == NULL)
+  if (m_workers == nullptr)
   {
     setErrorCode(Err_MemoryAlloc);
     return -1;
@@ -3323,12 +3323,12 @@ NdbQueryImpl::prepareSend()
   }
 
   // Setup m_applStreams and m_fullStreams for receiving results
-  const NdbRecord* keyRec = NULL;
-  if(getRoot().getQueryOperationDef().getIndex()!=NULL)
+  const NdbRecord* keyRec = nullptr;
+  if(getRoot().getQueryOperationDef().getIndex()!=nullptr)
   {
     /* keyRec is needed for comparing records when doing ordered index scans.*/
     keyRec = getRoot().getQueryOperationDef().getIndex()->getDefaultRecord();
-    assert(keyRec!=NULL);
+    assert(keyRec!=nullptr);
   }
   m_applFrags.prepare(m_pointerAlloc,
                       getRoot().getOrdering(),
@@ -3414,7 +3414,7 @@ const Uint32* InitialReceiverIdIterator::getNextWords(Uint32& sz)
   if (m_workerNo >= m_workerCount)
   {
     sz = 0;
-    return NULL;
+    return nullptr;
   }
   else
   {
@@ -3483,7 +3483,7 @@ const Uint32* FetchMoreTcIdIterator::getNextWords(Uint32& sz)
   if (m_currWorkerNo >= m_workerCount)
   {
     sz = 0;
-    return NULL;
+    return nullptr;
   }
   else
   {
@@ -4018,18 +4018,18 @@ NdbQueryImpl::OrderedFragSet::OrderedFragSet():
   m_finalResultReceivedCount(0),
   m_finalResultConsumedCount(0),
   m_ordering(NdbQueryOptions::ScanOrdering_void),
-  m_keyRecord(NULL),
-  m_resultRecord(NULL),
-  m_resultMask(NULL),
-  m_activeWorkers(NULL),
-  m_fetchMoreWorkers(NULL)
+  m_keyRecord(nullptr),
+  m_resultRecord(nullptr),
+  m_resultMask(nullptr),
+  m_activeWorkers(nullptr),
+  m_fetchMoreWorkers(nullptr)
 {
 }
 
 NdbQueryImpl::OrderedFragSet::~OrderedFragSet() 
 { 
-  m_activeWorkers = NULL;
-  m_fetchMoreWorkers = NULL;
+  m_activeWorkers = nullptr;
+  m_fetchMoreWorkers = nullptr;
 }
 
 void NdbQueryImpl::OrderedFragSet::clear() 
@@ -4046,7 +4046,7 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbBulkAllocator& allocator,
                                       const NdbRecord* resultRecord,
                                       const unsigned char* resultMask)
 {
-  assert(m_activeWorkers==NULL);
+  assert(m_activeWorkers==nullptr);
   assert(m_capacity==0);
   assert(ordering!=NdbQueryOptions::ScanOrdering_void);
   
@@ -4086,13 +4086,13 @@ NdbQueryImpl::OrderedFragSet::getCurrent() const
      */
     if (unlikely(m_activeWorkerCount+m_finalResultConsumedCount < m_capacity))
     {
-      return NULL;
+      return nullptr;
     }
   }
   
   if (unlikely(m_activeWorkerCount==0))
   {
-    return NULL;
+    return nullptr;
   }
   else
   {
@@ -4331,19 +4331,19 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_magic(MAGIC),
   m_queryImpl(queryImpl),
   m_operationDef(def),
-  m_parent(NULL),
+  m_parent(nullptr),
   m_children(0),
   m_dependants(0),
   m_params(),
-  m_resultBuffer(NULL),
-  m_resultRef(NULL),
+  m_resultBuffer(nullptr),
+  m_resultRef(nullptr),
   m_isRowNull(true),
-  m_ndbRecord(NULL),
-  m_read_mask(NULL),
-  m_firstRecAttr(NULL),
-  m_lastRecAttr(NULL),
+  m_ndbRecord(nullptr),
+  m_read_mask(nullptr),
+  m_firstRecAttr(nullptr),
+  m_lastRecAttr(nullptr),
   m_ordering(NdbQueryOptions::ScanOrdering_unordered),
-  m_interpretedCode(NULL),
+  m_interpretedCode(nullptr),
   m_diskInUserProjection(false),
   m_parallelism(def.getOpNo() == 0
                 ? Parallelism_max : Parallelism_adaptive),
@@ -4360,7 +4360,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   }
   // Fill in operations parent refs, and append it as child of its parent
   const NdbQueryOperationDefImpl* parent = def.getParentOperation();
-  if (parent != NULL)
+  if (parent != nullptr)
   { 
     const Uint32 ix = parent->getOpNo();
     assert (ix < def.getOpNo());
@@ -4413,8 +4413,8 @@ NdbQueryOperationImpl::~NdbQueryOperationImpl()
    * We expect ::postFetchRelease to have deleted fetch related structures when fetch completed.
    * Either by fetching through last row, or calling ::close() which forcefully terminates fetch
    */
-  assert (m_firstRecAttr == NULL);
-  assert (m_interpretedCode == NULL);
+  assert (m_firstRecAttr == nullptr);
+  assert (m_interpretedCode == nullptr);
 } //NdbQueryOperationImpl::~NdbQueryOperationImpl()
 
 /**
@@ -4426,22 +4426,22 @@ NdbQueryOperationImpl::postFetchRelease()
 {
   Ndb* const ndb = m_queryImpl.getNdbTransaction().getNdb();
   NdbRecAttr* recAttr = m_firstRecAttr;
-  while (recAttr != NULL) {
+  while (recAttr != nullptr) {
     NdbRecAttr* saveRecAttr = recAttr;
     recAttr = recAttr->next();
     ndb->releaseRecAttr(saveRecAttr);
   }
-  m_firstRecAttr = NULL;
+  m_firstRecAttr = nullptr;
 
   // Set API exposed info to indicate NULL-row
   m_isRowNull = true;
-  if (m_resultRef!=NULL) {
-    *m_resultRef = NULL;
+  if (m_resultRef!=nullptr) {
+    *m_resultRef = nullptr;
   }
 
   // TODO: Consider if interpretedCode can be deleted imm. after ::doSend
   delete m_interpretedCode;
-  m_interpretedCode = NULL;
+  m_interpretedCode = nullptr;
 } //NdbQueryOperationImpl::postFetchRelease()
 
 
@@ -4454,7 +4454,7 @@ NdbQueryOperationImpl::getNoOfParentOperations() const
 NdbQueryOperationImpl&
 NdbQueryOperationImpl::getParentOperation(Uint32 i [[maybe_unused]]) const
 {
-  assert(i==0 && m_parent!=NULL);
+  assert(i==0 && m_parent!=nullptr);
   return *m_parent;
 }
 NdbQueryOperationImpl*
@@ -4525,15 +4525,15 @@ NdbQueryOperationImpl::getValue(
                             const char* anAttrName,
                             char* resultBuffer)
 {
-  if (unlikely(anAttrName == NULL)) {
+  if (unlikely(anAttrName == nullptr)) {
     getQuery().setErrorCode(QRY_REQ_ARG_IS_NULL);
-    return NULL;
+    return nullptr;
   }
   const NdbColumnImpl* const column 
     = m_operationDef.getTable().getColumn(anAttrName);
-  if(unlikely(column==NULL)){
+  if(unlikely(column==nullptr)){
     getQuery().setErrorCode(Err_UnknownColumn);
-    return NULL;
+    return nullptr;
   } else {
     return getValue(*column, resultBuffer);
   }
@@ -4546,9 +4546,9 @@ NdbQueryOperationImpl::getValue(
 {
   const NdbColumnImpl* const column 
     = m_operationDef.getTable().getColumn(anAttrId);
-  if(unlikely(column==NULL)){
+  if(unlikely(column==nullptr)){
     getQuery().setErrorCode(Err_UnknownColumn);
-    return NULL;
+    return nullptr;
   } else {
     return getValue(*column, resultBuffer);
   }
@@ -4568,27 +4568,27 @@ NdbQueryOperationImpl::getValue(
     else
       getQuery().setErrorCode(QRY_ILLEGAL_STATE);
     DEBUG_CRASH();
-    return NULL;
+    return nullptr;
   }
   Ndb* const ndb = getQuery().getNdbTransaction().getNdb();
   NdbRecAttr* const recAttr = ndb->getRecAttr();
-  if(unlikely(recAttr == NULL)) {
+  if(unlikely(recAttr == nullptr)) {
     getQuery().setErrorCode(Err_MemoryAlloc);
-    return NULL;
+    return nullptr;
   }
   if(unlikely(recAttr->setup(&column, resultBuffer))) {
     ndb->releaseRecAttr(recAttr);
     getQuery().setErrorCode(Err_MemoryAlloc);
-    return NULL;
+    return nullptr;
   }
   // Append to tail of list.
-  if(m_firstRecAttr == NULL){
+  if(m_firstRecAttr == nullptr){
     m_firstRecAttr = recAttr;
   }else{
     m_lastRecAttr->next(recAttr);
   }
   m_lastRecAttr = recAttr;
-  assert(recAttr->next()==NULL);
+  assert(recAttr->next()==nullptr);
   return recAttr;
 }
 
@@ -4598,7 +4598,7 @@ NdbQueryOperationImpl::setResultRowBuf (
                        char* resBuffer,
                        const unsigned char* result_mask)
 {
-  if (unlikely(rec==0)) {
+  if (unlikely(rec==nullptr)) {
     getQuery().setErrorCode(QRY_REQ_ARG_IS_NULL);
     return -1;
   }
@@ -4620,7 +4620,7 @@ NdbQueryOperationImpl::setResultRowBuf (
     getQuery().setErrorCode(Err_DifferentTabForKeyRecAndAttrRec);
     return -1;
   }
-  if (unlikely(m_ndbRecord != NULL)) {
+  if (unlikely(m_ndbRecord != nullptr)) {
     getQuery().setErrorCode(QRY_RESULT_ROW_ALREADY_DEFINED);
     return -1;
   }
@@ -4637,8 +4637,8 @@ NdbQueryOperationImpl::setResultRowRef (
                        const unsigned char* result_mask)
 {
   m_resultRef = &bufRef;
-  *m_resultRef = NULL; // No result row yet
-  return setResultRowBuf(rec, NULL, result_mask);
+  *m_resultRef = nullptr; // No result row yet
+  return setResultRowBuf(rec, nullptr, result_mask);
 }
 
 NdbQuery::NextResultOutcome
@@ -4673,11 +4673,11 @@ NdbQueryOperationImpl::firstResult()
 #endif
 
   {
-    assert(getParentOperation()!=NULL);  // TODO, See above
+    assert(getParentOperation()!=nullptr);  // TODO, See above
     worker = m_queryImpl.m_applFrags.getCurrent();
   }
 
-  if (worker != NULL)
+  if (worker != nullptr)
   {
     NdbResultStream& resultStream = worker->getResultStream(*this);
     if (resultStream.firstResult() != tupleNotFound)
@@ -4718,7 +4718,7 @@ NdbQueryOperationImpl::nextResult(bool fetchAllowed, bool forceSend)
   else if (m_operationDef.isScanOperation())
   {
     const NdbWorker* worker = m_queryImpl.m_applFrags.getCurrent();
-    if (worker!=NULL)
+    if (worker!=nullptr)
     {
       NdbResultStream& resultStream = worker->getResultStream(*this);
       if (resultStream.nextResult() != tupleNotFound)
@@ -4736,26 +4736,26 @@ NdbQueryOperationImpl::nextResult(bool fetchAllowed, bool forceSend)
 int NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
 {
   const char* buff = resultStream.getCurrentRow();
-  assert(buff!=NULL || (m_firstRecAttr==NULL && m_ndbRecord==NULL));
+  assert(buff!=nullptr || (m_firstRecAttr==nullptr && m_ndbRecord==nullptr));
 
   m_isRowNull = false;
-  if (m_firstRecAttr != NULL)
+  if (m_firstRecAttr != nullptr)
   {
     // Retrieve any RecAttr (getValues()) for current row
     const int retVal = resultStream.getReceiver().get_AttrValues(m_firstRecAttr);
     assert(retVal == 0);
     if (unlikely(retVal == -1)) return -1;
   }
-  if (m_ndbRecord != NULL)
+  if (m_ndbRecord != nullptr)
   {
-    if (m_resultRef!=NULL)
+    if (m_resultRef!=nullptr)
     {
       // Set application pointer to point into internal buffer.
       *m_resultRef = buff;
     }
     else
     {
-      assert(m_resultBuffer!=NULL);
+      assert(m_resultBuffer!=nullptr);
       if (unlikely(m_resultBuffer == nullptr)) return -1;
       // Copy result to buffer supplied by application.
       memcpy(m_resultBuffer, buff, m_ndbRecord->m_row_size);
@@ -4772,10 +4772,10 @@ NdbQueryOperationImpl::nullifyResult()
   {
     /* This operation gave no result for the current row.*/ 
     m_isRowNull = true;
-    if (m_resultRef!=NULL)
+    if (m_resultRef!=nullptr)
     {
       // Set the pointer supplied by the application to NULL.
-      *m_resultRef = NULL;
+      *m_resultRef = nullptr;
     }
     /* We should not give any results for the descendants either.*/
     for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
@@ -4808,7 +4808,7 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
    * In this form the projection spec. can be packed as
    * a single bitmap.
    */
-  if (m_ndbRecord != NULL) {
+  if (m_ndbRecord != nullptr) {
     Bitmask<MAXNROFATTRIBUTESINWORDS> readMask;
     Uint32 requestedCols= 0;
     Uint32 maxAttrId= 0;
@@ -4818,7 +4818,7 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
       const NdbRecord::Attr* const col= &m_ndbRecord->columns[i];
       Uint32 attrId= col->attrId;
 
-      if (m_read_mask == NULL || isSetInMask(m_read_mask, i))
+      if (m_read_mask == nullptr || isSetInMask(m_read_mask, i))
       { if (attrId > maxAttrId)
           maxAttrId= attrId;
 
@@ -4888,7 +4888,7 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
 
 int NdbQueryOperationImpl::serializeParams(const NdbQueryParamValue* paramValues)
 {
-  if (unlikely(paramValues == NULL))
+  if (unlikely(paramValues == nullptr))
   {
     return QRY_REQ_ARG_IS_NULL;
   }
@@ -4940,7 +4940,7 @@ NdbQueryOperationImpl
   }
 
   Uint32 maxBatchRows = 0;
-  if (myClosestScan != NULL)
+  if (myClosestScan != nullptr)
   {
     // To force usage of SCAN_NEXTREQ even for small scans resultsets
     if (DBUG_EVALUATE_IF("max_4rows_in_spj_batches", true, false))
@@ -5071,7 +5071,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     }
 
     QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos));
-    if (unlikely(param==NULL))
+    if (unlikely(param==nullptr))
        return Err_MemoryAlloc;
 
     param->requestInfo = requestInfo;
@@ -5149,7 +5149,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     }
   }
 
-  if (m_ndbRecord==NULL && m_firstRecAttr==NULL)
+  if (m_ndbRecord==nullptr && m_firstRecAttr==nullptr)
   {
     // Leaf operations with empty projections are not supported.
     if (getNoOfChildOperations() == 0)
@@ -5181,7 +5181,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
   case QueryNodeParameters::QN_LOOKUP:
   {
     QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos)); 
-    if (unlikely(param==NULL))
+    if (unlikely(param==nullptr))
       return Err_MemoryAlloc;
 
     param->requestInfo = requestInfo;
@@ -5193,7 +5193,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
   {
     QN_ScanFragParameters* param = 
       reinterpret_cast<QN_ScanFragParameters*>(attrInfo.addr(startPos)); 
-    if (unlikely(param==NULL))
+    if (unlikely(param==nullptr))
       return Err_MemoryAlloc;
 
     const Uint32 fragsPerWorker = getQuery().m_fragsPerWorker;
@@ -5232,7 +5232,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
   {
     QN_ScanIndexParameters_v1* param = 
       reinterpret_cast<QN_ScanIndexParameters_v1*>(attrInfo.addr(startPos)); 
-    if (unlikely(param==NULL))
+    if (unlikely(param==nullptr))
       return Err_MemoryAlloc;
 
     assert(m_parallelism == Parallelism_max ||
@@ -5265,7 +5265,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     assert(paramType == QueryNodeParameters::QN_SCAN_FRAG_v1);
     QN_ScanFragParameters_v1* param =
       reinterpret_cast<QN_ScanFragParameters_v1*>(attrInfo.addr(startPos)); 
-    if (unlikely(param==NULL))
+    if (unlikely(param==nullptr))
       return Err_MemoryAlloc;
 
     param->requestInfo = requestInfo;
@@ -5420,7 +5420,7 @@ appendBound(Uint32Buffer& keyInfo,
     const NdbParamOperandImpl* const paramOp 
       = static_cast<const NdbParamOperandImpl*>(bound);
     const int paramNo = paramOp->getParamIx();
-    assert(actualParam != NULL);
+    assert(actualParam != nullptr);
 
     bool null;
     const int error = 
@@ -5521,7 +5521,7 @@ NdbQueryOperationImpl::prepareLookupKeyInfo(
                      const NdbQueryOperandImpl* const keys[],
                      const NdbQueryParamValue* actualParam)
 {
-  const int keyCount = m_operationDef.getIndex()!=NULL ? 
+  const int keyCount = m_operationDef.getIndex()!=nullptr ? 
     static_cast<int>(m_operationDef.getIndex()->getNoOfColumns()) :
     m_operationDef.getTable().getNoOfPrimaryKeys();
 
@@ -5546,7 +5546,7 @@ NdbQueryOperationImpl::prepareLookupKeyInfo(
       const NdbParamOperandImpl* const paramOp 
         = static_cast<const NdbParamOperandImpl*>(keys[keyNo]);
       int paramNo = paramOp->getParamIx();
-      assert(actualParam != NULL);
+      assert(actualParam != nullptr);
 
       bool null;
       const int error = 
@@ -5591,7 +5591,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
     worker = NdbWorker::receiverIdLookup(m_queryImpl.m_workers,
                                          m_queryImpl.getWorkerCount(), 
                                          receiverId);
-    if (unlikely(worker == NULL))
+    if (unlikely(worker == nullptr))
     {
       assert(false);
       return false;
@@ -5721,7 +5721,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     NdbWorker::receiverIdLookup(m_queryImpl.m_workers,
                                 m_queryImpl.getWorkerCount(), 
                                 receiver->getId());
-  if (unlikely(worker == NULL))
+  if (unlikely(worker == nullptr))
   {
     assert(false);
     return false;
@@ -5810,11 +5810,11 @@ int NdbQueryOperationImpl::setInterpretedCode(const NdbInterpretedCode& code)
   }
 
   // Allocate an interpreted code object if we do not have one already.
-  if (likely(m_interpretedCode == NULL))
+  if (likely(m_interpretedCode == nullptr))
   {
     m_interpretedCode = new NdbInterpretedCode();
 
-    if (unlikely(m_interpretedCode==NULL))
+    if (unlikely(m_interpretedCode==nullptr))
     {
       getQuery().setErrorCode(Err_MemoryAlloc);
       return -1;
@@ -5907,7 +5907,7 @@ bool
 NdbQueryOperationImpl::hasInterpretedCode() const
 {
   return (m_interpretedCode && m_interpretedCode->m_instructions_length > 0) ||
-         (getQueryOperationDef().getInterpretedCode() != NULL);
+         (getQueryOperationDef().getInterpretedCode() != nullptr);
 } // NdbQueryOperationImpl::hasInterpretedCode
 
 int
@@ -5926,7 +5926,7 @@ NdbQueryOperationImpl::prepareInterpretedCode(Uint32Buffer& attrInfo) const
   // Allocate space for program and length field.
   Uint32* const buffer = 
     attrInfo.alloc(1+interpretedCode->m_instructions_length);
-  if(unlikely(buffer==NULL))
+  if(unlikely(buffer==nullptr))
   {
     return Err_MemoryAlloc;
   }
@@ -5994,7 +5994,7 @@ Uint32 NdbQueryOperationImpl::getMaxBatchBytes() const
        * Consequently, a child scan operation may return max_no_of_bytes,
        * plus one extra row for each fragment.
        */
-      if (getParentOperation() != NULL)
+      if (getParentOperation() != nullptr)
       {
         batchFrags = rootFragments;
       }
@@ -6005,7 +6005,7 @@ Uint32 NdbQueryOperationImpl::getMaxBatchBytes() const
     }
 
     AttributeMask readMask;
-    if (m_ndbRecord != NULL)
+    if (m_ndbRecord != nullptr)
     {
       m_ndbRecord->copyMask(readMask.rep.data, m_read_mask);
     }

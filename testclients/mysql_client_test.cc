@@ -23034,7 +23034,7 @@ static bool send_query(MYSQL *mysql_con, const char *query) {
     return false;
   }
   MYSQL_RES *result = mysql_store_result(mysql_con);
-  if (result == NULL) {
+  if (result == nullptr) {
     printf("No result-set\n");
   } else {
     MYSQL_ROW row = mysql_fetch_row(result);

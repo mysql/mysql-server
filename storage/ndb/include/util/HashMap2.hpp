@@ -180,11 +180,11 @@ public:
    * requires some context info.
    * setSize() must be called before the HashMap is used.
    */
-  HashMap2(void* _allocatorContext = NULL)
+  HashMap2(void* _allocatorContext = nullptr)
     : tableSize(0),
       elementCount(0),
       allocatorContext(_allocatorContext),
-      table(NULL)
+      table(nullptr)
   {
   }
 
@@ -219,7 +219,7 @@ public:
     if (table)
     {
       A::mem_free(allocatorContext, table);
-      table = NULL;
+      table = nullptr;
     }
 
     /* TODO : Consider using only power-of-2 + bitmask instead of mod */
@@ -233,7 +233,7 @@ public:
     }
 
     for (Uint32 i=0; i < tableSize; i++)
-      table[i] = NULL;
+      table[i] = nullptr;
 
     return true;
   }
@@ -256,7 +256,7 @@ public:
 
     KV* bucket = table[bucketIdx];
 
-    if (bucket != NULL)
+    if (bucket != nullptr)
     {
       if (unique)
       {
@@ -278,15 +278,15 @@ public:
       /* Can insert at head of list, as either no uniqueness
        * guarantee, or uniqueness checked.
        */
-      assert(KVOP::getNext(keyVal) == NULL);
+      assert(KVOP::getNext(keyVal) == nullptr);
       KVOP::setNext(keyVal, bucket);
       table[bucketIdx] = keyVal;
     }
     else
     {
       /* First element in bucket */
-      assert(KVOP::getNext(keyVal) == NULL);
-      KVOP::setNext(keyVal, NULL);
+      assert(KVOP::getNext(keyVal) == nullptr);
+      KVOP::setNext(keyVal, nullptr);
       table[bucketIdx] = keyVal;
     }
 
@@ -304,10 +304,10 @@ public:
 
     KV* bucket = table[bucketIdx];
 
-    if (bucket != NULL)
+    if (bucket != nullptr)
     {
       KV* chainElement = bucket;
-      KV* prev = NULL;
+      KV* prev = nullptr;
       while (chainElement)
       {
         if (KVOP::equal(key, chainElement))
@@ -327,7 +327,7 @@ public:
             table[bucketIdx] = n;
           }
 
-          KVOP::setNext(chainElement, NULL);
+          KVOP::setNext(chainElement, nullptr);
           elementCount--;
 
           return chainElement;
@@ -337,7 +337,7 @@ public:
       }
     }
 
-    return NULL;
+    return nullptr;
   }
 
   /**
@@ -396,7 +396,7 @@ public:
       assert(table);
       for (Uint32 i=0; i < tableSize; i++)
       {
-        table[i] = NULL;
+        table[i] = nullptr;
       }
 
       elementCount = 0;
@@ -431,7 +431,7 @@ public:
   public:
     Iterator(HashMap2& hashMap)
       : m_hash(&hashMap),
-        curr_element(NULL),
+        curr_element(nullptr),
         curr_bucket(0)
     {}
 
@@ -443,7 +443,7 @@ public:
     {
       while (curr_bucket < m_hash->tableSize)
       {
-        if (curr_element == NULL)
+        if (curr_element == nullptr)
         {
           /* First this bucket */
           curr_element = m_hash->table[ curr_bucket ];
@@ -461,11 +461,11 @@ public:
         curr_bucket++;
       }
 
-      return NULL;
+      return nullptr;
     }
     void reset()
     {
-      curr_element = NULL;
+      curr_element = nullptr;
       curr_bucket = 0;
     }
   private:

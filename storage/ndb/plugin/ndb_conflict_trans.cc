@@ -49,7 +49,7 @@ st_row_event_key_info::st_row_event_key_info(const NdbDictionary::Table *_table,
       packed_key(_key_buff),
       packed_key_len(_key_buff_len),
       transaction_id(_transaction_id),
-      hash_next(NULL) {}
+      hash_next(nullptr) {}
 
 Uint64 st_row_event_key_info::getTransactionId() const {
   return transaction_id;
@@ -89,7 +89,7 @@ st_trans_dependency::st_trans_dependency(st_transaction *_target_transaction,
     : target_transaction(_target_transaction),
       dependent_transaction(_dependent_transaction),
       next_entry(_next),
-      hash_next(NULL) {}
+      hash_next(nullptr) {}
 
 st_transaction *st_trans_dependency::getTargetTransaction() const {
   return target_transaction;
@@ -132,8 +132,8 @@ void st_trans_dependency::setNext(st_trans_dependency *_next) {
 st_transaction::st_transaction(Uint64 _transaction_id)
     : transaction_id(_transaction_id),
       in_conflict(false),
-      dependency_list_head(NULL),
-      hash_next(NULL) {}
+      dependency_list_head(nullptr),
+      hash_next(nullptr) {}
 
 Uint64 st_transaction::getTransactionId() const { return transaction_id; }
 
@@ -260,7 +260,7 @@ st_mem_root_allocator::st_mem_root_allocator(MEM_ROOT *_mem_root)
 /* DependencyTracker implementation */
 
 DependencyTracker *DependencyTracker::newDependencyTracker(MEM_ROOT *mem_root) {
-  DependencyTracker *dt = NULL;
+  DependencyTracker *dt = nullptr;
   // Allocate memory from MEM_ROOT
   void *mem = mem_root->Alloc(sizeof(DependencyTracker));
   if (mem) {
@@ -277,7 +277,7 @@ DependencyTracker::DependencyTracker(MEM_ROOT *mem_root)
       dependency_hash(&mra),
       iteratorTodo(ITERATOR_STACK_BLOCKSIZE, &mra),
       conflicting_trans_count(0),
-      error_text(NULL) {
+      error_text(nullptr) {
   /* TODO Get sizes from somewhere */
   key_hash.setSize(1024);
   trans_hash.setSize(100);
@@ -341,7 +341,7 @@ int DependencyTracker::track_operation(const NdbDictionary::Table *table,
       */
       existing->updateRowTransactionId(newTransIdOnRow);
 
-      assert(res == 0 || error_text != NULL);
+      assert(res == 0 || error_text != nullptr);
 
       return res;
     } else {
@@ -414,7 +414,7 @@ bool DependencyTracker::in_conflict(Uint64 trans_id) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("trans_id %llu", trans_id));
   st_transaction key(trans_id);
-  const st_transaction *entry = NULL;
+  const st_transaction *entry = nullptr;
 
   /*
     If transaction hash entry exists, check it for
@@ -432,7 +432,7 @@ bool DependencyTracker::in_conflict(Uint64 trans_id) {
 st_transaction *DependencyTracker::get_or_create_transaction(Uint64 trans_id) {
   DBUG_TRACE;
   st_transaction transKey(trans_id);
-  st_transaction *transEntry = NULL;
+  st_transaction *transEntry = nullptr;
 
   if (!(transEntry = trans_hash.get(&transKey))) {
     /*
@@ -450,7 +450,7 @@ st_transaction *DependencyTracker::get_or_create_transaction(Uint64 trans_id) {
 
       if (!trans_hash.add(transEntry)) {
         st_mem_root_allocator::mem_free(&mra, transEntry); /* For show */
-        transEntry = NULL;
+        transEntry = nullptr;
       }
     }
   }
@@ -477,7 +477,7 @@ int DependencyTracker::add_dependency(Uint64 trans_id,
   }
 
   /* Now lookup dependency.  Add it if not already present */
-  st_trans_dependency depKey(targetEntry, dependentEntry, NULL);
+  st_trans_dependency depKey(targetEntry, dependentEntry, nullptr);
   st_trans_dependency *dep = dependency_hash.get(&depKey);
   if (dep == nullptr) {
     DBUG_PRINT("info", ("Creating new dependency hash entry for "
@@ -543,14 +543,14 @@ st_transaction *DependencyTracker::get_next_dependency(
 
   assert(iteratorTodo.size() == 0);
   DBUG_PRINT("info", ("No more dependencies to visit"));
-  return NULL;
+  return nullptr;
 }
 
 void DependencyTracker::dump_dependents(Uint64 trans_id) {
   fprintf(stderr, "Dumping dependents of transid %llu : ", trans_id);
 
   st_transaction key(trans_id);
-  const st_transaction *dependent = NULL;
+  const st_transaction *dependent = nullptr;
 
   if ((dependent = trans_hash.get(&key))) {
     reset_dependency_iterator();
@@ -587,7 +587,7 @@ bool DependencyTracker::verify_graph() {
   HashMap2<st_transaction, true, st_mem_root_allocator>::Iterator it(
       trans_hash);
 
-  st_transaction *root = NULL;
+  st_transaction *root = nullptr;
 
   while ((root = it.next())) {
     bool in_conflict = root->getInConflict();

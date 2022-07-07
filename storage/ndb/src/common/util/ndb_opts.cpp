@@ -175,14 +175,14 @@ static void ndb_opts_usage()
 void
 Ndb_opts::registerUsage(Ndb_opts *r)
 {
-  assert(registeredNdbOpts == NULL);
+  assert(registeredNdbOpts == nullptr);
   registeredNdbOpts = r;
   ndb_opt_set_usage_funcs(default_ndb_opt_short, ndb_opts_usage);
 }
 
 void Ndb_opts::release()
 {
-  registeredNdbOpts = NULL;
+  registeredNdbOpts = nullptr;
 }
 
 Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
@@ -199,7 +199,7 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
 {
   my_getopt_use_args_separator = true;
   my_load_defaults(MYSQL_CONFIG_NAME,  mycnf_default_groups,
-                   main_argc_ptr, main_argv_ptr,  &opts_mem_root, NULL);
+                   main_argc_ptr, main_argv_ptr,  &opts_mem_root, nullptr);
   my_getopt_use_args_separator = false;
   Ndb_opts::registerUsage(this);
 }

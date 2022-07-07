@@ -137,7 +137,7 @@ Ndb_getInAddr6(struct in6_addr * dst, const char *address)
 
   struct addrinfo* ai_list;
 
-  if (getaddrinfo(address, NULL, &hints, &ai_list) != 0)
+  if (getaddrinfo(address, nullptr, &hints, &ai_list) != 0)
   {
     return -1;
   }
@@ -176,7 +176,7 @@ Ndb_inet_ntop(int af,
                         sizeof(sockaddr_in),
                         dst,
                         (socklen_t)dst_size,
-                        NULL,
+                        nullptr,
                         0,
                         NI_NUMERICHOST);
       if (ret != 0)
@@ -195,7 +195,7 @@ Ndb_inet_ntop(int af,
                         sizeof(sockaddr_in6),
                         dst,
                         (socklen_t)dst_size,
-                        NULL,
+                        nullptr,
                         0,
                         NI_NUMERICHOST);
       const char* mapped_prefix = "::ffff:";
@@ -474,7 +474,7 @@ can_resolve_hostname(const char* name)
   hints.ai_protocol = IPPROTO_TCP;
 
   struct addrinfo* ai_list;
-  int err = getaddrinfo(name, NULL, &hints, &ai_list);
+  int err = getaddrinfo(name, nullptr, &hints, &ai_list);
   freeaddrinfo(ai_list);
 
   if (err)

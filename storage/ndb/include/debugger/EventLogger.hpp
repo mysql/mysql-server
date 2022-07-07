@@ -125,7 +125,7 @@ public:
    * @param nodeId the node id of event origin.
    */
   virtual void log(int eventType, const Uint32* theData, Uint32 len,
-		   NodeId nodeId = 0,const class LogLevel * = 0);
+		   NodeId nodeId = 0,const class LogLevel * = nullptr);
 
 
   /**

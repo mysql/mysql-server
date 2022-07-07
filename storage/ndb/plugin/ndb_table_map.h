@@ -52,7 +52,7 @@ struct TABLE;
  */
 class Ndb_table_map {
  public:
-  Ndb_table_map(const TABLE *, const NdbDictionary::Table *ndb_table = 0);
+  Ndb_table_map(const TABLE *, const NdbDictionary::Table *ndb_table = nullptr);
   ~Ndb_table_map();
 
   /* Get the NDB column number for a MySQL field.

@@ -611,7 +611,7 @@ inline
 NdbPack::Spec::Spec()
 {
   reset();
-  m_buf = 0;
+  m_buf = nullptr;
   m_bufMaxCnt = 0;
 }
 
@@ -707,7 +707,7 @@ NdbPack::DataC::DataC(const Spec& spec, bool allNullable) :
   m_spec(spec),
   m_allNullable(allNullable)
 {
-  m_buf = 0;
+  m_buf = nullptr;
   m_bufMaxLen = 0;
   m_cnt = 0;
 }
@@ -758,7 +758,7 @@ NdbPack::Data::Data(const Spec& spec, bool allNullable, Uint32 varBytes) :
   m_varBytes(varBytes),
   m_iter(*this)
 {
-  m_buf = 0;
+  m_buf = nullptr;
   m_bufMaxLen = 0;
   m_endian = Endian::get_endian();
 }
@@ -949,8 +949,8 @@ NdbPack::DataArray::get_data_len() const
 }
 
 inline NdbPack::BoundArray::BoundArray() :
-  m_spec(NULL),
-  m_data_array(NULL),
+  m_spec(nullptr),
+  m_data_array(nullptr),
   m_side(0)
 {
 }

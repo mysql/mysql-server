@@ -308,7 +308,7 @@ static bool gsl_unlock_ext(Ndb *ndb, NdbTransaction *trans,
 
 class Thd_proc_info_guard {
  public:
-  Thd_proc_info_guard(THD *thd) : m_thd(thd), m_proc_info(NULL) {}
+  Thd_proc_info_guard(THD *thd) : m_thd(thd), m_proc_info(nullptr) {}
   void set(const char *message) {
     const char *old = thd_proc_info(m_thd, message);
     if (!m_proc_info) {
@@ -426,12 +426,12 @@ static int ndbcluster_global_schema_lock(THD *thd,
 
 static int ndbcluster_global_schema_unlock(THD *thd, bool record_gsl) {
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
-  if (unlikely(thd_ndb == NULL)) {
+  if (unlikely(thd_ndb == nullptr)) {
     return 0;
   }
 
   if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT)) {
-    ndb_set_gsl_participant(NULL);
+    ndb_set_gsl_participant(nullptr);
     return 0;
   }
 
@@ -445,7 +445,7 @@ static int ndbcluster_global_schema_unlock(THD *thd, bool record_gsl) {
     // the exact same error code is returned. Thus it's impossible to know
     // that there is actually no need to call unlock. Fix by allowing unlock
     // without doing anything since the trans is already closed.
-    assert(thd_ndb->global_schema_lock_trans == NULL);
+    assert(thd_ndb->global_schema_lock_trans == nullptr);
     thd_ndb->global_schema_lock_count++;
   }
 
@@ -457,18 +457,18 @@ static int ndbcluster_global_schema_unlock(THD *thd, bool record_gsl) {
   thd_ndb->global_schema_lock_count--;
   DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                       thd_ndb->global_schema_lock_count));
-  assert(ndb != NULL);
-  if (ndb == NULL) {
+  assert(ndb != nullptr);
+  if (ndb == nullptr) {
     return 0;
   }
-  assert(trans != NULL || thd_ndb->global_schema_lock_error != 0);
+  assert(trans != nullptr || thd_ndb->global_schema_lock_error != 0);
   if (thd_ndb->global_schema_lock_count != 0) {
     return 0;
   }
   thd_ndb->global_schema_lock_error = 0;
 
   if (trans) {
-    thd_ndb->global_schema_lock_trans = NULL;
+    thd_ndb->global_schema_lock_trans = nullptr;
 
     // Remember that GSL has been released
     if (record_gsl) ndb_gsl_for_mdl_guard.gsl_released();

@@ -32,7 +32,7 @@
 
 NdbRecAttr::NdbRecAttr(Ndb*)
 {
-  theStorageX = 0;
+  theStorageX = nullptr;
   init();
 }
 
@@ -66,16 +66,16 @@ int
 NdbRecAttr::setup(Uint32 byteSize, char* aValue)
 {
   theValue = aValue;
-  m_getVarValue = NULL; // set in getVarValue() only
+  m_getVarValue = nullptr; // set in getVarValue() only
 
   if (theStorageX)
     delete[] theStorageX;
-  theStorageX = NULL; // "safety first"
+  theStorageX = nullptr; // "safety first"
   
   // check alignment to signal data
   // a future version could check alignment per data type as well
   
-  if (aValue != NULL && (UintPtr(aValue)&3) == 0 && (byteSize&3) == 0) {
+  if (aValue != nullptr && (UintPtr(aValue)&3) == 0 && (byteSize&3) == 0) {
     theRef = aValue;
     return 0;
   }
@@ -90,7 +90,7 @@ NdbRecAttr::setup(Uint32 byteSize, char* aValue)
   }
   Uint32 tSize = (byteSize + 7) >> 3;
   Uint64* tRef = new Uint64[tSize];
-  if (tRef != NULL) {
+  if (tRef != nullptr) {
     for (Uint32 i = 0; i < tSize; i++) {
       tRef[i] = 0;
     }
@@ -105,11 +105,11 @@ NdbRecAttr::setup(Uint32 byteSize, char* aValue)
 
 NdbRecAttr *
 NdbRecAttr::clone() const {
-  NdbRecAttr * ret = new NdbRecAttr(0);
-  if (ret == NULL)
+  NdbRecAttr * ret = new NdbRecAttr(nullptr);
+  if (ret == nullptr)
   {
     errno = ENOMEM;
-    return NULL;
+    return nullptr;
   }
   ret->theAttrId = theAttrId;
   ret->m_size_in_bytes = m_size_in_bytes;
@@ -118,18 +118,18 @@ NdbRecAttr::clone() const {
   Uint32 n = m_size_in_bytes;
   if(n <= 32){
     ret->theRef = (char*)&ret->theStorage[0];
-    ret->theStorageX = 0;
-    ret->theValue = 0;
+    ret->theStorageX = nullptr;
+    ret->theValue = nullptr;
   } else {
     ret->theStorageX = new Uint64[((n + 7) >> 3)];
-    if (ret->theStorageX == NULL)
+    if (ret->theStorageX == nullptr)
     {
       delete ret;
       errno = ENOMEM;
-      return NULL;
+      return nullptr;
     }
     ret->theRef = (char*)ret->theStorageX;    
-    ret->theValue = 0;
+    ret->theValue = nullptr;
   }
   memcpy(ret->theRef, theRef, n);
   return ret;
@@ -141,7 +141,7 @@ NdbRecAttr::receive_data(const Uint32 * data32, Uint32 sz)
   const unsigned char* data = (const unsigned char*)data32;
   if(sz)
   {
-    if (unlikely(m_getVarValue != NULL)) {
+    if (unlikely(m_getVarValue != nullptr)) {
       // ONLY for blob V2 implementation
       assert(m_column->getType() == NdbDictionary::Column::Longvarchar ||
              m_column->getType() == NdbDictionary::Column::Longvarbinary);
@@ -176,7 +176,7 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
   return NdbDictionary::printFormattedValue(out,
                                             f,
                                             r.getColumn(),
-                                            r.isNULL()==0 ? r.aRef() : 0);
+                                            r.isNULL()==0 ? r.aRef() : nullptr);
 }
 
 NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)

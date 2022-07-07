@@ -56,8 +56,8 @@ struct LocalConfig {
 
   LocalConfig();
   ~LocalConfig();
-  bool init(const char *connectString = 0,
-	    const char *fileName = 0);
+  bool init(const char *connectString = nullptr,
+	    const char *fileName = nullptr);
   char * makeConnectString(char *buf, int sz);
 
 private:

@@ -38,9 +38,9 @@ bool printNF_COMPLETE_REP(FILE* output,
   }
 
   const NFCompleteRep* sig = (const NFCompleteRep*)theData;
-  const char * who = getBlockName(sig->blockNo, 0);
+  const char * who = getBlockName(sig->blockNo, nullptr);
   
-  if(who == 0){
+  if(who == nullptr){
     fprintf(output, 
 	    " Node: %d has completed failure of node %d\n",
 	    sig->nodeId, sig->failedNodeId);

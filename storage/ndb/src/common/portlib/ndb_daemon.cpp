@@ -255,7 +255,7 @@ static inline int unlink(const char *filename)
 }
 #endif
 
-static const char *g_pidfile_name = 0;
+static const char *g_pidfile_name = nullptr;
 static int g_pidfd = -1, g_logfd = -1;
 
 static int
