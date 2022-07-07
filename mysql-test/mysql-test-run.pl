@@ -2683,9 +2683,7 @@ sub executable_setup () {
   $exe_mysql_migrate_keyring =
     mtr_exe_exists("$path_client_bindir/mysql_migrate_keyring");
   $exe_mysql_keyring_encryption_test =
-    my_find_bin($bindir,
-                [ "runtime_output_directory", "libexec", "sbin", "bin" ],
-                "mysql_keyring_encryption_test");
+    mtr_exe_exists("$path_client_bindir/mysql_keyring_encryption_test");
 
   # For custom OpenSSL builds, look for the my_openssl executable.
   $exe_openssl =
