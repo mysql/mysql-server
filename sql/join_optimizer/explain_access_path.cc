@@ -132,7 +132,7 @@ static bool SetIndexInfoInObject(
   string idx_cond_str = pushed_idx_cond ? ItemToString(pushed_idx_cond) : "";
   string covering_index =
       string(table->key_read ? "Covering index " : "Index ");
-  int error = 0;
+  bool error = false;
 
   if (prefix) covering_index[0] = tolower(covering_index[0]);
 
@@ -244,7 +244,7 @@ static bool GetAccessPathsFromItem(Item *item_arg, const char *source_text,
         Json_object *child_obj = new (std::nothrow) Json_object();
         if (child_obj == nullptr) return true;
         // Populate the subquery-specific json fields.
-        int error = 0;
+        bool error = false;
         error |= AddMemberToObject<Json_boolean>(child_obj, "subquery", true);
         error |= AddMemberToObject<Json_string>(child_obj, "subquery_location",
                                                 source_text);
@@ -290,7 +290,7 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
     const AccessPath *path, JOIN *join, std::unique_ptr<Json_object> ret_obj,
     vector<ExplainChild> *children, bool explain_analyze) {
   Json_object *obj = ret_obj.get();
-  int error = 0;
+  bool error = false;
   MaterializePathParameters *param = path->materialize().param;
 
   /*
@@ -548,7 +548,7 @@ static bool ExplainGroupIndexSkipScanAccessPath(Json_object *obj,
   KEY *key_info = table->key_info + path->group_index_skip_scan().index;
   GroupIndexSkipScanParameters *param = path->group_index_skip_scan().param;
   string ranges;
-  int error = 0;
+  bool error = false;
   std::unique_ptr<Json_array> range_arr(new (std::nothrow) Json_array());
   if (range_arr == nullptr) return true;
 
@@ -722,7 +722,7 @@ static std::unique_ptr<Json_object> ExplainQueryPlan(
 /* Append the various costs. */
 static bool AddPathCosts(const AccessPath *path, Json_object *obj,
                          bool explain_analyze) {
-  int error = 0;
+  bool error = false;
 
   if (path->num_output_rows >= 0.0) {
     // Calculate first row cost
@@ -790,7 +790,7 @@ static bool AddPathCosts(const AccessPath *path, Json_object *obj,
 static std::unique_ptr<Json_object> SetObjectMembers(
     std::unique_ptr<Json_object> ret_obj, const AccessPath *path, JOIN *join,
     vector<ExplainChild> *children) {
-  int error = 0;
+  bool error = false;
   string description;
 
   // The obj to be returned might get changed when processing some of the
@@ -1503,7 +1503,7 @@ static std::unique_ptr<Json_object> ExplainAccessPath(const AccessPath *path,
                                                       JOIN *join,
                                                       bool is_root_of_join,
                                                       Json_object *input_obj) {
-  int error = 0;
+  bool error = false;
   vector<ExplainChild> children;
   Json_object *obj;
   std::unique_ptr<Json_object> ret_obj(input_obj);
