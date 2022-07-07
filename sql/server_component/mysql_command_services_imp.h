@@ -62,7 +62,7 @@ struct mysql_command_service_extn {
                              if it was allocated. */
   MYSQL_DATA *data = nullptr;
   void *command_consumer_services = nullptr;
-  SRV_CTX_H *consumer_srv_data;
+  SRV_CTX_H *consumer_srv_data = nullptr;
   MYSQL_THD mcs_thd = nullptr;
   const char *mcs_protocol = nullptr;
   const char *mcs_user_name = nullptr;

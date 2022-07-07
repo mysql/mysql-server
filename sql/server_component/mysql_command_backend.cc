@@ -275,8 +275,10 @@ bool csi_advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
 
   mysql_handle.mysql = mysql;
-  if (((class mysql_command_consumer_refs *)(command_consumer_srv))
-          ->factory_srv->start(&srv_ctx_h, (MYSQL_H *)&mysql_handle)) {
+  if (mcs_extn->consumer_srv_data != nullptr)
+    srv_ctx_h = reinterpret_cast<SRV_CTX_H>(mcs_extn->consumer_srv_data);
+  else if (((class mysql_command_consumer_refs *)(command_consumer_srv))
+               ->factory_srv->start(&srv_ctx_h, (MYSQL_H *)&mysql_handle)) {
     sprintf(*err_msg, "Could not create %s service",
             "mysql_text_consumer_factory_v1");
     goto error;

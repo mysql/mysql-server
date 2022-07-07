@@ -1965,6 +1965,7 @@ void STDCALL mysql_free_result(MYSQL_RES *result) {
     if (result->field_alloc) {
       result->field_alloc->Clear();
       my_free(result->field_alloc);
+      result->field_alloc = nullptr;  // to avoid double free
     }
     my_free(result->row);
     my_free(result);

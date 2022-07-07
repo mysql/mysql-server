@@ -295,8 +295,8 @@ static char *test_mysql_command_services_apis_udf(UDF_INIT *, UDF_ARGS *args,
         (result_set.length() < *length) ? result_set.length() : (*length - 1);
     result[*length] = '\0';
   }
-err:
   *error = 0;
+err:
   cmd_query_result_srv->free_result(mysql_res);
   cmd_factory_srv->close(mysql_h);
   return result;

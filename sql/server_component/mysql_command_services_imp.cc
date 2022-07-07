@@ -230,6 +230,11 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::close, (MYSQL_H mysql_h)) {
         srv_session_detach(mcs_ext->session_svc);
         srv_session_close(mcs_ext->session_svc);
       }
+      if (mysql->field_alloc) {
+        mysql->field_alloc->Clear();
+        my_free(mysql->field_alloc);
+        mysql->field_alloc = nullptr;
+      }
       mysql_close(mysql);
       my_free(mysql_h);
     }
