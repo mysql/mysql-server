@@ -193,7 +193,7 @@ bool keys_metadata_get_length_template(
       return true;
     }
 
-    Data data;
+    Data_extension data;
     Metadata metadata;
     if (keyring_operations.get_iterator_data(it, metadata, data) == true) {
       LogComponentErr(
@@ -238,9 +238,9 @@ bool keys_metadata_get_template(
       return true;
     }
 
-    Data data;
+    Data_extension data;
     Metadata metadata;
-    if (keyring_operations.get_iterator_data(it, metadata, data) == true) {
+    if (keyring_operations.get_iterator_metadata(it, metadata, data) == true) {
       LogComponentErr(
           INFORMATION_LEVEL,
           ER_NOTE_KEYRING_COMPONENT_KEYS_METADATA_ITERATOR_FETCH_FAILED);

@@ -18,6 +18,8 @@
 --eval CREATE FUNCTION keyring_key_type_fetch RETURNS STRING SONAME '$KEYRING_UDF'
 --replace_regex /\.dll/.so/
 --eval CREATE FUNCTION keyring_key_length_fetch RETURNS INTEGER SONAME '$KEYRING_UDF'
+--replace_regex /\.dll/.so/
+--eval CREATE FUNCTION keyring_key_remove RETURNS INTEGER SONAME '$KEYRING_UDF'
 
 --echo # ----------------------------------------------------------------------
 
@@ -85,6 +87,9 @@ SELECT keyring_key_type_fetch('key3');
 SELECT keyring_key_fetch('key1');
 SELECT keyring_key_fetch('key2');
 SELECT keyring_key_fetch('key3');
+SELECT keyring_key_remove('key1');
+SELECT keyring_key_remove('key2');
+SELECT keyring_key_remove('key3');
 
 # Remove keyring_file plugin data from var directory
 --remove_file $MYSQLTEST_VARDIR/plugin_keyring_file_data
@@ -95,6 +100,7 @@ SELECT keyring_key_fetch('key3');
 DROP FUNCTION keyring_key_fetch;
 DROP FUNCTION keyring_key_type_fetch;
 DROP FUNCTION keyring_key_length_fetch;
+DROP FUNCTION keyring_key_remove;
 UNINSTALL PLUGIN keyring_udf;
 --echo # ----------------------------------------------------------------------
 

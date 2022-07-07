@@ -61,7 +61,7 @@ class Data_extension final : public Data {
   const Extension get_extension() const { return ext_; }
 
   /* Set data */
-  void set_data(const data::Data data) override { Data::operator=(data); }
+  void set_data(const data::Data &data) override { Data::operator=(data); }
   /* Set metadata extension */
   void set_extension(const Extension ext) { ext_ = ext; }
 

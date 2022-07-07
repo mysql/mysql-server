@@ -157,7 +157,7 @@ bool fetch_length_template(
       return true;
     }
 
-    Data data;
+    Data_extension data;
     Metadata metadata;
     if (keyring_operations.get_iterator_data(it, metadata, data) == true) {
       return true;
@@ -203,7 +203,7 @@ bool fetch_template(
       return true;
     }
 
-    Data data;
+    Data_extension data;
     Metadata metadata;
     if (keyring_operations.get_iterator_data(it, metadata, data) == true) {
       return true;
