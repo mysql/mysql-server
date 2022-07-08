@@ -28,7 +28,9 @@
 #include <mysql/plugin.h>
 
 /* Service handle */
-extern SERVICE_TYPE(pfs_plugin_table) * table_svc;
+extern SERVICE_TYPE(pfs_plugin_column_integer_v1) * col_int_svc;
+extern SERVICE_TYPE(pfs_plugin_column_enum_v1) * col_enum_svc;
+extern SERVICE_TYPE(pfs_plugin_column_string_v2) * col_string_svc;
 
 /* Global share pointer for pfs_example_employee_salary table */
 extern PFS_engine_table_share_proxy machine_st_share;

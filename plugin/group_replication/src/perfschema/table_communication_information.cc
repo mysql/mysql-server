@@ -176,18 +176,22 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
                              PSI_field *field,
                              unsigned int index MY_ATTRIBUTE((unused))) {
   Registry_guard guard;
-  my_service<SERVICE_TYPE(pfs_plugin_table)> table_service{
-      "pfs_plugin_table", guard.get_registry()};
+  my_service<SERVICE_TYPE(pfs_plugin_column_tiny_v1)> column_tinyint_service{
+      "pfs_plugin_column_tiny_v1", guard.get_registry()};
+  my_service<SERVICE_TYPE(pfs_plugin_column_bigint_v1)> column_bigint_service{
+      "pfs_plugin_column_bigint_v1", guard.get_registry()};
+  my_service<SERVICE_TYPE(pfs_plugin_column_blob_v1)> column_blob_service{
+      "pfs_plugin_column_blob_v1", guard.get_registry()};
 
   switch (index) {
     case 0: {  // WRITE_CONCURRENCY
-      table_service->set_field_bigint(field, {s_write_concurrency, false});
+      column_bigint_service->set_unsigned(field, {s_write_concurrency, false});
       break;
     }
     case 1: {  // PROTOCOL_VERSION
-      table_service->set_field_blob(
-          field, s_mysql_version.get_version_string().c_str(),
-          s_mysql_version.get_version_string().size());
+      column_blob_service->set(field,
+                               s_mysql_version.get_version_string().c_str(),
+                               s_mysql_version.get_version_string().size());
       break;
     }
     case 2: {  // WRITE_CONSENSUS_LEADERS_PREFERRED
@@ -198,7 +202,7 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
           ss << ',';
         }
       }
-      table_service->set_field_blob(field, ss.str().c_str(), ss.str().size());
+      column_blob_service->set(field, ss.str().c_str(), ss.str().size());
       break;
     }
     case 3: {  // WRITE_CONSENSUS_LEADERS_ACTUAL
@@ -209,12 +213,12 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
           ss << ',';
         }
       }
-      table_service->set_field_blob(field, ss.str().c_str(), ss.str().size());
+      column_blob_service->set(field, ss.str().c_str(), ss.str().size());
       break;
     }
     case 4: {  // WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE
-      table_service->set_field_utinyint(field,
-                                        {s_single_writer_capable, false});
+      column_tinyint_service->set_unsigned(field,
+                                           {s_single_writer_capable, false});
       break;
     }
   }

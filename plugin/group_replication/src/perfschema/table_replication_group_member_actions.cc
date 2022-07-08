@@ -76,40 +76,42 @@ static void reset_position(PSI_table_handle *handle [[maybe_unused]]) {
 static int read_column_value(PSI_table_handle *handle [[maybe_unused]],
                              PSI_field *field, unsigned int index) {
   Registry_guard guard;
-  my_service<SERVICE_TYPE(pfs_plugin_table)> table_service{
-      "pfs_plugin_table", guard.get_registry()};
+  my_service<SERVICE_TYPE(pfs_plugin_column_string_v2)> column_string_service{
+      "pfs_plugin_column_string_v2", guard.get_registry()};
+  my_service<SERVICE_TYPE(pfs_plugin_column_tiny_v1)> column_tinyint_service{
+      "pfs_plugin_column_tiny_v1", guard.get_registry()};
 
   switch (index) {
     case 0: {  // name
-      table_service->set_field_char_utf8mb4(
+      column_string_service->set_char_utf8mb4(
           field, s_rows[s_current_row_pos].name.c_str(),
           s_rows[s_current_row_pos].name.length());
       break;
     }
     case 1: {  // event
-      table_service->set_field_char_utf8mb4(
+      column_string_service->set_char_utf8mb4(
           field, s_rows[s_current_row_pos].event.c_str(),
           s_rows[s_current_row_pos].event.length());
       break;
     }
     case 2: {  // enabled
-      table_service->set_field_utinyint(
+      column_tinyint_service->set_unsigned(
           field, {s_rows[s_current_row_pos].enabled, false});
       break;
     }
     case 3: {  // type
-      table_service->set_field_char_utf8mb4(
+      column_string_service->set_char_utf8mb4(
           field, s_rows[s_current_row_pos].type.c_str(),
           s_rows[s_current_row_pos].type.length());
       break;
     }
     case 4: {  // priority
-      table_service->set_field_utinyint(
+      column_tinyint_service->set_unsigned(
           field, {s_rows[s_current_row_pos].priority, false});
       break;
     }
     case 5: {  // error_handling
-      table_service->set_field_char_utf8mb4(
+      column_string_service->set_char_utf8mb4(
           field, s_rows[s_current_row_pos].error_handling.c_str(),
           s_rows[s_current_row_pos].error_handling.length());
       break;

@@ -171,18 +171,18 @@ int m_by_emp_by_mtype_read_column_value(PSI_table_handle *handle,
 
   switch (index) {
     case 0: /* FIRST_NAME */
-      table_svc->set_field_char_utf8mb4(field, h->current_row.f_name,
-                                        h->current_row.f_name_length);
+      col_string_svc->set_char_utf8mb4(field, h->current_row.f_name,
+                                       h->current_row.f_name_length);
       break;
     case 1: /* LAST_NAME */
-      table_svc->set_field_char_utf8mb4(field, h->current_row.l_name,
-                                        h->current_row.l_name_length);
+      col_string_svc->set_char_utf8mb4(field, h->current_row.l_name,
+                                       h->current_row.l_name_length);
       break;
     case 2: /* MACHINE_TYPE */
-      table_svc->set_field_enum(field, h->current_row.machine_type);
+      col_enum_svc->set(field, h->current_row.machine_type);
       break;
     case 3: /* COUNT */
-      table_svc->set_field_integer(field, h->current_row.count);
+      col_int_svc->set(field, h->current_row.count);
       break;
     default: /* We should never reach here */
       assert(0);

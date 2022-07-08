@@ -84,7 +84,19 @@ Machine_Record machine_array[] =
 /* Global handles */
 SERVICE_TYPE(registry) *r = nullptr;
 my_h_service h_ret_table_svc = nullptr;
-SERVICE_TYPE(pfs_plugin_table) *table_svc = nullptr;
+SERVICE_TYPE(pfs_plugin_table_v1) *table_svc = nullptr;
+my_h_service h_ret_col_int_svc = nullptr;
+SERVICE_TYPE(pfs_plugin_column_integer_v1) * col_int_svc = nullptr;
+my_h_service h_ret_col_string_svc = nullptr;
+SERVICE_TYPE(pfs_plugin_column_string_v2) * col_string_svc = nullptr;
+my_h_service h_ret_col_bigint_svc = nullptr;
+SERVICE_TYPE(pfs_plugin_column_bigint_v1) * col_bigint_svc = nullptr;
+my_h_service h_ret_col_date_svc = nullptr;
+SERVICE_TYPE(pfs_plugin_column_date_v1) * col_date_svc = nullptr;
+my_h_service h_ret_col_time_svc = nullptr;
+SERVICE_TYPE(pfs_plugin_column_time_v1) * col_time_svc = nullptr;
+my_h_service h_ret_col_enum_svc = nullptr;
+SERVICE_TYPE(pfs_plugin_column_enum_v1) * col_enum_svc = nullptr;
 
 /* Collection of table shares to be added to performance schema */
 PFS_engine_table_share_proxy* share_list[4]= {nullptr, nullptr, nullptr, nullptr};
@@ -112,7 +124,7 @@ static PSI_mutex_info mutex_info[] = {
 /**
 * acquire_service_handles does following:
 *   - Acquire the registry service for mysql_server.
-*   - Acquire pfs_plugin_table service implementation.
+*   - Acquire pfs_plugin_table_v1 service implementation.
 */
 bool
 acquire_service_handles(MYSQL_PLUGIN p [[maybe_unused]])
@@ -129,18 +141,96 @@ acquire_service_handles(MYSQL_PLUGIN p [[maybe_unused]])
     goto error;
   }
 
-  /* Acquire pfs_plugin_table service */
-  if (r->acquire("pfs_plugin_table", &h_ret_table_svc))
+  /* Acquire pfs_plugin_table_v1 service */
+  if (r->acquire("pfs_plugin_table_v1", &h_ret_table_svc))
   {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "can't find pfs_plugin_table service");
+                 "can't find pfs_plugin_table_v1 service");
     result = true;
     goto error;
   }
 
   /* Type cast this handler to proper service handle */
   table_svc =
-    reinterpret_cast<SERVICE_TYPE(pfs_plugin_table) *>(h_ret_table_svc);
+    reinterpret_cast<SERVICE_TYPE(pfs_plugin_table_v1) *>(h_ret_table_svc);
+
+  /* Acquire pfs_plugin_column_integer_v1 service */
+  if (r->acquire("pfs_plugin_column_integer_v1", &h_ret_col_int_svc))
+  {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "can't find pfs_plugin_column_integer_v1 service");
+    result = true;
+    goto error;
+  }
+
+  /* Type cast this handler to proper service handle */
+  col_int_svc =
+    reinterpret_cast<SERVICE_TYPE(pfs_plugin_column_integer_v1) *>(h_ret_col_int_svc);
+
+  /* Acquire pfs_plugin_column_string_v2 service */
+  if (r->acquire("pfs_plugin_column_string_v2", &h_ret_col_string_svc))
+  {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "can't find pfs_plugin_column_string_v2 service");
+    result = true;
+    goto error;
+  }
+
+  /* Type cast this handler to proper service handle */
+  col_string_svc =
+    reinterpret_cast<SERVICE_TYPE(pfs_plugin_column_string_v2) *>(h_ret_col_string_svc);
+
+  /* Acquire pfs_plugin_column_bigint_v1 service */
+  if (r->acquire("pfs_plugin_column_bigint_v1", &h_ret_col_bigint_svc))
+  {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "can't find pfs_plugin_column_bigint_v1 service");
+    result = true;
+    goto error;
+  }
+
+  /* Type cast this handler to proper service handle */
+  col_bigint_svc =
+    reinterpret_cast<SERVICE_TYPE(pfs_plugin_column_bigint_v1) *>(h_ret_col_bigint_svc);
+
+  /* Acquire pfs_plugin_column_date_v1 service */
+  if (r->acquire("pfs_plugin_column_date_v1", &h_ret_col_date_svc))
+  {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "can't find pfs_plugin_column_date_v1 service");
+    result = true;
+    goto error;
+  }
+
+  /* Type cast this handler to proper service handle */
+  col_date_svc =
+    reinterpret_cast<SERVICE_TYPE(pfs_plugin_column_date_v1) *>(h_ret_col_date_svc);
+
+  /* Acquire pfs_plugin_column_time_v1 service */
+  if (r->acquire("pfs_plugin_column_time_v1", &h_ret_col_time_svc))
+  {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "can't find pfs_plugin_column_time_v1 service");
+    result = true;
+    goto error;
+  }
+
+  /* Type cast this handler to proper service handle */
+  col_time_svc =
+    reinterpret_cast<SERVICE_TYPE(pfs_plugin_column_time_v1) *>(h_ret_col_time_svc);
+
+  /* Acquire pfs_plugin_column_enum_v1 service */
+  if (r->acquire("pfs_plugin_column_enum_v1", &h_ret_col_enum_svc))
+  {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "can't find pfs_plugin_column_enum_v1 service");
+    result = true;
+    goto error;
+  }
+
+  /* Type cast this handler to proper service handle */
+  col_enum_svc =
+    reinterpret_cast<SERVICE_TYPE(pfs_plugin_column_enum_v1) *>(h_ret_col_enum_svc);
 
 error:
   return result;
@@ -148,7 +238,7 @@ error:
 
 /**
 * release_service_handles does following:
-*   - Release the handle to the pfs_plugin_table service.
+*   - Release the handle to the pfs_plugin_table_v1 service.
 *   - Release the handle to registry service.
 */
 void
@@ -158,11 +248,60 @@ release_service_handles()
   {
     if (h_ret_table_svc != nullptr)
     {
-      /* Release pfs_plugin_table and pfs_plugin_table services */
+      /* Release pfs_plugin_table_v1 services */
       r->release(h_ret_table_svc);
       h_ret_table_svc = nullptr;
       table_svc = nullptr;
     }
+
+    if (h_ret_col_int_svc != nullptr)
+    {
+      /* Release pfs_plugin_column_integer_v1 services */
+      r->release(h_ret_col_int_svc);
+      h_ret_col_int_svc = nullptr;
+      col_int_svc = nullptr;
+    }
+
+    if (h_ret_col_string_svc != nullptr)
+    {
+      /* Release pfs_plugin_column_string_v2 services */
+      r->release(h_ret_col_string_svc);
+      h_ret_col_string_svc = nullptr;
+      col_string_svc = nullptr;
+    }
+
+    if (h_ret_col_bigint_svc != nullptr)
+    {
+      /* Release pfs_plugin_column_bigint_v1 services */
+      r->release(h_ret_col_bigint_svc);
+      h_ret_col_bigint_svc = nullptr;
+      col_bigint_svc = nullptr;
+    }
+
+    if (h_ret_col_date_svc != nullptr)
+    {
+      /* Release pfs_plugin_column_date_v1 services */
+      r->release(h_ret_col_date_svc);
+      h_ret_col_date_svc = nullptr;
+      col_date_svc = nullptr;
+    }
+
+    if (h_ret_col_time_svc != nullptr)
+    {
+      /* Release pfs_plugin_column_time_v1 services */
+      r->release(h_ret_col_time_svc);
+      h_ret_col_time_svc = nullptr;
+      col_time_svc = nullptr;
+    }
+
+    if (h_ret_col_enum_svc != nullptr)
+    {
+      /* Release pfs_plugin_column_enum_v1 services */
+      r->release(h_ret_col_enum_svc);
+      h_ret_col_enum_svc = nullptr;
+      col_enum_svc = nullptr;
+    }
+
     /* Release registry service */
     mysql_plugin_registry_release(r);
     r = nullptr;
@@ -262,8 +401,8 @@ machine_prepare_insert_row()
 *  pfs_example_func does following :
 *    - Instantiate PFS_engine_table_share_proxy(s).
 *    - Prepare and insert rows in tables from here.
-*    - Acquire pfs_plugin_table service handle.
-*    - Call add_table method of pfs_plugin_table service.
+*    - Acquire pfs_plugin_table_v1 service handle.
+*    - Call add_table method of pfs_plugin_table_v1 service.
 
 *  Error messages are written to the server's error log.
 *  In case of success writes a single information message to the server's log.
@@ -293,7 +432,7 @@ pfs_example_func(MYSQL_PLUGIN p)
     goto error;
   }
 
-  /* Get pfs_plugin_table service handle. */
+  /* Get pfs_plugin_table_v1 service handle. */
   result = acquire_service_handles(p);
   if (result)
     goto error;
@@ -305,7 +444,7 @@ pfs_example_func(MYSQL_PLUGIN p)
   share_list[3]= &m_by_emp_by_mtype_st_share;
 
   /**
-   * Call add_tables function of pfs_plugin_table service to
+   * Call add_tables function of pfs_plugin_table_v1 service to
    * add plugin tables in performance schema.
    */
   if (table_svc->add_tables(&share_list[0], share_list_count))
@@ -391,7 +530,7 @@ pfs_example_plugin_employee_check(void *)
 *  deinstallation.
 *
 *   - Delete/Drop plugin tables from Performance Schema.
-*   - Release pfs_plugin_table service handle.
+*   - Release pfs_plugin_table_v1 service handle.
 */
 static int
 pfs_example_plugin_employee_deinit(void *p  [[maybe_unused]])
@@ -399,7 +538,7 @@ pfs_example_plugin_employee_deinit(void *p  [[maybe_unused]])
   DBUG_TRACE;
 
   /**
-   * Call delete_tables function of pfs_plugin_table service to
+   * Call delete_tables function of pfs_plugin_table_v1 service to
    * delete plugin tables from performance schema
    */
   if (table_svc != nullptr)

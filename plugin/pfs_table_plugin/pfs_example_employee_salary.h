@@ -30,7 +30,10 @@
 #include <vector>
 
 /* Service handle */
-extern SERVICE_TYPE(pfs_plugin_table) * table_svc;
+extern SERVICE_TYPE(pfs_plugin_column_integer_v1) * col_int_svc;
+extern SERVICE_TYPE(pfs_plugin_column_bigint_v1) * col_bigint_svc;
+extern SERVICE_TYPE(pfs_plugin_column_date_v1) * col_date_svc;
+extern SERVICE_TYPE(pfs_plugin_column_time_v1) * col_time_svc;
 
 /* Global share pointer for pfs_example_employee_salary table */
 extern PFS_engine_table_share_proxy esalary_st_share;

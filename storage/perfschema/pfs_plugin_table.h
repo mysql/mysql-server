@@ -30,9 +30,6 @@
   @file storage/perfschema/pfs_plugin_table.h
   The performance schema implementation of plugin table.
 */
-/** @deprecated */
-extern SERVICE_TYPE(pfs_plugin_table)
-    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table);
 
 extern SERVICE_TYPE(pfs_plugin_table_v1)
     SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table_v1);

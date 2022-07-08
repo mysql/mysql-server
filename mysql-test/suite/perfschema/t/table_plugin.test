@@ -4,7 +4,7 @@
 #
 # This test script:
 #    - Installs the plugin named pfs_example_plugin_employee. This plugin
-#         calls pfs_plugin_table service methods add_table()/delete_table() to
+#         calls pfs_plugin_table_v1 service methods add_table()/delete_table() to
 #         add new tables named
 #              - pfs_example_employee_name
 #              - pfs_example_employee_salary
