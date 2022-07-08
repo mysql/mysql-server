@@ -77,3 +77,7 @@ CREATE USER 'user1'@'%' REQUIRE SSL;
 
 # Cleanup
 DROP USER 'user1';
+
+# Clear extra options added above
+--let $restart_parameters = restart:
+--source include/restart_mysqld_no_echo.inc
