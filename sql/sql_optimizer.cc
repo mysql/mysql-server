@@ -7995,12 +7995,23 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
   const char *cause;
 
   /* Find the indexes that might be used for skip scan queries. */
-  if (hint_table_state(join->thd, join_tab->table_ref, SKIP_SCAN_HINT_ENUM,
-                       OPTIMIZER_SKIP_SCAN) &&
-      join->where_cond && join->primary_tables == 1 &&
+  if (join->where_cond && join->primary_tables == 1 &&
       join->group_list.empty() &&
       !is_indexed_agg_distinct(join, &indexed_fields) &&
       !join->select_distinct) {
+    bool use_skip_scan =
+        hint_table_state(join->thd, join_tab->table_ref, SKIP_SCAN_HINT_ENUM,
+                         OPTIMIZER_SKIP_SCAN);
+    /*
+      if skip_scan for a table is off, and the hint is applicable to all
+      indexes, skip processing for possible keys. If the hint has index
+      mentioned then skip_scan can be used with other indexes.
+    */
+    if (!use_skip_scan && join_tab->table_ref->opt_hints_table != nullptr &&
+        join_tab->table_ref->opt_hints_table
+            ->get_compound_key_hint(SKIP_SCAN_HINT_ENUM)
+            ->is_key_map_clear_all())
+      return;
     join->where_cond->walk(&Item::collect_item_field_processor,
                            enum_walk::POSTFIX, (uchar *)&indexed_fields);
     Key_map possible_keys;
