@@ -64,7 +64,14 @@ ADD_LIBRARY(routing SHARED
   classic_register_replica.cc
   classic_reload.cc
   classic_reset_connection.cc
+  classic_set_option.cc
   classic_statistics.cc
+  classic_stmt_close.cc
+  classic_stmt_execute.cc
+  classic_stmt_fetch.cc
+  classic_stmt_param_append_data.cc
+  classic_stmt_prepare.cc
+  classic_stmt_reset.cc
 
   sql_value.cc
 )
