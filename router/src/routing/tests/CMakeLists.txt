@@ -46,6 +46,7 @@ SET(test_files
   test_routing.cc
   test_setup_named_socket_service.cc
   test_setup_tcp_service.cc
+  test_auth_digest.cc
   )
 
 FOREACH(test_file ${test_files})
