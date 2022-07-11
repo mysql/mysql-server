@@ -242,6 +242,12 @@ class BasicConnection : public ConnectionBase {
     return oss.str();
   }
 
+  template <class GettableSocketOption>
+  stdx::expected<void, std::error_code> get_option(
+      GettableSocketOption &opt) const {
+    return sock_.get_option(opt);
+  }
+
  protected:
   socket_type sock_;
   endpoint_type ep_;
