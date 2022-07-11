@@ -47,6 +47,7 @@ ADD_LIBRARY(routing SHARED
 
   processor.cc
   classic_auth.cc
+  classic_binlog_dump.cc
   classic_change_user.cc
   classic_connect.cc
   classic_forwarder.cc
