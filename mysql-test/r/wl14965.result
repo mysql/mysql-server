@@ -1,4 +1,5 @@
 CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
+# save mysql tables
 # restore mysql tables from 8.0.27
 SHOW KEYS FROM mysql.db;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -89,3 +90,4 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `mysql`.`procs_priv`.`Host` AS `Host`,`mysql`.`procs_priv`.`Db` AS `Db`,`mysql`.`procs_priv`.`User` AS `User`,`mysql`.`procs_priv`.`Routine_name` AS `Routine_name`,`mysql`.`procs_priv`.`Routine_type` AS `Routine_type`,`mysql`.`procs_priv`.`Grantor` AS `Grantor`,`mysql`.`procs_priv`.`Proc_priv` AS `Proc_priv`,`mysql`.`procs_priv`.`Timestamp` AS `Timestamp` from `mysql`.`procs_priv` where ((`mysql`.`procs_priv`.`User` = '') and (`mysql`.`procs_priv`.`Host` = ''))
 DROP DATABASE wl14965;
+# restore original mysql tables
