@@ -55,6 +55,7 @@ ADD_LIBRARY(routing SHARED
   classic_init_schema.cc
   classic_lazy_connect.cc
   classic_query.cc
+  classic_quit.cc
   classic_reset_connection.cc
 
   sql_value.cc
