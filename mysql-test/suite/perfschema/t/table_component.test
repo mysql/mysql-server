@@ -4,7 +4,7 @@
 #
 # This test script:
 #    - Installs the component named pfs_example_component_population.
-#         This component calls pfs_plugin_table service methods
+#         This component calls pfs_plugin_table_v1 service methods
 #         add_table() to add new tables named
 #              - pfs_example_continent
 #              - pfs_example_country

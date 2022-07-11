@@ -72,18 +72,20 @@ static void reset_position(PSI_table_handle *handle [[maybe_unused]]) {
 static int read_column_value(PSI_table_handle *handle [[maybe_unused]],
                              PSI_field *field, unsigned int index) {
   Registry_guard guard;
-  my_service<SERVICE_TYPE(pfs_plugin_table)> table_service{
-      "pfs_plugin_table", guard.get_registry()};
+  my_service<SERVICE_TYPE(pfs_plugin_column_string_v2)> column_string_service{
+      "pfs_plugin_column_string_v2", guard.get_registry()};
+  my_service<SERVICE_TYPE(pfs_plugin_column_bigint_v1)> column_bigint_service{
+      "pfs_plugin_column_bigint_v1", guard.get_registry()};
 
   switch (index) {
     case 0: {  // name
-      table_service->set_field_char_utf8mb4(
+      column_string_service->set_char_utf8mb4(
           field, s_rows[s_current_row_pos].name.c_str(),
           s_rows[s_current_row_pos].name.length());
       break;
     }
     case 1: {  // version
-      table_service->set_field_ubigint(
+      column_bigint_service->set_unsigned(
           field, {s_rows[s_current_row_pos].version, false});
       break;
     }

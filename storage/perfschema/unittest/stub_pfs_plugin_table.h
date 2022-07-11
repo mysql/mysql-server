@@ -28,15 +28,6 @@ void init_pfs_plugin_table() {}
 
 void cleanup_pfs_plugin_table() {}
 
-SERVICE_TYPE(pfs_plugin_table)
-SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table){
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
-
 SERVICE_TYPE(pfs_plugin_table_v1)
 SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table_v1){
     nullptr, nullptr, nullptr};

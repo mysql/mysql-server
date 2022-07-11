@@ -138,18 +138,18 @@ int esalary_read_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* EMPLOYEE_NUMBER */
-      table_svc->set_field_integer(field, h->current_row.e_number);
+      col_int_svc->set(field, h->current_row.e_number);
       break;
     case 1: /* EMPLOYEE_SALARY */
-      table_svc->set_field_bigint(field, h->current_row.e_salary);
+      col_bigint_svc->set(field, h->current_row.e_salary);
       break;
     case 2: /* DATE_OF_BIRTH */
-      table_svc->set_field_date(field, h->current_row.e_dob,
-                                h->current_row.e_dob_length);
+      col_date_svc->set(field, h->current_row.e_dob,
+                        h->current_row.e_dob_length);
       break;
     case 3: /* TIME_OF_BIRTH */
-      table_svc->set_field_time(field, h->current_row.e_tob,
-                                h->current_row.e_tob_length);
+      col_time_svc->set(field, h->current_row.e_tob,
+                        h->current_row.e_tob_length);
       break;
     default: /* We should never reach here */
       assert(0);
@@ -197,16 +197,16 @@ int esalary_write_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* EMPLOYEE_NUMBER */
-      table_svc->get_field_integer(field, &h->current_row.e_number);
+      col_int_svc->get(field, &h->current_row.e_number);
       break;
     case 1: /* EMPLOYEE_SALARY */
-      table_svc->get_field_bigint(field, &h->current_row.e_salary);
+      col_bigint_svc->get(field, &h->current_row.e_salary);
       break;
     case 2: /* DATE_OF_BIRTH */
-      table_svc->get_field_date(field, dob_val, dob_len);
+      col_date_svc->get(field, dob_val, dob_len);
       break;
     case 3: /* TIME_OF_BIRTH */
-      table_svc->get_field_time(field, tob_val, tob_len);
+      col_time_svc->get(field, tob_val, tob_len);
       break;
     default: /* We should never reach here */
       assert(0);
@@ -241,16 +241,16 @@ int esalary_update_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* EMPLOYEE_NUMBER */
-      table_svc->get_field_integer(field, &h->current_row.e_number);
+      col_int_svc->get(field, &h->current_row.e_number);
       break;
     case 1: /* EMPLOYEE_SALARY */
-      table_svc->get_field_bigint(field, &h->current_row.e_salary);
+      col_bigint_svc->get(field, &h->current_row.e_salary);
       break;
     case 2: /* DATE_OF_BIRTH */
-      table_svc->get_field_date(field, dob_val, dob_len);
+      col_date_svc->get(field, dob_val, dob_len);
       break;
     case 3: /* TIME_OF_BIRTH */
-      table_svc->get_field_time(field, tob_val, tob_len);
+      col_time_svc->get(field, tob_val, tob_len);
       break;
     default: /* We should never reach here */
       assert(0);

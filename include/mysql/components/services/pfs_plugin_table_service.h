@@ -64,7 +64,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Schema
 
    Following are the example implementations of a plugin and a component which
-   uses this pfs_plugin_table service.
+   uses this pfs_plugin_table_v1 service.
 
    @subpage EXAMPLE_PLUGIN
 
@@ -439,7 +439,7 @@ typedef unsigned long long (*get_row_count_t)(void);
 
 /**
   A share to be initialized by plugin/component code and to be provided
-  to add_table() service method of pfs_plugin_table service.
+  to add_table() service method of pfs_plugin_table_v1 service.
  */
 struct PFS_engine_table_share_proxy {
  public:
@@ -462,134 +462,6 @@ struct PFS_engine_table_share_proxy {
   get_row_count_t get_row_count;
 };
 typedef struct PFS_engine_table_share_proxy PFS_engine_table_share_proxy;
-
-/**
-  Definition of pfs_plugin_table service and its methods.
-  @deprecated
-  This service is functional but incomplete,
-  as many apis are missing.
-  Please use pfs_plugin_table_v1
-  and pfs_plugin_column_*_v1 instead.
-*/
-BEGIN_SERVICE_DEFINITION(pfs_plugin_table)
-/* Methods to add tables in Performance Schema */
-DECLARE_METHOD(int, add_tables,
-               (PFS_engine_table_share_proxy * *st_share,
-                unsigned int share_count));
-
-/* Methods to delete tables in Performance Schema */
-DECLARE_METHOD(int, delete_tables,
-               (PFS_engine_table_share_proxy * *st_share,
-                unsigned int share_count));
-
-/* TINYINT */
-DECLARE_METHOD(void, set_field_tinyint, (PSI_field * f, PSI_tinyint value));
-DECLARE_METHOD(void, set_field_utinyint, (PSI_field * f, PSI_utinyint value));
-DECLARE_METHOD(void, get_field_tinyint, (PSI_field * f, PSI_tinyint *value));
-
-/* SMALLINT */
-DECLARE_METHOD(void, set_field_smallint, (PSI_field * f, PSI_smallint value));
-DECLARE_METHOD(void, set_field_usmallint, (PSI_field * f, PSI_usmallint value));
-DECLARE_METHOD(void, get_field_smallint, (PSI_field * f, PSI_smallint *value));
-
-/* MEDIUMINT */
-DECLARE_METHOD(void, set_field_mediumint, (PSI_field * f, PSI_mediumint value));
-DECLARE_METHOD(void, set_field_umediumint,
-               (PSI_field * f, PSI_umediumint value));
-DECLARE_METHOD(void, get_field_mediumint,
-               (PSI_field * f, PSI_mediumint *value));
-
-/* INTEGER(INT) */
-DECLARE_METHOD(void, set_field_integer, (PSI_field * f, PSI_int value));
-DECLARE_METHOD(void, set_field_uinteger, (PSI_field * f, PSI_uint value));
-DECLARE_METHOD(void, get_field_integer, (PSI_field * f, PSI_int *value));
-DECLARE_METHOD(void, read_key_integer,
-               (PSI_key_reader * reader, PSI_plugin_key_integer *key,
-                int find_flag));
-DECLARE_METHOD(bool, match_key_integer,
-               (bool record_null, long record_value,
-                PSI_plugin_key_integer *key));
-
-/* BIGINT */
-DECLARE_METHOD(void, set_field_bigint, (PSI_field * f, PSI_bigint value));
-DECLARE_METHOD(void, set_field_ubigint, (PSI_field * f, PSI_ubigint value));
-DECLARE_METHOD(void, get_field_bigint, (PSI_field * f, PSI_bigint *value));
-
-/* DECIMAL */
-DECLARE_METHOD(void, set_field_decimal, (PSI_field * f, PSI_double value));
-DECLARE_METHOD(void, get_field_decimal, (PSI_field * f, PSI_double *value));
-
-/* FLOAT */
-DECLARE_METHOD(void, set_field_float, (PSI_field * f, PSI_double value));
-DECLARE_METHOD(void, get_field_float, (PSI_field * f, PSI_double *value));
-
-/* DOUBLE */
-DECLARE_METHOD(void, set_field_double, (PSI_field * f, PSI_double value));
-DECLARE_METHOD(void, get_field_double, (PSI_field * f, PSI_double *value));
-
-/* CHAR */
-DECLARE_METHOD(void, set_field_char_utf8mb4,
-               (PSI_field * f, const char *value, unsigned int length));
-DECLARE_METHOD(void, get_field_char_utf8mb4,
-               (PSI_field * f, char *str, unsigned int *length));
-DECLARE_METHOD(void, read_key_string,
-               (PSI_key_reader * reader, PSI_plugin_key_string *key,
-                int find_flag));
-DECLARE_METHOD(bool, match_key_string,
-               (bool record_null, const char *record_string_value,
-                unsigned int record_string_length, PSI_plugin_key_string *key));
-
-/* VARCHAR */
-DECLARE_METHOD(void, get_field_varchar_utf8mb4,
-               (PSI_field * f, char *str, unsigned int *length));
-
-DECLARE_METHOD(void, set_field_varchar_utf8mb4,
-               (PSI_field * f, const char *str));
-DECLARE_METHOD(void, set_field_varchar_utf8mb4_len,
-               (PSI_field * f, const char *str, unsigned int len));
-
-/* BLOB/TEXT */
-DECLARE_METHOD(void, set_field_blob,
-               (PSI_field * f, const char *val, unsigned int len));
-DECLARE_METHOD(void, get_field_blob,
-               (PSI_field * f, char *val, unsigned int *len));
-
-/* ENUM */
-DECLARE_METHOD(void, set_field_enum, (PSI_field * f, PSI_enum value));
-DECLARE_METHOD(void, get_field_enum, (PSI_field * f, PSI_enum *value));
-
-/* DATE */
-DECLARE_METHOD(void, set_field_date,
-               (PSI_field * f, const char *str, unsigned int length));
-DECLARE_METHOD(void, get_field_date,
-               (PSI_field * f, char *val, unsigned int *len));
-
-/* TIME */
-DECLARE_METHOD(void, set_field_time,
-               (PSI_field * f, const char *str, unsigned int length));
-DECLARE_METHOD(void, get_field_time,
-               (PSI_field * f, char *val, unsigned int *len));
-
-/* DATETIME */
-DECLARE_METHOD(void, set_field_datetime,
-               (PSI_field * f, const char *str, unsigned int length));
-DECLARE_METHOD(void, get_field_datetime,
-               (PSI_field * f, char *val, unsigned int *len));
-
-/* TIMESTAMP */
-DECLARE_METHOD(void, set_field_timestamp,
-               (PSI_field * f, const char *str, unsigned int length));
-DECLARE_METHOD(void, get_field_timestamp,
-               (PSI_field * f, char *val, unsigned int *len));
-
-/* YEAR */
-DECLARE_METHOD(void, set_field_year, (PSI_field * f, PSI_year value));
-DECLARE_METHOD(void, get_field_year, (PSI_field * f, PSI_year *value));
-
-/* NULL */
-DECLARE_METHOD(void, set_field_null, (PSI_field * f));
-
-END_SERVICE_DEFINITION(pfs_plugin_table)
 
 /**
   Definition of pfs_plugin_table_v1 service and its methods.

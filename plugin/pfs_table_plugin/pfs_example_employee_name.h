@@ -28,7 +28,8 @@
 #include <mysql/plugin.h>
 
 /* Service handle */
-extern SERVICE_TYPE(pfs_plugin_table) * table_svc;
+extern SERVICE_TYPE(pfs_plugin_column_integer_v1) * col_int_svc;
+extern SERVICE_TYPE(pfs_plugin_column_string_v2) * col_string_svc;
 
 /* Global share pointer for pfs_example_employee_name table */
 extern PFS_engine_table_share_proxy ename_st_share;
@@ -104,8 +105,7 @@ class Ename_index_by_emp_num : public Ename_index {
   PSI_plugin_key_integer m_emp_num;
 
   bool match(Ename_Record *record) override {
-    return table_svc->match_key_integer(false, record->e_number.val,
-                                        &m_emp_num);
+    return col_int_svc->match_key(false, record->e_number.val, &m_emp_num);
   }
 };
 
@@ -116,8 +116,8 @@ class Ename_index_by_emp_fname : public Ename_index {
   char m_emp_fname_buffer[EMPLOYEE_NAME_LEN];
 
   bool match(Ename_Record *record) override {
-    return table_svc->match_key_string(false, record->f_name,
-                                       record->f_name_length, &m_emp_fname);
+    return col_string_svc->match_key_string(
+        false, record->f_name, record->f_name_length, &m_emp_fname);
   }
 };
 

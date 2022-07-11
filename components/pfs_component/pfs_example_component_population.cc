@@ -125,7 +125,7 @@ int country_prepare_insert_row() {
  *
  *    - Instantiate and initialize PFS_engine_table_share_proxy.
  *    - Prepare and insert rows in tables from here.
- *    - Call add_table method of pfs_plugin_table service.
+ *    - Call add_table method of pfs_plugin_table_v1 service.
  *
  *  @retval 0  success
  *  @retval non-zero   failure
@@ -164,7 +164,7 @@ mysql_service_status_t pfs_example_component_population_init() {
   share_list[1] = &country_st_share;
 
   /**
-   * Call add_table function of pfs_plugin_table service to
+   * Call add_table function of pfs_plugin_table_v1 service to
    * add component tables in performance schema.
    */
   if (pt_srv->add_tables(&share_list[0], share_list_count)) {
@@ -205,7 +205,7 @@ mysql_service_status_t pfs_example_component_population_deinit() {
   WRITE_LOG("pfs_example_component_population_deinit:\n");
 
   /**
-   * Call delete_tables function of pfs_plugin_table service to
+   * Call delete_tables function of pfs_plugin_table_v1 service to
    * delete component tables from performance schema
    */
   if (pt_srv->delete_tables(&share_list[0], share_list_count)) {
@@ -232,7 +232,7 @@ error:
 BEGIN_COMPONENT_PROVIDES(pfs_example_component_population)
 END_COMPONENT_PROVIDES();
 
-/* pfs_example_component requires/uses pfs_plugin_table service */
+/* pfs_example_component requires/uses pfs_plugin_table_v1 service */
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_table_v1, pt_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_string_v2, pc_string_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_year_v1, pc_year_srv);

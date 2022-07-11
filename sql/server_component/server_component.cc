@@ -626,8 +626,6 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_thread_v5),
     PROVIDES_SERVICE(performance_schema, psi_thread_v6),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
-    /* Deprecated, use pfs_plugin_table_v1. */
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_table),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_table_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_tiny_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_small_v1),
