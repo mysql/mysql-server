@@ -37,6 +37,7 @@
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/classic_protocol_session_track.h"
 #include "mysqlrouter/connection_pool.h"
+#include "processor.h"
 #include "sql_exec_context.h"
 #include "tracer.h"
 
@@ -264,17 +265,17 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
   void async_run();
 
-  void send_server_failed(std::error_code ec);
+  void send_server_failed(std::error_code ec, bool call_finish = true);
 
-  void recv_server_failed(std::error_code ec);
+  void recv_server_failed(std::error_code ec, bool call_finish = true);
 
-  void send_client_failed(std::error_code ec);
+  void send_client_failed(std::error_code ec, bool call_finish = true);
 
-  void recv_client_failed(std::error_code ec);
+  void recv_client_failed(std::error_code ec, bool call_finish = true);
 
-  void server_socket_failed(std::error_code ec);
+  void server_socket_failed(std::error_code ec, bool call_finish = true);
 
-  void client_socket_failed(std::error_code ec);
+  void client_socket_failed(std::error_code ec, bool call_finish = true);
 
  private:
   enum class Function {
@@ -691,7 +692,32 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
     }
   }
 
+  // a stack of processors
+  //
+  // take the last processor until its done.
+  //
+  // Flow -> Greeting | Command
+  //   Greeting -> Connect -> Server::Greeting
+  //     Server::Greeting -> Server::Greeting::Greeting |
+  //     Server::Greeting::Error Server::Greeting::Error -> Error::Fatal
+  //     Server::Greeting::Greeting -> Client::Greeting
+  //     Client::Greeting -> TlsConnect | Server::Greeting::Response
+  //     TlsConnect -> Client::Greeting::Full | Error::Fatal
+  //     Client::Greeting::Full -> Server::Ok | Auth::Switch | Server::Error
+  //     Auth::Switch -> ...
+  //       Auth
+  //     Server::Ok -> Command
+  //   Command ->
+  //
+  std::vector<std::unique_ptr<Processor>> processors_;
+
  public:
+  void push_processor(std::unique_ptr<Processor> processor) {
+    return processors_.push_back(std::move(processor));
+  }
+
+  void pop_processor() { processors_.pop_back(); }
+
   stdx::expected<void, std::error_code> track_session_changes(
       net::const_buffer session_trackers,
       classic_protocol::capabilities::value_type caps,
@@ -1029,6 +1055,7 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   // something was received on the client channel.
   void client_recv_cmd();
 
+ public:
   ClassicProtocolState *client_protocol() {
     return dynamic_cast<ClassicProtocolState *>(
         socket_splicer()->client_conn().protocol());
@@ -1118,13 +1145,13 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
   connector_type &connector() { return connector_; }
   const connector_type &connector() const { return connector_; }
+
   bool greeting_from_router() const {
     return !((source_ssl_mode() == SslMode::kPassthrough) ||
              (source_ssl_mode() == SslMode::kPreferred &&
               dest_ssl_mode() == SslMode::kAsClient));
   }
 
- public:
   void requires_tls(bool v) { requires_tls_ = v; }
 
   bool requires_tls() const { return requires_tls_; }

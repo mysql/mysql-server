@@ -925,39 +925,44 @@ void MysqlRoutingClassicConnection::async_run() {
   }
 }
 
-void MysqlRoutingClassicConnection::send_server_failed(std::error_code ec) {
+void MysqlRoutingClassicConnection::send_server_failed(std::error_code ec,
+                                                       bool call_finish) {
 #if defined(DEBUG_IO)
   std::cerr << __LINE__ << ": r->s: " << ec.message() << ", next: finish\n";
 #endif
 
-  server_socket_failed(ec);
+  server_socket_failed(ec, call_finish);
 }
 
-void MysqlRoutingClassicConnection::recv_server_failed(std::error_code ec) {
+void MysqlRoutingClassicConnection::recv_server_failed(std::error_code ec,
+                                                       bool call_finish) {
 #if defined(DEBUG_IO)
   std::cerr << __LINE__ << ": r<-s: " << ec.message() << ", next: finish\n";
 #endif
 
-  server_socket_failed(ec);
+  server_socket_failed(ec, call_finish);
 }
 
-void MysqlRoutingClassicConnection::send_client_failed(std::error_code ec) {
+void MysqlRoutingClassicConnection::send_client_failed(std::error_code ec,
+                                                       bool call_finish) {
 #if defined(DEBUG_IO)
   std::cerr << __LINE__ << ": c<-r: " << ec.message() << ", next: finish\n";
 #endif
 
-  client_socket_failed(ec);
+  client_socket_failed(ec, call_finish);
 }
 
-void MysqlRoutingClassicConnection::recv_client_failed(std::error_code ec) {
+void MysqlRoutingClassicConnection::recv_client_failed(std::error_code ec,
+                                                       bool call_finish) {
 #if defined(DEBUG_IO)
   std::cerr << __LINE__ << ": c->r: " << ec.message() << ", next: finish\n";
 #endif
 
-  client_socket_failed(ec);
+  client_socket_failed(ec, call_finish);
 }
 
-void MysqlRoutingClassicConnection::server_socket_failed(std::error_code ec) {
+void MysqlRoutingClassicConnection::server_socket_failed(std::error_code ec,
+                                                         bool call_finish) {
   auto &server_conn = this->socket_splicer()->server_conn();
 
   if (server_conn.is_open()) {
@@ -974,10 +979,11 @@ void MysqlRoutingClassicConnection::server_socket_failed(std::error_code ec) {
     (void)server_conn.close();
   }
 
-  finish();
+  if (call_finish) finish();
 }
 
-void MysqlRoutingClassicConnection::client_socket_failed(std::error_code ec) {
+void MysqlRoutingClassicConnection::client_socket_failed(std::error_code ec,
+                                                         bool call_finish) {
   auto &client_conn = this->socket_splicer()->client_conn();
 
   if (client_conn.is_open()) {
@@ -1011,7 +1017,7 @@ void MysqlRoutingClassicConnection::client_socket_failed(std::error_code ec) {
     (void)client_conn.close();
   }
 
-  finish();
+  if (call_finish) finish();
 }
 
 void MysqlRoutingClassicConnection::async_send_client(Function next) {
