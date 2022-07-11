@@ -60,6 +60,7 @@ ADD_LIBRARY(routing SHARED
   classic_ping.cc
   classic_query.cc
   classic_quit.cc
+  classic_reload.cc
   classic_reset_connection.cc
   classic_statistics.cc
 
