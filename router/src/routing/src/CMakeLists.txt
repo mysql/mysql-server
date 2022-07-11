@@ -46,9 +46,16 @@ ADD_LIBRARY(routing SHARED
   blocked_endpoints.cc
 
   processor.cc
+  classic_auth.cc
+  classic_change_user.cc
   classic_connect.cc
   classic_forwarder.cc
   classic_frame.cc
+  classic_greeting.cc
+  classic_init_schema.cc
+  classic_lazy_connect.cc
+  classic_query.cc
+  classic_reset_connection.cc
 
   sql_value.cc
 )
