@@ -47,6 +47,7 @@ ADD_LIBRARY(routing SHARED
 
   processor.cc
   classic_forwarder.cc
+  classic_frame.cc
 
   sql_value.cc
 )
