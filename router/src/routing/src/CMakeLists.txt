@@ -55,6 +55,7 @@ ADD_LIBRARY(routing SHARED
   classic_frame.cc
   classic_greeting.cc
   classic_init_schema.cc
+  classic_kill.cc
   classic_lazy_connect.cc
   classic_ping.cc
   classic_query.cc
