@@ -57,6 +57,7 @@ ADD_LIBRARY(routing SHARED
   classic_init_schema.cc
   classic_kill.cc
   classic_lazy_connect.cc
+  classic_list_fields.cc
   classic_ping.cc
   classic_query.cc
   classic_quit.cc
