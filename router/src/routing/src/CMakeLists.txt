@@ -46,6 +46,7 @@ ADD_LIBRARY(routing SHARED
   blocked_endpoints.cc
 
   processor.cc
+  classic_connect.cc
   classic_forwarder.cc
   classic_frame.cc
 
