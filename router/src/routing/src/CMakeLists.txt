@@ -52,6 +52,7 @@ ADD_LIBRARY(routing SHARED
   classic_clone.cc
   classic_command.cc
   classic_connect.cc
+  classic_flow.cc
   classic_forwarder.cc
   classic_frame.cc
   classic_greeting.cc
