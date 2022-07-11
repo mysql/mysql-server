@@ -32,7 +32,7 @@
 
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/string_utils.h"
-#include "mysqlrouter/utils.h"  // hexdump
+#include "mysqlrouter/utils.h"  // get_tcp_port
 
 using ::testing::ContainerEq;
 using ::testing::Pair;
@@ -57,37 +57,6 @@ TEST_F(GetTCPPortTest, GetTCPPortFail) {
   ASSERT_THROW(get_tcp_port("99999999"), std::runtime_error);
   ASSERT_THROW(get_tcp_port("abcdef"), std::runtime_error);
 }
-
-struct HexDumpParam {
-  std::string test_name;
-
-  std::string input;
-  std::string expected_output;
-};
-
-class HexDumpTest : public ::testing::Test,
-                    public ::testing::WithParamInterface<HexDumpParam> {};
-
-TEST_P(HexDumpTest, check) {
-  const auto *data = GetParam().input.c_str();
-  size_t data_len = GetParam().input.size();
-
-  EXPECT_EQ(GetParam().expected_output,
-            mysqlrouter::hexdump(reinterpret_cast<const unsigned char *>(data),
-                                 data_len));
-}
-
-static const HexDumpParam hexdump_data[] = {
-    {"abc", "abc", "61 62 63 \n"},
-
-    {"multiline", "abcdefgh12345678ABCDEFGH12345678",
-     "61 62 63 64 65 66 67 68 31 32 33 34 35 36 37 38\n"
-     "41 42 43 44 45 46 47 48 31 32 33 34 35 36 37 38\n"}};
-
-INSTANTIATE_TEST_SUITE_P(Hex, HexDumpTest, ::testing::ValuesIn(hexdump_data),
-                         [](auto const &pinfo) {
-                           return pinfo.param.test_name;
-                         });
 
 class UtilsTests : public ::testing::Test {};
 
