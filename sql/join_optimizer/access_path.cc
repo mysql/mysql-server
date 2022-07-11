@@ -1231,7 +1231,10 @@ void FindTablesToGetRowidFor(AccessPath *path) {
 }
 
 // Move the join conditions that are left in path->filter_predicates into the
-// hash join predicate of the given HASH_JOIN access path.
+// hash join predicate of the given HASH_JOIN access path. Note that join
+// conditions with subqueries are not moved. If the subqueries need to be
+// materialized, then a filter access path is expected from the caller.
+// So they will continue to stay as filters on top of the hash join.
 //
 // TODO(khatlen): It's a bit of a hack to widen the hash join condition like
 // this after the plan has been found. It would be better if we found a way to
@@ -1249,9 +1252,11 @@ static void MoveFilterPredicatesIntoHashJoinCondition(
     if (filter_idx >= num_where_predicates) break;
     const Predicate &predicate = predicates[filter_idx];
     if (!predicate.was_join_condition) continue;
-    moved_predicates.SetBit(filter_idx);
 
     Item *condition = predicate.condition;
+    // Conditions with subqueries are not moved.
+    if (condition->has_subquery()) continue;
+    moved_predicates.SetBit(filter_idx);
     if (is_function_of_type(condition, Item_func::EQ_FUNC) &&
         down_cast<Item_func_eq *>(condition)
             ->contains_only_equi_join_condition()) {
