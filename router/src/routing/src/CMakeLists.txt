@@ -49,6 +49,7 @@ ADD_LIBRARY(routing SHARED
   classic_auth.cc
   classic_binlog_dump.cc
   classic_change_user.cc
+  classic_clone.cc
   classic_connect.cc
   classic_forwarder.cc
   classic_frame.cc
