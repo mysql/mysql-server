@@ -1635,6 +1635,11 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   // Updatability is not decided yet
   assert(!view_ref->is_updatable());
 
+  // another level of nesting would exceed the max supported nesting level
+  if (view_ref->query_block->nest_level >= MAX_SELECT_NESTING) {
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
+    return true;
+  }
   // Link query expression of view into the outer query
   view_lex->unit->include_down(old_lex, view_ref->query_block);
   //  Set hints specified in created view to allow printing them in view body.
