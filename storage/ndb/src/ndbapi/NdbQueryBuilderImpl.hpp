@@ -56,7 +56,8 @@
 #define QRY_OJ_NOT_SUPPORTED 4827
 //#define QRY_NEST_NOT_SPECIFIED 4828  <<== DEPRECATED
 #define QRY_NEST_NOT_SUPPORTED 4829
-
+#define QRY_TABLE_HAVE_NO_FRAGMENTS 4830
+#define QRY_BAD_FRAGMENT_DATA 4831
 
 #include <Vector.hpp>
 #include <Bitmask.hpp>

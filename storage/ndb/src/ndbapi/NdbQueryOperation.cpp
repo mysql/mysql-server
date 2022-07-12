@@ -3148,13 +3148,22 @@ NdbQueryImpl::prepareSend()
     const NdbDictionary::Table &rootTable = rootOp.getQueryOperationDef().getTable();
 
     rootFragments = rootTable.getFragmentCount();
+    if (rootFragments == 0)
+    {
+      // No fragments - should never happen
+      setErrorCode(QRY_TABLE_HAVE_NO_FRAGMENTS);
+      DEBUG_CRASH();
+      return -1;
+    }
 
     /* For the first batch, we read from all fragments for both ordered 
      * and unordered scans.*/
     if (getQueryOperation(0U).m_parallelism != Parallelism_max)
     {
-      assert(getRoot().m_parallelism != Parallelism_adaptive);
-      rootFragments = MIN(rootFragments, getRoot().m_parallelism);
+      const Uint32 parallelism = getRoot().m_parallelism;
+      require(parallelism > 0); // NdbQueryOperationImpl invariant
+      assert(parallelism != Parallelism_adaptive);
+      rootFragments = MIN(rootFragments, parallelism);
     }
 
     bool pruned = false;
@@ -3194,15 +3203,21 @@ NdbQueryImpl::prepareSend()
       {
         Uint32 nodes[1];
         const Uint32 res = rootTable.getFragmentNodes(i, nodes, NDB_ARRAY_SIZE(nodes));
-        assert(res>0); (void)res;
+        assert(res > 0);
+        if (res == 0)
         {
-          if (!dataNodes.get(nodes[0]))
-          {
-            dataNodes.set(nodes[0]);
-            cnt++;
-          }
+          // Fragment without node, should never happen
+          setErrorCode(QRY_BAD_FRAGMENT_DATA);
+          DEBUG_CRASH();
+          return -1;
+        }
+        if (!dataNodes.get(nodes[0]))
+        {
+          dataNodes.set(nodes[0]);
+          cnt++;
         }
       }
+      require(cnt > 0);
       assert((rootFragments % cnt) == 0);
       m_fragsPerWorker = rootFragments / cnt;
     }
