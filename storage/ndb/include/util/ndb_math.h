@@ -26,6 +26,7 @@
 #define NDB_MATH_H
 
 #include <type_traits>
+#include "util/require.h"
 
 /**
  * Greatest common divisor, gcd.
@@ -62,11 +63,17 @@ inline Int lcm(Int x, Int y)
 template<typename T>
 static constexpr inline T ndb_ceil_div(const T p, const T q)
 {
-  static_assert(std::is_integral<T>::value,
+  static_assert(std::is_integral_v<T>,
                 "Integral type required for ndb_ceil_div().");
   if (p == 0)
   {
     return 0;
+  }
+  if constexpr (std::is_signed_v<T>)
+  {
+    // Negative values not supported
+    require(p >= 0);
+    require(q >= 0);
   }
   return 1 + (p - 1) / q;
 }

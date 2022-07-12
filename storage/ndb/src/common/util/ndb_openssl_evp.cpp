@@ -28,6 +28,7 @@
 #include <stdlib.h> // abort()
 #include <string.h>
 
+#include <limits>
 #include <new>
 
 #include "openssl/conf.h"
@@ -49,9 +50,9 @@
 #define REQUIRE(r) do { if (unlikely(!(r))) { fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); require((r)); } } while (0)
 #endif
 
-//#define RETURN(rv) return(rv)
+#define RETURN(rv) return(rv)
 //#define RETURN(rv) abort()
-#define RETURN(r) do { fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); require(false); return (r); } while (0)
+//#define RETURN(r) do { fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); require(false); return (r); } while (0)
 // clang-format on
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -258,6 +259,20 @@ size_t ndb_openssl_evp::get_needed_key_iv_pair_count(
     off_t estimated_data_size) const
 {
   off_t key_iv_pairs = 0;
+  require(estimated_data_size >= -1);
+  if (estimated_data_size == -1)
+  {
+    // Indefinite data size, use maximum supported size instead
+    estimated_data_size = std::numeric_limits<off_t>::max();
+  }
+  else if (estimated_data_size == 0)
+  {
+    /*
+     * Zero is just an estimate. Use one byte instead to not return zero keys
+     * needed.
+     */
+    estimated_data_size = 1;
+  }
   if (m_data_unit_size == 0)
   {
     // Stream mode with CBC
