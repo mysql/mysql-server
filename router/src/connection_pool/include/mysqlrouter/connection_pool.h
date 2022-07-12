@@ -39,7 +39,10 @@
 #include "mysql/harness/stdx/monitor.h"
 #include "mysql/harness/tls_types.h"  // Ssl
 #include "mysqlrouter/classic_protocol_constants.h"
+#include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/connection_base.h"
+
+#include "../../routing/src/ssl_mode.h"  // TODO(jkneschk)
 
 /**
  * pooled connection.
@@ -146,11 +149,21 @@ class CONNECTION_POOL_EXPORT PooledClassicConnection : public PooledConnection {
   PooledClassicConnection(std::unique_ptr<ConnectionBase> conn)
       : PooledConnection{std::move(conn)} {}
 
-  PooledClassicConnection(std::unique_ptr<ConnectionBase> conn, Ssl ssl,
-                          caps_type server_caps, caps_type client_caps)
+  PooledClassicConnection(
+      std::unique_ptr<ConnectionBase> conn, Ssl ssl, caps_type server_caps,
+      caps_type client_caps,
+      std::optional<classic_protocol::message::server::Greeting>
+          server_greeting,
+      SslMode ssl_mode, std::string username, std::string schema,
+      std::string attributes)
       : PooledConnection{std::move(conn), std::move(ssl)},
         server_caps_{server_caps},
-        client_caps_{client_caps} {}
+        client_caps_{client_caps},
+        server_greeting_{std::move(server_greeting)},
+        ssl_mode_{ssl_mode},
+        username_{std::move(username)},
+        schema_{std::move(schema)},
+        attributes_{std::move(attributes)} {}
 
   [[nodiscard]] caps_type client_capabilities() const { return client_caps_; }
 
@@ -160,9 +173,28 @@ class CONNECTION_POOL_EXPORT PooledClassicConnection : public PooledConnection {
     return server_caps_ & client_caps_;
   }
 
+  std::optional<classic_protocol::message::server::Greeting> server_greeting()
+      const {
+    return server_greeting_;
+  }
+
+  SslMode ssl_mode() const { return ssl_mode_; }
+
+  std::string username() const { return username_; }
+  std::string schema() const { return schema_; }
+  std::string attributes() const { return attributes_; }
+
  private:
   caps_type server_caps_{};
   caps_type client_caps_{};
+
+  std::optional<classic_protocol::message::server::Greeting> server_greeting_;
+
+  SslMode ssl_mode_;
+
+  std::string username_;
+  std::string schema_;
+  std::string attributes_;
 };
 
 /**
@@ -194,6 +226,11 @@ class CONNECTION_POOL_EXPORT ConnectionPool {
   ~ConnectionPool() = default;
 
   void add(connection_type conn);
+
+  /**
+   * add connection to the pool if the poll isn't full.
+   */
+  std::optional<connection_type> add_if_not_full(connection_type conn);
 
   /**
    * get a connection from the pool that matches a predicate.

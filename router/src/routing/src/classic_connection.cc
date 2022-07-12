@@ -50,6 +50,7 @@
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_frame.h"
 #include "mysqlrouter/classic_protocol_message.h"
+#include "mysqlrouter/classic_protocol_session_track.h"
 #include "mysqlrouter/connection_pool.h"
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/routing_component.h"
@@ -89,6 +90,11 @@ static constexpr const std::array supported_authentication_methods{
 template <class T>
 static constexpr uint8_t cmd_byte() {
   return classic_protocol::Codec<T>::cmd_byte();
+}
+
+template <class T>
+static constexpr uint8_t type_byte() {
+  return classic_protocol::Codec<T>::type_byte();
 }
 
 /*
@@ -417,7 +423,9 @@ ensure_has_full_frame(Channel *src_channel,
   auto read_res = src_channel->read_to_plain(min_size - cur_size);
   if (!read_res) return read_res.get_unexpected();
 
-  return {};
+  if (recv_buf.size() >= min_size) return {};
+
+  return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
 }
 
 /**
@@ -910,15 +918,7 @@ void MysqlRoutingClassicConnection::async_run() {
         return true;
       });
 
-  // the server's greeting if:
-  //
-  // passthrough + as_client
-  // preferred   + as_client
-  greeting_from_router_ = !((source_ssl_mode() == SslMode::kPassthrough) ||
-                            (source_ssl_mode() == SslMode::kPreferred &&
-                             dest_ssl_mode() == SslMode::kAsClient));
-
-  if (greeting_from_router_) {
+  if (greeting_from_router()) {
     client_send_server_greeting_from_router();
   } else {
     server_recv_server_greeting_from_server();
@@ -1344,6 +1344,255 @@ void MysqlRoutingClassicConnection::server_recv_change_user_response() {
   return recv_server_failed(make_error_code(std::errc::bad_message));
 }
 
+stdx::expected<void, std::error_code>
+MysqlRoutingClassicConnection::track_session_changes(
+    net::const_buffer session_trackers,
+    classic_protocol::capabilities::value_type caps,
+    bool ignore_some_state_changed) {
+  do {
+    auto decode_session_res =
+        classic_protocol::decode<classic_protocol::session_track::Field>(
+            session_trackers, caps);
+    if (!decode_session_res) {
+      return decode_session_res.get_unexpected();
+    }
+
+    const auto decoded_size = decode_session_res->first;
+
+    if (decoded_size == 0) {
+      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+    }
+
+    enum class Type {
+      SystemVariable =
+          type_byte<classic_protocol::session_track::SystemVariable>(),
+      Schema = type_byte<classic_protocol::session_track::Schema>(),
+      State = type_byte<classic_protocol::session_track::State>(),
+      Gtid = type_byte<classic_protocol::session_track::Gtid>(),
+      TransactionState =
+          type_byte<classic_protocol::session_track::TransactionState>(),
+      TransactionCharacteristics = type_byte<
+          classic_protocol::session_track::TransactionCharacteristics>(),
+    };
+
+    switch (Type{decode_session_res->second.type()}) {
+      case Type::SystemVariable: {
+        auto decode_value_res = classic_protocol::decode<
+            classic_protocol::session_track::SystemVariable>(
+            net::buffer(decode_session_res->second.data()), caps);
+        if (!decode_value_res) {
+          // ignore errors?
+        } else {
+          const auto kv = decode_value_res->second;
+
+          std::ostringstream oss;
+
+          oss << "<< "
+              << "SET @@SESSION." << kv.key() << " = " << quoted(kv.value())
+              << ";";
+
+          exec_ctx_.system_variables().set(kv.key(), Value(kv.value()));
+
+          trace(Tracer::Event().stage(oss.str()));
+        }
+      } break;
+      case Type::Schema: {
+        auto decode_value_res =
+            classic_protocol::decode<classic_protocol::session_track::Schema>(
+                net::buffer(decode_session_res->second.data()), caps);
+        if (!decode_value_res) {
+          // ignore errors?
+        } else {
+          std::string schema = decode_value_res->second.schema();
+
+          std::ostringstream oss;
+
+          oss << "<< "
+              << "USE " << schema;
+          trace(Tracer::Event().stage(oss.str()));
+
+          server_protocol()->schema(schema);
+          client_protocol()->schema(schema);
+        }
+      } break;
+      case Type::State: {
+        auto decode_value_res =
+            classic_protocol::decode<classic_protocol::session_track::State>(
+                net::buffer(decode_session_res->second.data()), caps);
+        if (!decode_value_res) {
+          // ignore errors?
+        } else {
+          // .state() is always '1'
+
+          if (!ignore_some_state_changed) {
+            some_state_changed_ = true;
+          }
+
+          std::ostringstream oss;
+
+          oss << "<< "
+              << "some session state changed.";
+
+          trace(Tracer::Event().stage(oss.str()));
+        }
+      } break;
+      case Type::Gtid: {
+        auto decode_value_res =
+            classic_protocol::decode<classic_protocol::session_track::Gtid>(
+                net::buffer(decode_session_res->second.data()), caps);
+        if (!decode_value_res) {
+          // ignore errors?
+        } else {
+          auto gtid = decode_value_res->second;
+
+          std::ostringstream oss;
+
+          oss << "<< "
+              << "gtid: (spec: " << static_cast<int>(gtid.spec()) << ") "
+              << gtid.gtid();
+
+          trace(Tracer::Event().stage(oss.str()));
+        }
+      } break;
+      case Type::TransactionState: {
+        auto decode_value_res = classic_protocol::decode<
+            classic_protocol::session_track::TransactionState>(
+            net::buffer(decode_session_res->second.data()), caps);
+        if (!decode_value_res) {
+          // ignore errors?
+        } else {
+          auto trx_state = decode_value_res->second;
+
+          // remember the last transaction-state
+          trx_state_ = trx_state;
+
+          std::ostringstream oss;
+
+          oss << "<< "
+              << "trx-state: ";
+
+          switch (trx_state.trx_type()) {
+            case '_':
+              oss << "no trx";
+              break;
+            case 'T':
+              oss << "explicit trx";
+              break;
+            case 'I':
+              oss << "implicit trx";
+              break;
+            default:
+              oss << "(unknown trx-type)";
+              break;
+          }
+
+          switch (trx_state.read_trx()) {
+            case '_':
+              break;
+            case 'R':
+              oss << ", read trx";
+              break;
+            default:
+              oss << ", (unknown read-trx-type)";
+              break;
+          }
+
+          switch (trx_state.read_unsafe()) {
+            case '_':
+              break;
+            case 'r':
+              oss << ", read trx (non-transactional)";
+              break;
+            default:
+              oss << ", (unknown read-unsafe-type)";
+              break;
+          }
+
+          switch (trx_state.write_trx()) {
+            case '_':
+              break;
+            case 'W':
+              oss << ", write trx";
+              break;
+            default:
+              oss << ", (unknown write-trx-type)";
+              break;
+          }
+
+          switch (trx_state.write_unsafe()) {
+            case '_':
+              break;
+            case 'w':
+              oss << ", write trx (non-transactional)";
+              break;
+            default:
+              oss << ", (unknown write-unsafe-type)";
+              break;
+          }
+
+          switch (trx_state.stmt_unsafe()) {
+            case '_':
+              break;
+            case 's':
+              oss << ", stmt unsafe (UUID(), RAND(), ...)";
+              break;
+            default:
+              oss << ", (unknown stmt-unsafe-type)";
+              break;
+          }
+
+          switch (trx_state.resultset()) {
+            case '_':
+              break;
+            case 'S':
+              oss << ", resultset sent";
+              break;
+            default:
+              oss << ", (unknown resultset-type)";
+              break;
+          }
+
+          switch (trx_state.locked_tables()) {
+            case '_':
+              break;
+            case 'L':
+              oss << ", LOCK TABLES";
+              break;
+            default:
+              oss << ", (unknown locked-tables-type)";
+              break;
+          }
+
+          trace(Tracer::Event().stage(oss.str()));
+        }
+      } break;
+      case Type::TransactionCharacteristics: {
+        auto decode_value_res = classic_protocol::decode<
+            classic_protocol::session_track::TransactionCharacteristics>(
+            net::buffer(decode_session_res->second.data()), caps);
+        if (!decode_value_res) {
+          // ignore errors?
+        } else {
+          auto trx_characteristics = decode_value_res->second;
+
+          trx_characteristics_ = trx_characteristics;
+
+          std::ostringstream oss;
+
+          oss << "<< trx-stmt: " << trx_characteristics.characteristics();
+
+          trace(Tracer::Event().stage(oss.str()));
+        }
+      } break;
+    }
+
+    // go to the next field.
+    session_trackers += decoded_size;
+  } while (session_trackers.size() > 0);
+
+  return {};
+}
+
 void MysqlRoutingClassicConnection::
     server_recv_change_user_response_auth_method_switch() {
   auto *socket_splicer = this->socket_splicer();
@@ -1499,16 +1748,18 @@ static TlsSwitchableConnection make_connection_from_pooled(
     PooledClassicConnection &&other) {
   return {std::move(other.connection()),
           nullptr,  // routing_conn
-          {SslMode::kPreferred, {}},
+          {other.ssl_mode(), other.ssl_ctx_gettor()},
           std::make_unique<Channel>(std::move(other.ssl())),
-          std::make_unique<ClassicProtocolState>(other.server_capabilities(),
-                                                 other.client_capabilities())};
+          std::make_unique<ClassicProtocolState>(
+              other.server_capabilities(), other.client_capabilities(),
+              other.server_greeting(), other.username(), other.schema(),
+              other.attributes())};
 }
 
 std::optional<PooledClassicConnection>
 MysqlRoutingClassicConnection::try_pop_pooled_connection(
     const net::ip::tcp::endpoint &ep) {
-  if (!greeting_from_router_) return {};
+  if (!greeting_from_router()) return {};
 
   auto &pools = ConnectionPoolComponent::get_instance();
 
@@ -1548,44 +1799,49 @@ void MysqlRoutingClassicConnection::connect() {
   if (!connect_res) {
     const auto ec = connect_res.error();
 
-    // We need to keep the disconnect_mtx_ while the async handlers are being
-    // set up in order not to miss the disconnect request. Otherwise we could
-    // end up blocking for the whole 'destination_connect_timeout' duration
-    // before giving up the connection.
-    std::lock_guard<std::mutex> lk(disconnect_mtx_);
-    if ((!disconnect_) &&
-        (ec == make_error_condition(std::errc::operation_in_progress) ||
-         ec == make_error_condition(std::errc::operation_would_block))) {
-      auto &t = connector.timer();
+    // We need to keep the disconnect_request's mtx while the async handlers are
+    // being set up in order not to miss the disconnect request. Otherwise we
+    // could end up blocking for the whole 'destination_connect_timeout'
+    // duration before giving up the connection.
+    auto handled = disconnect_request([this, &connector, ec](auto requested) {
+      if ((!requested) &&
+          (ec == make_error_condition(std::errc::operation_in_progress) ||
+           ec == make_error_condition(std::errc::operation_would_block))) {
+        auto &t = connector.timer();
 
-      t.expires_after(context().get_destination_connect_timeout());
+        t.expires_after(context().get_destination_connect_timeout());
 
-      t.async_wait([this](std::error_code ec) {
-        if (ec) {
-          return;
-        }
+        t.async_wait([this](std::error_code ec) {
+          if (ec) {
+            return;
+          }
 
-        this->connector().connect_timed_out(true);
-        this->connector().socket().cancel();
-      });
+          this->connector().connect_timed_out(true);
+          this->connector().socket().cancel();
+        });
 
-      connector.socket().async_wait(
-          net::socket_base::wait_write, [this](std::error_code ec) {
-            if (ec) {
-              if (this->connector().connect_timed_out()) {
-                // the connector will handle this.
-                return call_next_function(Function::kConnect);
-              } else {
-                return call_next_function(Function::kFinish);
+        connector.socket().async_wait(
+            net::socket_base::wait_write, [this](std::error_code ec) {
+              if (ec) {
+                if (this->connector().connect_timed_out()) {
+                  // the connector will handle this.
+                  return call_next_function(Function::kConnect);
+                } else {
+                  return call_next_function(Function::kFinish);
+                }
               }
-            }
-            this->connector().timer().cancel();
+              this->connector().timer().cancel();
 
-            return call_next_function(Function::kConnect);
-          });
+              return call_next_function(Function::kConnect);
+            });
 
-      return;
-    }
+        return true;
+      }
+
+      return false;
+    });
+
+    if (handled) return;
 
     // close the server side.
     this->connector().socket().close();
@@ -3109,11 +3365,16 @@ PooledClassicConnection make_pooled_connection(
     TlsSwitchableConnection &&other) {
   auto *classic_protocol_state =
       dynamic_cast<ClassicProtocolState *>(other.protocol());
-  return {std::move(other.connection()), other.channel()->release_ssl(),
+  return {std::move(other.connection()),
+          other.channel()->release_ssl(),
           classic_protocol_state->server_capabilities(),
-          classic_protocol_state->client_capabilities()
-
-  };
+          classic_protocol_state->client_capabilities(),
+          classic_protocol_state->server_greeting(),
+          other.tls_switchable().ssl_mode(),
+          other.tls_switchable().ssl_ctx_gettor(),
+          classic_protocol_state->username(),
+          classic_protocol_state->schema(),
+          classic_protocol_state->attributes()};
 }
 
 void MysqlRoutingClassicConnection::cmd_quit() {
@@ -4258,4 +4519,33 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
   } else {
     return async_send_client(Function::kClientRecvCmd);
   }
+}
+
+bool MysqlRoutingClassicConnection::connection_sharing_possible() const {
+  const auto &sysvars = exec_ctx_.system_variables();
+
+  return context_.connection_sharing() &&              // config must allow it.
+         client_protocol()->password().has_value() &&  // a password is required
+         sysvars.get("session_track_gtids") == Value("OWN_GTID") &&
+         sysvars.get("session_track_state_change") == Value("ON") &&
+         sysvars.get("session_track_system_variables") == Value("*") &&
+         sysvars.get("session_track_transaction_info") ==
+             Value("CHARACTERISTICS");
+}
+
+bool MysqlRoutingClassicConnection::connection_sharing_allowed() const {
+  return connection_sharing_possible() &&
+         (!trx_state_.has_value() ||  // at the start trx_state is not set.c
+          *trx_state_ ==
+              classic_protocol::session_track::TransactionState{
+                  '_', '_', '_', '_', '_', '_', '_', '_'}) &&
+         (trx_characteristics_.has_value() &&
+          trx_characteristics_->characteristics() == "") &&
+         !some_state_changed_;
+}
+
+void MysqlRoutingClassicConnection::connection_sharing_allowed_reset() {
+  trx_state_.reset();
+  trx_characteristics_.reset();
+  some_state_changed_ = false;
 }

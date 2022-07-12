@@ -139,6 +139,8 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
    * @param client_ssl_ctx SSL context of the client side
    * @param server_ssl_mode SSL mode of the serer side
    * @param dest_ssl_ctx SSL contexts of the destinations
+   * @param connection_sharing if connection sharing is allowed by the
+   * configuration
    */
   MySQLRouting(
       net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
@@ -157,7 +159,8 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
       SslMode client_ssl_mode = SslMode::kDisabled,
       TlsServerContext *client_ssl_ctx = nullptr,
       SslMode server_ssl_mode = SslMode::kDisabled,
-      DestinationTlsContext *dest_ssl_ctx = nullptr);
+      DestinationTlsContext *dest_ssl_ctx = nullptr,
+      bool connection_sharing = false);
 
   /** @brief Starts the service and accept incoming connections
    *

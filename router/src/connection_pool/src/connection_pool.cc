@@ -100,6 +100,22 @@ void ConnectionPool::add(ConnectionPool::connection_type conn) {
   });
 }
 
+std::optional<ConnectionPool::connection_type> ConnectionPool::add_if_not_full(
+    ConnectionPool::connection_type conn) {
+  return pool_(
+      [&](auto &pool) -> std::optional<ConnectionPool::connection_type> {
+        if (pool.size() >= max_pooled_connections_) return std::move(conn);
+
+        pool.push_back(std::move(conn));
+
+        auto &last = pool.back();
+        last.remover([this, it = std::prev(pool.end())]() { erase(it); });
+        last.async_idle(idle_timeout_);
+
+        return std::nullopt;
+      });
+}
+
 uint32_t ConnectionPool::current_pooled_connections() const {
   return pool_([](const auto &pool) { return pool.size(); });
 }

@@ -737,43 +737,47 @@ void MysqlRoutingXConnection::connect() {
   if (!connect_res) {
     const auto ec = connect_res.error();
 
-    // We need to keep the disconnect_mtx_ while the async handlers are being
-    // set up in order not to miss the disconnect request. Otherwise we could
-    // end up blocking for the whole 'destination_connect_timeout' duration
-    // before giving up the connection.
-    std::lock_guard<std::mutex> lk(disconnect_mtx_);
-    if ((!disconnect_) &&
-        (ec == make_error_condition(std::errc::operation_in_progress) ||
-         ec == make_error_condition(std::errc::operation_would_block))) {
-      auto &t = connector.timer();
-      t.expires_after(context().get_destination_connect_timeout());
+    // We need to keep the disconnect_request's mtx while the async handlers are
+    // being set up in order not to miss the disconnect request. Otherwise we
+    // could end up blocking for the whole 'destination_connect_timeout'
+    // duration before giving up the connection.
+    auto handled = disconnect_request([this, &connector, ec](auto requested) {
+      if ((!requested) &&
+          (ec == make_error_condition(std::errc::operation_in_progress) ||
+           ec == make_error_condition(std::errc::operation_would_block))) {
+        auto &t = connector.timer();
+        t.expires_after(context().get_destination_connect_timeout());
 
-      t.async_wait([this](std::error_code ec) {
-        if (ec) {
-          return;
-        }
+        t.async_wait([this](std::error_code ec) {
+          if (ec) {
+            return;
+          }
 
-        this->connector().connect_timed_out(true);
-        this->connector().socket().cancel();
-      });
+          this->connector().connect_timed_out(true);
+          this->connector().socket().cancel();
+        });
 
-      connector.socket().async_wait(
-          net::socket_base::wait_write, [this](std::error_code ec) {
-            if (ec) {
-              if (this->connector().connect_timed_out()) {
-                // the connector will handle this.
-                return call_next_function(Function::kConnect);
-              } else {
-                return call_next_function(Function::kFinish);
+        connector.socket().async_wait(
+            net::socket_base::wait_write, [this](std::error_code ec) {
+              if (ec) {
+                if (this->connector().connect_timed_out()) {
+                  // the connector will handle this.
+                  return call_next_function(Function::kConnect);
+                } else {
+                  return call_next_function(Function::kFinish);
+                }
               }
-            }
-            this->connector().timer().cancel();
+              this->connector().timer().cancel();
 
-            return call_next_function(Function::kConnect);
-          });
+              return call_next_function(Function::kConnect);
+            });
 
-      return;
-    }
+        return true;
+      }
+      return false;
+    });
+
+    if (handled) return;
 
     // close the server side.
     this->connector().socket().close();
@@ -1177,18 +1181,26 @@ void MysqlRoutingXConnection::forward_tls_init() {
   forward_tls_server_to_client();
 }
 
+static stdx::expected<SSL_CTX *, std::error_code> get_dest_ssl_ctx(
+    MySQLRoutingContext &ctx, const std::string &id) {
+  return mysql_harness::make_tcp_address(id).and_then(
+      [&ctx](const auto &addr) -> stdx::expected<SSL_CTX *, std::error_code> {
+        return ctx.dest_ssl_ctx(addr.address())->get();
+      });
+}
+
 void MysqlRoutingXConnection::tls_connect_init() {
   auto *socket_splicer = this->socket_splicer();
   auto *dst_channel = socket_splicer->server_channel();
 
-  auto *ssl_ctx = socket_splicer->server_conn().get_ssl_ctx();
-  if (ssl_ctx == nullptr) {
+  auto ssl_ctx_res = get_dest_ssl_ctx(context(), get_destination_id());
+  if (!ssl_ctx_res || ssl_ctx_res.value() == nullptr) {
     // shouldn't happen. But if it does, close the connection.
     log_warning("failed to create SSL_CTX");
 
     return send_server_failed(make_error_code(std::errc::invalid_argument));
   }
-  dst_channel->init_ssl(ssl_ctx);
+  dst_channel->init_ssl(*ssl_ctx_res);
 
   return tls_connect();
 }
@@ -1527,7 +1539,7 @@ void MysqlRoutingXConnection::tls_accept_init() {
 
   src_channel->is_tls(true);
 
-  auto *ssl_ctx = socket_splicer->client_conn().get_ssl_ctx();
+  auto *ssl_ctx = context().source_ssl_ctx()->get();
   // tls <-> (any)
   if (ssl_ctx == nullptr) {
     // shouldn't happen. But if it does, close the connection.

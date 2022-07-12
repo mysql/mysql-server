@@ -81,19 +81,14 @@ inline std::string tls_content_type_to_string(TlsContentType v) {
 
 class TlsSwitchable {
  public:
-  using ssl_ctx_gettor_type = std::function<SSL_CTX *()>;
+  using ssl_ctx_gettor_type = std::function<SSL_CTX *(const std::string &id)>;
 
-  TlsSwitchable(SslMode ssl_mode, ssl_ctx_gettor_type ssl_ctx_gettor)
-      : ssl_mode_{ssl_mode}, ssl_ctx_gettor_{std::move(ssl_ctx_gettor)} {}
+  TlsSwitchable(SslMode ssl_mode) : ssl_mode_{ssl_mode} {}
 
   [[nodiscard]] SslMode ssl_mode() const { return ssl_mode_; }
 
-  [[nodiscard]] SSL_CTX *get_ssl_ctx() const { return ssl_ctx_gettor_(); }
-
  private:
   SslMode ssl_mode_;
-
-  ssl_ctx_gettor_type ssl_ctx_gettor_;
 };
 
 class RoutingConnectionBase {
@@ -302,22 +297,21 @@ class TlsSwitchableConnection {
  public:
   TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
                           std::unique_ptr<RoutingConnectionBase> routing_conn,
-                          TlsSwitchable tls_switchable,
+                          SslMode ssl_mode,
                           std::unique_ptr<ProtocolStateBase> state)
       : conn_{std::move(conn)},
         routing_conn_{std::move(routing_conn)},
-        tls_switchable_{std::move(tls_switchable)},
+        ssl_mode_{std::move(ssl_mode)},
         channel_{std::make_unique<Channel>()},
         protocol_{std::move(state)} {}
 
   TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
                           std::unique_ptr<RoutingConnectionBase> routing_conn,
-                          TlsSwitchable tls_switchable,
-                          std::unique_ptr<Channel> channel,
+                          SslMode ssl_mode, std::unique_ptr<Channel> channel,
                           std::unique_ptr<ProtocolStateBase> state)
       : conn_{std::move(conn)},
         routing_conn_{std::move(routing_conn)},
-        tls_switchable_{std::move(tls_switchable)},
+        ssl_mode_{std::move(ssl_mode)},
         channel_{std::move(channel)},
         protocol_{std::move(state)} {}
 
@@ -370,9 +364,7 @@ class TlsSwitchableConnection {
 
   [[nodiscard]] const Channel *channel() const { return channel_.get(); }
 
-  [[nodiscard]] const TlsSwitchable &tls_switchable() const {
-    return tls_switchable_;
-  }
+  [[nodiscard]] SslMode ssl_mode() const { return ssl_mode_; }
 
   [[nodiscard]] bool is_open() const { return conn_ && conn_->is_open(); }
 
@@ -399,10 +391,6 @@ class TlsSwitchableConnection {
     if (!is_open()) return "";
 
     return conn_->endpoint();
-  }
-
-  [[nodiscard]] SSL_CTX *get_ssl_ctx() const {
-    return tls_switchable_.get_ssl_ctx();
   }
 
   [[nodiscard]] uint64_t reset_error_count(
@@ -434,8 +422,7 @@ class TlsSwitchableConnection {
   std::unique_ptr<ConnectionBase> conn_;
   std::unique_ptr<RoutingConnectionBase> routing_conn_;
 
-  // tls-state
-  TlsSwitchable tls_switchable_;
+  SslMode ssl_mode_;
 
   // socket buffers
   std::unique_ptr<Channel> channel_;
@@ -492,11 +479,11 @@ class ProtocolSplicerBase {
   }
 
   [[nodiscard]] SslMode source_ssl_mode() const {
-    return client_conn().tls_switchable().ssl_mode();
+    return client_conn().ssl_mode();
   }
 
   [[nodiscard]] SslMode dest_ssl_mode() const {
-    return server_conn().tls_switchable().ssl_mode();
+    return server_conn().ssl_mode();
   }
 
   [[nodiscard]] Channel *client_channel() { return client_conn().channel(); }

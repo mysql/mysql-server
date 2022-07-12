@@ -66,7 +66,7 @@ class SharedQuarantineHandler {
     on_is_quarantined_ = std::move(clb);
   }
 
-  bool is_quarantined(const mysql_harness::TCPAddress &addr) {
+  bool is_quarantined(const mysql_harness::TCPAddress &addr) const {
     return on_is_quarantined_ ? on_is_quarantined_(addr) : false;
   }
 

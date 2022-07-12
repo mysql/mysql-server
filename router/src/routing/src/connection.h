@@ -48,6 +48,7 @@ class MySQLRoutingConnectionBase {
   virtual ~MySQLRoutingConnectionBase() = default;
 
   MySQLRoutingContext &context() { return context_; }
+  const MySQLRoutingContext &context() const { return context_; }
 
   virtual std::string get_destination_id() const = 0;
 
@@ -131,6 +132,11 @@ class MySQLRoutingConnectionBase {
 
   void connected();
 
+  template <class F>
+  auto disconnect_request(F &&f) {
+    return disconnect_(std::forward<F>(f));
+  }
+
  protected:
   /** @brief wrapper for common data used by all routing threads */
   MySQLRoutingContext &context_;
@@ -139,18 +145,18 @@ class MySQLRoutingConnectionBase {
 
   Monitor<Stats> stats_{{}};
 
-  bool disconnect_{false};
-  std::mutex disconnect_mtx_;
+  Monitor<bool> disconnect_{{}};
 };
 
 class ConnectorBase {
  public:
   using server_protocol_type = net::ip::tcp;
 
-  ConnectorBase(net::io_context &io_ctx, RouteDestination *route_destination)
+  ConnectorBase(net::io_context &io_ctx, RouteDestination *route_destination,
+                Destinations &destinations)
       : io_ctx_{io_ctx},
         route_destination_{route_destination},
-        destinations_{route_destination_->destinations()},
+        destinations_{destinations},
         destinations_it_{destinations_.begin()} {}
 
   enum class Function {
@@ -167,6 +173,7 @@ class ConnectorBase {
 
   bool connect_timed_out() const { return connect_timed_out_; }
 
+  void destination_id(std::string id) { destination_id_ = id; }
   std::string destination_id() const { return destination_id_; }
 
   void on_connect_failure(
@@ -207,7 +214,7 @@ class ConnectorBase {
   server_protocol_type::endpoint server_endpoint_;
 
   RouteDestination *route_destination_;
-  Destinations destinations_;
+  Destinations &destinations_;
   Destinations::iterator destinations_it_;
   net::ip::tcp::resolver::results_type endpoints_;
   net::ip::tcp::resolver::results_type::iterator endpoints_it_;
@@ -267,8 +274,8 @@ class PooledConnector : public ConnectorBase {
       const server_protocol_type::endpoint &ep)>;
 
   PooledConnector(net::io_context &io_ctx, RouteDestination *route_destination,
-                  pool_lookup_cb pool_lookup)
-      : ConnectorBase{io_ctx, route_destination},
+                  Destinations &destinations, pool_lookup_cb pool_lookup)
+      : ConnectorBase{io_ctx, route_destination, destinations},
         pool_lookup_{std::move(pool_lookup)} {}
 
   stdx::expected<ConnectionType, std::error_code> connect() {
