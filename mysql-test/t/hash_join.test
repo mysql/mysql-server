@@ -2645,3 +2645,20 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN vmerge AS v ON t1.f1 = v.f1;
 
 DROP TABLE t1,t2;
 DROP VIEW vmerge;
+
+--echo # Bug#34352156: Hypergraph: Assert PassesConflictRules() failed in
+--echo #               join_optimizer.cc
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+# This induces a conflict rule {t3} -> {t1,t2} for the edge between
+# t4->t5 because of the left join. When exploring the join between
+# {t4} and {t2,t3,t5} it has a valid edge in (t2.f2 = t4.f2) where as
+# the cycle inducing edge (t4.f2 = t5.f1) does not pass the conflict
+# rule.
+# This statement would earlier assert expecting the conflict rule
+# for the other edge to always pass.
+SELECT 1
+ FROM t1 JOIN ((t1 AS t2 LEFT JOIN t1 AS t3 ON t2.f2 = t3.f2)
+ JOIN (t1 AS t4 JOIN t1 AS t5 ON t4.f2 = t5.f1) ON t2.f2 = t5.f1)
+ ON t1.f2 = t5.f2;
+DROP TABLE t1;

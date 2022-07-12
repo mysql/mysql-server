@@ -3284,8 +3284,8 @@ void CostingReceiver::ProposeHashJoin(
       if (IsSubset(hyperedge.left, left) && IsSubset(hyperedge.right, right)) {
         const JoinPredicate *other_edge = &m_graph->edges[edge_idx / 2];
         assert(other_edge->expr->type == RelationalExpression::INNER_JOIN);
-        assert(PassesConflictRules(left | right, other_edge->expr));
-        if (other_edge != edge) {
+        if (other_edge != edge &&
+            PassesConflictRules(left | right, other_edge->expr)) {
           estimated_bytes_per_row += EstimateHashJoinKeyWidth(other_edge->expr);
         }
       }

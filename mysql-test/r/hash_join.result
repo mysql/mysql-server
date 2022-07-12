@@ -4202,3 +4202,12 @@ EXPLAIN
 
 DROP TABLE t1,t2;
 DROP VIEW vmerge;
+# Bug#34352156: Hypergraph: Assert PassesConflictRules() failed in
+#               join_optimizer.cc
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+SELECT 1
+FROM t1 JOIN ((t1 AS t2 LEFT JOIN t1 AS t3 ON t2.f2 = t3.f2)
+JOIN (t1 AS t4 JOIN t1 AS t5 ON t4.f2 = t5.f1) ON t2.f2 = t5.f1)
+ON t1.f2 = t5.f2;
+1
+DROP TABLE t1;
