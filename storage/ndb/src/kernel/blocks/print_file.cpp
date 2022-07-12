@@ -144,6 +144,14 @@ int main(int argc, char ** argv)
     ndb_end_and_exit(1);
   }
 
+  if (opt_file_key_state.get_key() != nullptr &&
+      !ndb_openssl_evp::is_aeskw256_supported())
+  {
+    fprintf(stderr,
+            "Error: file key options requires OpenSSL 1.0.2 or newer.\n");
+    return 2;
+  }
+
   g_verbosity = opt_verbose_level - opt_quiet_level;
 
   if (argc == 0)

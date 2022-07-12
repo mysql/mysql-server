@@ -262,6 +262,12 @@ IF(NOT WITH_NDB)
   RETURN()
 ENDIF()
 
+IF (OPENSSL_MAJOR_MINOR_FIX_VERSION VERSION_LESS "1.0.2")
+  MESSAGE(WARNING
+    "MySQL Cluster Transparent Data Encryption (TDE) not supported."
+    "Needs OpenSSL 1.0.2 or newer.")
+ENDIF()
+
 SET(WITH_NDBAPI_EXAMPLES_DEFAULT OFF)
 OPTION(WITH_NDB_TEST
   "Include the NDB Cluster ndbapi test programs" OFF)

@@ -187,6 +187,15 @@ int main(int argc, char* argv[])
     fprintf(stderr, "Error: Both encrypt key and encrypt password is set.\n");
     return 2;
   }
+  if ((opt_decrypt_key_state.get_key() != nullptr ||
+       opt_encrypt_key_state.get_key() != nullptr) &&
+      !ndb_openssl_evp::is_aeskw256_supported())
+  {
+    fprintf(stderr,
+            "Error: decrypt and encrypt key options requires OpenSSL 1.0.2 "
+            "or newer.\n");
+    return 2;
+  }
 
   if (g_info)
   {

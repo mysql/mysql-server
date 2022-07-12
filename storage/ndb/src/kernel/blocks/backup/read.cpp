@@ -817,6 +817,12 @@ main(int argc, char * argv[])
 
   if (opt_backup_key_state.get_key() != nullptr)
   {
+    if (!ndb_openssl_evp::is_aeskw256_supported())
+    {
+      fprintf(stderr,
+              "Error: Backup key options requires OpenSSL 1.0.2 or newer.\n");
+      return 2;
+    }
     pwd_key = opt_backup_key_state.get_key();
     pwd_key_len = opt_backup_key_state.get_key_length();
   }

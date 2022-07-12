@@ -1011,12 +1011,13 @@ int ndbxfrm_file::generate_keying_material(ndb_ndbxfrm1::header *ndbxfrm1,
         ndb_ndbxfrm1::header::get_max_keying_material_size();
     openssl_evp.add_key_iv_pairs(
         keys, key_count, ndb_openssl_evp::KEY_LEN + ndb_openssl_evp::IV_LEN);
-    require(0 == openssl_evp.wrap_keys_aeskw256(keying_material,
-                                                &keying_material_size,
-                                                keys,
-                                                keys_size,
-                                                pwd_key,
-                                                pwd_key_len));
+    if (openssl_evp.wrap_keys_aeskw256(keying_material,
+                                       &keying_material_size,
+                                       keys,
+                                       keys_size,
+                                       pwd_key,
+                                       pwd_key_len) == -1)
+      RETURN(-1);
     ndbxfrm1->set_encryption_keying_material(
         keying_material, keying_material_size, 1);
   }
