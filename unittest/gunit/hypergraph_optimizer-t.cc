@@ -3005,6 +3005,72 @@ TEST_F(HypergraphOptimizerTest, MultiPredicateHashJoin) {
   }
 }
 
+TEST_F(HypergraphOptimizerTest, HashJoinWithSubqueryPredicate) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 JOIN t3 ON (t3.x = t2.x)"
+      "ON t3.y=t2.y WHERE t1.x IN (SELECT 4 FROM t4) OR (t2.y = t1.y)",
+      /*nullable=*/true);
+
+  // Resolve the subqueries too.
+  for (Query_expression *expr = query_block->first_inner_query_expression();
+       expr != nullptr; expr = expr->next_query_expression()) {
+    Query_block *subquery = expr->first_query_block();
+    ResolveQueryBlock(m_thd, subquery, /*nullable=*/true, &m_fake_tables);
+    string trace;
+    AccessPath *subquery_path =
+        FindBestQueryPlanAndFinalize(m_thd, subquery, &trace);
+    SCOPED_TRACE(trace);  // Prints out the trace on failure.
+    ASSERT_NE(nullptr, subquery_path);
+  }
+
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  // Sizes that make t1 HJ (t2 HJ t3) the preferred join order.
+  m_fake_tables["t1"]->file->stats.records = 100000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1000e6;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+  m_fake_tables["t3"]->file->stats.records = 10;
+  m_fake_tables["t3"]->file->stats.data_file_length = 10e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  // The top-level path should be a filter access path with a
+  // subquery. The subquery should not be moved to the join
+  // predicates of the HASH JOIN.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ(ItemToString(root->filter().condition),
+            "(<in_optimizer>(t1.x,<exists>(select #2)) or ((t3.y = t2.y) and "
+            "(t2.y = t1.y)))");
+
+  // Verify that we have (t1 HJ (t2 HJ t3 ON (t2.y = t3.y) and (t2.x = t3.x)))
+  AccessPath *join = root->filter().child;
+  ASSERT_EQ(AccessPath::HASH_JOIN, join->type);
+  AccessPath *t1 = join->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t1->type);
+  EXPECT_EQ(m_fake_tables["t1"], t1->table_scan().table);
+
+  AccessPath *inner = join->hash_join().inner;
+  ASSERT_EQ(AccessPath::HASH_JOIN, inner->type);
+  const Mem_root_array<Item_eq_base *> &equijoin_conditions =
+      inner->hash_join().join_predicate->expr->equijoin_conditions;
+  EXPECT_EQ(2, equijoin_conditions.size());
+  EXPECT_EQ("(t2.y = t3.y)", ItemToString(equijoin_conditions[0]));
+  EXPECT_EQ("(t2.x = t3.x)", ItemToString(equijoin_conditions[1]));
+
+  AccessPath *t2 = inner->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
+  EXPECT_STREQ("t2", t2->table_scan().table->alias);
+  AccessPath *t3 = inner->hash_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t3->type);
+  EXPECT_STREQ("t3", t3->table_scan().table->alias);
+}
+
 namespace {
 
 struct FullTextParam {
