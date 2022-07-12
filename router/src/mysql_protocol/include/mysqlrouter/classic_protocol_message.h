@@ -556,10 +556,19 @@ class Greeting {
   }
 
   uint32_t max_packet_size() const noexcept { return max_packet_size_; }
+  void max_packet_size(uint32_t sz) noexcept { max_packet_size_ = sz; }
+
   uint8_t collation() const noexcept { return collation_; }
+  void collation(uint8_t coll) noexcept { collation_ = coll; }
+
   std::string username() const { return username_; }
+  void username(const std::string &v) { username_ = v; }
+
   std::string auth_method_data() const { return auth_method_data_; }
+  void auth_method_data(const std::string &v) { auth_method_data_ = v; }
+
   std::string schema() const { return schema_; }
+  void schema(const std::string &schema) { schema_ = schema; }
 
   /**
    * name of the auth-method that was explicitly set.
@@ -569,6 +578,8 @@ class Greeting {
    * capabilities::plugin_auth wasn't set)
    */
   std::string auth_method_name() const { return auth_method_name_; }
+
+  void auth_method_name(const std::string &name) { auth_method_name_ = name; }
 
   // [key, value]* in Codec<wire::VarString> encoding
   std::string attributes() const { return attributes_; }
