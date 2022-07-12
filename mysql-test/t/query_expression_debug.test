@@ -83,19 +83,27 @@ EXPLAIN SELECT * FROM r UNION DISTINCT SELECT * FROM s;
 EXPLAIN SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s;
 EXPLAIN SELECT * FROM r INTERSECT DISTINCT SELECT * FROM s;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT = json SELECT * FROM r UNION ALL SELECT * FROM s;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT = json SELECT * FROM r EXCEPT ALL SELECT * FROM s;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT = json SELECT * FROM r INTERSECT ALL SELECT * FROM s;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT = json SELECT * FROM r UNION DISTINCT SELECT * FROM s;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT = json SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT = json SELECT * FROM r INTERSECT DISTINCT SELECT * FROM s;
 
 EXPLAIN (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) UNION DISTINCT SELECT * FROM t;
 EXPLAIN (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) UNION DISTINCT
         (SELECT * FROM t INTERSECT DISTINCT SELECT * FROM t);
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT = json
    (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) UNION DISTINCT SELECT * FROM t;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT = json
    (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) UNION DISTINCT
    (SELECT * FROM t INTERSECT DISTINCT SELECT * FROM t);
