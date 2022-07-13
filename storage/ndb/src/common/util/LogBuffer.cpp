@@ -606,7 +606,7 @@ void* thread_consumer1(void*)
     }
     if((bytes = buf_t2->get(buf, get_bytes)))
     {
-      fwrite(buf, bytes, 1, stdout);
+      require(fwrite(buf, bytes, 1, stdout) == 1);
     }
     i++;
   }
@@ -614,7 +614,9 @@ void* thread_consumer1(void*)
   // flush remaining logs
   char* flush = (char*)malloc(buf_t2->getSize());
   bytes = buf_t2->get(flush, buf_t2->getSize());
-  fwrite(flush, bytes, 1, stdout);
+  if (bytes != 0) {
+    require(fwrite(flush, bytes, 1, stdout) == 1);
+  }
   free(flush);
 
   // print lost bytes if any
