@@ -460,6 +460,102 @@ r9c1	r9c2	r9c7
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
 # ------------------------------------------------------------
 # Create a table with 3 columns. [c1, c2, c3]
 # ------------------------------------------------------------
@@ -908,6 +1004,102 @@ r9c1	r9c2	r9c7
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
 # ------------------------------------------------------------
 # Create a table with 3 columns. [c1, c2, c3]
 # ------------------------------------------------------------
@@ -1356,6 +1548,102 @@ r9c1	r9c2	r9c7
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
 ############################################
 # Test instant ADD/DROP COLUMN for DYNAMIC format
 ############################################
@@ -1818,6 +2106,102 @@ r9c1	r9c2	r9c7
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
 # ------------------------------------------------------------
 # Create a table with 3 columns. [c1, c2, c3]
 # ------------------------------------------------------------
@@ -2266,6 +2650,102 @@ r9c1	r9c2	r9c7
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
 # ------------------------------------------------------------
 # Create a table with 3 columns. [c1, c2, c3]
 # ------------------------------------------------------------
@@ -2714,6 +3194,102 @@ r9c1	r9c2	r9c7
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
 ############################################
 # Test instant ADD/DROP COLUMN for COMPACT format
 ############################################
@@ -3176,6 +3752,102 @@ r9c1	r9c2	r9c7
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
 # ------------------------------------------------------------
 # Create a table with 3 columns. [c1, c2, c3]
 # ------------------------------------------------------------
@@ -3624,6 +4296,102 @@ r9c1	r9c2	r9c7
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
 # ------------------------------------------------------------
 # Create a table with 3 columns. [c1, c2, c3]
 # ------------------------------------------------------------
@@ -4072,3 +4840,99 @@ r9c1	r9c2	r9c7
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1	c2	c3
+r1c11	r1c2	c3_def
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=COPY;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES ("r1c1", "r1c2");
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+SELECT * FROM t1;
+c1	c2
+r1c1	r1c2
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+r1c1	r1c2
+ALTER TABLE t1 DROP COLUMN c2,
+ALGORITHM=INSTANT;
+UPDATE t1 SET c1 = "r1c11";
+SELECT * FROM t1;
+c1
+r1c11
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+DROP TABLE t2;
