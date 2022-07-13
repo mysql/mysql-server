@@ -1,0 +1,54 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements*");
+SET SESSION sql_log_bin = 1;
+# 1. Setup scenario:
+# i. Create database 'dodb' on the source.
+# ii. Create table t in dodb database on the source.
+# iii. Sync to replica.
+#
+CREATE DATABASE dodb;
+CREATE TABLE dodb.t (a INT);
+include/sync_slave_sql_with_master.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements*");
+SET SESSION sql_log_bin = 1;
+# 2. On replica: Stop replica and create do_db replication filter for
+#    database 'dbdb'. All other databases except dodb will be ignored.
+#    Start replica.
+#
+include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB = (dodb);
+include/start_slave.inc
+# 3. On source: Start a new XA transaction, insert data in dodb.t table.
+#
+[connection master]
+USE dodb;
+XA START 'a';
+INSERT INTO dodb.t VALUES (1);
+# 4. Change default database to 'test' using 'USE test' command.
+#    The 'dodb' database was added to do_db replication filter in
+#    step2. Execute 'XA END' to suspend current XA transaction.
+#    Note: Subsequent XA commands 'XA END' and 'XA PREPARE' should
+#    not fail.
+#
+USE test;
+XA END 'a';
+XA PREPARE 'a';
+XA COMMIT 'a';
+include/sync_slave_sql_with_master.inc
+# 5. Confirm data is replicated successfully.
+#
+include/assert.inc ['There is a value 1 in table t']
+# 6. Cleanup.
+#
+include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB = ();
+include/start_slave.inc
+[connection master]
+DROP DATABASE dodb;
+include/rpl_end.inc

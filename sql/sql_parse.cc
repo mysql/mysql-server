@@ -342,11 +342,12 @@ inline bool check_database_filters(THD *thd, const char *db,
                                    enum_sql_command sql_cmd) {
   DBUG_TRACE;
   assert(thd->slave_thread);
-  if (!db || is_normal_transaction_boundary_stmt(sql_cmd)) return true;
+  if (!db || is_normal_transaction_boundary_stmt(sql_cmd) ||
+      is_xa_transaction_boundary_stmt(sql_cmd))
+    return true;
 
   Rpl_filter *rpl_filter = thd->rli_slave->rpl_filter;
-  auto need_increase_counter{!is_xa_transaction_boundary_stmt(sql_cmd)};
-  auto db_ok{rpl_filter->db_ok(db, need_increase_counter)};
+  auto db_ok{rpl_filter->db_ok(db)};
   /*
     No filters exist in ignore/do_db ? Then, just check
     wild_do_table filtering for 'DATABASE' related
