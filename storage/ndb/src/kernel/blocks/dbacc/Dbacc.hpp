@@ -967,7 +967,8 @@ private:
 #endif
 #ifdef ACC_SAFE_QUEUE
   bool validate_lock_queue(OperationrecPtr opPtr) const;
-  Uint32 get_parallel_head(OperationrecPtr opPtr) const;
+  bool validate_parallel_queue(OperationrecPtr opPtr,
+                               Uint32 ownerPtrI) const;
   void dump_lock_queue(OperationrecPtr loPtr) const;
 #else
   bool validate_lock_queue(OperationrecPtr) const { return true;}

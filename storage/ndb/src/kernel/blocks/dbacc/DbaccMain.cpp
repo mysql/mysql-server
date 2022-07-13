@@ -1927,38 +1927,85 @@ Dbacc::getNoParallelTransactionFull(Operationrec * op) const
 
 #ifdef ACC_SAFE_QUEUE
 
-Uint32
-Dbacc::get_parallel_head(OperationrecPtr opPtr) const
+/**
+ * Beware that ACC_SAFE_QUEUE has the potential for an exponential
+ * overhead with number of shared-locks held for the *same row*
+ * when scanning the ParallelQue. This typically happens in a
+ * join query, where the same row is joined by a unique key
+ * multiple times.
+ *
+ * 'maxValidateCount' limits the validate of the ParallelQue
+ * in order to avoid such exponential overhead.
+ */
+static constexpr int maxValidateCount = 42; //std::numeric_limits<int>::max();
+
+bool
+Dbacc::validate_parallel_queue(OperationrecPtr opPtr, Uint32 ownerPtrI) const
 {
+  int cnt = 0;
   while ((opPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0 &&
 	 opPtr.p->prevParallelQue != RNIL)
   {
+    if (cnt++ >= maxValidateCount) {
+      // Upper limit reached, handle as a pass
+      return true;
+    }
     opPtr.i = opPtr.p->prevParallelQue;
     ndbrequire(oprec_pool.getValidPtr(opPtr));
   }    
   
-  return opPtr.i;
+  return (opPtr.i == ownerPtrI);
 }
 
 bool
-Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
+Dbacc::validate_lock_queue(OperationrecPtr opPtr) const
 {
   if (m_is_query_block)
   {
     return true;
   }
-  OperationrecPtr loPtr;
-  loPtr.i = get_parallel_head(opPtr);
-  ndbrequire(oprec_pool.getValidPtr(loPtr));
-  
+
+  // Common case: opPtr is lockOwner or last in ParallelQue.
+  // In such cases we can find the lock owner. Used for later
+  // validate, or to limit linear search of parallelQue.
+  Uint32 ownerPtrI;
+  if (opPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) {
+    ownerPtrI = opPtr.i;
+  } else if (opPtr.p->nextParallelQue == RNIL &&
+	     opPtr.p->m_op_bits & Operationrec::OP_RUN_QUEUE) {
+    ownerPtrI = opPtr.p->m_lock_owner_ptr_i;
+  } else {
+    ownerPtrI = RNIL;
+  }
+
+  // Find lock owner by traversing parallel and serial lists
+  OperationrecPtr loPtr = opPtr;
+  {
+    int cnt = 0;
+    while ((loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0 &&
+           loPtr.p->prevParallelQue != RNIL)
+    {
+      vlqrequire(loPtr.p->m_op_bits & Operationrec::OP_RUN_QUEUE);
+      if (cnt++ >= maxValidateCount && ownerPtrI != RNIL) {
+        // Upper limit reached, skip to end
+        loPtr.i = ownerPtrI;
+      } else {
+        loPtr.i = loPtr.p->prevParallelQue;
+      }
+      ndbrequire(oprec_pool.getValidPtr(loPtr));
+    }
+  }
+
   while((loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0 &&
 	loPtr.p->prevSerialQue != RNIL)
   {
+    vlqrequire((loPtr.p->m_op_bits & Operationrec::OP_RUN_QUEUE) == 0);
     loPtr.i = loPtr.p->prevSerialQue;
     ndbrequire(oprec_pool.getValidPtr(loPtr));
   }
   
   // Now we have lock owner...
+  vlqrequire(loPtr.i == ownerPtrI || ownerPtrI == RNIL);
   vlqrequire(loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
   vlqrequire(loPtr.p->m_op_bits & Operationrec::OP_RUN_QUEUE);
 
@@ -2002,14 +2049,24 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
     bool aborting = false;
     OperationrecPtr lastP = loPtr;
     
+    int cnt = 0;
     while (lastP.p->nextParallelQue != RNIL)
     {
-      Uint32 prev = lastP.i;
-      lastP.i = lastP.p->nextParallelQue;
-      ndbrequire(oprec_pool.getValidPtr(lastP));
-      
-      vlqrequire(lastP.p->prevParallelQue == prev);
-
+      if (cnt++ >= maxValidateCount) {
+        // Upper limit reached, skip to end
+        lastP.i = loPtr.p->m_lo_last_parallel_op_ptr_i;
+        ndbrequire(oprec_pool.getValidPtr(lastP));
+        vlqrequire(lastP.p->nextParallelQue == RNIL);
+        // Note that 'orlockmode', 'aborting' and 'many' are cumulative.
+        // Thus it does not make sense to check lastP after skip.
+        // (SerialQue will still be validated)
+        break;
+      } else {
+        Uint32 prev = lastP.i;
+        lastP.i = lastP.p->nextParallelQue;
+        ndbrequire(oprec_pool.getValidPtr(lastP));
+        vlqrequire(lastP.p->prevParallelQue == prev);
+      }
       const Uint32 opbits = lastP.p->m_op_bits;
       many |= loPtr.p->is_same_trans(lastP.p) ? 0 : 1;
       orlockmode |= ((opbits & Operationrec::OP_LOCK_MODE) != 0);
@@ -2326,7 +2383,7 @@ Dbacc::placeWriteInLockQueue(OperationrecPtr lockOwnerPtr) const
     ndbrequire(oprec_pool.getValidPtr(lastOpPtr));
   }
   
-  ndbassert(get_parallel_head(lastOpPtr) == lockOwnerPtr.i);
+  ndbassert(validate_parallel_queue(lastOpPtr, lockOwnerPtr.i));
 
   Uint32 lastbits = lastOpPtr.p->m_op_bits;
   if (lastbits & Operationrec::OP_ACC_LOCK_MODE)
@@ -2447,7 +2504,7 @@ Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const
     ndbrequire(oprec_pool.getValidPtr(lastOpPtr));
   }
 
-  ndbassert(get_parallel_head(lastOpPtr) == lockOwnerPtr.i);
+  ndbassert(validate_parallel_queue(lastOpPtr, lockOwnerPtr.i));
   
   /**
    * Last operation in parallel queue of lock owner is same trans
@@ -5046,6 +5103,7 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
   ndbassert(loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
   ndbassert(loPtr.p->m_lo_last_parallel_op_ptr_i == nextP.i);
 #endif
+
   startNext(signal, nextP);
   validate_lock_queue(nextP);
   

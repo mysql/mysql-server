@@ -1,5 +1,10 @@
 ##################################################################
-# Test intended for provoking 'Job buffer full'.
+# Test intended for provoking issues related to large transactions.
+# Includes, but not limited to:
+#  - 'Job buffer full' due to commit/abort not limiting number of
+#    outstanding signals.
+#  - 'struck in thread', 'oversleept' and 'sleeploop 10!' due to
+#    handling of many locks not scaling well.
 #
 ##################################################################
 --source include/have_ndb.inc
@@ -59,3 +64,60 @@ commit;
 
 drop procedure do_insert;
 drop table t1,t2;
+
+--echo ##############################
+--echo #
+--echo # Bug#34189965
+--echo #   DbAcc Validate(WITH_DEBUG) of Unique Key locks has
+--echo #   exponential overhead.
+--echo #
+--echo # In order to guarante read consistency when using an unique index,
+--echo # shared read locks are set (and held) on the rows. When e.g. a
+--echo # join query join in the *same* row multiple times, each access
+--echo # results in additional locks being set. Such locks are all added
+--echo # to the same 'parallel queue' the the ACC block, which can end up
+--echo # with thousands of locks in the same parallel queue.
+--echo #
+--echo # When debug compiled, ACC validates the consistency of the queues,
+--echo # iterating the entire queue. The overhead of that may become so
+--echo # huge that the block thread scheduler starts complaining about
+--echo # being 'struck in thread', 'oversleept' and 'sleeploop 10!'
+
+create table t (
+  pk int primary key,
+  uq int,
+  i int,
+  unique key (uq),
+  key(i)
+) engine = ndbcluster;
+
+create table t100000 (
+  i int
+) engine = ndbcluster;
+
+insert into t values
+   (0,0,1), (1,1,1), (2,2,1), (3,3,1), (4,4,1),
+   (5,5,1), (6,6,1), (7,7,1), (8,8,1), (9,9,1);
+
+# Fill with 100K rows
+insert into t100000
+select t1.i from
+  t as t1
+    straight_join t as t2 on t2.i=t1.i
+    straight_join t as t3 on t3.i=t2.i
+    straight_join t as t4 on t4.i=t3.i
+    straight_join t as t5 on t5.i=t4.i;
+
+# join-pushdown do not set locks, turn it off
+set ndb_join_pushdown=off;
+
+# Will look up the same table t row 100k times.
+# Note that BKA join hint is just to speed up test case
+select /*+ BKA(t) */ count(*) from
+  t100000 as t1
+    straight_join t on t.uq=t1.i;
+
+set ndb_join_pushdown=default;
+
+drop table t;
+drop table t100000;
