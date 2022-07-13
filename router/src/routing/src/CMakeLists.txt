@@ -44,6 +44,8 @@ ADD_LIBRARY(routing SHARED
   x_connection.cc
   connection.cc
   blocked_endpoints.cc
+
+  sql_value.cc
 )
 TARGET_LINK_LIBRARIES(routing
   PUBLIC
