@@ -94,6 +94,41 @@ Item_func_eq *MakeEqItem(Item *a, Item *b,
 }
 
 /**
+  Reorders the predicates in such a way that equalities are placed ahead
+  of other types of predicates. These will be followed by predicates having
+  subqueries and the expensive predicates at the end.
+  This is used in the early stage of optimization. Predicates are not ordered
+  based on their selectivity yet. The call to optimize_cond() would have put
+  all the equalities at the end (because it tries to create multiple
+  equalities out of them). It is always better to see the equalties ahead of
+  other types of conditions when pushing join conditions down.
+  E.g:
+   (t1.f1 != t2.f1) and (t1.f2 = t3.f2 OR t4.f1 = t5.f3) and (3 = select #2) and
+   (t1.f3 = t3.f3) and multi_equal(t1.f2,t2.f3,t3.f4)
+  will be split in this order
+   (t1.f3 = t3.f3) and
+   multi_equal(t1.f2,t2.f3,t3.f4) and
+   (t1.f1 != t2.f1) and
+   (t1.f2 = t3.f2 OR t4.f1 = t5.f3) and
+   (3 = select #2)
+*/
+void ReorderConditions(Mem_root_array<Item *> *condition_parts) {
+  // First equijoin conditions, followed by other conditions, then
+  // subqueries (which can be expensive), then stored procedures
+  // (which are unknown, so potentially _very_ expensive).
+  std::stable_partition(
+      condition_parts->begin(), condition_parts->end(), [](Item *item) {
+        return (
+            item->type() == Item::FUNC_ITEM &&
+            down_cast<Item_func *>(item)->contains_only_equi_join_condition());
+      });
+  std::stable_partition(condition_parts->begin(), condition_parts->end(),
+                        [](Item *item) { return !item->has_subquery(); });
+  std::stable_partition(condition_parts->begin(), condition_parts->end(),
+                        [](Item *item) { return !item->is_expensive(); });
+}
+
+/**
   For a multiple equality, split out any conditions that refer to the
   same table, without touching the multi-equality; e.g. for equal(t1.a, t2.a,
   t2.b, t3.a), will return t2.a=t2.b AND (original item). This means that later
@@ -275,6 +310,7 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
                                                   join->tables_in_subtree);
       ExtractConditions(join_cond, &join->join_conditions);
       EarlyNormalizeConditions(thd, &join->join_conditions);
+      ReorderConditions(&join->join_conditions);
     }
     ret = join;
   }
@@ -2127,15 +2163,6 @@ void MakeHashJoinConditions(THD *thd, RelationalExpression *expr) {
       // It was not.
       extra_conditions.push_back(item);
     }
-
-    // Put potentially expensive functions last: First everything normal,
-    // then subqueries (which can be expensive), then stored procedures
-    // (which are unknown, so potentially _very_ expensive).
-    std::stable_partition(extra_conditions.begin(), extra_conditions.end(),
-                          [](Item *item) { return !item->has_subquery(); });
-    std::stable_partition(extra_conditions.begin(), extra_conditions.end(),
-                          [](Item *item) { return !item->is_expensive(); });
-
     expr->join_conditions = std::move(extra_conditions);
   }
   MakeHashJoinConditions(thd, expr->left);
@@ -3240,6 +3267,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     if (EarlyNormalizeConditions(thd, &where_conditions)) {
       return true;
     }
+    ReorderConditions(&where_conditions);
     where_conditions = PushDownAsMuchAsPossible(
         thd, std::move(where_conditions), root,
         /*is_join_condition_for_expr=*/false, table_num_to_companion_set,

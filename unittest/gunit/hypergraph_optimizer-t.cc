@@ -839,40 +839,36 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateAppliedOnce) {
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   ASSERT_EQ(4, graph.nodes.size());
-  EXPECT_STREQ("t2", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t1", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[2].table->alias);
   EXPECT_STREQ("t4", graph.nodes[3].table->alias);
 
-  ASSERT_EQ(5, graph.edges.size());
+  ASSERT_EQ(4, graph.edges.size());
 
-  // t1/t4: t1.y = t4.x AND t1.x <> t4.y
-  EXPECT_EQ(TableBitmap(2), graph.graph.edges[0].left);
-  EXPECT_EQ(TableBitmap(3), graph.graph.edges[0].right);
+  // t1/t2: t1.y = t2.x
+  EXPECT_EQ(TableBitmap(1), graph.graph.edges[0].left);
+  EXPECT_EQ(TableBitmap(2), graph.graph.edges[0].right);
+  EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY, graph.edges[0].selectivity);
+
+  // t1/t4: (t1.y = t4.x) and (t1.x <> t4.y)
+  EXPECT_EQ(TableBitmap(1), graph.graph.edges[2].left);
+  EXPECT_EQ(TableBitmap(3), graph.graph.edges[2].right);
   // Used to apply the equality predicate twice. Once as t1.y = t4.x and
   // once as t4.x = t1.y. Verify that it's applied once now.
   EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY * (1.0f - COND_FILTER_EQUALITY),
-                  graph.edges[0].selectivity);
+                  graph.edges[1].selectivity);
 
-  // t3/t4: t4.z <> t3.y
-  EXPECT_EQ(TableBitmap(1), graph.graph.edges[2].left);
-  EXPECT_EQ(TableBitmap(3), graph.graph.edges[2].right);
-  EXPECT_FLOAT_EQ(1.0f - COND_FILTER_EQUALITY, graph.edges[1].selectivity);
-
-  // t2/t3: t2.z <> t3.x
+  // t3/t2t4: (t4.z <> t3.y) AND (t2.z <> t3.x)
   EXPECT_EQ(TableBitmap(0), graph.graph.edges[4].left);
-  EXPECT_EQ(TableBitmap(1), graph.graph.edges[4].right);
-  EXPECT_FLOAT_EQ(1.0f - COND_FILTER_EQUALITY, graph.edges[2].selectivity);
+  EXPECT_EQ(TableBitmap(2) | TableBitmap(3), graph.graph.edges[4].right);
+  EXPECT_FLOAT_EQ((1.0f - COND_FILTER_EQUALITY) * (1.0f - COND_FILTER_EQUALITY),
+                  graph.edges[2].selectivity);
 
   // t2/t4: t2.x = t4.x
-  EXPECT_EQ(TableBitmap(0), graph.graph.edges[6].left);
+  EXPECT_EQ(TableBitmap(2), graph.graph.edges[6].left);
   EXPECT_EQ(TableBitmap(3), graph.graph.edges[6].right);
   EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY, graph.edges[3].selectivity);
-
-  // t1/t2: t1.y = t2.x
-  EXPECT_EQ(TableBitmap(2), graph.graph.edges[8].left);
-  EXPECT_EQ(TableBitmap(0), graph.graph.edges[8].right);
-  EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY, graph.edges[4].selectivity);
 }
 
 TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition) {
@@ -951,7 +947,7 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition2) {
   EXPECT_STREQ("t5", graph.nodes[4].table->alias);
   EXPECT_STREQ("t6", graph.nodes[5].table->alias);
 
-  EXPECT_EQ(10, graph.edges.size());
+  EXPECT_EQ(11, graph.edges.size());
 
   // Find the edge {t2,t3,t4}/{t6}
   int edge_idx = -1;
@@ -1042,27 +1038,27 @@ TEST_F(MakeHypergraphTest, HyperpredicatesDoNotBlockExtraCycleEdges) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[1].table->alias);
   EXPECT_STREQ("t3", graph.nodes[2].table->alias);
 
-  // t1/t2.
+  // t1/t3.
   ASSERT_EQ(3, graph.edges.size());
-  EXPECT_EQ(0x01, graph.graph.edges[0].left);
-  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+  EXPECT_EQ(0x02, graph.graph.edges[0].left);
+  EXPECT_EQ(0x04, graph.graph.edges[0].right);
 
-  // {t1,t2}/t3. We don't really care how this hyperedge turns out,
+  // {t1,t3}/t2. We don't really care how this hyperedge turns out,
   // but we _do_ care that its presence does not prevent a separate
-  // t1-t3 edge from being added.
-  EXPECT_EQ(0x03, graph.graph.edges[2].left);
-  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  // t1-t2 edge from being added.
+  EXPECT_EQ(0x01, graph.graph.edges[2].left);
+  EXPECT_EQ(0x06, graph.graph.edges[2].right);
 
-  // t1/t3. This edge didn't use to be added. But that effectively blocked
-  // the join order (t1 JOIN t3) JOIN t2, which could be advantageous if
-  // (t1 JOIN t2) had much higher cardinality than (t1 JOIN t3). So now we
+  // t1/t2. This edge didn't use to be added. But that effectively blocked
+  // the join order (t1 JOIN t2) JOIN t3, which could be advantageous if
+  // (t1 JOIN t3) had much higher cardinality than (t1 JOIN t2). So now we
   // want it to be there.
-  EXPECT_EQ(0x01, graph.graph.edges[4].left);
-  EXPECT_EQ(0x04, graph.graph.edges[4].right);
+  EXPECT_EQ(0x02, graph.graph.edges[4].left);
+  EXPECT_EQ(0x01, graph.graph.edges[4].right);
 }
 
 TEST_F(MakeHypergraphTest, Flattening) {
@@ -2509,6 +2505,82 @@ TEST_F(HypergraphOptimizerTest, StraightJoin) {
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 3);
 }
 
+TEST_F(HypergraphOptimizerTest, StraightJoinWithMoreTables) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 STRAIGHT_JOIN t2 ON t1.x=t2.x "
+      "STRAIGHT_JOIN t3 ON t1.y=t3.y STRAIGHT_JOIN "
+      "t4 ON (t4.y = t2.y and t3.x <> t4.x)",
+      /*nullable=*/true);
+  // Make a call to optimize_cond() so that we have the equalities
+  // placed at the end in the final where condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 1000;
+  m_fake_tables["t3"]->file->stats.records = 100;
+  m_fake_tables["t4"]->file->stats.records = 10;
+
+  // Set up some large scan costs to discourage nested loop.
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 10e6;
+  m_fake_tables["t3"]->file->stats.data_file_length = 100e6;
+  m_fake_tables["t4"]->file->stats.data_file_length = 1000e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The expected order would be
+  // ((t1 HJ t2 ON t1.x=t2.x) HJ t3 ON t1.y=t3.y) HJ t4 ON t4.y = t2.y and t3.x
+  // <> t4.x )
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN,
+            root->hash_join().join_predicate->expr->type);
+  RelationalExpression *expr1 = root->hash_join().join_predicate->expr;
+  EXPECT_EQ(1, expr1->join_conditions.size());
+  ASSERT_EQ(1, expr1->equijoin_conditions.size());
+  // Check that the join condition (t3.x <> t4.x) gets added
+  // to the top join instead of the join between t3 and t4.
+  EXPECT_EQ("(t3.x <> t4.x)", ItemToString(expr1->join_conditions[0]));
+  EXPECT_EQ("(t4.y = t2.y)", ItemToString(expr1->equijoin_conditions[0]));
+
+  AccessPath *t4 = root->hash_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t4->type);
+  EXPECT_EQ(m_fake_tables["t4"], t4->table_scan().table);
+
+  AccessPath *t1t2t3 = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::HASH_JOIN, t1t2t3->type);
+  RelationalExpression *expr2 = t1t2t3->hash_join().join_predicate->expr;
+  EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN, expr2->type);
+  ASSERT_EQ(1, expr2->equijoin_conditions.size());
+  EXPECT_EQ("(t1.y = t3.y)", ItemToString(expr2->equijoin_conditions[0]));
+
+  AccessPath *t3 = t1t2t3->hash_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t3->type);
+  EXPECT_EQ(m_fake_tables["t3"], t3->table_scan().table);
+
+  AccessPath *t1t2 = t1t2t3->hash_join().outer;
+  ASSERT_EQ(AccessPath::HASH_JOIN, t1t2->type);
+  RelationalExpression *expr3 = t1t2->hash_join().join_predicate->expr;
+  EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN, expr3->type);
+  ASSERT_EQ(1, expr3->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x = t2.x)", ItemToString(expr3->equijoin_conditions[0]));
+
+  AccessPath *t2 = t1t2->hash_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
+  EXPECT_EQ(m_fake_tables["t2"], t2->table_scan().table);
+
+  AccessPath *t1 = t1t2->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t1->type);
+  EXPECT_EQ(m_fake_tables["t1"], t1->table_scan().table);
+}
+
 TEST_F(HypergraphOptimizerTest, NullSafeEqualHashJoin) {
   Query_block *query_block =
       ParseAndResolve("SELECT 1 FROM t1, t2 WHERE t1.x <=> t2.x",
@@ -3042,8 +3114,8 @@ TEST_F(HypergraphOptimizerTest, MultiPredicateHashJoin) {
 
 TEST_F(HypergraphOptimizerTest, HashJoinWithSubqueryPredicate) {
   Query_block *query_block = ParseAndResolve(
-      "SELECT 1 FROM t1 JOIN t2 JOIN t3 ON (t3.x = t2.x)"
-      "ON t3.y=t2.y WHERE t1.x IN (SELECT 4 FROM t4) OR (t2.y = t1.y)",
+      "SELECT 1 FROM t1 JOIN t2 JOIN t3 ON (t1.y = t2.y)"
+      "WHERE t3.x = t2.x and (t3.x > ALL (SELECT 4 FROM t4) OR (t3.y = t2.y))",
       /*nullable=*/true);
 
   // Resolve the subqueries too.
@@ -3079,13 +3151,18 @@ TEST_F(HypergraphOptimizerTest, HashJoinWithSubqueryPredicate) {
   // subquery. The subquery should not be moved to the join
   // predicates of the HASH JOIN.
   ASSERT_EQ(AccessPath::FILTER, root->type);
-  EXPECT_EQ(ItemToString(root->filter().condition),
-            "(<in_optimizer>(t1.x,<exists>(select #2)) or ((t3.y = t2.y) and "
-            "(t2.y = t1.y)))");
+  EXPECT_EQ(
+      ItemToString(root->filter().condition),
+      "(<not>((t3.x <= (select #2))) or ((t1.y = t2.y) and (t2.y = t3.y)))");
 
-  // Verify that we have (t1 HJ (t2 HJ t3 ON (t2.y = t3.y) and (t2.x = t3.x)))
+  // Verify that we have (t1 HJ (t2 HJ t3 ON (t3.x = t2.x)) ON (t1.y= t2.y)))
   AccessPath *join = root->filter().child;
   ASSERT_EQ(AccessPath::HASH_JOIN, join->type);
+  const Mem_root_array<Item_eq_base *> &equijoin_conditions_t1t2 =
+      join->hash_join().join_predicate->expr->equijoin_conditions;
+  EXPECT_EQ(1, equijoin_conditions_t1t2.size());
+  EXPECT_EQ("(t1.y = t2.y)", ItemToString(equijoin_conditions_t1t2[0]));
+
   AccessPath *t1 = join->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t1->type);
   EXPECT_EQ(m_fake_tables["t1"], t1->table_scan().table);
@@ -3093,15 +3170,10 @@ TEST_F(HypergraphOptimizerTest, HashJoinWithSubqueryPredicate) {
   AccessPath *inner = join->hash_join().inner;
   ASSERT_EQ(AccessPath::HASH_JOIN, inner->type);
 
-  vector<string> equijoin_conditions;
-  for (Item_eq_base *cond :
-       inner->hash_join().join_predicate->expr->equijoin_conditions) {
-    equijoin_conditions.push_back(ItemToString(cond));
-  }
-  EXPECT_THAT(equijoin_conditions,
-              UnorderedElementsAre("(t2.y = t3.y)", "(t2.x = t3.x)"));
-
-  EXPECT_TRUE(inner->hash_join().join_predicate->expr->join_conditions.empty());
+  const Mem_root_array<Item_eq_base *> &equijoin_conditions_t2t3 =
+      inner->hash_join().join_predicate->expr->equijoin_conditions;
+  EXPECT_EQ(1, equijoin_conditions_t2t3.size());
+  EXPECT_EQ("(t3.x = t2.x)", ItemToString(equijoin_conditions_t2t3[0]));
 
   AccessPath *t2 = inner->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
