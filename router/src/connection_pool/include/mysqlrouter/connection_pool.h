@@ -76,6 +76,8 @@ class CONNECTION_POOL_EXPORT PooledConnection {
    */
   Ssl &ssl() { return ssl_; }
 
+  const Ssl &ssl() const { return ssl_; }
+
   /**
    * set a remove-callback.
    *
