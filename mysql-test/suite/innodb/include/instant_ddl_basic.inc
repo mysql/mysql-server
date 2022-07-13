@@ -150,3 +150,75 @@ SELECT * FROM t1 ORDER BY c1;
 --echo # CLEANUP #
 --echo ###########
 DROP TABLE t1;
+
+#
+# Bug #33937504: INSTANT ADD COLUMNS are visible in older read view created before INSTANT DDL
+#
+
+--connect(con2,localhost,root,,)
+--connect(con3,localhost,root,,)
+
+
+--let $drop=0
+
+while ($drop <= 1) {
+
+  --let $use_instant=0
+  while ($use_instant <= 1) {
+
+    connection con2;
+    --eval CREATE TABLE t2 (c1 char(10), c2 char(10)) ROW_FORMAT=$row_format
+    INSERT INTO t2 VALUES ("r1c1", "r1c2");
+    SELECT * FROM t2;
+  
+    --eval CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=$row_format
+    INSERT INTO t1 VALUES ("r1c1", "r1c2");
+    SELECT * FROM t1;
+  
+    BEGIN;
+    SELECT * FROM t2;
+  
+    connection con3;
+    if ($use_instant == 0) {
+      if ($drop == 0) {
+        ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+        ALGORITHM=COPY;
+      }
+      if ($drop == 1) {
+        ALTER TABLE t1 DROP COLUMN c2,
+        ALGORITHM=COPY;
+      }
+    }
+
+    if ($use_instant == 1) {
+      if ($drop == 0) {
+        ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def",
+        ALGORITHM=INSTANT;
+      }
+      if ($drop == 1) {
+        ALTER TABLE t1 DROP COLUMN c2,
+        ALGORITHM=INSTANT;
+      }
+    }
+  
+    UPDATE t1 SET c1 = "r1c11";
+    SELECT * FROM t1;
+  
+    connection con2;
+    --error ER_TABLE_DEF_CHANGED
+    SELECT * FROM t1;
+  
+    COMMIT;
+
+    DROP TABLE t1;
+    DROP TABLE t2;
+    
+    --inc $use_instant
+  }
+  --inc $drop
+}
+
+connection default;
+
+disconnect con2;
+disconnect con3;
