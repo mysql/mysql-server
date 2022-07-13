@@ -1,0 +1,19 @@
+!include suite/ndb/my.cnf
+
+[cluster_config.1]
+
+# All threads, except the single LDM thread, is run by the recv-thread.
+# Not a recommended config as such, still need testing though.
+#
+# Intention is to test the recv-thread ability to handle job-buffer-full,
+# which is known to occur with the large_txn load.
+#
+# Note, that if ndbd is eventually deprecated, this could be how
+# we will provide a 'single threaded' ndbmtd.
+ThreadConfig=main={count=0},rep={count=0},ldm={count=1},recv={count=1}
+
+# Scale up for handling larger transactions:
+DataMemory = 256M
+NoOfReplicas = 1
+MaxNoOfConcurrentOperations = 512K
+NoOfFragmentLogFiles = 16
