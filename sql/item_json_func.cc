@@ -5037,7 +5037,6 @@ int64_t Item_func_json_value::extract_integer_value() {
 
 int64_t Item_func_json_value::extract_year_value() {
   assert(m_cast_target == ITEM_CAST_YEAR);
-  assert(unsigned_flag == false);
 
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
