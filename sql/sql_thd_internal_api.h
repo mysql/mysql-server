@@ -292,13 +292,6 @@ bool thd_is_dd_update_stmt(const THD *thd);
 my_thread_id thd_thread_id(const THD *thd);
 
 /**
-  Method to disable resource groups.
-
-  @param   reason    Reason to disable resource groups.
-*/
-void disable_resource_groups(const char *reason);
-
-/**
   Sets resource group of a thread identified by the user_thread_pfs_id to the
   system thread.
 
