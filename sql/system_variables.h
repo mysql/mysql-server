@@ -90,7 +90,8 @@ enum enum_transaction_write_set_hashing_algorithm {
 enum enum_session_track_gtids {
   SESSION_TRACK_GTIDS_OFF = 0,
   SESSION_TRACK_GTIDS_OWN_GTID = 1,
-  SESSION_TRACK_GTIDS_ALL_GTIDS = 2
+  SESSION_TRACK_GTIDS_ALL_GTIDS = 2,
+  SESSION_TRACK_GTIDS_START_GTID = 3
 };
 
 /** Values for use_secondary_engine sysvar. */

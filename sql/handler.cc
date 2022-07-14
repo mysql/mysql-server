@@ -2326,7 +2326,17 @@ static bool snapshot_handlerton(THD *thd, plugin_ref plugin, void *arg) {
 int ha_start_consistent_snapshot(THD *thd) {
   bool warn = true;
 
+  /*
+    Grabbing the write lock here since we end up calling
+    store_start_gtid => notify_start_gtid_determined => ensure_sidno
+    which wants the write lock to potentially expand storage for sidnos.
+  */
+  global_sid_lock->wrlock();
+  thd->rpl_thd_ctx.session_gtids_ctx().notify_start_gtid_determined(thd);
+
   plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &warn);
+
+  global_sid_lock->unlock();
 
   /*
     Same idea as when one wants to CREATE TABLE in one engine which does not

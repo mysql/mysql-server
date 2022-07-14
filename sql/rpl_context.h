@@ -206,6 +206,17 @@ class Session_consistency_gtids_ctx {
   */
   void update_tracking_activeness_from_session_variable(const THD *thd);
 
+  /**
+     This function SHALL be called once the starting GTID for the given transaction has
+     has been determined.
+
+     This function SHALL store the data if the
+     thd->variables.session_track_gtids is set to START_GTID.
+
+     @param thd   The thread context.
+   */
+  virtual void notify_start_gtid_determined(const THD *thd);
+
  private:
   // not implemented
   Session_consistency_gtids_ctx(const Session_consistency_gtids_ctx &rsc);

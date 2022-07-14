@@ -1514,7 +1514,7 @@ static bool on_session_track_gtids_update(sys_var *, THD *thd, enum_var_type) {
 }
 
 static const char *session_track_gtids_names[] = {"OFF", "OWN_GTID",
-                                                  "ALL_GTIDS", NullS};
+                                                  "ALL_GTIDS", "START_GTID", NullS};
 static Sys_var_enum Sys_session_track_gtids(
     "session_track_gtids",
     "Controls the amount of global transaction ids to be "
