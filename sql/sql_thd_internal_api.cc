@@ -377,14 +377,6 @@ bool thd_is_dd_update_stmt(const THD *thd) {
 
 my_thread_id thd_thread_id(const THD *thd) { return (thd->thread_id()); }
 
-void disable_resource_groups(const char *reason) {
-  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
-  if (res_grp_mgr->resource_group_support()) {
-    res_grp_mgr->disable_resource_group();
-    res_grp_mgr->set_unsupport_reason(reason);
-  }
-}
-
 bool set_user_thread_resource_group_to_system_thread(
     THD *thd, ulonglong user_pfs_thread_id,
     void **resource_grp_switch_context) {
