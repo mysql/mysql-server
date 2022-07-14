@@ -37,6 +37,7 @@
 #include <mysqlx_datatypes.pb.h>
 #include <mysqlx_error.h>  // ER_X_BAD_MESSAGE
 
+#include "hexify.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqlrouter/classic_protocol_wire.h"
@@ -46,39 +47,11 @@
 
 IMPORT_LOG_FUNCTIONS()
 
+using mysql_harness::hexify;
+
 static void log_fatal_error_code(const char *msg, std::error_code ec) {
   log_warning("%s: %s (%s:%d)", msg, ec.message().c_str(), ec.category().name(),
               ec.value());
-}
-
-/**
- * hexdump into a string.
- */
-template <class T>
-static std::string hexify(const T &buf) {
-  std::string out;
-  size_t col{};
-
-  auto *start = reinterpret_cast<const uint8_t *>(buf.data());
-  const auto *end = start + buf.size();
-
-  for (auto cur = start; cur != end; ++cur) {
-    std::array<char, 3> hexchar{};
-    snprintf(hexchar.data(), hexchar.size(), "%02x", *cur);
-
-    out.append(hexchar.data());
-
-    if (++col >= 16) {
-      col = 0;
-      out.append("\n");
-    } else {
-      out.append(" ");
-    }
-  }
-
-  if (col != 0) out += "\n";
-
-  return out;
 }
 
 static size_t message_byte_size(const google::protobuf::MessageLite &msg) {

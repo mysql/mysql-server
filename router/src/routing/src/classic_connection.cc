@@ -35,6 +35,7 @@
 #include "channel.h"  // Channel, ClassicProtocolState
 #include "errmsg.h"   // mysql-client error-codes
 #include "harness_assert.h"
+#include "hexify.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
@@ -68,6 +69,8 @@ using namespace std::string_literals;
 using namespace std::chrono_literals;
 using namespace std::string_view_literals;
 
+using mysql_harness::hexify;
+
 static constexpr const std::string_view kCachingSha2Password{
     "caching_sha2_password"sv};
 
@@ -82,36 +85,6 @@ static constexpr const std::array supported_authentication_methods{
     kMysqlNativePassword,
     kMysqlClearPassword,
 };
-
-/**
- * hexdump into a string.
- */
-template <class T>
-static std::string hexify(const T &buf) {
-  std::string out;
-  size_t col{};
-
-  auto *start = reinterpret_cast<const uint8_t *>(buf.data());
-  const auto *end = start + buf.size();
-
-  for (auto cur = start; cur != end; ++cur) {
-    std::array<char, 3> hexchar{};
-    snprintf(hexchar.data(), hexchar.size(), "%02x", *cur);
-
-    out.append(hexchar.data());
-
-    if (++col >= 16) {
-      col = 0;
-      out.append("\n");
-    } else {
-      out.append(" ");
-    }
-  }
-
-  if (col != 0) out += "\n";
-
-  return out;
-}
 
 template <class T>
 static constexpr uint8_t cmd_byte() {

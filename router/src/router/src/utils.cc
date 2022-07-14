@@ -212,30 +212,6 @@ uint16_t get_tcp_port(const std::string &data) {
   return static_cast<uint16_t>(port);
 }
 
-std::string hexdump(const unsigned char *buffer, size_t count) {
-  std::ostringstream os;
-
-  int w = 16;
-  size_t n = 0;
-  for (const unsigned char *ptr = buffer; n < count; ++n, ++ptr) {
-    os << std::setfill('0') << std::setw(2) << std::hex
-       << static_cast<int>(*ptr);
-
-    if (w == 1) {
-      os << std::endl;
-      w = 16;
-    } else {
-      os << " ";
-      --w;
-    }
-  }
-  // Make sure there is always a new line on the last line
-  if (w < 16) {
-    os << std::endl;
-  }
-  return os.str();
-}
-
 #ifndef _WIN32
 static std::string default_prompt_password(const std::string &prompt) {
   struct termios console;
@@ -345,12 +321,12 @@ static RET strtoX_checked_common(const char *value,
                                  RET default_value) noexcept {
   static_assert(std::is_integral<RET>::value,
                 "This template function is meant for integers.");
-  static_assert(sizeof(RET) <=
-                    sizeof(decltype(std::strtol("", (char **)nullptr, (int)0))),
+  static_assert(sizeof(RET) <= sizeof(decltype(  //
+                                   std::strtol("", (char **)nullptr, (int)0))),
                 "This function uses strtol() to convert signed integers, "
                 "therefore the integer bit width cannot be larger than what it "
                 "supports.");
-  static_assert(sizeof(RET) <= sizeof(decltype(
+  static_assert(sizeof(RET) <= sizeof(decltype(  //
                                    std::strtoul("", (char **)nullptr, (int)0))),
                 "This function uses strtoul() to convert unsigned integers, "
                 "therefore the integer bit width cannot be larger than what it "
