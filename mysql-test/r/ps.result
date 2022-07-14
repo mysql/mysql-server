@@ -3364,7 +3364,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint DEFAULT NULL
+  `c1` bigint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 2010;
 @a	@a = 2010

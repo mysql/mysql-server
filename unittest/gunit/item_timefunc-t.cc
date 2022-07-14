@@ -83,8 +83,11 @@ static void CheckMetadataConsistency(THD *thd, Item *item) {
   ASSERT_FALSE(item->fix_fields(thd, ref));
   ASSERT_EQ(item, ref[0]);
 
-  // Expect a signed integer return type.
-  EXPECT_FALSE(item->unsigned_flag);
+  // Expect a signed integer return type, except for YEAR.
+  if (item->data_type() == MYSQL_TYPE_YEAR)
+    EXPECT_TRUE(item->unsigned_flag);
+  else
+    EXPECT_FALSE(item->unsigned_flag);
   EXPECT_EQ(0, item->decimals);
 
   const int64_t int_result = item->val_int();
