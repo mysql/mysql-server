@@ -190,7 +190,7 @@ mkdir release
            -DWITH_NUMA=OFF \
            %{?mecab_option} \
 %if 0%{?cluster}
-           -DWITH_NDBCLUSTER=1 \
+           -DWITH_NDB=1 \
            -DNDB_UTILS_LINK_DYNAMIC=1 \
 %endif
 %if 0%{?commercial}
