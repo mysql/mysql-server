@@ -1,0 +1,47 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t1
+(id varchar(50) NOT NULL,
+str varchar(50) NOT NULL,
+pad int DEFAULT 1,
+primary key (`id`,`str`))
+engine = ndb default charset=latin1;
+insert into t1(id, str) values ("1","one                   ");
+select "'one' IS EQUAL 'one  ...'" from dual where "one" = "one      ";
+'one' IS EQUAL 'one  ...'
+select concat("<<<",str,">>>") from t1 where str = "one" and id="1";
+concat("<<<",str,">>>")
+<<<one                   >>>
+select concat("<<<",str,">>>") from t1 where str = "one";
+concat("<<<",str,">>>")
+<<<one                   >>>
+Check content on replica
+select concat("<<<",str,">>>") from t1 where str = "one" and id="1";
+concat("<<<",str,">>>")
+<<<one                   >>>
+select concat("<<<",str,">>>") from t1 where str = "one";
+concat("<<<",str,">>>")
+<<<one                   >>>
+Update content on master, remove trailing spaces
+update t1 set str="one" where id="1";
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+Verify the slave update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+Double check: Master update it back to original value
+update t1 set str="one                   " where id="1";
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one                   >>>
+Verify the replica update, see trailing space again
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one                   >>>
+drop table t1;
+include/rpl_end.inc

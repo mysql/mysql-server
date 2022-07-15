@@ -1,0 +1,79 @@
+#
+#
+# Bug#34312769 NdbSqlUtil.cpp:498: require((lb + m1 <= n1 && lb + m2 <= n2)) failed
+#
+# Test to verify that pk varchar column values of different lengths can be
+# compared successfully even with any of the charsets enabled.
+#
+
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--connection master
+
+#################
+# Note the 'pad' column: It is required as a workaround for
+# bug#34388068 NDB: CHARSET FLAG SET INCORRECTLY AND UPDATES REJECTED ON REPLIC
+#
+create table t1
+    (id varchar(50) NOT NULL,
+     str varchar(50) NOT NULL,
+     pad int DEFAULT 1,
+     primary key (`id`,`str`))
+engine = ndb default charset=latin1;
+
+# Insert 'one    ' (with multiple trailing spaces)
+insert into t1(id, str) values ("1","one                   ");
+
+##########
+# Verify that 'one     ' compares equal to 'one'.
+# Both when used as part of a key, as well as in a condition.
+select "'one' IS EQUAL 'one  ...'" from dual where "one" = "one      ";
+select concat("<<<",str,">>>") from t1 where str = "one" and id="1";
+select concat("<<<",str,">>>") from t1 where str = "one";
+
+##########
+# Slave should see the same contents as well:
+--echo Check content on replica
+--sync_slave_with_master
+--connection slave
+select concat("<<<",str,">>>") from t1 where str = "one" and id="1";
+select concat("<<<",str,">>>") from t1 where str = "one";
+
+##########
+# Update the pk 'str'-column by removing the trailing space.
+# The key should still compare equal to the old value though,
+# even if the binary representation changed.
+#
+# Note that the failing ::checkUpdateOfPrimaryKey() was only called on the
+# slave: Operation is executed as a delete+insert on the master.
+# The replication process however seems to be able to merge that into
+# an update of the primary key - where it fails...
+--echo Update content on master, remove trailing spaces
+--connection master
+update t1 set str="one" where id="1";
+select concat("<<<",str,">>>") from t1;
+
+#########
+--echo Verify the slave update, no trailing spaces anymore!
+--sync_slave_with_master
+--connection slave
+select concat("<<<",str,">>>") from t1;
+
+########
+--echo Double check: Master update it back to original value
+--connection master
+update t1 set str="one                   " where id="1";
+select concat("<<<",str,">>>") from t1;
+
+#########
+--echo Verify the replica update, see trailing space again
+--sync_slave_with_master
+--connection slave
+select concat("<<<",str,">>>") from t1;
+
+--connection master
+drop table t1;
+
+--source include/rpl_end.inc
