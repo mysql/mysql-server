@@ -552,8 +552,9 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
                               bool is_system_view) {
   // Set up for parsing item
   LEX *const old_lex = thd->lex;
-  LEX new_lex;
-  thd->lex = &new_lex;
+  LEX *new_lex = new (thd->mem_root) st_lex_local;
+
+  thd->lex = new_lex;
   if (lex_start(thd)) {
     thd->lex = old_lex;
     return nullptr;  // OOM
