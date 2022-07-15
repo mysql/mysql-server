@@ -1,0 +1,19 @@
+#
+# Bug #34303841: Inappropriate error handling for max_allowed_packet
+#
+SET GLOBAL max_allowed_packet=16777216;
+CREATE TABLE b34303841(id int key auto_increment, id2 longtext);
+INSERT INTO b34303841 (id2) VALUES (repeat('a',16777216));
+--------------
+SELECT * FROM b34303841
+--------------
+
+ERROR 2020 (HY000) at line 1: Got packet bigger than 'max_allowed_packet' bytes
+--------------
+SELECT 12
+--------------
+
+ERROR 2013 (HY000) at line 2: Lost connection to MySQL server during query
+DROP TABLE b34303841;
+SET GLOBAL max_allowed_packet=default;
+# End of 8.0 tests

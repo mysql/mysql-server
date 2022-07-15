@@ -1328,10 +1328,7 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (mysql->net.vio == nullptr || net->error == NET_ERROR_SOCKET_UNUSABLE) {
     /* Do reconnect if possible */
     if (!mysql->reconnect || mysql_reconnect(mysql) || stmt_skip) {
-      if (mysql->net.last_errno == 0) {
-        /* We should not override the last error, hence above check */
-        set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
-      }
+      set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
       return true; /* reconnect == false OR reconnect failed */
     }
     /* reconnect succeeded */
@@ -7760,9 +7757,7 @@ static int mysql_prepare_com_query_parameters(MYSQL *mysql,
 
     if (mysql->net.vio == nullptr) { /* Do reconnect if possible */
       if (!mysql->reconnect) {
-        /* If we don't have any vio there must be an error */
-        if (mysql->net.last_errno == 0)
-          set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
+        set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
         return 1;
       }
       if (mysql_reconnect(mysql)) return 1;
