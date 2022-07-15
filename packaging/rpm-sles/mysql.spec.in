@@ -619,7 +619,7 @@ mkdir debug
            -DWITH_MEB=%{with_meb} \
            -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
-           -DWITH_NDBCLUSTER=1 \
+           -DWITH_NDB=1 \
 %endif
 %if 0%{?ndb_nodejs_path:1}
            -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
@@ -663,7 +663,7 @@ mkdir release
            -DWITH_MEB=%{with_meb} \
            -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
-           -DWITH_NDBCLUSTER=1 \
+           -DWITH_NDB=1 \
 %endif
 %if 0%{?ndb_nodejs_path:1}
            -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
