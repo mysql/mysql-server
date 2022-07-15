@@ -914,3 +914,26 @@ SELECT @@time_zone;
 -01:00
 DROP TABLE t1;
 SET time_zone = default;
+#
+# Bug #34370403 Error switch hint parse
+#
+CREATE TABLE t(c1 int);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+explain select /*+ set_var(optimizer_switch='prefer_ordering_index=off') */ *
+from t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_switch='prefer_ordering_index=off') */ `test`.`t`.`c1` AS `c1` from `test`.`t`
+set @@character_set_client=@@character_set_system;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+explain select /*+ set_var(optimizer_switch='prefer_ordering_index=off') */ *
+from t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_switch='prefer_ordering_index=off') */ `test`.`t`.`c1` AS `c1` from `test`.`t`
+DROP TABLE t;
