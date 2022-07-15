@@ -6126,6 +6126,8 @@ void Ndbcntr::open_secretsfile(Signal *signal,
   if (open_for_read)
   {
     jam();
+    req->file_size_hi = UINT32_MAX;
+    req->file_size_lo = UINT32_MAX;
     req->fileFlags = FsOpenReq::OM_READONLY |
                      FsOpenReq::OM_READ_FORWARD;
     c_secretsfile.m_state = SecretsFileOperationRecord::OPEN_READ_FILE_0;
@@ -6136,7 +6138,10 @@ void Ndbcntr::open_secretsfile(Signal *signal,
     req->fileFlags =
         FsOpenReq::OM_WRITEONLY |
         FsOpenReq::OM_CREATE_IF_NONE |
-        FsOpenReq::OM_APPEND;
+        FsOpenReq::OM_APPEND |
+        FsOpenReq::OM_SIZE_ESTIMATED;
+    req->file_size_hi = 0;
+    req->file_size_lo = sizeof(c_secretsfile.m_data);
     c_secretsfile.m_state = SecretsFileOperationRecord::OPEN_WRITE_FILE_0;
   }
 
@@ -6158,8 +6163,6 @@ void Ndbcntr::open_secretsfile(Signal *signal,
       ekm.get_needed_words();
 
   req->page_size = 0;
-  req->file_size_hi = UINT32_MAX;
-  req->file_size_lo = UINT32_MAX;
   req->auto_sync_size = 0;
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA,
              lsptr, 2);

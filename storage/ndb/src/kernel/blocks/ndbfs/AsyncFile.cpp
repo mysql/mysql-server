@@ -113,6 +113,8 @@ AsyncFile::openReq(Request * request)
 
   const Uint32 page_size = request->par.open.page_size;
   const Uint64 data_size = request->par.open.file_size;
+  
+  const bool is_data_size_estimated = (flags & FsOpenReq::OM_SIZE_ESTIMATED);
 
   // Validate some flag combination.
 
@@ -279,25 +281,18 @@ AsyncFile::openReq(Request * request)
         key_data_unit_size = page_size;
         file_block_size = page_size;
       }
-      if (m_open_flags & FsOpenReq::OM_APPEND)
+      if ((m_open_flags & FsOpenReq::OM_APPEND) && !is_data_size_estimated)
         require(!ndbxfrm_file::is_definite_size(data_size));
+      
+      if(is_data_size_estimated)
+       require(FsOpenReq::OM_APPEND & flags);
+      
       int kdf_iter_count = 0; // Use AESKW (assume OM_ENCRYPT_KEY)
       if ((m_open_flags & FsOpenReq::OM_ENCRYPT_KEY_MATERIAL_MASK) ==
           FsOpenReq::OM_ENCRYPT_PASSWORD)
       {
         kdf_iter_count = -1; // Use PBKDF2 let ndb_ndbxfrm decide iter count
       }
-      int key_count;
-      /*
-       * Workaround for Bug#34355596 "Creating secrets file takes long time due
-       * to excessive key derivations".
-       * PBKDF2 + XTS is only used by secrets file which has little data
-       * (512 byte), force key count to 1.
-       */
-      if (enc_cipher == ndb_ndbxfrm1::cipher_xts && kdf_iter_count != 0)
-        key_count = 1;
-      else
-        key_count = -1; // Let ndb_ndbxfrm decide key_count
       rc = m_xfile.create(
           m_file,
           use_gz,
@@ -305,10 +300,11 @@ AsyncFile::openReq(Request * request)
           pwd_len,
           kdf_iter_count,
           enc_cipher,
-          key_count,
+          -1,
           key_data_unit_size,
           file_block_size,
-          data_size);
+          data_size,
+          is_data_size_estimated);
       if (rc < 0) NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
     }
     else
@@ -322,7 +318,7 @@ AsyncFile::openReq(Request * request)
       m_file.close();
       goto remove_if_created;
     }
-    if (ndbxfrm_file::is_definite_size(data_size) &&
+    if (ndbxfrm_file::is_definite_size(data_size) && !is_data_size_estimated &&
         size_t(m_xfile.get_data_size()) != data_size)
     {
       NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrInvalidFileSize);
