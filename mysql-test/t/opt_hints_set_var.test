@@ -484,3 +484,16 @@ SELECT @@time_zone;
 DROP TABLE t1;
 
 SET time_zone = default;
+
+--echo #
+--echo # Bug #34370403 Error switch hint parse
+--echo #
+
+CREATE TABLE t(c1 int);
+ANALYZE TABLE t;
+explain select /*+ set_var(optimizer_switch='prefer_ordering_index=off') */ *
+from t;
+set @@character_set_client=@@character_set_system;
+explain select /*+ set_var(optimizer_switch='prefer_ordering_index=off') */ *
+from t;
+DROP TABLE t;

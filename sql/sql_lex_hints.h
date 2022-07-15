@@ -153,8 +153,10 @@ class Hint_scanner {
 
             ptr++;  // skip closing quote
 
-            if (thd->charset_is_system_charset && double_separators == 0)
+            if (thd->charset_is_system_charset && double_separators == 0) {
+              yytext = thd->strmake(yytext, yyleng);  // null-terminate it.
               return ret;
+            }
 
             LEX_STRING s;
             if (!thd->charset_is_system_charset) {
