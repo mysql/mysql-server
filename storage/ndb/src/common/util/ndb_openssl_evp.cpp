@@ -31,8 +31,10 @@
 #include <new>
 
 #include "openssl/conf.h"
+#include "openssl/crypto.h"
 #include "openssl/err.h"
 #include "openssl/evp.h"
+#include "openssl/opensslv.h"
 #include "openssl/rand.h"
 #include <openssl/ssl.h>
 
@@ -1181,6 +1183,30 @@ int ndb_openssl_evp::operation::decrypt_end()
   return 0;
 }
 
+bool ndb_openssl_evp::is_aeskw256_supported()
+{
+#ifndef EVP_CIPHER_CTX_FLAG_WRAP_ALLOW
+  /*
+   * EVP_CIPHER_CTX_FLAG_WRAP_ALLOW and EVP_aes_256_wrap should have been
+   * defined in openssl/evp.h.
+   */
+  return false;
+#else
+  return true;
+#endif
+}
+
+#ifndef EVP_CIPHER_CTX_FLAG_WRAP_ALLOW
+int ndb_openssl_evp::wrap_keys_aeskw256(byte *,
+                                        size_t *,
+                                        const byte *,
+                                        size_t,
+                                        const byte *,
+                                        size_t)
+{
+  return -1; // Not supported before OpenSSL 1.0.2
+}
+#else
 int ndb_openssl_evp::wrap_keys_aeskw256(byte *wrapped,
                                         size_t *wrapped_size,
                                         const byte *keys,
@@ -1215,7 +1241,19 @@ int ndb_openssl_evp::wrap_keys_aeskw256(byte *wrapped,
   EVP_CIPHER_CTX_free(ctx);
   return 0;
 }
+#endif
 
+#ifndef EVP_CIPHER_CTX_FLAG_WRAP_ALLOW
+int ndb_openssl_evp::unwrap_keys_aeskw256(byte *,
+                                          size_t *,
+                                          const byte *,
+                                          size_t,
+                                          const byte *,
+                                          size_t)
+{
+  return -1; // Not supported before OpenSSL 1.0.2
+}
+#else
 int ndb_openssl_evp::unwrap_keys_aeskw256(byte *keys,
                                           size_t *keys_size,
                                           const byte *wrapped,
@@ -1251,6 +1289,7 @@ int ndb_openssl_evp::unwrap_keys_aeskw256(byte *keys,
   EVP_CIPHER_CTX_free(ctx);
   return 0;
 }
+#endif
 
 #ifdef TEST_NDB_OPENSSL_EVP
 
