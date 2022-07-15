@@ -1618,18 +1618,15 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  db_access= sctx->check_access(DB_ACLS) ?
-    DB_ACLS :
-    acl_get(sctx->host().str,
-            sctx->ip().str,
-            sctx->priv_user().str,
-            new_db_file_name.str,
-            false) | sctx->master_access();
+  db_access =
+      sctx->check_access(DB_OP_ACLS)
+          ? DB_OP_ACLS
+          : acl_get(sctx->host().str, sctx->ip().str, sctx->priv_user().str,
+                    new_db_file_name.str, false) |
+                sctx->master_access();
 
-  if (!force_switch &&
-      !(db_access & DB_ACLS) &&
-      check_grant_db(thd, new_db_file_name.str))
-  {
+  if (!force_switch && !(db_access & DB_OP_ACLS) &&
+      check_grant_db(thd, new_db_file_name.str, true)) {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user().str,
              sctx->priv_host().str,

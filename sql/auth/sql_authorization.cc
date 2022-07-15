@@ -2544,13 +2544,16 @@ static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
 
 
 /*
-  Check if a user has the right to access a database
-  Access is accepted if he has a grant for any table/routine in the database
-  Return 1 if access is denied
+  Check if a user has the right to access a database.
+  Access is accepted if the user has a database operations related grant
+  (i.e. not including the GRANT_ACL) for any table/column/routine in the
+  database. Return 1 if access is denied
+  check_table_grant is false by default, Access is granted for "show databases"
+  and "show tables in database" when user has table level grant.
 */
 
-bool check_grant_db(THD *thd,const char *db)
-{
+bool check_grant_db(THD *thd, const char *db,
+                    const bool check_table_grant /* = false */) {
   Security_context *sctx= thd->security_context();
   LEX_CSTRING priv_user= sctx->priv_user();
   char helping [NAME_LEN+USERNAME_LENGTH+2];
@@ -2579,11 +2582,11 @@ bool check_grant_db(THD *thd,const char *db)
       my_hash_element(&column_priv_hash,
                       idx);
     if (len < grant_table->key_length &&
-        !memcmp(grant_table->hash_key,helping,len) &&
-        grant_table->host.compare_hostname(sctx->host().str,
-                                           sctx->ip().str))
-    {
-      error= FALSE; /* Found match. */
+        !memcmp(grant_table->hash_key, helping, len) &&
+        grant_table->host.compare_hostname(sctx->host().str, sctx->ip().str) &&
+        ((grant_table->privs | grant_table->cols) &
+         (check_table_grant ? TABLE_OP_ACLS : TABLE_ACLS))) {
+      error = FALSE; /* Found match. */
       break;
     }
   }
@@ -2594,7 +2597,6 @@ bool check_grant_db(THD *thd,const char *db)
 
   return error;
 }
-
 
 /****************************************************************************
   Check routine level grants
@@ -3047,7 +3049,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
         db.length(0);
         db.append(STRING_WITH_LEN("GRANT "));
 
-        if (test_all_bits(want_access,(DB_ACLS & ~GRANT_ACL)))
+        if (test_all_bits(want_access, (DB_OP_ACLS)))
           db.append(STRING_WITH_LEN("ALL PRIVILEGES"));
         else if (!(want_access & ~GRANT_ACL))
           db.append(STRING_WITH_LEN("USAGE"));
@@ -3055,8 +3057,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
         {
           int found=0, cnt;
           ulong j,test_access= want_access & ~GRANT_ACL;
-          for (cnt=0, j = SELECT_ACL; j <= DB_ACLS; cnt++,j <<= 1)
-          {
+          for (cnt = 0, j = SELECT_ACL; j <= DB_OP_ACLS; cnt++, j <<= 1) {
             if (test_access & j)
             {
               if (found)
@@ -3119,7 +3120,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
         global.length(0);
         global.append(STRING_WITH_LEN("GRANT "));
 
-        if (test_all_bits(table_access, (TABLE_ACLS & ~GRANT_ACL)))
+        if (test_all_bits(table_access, (TABLE_OP_ACLS)))
           global.append(STRING_WITH_LEN("ALL PRIVILEGES"));
         else if (!test_access)
           global.append(STRING_WITH_LEN("USAGE"));
@@ -3129,8 +3130,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
           int found= 0;
           ulong j;
 
-          for (counter= 0, j= SELECT_ACL; j <= TABLE_ACLS; counter++, j<<= 1)
-          {
+          for (counter = 0, j = SELECT_ACL; j <= TABLE_OP_ACLS;
+               counter++, j <<= 1) {
             if (test_access & j)
             {
               if (found)
@@ -4280,8 +4281,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
                      &thd->col_access, NULL, FALSE, FALSE))
       return TRUE;
 
-    if (!thd->col_access && check_grant_db(thd, dst_db_name))
-    {
+    if (!(thd->col_access & DB_OP_ACLS) && check_grant_db(thd, dst_db_name)) {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                thd->security_context()->priv_user().str,
                thd->security_context()->priv_host().str,
