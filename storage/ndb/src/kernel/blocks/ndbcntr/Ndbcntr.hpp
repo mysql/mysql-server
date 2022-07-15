@@ -167,7 +167,7 @@ public:
       WAITING = 8
     } m_state;
   } c_secretsfile;
-
+  
   static constexpr Uint32 c_nodeMasterKeyLength = 32;
   bool c_encrypted_filesystem;
 

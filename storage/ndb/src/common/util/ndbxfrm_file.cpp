@@ -236,7 +236,8 @@ int ndbxfrm_file::create(
     int key_count,
     size_t key_data_unit_size,  //
     size_t file_block_size,   // typ. 32KiB phys (or logical?)
-    Uint64 data_size)         // file size excluding file header and trailer
+    Uint64 data_size,         // file size excluding file header and trailer
+    bool is_data_size_estimated)
 {
   reset();
 
@@ -244,6 +245,8 @@ int ndbxfrm_file::create(
   m_data_size = 0;
   m_file_op = OP_NONE;
   m_append = false;
+  m_is_estimated_data_size = is_data_size_estimated;
+  m_estimated_data_size = data_size;
 
   m_file = &file;
 
@@ -268,7 +271,8 @@ int ndbxfrm_file::create(
   }
 
   m_file_block_size = file_block_size;
-  if (is_definite_size(data_size)) m_data_size = data_size;
+  if (is_definite_size(data_size) && !is_data_size_estimated) 
+    m_data_size = data_size;
   if (pwd_key)
   {
     if (kdf_iter_count == -1)
@@ -292,7 +296,7 @@ int ndbxfrm_file::create(
   m_payload_start = out.begin() - out_begin;
   m_file_buffer.update_write(out);
 
-  if (!is_definite_size(data_size))
+  if (!is_definite_size(data_size) || m_is_estimated_data_size)
   {
     // File created with no data, and later appended until closed.
     m_file_size = INDEFINITE_SIZE;
@@ -928,11 +932,18 @@ int ndbxfrm_file::generate_keying_material(ndb_ndbxfrm1::header *ndbxfrm1,
                                            int key_count)
 {
   require(pwd_key != nullptr);
-
-  const off_t estimated_data_size =
-      (m_payload_end == INDEFINITE_OFFSET) ? INDEFINITE_SIZE : m_data_size;
+  const Uint64 estimated_data_size =
+          (m_payload_end == INDEFINITE_OFFSET) ? m_estimated_data_size : m_data_size;
   constexpr size_t max_keying_material_size =
       ndb_ndbxfrm1::header::get_max_keying_material_size();
+  /**
+   * estimated_data_size is an estimate of the data size that should be encrypted.
+   * If not using compression that coincides with the estimate of the raw data.
+   * With compression the compressed data size is not take into account so it
+   * will typically be an overestimate. Thus, it will generate more keys than needed.
+   * However, this way we don't run the risk of generating fewer keys than desired.
+   *
+   */
   size_t needed_key_iv_pair_count =
       openssl_evp.get_needed_key_iv_pair_count(estimated_data_size);
   size_t max_key_iv_pair_count = 0;
@@ -1789,7 +1800,8 @@ int main()
                     key_count,
                     key_data_unit_size,
                     file_block_size,
-                    data_size);
+                    data_size,
+                    false);
   require(rc == 0);
 
   memset(wr_buf, 17, ndbxfrm_file::BUFFER_SIZE);

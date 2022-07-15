@@ -284,7 +284,9 @@ class ndbxfrm_file
              int key_count, // -1 let ndbxfrm_file decide
              size_t key_data_unit_size,
              size_t file_block_size,
-             Uint64 data_size);
+             Uint64 data_size,
+             bool is_data_size_estimated
+             );
   /*
    * Use abort when you for example has not fulfilled the initialization of the
    * file content and intend to remove the file after close.
@@ -348,6 +350,7 @@ class ndbxfrm_file
   bool m_append;
   bool m_encrypted;
   bool m_compressed;
+  bool m_is_estimated_data_size;
   ndb_openssl_evp openssl_evp;
   enum
   {
@@ -366,6 +369,7 @@ class ndbxfrm_file
   off_t m_file_pos;
   Uint64 m_data_size;
   Uint64 m_file_size;
+  Uint64 m_estimated_data_size;
 
   // operation per block properties
   ndb_openssl_evp::operation openssl_evp_op;

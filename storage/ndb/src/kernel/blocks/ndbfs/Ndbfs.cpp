@@ -619,7 +619,6 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   const Uint64 file_size = (Uint64{fsOpenReq->file_size_hi} << 32) |
                            fsOpenReq->file_size_lo;
   const Uint32 auto_sync_size = fsOpenReq->auto_sync_size;
-
 #if defined(NAME_BASED_DISABLING_COMPRESS_ENCRYPT_ODIRECT)
   const int name_hash = crc32(0,
                               ((const unsigned char*)file->theFileName.c_str()),

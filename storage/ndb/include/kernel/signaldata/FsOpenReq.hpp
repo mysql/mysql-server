@@ -134,6 +134,7 @@ public:
   static constexpr Uint32 OM_ZEROS_ARE_SPARSE = 0x1000000;
   static constexpr Uint32 OM_ENCRYPT_KEY = 0x2000000;
   static constexpr Uint32 OM_ENCRYPT_XTS = 0x4000000;
+  static constexpr Uint32 OM_SIZE_ESTIMATED = 0x8000000;
 
   static constexpr Uint32 OM_ENCRYPT_KEY_MATERIAL_MASK =
       OM_ENCRYPT_PASSWORD | OM_ENCRYPT_KEY;

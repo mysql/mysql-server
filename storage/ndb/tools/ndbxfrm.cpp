@@ -346,6 +346,7 @@ int copy_file(const char src[], const char dst[])
       opt_encrypt_key_state.get_key() != nullptr
           ? opt_encrypt_key_state.get_key_length()
           : opt_encrypt_password_state.get_password_length();
+  const Uint64 file_size = src_file.get_size();
   r = dst_xfrm.create(dst_file,
                       g_compress,
                       dst_pwd_key,
@@ -355,7 +356,8 @@ int copy_file(const char src[], const char dst[])
                       -1 /* key count */,
                       g_encrypt_block_size,
                       file_block_size,
-                      ndbxfrm_file::INDEFINITE_SIZE);
+                      file_size,
+                      true);
   if (r != 0)
   {
     src_xfrm.close(false);
