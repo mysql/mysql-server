@@ -277,6 +277,12 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int generate_new_name(char *new_name, const char *log_name,
                         uint32 new_index_number = 0);
 
+ protected:
+  /**
+  @brief Notifies waiting threads that binary log has been updated
+  */
+  void signal_update();
+
  public:
   const char *generate_name(const char *log_name, const char *suffix,
                             char *buff);
@@ -664,16 +670,34 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void reset_bytes_written() { bytes_written = 0; }
   void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
   void set_max_size(ulong max_size_arg);
-  void signal_update() {
-    DBUG_TRACE;
-    mysql_cond_broadcast(&update_cond);
-    return;
-  }
 
   void update_binlog_end_pos(bool need_lock = true);
   void update_binlog_end_pos(const char *file, my_off_t pos);
 
-  int wait_for_update(const struct timespec *timeout);
+  /**
+    Wait until we get a signal that the binary log has been updated.
+
+    NOTES
+    @param[in] timeout    a pointer to a timespec;
+                          NULL means to wait w/o timeout.
+    @retval    0          if got signalled on update
+    @retval    non-0      if wait timeout elapsed
+    @note
+      LOCK_binlog_end_pos must be owned before calling this function, may be
+      temporarily released while the thread is waiting and is reacquired before
+      returning from the function
+  */
+  int wait_for_update(const std::chrono::nanoseconds &timeout);
+
+  /**
+    Wait until we get a signal that the binary log has been updated.
+    @retval    0          success
+    @note
+      LOCK_binlog_end_pos must be owned before calling this function, may be
+      temporarily released while the thread is waiting and is reacquired before
+      returning from the function
+  */
+  int wait_for_update();
 
  public:
   void init_pthread_objects();
@@ -779,7 +803,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  public:
   void make_log_name(char *buf, const char *log_ident);
-  bool is_active(const char *log_file_name);
+  bool is_active(const char *log_file_name) const;
   int remove_logs_from_index(LOG_INFO *linfo, bool need_update_threads);
   int rotate(bool force_rotate, bool *check_purge);
 

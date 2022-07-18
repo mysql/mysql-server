@@ -72,6 +72,12 @@ class Binlog_sender {
   }
 
  private:
+  /**
+    Checks whether thread should continue awaiting new events
+    @param log_pos Last processed (sent) event id
+  */
+  bool stop_waiting_for_update(my_off_t log_pos) const;
+
   THD *m_thd;
   String &m_packet;
 
@@ -211,28 +217,32 @@ class Binlog_sender {
 
     @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_binlog(File_reader *reader, my_off_t start_pos);
+  int send_binlog(File_reader &reader, my_off_t start_pos);
 
   /**
     It sends some events in a binlog file to the client.
 
     @param[in] reader     File_reader of binlog will be sent
-     @param[in] end_pos    Only the events before end_pos are sent
+    @param[in] end_pos    Only the events before end_pos are sent
 
-     @return It returns 0 if succeeds, otherwise 1 is returned.
+    @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_events(File_reader *reader, my_off_t end_pos);
+  int send_events(File_reader &reader, my_off_t end_pos);
 
   /**
     It gets the end position of the binlog file.
 
     @param[in] reader   File_reader of binlog will be checked
-    @param[out] end_pos Will be set to the end position of the reading binlog
-                        file. If this is an inactive file,  it will be set to 0.
-    @retval 0 Success
-    @retval 1 Error (the thread was killed)
+    @returns Pair :
+             - Binlog end position - will be set to the end position
+             of the reading binlog file. If this is an inactive file,
+             it will be set to 0.
+             - Status code - 0 (success), 1 (end execution)
+    @note Function is responsible for flushing the net buffer, flushes before
+          waiting and before returning 1 which means end of the execution
+          (normal/error)
   */
-  int get_binlog_end_pos(File_reader *reader, my_off_t *end_pos);
+  std::pair<my_off_t, int> get_binlog_end_pos(File_reader &reader);
 
   /**
      It checks if a binlog file has Previous_gtid_log_event
@@ -242,7 +252,7 @@ class Binlog_sender {
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int has_previous_gtid_log_event(File_reader *reader, bool *found);
+  int has_previous_gtid_log_event(File_reader &reader, bool *found);
 
   /**
     It sends a faked rotate event which does not exist physically in any
@@ -285,7 +295,7 @@ class Binlog_sender {
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_format_description_event(File_reader *reader, my_off_t start_pos);
+  int send_format_description_event(File_reader &reader, my_off_t start_pos);
   /**
      It sends a heartbeat to the client.
 
@@ -323,7 +333,7 @@ class Binlog_sender {
      @retval 0 Succeed
      @retval 1 Fail
   */
-  int read_event(File_reader *reader, uchar **event_ptr, uint32 *event_len);
+  int read_event(File_reader &reader, uchar **event_ptr, uint32 *event_len);
   /**
     Check if it is allowed to send this event type.
 
@@ -395,7 +405,7 @@ class Binlog_sender {
   */
   int wait_new_events(my_off_t log_pos);
   int wait_with_heartbeat(my_off_t log_pos);
-  int wait_without_heartbeat();
+  int wait_without_heartbeat(my_off_t log_pos);
 
 #ifndef NDEBUG
   /* It is used to count the events that have been sent. */

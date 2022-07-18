@@ -1,0 +1,74 @@
+# ==== Purpose ====
+#
+# The purpose of this test is to test synchronization of binlog sender thread
+# and threads issuing updates in the binary log
+#
+# ==== Implementation ====
+# 1) Set heartbeat to some short period of time (100ms)
+# 2) Simulate a delay in binlog signal update function
+# 3) Wait for replica to catch-up with latest changes
+# 4) Check whether the replica replicated table correctly
+#
+# ==== Requirements ====
+# The dump thread should check for missed signals from updating threads,
+# meaning that it should make a progress (not loop to wait again) when a client
+# updates the binlog position after the dump thread has woken up by a condition
+# variable timeout and before it acquired the lock on the mutex associated with
+# the condition variable.
+#
+# ==== References ====
+#
+# Bug#33176377: Contribution by Facebook: Fix race between binlog sender
+#               heartbeat timeout
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--echo # Set heartbeat to a small value.
+--source include/rpl_connection_slave.inc
+--let $heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1)
+--eval CHANGE REPLICATION SOURCE TO source_heartbeat_period = 0.1
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (a INT);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+
+--echo
+--echo # Simulate a delay before signal that binlog is updated
+--let $debug_point=simulate_delay_in_binlog_signal_update
+--source include/add_debug_point.inc
+
+--echo
+--echo # Generate an update event - Insert value into t1
+INSERT INTO t1 VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # assertion: Table has been replicated successfully
+--let $diff_tables=master:t1,slave:t1
+--source include/diff_tables.inc
+
+--source include/rpl_connection_master.inc
+--echo
+--echo # Turn off the delay.
+--let $debug_point=simulate_delay_in_binlog_signal_update
+--source include/remove_debug_point.inc
+
+--echo
+--echo # Clean up
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--replace_result $heartbeat_timeout HEARTBEAT_PERIOD
+--eval CHANGE REPLICATION SOURCE TO source_heartbeat_period=$heartbeat_timeout
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc
