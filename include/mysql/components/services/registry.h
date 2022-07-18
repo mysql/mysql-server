@@ -143,6 +143,8 @@ BEGIN_SERVICE_DEFINITION(registry_query)
   will be returned twice. If no name is specified for search, iterator will be
   positioned on the first Service Implementation.
 
+  @warning Takes and keeps a lock on the registry until the iterator is closed!
+
   @param service_name_pattern Name of Service or Service Implementation to
     start iteration from. May be empty string or NULL pointer, in which case
     iteration starts from the first Service Implementation.
@@ -169,6 +171,14 @@ DECLARE_BOOL_METHOD(get, (my_h_service_iterator iter, const char **out_name));
 /**
   Advances specified iterator to next element. Will succeed but return true if
   it reaches one-past-last element.
+
+  @note You should collect the service names in a local cache, close the
+  iterator and only then try to resolve the names using the other registry
+  services.
+
+  @warning Make sure to close the iterator before looking up the name into
+  the registry! Otherwise undefined behavior will ensure. Most probably a
+  deadlock.
 
   @param iterator Service Implementation iterator handle.
   @return Status of performed operation and validity of iterator after
