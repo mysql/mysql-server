@@ -2131,7 +2131,7 @@ void get_date_from_daynr(int64_t daynr, uint *ret_year, uint *ret_month,
       if (day_of_year > 31 + 28) {
         day_of_year--;
         if (day_of_year == 31 + 28)
-          leap_day = 1; /* Handle leap years leapday */
+          leap_day = 1; /* Handle leap year's leap day */
       }
     }
     *ret_month = 1;
