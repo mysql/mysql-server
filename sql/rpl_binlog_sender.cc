@@ -812,7 +812,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos) {
       return ret;
     }
     mysql_bin_log.unlock_binlog_end_pos();
-    Scope_guard lock([this]() { mysql_bin_log.lock_binlog_end_pos(); });
+    Scope_guard lock([]() { mysql_bin_log.lock_binlog_end_pos(); });
 #ifndef NDEBUG
     if (hb_info_counter < 3) {
       LogErr(INFORMATION_LEVEL, ER_RPL_BINLOG_MASTER_SENDS_HEARTBEAT);
