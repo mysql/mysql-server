@@ -17,6 +17,7 @@ call mtr.add_suppression(".*test.*bug16720368.*missing");
 call mtr.add_suppression("Ignoring tablespace `test/bug16720368` because it could not be opened");
 call mtr.add_suppression("Found 1 prepared XA transactions");
 call mtr.add_suppression("Operating system error.*in a file operation");
+call mtr.add_suppression("Error number 22 means 'Invalid argument'");
 call mtr.add_suppression("\(The error means\|If you are\)");
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
 call mtr.add_suppression("Error number [0-9]* means 'Resource temporarily unavailable'");
