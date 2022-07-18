@@ -69,12 +69,16 @@ static constexpr inline T ndb_ceil_div(const T p, const T q)
   {
     return 0;
   }
+#if defined(__GNUC__) && (__GNUC__ <= 8)
+  // Nothing, broken build: calling non-constexpr function require_failed().
+#else
   if constexpr (std::is_signed_v<T>)
   {
     // Negative values not supported
     require(p >= 0);
     require(q >= 0);
   }
+#endif
   return 1 + (p - 1) / q;
 }
 
