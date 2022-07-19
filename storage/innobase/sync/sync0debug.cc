@@ -135,12 +135,12 @@ struct LatchDebug {
   Latches *thread_latches(bool add = false) UNIV_NOTHROW;
 
   /** Check that all the latches already owned by a thread have a higher
-  level than limit.
+  level than limit and returns the latch which violates this expectation if any.
   @param[in]    latches         the thread's existing (acquired) latches
   @param[in]    limit           to check against
   @return latched if there is one with a level <= limit . */
-  const Latched *less(const Latches *latches,
-                      latch_level_t limit) const UNIV_NOTHROW;
+  const Latched *find_lower_or_equal(const Latches *latches,
+                                     latch_level_t limit) const UNIV_NOTHROW;
 
   /** Checks if the level value exists in the thread's acquired latches.
   @param[in]    latches         the thread's existing (acquired) latches
@@ -160,18 +160,61 @@ struct LatchDebug {
                                   invariant to fail
   @param[in]    level           The new level request that breaks
                                   the order */
-  void crash(const Latches *latches, const Latched *latched,
-             latch_level_t level) const UNIV_NOTHROW;
+  [[noreturn]] void crash(const Latches *latches, const Latched *latched,
+                          latch_level_t level) const UNIV_NOTHROW;
 
   /** Do a basic ordering check. Asserts that all the existing latches have a
-  level higher than the in_level.
+  level higher than the forbidden_level.
   @param[in]    latches         thread's existing latches
-  @param[in]    requested_level Level requested by latch
-  @param[in]    in_level        The level of the latch that the thread is trying
-  to acquire. Declared ulint so that we can do level - 1.
-  @return true if passes, else crash with error message. */
-  bool basic_check(const Latches *latches, latch_level_t requested_level,
-                   ulint in_level) const UNIV_NOTHROW;
+  @param[in]    requested_level
+  the level of the requested latch, used in error message only, to provide the
+  context of the check to the user. For actual comparisons in asserts the value
+  of forbidden_level will be used.
+  @param[in]    forbidden_level
+  Exclusive lower bound on levels of currently held latches - i.e. each latch in
+  @p latches must have level strictly grater than @p forbidden_level. Usually,
+  @p forbidden_level equals @p requested_level, but if we allow a thread to hold
+  more than one latch at @p requested_level (avoiding deadlock between them in
+  some other way), then it will be @p requested_level - 1. It can have a
+  value other than these two, in rare cases, where deadlock avoidance rules are
+  even more complicated, but this should be avoided.
+  */
+  void assert_all_held_are_above(const Latches *latches,
+                                 latch_level_t requested_level,
+                                 ulint forbidden_level) const UNIV_NOTHROW;
+
+  /** Asserts that all the latches already acquired by the thread have a
+  level higher than the newly requested latch. This is the most typical latching
+  order rule ensuring no deadlock cycle: strictly descending sequence can not
+  have a loop.
+  @param[in]    latches           thread's existing latches
+  @param[in]    requested_level   the level of the requested latch
+  */
+  void assert_requested_is_lower_than_held(latch_level_t requested_level,
+                                           const Latches *latches) const
+      UNIV_NOTHROW {
+    assert_all_held_are_above(latches, requested_level, requested_level);
+  }
+
+  /** Asserts that all the latches already acquired by the thread have a
+  level higher or equal to the newly requested latch. This is a rule used for
+  latches which can have multiple instances and a thread is allowed to latch
+  more than one such instance, when we can somehow prove there's no deadlock due
+  to threads requesting more than one. It's the responsibility of the developer
+  to document and prove this additional property, ideally encoding it in
+  LatchDebug::check_order. One example of such case would be when we know that
+  to latch more than one instance the thread must first acquire exclusive right
+  to another singleton latch. Another example would be if we always follow some
+  natural ordering on the latches of this kind, like by increasing address in an
+  array.
+  @param[in]    latches           thread's existing latches
+  @param[in]    requested_level   the level of the requested latch
+  */
+  void assert_requested_is_lower_or_equal_to_held(latch_level_t requested_level,
+                                                  const Latches *latches) const
+      UNIV_NOTHROW {
+    assert_all_held_are_above(latches, requested_level, requested_level - 1);
+  }
 
   /** Adds a latch and its level in the thread level array. Allocates
   the memory for the array if called for the first time for this
@@ -193,8 +236,8 @@ struct LatchDebug {
             latches->back().get_level() == SYNC_NO_ORDER_CHECK ||
             latches->back().m_latch->get_level() == SYNC_LEVEL_VARYING ||
             latches->back().get_level() >= level)) {
-        latch_level_t back_latch_level = latches->back().m_latch->get_level();
-        latch_level_t back_level = latches->back().m_latch->get_level();
+        const auto latest_latch_level = latches->back().m_latch->get_level();
+        const auto latest_level = latches->back().get_level();
 
 #ifdef UNIV_NO_ERR_MSGS
         ib::error()
@@ -202,8 +245,8 @@ struct LatchDebug {
         ib::error(ER_IB_LOCK_VALIDATE_LATCH_ORDER_VIOLATION)
 #endif
             << "LatchDebug::lock_validate() latch order violation. level="
-            << level << ", back_latch_level=" << back_latch_level
-            << ", back_level=" << back_level << ".";
+            << level << ", latest_latch_level=" << latest_latch_level
+            << ", latest_level=" << latest_level << ".";
         ut_error;
       }
     }
@@ -246,8 +289,8 @@ struct LatchDebug {
             latches->back().m_latch->get_level() == SYNC_LEVEL_VARYING ||
             latches->back().m_latch->get_level() == SYNC_NO_ORDER_CHECK ||
             latches->back().get_level() >= level || it != latches->end())) {
-        latch_level_t back_latch_level = latches->back().m_latch->get_level();
-        latch_level_t back_level = latches->back().m_latch->get_level();
+        const auto latest_latch_level = latches->back().m_latch->get_level();
+        const auto latest_level = latches->back().get_level();
 
 #ifdef UNIV_NO_ERR_MSGS
         ib::error()
@@ -255,8 +298,8 @@ struct LatchDebug {
         ib::error(ER_IB_RELOCK_LATCH_ORDER_VIOLATION)
 #endif
             << "LatchDebug::relock() latch order violation. level=" << level
-            << ", back_latch_level=" << back_latch_level
-            << ", back_level=" << back_level << ".";
+            << ", latest_latch_level=" << latest_latch_level
+            << ", latest_level=" << latest_level << ".";
         ut_error;
       }
 
@@ -554,8 +597,8 @@ void LatchDebug::crash(const Latches *latches, const Latched *latched,
   ut_error;
 }
 
-const Latched *LatchDebug::less(const Latches *latches,
-                                latch_level_t limit) const UNIV_NOTHROW {
+const Latched *LatchDebug::find_lower_or_equal(
+    const Latches *latches, latch_level_t limit) const UNIV_NOTHROW {
   Latches::const_iterator end = latches->end();
 
   for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
@@ -567,28 +610,18 @@ const Latched *LatchDebug::less(const Latches *latches,
   return (nullptr);
 }
 
-/** Do a basic ordering check. Asserts that all the existing latches have a
-level higher than the in_level.
-@param[in]      latches         thread's existing latches
-@param[in]      requested_level Level requested by latch
-@param[in]      in_level        The level of the latch that the thread is trying
-to acquire. Declared ulint so that we can do level - 1.
-@return true if passes, else crash with error message. */
-bool LatchDebug::basic_check(const Latches *latches,
-                             latch_level_t requested_level,
-                             ulint in_level) const UNIV_NOTHROW {
-  latch_level_t level = latch_level_t(in_level);
+void LatchDebug::assert_all_held_are_above(
+    const Latches *latches, latch_level_t requested_level,
+    ulint forbidden_level) const UNIV_NOTHROW {
+  latch_level_t level = latch_level_t(forbidden_level);
 
   ut_ad(level < SYNC_LEVEL_MAX);
 
-  const Latched *latched = less(latches, level);
+  const Latched *latched = find_lower_or_equal(latches, level);
 
   if (latched != nullptr) {
     crash(latches, latched, requested_level);
-    return (false);
   }
-
-  return (true);
 }
 
 /** Create a new instance if one doesn't exist else return the existing one.
@@ -700,9 +733,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_PAGE_ARCH:
     case SYNC_PAGE_ARCH_OPER:
     case SYNC_PAGE_ARCH_CLIENT:
-    case SYNC_SEARCH_SYS:
     case SYNC_THREADS:
-    case SYNC_LOCK_SYS_GLOBAL:
     case SYNC_LOCK_WAIT_SYS:
     case SYNC_TRX_SYS:
     case SYNC_TRX_SYS_SHARD:
@@ -733,25 +764,22 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_DICT:
     case SYNC_AHI_ENABLED:
 
-      basic_check(latches, level, level);
+      /* This is the most typical case, in which we expect requested<held. */
+      assert_requested_is_lower_than_held(level, latches);
       break;
 
     case SYNC_ANY_LATCH:
 
       /* Temporary workaround for LATCH_ID_RTR_*_MUTEX */
       if (is_rtr_mutex(latch)) {
-        const Latched *latched = less(latches, level);
+        const Latched *latched = find_lower_or_equal(latches, level);
 
-        if (latched == nullptr ||
-            (latched != nullptr && is_rtr_mutex(latched->m_latch))) {
-          /* No violation */
-          break;
+        if (latched != nullptr && !is_rtr_mutex(latched->m_latch)) {
+          crash(latches, latched, level);
         }
 
-        crash(latches, latched, level);
-
       } else {
-        basic_check(latches, level, level);
+        assert_requested_is_lower_than_held(level, latches);
       }
 
       break;
@@ -762,8 +790,8 @@ Latches *LatchDebug::check_order(const latch_t *latch,
       it is allowed to own only ONE trx_t::mutex. There are additional rules
       for holding more than one trx_t::mutex @see trx_before_mutex_enter(). */
 
-      if (less(latches, level) != nullptr) {
-        basic_check(latches, level, level - 1);
+      if (find_lower_or_equal(latches, level) != nullptr) {
+        assert_requested_is_lower_or_equal_to_held(level, latches);
         ut_a(find(latches, SYNC_LOCK_SYS_GLOBAL) != nullptr);
       }
       break;
@@ -778,14 +806,16 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_BUF_ZIP_HASH:
     case SYNC_BUF_FLUSH_STATE:
     case SYNC_RSEG_ARRAY_HEADER:
+    case SYNC_LOCK_SYS_GLOBAL:
     case SYNC_LOCK_SYS_SHARDED:
     case SYNC_BUF_PAGE_HASH:
     case SYNC_BUF_BLOCK:
+    case SYNC_FSP:
+    case SYNC_SEARCH_SYS:
 
-      /* We can have multiple mutexes of this type therefore we
-      can only check whether the greater than condition holds. */
-
-      basic_check(latches, level, level - 1);
+      /* We can have multiple latches of this type therefore we
+      can only check whether the requested<=held condition holds. */
+      assert_requested_is_lower_or_equal_to_held(level, latches);
       break;
 
     case SYNC_IBUF_BITMAP:
@@ -795,20 +825,14 @@ Latches *LatchDebug::check_order(const latch_t *latch,
       bitmap page. */
 
       if (find(latches, SYNC_IBUF_BITMAP_MUTEX) != nullptr) {
-        basic_check(latches, level, SYNC_IBUF_BITMAP - 1);
+        assert_requested_is_lower_or_equal_to_held(level, latches);
       } else {
-        basic_check(latches, level, SYNC_IBUF_BITMAP);
+        assert_requested_is_lower_than_held(level, latches);
       }
       break;
 
     case SYNC_FSP_PAGE:
       ut_a(find(latches, SYNC_FSP) != nullptr);
-      break;
-
-    case SYNC_FSP:
-
-      ut_a(find(latches, SYNC_FSP) != nullptr ||
-           basic_check(latches, level, SYNC_FSP));
       break;
 
     case SYNC_TRX_UNDO_PAGE:
@@ -817,11 +841,12 @@ Latches *LatchDebug::check_order(const latch_t *latch,
       The purge thread can read the UNDO pages without any covering
       mutex. */
 
-      ut_a(find(latches, SYNC_TRX_UNDO) != nullptr ||
-           find(latches, SYNC_TEMP_SPACE_RSEG) != nullptr ||
-           find(latches, SYNC_UNDO_SPACE_RSEG) != nullptr ||
-           find(latches, SYNC_TRX_SYS_RSEG) != nullptr ||
-           basic_check(latches, level, level - 1));
+      if (find(latches, SYNC_TRX_UNDO) == nullptr &&
+          find(latches, SYNC_TEMP_SPACE_RSEG) == nullptr &&
+          find(latches, SYNC_UNDO_SPACE_RSEG) == nullptr &&
+          find(latches, SYNC_TRX_SYS_RSEG) == nullptr) {
+        assert_requested_is_lower_or_equal_to_held(level, latches);
+      }
       break;
 
     case SYNC_RSEG_HEADER:
@@ -843,10 +868,11 @@ Latches *LatchDebug::check_order(const latch_t *latch,
 
       fsp_latch = find(latches, SYNC_FSP);
 
-      ut_a((fsp_latch != nullptr && fsp_latch->is_temp_fsp()) ||
-           find(latches, SYNC_INDEX_TREE) != nullptr ||
-           find(latches, SYNC_DICT_OPERATION) ||
-           basic_check(latches, level, SYNC_TREE_NODE - 1));
+      if ((fsp_latch == nullptr || !fsp_latch->is_temp_fsp()) &&
+          find(latches, SYNC_INDEX_TREE) == nullptr &&
+          find(latches, SYNC_DICT_OPERATION) == nullptr) {
+        assert_requested_is_lower_or_equal_to_held(level, latches);
+      }
     }
 
     break;
@@ -858,13 +884,14 @@ Latches *LatchDebug::check_order(const latch_t *latch,
 
     case SYNC_INDEX_TREE:
 
-      basic_check(latches, level, SYNC_TREE_NODE - 1);
+      assert_all_held_are_above(latches, level, SYNC_TREE_NODE - 1);
       break;
 
     case SYNC_IBUF_TREE_NODE:
 
-      ut_a(find(latches, SYNC_IBUF_INDEX_TREE) != nullptr ||
-           basic_check(latches, level, SYNC_IBUF_TREE_NODE - 1));
+      if (find(latches, SYNC_IBUF_INDEX_TREE) == nullptr) {
+        assert_requested_is_lower_or_equal_to_held(level, latches);
+      }
       break;
 
     case SYNC_IBUF_TREE_NODE_NEW:
@@ -881,33 +908,33 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_IBUF_INDEX_TREE:
 
       if (find(latches, SYNC_FSP) != nullptr) {
-        basic_check(latches, level, level - 1);
+        assert_requested_is_lower_or_equal_to_held(level, latches);
       } else {
-        basic_check(latches, level, SYNC_IBUF_TREE_NODE - 1);
+        assert_all_held_are_above(latches, level, SYNC_IBUF_TREE_NODE - 1);
       }
       break;
 
     case SYNC_IBUF_PESS_INSERT_MUTEX:
 
-      basic_check(latches, level, SYNC_FSP - 1);
+      assert_all_held_are_above(latches, level, SYNC_FSP - 1);
       ut_a(find(latches, SYNC_IBUF_MUTEX) == nullptr);
       break;
 
     case SYNC_IBUF_HEADER:
 
-      basic_check(latches, level, SYNC_FSP - 1);
+      assert_all_held_are_above(latches, level, SYNC_FSP - 1);
       ut_a(find(latches, SYNC_IBUF_MUTEX) == nullptr);
       ut_a(find(latches, SYNC_IBUF_PESS_INSERT_MUTEX) == nullptr);
       break;
 
     case SYNC_PERSIST_DIRTY_TABLES:
 
-      basic_check(latches, level, SYNC_IBUF_MUTEX);
+      assert_all_held_are_above(latches, level, SYNC_IBUF_MUTEX);
       break;
 
     case SYNC_PERSIST_AUTOINC:
 
-      basic_check(latches, level, SYNC_IBUF_MUTEX);
+      assert_all_held_are_above(latches, level, SYNC_IBUF_MUTEX);
       ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == nullptr);
       break;
 
