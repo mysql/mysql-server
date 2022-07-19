@@ -2129,7 +2129,7 @@ type_conversion_status Field::store_time(MYSQL_TIME *ltime, uint8 dec_arg) {
   /* Avoid conversion when field character set is ASCII compatible */
   return store(
       buff, length,
-      (charset()->state & MY_CS_NONASCII) ? &my_charset_latin1 : charset());
+      my_charset_is_ascii_based(charset()) ? charset() : &my_charset_latin1);
 }
 
 bool Field::optimize_range(uint idx, uint part) const {

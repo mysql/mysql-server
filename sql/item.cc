@@ -250,7 +250,7 @@ String *Item::val_str_ascii(String *str) {
   String *res = val_str(&str_value);
   if (!res) return nullptr;
 
-  if (!(res->charset()->state & MY_CS_NONASCII))
+  if (my_charset_is_ascii_based(res->charset()))
     str = res;
   else {
     if ((null_value = str->copy(res->ptr(), res->length(), collation.collation,
@@ -1262,7 +1262,7 @@ Item *Item_num::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
     so conversion is needed only in case of "tricky" character
     sets like UCS2. If tocs is not "tricky", return the item itself.
   */
-  if (!(tocs->state & MY_CS_NONASCII)) return this;
+  if (my_charset_is_ascii_based(tocs)) return this;
 
   uint conv_errors;
   char buf[64], buf2[64];
@@ -2551,8 +2551,8 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
     */
     if ((*arg)->collation.derivation == DERIVATION_NUMERIC &&
         (*arg)->collation.repertoire == MY_REPERTOIRE_ASCII &&
-        !((*arg)->collation.collation->state & MY_CS_NONASCII) &&
-        !(coll.collation->state & MY_CS_NONASCII))
+        my_charset_is_ascii_based((*arg)->collation.collation) &&
+        my_charset_is_ascii_based(coll.collation))
       continue;
 
     Item *conv = (*arg)->safe_charset_converter(thd, coll.collation);

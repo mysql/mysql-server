@@ -164,7 +164,7 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
 bool str_set_decimal(uint mask, const my_decimal *val, String *str,
                      const CHARSET_INFO *cs, uint decimals) {
   my_decimal dec_buf;
-  if (!(cs->state & MY_CS_NONASCII)) {
+  if (my_charset_is_ascii_based(cs)) {
     /* For ASCII-compatible character sets we can use my_decimal2string */
     if (static_cast<int>(decimals) < val->frac) {
       my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, false, &dec_buf);

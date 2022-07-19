@@ -800,38 +800,6 @@ uint my_charset_repertoire(const CHARSET_INFO *cs) {
 }
 
 /*
-  Detect whether a character set is ASCII compatible.
-
-  Returns true for:
-
-  - all 8bit character sets whose Unicode mapping of 0x7B is '{'
-    (ignores swe7 which maps 0x7B to "LATIN LETTER A WITH DIAERESIS")
-
-  - all multi-byte character sets having mbminlen == 1
-    (ignores ucs2 whose mbminlen is 2)
-
-  TODO:
-
-  When merging to 5.2, this function should be changed
-  to check a new flag MY_CS_NONASCII,
-
-     return (cs->flag & MY_CS_NONASCII) ? 0 : 1;
-
-  This flag was previously added into 5.2 under terms
-  of WL#3759 "Optimize identifier conversion in client-server protocol"
-  especially to mark character sets not compatible with ASCII.
-
-  We won't backport this flag to 5.0 or 5.1.
-  This function is Ok for 5.0 and 5.1, because we're not going
-  to introduce new tricky character sets between 5.0 and 5.2.
-*/
-bool my_charset_is_ascii_based(const CHARSET_INFO *cs) {
-  return (cs->mbmaxlen == 1 && cs->tab_to_uni &&
-          cs->tab_to_uni[static_cast<int>('{')] == '{') ||
-         (cs->mbminlen == 1 && cs->mbmaxlen > 1);
-}
-
-/*
   Detect if a character set is 8bit,
   and it is pure ascii, i.e. doesn't have
   characters outside U+0000..U+007F

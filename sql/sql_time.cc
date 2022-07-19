@@ -127,7 +127,7 @@ bool str_to_time(const CHARSET_INFO *cs, const char *str, size_t length,
                  MYSQL_TIME *l_time, my_time_flags_t flags,
                  MYSQL_TIME_STATUS *status) {
   char cnv[MAX_TIME_FULL_WIDTH + 3];  // +3 for nanoseconds (for rounding)
-  if ((cs->state & MY_CS_NONASCII) != 0) {
+  if (!my_charset_is_ascii_based(cs)) {
     length = to_ascii(cs, str, length, cnv, sizeof(cnv));
     str = cnv;
   }
@@ -148,7 +148,7 @@ bool str_to_datetime(const CHARSET_INFO *cs, const char *str, size_t length,
                      MYSQL_TIME *l_time, my_time_flags_t flags,
                      MYSQL_TIME_STATUS *status) {
   char cnv[MAX_DATETIME_FULL_WIDTH + 3];  // +3 for nanoseconds (for rounding)
-  if ((cs->state & MY_CS_NONASCII) != 0) {
+  if (!my_charset_is_ascii_based(cs)) {
     length = to_ascii(cs, str, length, cnv, sizeof(cnv));
     str = cnv;
   }
