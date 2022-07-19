@@ -141,7 +141,7 @@ using std::vector;
 String *Item_str_func::val_str_from_val_str_ascii(String *str, String *str2) {
   assert(fixed == 1);
 
-  if (!(collation.collation->state & MY_CS_NONASCII)) {
+  if (my_charset_is_ascii_based(collation.collation)) {
     String *res = val_str_ascii(str);
     if (res) res->set_charset(collation.collation);
     return res;
