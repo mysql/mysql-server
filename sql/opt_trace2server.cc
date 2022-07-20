@@ -76,7 +76,7 @@ const char I_S_table_name[] = "OPTIMIZER_TRACE";
    OPTIMIZER_TRACE will overwrite OPTIMIZER_TRACE as it runs and provide
    uninteresting info.
 */
-bool list_has_optimizer_trace_table(const TABLE_LIST *tbl) {
+bool list_has_optimizer_trace_table(const Table_ref *tbl) {
   for (; tbl; tbl = tbl->next_global) {
     if (tbl->schema_table &&
         0 == strcmp(tbl->schema_table->table_name, I_S_table_name))
@@ -126,11 +126,11 @@ bool sets_var_optimizer_trace(enum enum_sql_command sql_command,
   return false;
 }
 
-void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl);
+void opt_trace_disable_if_no_tables_access(THD *thd, Table_ref *tbl);
 
 }  // namespace
 
-Opt_trace_start::Opt_trace_start(THD *thd, TABLE_LIST *tbl,
+Opt_trace_start::Opt_trace_start(THD *thd, Table_ref *tbl,
                                  enum enum_sql_command sql_command,
                                  List<set_var_base> *set_vars,
                                  const char *query, size_t query_length,
@@ -361,8 +361,8 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp) {
   if (rc) trace->missing_privilege();
 }
 
-void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
-                                         TABLE_LIST *underlying_tables) {
+void opt_trace_disable_if_no_view_access(THD *thd, Table_ref *view,
+                                         Table_ref *underlying_tables) {
   DBUG_TRACE;
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) ||
@@ -418,7 +418,7 @@ namespace {
    @param thd thread context
    @param tbl list of tables to check
 */
-void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl) {
+void opt_trace_disable_if_no_tables_access(THD *thd, Table_ref *tbl) {
   DBUG_TRACE;
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) ||
@@ -432,8 +432,8 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl) {
   }
   Security_context *const backup_thd_sctx = thd->security_context();
   thd->set_security_context(&thd->m_main_security_ctx);
-  const TABLE_LIST *const first_not_own_table = thd->lex->first_not_own_table();
-  for (TABLE_LIST *t = tbl; t != nullptr && t != first_not_own_table;
+  const Table_ref *const first_not_own_table = thd->lex->first_not_own_table();
+  for (Table_ref *t = tbl; t != nullptr && t != first_not_own_table;
        t = t->next_global) {
     DBUG_PRINT("opt", ("table: '%s'", t->table_name));
     /*
@@ -476,7 +476,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl) {
 
 }  // namespace
 
-int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *) {
+int fill_optimizer_trace_info(THD *thd, Table_ref *tables, Item *) {
   TABLE *table = tables->table;
   Opt_trace_info info;
 

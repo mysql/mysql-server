@@ -1380,7 +1380,7 @@ static bool is_show_status(enum_sql_command sql_command) {
   }
 }
 
-int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
+int launch_hook_trans_begin(THD *thd, Table_ref *all_tables) {
   DBUG_TRACE;
   LEX *lex = thd->lex;
   enum_sql_command sql_command = lex->sql_command;
@@ -1440,7 +1440,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
       bool is_sys_db = false;
       bool stop_db_check = false;
 
-      for (TABLE_LIST *table = all_tables; table && !stop_db_check;
+      for (Table_ref *table = all_tables; table && !stop_db_check;
            table = table->next_global) {
         assert(table->db && table->table_name);
 

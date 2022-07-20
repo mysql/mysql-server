@@ -62,7 +62,7 @@
 #include "sql/sql_view.h"  // mysql_register_view
 #include "sql/strfunc.h"
 #include "sql/system_variables.h"
-#include "sql/table.h"  // TABLE_LIST
+#include "sql/table.h"  // Table_ref
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "thr_lock.h"
@@ -205,14 +205,14 @@ class View_metadata_updater_error_handler final
 };
 
 Uncommitted_tables_guard::~Uncommitted_tables_guard() {
-  for (const TABLE_LIST *table : m_uncommitted_tables) {
+  for (const Table_ref *table : m_uncommitted_tables) {
     tdc_remove_table(m_thd, TDC_RT_REMOVE_ALL, table->get_db_name(),
                      table->get_table_name(), false);
   }
 }
 
 /**
-  Prepare TABLE_LIST object for views referencing Base Table/ View/ Stored
+  Prepare Table_ref object for views referencing Base Table/ View/ Stored
   routine "db.tbl_or_sf_name".
 
   @tparam     T               Type of object (View_table/View_routine) to fetch
@@ -226,7 +226,7 @@ Uncommitted_tables_guard::~Uncommitted_tables_guard() {
   @param      mem_root        Memory root for allocation of temporary
                               objects which will be cleared after
                               processing this table/view/routine.
-  @param[out] views           TABLE_LIST objects for views.
+  @param[out] views           Table_ref objects for views.
 
   @retval     false           Success.
   @retval     true            Failure.
@@ -237,7 +237,7 @@ template <typename T>
 static bool prepare_view_tables_list(THD *thd, const char *db,
                                      const char *tbl_or_sf_name,
                                      bool skip_same_db, MEM_ROOT *mem_root,
-                                     std::vector<TABLE_LIST *> *views) {
+                                     std::vector<Table_ref *> *views) {
   DBUG_TRACE;
   std::vector<dd::Object_id> view_ids;
   std::set<dd::Object_id> prepared_view_ids;
@@ -285,9 +285,9 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
         continue;
     }
 
-    // If TABLE_LIST object is already prepared for view name then skip it.
+    // If Table_ref object is already prepared for view name then skip it.
     if (prepared_view_ids.find(view_ids.at(idx)) == prepared_view_ids.end()) {
-      // Prepare TABLE_LIST object for the view and push_back
+      // Prepare Table_ref object for the view and push_back
 
       char *db_name =
           strmake_root(mem_root, schema_name.c_str(), schema_name.length());
@@ -311,8 +311,8 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
       }
 
       auto vw = new (mem_root)
-          TABLE_LIST(db_name, schema_name.length(), vw_name, view_name.length(),
-                     TL_IGNORE, MDL_EXCLUSIVE);
+          Table_ref(db_name, schema_name.length(), vw_name, view_name.length(),
+                    TL_IGNORE, MDL_EXCLUSIVE);
       if (vw == nullptr) return true;
 
       views->push_back(vw);
@@ -340,7 +340,7 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
   @param          thd                 Current thread.
   @param          db                  Database name.
   @param          tbl_or_sf_name      Base table/ View/ Stored function name.
-  @param          views_list          TABLE_LIST objects of the referencing
+  @param          views_list          Table_ref objects of the referencing
                                       views.
   @param          skip_same_db        Indicates whether it is OK to skip
                                       views belonging to the same database
@@ -360,7 +360,7 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
 template <typename T>
 static bool mark_all_views_invalid(THD *thd, const char *db,
                                    const char *tbl_or_sf_name,
-                                   const std::vector<TABLE_LIST *> *views_list,
+                                   const std::vector<Table_ref *> *views_list,
                                    bool skip_same_db, bool commit_dd_changes,
                                    MEM_ROOT *mem_root) {
   DBUG_TRACE;
@@ -391,7 +391,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
     considered for state update.
     Hence preparing updated list of view tables after acquiring the lock.
   */
-  std::vector<TABLE_LIST *> updated_views_list;
+  std::vector<Table_ref *> updated_views_list;
   if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, skip_same_db,
                                   mem_root, &updated_views_list))
     return true;
@@ -423,11 +423,11 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
   Helper method to
     - Mark view as invalid if DDL operation leaves the view in
       invalid state.
-    - Open all the views from the TABLE_LIST vector and
+    - Open all the views from the Table_ref vector and
       recreates the view metadata.
 
   @param          thd                 Thread handle.
-  @param          views               TABLE_LIST objects of the views.
+  @param          views               Table_ref objects of the views.
   @param          commit_dd_changes   Indicates whether changes to DD need
                                       to be committed.
   @param[in,out]  uncommitted_tables  Helper class to store list of views
@@ -441,7 +441,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
 */
 
 static bool open_views_and_update_metadata(
-    THD *thd, const std::vector<TABLE_LIST *> *views, bool commit_dd_changes,
+    THD *thd, const std::vector<Table_ref *> *views, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
   DBUG_TRACE;
 
@@ -718,7 +718,7 @@ static bool update_view_metadata(THD *thd, const char *db,
                                  Uncommitted_tables_guard *uncommitted_tables) {
   if (is_view_metadata_update_needed(thd, db, tbl_or_sf_name)) {
     // Prepare list of all views referencing the db.table_name.
-    std::vector<TABLE_LIST *> views;
+    std::vector<Table_ref *> views;
     if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, false,
                                     thd->mem_root, &views))
       return true;
@@ -777,7 +777,7 @@ static bool update_referencing_views_metadata(
 }
 
 bool update_referencing_views_metadata(
-    THD *thd, const TABLE_LIST *table, const char *new_db,
+    THD *thd, const Table_ref *table, const char *new_db,
     const char *new_table_name, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
   DBUG_TRACE;
@@ -790,7 +790,7 @@ bool update_referencing_views_metadata(
 }
 
 bool update_referencing_views_metadata(
-    THD *thd, const TABLE_LIST *table, bool commit_dd_changes,
+    THD *thd, const Table_ref *table, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
   return update_referencing_views_metadata(
       thd, table, nullptr, nullptr, commit_dd_changes, uncommitted_tables);
@@ -852,7 +852,7 @@ static bool mark_referencing_views_invalid(THD *thd, const char *db,
                                            bool skip_same_db,
                                            bool commit_dd_changes,
                                            MEM_ROOT *mem_root) {
-  std::vector<TABLE_LIST *> views;
+  std::vector<Table_ref *> views;
   if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, skip_same_db,
                                   mem_root, &views))
     return true;
@@ -865,7 +865,7 @@ static bool mark_referencing_views_invalid(THD *thd, const char *db,
                                    skip_same_db, commit_dd_changes, mem_root);
 }
 
-bool mark_referencing_views_invalid(THD *thd, const TABLE_LIST *table,
+bool mark_referencing_views_invalid(THD *thd, const Table_ref *table,
                                     bool skip_same_db, bool commit_dd_changes,
                                     MEM_ROOT *mem_root) {
   DBUG_TRACE;

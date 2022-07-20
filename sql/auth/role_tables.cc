@@ -196,7 +196,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
     @retval true failure
 */
 
-bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
+bool populate_roles_caches(THD *thd, Table_ref *tablelst) {
   DBUG_TRACE;
   assert(assert_acl_cache_write_lock(thd));
   unique_ptr_destroy_only<RowIterator> iterator;

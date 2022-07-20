@@ -272,7 +272,7 @@ class PT_common_table_expr : public Parse_tree_node {
     @param[out]  found Is set to true/false if matches or not
     @returns true if error
   */
-  bool match_table_ref(TABLE_LIST *tl, bool in_self, bool *found);
+  bool match_table_ref(Table_ref *tl, bool in_self, bool *found);
   /**
     @returns true if 'other' is the same instance as 'this'
   */
@@ -295,14 +295,13 @@ class PT_common_table_expr : public Parse_tree_node {
   /// List of explicitly specified column names; if empty, no list.
   const Create_col_name_list m_column_names;
   /**
-    A TABLE_LIST representing a CTE needs access to the WITH list
+    A Table_ref representing a CTE needs access to the WITH list
     element it derives from. However, in order to:
-    - limit the members which TABLE_LIST can access
-    - avoid including this header file everywhere TABLE_LIST needs to access
-    these members,
-    these members are relocated into a separate inferior object whose
-    declaration is in table.h, like that of TABLE_LIST. It's the "postparse"
-    part. TABLE_LIST accesses this inferior object only.
+    - limit the members which Table_ref can access
+    - avoid including this header file everywhere Table_ref needs to
+    access these members, these members are relocated into a separate inferior
+    object whose declaration is in table.h, like that of Table_ref. It's
+    the "postparse" part. Table_ref accesses this inferior object only.
   */
   Common_table_expr m_postparse;
 
@@ -349,19 +348,19 @@ class PT_with_clause : public Parse_tree_node {
     @param[out] found Is set to true/false if found or not
     @returns true if error
   */
-  bool lookup(TABLE_LIST *tl, PT_common_table_expr **found);
+  bool lookup(Table_ref *tl, PT_common_table_expr **found);
   /**
     Call this to record in the WITH clause that we are contextualizing the
     CTE definition inserted in table reference 'tl'.
     @returns information which the caller must provide to
     leave_parsing_definition().
   */
-  const TABLE_LIST *enter_parsing_definition(TABLE_LIST *tl) {
+  const Table_ref *enter_parsing_definition(Table_ref *tl) {
     auto old = m_most_inner_in_parsing;
     m_most_inner_in_parsing = tl;
     return old;
   }
-  void leave_parsing_definition(const TABLE_LIST *old) {
+  void leave_parsing_definition(const Table_ref *old) {
     m_most_inner_in_parsing = old;
   }
   void print(const THD *thd, String *str, enum_query_type query_type);
@@ -375,7 +374,7 @@ class PT_with_clause : public Parse_tree_node {
     The innermost CTE reference which we're parsing at the
     moment. Used to detect forward references, loops and recursiveness.
   */
-  const TABLE_LIST *m_most_inner_in_parsing;
+  const Table_ref *m_most_inner_in_parsing;
 
   friend bool Query_expression::clear_correlated_query_blocks();
 };
@@ -405,7 +404,7 @@ class PT_joined_table;
 
 class PT_table_reference : public Parse_tree_node {
  public:
-  TABLE_LIST *value;
+  Table_ref *value;
 
   /**
     Lets us build a parse tree top-down, which is necessary due to the
@@ -522,8 +521,8 @@ class PT_joined_table : public PT_table_reference {
   PT_joined_table_type m_type;
   PT_table_reference *tab2_node;
 
-  TABLE_LIST *tr1;
-  TABLE_LIST *tr2;
+  Table_ref *tr1;
+  Table_ref *tr2;
 
  public:
   PT_joined_table(PT_table_reference *tab1_node_arg, const POS &join_pos_arg,
@@ -1747,7 +1746,7 @@ class PT_delete final : public Parse_tree_root {
   Item *opt_where_clause;
   PT_order *opt_order_clause;
   Item *opt_delete_limit_clause;
-  SQL_I_List<TABLE_LIST> delete_tables;
+  SQL_I_List<Table_ref> delete_tables;
 
  public:
   // single-table DELETE node constructor:

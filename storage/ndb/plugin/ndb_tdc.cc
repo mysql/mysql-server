@@ -25,7 +25,7 @@
 #include "storage/ndb/plugin/ndb_tdc.h"
 
 #include "sql/sql_base.h"  // close_cached_tables()
-#include "sql/table.h"     // TABLE_LIST
+#include "sql/table.h"     // Table_ref
 
 /*
   Close all tables in MySQL Server's table definition cache
@@ -57,9 +57,9 @@ bool ndb_tdc_close_cached_table(THD *thd, const char *dbname,
   DBUG_TRACE;
   DBUG_PRINT("enter", ("dbname: %s, tabname: %s", dbname, tabname));
 
-  // NOTE! initializes only the minimal part of TABLE_LIST
+  // NOTE! initializes only the minimal part of Table_ref
   // required for calling close_cached_tables()
-  TABLE_LIST table_list;
+  Table_ref table_list;
   table_list.db = dbname;
   table_list.alias = table_list.table_name = tabname;
 

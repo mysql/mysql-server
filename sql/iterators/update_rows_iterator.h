@@ -37,7 +37,7 @@ class Copy_field;
 class Item;
 class THD;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 template <class T>
 class mem_root_deque;
 
@@ -46,7 +46,7 @@ class UpdateRowsIterator final : public RowIterator {
  public:
   UpdateRowsIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
                      TABLE *outermost_table, TABLE *immediate_table,
-                     TABLE_LIST *update_tables, TABLE **tmp_tables,
+                     Table_ref *update_tables, TABLE **tmp_tables,
                      Copy_field *copy_fields,
                      List<TABLE> unupdated_check_opt_tables,
                      COPY_INFO **update_operations,
@@ -77,7 +77,7 @@ class UpdateRowsIterator final : public RowIterator {
   /// is not possible.
   TABLE *m_immediate_table;
   /// Pointer to list of updated tables, linked via 'next_local'.
-  TABLE_LIST *m_update_tables;
+  Table_ref *m_update_tables;
   /// Temporary tables used to store cached updates.
   TABLE **m_tmp_tables;
   /// Objects that copy the updated values from a temporary table to the update

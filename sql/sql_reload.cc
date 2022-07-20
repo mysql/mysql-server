@@ -139,7 +139,7 @@ bool is_reload_request_denied(THD *thd, unsigned long op_type) {
     @retval !=0  Error; thd->killed is set or thd->is_error() is true
 */
 
-bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
+bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
                            int *write_to_binlog) {
   bool result = false;
   select_errors = 0; /* Write if more errors */
@@ -299,7 +299,7 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
           lock on tables which we are going to flush.
         */
         if (tables) {
-          for (TABLE_LIST *t = tables; t; t = t->next_local)
+          for (Table_ref *t = tables; t; t = t->next_local)
             if (!find_table_for_mdl_upgrade(thd, t->db, t->table_name, false))
               return true;
         } else {
@@ -449,9 +449,9 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
   are implicitly flushed (lose their position).
 */
 
-bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables) {
+bool flush_tables_with_read_lock(THD *thd, Table_ref *all_tables) {
   Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
-  TABLE_LIST *table_list;
+  Table_ref *table_list;
 
   /*
     This is called from SQLCOM_FLUSH, the transaction has
@@ -526,13 +526,13 @@ error:
   until UNLOCK TABLES is executed.
 
   @param thd         Thread handler
-  @param all_tables  TABLE_LIST for tables to be exported
+  @param all_tables  Table_ref for tables to be exported
 
   @retval false  Ok
   @retval true   Error
 */
 
-bool flush_tables_for_export(THD *thd, TABLE_LIST *all_tables) {
+bool flush_tables_for_export(THD *thd, Table_ref *all_tables) {
   Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
 
   /*
@@ -560,7 +560,7 @@ bool flush_tables_for_export(THD *thd, TABLE_LIST *all_tables) {
   }
 
   // Check if all storage engines support FOR EXPORT.
-  for (TABLE_LIST *table_list = all_tables; table_list;
+  for (Table_ref *table_list = all_tables; table_list;
        table_list = table_list->next_global) {
     if (!(table_list->table->file->ha_table_flags() & HA_CAN_EXPORT)) {
       my_error(ER_ILLEGAL_HA, MYF(0), table_list->table_name);
@@ -569,7 +569,7 @@ bool flush_tables_for_export(THD *thd, TABLE_LIST *all_tables) {
   }
 
   // Notify the storage engines that the tables should be made ready for export.
-  for (TABLE_LIST *table_list = all_tables; table_list;
+  for (Table_ref *table_list = all_tables; table_list;
        table_list = table_list->next_global) {
     handler *handler_file = table_list->table->file;
     int error = handler_file->ha_extra(HA_EXTRA_EXPORT);

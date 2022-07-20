@@ -61,7 +61,7 @@
 #include "sql/sql_partition.h"
 #include "sql/sql_tablespace.h"  // validate_tablespace_name
 #include "sql/system_variables.h"
-#include "sql/table.h"                     // TABLE_LIST
+#include "sql/table.h"                     // Table_ref
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thr_malloc.h"
 #include "sql/trigger_chain.h"  // Trigger_chain
@@ -247,7 +247,7 @@ bool partition_info::set_read_partitions(List<String> *partition_names) {
 /**
   Set read/lock_partitions bitmap over non pruned partitions
 
-  @param table_list   Possible TABLE_LIST which can contain
+  @param table_list   Possible Table_ref which can contain
                       list of partition names to query
 
   @return Operation status
@@ -258,7 +258,7 @@ bool partition_info::set_read_partitions(List<String> *partition_names) {
   @note OK to call multiple times without the need for free_bitmaps.
 */
 
-bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list) {
+bool partition_info::set_partition_bitmaps(Table_ref *table_list) {
   DBUG_TRACE;
 
   assert(bitmaps_are_initialized);
@@ -1618,7 +1618,7 @@ end:
 void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg) {
   char buf[100];
   const char *buf_ptr = buf;
-  TABLE_LIST table_list;
+  Table_ref table_list;
 
   table_list.db = table_arg->s->db.str;
   table_list.table_name = table_arg->s->table_name.str;
@@ -2057,7 +2057,7 @@ void Parser_partition_info::init_col_val(part_column_list_val *col_val,
 bool Parser_partition_info::add_column_list_value(THD *thd, Item *item) {
   part_column_list_val *col_val;
   Name_resolution_context *context = &thd->lex->current_query_block()->context;
-  TABLE_LIST *save_list = context->table_list;
+  Table_ref *save_list = context->table_list;
   const char *save_where = thd->where;
   DBUG_TRACE;
 

@@ -32,7 +32,7 @@
 #include "sql_string.h"          // String
 
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 namespace dd {
 namespace info_schema {
@@ -42,24 +42,24 @@ namespace info_schema {
   mysql.table_stats.
 
   @param thd   Thread.
-  @param table TABLE_LIST pointing to table info.
+  @param table Table_ref pointing to table info.
 
   @returns false on success.
            true on failure.
 */
-bool update_table_stats(THD *thd, TABLE_LIST *table);
+bool update_table_stats(THD *thd, Table_ref *table);
 
 /**
   Get dynamic index statistics of a table and store them into
   mysql.index_stats.
 
   @param thd   Thread.
-  @param table TABLE_LIST pointing to table info.
+  @param table Table_ref pointing to table info.
 
   @returns false on success.
            true on failure.
 */
-bool update_index_stats(THD *thd, TABLE_LIST *table);
+bool update_index_stats(THD *thd, Table_ref *table);
 
 /**
   If the db is 'information_schema' then convert 'db' to

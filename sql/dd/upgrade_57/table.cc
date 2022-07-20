@@ -716,40 +716,40 @@ static const int REQUIRED_VIEW_PARAMETERS = 12;
 */
 static File_option view_parameters[] = {
     {{STRING_WITH_LEN("query")},
-     my_offsetof_upgrade(TABLE_LIST, select_stmt),
+     my_offsetof_upgrade(Table_ref, select_stmt),
      FILE_OPTIONS_ESTRING},
     {{STRING_WITH_LEN("updatable")},
-     my_offsetof_upgrade(TABLE_LIST, updatable_view),
+     my_offsetof_upgrade(Table_ref, updatable_view),
      FILE_OPTIONS_ULONGLONG},
     {{STRING_WITH_LEN("algorithm")},
-     my_offsetof_upgrade(TABLE_LIST, algorithm),
+     my_offsetof_upgrade(Table_ref, algorithm),
      FILE_OPTIONS_ULONGLONG},
     {{STRING_WITH_LEN("definer_user")},
-     my_offsetof_upgrade(TABLE_LIST, definer.user),
+     my_offsetof_upgrade(Table_ref, definer.user),
      FILE_OPTIONS_STRING},
     {{STRING_WITH_LEN("definer_host")},
-     my_offsetof_upgrade(TABLE_LIST, definer.host),
+     my_offsetof_upgrade(Table_ref, definer.host),
      FILE_OPTIONS_STRING},
     {{STRING_WITH_LEN("suid")},
-     my_offsetof_upgrade(TABLE_LIST, view_suid),
+     my_offsetof_upgrade(Table_ref, view_suid),
      FILE_OPTIONS_ULONGLONG},
     {{STRING_WITH_LEN("with_check_option")},
-     my_offsetof_upgrade(TABLE_LIST, with_check),
+     my_offsetof_upgrade(Table_ref, with_check),
      FILE_OPTIONS_ULONGLONG},
     {{STRING_WITH_LEN("timestamp")},
-     my_offsetof_upgrade(TABLE_LIST, timestamp),
+     my_offsetof_upgrade(Table_ref, timestamp),
      FILE_OPTIONS_TIMESTAMP},
     {{STRING_WITH_LEN("source")},
-     my_offsetof_upgrade(TABLE_LIST, source),
+     my_offsetof_upgrade(Table_ref, source),
      FILE_OPTIONS_ESTRING},
     {{STRING_WITH_LEN("client_cs_name")},
-     my_offsetof_upgrade(TABLE_LIST, view_client_cs_name),
+     my_offsetof_upgrade(Table_ref, view_client_cs_name),
      FILE_OPTIONS_STRING},
     {{STRING_WITH_LEN("connection_cl_name")},
-     my_offsetof_upgrade(TABLE_LIST, view_connection_cl_name),
+     my_offsetof_upgrade(Table_ref, view_connection_cl_name),
      FILE_OPTIONS_STRING},
     {{STRING_WITH_LEN("view_body_utf8")},
-     my_offsetof_upgrade(TABLE_LIST, view_body_utf8),
+     my_offsetof_upgrade(Table_ref, view_body_utf8),
      FILE_OPTIONS_ESTRING},
     {{NullS, 0}, 0, FILE_OPTIONS_STRING}};
 
@@ -758,14 +758,14 @@ static File_option view_parameters[] = {
   information.
 
   @param[in] thd       Thread handle.
-  @param[in] view_ref  TABLE_LIST to store view data.
+  @param[in] view_ref  Table_ref to store view data.
 
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
-static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
+static bool create_unlinked_view(THD *thd, Table_ref *view_ref) {
   Query_block *backup_query_block = thd->lex->query_block;
-  TABLE_LIST *saved_query_tables = thd->lex->query_tables;
+  Table_ref *saved_query_tables = thd->lex->query_tables;
   SQL_I_List<Sroutine_hash_entry> saved_sroutines_list;
   // For creation of view without column information.
   Query_block select(thd->mem_root, nullptr, nullptr);
@@ -807,13 +807,13 @@ static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
   view definition entry in DD.
 
   @param[in]  thd       Thread handle.
-  @param[in]  view_ref  TABLE_LIST to store view data.
+  @param[in]  view_ref  Table_ref to store view data.
   @param[out] str       String object to store view definition.
   @param[in]  db_name   database name.
   @param[in]  view_name view name.
   @param[in]  cs        Charset Information.
 */
-static void create_alter_view_stmt(const THD *thd, TABLE_LIST *view_ref,
+static void create_alter_view_stmt(const THD *thd, Table_ref *view_ref,
                                    String *str, const String_type &db_name,
                                    const String_type &view_name,
                                    const CHARSET_INFO *cs) {
@@ -839,7 +839,7 @@ static void create_alter_view_stmt(const THD *thd, TABLE_LIST *view_ref,
   View will be marked invalid if ALTER VIEW statement fails on the view.
 
   @param[in] thd                     Thread handle.
-  @param[in] view_ref                TABLE_LIST with view data.
+  @param[in] view_ref                Table_ref with view data.
   @param[in] db_name                 database name.
   @param[in] view_name               view name.
 
@@ -847,7 +847,7 @@ static void create_alter_view_stmt(const THD *thd, TABLE_LIST *view_ref,
   @retval true   ON FAILURE
 
 */
-static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
+static bool fix_view_cols_and_deps(THD *thd, Table_ref *view_ref,
                                    const String_type &db_name,
                                    const String_type &view_name) {
   bool error = false;
@@ -946,8 +946,8 @@ static bool migrate_view_to_dd(THD *thd, const FRM_context &frm_context,
                                const String_type &db_name,
                                const String_type &view_name, MEM_ROOT *mem_root,
                                bool is_fix_view_cols_and_deps) {
-  TABLE_LIST table_list(db_name.c_str(), db_name.length(), view_name.c_str(),
-                        view_name.length(), view_name.c_str(), TL_READ);
+  Table_ref table_list(db_name.c_str(), db_name.length(), view_name.c_str(),
+                       view_name.length(), view_name.c_str(), TL_READ);
 
   // Initialize timestamp
   table_list.timestamp.str = table_list.timestamp_buffer;

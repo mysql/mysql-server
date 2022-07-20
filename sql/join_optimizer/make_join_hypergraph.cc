@@ -75,7 +75,7 @@ using std::vector;
 namespace {
 
 RelationalExpression *MakeRelationalExpressionFromJoinList(
-    THD *thd, const mem_root_deque<TABLE_LIST *> &join_list);
+    THD *thd, const mem_root_deque<Table_ref *> &join_list);
 bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
                               Mem_root_array<Item *> *conditions,
                               bool *always_false);
@@ -252,7 +252,7 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
       });
 }
 
-RelationalExpression *MakeRelationalExpression(THD *thd, const TABLE_LIST *tl) {
+RelationalExpression *MakeRelationalExpression(THD *thd, const Table_ref *tl) {
   if (tl->nested_join == nullptr) {
     // A single table.
     RelationalExpression *ret = new (thd->mem_root) RelationalExpression(thd);
@@ -273,12 +273,12 @@ RelationalExpression *MakeRelationalExpression(THD *thd, const TABLE_LIST *tl) {
   ie., a join tree with tables at the leaves.
  */
 RelationalExpression *MakeRelationalExpressionFromJoinList(
-    THD *thd, const mem_root_deque<TABLE_LIST *> &join_list) {
+    THD *thd, const mem_root_deque<Table_ref *> &join_list) {
   assert(!join_list.empty());
   RelationalExpression *ret = nullptr;
   for (auto it = join_list.rbegin(); it != join_list.rend();
        ++it) {  // The list goes backwards.
-    const TABLE_LIST *tl = *it;
+    const Table_ref *tl = *it;
     if (ret == nullptr) {
       // The first table in the list.
       ret = MakeRelationalExpression(thd, tl);
@@ -2281,11 +2281,11 @@ bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
   return false;
 }
 
-string PrintJoinList(const mem_root_deque<TABLE_LIST *> &join_list, int level) {
+string PrintJoinList(const mem_root_deque<Table_ref *> &join_list, int level) {
   string str;
   const char *join_types[] = {"inner", "left", "right"};
-  std::vector<TABLE_LIST *> list(join_list.begin(), join_list.end());
-  for (TABLE_LIST *tbl : list) {
+  std::vector<Table_ref *> list(join_list.begin(), join_list.end());
+  for (Table_ref *tbl : list) {
     for (int i = 0; i < level * 2; ++i) str += ' ';
     if (tbl->join_cond_optim() != nullptr) {
       str += StringPrintf("* %s %s  join_type=%s\n", tbl->alias,
@@ -2815,7 +2815,7 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
     *trace += StringPrintf("Total eligibility set for %s: {",
                            ItemToString(condition).c_str());
     bool first = true;
-    for (TABLE_LIST *tl = graph->query_block()->leaf_tables; tl != nullptr;
+    for (Table_ref *tl = graph->query_block()->leaf_tables; tl != nullptr;
          tl = tl->next_leaf) {
       if (tl->map() & total_eligibility_set) {
         if (!first) *trace += ',';
@@ -3299,7 +3299,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   // Fast path for single-table queries. We can skip all the logic that analyzes
   // join conditions, as there is no join.
   if (num_tables == 1) {
-    TABLE_LIST *const table_ref = query_block->leaf_tables;
+    Table_ref *const table_ref = query_block->leaf_tables;
     table_ref->fetch_number_of_rows();
 
     RelationalExpression *root = MakeRelationalExpression(thd, table_ref);
@@ -3435,7 +3435,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   // which determines selectivities that are in part based on it.
   // NOTE: ha_archive breaks without this call! (That is probably a bug in
   // ha_archive, though.)
-  for (TABLE_LIST *tl = graph->query_block()->leaf_tables; tl != nullptr;
+  for (Table_ref *tl = graph->query_block()->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
     tl->fetch_number_of_rows();
   }

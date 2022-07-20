@@ -53,7 +53,7 @@ class sp_handler;
 class sp_head;
 class sp_pcontext;
 class sp_variable;
-struct TABLE_LIST;
+class Table_ref;
 
 ///////////////////////////////////////////////////////////////////////////
 // This file contains SP-instruction classes.
@@ -444,13 +444,13 @@ class sp_lex_instr : public sp_instr {
     List of additional tables this statement needs to lock when it
     enters/leaves prelocked mode on its own.
   */
-  TABLE_LIST *m_prelocking_tables;
+  Table_ref *m_prelocking_tables;
 
   /**
     The value m_lex->query_tables_own_last should be set to this when the
     statement enters/leaves prelocked mode on its own.
   */
-  TABLE_LIST **m_lex_query_tables_own_last;
+  Table_ref **m_lex_query_tables_own_last;
 
   /**
     List of all the Item_trigger_field's of instruction.

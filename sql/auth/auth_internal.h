@@ -200,11 +200,11 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
                           const LEX_USER &combo, const char *db,
                           const char *routine_name, bool is_proc, ulong rights,
                           bool revoke_grant);
-int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
-void acl_tables_setup_for_read(TABLE_LIST *tables);
+int open_grant_tables(THD *thd, Table_ref *tables, bool *transactional_tables);
+void acl_tables_setup_for_read(Table_ref *tables);
 
 void acl_print_ha_error(int handler_error);
-bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);
+bool check_engine_type_for_acl_table(Table_ref *tables, bool report_error);
 bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             std::set<LEX_USER *> *extra_users = nullptr,
                             Rewrite_params *rewrite_params = nullptr,
@@ -303,7 +303,7 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
                          LEX_USER *user_from, LEX_USER *user_to);
 bool set_and_validate_user_attributes(
     THD *thd, LEX_USER *Str, acl_table::Pod_user_what_to_update &what_to_set,
-    bool is_privileged_user, bool is_role, TABLE_LIST *history_table,
+    bool is_privileged_user, bool is_role, Table_ref *history_table,
     bool *history_check_done, const char *cmd, Userhostpassword_list &,
     I_multi_factor_auth **mfa = nullptr);
 typedef std::pair<std::string, bool> Grant_privilege;
@@ -312,7 +312,7 @@ typedef std::unordered_multimap<Role_id, Grant_privilege, role_id_hash>
 User_to_dynamic_privileges_map *get_dynamic_privileges_map();
 User_to_dynamic_privileges_map *swap_dynamic_privileges_map(
     User_to_dynamic_privileges_map *map);
-bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst);
+bool populate_roles_caches(THD *thd, Table_ref *tablelst);
 void grant_role(ACL_USER *role, const ACL_USER *user, bool with_admin_opt);
 void get_mandatory_roles(std::vector<Role_id> *mandatory_roles);
 extern std::vector<Role_id> *g_mandatory_roles;

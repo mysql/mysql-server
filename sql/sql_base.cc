@@ -141,7 +141,7 @@
 #include "sql/sql_view.h"    // mysql_make_view
 #include "sql/strfunc.h"
 #include "sql/system_variables.h"
-#include "sql/table.h"                     // TABLE_LIST
+#include "sql/table.h"                     // Table_ref
 #include "sql/table_cache.h"               // table_cache_manager
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thd_raii.h"
@@ -327,16 +327,16 @@ Table_definition_cache *table_def_cache;
 static TABLE_SHARE *oldest_unused_share, end_of_unused_share;
 static bool table_def_shutdown_in_progress = false;
 
-static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
+static bool check_and_update_table_version(THD *thd, Table_ref *tables,
                                            TABLE_SHARE *table_share);
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
                                   const dd::Table *table, TABLE *entry);
-static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
+static bool auto_repair_table(THD *thd, Table_ref *table_list);
 static TABLE *find_temporary_table(THD *thd, const char *table_key,
                                    size_t table_key_length);
-static bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
+static bool tdc_open_view(THD *thd, Table_ref *table_list,
                           const char *cache_key, size_t cache_key_length);
-static bool add_view_place_holder(THD *thd, TABLE_LIST *table_list);
+static bool add_view_place_holder(THD *thd, Table_ref *table_list);
 
 /**
   Create a table cache/table definition cache key for a table. The
@@ -432,9 +432,9 @@ static std::string create_table_def_key_secondary(const char *db_name,
   @return Length of key.
 */
 
-size_t get_table_def_key(const TABLE_LIST *table_list, const char **key) {
+size_t get_table_def_key(const Table_ref *table_list, const char **key) {
   /*
-    This call relies on the fact that TABLE_LIST::mdl_request::key object
+    This call relies on the fact that Table_ref::mdl_request::key object
     is properly initialized, so table definition cache can be produced
     from key used by MDL subsystem.
     strcase is converted to strcasecmp because information_schema tables
@@ -890,7 +890,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
 */
 
 static TABLE_SHARE *get_table_share_with_discover(
-    THD *thd, TABLE_LIST *table_list, const char *key, size_t key_length,
+    THD *thd, Table_ref *table_list, const char *key, size_t key_length,
     bool open_secondary, int *error)
 
 {
@@ -953,7 +953,7 @@ static TABLE_SHARE *get_table_share_with_discover(
         my_error(ER_WRONG_MRG_TABLE, MYF(0));
       } else if (table_list->belong_to_view) {
         // Mention the top view in message, to not reveal underlying views.
-        TABLE_LIST *view = table_list->belong_to_view;
+        Table_ref *view = table_list->belong_to_view;
         thd->clear_error();
         thd->get_stmt_da()->reset_condition_info(thd);
         my_error(ER_VIEW_INVALID, MYF(0), view->db, view->table_name);
@@ -1040,7 +1040,7 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name) {
 
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild) {
   OPEN_TABLE_LIST **start_list, *open_list, *start, *prev;
-  TABLE_LIST table_list;
+  Table_ref table_list;
   DBUG_TRACE;
 
   start_list = &open_list;
@@ -1157,7 +1157,7 @@ void free_io_cache(TABLE *table) {
         lock taken by thread trying to obtain global read lock.
 */
 
-bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool wait_for_refresh,
+bool close_cached_tables(THD *thd, Table_ref *tables, bool wait_for_refresh,
                          ulong timeout) {
   bool result = false;
   bool found = true;
@@ -1190,7 +1190,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool wait_for_refresh,
       table_def_cache->erase(to_string(oldest_unused_share->table_cache_key));
   } else {
     bool share_found = false;
-    for (TABLE_LIST *table = tables; table; table = table->next_local) {
+    for (Table_ref *table = tables; table; table = table->next_local) {
       TABLE_SHARE *share = get_cached_table_share(table->db, table->table_name);
 
       if (share) {
@@ -1219,13 +1219,13 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool wait_for_refresh,
       lock on our tables. To achieve this we use exclusive metadata
       locks.
     */
-    TABLE_LIST *tables_to_reopen =
+    Table_ref *tables_to_reopen =
         (tables ? tables : thd->locked_tables_list.locked_tables());
 
     /* Close open HANLER instances to avoid self-deadlock. */
     mysql_ha_flush_tables(thd, tables_to_reopen);
 
-    for (TABLE_LIST *table_list = tables_to_reopen; table_list;
+    for (Table_ref *table_list = tables_to_reopen; table_list;
          table_list = table_list->next_global) {
       /* A check that the table was locked for write is done by the caller. */
       TABLE *table = find_table_for_mdl_upgrade(thd, table_list->db,
@@ -1266,7 +1266,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool wait_for_refresh,
         }
       }
     } else {
-      for (TABLE_LIST *table = tables; table; table = table->next_local) {
+      for (Table_ref *table = tables; table; table = table->next_local) {
         share = get_cached_table_share(table->db, table->table_name);
         if (share && share->has_old_version()) {
           found = true;
@@ -1508,7 +1508,7 @@ static inline bool in_LTM(THD *thd) {
 }
 
 /**
-  Check if the given TABLE_LIST belongs to a DD table.
+  Check if the given Table_ref belongs to a DD table.
 
   The function checks whether the table is a DD table being used in the
   context of a DD transaction, or whether it is referred by a system view.
@@ -1517,15 +1517,15 @@ static inline bool in_LTM(THD *thd) {
   situation, then this function does not return 'true'. We do not know if
   there is such a situation right now.
 
-  This function ignores TABLE_LIST's that is created by optimizer
+  This function ignores Table_ref's that is created by optimizer
   when processing a system view.
 
-  @param    tl             TABLE_LIST point to the table.
+  @param    tl             Table_ref point to the table.
 
   @retval   true           If table belongs to a DD table.
   @retval   false          If table does not.
 */
-static bool belongs_to_dd_table(const TABLE_LIST *tl) {
+static bool belongs_to_dd_table(const Table_ref *tl) {
   return (tl->is_dd_ctx_table ||
           (!tl->is_internal() && !tl->uses_materialization() &&
            tl->referencing_view && tl->referencing_view->is_system_view));
@@ -1619,7 +1619,7 @@ void close_thread_tables(THD *thd) {
             OR
             - Close P_S tables unless the query is inside of a SP/trigger.
           */
-          TABLE_LIST *tbl_list = table->pos_in_table_list;
+          Table_ref *tbl_list = table->pos_in_table_list;
           if (!thd->in_sub_stmt && (belongs_to_dd_table(tbl_list) ||
                                     belongs_to_p_s(table->pos_in_table_list))) {
             if (!table->s->tmp_table) {
@@ -2066,8 +2066,8 @@ bool close_temporary_tables(THD *thd) {
   @retval NULL  Table not found
 */
 
-TABLE_LIST *find_table_in_global_list(TABLE_LIST *table, const char *db_name,
-                                      const char *table_name) {
+Table_ref *find_table_in_global_list(Table_ref *table, const char *db_name,
+                                     const char *table_name) {
   for (; table; table = table->next_global) {
     if ((table->table == nullptr ||
          table->table->s->tmp_table == NO_TMP_TABLE) &&
@@ -2100,7 +2100,7 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table, const char *db_name,
     Also SELECT::exclude_from_table_unique_test used to exclude from check
     tables of main SELECT of multi-delete and multi-update
 
-    We also skip tables with TABLE_LIST::prelocking_placeholder set,
+    We also skip tables with Table_ref::prelocking_placeholder set,
     because we want to allow SELECTs from them, and their modification
     will rise the error anyway.
 
@@ -2111,9 +2111,9 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table, const char *db_name,
   @retval 0 if table is unique
 */
 
-static TABLE_LIST *find_dup_table(const TABLE_LIST *table,
-                                  TABLE_LIST *table_list, bool check_alias) {
-  TABLE_LIST *res;
+static Table_ref *find_dup_table(const Table_ref *table, Table_ref *table_list,
+                                 bool check_alias) {
+  Table_ref *res;
   const char *d_name, *t_name, *t_alias;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
@@ -2121,7 +2121,7 @@ static TABLE_LIST *find_dup_table(const TABLE_LIST *table,
   assert(table == table->updatable_base_table());
   /*
     If this function called for CREATE command that we have not opened table
-    (table->table equal to 0) and right names is in current TABLE_LIST
+    (table->table equal to 0) and right names is in current Table_ref
     object.
   */
   if (table->table) {
@@ -2194,13 +2194,13 @@ static TABLE_LIST *find_dup_table(const TABLE_LIST *table,
   @retval NULL     No duplicates found.
 */
 
-TABLE_LIST *unique_table(const TABLE_LIST *table, TABLE_LIST *table_list,
-                         bool check_alias) {
+Table_ref *unique_table(const Table_ref *table, Table_ref *table_list,
+                        bool check_alias) {
   assert(table == table->updatable_base_table());
 
-  TABLE_LIST *dup;
+  Table_ref *dup;
   if (table->table && table->table->file->ht->db_type == DB_TYPE_MRG_MYISAM) {
-    TABLE_LIST *child;
+    Table_ref *child;
     dup = nullptr;
     /* Check duplicates of all merge children. */
     for (child = table->next_global; child && child->parent_l == table;
@@ -2223,8 +2223,8 @@ TABLE_LIST *unique_table(const TABLE_LIST *table, TABLE_LIST *table_list,
   @note here we hide view underlying tables if we have them.
 */
 
-void update_non_unique_table_error(TABLE_LIST *update, const char *operation,
-                                   TABLE_LIST *duplicate) {
+void update_non_unique_table_error(Table_ref *update, const char *operation,
+                                   Table_ref *duplicate) {
   update = update->top_table();
   duplicate = duplicate->top_table();
   if (!update->is_view() || !duplicate->is_view() ||
@@ -2274,13 +2274,13 @@ TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name) {
 }
 
 /**
-  Find a temporary table specified by TABLE_LIST instance in the
+  Find a temporary table specified by Table_ref instance in the
   THD::temporary_tables list.
 
   @return TABLE instance if a temporary table has been found; NULL otherwise.
 */
 
-TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl) {
+TABLE *find_temporary_table(THD *thd, const Table_ref *tl) {
   const char *key;
   size_t key_length;
   char key_suffix[TMP_TABLE_KEY_EXTRA];
@@ -2331,7 +2331,7 @@ static TABLE *find_temporary_table(THD *thd, const char *table_key,
   - Remove the table from the list of temporary tables.
 */
 
-void drop_temporary_table(THD *thd, TABLE_LIST *table_list) {
+void drop_temporary_table(THD *thd, Table_ref *table_list) {
   DBUG_TRACE;
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'", table_list->db,
                           table_list->table_name));
@@ -2493,7 +2493,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
     @retval  false  No error. 'exists' out parameter set accordingly.
 */
 
-static bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists) {
+static bool check_if_table_exists(THD *thd, Table_ref *table, bool *exists) {
   DBUG_TRACE;
 
   *exists = true;
@@ -2571,10 +2571,10 @@ class MDL_deadlock_handler : public Internal_error_handler {
                             Its "mdl_request" member specifies the MDL lock
                             to be requested. If we managed to acquire a
                             ticket (no errors or lock conflicts occurred),
-                            TABLE_LIST::mdl_request contains a reference
+                            Table_ref::mdl_request contains a reference
                             to it on return. However, is not modified if
                             MDL lock type- modifying flags were provided.
-                            We also use TABLE_LIST::lock_type member to
+                            We also use Table_ref::lock_type member to
                             detect cases when MDL_SHARED_WRITE_LOW_PRIO
                             lock should be acquired instead of the normal
                             MDL_SHARED_WRITE lock.
@@ -2592,7 +2592,7 @@ class MDL_deadlock_handler : public Internal_error_handler {
 */
 
 static bool open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
-                                    TABLE_LIST *table_list, uint flags,
+                                    Table_ref *table_list, uint flags,
                                     MDL_ticket **mdl_ticket) {
   MDL_request *mdl_request = &table_list->mdl_request;
   MDL_request new_mdl_request;
@@ -2759,14 +2759,14 @@ static bool tdc_wait_for_old_version(THD *thd, const char *db,
   @retval  false  view place holder successfully added
 */
 
-bool add_view_place_holder(THD *thd, TABLE_LIST *table_list) {
+bool add_view_place_holder(THD *thd, Table_ref *table_list) {
   Prepared_stmt_arena_holder ps_arena_holder(thd);
   LEX *lex_obj = new (thd->mem_root) st_lex_local;
   if (lex_obj == nullptr) return true;
   table_list->set_view_query(lex_obj);
   // Create empty list of view_tables.
   table_list->view_tables =
-      new (thd->mem_root) mem_root_deque<TABLE_LIST *>(thd->mem_root);
+      new (thd->mem_root) mem_root_deque<Table_ref *>(thd->mem_root);
   if (table_list->view_tables == nullptr) return true;
   return false;
 }
@@ -2789,19 +2789,19 @@ bool add_view_place_holder(THD *thd, TABLE_LIST *table_list) {
 
   Uses a cache of open tables to find a TABLE instance not in use.
 
-  If TABLE_LIST::open_strategy is set to OPEN_IF_EXISTS, the table is
+  If Table_ref::open_strategy is set to OPEN_IF_EXISTS, the table is
   opened only if it exists. If the open strategy is OPEN_STUB, the
   underlying table is never opened. In both cases, metadata locks are
   always taken according to the lock strategy.
 
   @retval true  Open failed. "action" parameter may contain type of action
                 needed to remedy problem before retrying again.
-  @retval false Success. Members of TABLE_LIST structure are filled properly
-                (e.g.  TABLE_LIST::table is set for real tables and
-                TABLE_LIST::view is set for views).
+  @retval false Success. Members of Table_ref structure are filled
+  properly (e.g.  Table_ref::table is set for real tables and
+                Table_ref::view is set for views).
 */
 
-bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx) {
+bool open_table(THD *thd, Table_ref *table_list, Open_table_context *ot_ctx) {
   TABLE *table = nullptr;
   TABLE_SHARE *share = nullptr;
   const char *key;
@@ -2994,7 +2994,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx) {
           indicate the presence of a view amd skip processing the
           existing view.
         */
-        if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)
+        if (table_list->open_strategy == Table_ref::OPEN_FOR_CREATE)
           return add_view_place_holder(thd, table_list);
 
         if (!tdc_open_view(thd, table_list, key, key_length)) {
@@ -3098,8 +3098,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx) {
     mdl_ticket = table_list->mdl_request.ticket;
   }
 
-  if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS ||
-      table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE) {
+  if (table_list->open_strategy == Table_ref::OPEN_IF_EXISTS ||
+      table_list->open_strategy == Table_ref::OPEN_FOR_CREATE) {
     bool exists;
 
     if (check_if_table_exists(thd, table_list, &exists)) return true;
@@ -3109,7 +3109,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx) {
       lock.
     */
     if (!exists) {
-      if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE &&
+      if (table_list->open_strategy == Table_ref::OPEN_FOR_CREATE &&
           !(flags & (MYSQL_OPEN_FORCE_SHARED_MDL |
                      MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))) {
         MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
@@ -3132,7 +3132,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx) {
     }
 
     /* Table exists. Let us try to open it. */
-  } else if (table_list->open_strategy == TABLE_LIST::OPEN_STUB)
+  } else if (table_list->open_strategy == Table_ref::OPEN_STUB)
     return false;
 
 retry_share : {
@@ -3253,7 +3253,7 @@ retry_share : {
     */
     else if (check_and_update_table_version(thd, table_list, share))
       ;
-    else if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE) {
+    else if (table_list->open_strategy == Table_ref::OPEN_FOR_CREATE) {
       /*
         Skip reading the view definition if the open is for a table to be
         created. This scenario will happen only when there exists a view and
@@ -3627,7 +3627,7 @@ void assign_new_table_id(TABLE_SHARE *share) {
 
   @details If the new and the old values mismatch, invoke
   Metadata_version_observer.
-  At prepared statement prepare, all TABLE_LIST version values are
+  At prepared statement prepare, all Table_ref version values are
   NULL and we always have a mismatch. But there is no observer set
   in THD, and therefore no error is reported. Instead, we update
   the value in the parse tree, effectively recording the original
@@ -3640,20 +3640,20 @@ void assign_new_table_id(TABLE_SHARE *share) {
 
   @sa Execute_observer
   @sa check_prepared_statement() to see cases when an observer is installed
-  @sa TABLE_LIST::is_table_ref_id_equal()
+  @sa Table_ref::is_table_ref_id_equal()
   @sa TABLE_SHARE::get_table_ref_id()
 
   @param[in]      thd         used to report errors
-  @param[in,out]  tables      TABLE_LIST instance created by the parser
+  @param[in,out]  tables      Table_ref instance created by the parser
                               Metadata version information in this object
                               is updated upon success.
   @param[in]      table_share an element from the table definition cache
 
   @retval  true  an error, which has been reported
-  @retval  false success, version in TABLE_LIST has been updated
+  @retval  false success, version in Table_ref has been updated
 */
 
-static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
+static bool check_and_update_table_version(THD *thd, Table_ref *tables,
                                            TABLE_SHARE *table_share) {
   if (!tables->is_table_ref_id_equal(table_share)) {
     /*
@@ -3723,7 +3723,7 @@ static bool check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
    Open view by getting its definition from disk (and table cache in future).
 
    @param thd               Thread handle
-   @param table_list        TABLE_LIST with db, table_name & belong_to_view
+   @param table_list        Table_ref with db, table_name & belong_to_view
    @param cache_key         Key for table definition cache
    @param cache_key_length  Length of cache_key
 
@@ -3733,7 +3733,7 @@ static bool check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
    @return false if success, true - otherwise.
 */
 
-static bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
+static bool tdc_open_view(THD *thd, Table_ref *table_list,
                           const char *cache_key, size_t cache_key_length) {
   TABLE_SHARE *share;
 
@@ -3859,7 +3859,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
    Auxiliary routine which is used for performing automatic table repair.
 */
 
-static bool auto_repair_table(THD *thd, TABLE_LIST *table_list) {
+static bool auto_repair_table(THD *thd, Table_ref *table_list) {
   const char *cache_key;
   size_t cache_key_length;
   TABLE_SHARE *share;
@@ -3937,7 +3937,7 @@ class Fix_row_type_error_handler : public Internal_error_handler {
   Auxiliary routine for automatically updating row format for the table.
 */
 
-static bool fix_row_type(THD *thd, TABLE_LIST *table_list) {
+static bool fix_row_type(THD *thd, Table_ref *table_list) {
   const char *cache_key;
   size_t cache_key_length = get_table_def_key(table_list, &cache_key);
 
@@ -4070,7 +4070,7 @@ Open_table_context::Open_table_context(THD *thd, uint flags)
 */
 
 bool Open_table_context::request_backoff_action(
-    enum_open_table_action action_arg, TABLE_LIST *table) {
+    enum_open_table_action action_arg, Table_ref *table) {
   /*
     A back off action may be one of four kinds:
 
@@ -4144,8 +4144,8 @@ bool Open_table_context::request_backoff_action(
     assert(action_arg == OT_DISCOVER || action_arg == OT_REPAIR ||
            action_arg == OT_FIX_ROW_TYPE);
     m_failed_table = new (m_thd->mem_root)
-        TABLE_LIST(table->db, table->db_length, table->table_name,
-                   table->table_name_length, table->alias, TL_WRITE);
+        Table_ref(table->db, table->db_length, table->table_name,
+                  table->table_name_length, table->alias, TL_WRITE);
     if (m_failed_table == nullptr) return true;
     m_failed_table->mdl_request.set_type(MDL_EXCLUSIVE);
   }
@@ -4290,7 +4290,7 @@ bool Open_table_context::recover_from_failed_open() {
   m_thd->pop_internal_handler();
   /*
     Reset the pointers to conflicting MDL request and the
-    TABLE_LIST element, set when we need auto-discovery or repair,
+    Table_ref element, set when we need auto-discovery or repair,
     for safety.
   */
   m_failed_table = nullptr;
@@ -4347,7 +4347,7 @@ bool Open_table_context::recover_from_failed_open() {
 
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
-                                       TABLE_LIST *table_list,
+                                       Table_ref *table_list,
                                        bool routine_modifies_data) {
   /*
     In cases when this function is called for a sub-statement executed in
@@ -4408,7 +4408,7 @@ thr_lock_type read_lock_type_for_table(THD *thd,
 static void process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
                               TABLE_SHARE *share, bool is_insert,
                               bool is_update, bool is_delete,
-                              TABLE_LIST *belong_to_view,
+                              Table_ref *belong_to_view,
                               bool *need_prelocking) {
   if (!share->foreign_keys && !share->foreign_key_parents) {
     /*
@@ -4908,7 +4908,7 @@ static bool open_and_process_routine(
   @retval  true   Error, reported unless there is a chance to recover from it.
 */
 
-static bool open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
+static bool open_and_process_table(THD *thd, LEX *lex, Table_ref *const tables,
                                    uint *counter,
                                    Prelocking_strategy *prelocking_strategy,
                                    bool has_prelocking_list,
@@ -4929,14 +4929,14 @@ static bool open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
   assert(!tables->common_table_expr());
 
   /*
-    If this TABLE_LIST object is a placeholder for an information_schema
+    If this Table_ref object is a placeholder for an information_schema
     table, create a temporary table to represent the information_schema
     table in the query. Do not fill it yet - will be filled during
     execution.
   */
   if (tables->schema_table) {
     /*
-      Since we no longer set TABLE_LIST::schema_table/table for table
+      Since we no longer set Table_ref::schema_table/table for table
       list elements representing mergeable view, we can't meet a table
       list element which represent information_schema table and a view
       at the same time. Otherwise, acquiring metadata lock om the view
@@ -4962,8 +4962,8 @@ static bool open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
   */
 
   /*
-    A TABLE_LIST object may have an associated open TABLE object
-    (TABLE_LIST::table is not NULL) if it represents a pre-opened temporary
+    A Table_ref object may have an associated open TABLE object
+    (Table_ref::table is not NULL) if it represents a pre-opened temporary
     table, or is a materialized view. (Derived tables are not handled here).
   */
 
@@ -5089,7 +5089,7 @@ static bool open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
 
   /*
     Special types of open can succeed but still don't set
-    TABLE_LIST::table to anything.
+    Table_ref::table to anything.
   */
   if (tables->open_strategy && !tables->table) goto end;
 
@@ -5104,7 +5104,7 @@ static bool open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES && !has_prelocking_list &&
       tables->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE) {
     bool need_prelocking = false;
-    TABLE_LIST **save_query_tables_last = lex->query_tables_last;
+    Table_ref **save_query_tables_last = lex->query_tables_last;
     /*
       Extend statement's table list and the prelocking set with
       tables and routines according to the current prelocking
@@ -5152,7 +5152,7 @@ process_view_routines:
   if (tables->is_view() && thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       !has_prelocking_list) {
     bool need_prelocking = false;
-    TABLE_LIST **save_query_tables_last = lex->query_tables_last;
+    Table_ref **save_query_tables_last = lex->query_tables_last;
 
     error =
         prelocking_strategy->handle_view(thd, lex, tables, &need_prelocking);
@@ -5170,13 +5170,13 @@ end:
 namespace {
 
 struct schema_hash {
-  size_t operator()(const TABLE_LIST *table) const {
+  size_t operator()(const Table_ref *table) const {
     return std::hash<std::string>()(std::string(table->db, table->db_length));
   }
 };
 
 struct schema_key_equal {
-  bool operator()(const TABLE_LIST *a, const TABLE_LIST *b) const {
+  bool operator()(const Table_ref *a, const Table_ref *b) const {
     return a->db_length == b->db_length &&
            memcmp(a->db, b->db, a->db_length) == 0;
   }
@@ -5221,7 +5221,7 @@ int run_before_dml_hook(THD *thd) {
   @return true if a table is temporary table, else false
 */
 
-static inline bool is_temporary_table_being_opened(const TABLE_LIST *table) {
+static inline bool is_temporary_table_being_opened(const Table_ref *table) {
   return table->open_type == OT_TEMPORARY_ONLY ||
          (table->open_type == OT_TEMPORARY_OR_BASE &&
           is_temporary_table(table));
@@ -5250,8 +5250,8 @@ static inline bool is_temporary_table_being_opened(const TABLE_LIST *table) {
   @retval true   Failure (e.g. connection was killed)
   @retval false  Success.
 */
-bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
-                                   TABLE_LIST *tables_end,
+bool get_and_lock_tablespace_names(THD *thd, Table_ref *tables_start,
+                                   Table_ref *tables_end,
                                    ulong lock_wait_timeout, uint flags) {
   // If this is a DISCARD or IMPORT TABLESPACE command (indicated by
   // the THD:: tablespace_op flag), we skip this phase, because these
@@ -5272,7 +5272,7 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
   // The first step is to loop over the tables, make sure we have
   // locked the names, and then get hold of the tablespace names from
   // the data dictionary.
-  TABLE_LIST *table;
+  Table_ref *table;
   for (table = tables_start; table && table != tables_end;
        table = table->next_global) {
     // Consider only non-temporary tables. The if clauses below have the
@@ -5290,7 +5290,7 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
     // !(OT_TEMPORARY_OR_BASE && is_temp...()) Not a pre-opened tmp table.
     if (table->mdl_request.type != MDL_SHARED_READ_ONLY &&
         (table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
-         table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE) &&
+         table->open_strategy == Table_ref::OPEN_FOR_CREATE) &&
         !is_temporary_table_being_opened(table) && !table->is_system_view) {
       // We have basically three situations here:
       //
@@ -5310,7 +5310,7 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
 
       // No need to try this for tables to be created since they are not
       // yet present in the dictionary.
-      if (table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE) {
+      if (table->open_strategy != Table_ref::OPEN_FOR_CREATE) {
         // Assert that we have an MDL lock on the table name. Needed to read
         // the dictionary safely.
         assert(thd->mdl_context.owns_equal_or_stronger_lock(
@@ -5379,15 +5379,14 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
   @retval false  Success.
   @retval true   Failure (e.g. connection was killed)
 */
-bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
-                      TABLE_LIST *tables_end, ulong lock_wait_timeout,
-                      uint flags,
+bool lock_table_names(THD *thd, Table_ref *tables_start, Table_ref *tables_end,
+                      ulong lock_wait_timeout, uint flags,
                       Prealloced_array<MDL_request *, 1> *schema_reqs) {
   MDL_request_list mdl_requests;
-  TABLE_LIST *table;
+  Table_ref *table;
   MDL_request global_request;
   MDL_request backup_lock_request;
-  malloc_unordered_set<TABLE_LIST *, schema_hash, schema_key_equal> schema_set(
+  malloc_unordered_set<Table_ref *, schema_hash, schema_key_equal> schema_set(
       PSI_INSTRUMENT_ME);
   bool need_global_read_lock_protection = false;
   bool acquire_backup_lock = false;
@@ -5414,7 +5413,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
     }
 
     if (!table->mdl_request.is_ddl_or_lock_tables_lock_request() &&
-        table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE) {
+        table->open_strategy != Table_ref::OPEN_FOR_CREATE) {
       continue;
     } else {
       /*
@@ -5456,7 +5455,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
       Scoped locks: Take intention exclusive locks on all involved
       schemas.
     */
-    for (const TABLE_LIST *table_l : schema_set) {
+    for (const Table_ref *table_l : schema_set) {
       MDL_request *schema_request = new (thd->mem_root) MDL_request;
       if (schema_request == nullptr) return true;
       MDL_REQUEST_INIT(schema_request, MDL_key::SCHEMA, table_l->db, "",
@@ -5501,7 +5500,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
     return true;
 
   // Check schema read only for all schemas.
-  for (const TABLE_LIST *table_l : schema_set)
+  for (const Table_ref *table_l : schema_set)
     if (check_schema_readonly(thd, table_l->db)) return true;
 
   /*
@@ -5528,9 +5527,9 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
   @retval true   Failure (e.g. connection was killed)
 */
 
-static bool open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
-                                             TABLE_LIST *tables_end) {
-  TABLE_LIST *table;
+static bool open_tables_check_upgradable_mdl(THD *thd, Table_ref *tables_start,
+                                             Table_ref *tables_end) {
+  Table_ref *table;
 
   assert(thd->locked_tables_mode);
 
@@ -5588,9 +5587,9 @@ static bool open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
 */
 
 static bool acquire_backup_lock_in_lock_tables_mode(THD *thd,
-                                                    TABLE_LIST *tables_start,
-                                                    TABLE_LIST *tables_end) {
-  TABLE_LIST *table;
+                                                    Table_ref *tables_start,
+                                                    Table_ref *tables_end) {
+  Table_ref *table;
   assert(thd->locked_tables_mode);
 
   for (table = tables_start; table && table != tables_end;
@@ -5610,12 +5609,12 @@ static bool acquire_backup_lock_in_lock_tables_mode(THD *thd,
   do non-locking reads on the table.
 
   @param     thd   Thread
-  @param[in] tl    TABLE_LIST pointing to table being checked.
+  @param[in] tl    Table_ref pointing to table being checked.
 
   @return  false on success, true on error.
 */
 
-static bool set_non_locking_read_for_IS_view(THD *thd, TABLE_LIST *tl) {
+static bool set_non_locking_read_for_IS_view(THD *thd, Table_ref *tl) {
   TABLE *tbl = tl->table;
 
   // Not a system view.
@@ -5647,8 +5646,8 @@ static bool set_non_locking_read_for_IS_view(THD *thd, TABLE_LIST *tl) {
   return false;
 }
 
-// Check if given TABLE_LIST is a acl table and is being read and not
-bool is_acl_table_in_non_LTM(const TABLE_LIST *tl,
+// Check if given Table_ref is a acl table and is being read and not
+bool is_acl_table_in_non_LTM(const Table_ref *tl,
                              enum enum_locked_tables_mode ltm) {
   TABLE *table = tl->table;
 
@@ -5657,7 +5656,7 @@ bool is_acl_table_in_non_LTM(const TABLE_LIST *tl,
     - Under LOCK TABLE modes.
     - Under system view. E.g., I_S.ROLE_* uses CTE where they use
       TL_READ_DEFAULT for ACL tables. We ignore them.
-    - If the TABLE_LIST is used by optimizer as placeholder.
+    - If the Table_ref is used by optimizer as placeholder.
   */
   return (!tl->is_placeholder() && table->db_stat &&
           table->s->table_category == TABLE_CATEGORY_ACL_TABLE &&
@@ -5670,14 +5669,14 @@ bool is_acl_table_in_non_LTM(const TABLE_LIST *tl,
   table.
 
   @param      thd   Thread
-  @param[in]  tl    TABLE_LIST pointing to table being checked.
+  @param[in]  tl    Table_ref pointing to table being checked.
   @param[in]  issue_warning  If true, issue warning irrespective of
                              isolation level.
 
   @return  false on success, true on error.
 */
 
-static bool set_non_locking_read_for_ACL_table(THD *thd, TABLE_LIST *tl,
+static bool set_non_locking_read_for_ACL_table(THD *thd, Table_ref *tl,
                                                const bool &issue_warning) {
   TABLE *tbl = tl->table;
 
@@ -5755,19 +5754,19 @@ static bool set_non_locking_read_for_ACL_table(THD *thd, TABLE_LIST *tl,
   @retval  true   Error, reported.
 */
 
-bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
+bool open_tables(THD *thd, Table_ref **start, uint *counter, uint flags,
                  Prelocking_strategy *prelocking_strategy) {
   /*
-    We use pointers to "next_global" member in the last processed TABLE_LIST
-    element and to the "next" member in the last processed Sroutine_hash_entry
-    element as iterators over, correspondingly, the table list and stored
-    routines list which stay valid and allow to continue iteration when new
-    elements are added to the tail of the lists.
+    We use pointers to "next_global" member in the last processed
+    Table_ref element and to the "next" member in the last processed
+    Sroutine_hash_entry element as iterators over, correspondingly, the table
+    list and stored routines list which stay valid and allow to continue
+    iteration when new elements are added to the tail of the lists.
   */
-  TABLE_LIST **table_to_open;
+  Table_ref **table_to_open;
   TABLE *old_table;
   Sroutine_hash_entry **sroutine_to_open;
-  TABLE_LIST *tables;
+  Table_ref *tables;
   Open_table_context ot_ctx(thd, flags);
   bool error = false;
   bool some_routine_modifies_data = false;
@@ -5816,14 +5815,14 @@ restart:
         Under LOCK TABLES, we can't acquire new locks, so we instead
         need to check if appropriate locks were pre-acquired.
       */
-      TABLE_LIST *end_table = thd->lex->first_not_own_table();
+      Table_ref *end_table = thd->lex->first_not_own_table();
       if (open_tables_check_upgradable_mdl(thd, *start, end_table) ||
           acquire_backup_lock_in_lock_tables_mode(thd, *start, end_table)) {
         error = true;
         goto err;
       }
     } else {
-      TABLE_LIST *table;
+      Table_ref *table;
       if (lock_table_names(thd, *start, thd->lex->first_not_own_table(),
                            ot_ctx.get_timeout(), flags)) {
         error = true;
@@ -5832,7 +5831,7 @@ restart:
       for (table = *start; table && table != thd->lex->first_not_own_table();
            table = table->next_global) {
         if (table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
-            table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)
+            table->open_strategy == Table_ref::OPEN_FOR_CREATE)
           table->mdl_request.ticket = nullptr;
       }
     }
@@ -5876,7 +5875,7 @@ restart:
 
           /*
             Here we rely on the fact that 'tables' still points to the valid
-            TABLE_LIST element. Although currently this assumption is valid
+            Table_ref element. Although currently this assumption is valid
             it may change in future.
           */
           if (ot_ctx.recover_from_failed_open()) goto err;
@@ -5931,7 +5930,7 @@ restart:
       for (Sroutine_hash_entry *rt = *sroutine_to_open; rt;
            sroutine_to_open = &rt->next, rt = rt->next) {
         bool need_prelocking = false;
-        TABLE_LIST **save_query_tables_last = thd->lex->query_tables_last;
+        Table_ref **save_query_tables_last = thd->lex->query_tables_last;
 
         error = open_and_process_routine(
             thd, thd->lex, rt, prelocking_strategy, has_prelocking_list,
@@ -6164,7 +6163,7 @@ bool DML_prelocking_strategy::handle_routine(THD *thd,
 
 bool DML_prelocking_strategy::handle_table(THD *thd,
                                            Query_tables_list *prelocking_ctx,
-                                           TABLE_LIST *table_list,
+                                           Table_ref *table_list,
                                            bool *need_prelocking) {
   /* We rely on a caller to check that table is going to be changed. */
   assert(table_list->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE);
@@ -6229,7 +6228,7 @@ bool DML_prelocking_strategy::handle_table(THD *thd,
 
 bool DML_prelocking_strategy::handle_view(THD *thd,
                                           Query_tables_list *prelocking_ctx,
-                                          TABLE_LIST *table_list,
+                                          Table_ref *table_list,
                                           bool *need_prelocking) {
   if (table_list->view_query()->uses_stored_routines()) {
     *need_prelocking = true;
@@ -6265,7 +6264,7 @@ bool DML_prelocking_strategy::handle_view(THD *thd,
 */
 
 bool Lock_tables_prelocking_strategy::handle_table(
-    THD *thd, Query_tables_list *prelocking_ctx, TABLE_LIST *table_list,
+    THD *thd, Query_tables_list *prelocking_ctx, Table_ref *table_list,
     bool *need_prelocking) {
   if (DML_prelocking_strategy::handle_table(thd, prelocking_ctx, table_list,
                                             need_prelocking))
@@ -6300,7 +6299,7 @@ bool Alter_table_prelocking_strategy::handle_routine(THD *, Query_tables_list *,
 */
 
 bool Alter_table_prelocking_strategy::handle_table(THD *, Query_tables_list *,
-                                                   TABLE_LIST *, bool *) {
+                                                   Table_ref *, bool *) {
   return false;
 }
 
@@ -6312,7 +6311,7 @@ bool Alter_table_prelocking_strategy::handle_table(THD *, Query_tables_list *,
 */
 
 bool Alter_table_prelocking_strategy::handle_view(THD *, Query_tables_list *,
-                                                  TABLE_LIST *, bool *) {
+                                                  Table_ref *, bool *) {
   return false;
 }
 
@@ -6329,13 +6328,13 @@ bool Alter_table_prelocking_strategy::handle_view(THD *, Query_tables_list *,
 
 static bool check_lock_and_start_stmt(THD *thd,
                                       Query_tables_list *prelocking_ctx,
-                                      TABLE_LIST *table_list) {
+                                      Table_ref *table_list) {
   int error;
   thr_lock_type lock_type;
   DBUG_TRACE;
 
   /*
-    Prelocking placeholder is not set for TABLE_LIST that
+    Prelocking placeholder is not set for Table_ref that
     are directly used by TOP level statement.
   */
   assert(table_list->prelocking_placeholder == false);
@@ -6420,10 +6419,10 @@ static bool check_lock_and_start_stmt(THD *thd,
     and locking issues because it does not call lock_tables().
 */
 
-TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
+TABLE *open_n_lock_single_table(THD *thd, Table_ref *table_l,
                                 thr_lock_type lock_type, uint flags,
                                 Prelocking_strategy *prelocking_strategy) {
-  TABLE_LIST *save_next_global;
+  Table_ref *save_next_global;
   DBUG_TRACE;
 
   /* Remember old 'next' pointer. */
@@ -6470,7 +6469,7 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
       table_list->table		table
 */
 
-TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
+TABLE *open_ltable(THD *thd, Table_ref *table_list, thr_lock_type lock_type,
                    uint lock_flags) {
   TABLE *table;
   Open_table_context ot_ctx(thd, lock_flags);
@@ -6563,7 +6562,7 @@ end:
   @retval true   Error
 */
 
-bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
+bool open_and_lock_tables(THD *thd, Table_ref *tables, uint flags,
                           Prelocking_strategy *prelocking_strategy) {
   uint counter;
   MDL_savepoint mdl_savepoint = thd->mdl_context.mdl_savepoint();
@@ -6671,9 +6670,9 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   auto hton = plugin_data<const handlerton *>(secondary_engine_plugin);
   sql_cmd->use_secondary_storage_engine(hton);
 
-  // Replace the TABLE objects in the TABLE_LIST with secondary tables.
+  // Replace the TABLE objects in the Table_ref with secondary tables.
   Open_table_context ot_ctx(thd, flags | MYSQL_OPEN_SECONDARY_ENGINE);
-  TABLE_LIST *tl = lex->query_tables;
+  Table_ref *tl = lex->query_tables;
   // For INSERT INTO SELECT and CTAS statements, the table to insert into does
   // not have to have a secondary engine. This table is always first in the list
   if ((lex->sql_command == SQLCOM_INSERT_SELECT ||
@@ -6726,7 +6725,7 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
     Updates Query_tables_list::table_count as side-effect.
 */
 
-bool open_tables_for_query(THD *thd, TABLE_LIST *tables, uint flags) {
+bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags) {
   DML_prelocking_strategy prelocking_strategy;
   MDL_savepoint mdl_savepoint = thd->mdl_context.mdl_savepoint();
   DBUG_TRACE;
@@ -6770,8 +6769,8 @@ end:
     or schema tables) as free for reuse.
 */
 
-static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table_list) {
-  TABLE_LIST *table;
+static void mark_real_tables_as_free_for_reuse(Table_ref *table_list) {
+  Table_ref *table;
   for (table = table_list; table; table = table->next_global)
     if (!table->is_placeholder()) {
       table->table->query_id = 0;
@@ -6808,8 +6807,8 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table_list) {
   @retval true          A lock wait timeout, deadlock or out of memory.
 */
 
-bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
-  TABLE_LIST *table;
+bool lock_tables(THD *thd, Table_ref *tables, uint count, uint flags) {
+  Table_ref *table;
 
   DBUG_TRACE;
   /*
@@ -6904,7 +6903,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
 
     if (thd->lex->requires_prelocking() &&
         thd->lex->sql_command != SQLCOM_LOCK_TABLES) {
-      TABLE_LIST *first_not_own = thd->lex->first_not_own_table();
+      Table_ref *first_not_own = thd->lex->first_not_own_table();
       /*
         We just have done implicit LOCK TABLES, and now we have
         to emulate first open_and_lock_tables() after it.
@@ -6962,7 +6961,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
       }
     }
 
-    TABLE_LIST *first_not_own = thd->lex->first_not_own_table();
+    Table_ref *first_not_own = thd->lex->first_not_own_table();
     /*
       When open_and_lock_tables() is called for a single table out of
       a table list, the 'next_global' chain is temporarily broken. We
@@ -7031,7 +7030,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
         during DDL statement execution without hogging memory.
 */
 
-bool lock_dictionary_tables(THD *thd, TABLE_LIST *tables, uint count,
+bool lock_dictionary_tables(THD *thd, Table_ref *tables, uint count,
                             uint flags) {
   DBUG_TRACE;
 
@@ -7050,7 +7049,7 @@ bool lock_dictionary_tables(THD *thd, TABLE_LIST *tables, uint count,
   if (!(ptr = start = (TABLE **)my_alloca(sizeof(TABLE *) * count)))
     return true;
 
-  for (TABLE_LIST *table = tables; table; table = table->next_global) {
+  for (Table_ref *table = tables; table; table = table->next_global) {
     // Data-dictionary tables must be base tables.
     assert(!table->is_placeholder());
     assert(table->table->s->tmp_table == NO_TMP_TABLE);
@@ -7085,10 +7084,10 @@ bool lock_dictionary_tables(THD *thd, TABLE_LIST *tables, uint count,
                          released.
 */
 
-void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
+void close_tables_for_reopen(THD *thd, Table_ref **tables,
                              const MDL_savepoint &start_of_statement_svp) {
-  TABLE_LIST *first_not_own_table = thd->lex->first_not_own_table();
-  TABLE_LIST *tmp;
+  Table_ref *first_not_own_table = thd->lex->first_not_own_table();
+  Table_ref *tmp;
 
   /*
     If table list consists only from tables from prelocking set, table list
@@ -7304,7 +7303,7 @@ Field *view_ref_found = (Field *)0x2;
 #define WRONG_GRANT (Field *)-1
 
 /**
-  Find a temporary table specified by TABLE_LIST instance in the cache and
+  Find a temporary table specified by Table_ref instance in the cache and
   prepare its TABLE instance for use.
 
   This function tries to resolve this table in the list of temporary tables
@@ -7328,12 +7327,12 @@ Field *view_ref_found = (Field *)0x2;
     @retval true  On error. my_error() has been called.
 */
 
-bool open_temporary_table(THD *thd, TABLE_LIST *tl) {
+bool open_temporary_table(THD *thd, Table_ref *tl) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: '%s'.'%s'", tl->db, tl->table_name));
 
   /*
-    Code in open_table() assumes that TABLE_LIST::table can
+    Code in open_table() assumes that Table_ref::table can
     be non-zero only for pre-opened temporary tables.
   */
   assert(tl->table == nullptr);
@@ -7365,7 +7364,7 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl) {
 
   if (!table) {
     if (tl->open_type == OT_TEMPORARY_ONLY &&
-        tl->open_strategy == TABLE_LIST::OPEN_NORMAL) {
+        tl->open_strategy == Table_ref::OPEN_NORMAL) {
       my_error(ER_NO_SUCH_TABLE, MYF(0), tl->db, tl->table_name);
       return true;
     }
@@ -7420,11 +7419,11 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl) {
     @retval true  On error. my_error() has been called.
 */
 
-bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list) {
-  TABLE_LIST *first_not_own = thd->lex->first_not_own_table();
+bool open_temporary_tables(THD *thd, Table_ref *tl_list) {
+  Table_ref *first_not_own = thd->lex->first_not_own_table();
   DBUG_TRACE;
 
-  for (TABLE_LIST *tl = tl_list; tl && tl != first_not_own;
+  for (Table_ref *tl = tl_list; tl && tl != first_not_own;
        tl = tl->next_global) {
     // Placeholder tables are processed during query execution
     if (tl->is_view_or_derived() || tl->is_table_function() ||
@@ -7456,7 +7455,7 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list) {
     #			pointer to field - only for schema table fields
 */
 
-static Field *find_field_in_view(THD *thd, TABLE_LIST *table_list,
+static Field *find_field_in_view(THD *thd, Table_ref *table_list,
                                  const char *name, Item **ref,
                                  bool register_tree_change) {
   DBUG_TRACE;
@@ -7539,10 +7538,10 @@ static Field *find_field_in_view(THD *thd, TABLE_LIST *table_list,
     #           Pointer to the found Field
 */
 
-static Field *find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref,
+static Field *find_field_in_natural_join(THD *thd, Table_ref *table_ref,
                                          const char *name, Item **ref,
                                          bool register_tree_change,
-                                         TABLE_LIST **actual_table) {
+                                         Table_ref **actual_table) {
   List_iterator_fast<Natural_join_column> field_it(*(table_ref->join_columns));
   Natural_join_column *nj_col, *curr_nj_col;
   Field *found_field = nullptr;
@@ -7718,13 +7717,13 @@ Field *find_field_in_table(TABLE *table, const char *name, bool allow_rowid,
   @retval otherwise      pointer to field
 */
 
-Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
+Field *find_field_in_table_ref(THD *thd, Table_ref *table_list,
                                const char *name, size_t length,
                                const char *item_name, const char *db_name,
                                const char *table_name, Item **ref,
                                ulong want_privilege, bool allow_rowid,
                                uint *field_index_ptr, bool register_tree_change,
-                               TABLE_LIST **actual_table) {
+                               Table_ref **actual_table) {
   Field *fld;
   DBUG_TRACE;
   assert(table_list->alias);
@@ -7788,7 +7787,7 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       in the table references used by NATURAL/USING the join.
     */
     if (table_name && table_name[0]) {
-      for (TABLE_LIST *table : table_list->nested_join->join_list) {
+      for (Table_ref *table : table_list->nested_join->join_list) {
         if ((fld = find_field_in_table_ref(
                  thd, table, name, length, item_name, db_name, table_name, ref,
                  want_privilege, allow_rowid, field_index_ptr,
@@ -7903,8 +7902,8 @@ Field *find_field_in_table_sef(TABLE *table, const char *name) {
     found field         If a item was resolved to some field
 */
 
-Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
-                            TABLE_LIST *last_table, Item **ref,
+Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
+                            Table_ref *last_table, Item **ref,
                             find_item_error_report_type report_error,
                             ulong want_privilege, bool register_tree_change) {
   Field *found = nullptr;
@@ -7914,7 +7913,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
   size_t length = strlen(name);
   uint field_index;
   char name_buff[NAME_LEN + 1];
-  TABLE_LIST *actual_table;
+  Table_ref *actual_table;
   bool allow_rowid;
 
   if (!table_name || !table_name[0]) {
@@ -7927,14 +7926,14 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
   if (item->cached_table) {
     /*
       This shortcut is used by prepared statements. We assume that
-      TABLE_LIST *first_table is not changed during query execution (which
+      Table_ref *first_table is not changed during query execution (which
       is true for all queries except RENAME but luckily RENAME doesn't
       use fields...) so we can rely on reusing pointer to its member.
       With this optimization we also miss case when addition of one more
       field makes some prepared query ambiguous and so erroneous, but we
       accept this trade off.
     */
-    TABLE_LIST *table_ref = item->cached_table;
+    Table_ref *table_ref = item->cached_table;
 
     /*
       @todo WL#6570 - is this reasonable???
@@ -8000,7 +7999,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
   else if (last_table)
     last_table = last_table->next_name_resolution_table;
 
-  TABLE_LIST *cur_table;
+  Table_ref *cur_table;
 
   for (cur_table = first_table; cur_table != last_table;
        cur_table = cur_table->next_name_resolution_table) {
@@ -8346,7 +8345,7 @@ static bool test_if_string_in_list(const char *find, List<String> *str_list) {
 */
 
 static bool set_new_item_local_context(THD *thd, Item_ident *item,
-                                       TABLE_LIST *table_ref) {
+                                       Table_ref *table_ref) {
   Name_resolution_context *context;
   if (!(context = new (thd->mem_root) Name_resolution_context))
     return true; /* purecov: inspected */
@@ -8391,8 +8390,8 @@ static bool set_new_item_local_context(THD *thd, Item_ident *item,
     false  OK
 */
 
-static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
-                                TABLE_LIST *table_ref_2,
+static bool mark_common_columns(THD *thd, Table_ref *table_ref_1,
+                                Table_ref *table_ref_2,
                                 List<String> *using_fields,
                                 uint *found_using_fields) {
   Field_iterator_table_ref it_1, it_2;
@@ -8403,10 +8402,10 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
     Leaf table references to which new natural join columns are added
     if the leaves are != NULL.
   */
-  TABLE_LIST *leaf_1 =
+  Table_ref *leaf_1 =
       (table_ref_1->nested_join && !table_ref_1->is_natural_join) ? nullptr
                                                                   : table_ref_1;
-  TABLE_LIST *leaf_2 =
+  Table_ref *leaf_2 =
       (table_ref_2->nested_join && !table_ref_2->is_natural_join) ? nullptr
                                                                   : table_ref_2;
 
@@ -8631,9 +8630,9 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
 */
 
 static bool store_natural_using_join_columns(THD *thd,
-                                             TABLE_LIST *natural_using_join,
-                                             TABLE_LIST *table_ref_1,
-                                             TABLE_LIST *table_ref_2,
+                                             Table_ref *natural_using_join,
+                                             Table_ref *table_ref_1,
+                                             Table_ref *table_ref_2,
                                              List<String> *using_fields,
                                              uint found_using_fields) {
   Field_iterator_table_ref it_1, it_2;
@@ -8722,7 +8721,7 @@ static bool store_natural_using_join_columns(THD *thd,
   DESCRIPTION
     The procedure performs a post-order traversal of a nested join tree
     and materializes the row types of NATURAL/USING joins in a
-    bottom-up manner until it reaches the TABLE_LIST elements that
+    bottom-up manner until it reaches the Table_ref elements that
     represent the top-most NATURAL/USING joins. The procedure should be
     applied to each element of Query_block::top_join_list (i.e. to each
     top-level element of the FROM clause).
@@ -8737,9 +8736,9 @@ static bool store_natural_using_join_columns(THD *thd,
     false  OK
 */
 
-static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
-                                         TABLE_LIST *left_neighbor,
-                                         TABLE_LIST *right_neighbor) {
+static bool store_top_level_join_columns(THD *thd, Table_ref *table_ref,
+                                         Table_ref *left_neighbor,
+                                         Table_ref *right_neighbor) {
   DBUG_TRACE;
 
   assert(!table_ref->nested_join->natural_join_processed);
@@ -8749,13 +8748,13 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
   /* Call the procedure recursively for each nested table reference. */
   if (table_ref->nested_join && !table_ref->nested_join->join_list.empty()) {
     auto nested_it = table_ref->nested_join->join_list.begin();
-    TABLE_LIST *same_level_left_neighbor = *nested_it++;
-    TABLE_LIST *same_level_right_neighbor = nullptr;
+    Table_ref *same_level_left_neighbor = *nested_it++;
+    Table_ref *same_level_right_neighbor = nullptr;
     /* Left/right-most neighbors, possibly at higher levels in the join tree. */
-    TABLE_LIST *real_left_neighbor, *real_right_neighbor;
+    Table_ref *real_left_neighbor, *real_right_neighbor;
 
     while (same_level_left_neighbor) {
-      TABLE_LIST *cur_table_ref = same_level_left_neighbor;
+      Table_ref *cur_table_ref = same_level_left_neighbor;
       same_level_left_neighbor =
           (nested_it == table_ref->nested_join->join_list.end()) ? nullptr
                                                                  : *nested_it++;
@@ -8791,8 +8790,8 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       represents a LEFT or a RIGHT join. In a RIGHT join, the operands are
       in inverted order.
      */
-    TABLE_LIST *table_ref_2 = *operand_it++; /* Second NATURAL join operand.*/
-    TABLE_LIST *table_ref_1 = *operand_it++; /* First NATURAL join operand. */
+    Table_ref *table_ref_2 = *operand_it++; /* Second NATURAL join operand.*/
+    Table_ref *table_ref_1 = *operand_it++; /* First NATURAL join operand. */
     List<String> *using_fields = table_ref->join_using_fields;
     uint found_using_fields;
 
@@ -8819,12 +8818,12 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
 
     /* Change this table reference to become a leaf for name resolution. */
     if (left_neighbor) {
-      TABLE_LIST *last_leaf_on_the_left;
+      Table_ref *last_leaf_on_the_left;
       last_leaf_on_the_left = left_neighbor->last_leaf_for_name_resolution();
       last_leaf_on_the_left->next_name_resolution_table = table_ref;
     }
     if (right_neighbor) {
-      TABLE_LIST *first_leaf_on_the_right;
+      Table_ref *first_leaf_on_the_right;
       first_leaf_on_the_right =
           right_neighbor->first_leaf_for_name_resolution();
       table_ref->next_name_resolution_table = first_leaf_on_the_right;
@@ -8862,7 +8861,7 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     false  OK
 */
 bool setup_natural_join_row_types(THD *thd,
-                                  mem_root_deque<TABLE_LIST *> *from_clause,
+                                  mem_root_deque<Table_ref *> *from_clause,
                                   Name_resolution_context *context) {
   DBUG_TRACE;
   thd->where = "from clause";
@@ -8871,14 +8870,14 @@ bool setup_natural_join_row_types(THD *thd,
 
   auto table_ref_it = from_clause->begin();
   /* Table reference to the left of the current. */
-  TABLE_LIST *left_neighbor = *table_ref_it++;
+  Table_ref *left_neighbor = *table_ref_it++;
   /* Table reference to the right of the current. */
-  TABLE_LIST *right_neighbor = nullptr;
+  Table_ref *right_neighbor = nullptr;
 
   /* Note that tables in the list are in reversed order */
   while (left_neighbor) {
     /* Current table reference. */
-    TABLE_LIST *table_ref = left_neighbor;
+    Table_ref *table_ref = left_neighbor;
     left_neighbor =
         (table_ref_it == from_clause->end()) ? nullptr : *table_ref_it++;
 
@@ -9075,7 +9074,7 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
         my_error(ER_INVALID_ASSIGNMENT_TARGET, MYF(0), str.c_ptr());
         return true;
       }
-      TABLE_LIST *tr = field->table_ref;
+      Table_ref *tr = field->table_ref;
       if ((want_privilege & UPDATE_ACL) && !tr->is_updatable()) {
         /*
           The base table of the column may have beeen referenced through a view
@@ -9155,9 +9154,9 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
 }
 
 /**
-  This is an iterator which emits leaf TABLE_LIST nodes in an order suitable
-  for expansion of 'table_name.*' (qualified asterisk) or '*' (unqualified),
-  fur use by insert_fields().
+  This is an iterator which emits leaf Table_ref nodes in an order
+  suitable for expansion of 'table_name.*' (qualified asterisk) or '*'
+  (unqualified), fur use by insert_fields().
 
   First here is some background.
 
@@ -9172,8 +9171,8 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
   see through it to find T1.* and T2.*), in the second case it is (we have
   to ask it for its column set).
   In the first case, the place to search for tables is thus the
-  TABLE_LIST::next_local list; in the second case it is
-  TABLE_LIST::next_name_resolution_table.
+  Table_ref::next_local list; in the second case it is
+  Table_ref::next_name_resolution_table.
 
   2.
   SELECT * FROM T1 RIGHT JOIN T2 ON < cond >;
@@ -9189,7 +9188,7 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
 
   A. If qualified asterisk, the emission order is irrelevant as the caller
   tests the table's name; and a NATURAL JOIN isn't a leaf. So, we just follow
-  the TABLE_LIST::next_local pointers.
+  the Table_ref::next_local pointers.
 
   B. If non-qualified asterisk, the order must be the left-to-right order
   as it was in the query entered by the user. And a NATURAL JOIN is a leaf. So:
@@ -9222,14 +9221,14 @@ class Tables_in_user_order_iterator {
       return;
     }
     m_next = nullptr;
-    m_vec = new std::vector<TABLE_LIST *>;
+    m_vec = new std::vector<Table_ref *>;
     fill_vec(*m_query_block->join_list);
   }
   ~Tables_in_user_order_iterator() {
     delete m_vec;
     m_vec = nullptr;
   }
-  TABLE_LIST *get_next() {
+  Table_ref *get_next() {
     if (m_vec == nullptr) {
       auto cur = m_next;
       if (cur)
@@ -9244,7 +9243,7 @@ class Tables_in_user_order_iterator {
  private:
   /// Fills the vector
   /// @param tables list of tables and join operators
-  void fill_vec(const mem_root_deque<TABLE_LIST *> &tables) {
+  void fill_vec(const mem_root_deque<Table_ref *> &tables) {
     if (tables.size() != 0 && tables.front()->join_order_swapped) {
       assert(tables.size() == 2 && !tables.back()->join_order_swapped);
       add_table(tables.front());
@@ -9255,7 +9254,7 @@ class Tables_in_user_order_iterator {
     // (e.g. T1 INNER JOIN T2 leads to join_list = (T2,T1)):
     for (auto it = tables.rbegin(); it != tables.rend(); ++it) add_table(*it);
   }
-  void add_table(TABLE_LIST *tr) {
+  void add_table(Table_ref *tr) {
     if (tr->is_leaf_for_name_resolution())  // stop diving here
       return m_vec->push_back(tr);
     if (tr->nested_join != nullptr)  // do dive
@@ -9266,10 +9265,10 @@ class Tables_in_user_order_iterator {
   /// True/false if we want to expand 'table_name.*' / '*'.
   bool m_qualified;
   /// If not using the vector: next table to emit
-  TABLE_LIST *m_next;
+  Table_ref *m_next;
   /// Vector for the complex case. As the complex case is expected to be rare,
   /// we allocate the vector only if needed. nullptr otherwise.
-  std::vector<TABLE_LIST *> *m_vec{nullptr};
+  std::vector<Table_ref *> *m_vec{nullptr};
   /// If using the vector: position in vector, of next table to emit
   uint m_next_vec_pos{0};
 };
@@ -9318,7 +9317,7 @@ bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
 
   bool found = false;
 
-  TABLE_LIST *tables;
+  Table_ref *tables;
 
   Tables_in_user_order_iterator user_it;
   user_it.init(query_block, table_name != nullptr);
@@ -10380,7 +10379,7 @@ bool init_ftfuncs(THD *thd, Query_block *query_block) {
   @return Error status.
 */
 
-bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list) {
+bool open_trans_system_tables_for_read(THD *thd, Table_ref *table_list) {
   uint counter;
   uint flags = MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT;
 
@@ -10401,7 +10400,7 @@ bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list) {
 
   // Check the tables.
 
-  for (TABLE_LIST *t = table_list; t; t = t->next_global) {
+  for (Table_ref *t = table_list; t; t = t->next_global) {
     // Ensure the t are in storage engines, which are compatible with the
     // attachable transaction requirements.
 
@@ -10433,7 +10432,7 @@ bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list) {
 
   // Mark the table columns for use.
 
-  for (TABLE_LIST *tables = table_list; tables; tables = tables->next_global)
+  for (Table_ref *tables = table_list; tables; tables = tables->next_global)
     tables->table->use_all_columns();
 
   return false;
@@ -10489,7 +10488,7 @@ void close_mysql_tables(THD *thd) {
   @param one_table Log table to open
   @param [out] backup Temporary storage used to save the thread context
 */
-TABLE *open_log_table(THD *thd, TABLE_LIST *one_table,
+TABLE *open_log_table(THD *thd, Table_ref *one_table,
                       Open_tables_backup *backup) {
   uint flags = (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
                 MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY | MYSQL_OPEN_IGNORE_FLUSH |

@@ -122,10 +122,10 @@ class Sql_cmd_dml : public Sql_cmd {
     Check that user has some relevant privileges for all tables involved in
     the statement, e.g. SELECT privileges for tables selected from, INSERT
     privileges for tables inserted into, etc. This function will also populate
-    TABLE_LIST::grant with all privileges the user has for each table, which
-    is later used during checking of column privileges.
-    Note that at preparation time, views are not expanded yet. Privilege
-    checking is thus rudimentary and must be complemented with later calls to
+    Table_ref::grant with all privileges the user has for each table,
+    which is later used during checking of column privileges. Note that at
+    preparation time, views are not expanded yet. Privilege checking is thus
+    rudimentary and must be complemented with later calls to
     Query_block::check_view_privileges().
     The reason to call this function at such an early stage is to be able to
     quickly reject statements for which the user obviously has insufficient

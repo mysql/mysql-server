@@ -88,7 +88,7 @@
 #include "sql/sql_base.h"   // close_trans_system_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_time.h"   // localtime_to_TIME
-#include "sql/table.h"      // TABLE_LIST
+#include "sql/table.h"      // Table_ref
 #include "sql_string.h"     // String
 
 #include <algorithm>
@@ -1104,16 +1104,16 @@ class Tz_names_entry {
   SYNOPSIS
     tz_init_table_list()
       tz_tabs         - pointer to preallocated array of MY_TZ_TABLES_COUNT
-                        TABLE_LIST objects
+                        Table_ref objects
 
   DESCRIPTION
-    This function prepares list of TABLE_LIST objects which can be used
+    This function prepares list of Table_ref objects which can be used
     for opening of time zone tables from preallocated array.
 */
 
-static void tz_init_table_list(TABLE_LIST *tz_tabs) {
+static void tz_init_table_list(Table_ref *tz_tabs) {
   for (int i = 0; i < MY_TZ_TABLES_COUNT; i++) {
-    new (&tz_tabs[i]) TABLE_LIST;
+    new (&tz_tabs[i]) Table_ref;
     tz_tabs[i].alias = tz_tabs[i].table_name = tz_tables_names[i].str;
     tz_tabs[i].table_name_length = tz_tables_names[i].length;
     tz_tabs[i].db = tz_tables_db_name.str;
@@ -1184,7 +1184,7 @@ static void init_tz_psi_keys(void) {
 */
 bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
   THD *thd;
-  TABLE_LIST tz_tables[1 + MY_TZ_TABLES_COUNT];
+  Table_ref tz_tables[1 + MY_TZ_TABLES_COUNT];
   TABLE *table;
   Tz_names_entry *tmp_tzname;
   bool return_val = true;
@@ -1252,7 +1252,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
     goto end_with_setting_default_tz;
   }
 
-  for (TABLE_LIST *tl = tz_tables; tl; tl = tl->next_global) {
+  for (Table_ref *tl = tz_tables; tl; tl = tl->next_global) {
     /* Force close at the end of the function to free memory. */
     tl->table->invalidate_dict();
   }
@@ -1385,7 +1385,7 @@ void my_tz_free() {
 */
 
 static Time_zone *tz_load_from_open_tables(const String *tz_name,
-                                           TABLE_LIST *tz_tables) {
+                                           Table_ref *tz_tables) {
   TABLE *table = nullptr;
   TIME_ZONE_INFO *tz_info = nullptr;
   Tz_names_entry *tmp_tzname;
@@ -1834,7 +1834,7 @@ Time_zone *my_tz_find(THD *thd, const String *name) {
     if (it != tz_names.end())
       return it->second->tz;
     else if (time_zone_tables_exist) {
-      TABLE_LIST tz_tables[MY_TZ_TABLES_COUNT];
+      Table_ref tz_tables[MY_TZ_TABLES_COUNT];
 
       tz_init_table_list(tz_tables);
       init_mdl_requests(tz_tables);

@@ -47,7 +47,7 @@
 namespace dynarray_unittest {
 
 // We generate some random data at startup, for testing of sorting.
-void generate_test_data(Key_use *keys, TABLE_LIST *tables, int n) {
+void generate_test_data(Key_use *keys, Table_ref *tables, int n) {
   int ix;
   for (ix = 0; ix < n; ++ix) {
     tables[ix].set_tableno(ix % 3);
@@ -103,7 +103,7 @@ class MemRootTest : public ::testing::Test {
 
  private:
   static Key_use test_data[num_elements];
-  static TABLE_LIST table_list[num_elements];
+  static Table_ref table_list[num_elements];
 
   MemRootTest(MemRootTest const &) = delete;
   MemRootTest &operator=(MemRootTest const &) = delete;
@@ -111,7 +111,7 @@ class MemRootTest : public ::testing::Test {
 
 size_t MemRootTest::destroy_counter;
 Key_use MemRootTest::test_data[num_elements];
-TABLE_LIST MemRootTest::table_list[num_elements];
+Table_ref MemRootTest::table_list[num_elements];
 
 // Test that Mem_root_array re-expanding works.
 TEST_F(MemRootTest, Reserve) {

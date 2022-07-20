@@ -118,7 +118,7 @@ enum enum_used_fields {
     1           one of the fields was not found
 */
 
-static bool init_fields(THD *thd, TABLE_LIST *tables,
+static bool init_fields(THD *thd, Table_ref *tables,
                         struct st_find_field *find_fields, uint count) {
   Name_resolution_context *context = &thd->lex->query_block->context;
   DBUG_TRACE;
@@ -600,14 +600,14 @@ bool mysqld_help(THD *thd, const char *mask) {
   Query_block *const query_block = thd->lex->query_block;
   DBUG_TRACE;
 
-  TABLE_LIST *tables[4];
-  tables[0] = new (thd->mem_root) TABLE_LIST("mysql", "help_topic", TL_READ);
+  Table_ref *tables[4];
+  tables[0] = new (thd->mem_root) Table_ref("mysql", "help_topic", TL_READ);
   if (tables[0] == nullptr) return true;
-  tables[1] = new (thd->mem_root) TABLE_LIST("mysql", "help_category", TL_READ);
+  tables[1] = new (thd->mem_root) Table_ref("mysql", "help_category", TL_READ);
   if (tables[1] == nullptr) return true;
-  tables[2] = new (thd->mem_root) TABLE_LIST("mysql", "help_relation", TL_READ);
+  tables[2] = new (thd->mem_root) Table_ref("mysql", "help_relation", TL_READ);
   if (tables[2] == nullptr) return true;
-  tables[3] = new (thd->mem_root) TABLE_LIST("mysql", "help_keyword", TL_READ);
+  tables[3] = new (thd->mem_root) Table_ref("mysql", "help_keyword", TL_READ);
   if (tables[3] == nullptr) return true;
 
   tables[0]->next_global = tables[0]->next_local =

@@ -120,22 +120,22 @@ bool Rpl_sys_table_access::open(enum thr_lock_type lock_type) {
 
   // m_table_list[0] is m_schema_name.m_table_name
   // m_table_list[1] is m_schema_version_name.m_table_version_name
-  m_table_list = new TABLE_LIST[m_table_list_size];
+  m_table_list = new Table_ref[m_table_list_size];
 
-  TABLE_LIST *table_version = &m_table_list[m_table_version_index];
+  Table_ref *table_version = &m_table_list[m_table_version_index];
   *table_version =
-      TABLE_LIST(m_schema_version_name.c_str(), m_schema_version_name.length(),
-                 m_table_version_name.c_str(), m_table_version_name.length(),
-                 m_table_version_name.c_str(), m_lock_type);
-  table_version->open_strategy = TABLE_LIST::OPEN_IF_EXISTS;
+      Table_ref(m_schema_version_name.c_str(), m_schema_version_name.length(),
+                m_table_version_name.c_str(), m_table_version_name.length(),
+                m_table_version_name.c_str(), m_lock_type);
+  table_version->open_strategy = Table_ref::OPEN_IF_EXISTS;
   table_version->next_local = nullptr;
   table_version->next_global = nullptr;
 
-  TABLE_LIST *table_data = &m_table_list[m_table_data_index];
-  *table_data = TABLE_LIST(m_schema_name.c_str(), m_schema_name.length(),
-                           m_table_name.c_str(), m_table_name.length(),
-                           m_table_name.c_str(), m_lock_type);
-  table_data->open_strategy = TABLE_LIST::OPEN_IF_EXISTS;
+  Table_ref *table_data = &m_table_list[m_table_data_index];
+  *table_data = Table_ref(m_schema_name.c_str(), m_schema_name.length(),
+                          m_table_name.c_str(), m_table_name.length(),
+                          m_table_name.c_str(), m_lock_type);
+  table_data->open_strategy = Table_ref::OPEN_IF_EXISTS;
   table_data->next_local = table_version;
   table_data->next_global = table_version;
 

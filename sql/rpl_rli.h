@@ -1041,20 +1041,20 @@ class Relay_log_info : public Rpl_info {
 
   void close_temporary_tables();
 
-  RPL_TABLE_LIST *tables_to_lock; /* RBR: Tables to lock  */
-  uint tables_to_lock_count;      /* RBR: Count of tables to lock */
-  table_mapping m_table_map;      /* RBR: Mapping table-id to table */
+  RPL_Table_ref *tables_to_lock; /* RBR: Tables to lock  */
+  uint tables_to_lock_count;     /* RBR: Count of tables to lock */
+  table_mapping m_table_map;     /* RBR: Mapping table-id to table */
   /* RBR: Record Rows_query log event */
   Rows_query_log_event *rows_query_ev;
 
   bool get_table_data(TABLE *table_arg, table_def **tabledef_var,
                       TABLE **conv_table_var) const {
     assert(tabledef_var && conv_table_var);
-    for (TABLE_LIST *ptr = tables_to_lock; ptr != nullptr;
+    for (Table_ref *ptr = tables_to_lock; ptr != nullptr;
          ptr = ptr->next_global)
       if (ptr->table == table_arg) {
-        *tabledef_var = &static_cast<RPL_TABLE_LIST *>(ptr)->m_tabledef;
-        *conv_table_var = static_cast<RPL_TABLE_LIST *>(ptr)->m_conv_table;
+        *tabledef_var = &static_cast<RPL_Table_ref *>(ptr)->m_tabledef;
+        *conv_table_var = static_cast<RPL_Table_ref *>(ptr)->m_conv_table;
         DBUG_PRINT("debug", ("Fetching table data for table %s.%s:"
                              " tabledef: %p, conv_table: %p",
                              table_arg->s->db.str, table_arg->s->table_name.str,

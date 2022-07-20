@@ -287,7 +287,7 @@ bool servers_reload(THD *thd) {
   DBUG_PRINT("info", ("locking servers_cache"));
   mysql_rwlock_wrlock(&THR_LOCK_servers);
 
-  TABLE_LIST tables("mysql", "servers", TL_READ);
+  Table_ref tables("mysql", "servers", TL_READ);
   if (open_trans_system_tables_for_read(thd, &tables)) {
     /*
       Execution might have been interrupted; only print the error message
@@ -390,7 +390,7 @@ static bool get_server_from_table_to_cache(TABLE *table) {
 static bool close_cached_connection_tables(THD *thd,
                                            const char *connection_string,
                                            size_t connection_length) {
-  TABLE_LIST tmp, *tables = nullptr;
+  Table_ref tmp, *tables = nullptr;
   bool result = false;
   DBUG_TRACE;
   assert(thd);
@@ -449,7 +449,7 @@ static bool close_cached_connection_tables(THD *thd,
     tmp.table_name = share->table_name.str;
     tmp.next_local = tables;
 
-    tables = new (thd->mem_root) TABLE_LIST(tmp);
+    tables = new (thd->mem_root) Table_ref(tmp);
   }
   mysql_mutex_unlock(&LOCK_open);
 
@@ -644,7 +644,7 @@ bool Sql_cmd_common_server::check_and_open_table(THD *thd) {
       acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
-  TABLE_LIST tables("mysql", "servers", TL_WRITE);
+  Table_ref tables("mysql", "servers", TL_WRITE);
 
   table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT);
   if (table == nullptr) return true;

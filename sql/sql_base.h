@@ -59,7 +59,7 @@ struct MY_BITMAP;
 struct Name_resolution_context;
 struct OPEN_TABLE_LIST;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 struct TABLE_SHARE;
 struct handlerton;
 template <class T>
@@ -110,13 +110,13 @@ void table_def_free(void);
 void table_def_start_shutdown(void);
 void assign_new_table_id(TABLE_SHARE *share);
 uint cached_table_definitions(void);
-size_t get_table_def_key(const TABLE_LIST *table_list, const char **key);
+size_t get_table_def_key(const Table_ref *table_list, const char **key);
 TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
                              const char *key, size_t key_length, bool open_view,
                              bool open_secondary = false);
 void release_table_share(TABLE_SHARE *share);
 
-TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
+TABLE *open_ltable(THD *thd, Table_ref *table_list, thr_lock_type update,
                    uint lock_flags);
 
 /* mysql_lock_tables() and open_table() flags bits */
@@ -181,7 +181,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
    MYSQL_OPEN_IGNORE_KILLED | MYSQL_OPEN_GET_NEW_TABLE |            \
    MYSQL_OPEN_HAS_MDL_LOCK)
 
-bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx);
+bool open_table(THD *thd, Table_ref *table_list, Open_table_context *ot_ctx);
 
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                            const char *table_name,
@@ -190,16 +190,16 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
-                                       TABLE_LIST *table_list,
+                                       Table_ref *table_list,
                                        bool routine_modifies_data);
 
 bool mysql_rm_tmp_tables(void);
 bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
                         const dd::Table *table_def);
-void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
+void close_tables_for_reopen(THD *thd, Table_ref **tables,
                              const MDL_savepoint &start_of_statement_svp);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
-TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
+TABLE *find_temporary_table(THD *thd, const Table_ref *tl);
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(
     THD *thd, COPY_INFO *optype_info, const mem_root_deque<Item *> &fields,
@@ -242,18 +242,18 @@ bool check_record(THD *thd, Field **ptr);
 */
 bool invoke_table_check_constraints(THD *thd, const TABLE *table);
 
-Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
-                            TABLE_LIST *last_table, Item **ref,
+Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
+                            Table_ref *last_table, Item **ref,
                             find_item_error_report_type report_error,
                             ulong want_privilege, bool register_tree_change);
-Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
+Field *find_field_in_table_ref(THD *thd, Table_ref *table_list,
                                const char *name, size_t length,
                                const char *item_name, const char *db_name,
                                const char *table_name, Item **ref,
                                ulong want_privilege, bool allow_rowid,
                                uint *cached_field_index_ptr,
                                bool register_tree_change,
-                               TABLE_LIST **actual_table);
+                               Table_ref **actual_table);
 Field *find_field_in_table(TABLE *table, const char *name, bool allow_rowid,
                            uint *cached_field_index_ptr);
 Field *find_field_in_table_sef(TABLE *table, const char *name);
@@ -262,61 +262,61 @@ Item **find_item_in_list(THD *thd, Item *item, mem_root_deque<Item *> *items,
                          find_item_error_report_type report_error,
                          enum_resolution_type *resolution);
 bool setup_natural_join_row_types(THD *thd,
-                                  mem_root_deque<TABLE_LIST *> *from_clause,
+                                  mem_root_deque<Table_ref *> *from_clause,
                                   Name_resolution_context *context);
 bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);
 
-void update_non_unique_table_error(TABLE_LIST *update, const char *operation,
-                                   TABLE_LIST *duplicate);
+void update_non_unique_table_error(Table_ref *update, const char *operation,
+                                   Table_ref *duplicate);
 int setup_ftfuncs(const THD *thd, Query_block *select);
 bool init_ftfuncs(THD *thd, Query_block *select);
 int run_before_dml_hook(THD *thd);
-bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
-                                   TABLE_LIST *tables_end,
+bool get_and_lock_tablespace_names(THD *thd, Table_ref *tables_start,
+                                   Table_ref *tables_end,
                                    ulong lock_wait_timeout, uint flags);
 bool lock_table_names(
-    THD *thd, TABLE_LIST *table_list, TABLE_LIST *table_list_end,
+    THD *thd, Table_ref *table_list, Table_ref *table_list_end,
     ulong lock_wait_timeout, uint flags,
     Prealloced_array<MDL_request *, 1> *schema_reqs = nullptr);
-bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
+bool open_tables(THD *thd, Table_ref **tables, uint *counter, uint flags,
                  Prelocking_strategy *prelocking_strategy);
 /* open_and_lock_tables */
-bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
+bool open_and_lock_tables(THD *thd, Table_ref *tables, uint flags,
                           Prelocking_strategy *prelocking_strategy);
 /* simple open_and_lock_tables for single table */
-TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
+TABLE *open_n_lock_single_table(THD *thd, Table_ref *table_l,
                                 thr_lock_type lock_type, uint flags,
                                 Prelocking_strategy *prelocking_strategy);
-bool open_tables_for_query(THD *thd, TABLE_LIST *tables, uint flags);
-bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
-bool lock_dictionary_tables(THD *thd, TABLE_LIST *tables, uint count,
+bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags);
+bool lock_tables(THD *thd, Table_ref *tables, uint counter, uint flags);
+bool lock_dictionary_tables(THD *thd, Table_ref *tables, uint count,
                             uint flags);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
-TABLE_LIST *unique_table(const TABLE_LIST *table, TABLE_LIST *table_list,
-                         bool check_alias);
-void drop_temporary_table(THD *thd, TABLE_LIST *table_list);
+Table_ref *unique_table(const Table_ref *table, Table_ref *table_list,
+                        bool check_alias);
+void drop_temporary_table(THD *thd, Table_ref *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
 void close_temporary(THD *thd, TABLE *table, bool free_share,
                      bool delete_table);
 bool rename_temporary_table(THD *thd, TABLE *table, const char *new_db,
                             const char *table_name);
-bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list);
-bool open_temporary_table(THD *thd, TABLE_LIST *tl);
+bool open_temporary_tables(THD *thd, Table_ref *tl_list);
+bool open_temporary_table(THD *thd, Table_ref *tl);
 
 /* Functions to work with system tables. */
-bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list);
+bool open_trans_system_tables_for_read(THD *thd, Table_ref *table_list);
 void close_trans_system_tables(THD *thd);
 void close_mysql_tables(THD *thd);
-TABLE *open_log_table(THD *thd, TABLE_LIST *one_table,
+TABLE *open_log_table(THD *thd, Table_ref *one_table,
                       Open_tables_backup *backup);
 void close_log_table(THD *thd, Open_tables_backup *backup);
 
-bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool wait_for_refresh,
+bool close_cached_tables(THD *thd, Table_ref *tables, bool wait_for_refresh,
                          ulong timeout);
 
 /**
@@ -378,8 +378,8 @@ extern malloc_unordered_map<std::string,
                             std::unique_ptr<TABLE_SHARE, Table_share_deleter>>
     *table_def_cache;
 
-TABLE_LIST *find_table_in_global_list(TABLE_LIST *table, const char *db_name,
-                                      const char *table_name);
+Table_ref *find_table_in_global_list(Table_ref *table, const char *db_name,
+                                     const char *table_name);
 
 /**
   An abstract class for a strategy specifying how the prelocking
@@ -395,9 +395,9 @@ class Prelocking_strategy {
                               Sroutine_hash_entry *rt, sp_head *sp,
                               bool *need_prelocking) = 0;
   virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking) = 0;
+                            Table_ref *table_list, bool *need_prelocking) = 0;
   virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking) = 0;
+                           Table_ref *table_list, bool *need_prelocking) = 0;
 };
 
 /**
@@ -414,9 +414,9 @@ class DML_prelocking_strategy : public Prelocking_strategy {
                       Sroutine_hash_entry *rt, sp_head *sp,
                       bool *need_prelocking) override;
   bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                    TABLE_LIST *table_list, bool *need_prelocking) override;
+                    Table_ref *table_list, bool *need_prelocking) override;
   bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                   TABLE_LIST *table_list, bool *need_prelocking) override;
+                   Table_ref *table_list, bool *need_prelocking) override;
 };
 
 /**
@@ -426,7 +426,7 @@ class DML_prelocking_strategy : public Prelocking_strategy {
 
 class Lock_tables_prelocking_strategy : public DML_prelocking_strategy {
   bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                    TABLE_LIST *table_list, bool *need_prelocking) override;
+                    Table_ref *table_list, bool *need_prelocking) override;
 };
 
 /**
@@ -443,19 +443,19 @@ class Alter_table_prelocking_strategy : public Prelocking_strategy {
                       Sroutine_hash_entry *rt, sp_head *sp,
                       bool *need_prelocking) override;
   bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                    TABLE_LIST *table_list, bool *need_prelocking) override;
+                    Table_ref *table_list, bool *need_prelocking) override;
   bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                   TABLE_LIST *table_list, bool *need_prelocking) override;
+                   Table_ref *table_list, bool *need_prelocking) override;
 };
 
-inline bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter,
+inline bool open_tables(THD *thd, Table_ref **tables, uint *counter,
                         uint flags) {
   DML_prelocking_strategy prelocking_strategy;
 
   return open_tables(thd, tables, counter, flags, &prelocking_strategy);
 }
 
-inline TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
+inline TABLE *open_n_lock_single_table(THD *thd, Table_ref *table_l,
                                        thr_lock_type lock_type, uint flags) {
   DML_prelocking_strategy prelocking_strategy;
 
@@ -464,7 +464,7 @@ inline TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
 }
 
 // open_and_lock_tables with default prelocking strategy
-inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags) {
+inline bool open_and_lock_tables(THD *thd, Table_ref *tables, uint flags) {
   DML_prelocking_strategy prelocking_strategy;
 
   return open_and_lock_tables(thd, tables, flags, &prelocking_strategy);
@@ -506,7 +506,7 @@ class Open_table_context {
 
   bool recover_from_failed_open();
   bool request_backoff_action(enum_open_table_action action_arg,
-                              TABLE_LIST *table);
+                              Table_ref *table);
 
   bool can_recover_from_failed_open() const { return m_action != OT_NO_ACTION; }
 
@@ -544,7 +544,7 @@ class Open_table_context {
     element for the table which definition should be re-discovered/updated
     or which should be repaired.
   */
-  TABLE_LIST *m_failed_table;
+  Table_ref *m_failed_table;
   MDL_savepoint m_start_of_statement_svp;
   /**
     Lock timeout in seconds. Initialized to LONG_TIMEOUT when opening system
@@ -569,15 +569,15 @@ class Open_table_context {
 };
 
 /**
-  Check if given TABLE_LIST is a acl table and is being read and not
+  Check if given Table_ref is a acl table and is being read and not
   in LOCK TABLE mode.
 
-    @param tl   TABLE_LIST pointing to the table.
+    @param tl   Table_ref pointing to the table.
     @param ltm  THD->locked_tables_mode enum.
 
     @return true if acl table is being read, otherwise false.
 */
-bool is_acl_table_in_non_LTM(const TABLE_LIST *tl,
+bool is_acl_table_in_non_LTM(const Table_ref *tl,
                              enum enum_locked_tables_mode ltm);
 
 #endif /* SQL_BASE_INCLUDED */

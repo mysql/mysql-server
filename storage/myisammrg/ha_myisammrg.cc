@@ -38,20 +38,19 @@
   A MERGE table is almost always opened through open_and_lock_tables()
   and hence through open_tables(). When the parent appears in the list
   of tables to open, the initial open of the handler does nothing but
-  read the meta file and collect a list of TABLE_LIST objects for the
+  read the meta file and collect a list of Table_ref objects for the
   children. This list is attached to the handler object as
   ha_myisammrg::children_l. The end of the children list is saved in
   ha_myisammrg::children_last_l.
 
   Back in open_tables(), handler::extra(HA_EXTRA_ADD_CHILDREN_LIST) is
   called. It updates each list member with the lock type and a back
-  pointer to the parent TABLE_LIST object TABLE_LIST::parent_l. The list
-  is then inserted in the list of tables to open, right behind the
-  parent. Consequently, open_tables() opens the children, one after the
-  other. The TABLE references of the TABLE_LIST objects are implicitly
-  set to the open tables by open_table(). The children are opened as
-  independent MyISAM tables, right as if they are used by the SQL
-  statement.
+  pointer to the parent Table_ref object Table_ref::parent_l. The
+  list is then inserted in the list of tables to open, right behind the parent.
+  Consequently, open_tables() opens the children, one after the other. The TABLE
+  references of the Table_ref objects are implicitly set to the open
+  tables by open_table(). The children are opened as independent MyISAM tables,
+  right as if they are used by the SQL statement.
 
   When all tables from the statement query list are open,
   handler::extra(HA_EXTRA_ATTACH_CHILDREN) is called. It "attaches" the
@@ -168,27 +167,27 @@ namespace {
     @retval     0               OK
     @retval     != 0            Error
 
-    This function adds a TABLE_LIST object for a MERGE child table to a
+    This function adds a Table_ref object for a MERGE child table to a
     list of tables in the parent handler object. It is called for each
     child table.
 
-    The list of child TABLE_LIST objects is kept in the handler object
+    The list of child Table_ref objects is kept in the handler object
     of the parent for the whole life time of the MERGE table. It is
     inserted in the statement query list behind the MERGE parent
-    TABLE_LIST object when the MERGE table is opened. It is removed from
+    Table_ref object when the MERGE table is opened. It is removed from
     the statement query list at end of statement or at children detach.
 
-    All memory used for the child TABLE_LIST objects and the strings
+    All memory used for the child Table_ref objects and the strings
     referred by it are taken from the parent
     ha_myisammrg::children_mem_root. Thus they are all freed implicitly at
     the final close of the table.
 
-    children_l -> TABLE_LIST::next_global -> TABLE_LIST::next_global
+    children_l -> Table_ref::next_global -> Table_ref::next_global
     #             #               ^          #               ^
     #             #               |          #               |
-    #             #               +--------- TABLE_LIST::prev_global
+    #             #               +--------- Table_ref::prev_global
     #             #                                          |
-    #       |<--- TABLE_LIST::prev_global                    |
+    #       |<--- Table_ref::prev_global                    |
     #                                                        |
     children_last_l -----------------------------------------+
 */
@@ -296,7 +295,7 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
 
   @details
   This function initializes the MERGE storage engine structures
-  and adds a child list of TABLE_LIST to the parent handler.
+  and adds a child list of Table_ref to the parent handler.
 */
 
 int ha_myisammrg::open(const char *name, int mode [[maybe_unused]],
@@ -366,7 +365,7 @@ int ha_myisammrg::open(const char *name, int mode [[maybe_unused]],
 }
 
 /**
-  Add list of MERGE children to a TABLE_LIST chain.
+  Add list of MERGE children to a Table_ref chain.
 
   @return status
     @retval     0               OK
@@ -374,13 +373,13 @@ int ha_myisammrg::open(const char *name, int mode [[maybe_unused]],
 
   @details
     When a MERGE parent table has just been opened, insert the
-    TABLE_LIST chain from the MERGE handler into the table list used for
+    Table_ref chain from the MERGE handler into the table list used for
     opening tables for this statement. This lets the children be opened
     too.
 */
 
 int ha_myisammrg::add_children_list(void) {
-  TABLE_LIST *parent_l = this->table->pos_in_table_list;
+  Table_ref *parent_l = this->table->pos_in_table_list;
   THD *thd = table->in_use;
   List_iterator_fast<Mrg_child_def> it(child_def_list);
   Mrg_child_def *mrg_child_def;
@@ -413,7 +412,7 @@ int ha_myisammrg::add_children_list(void) {
   }
 
   while ((mrg_child_def = it++)) {
-    TABLE_LIST *child_l;
+    Table_ref *child_l;
     char *db;
     char *table_name;
 
@@ -424,7 +423,7 @@ int ha_myisammrg::add_children_list(void) {
 
     if (db == nullptr || table_name == nullptr) return 1;
 
-    child_l = new (thd->mem_root) TABLE_LIST(
+    child_l = new (thd->mem_root) Table_ref(
         db, mrg_child_def->db.length, table_name, mrg_child_def->name.length,
         table_name, parent_l->lock_descriptor().type);
 
@@ -471,7 +470,7 @@ int ha_myisammrg::add_children_list(void) {
     if (!thd->locked_tables_mode &&
         parent_l->mdl_request.type == MDL_SHARED_UPGRADABLE)
       child_l->mdl_request.set_type(MDL_SHARED_NO_WRITE);
-    /* Link TABLE_LIST object into the children list. */
+    /* Link Table_ref object into the children list. */
     if (this->children_last_l)
       child_l->prev_global = this->children_last_l;
     else {
@@ -523,16 +522,16 @@ class Mrg_attach_children_callback_param {
     if a child fails the table def version check.
   */
   bool need_compat_check;
-  /** TABLE_LIST identifying this merge parent. */
-  TABLE_LIST *parent_l;
+  /** Table_ref identifying this merge parent. */
+  Table_ref *parent_l;
   /** Iterator position, the current child to attach. */
-  TABLE_LIST *next_child_attach;
+  Table_ref *next_child_attach;
   List_iterator_fast<Mrg_child_def> def_it;
   Mrg_child_def *mrg_child_def;
 
  public:
-  Mrg_attach_children_callback_param(TABLE_LIST *parent_l_arg,
-                                     TABLE_LIST *first_child,
+  Mrg_attach_children_callback_param(Table_ref *parent_l_arg,
+                                     Table_ref *first_child,
                                      List<Mrg_child_def> &child_def_list)
       : need_compat_check(false),
         parent_l(parent_l_arg),
@@ -569,7 +568,7 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param) {
       (Mrg_attach_children_callback_param *)callback_param;
   TABLE *parent = param->parent_l->table;
   TABLE *child;
-  TABLE_LIST *child_l = param->next_child_attach;
+  Table_ref *child_l = param->next_child_attach;
   Mrg_child_def *mrg_child_def = param->mrg_child_def;
   MI_INFO *myisam = nullptr;
   DBUG_TRACE;
@@ -724,7 +723,7 @@ int ha_myisammrg::attach_children(void) {
   MI_KEYDEF *keyinfo;
   uint recs;
   uint keys = table->s->keys;
-  TABLE_LIST *parent_l = table->pos_in_table_list;
+  Table_ref *parent_l = table->pos_in_table_list;
   int error;
   Mrg_attach_children_callback_param param(parent_l, this->children_l,
                                            child_def_list);
@@ -776,7 +775,7 @@ int ha_myisammrg::attach_children(void) {
   */
   DBUG_PRINT("myrg", ("need_compat_check: %d", param.need_compat_check));
   if (param.need_compat_check) {
-    TABLE_LIST *child_l;
+    Table_ref *child_l;
 
     if (table->s->reclength != stats.mean_rec_length && stats.mean_rec_length) {
       DBUG_PRINT("error", ("reclength: %lu  mean_rec_length: %lu",
@@ -857,7 +856,7 @@ err:
 */
 
 int ha_myisammrg::detach_children(void) {
-  TABLE_LIST *child_l;
+  Table_ref *child_l;
   DBUG_TRACE;
 
   /* Must call this with open table. */
@@ -1258,7 +1257,7 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info) {
   DBUG_TRACE;
 
   if (!(create_info->used_fields & HA_CREATE_USED_UNION)) {
-    TABLE_LIST *child_table;
+    Table_ref *child_table;
     THD *thd = current_thd;
 
     create_info->merge_list.next = &create_info->merge_list.first;
@@ -1266,10 +1265,9 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info) {
 
     if (children_l != nullptr) {
       for (child_table = children_l;; child_table = child_table->next_global) {
-        TABLE_LIST *ptr;
+        Table_ref *ptr;
 
-        if (!(ptr = (TABLE_LIST *)thd->mem_calloc(sizeof(TABLE_LIST))))
-          goto err;
+        if (!(ptr = (Table_ref *)thd->mem_calloc(sizeof(Table_ref)))) goto err;
 
         if (!(ptr->table_name = thd->strmake(child_table->table_name,
                                              child_table->table_name_length)))
@@ -1301,7 +1299,7 @@ int ha_myisammrg::create(const char *name, TABLE *, HA_CREATE_INFO *create_info,
                          dd::Table *) {
   char buff[FN_REFLEN];
   const char **table_names, **pos;
-  TABLE_LIST *tables = create_info->merge_list.first;
+  Table_ref *tables = create_info->merge_list.first;
   THD *thd = current_thd;
   size_t dirlgt = dirname_length(name);
   DBUG_TRACE;
@@ -1360,7 +1358,7 @@ void ha_myisammrg::append_create_info(String *packet) {
   const char *current_db;
   size_t db_length;
   const THD *thd = current_thd;
-  TABLE_LIST *open_table, *first;
+  Table_ref *open_table, *first;
 
   if (file->merge_insert_method != MERGE_INSERT_DISABLED) {
     packet->append(STRING_WITH_LEN(" INSERT_METHOD="));

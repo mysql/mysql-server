@@ -30,13 +30,13 @@
 class JOIN;
 class Select_lex_visitor;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 template <typename T>
 class SQL_I_List;
 
 class Sql_cmd_delete final : public Sql_cmd_dml {
  public:
-  Sql_cmd_delete(bool multitable_arg, SQL_I_List<TABLE_LIST> *delete_tables_arg)
+  Sql_cmd_delete(bool multitable_arg, SQL_I_List<Table_ref> *delete_tables_arg)
       : multitable(multitable_arg), delete_tables(delete_tables_arg) {}
 
   enum_sql_command sql_command_code() const override {
@@ -62,9 +62,9 @@ class Sql_cmd_delete final : public Sql_cmd_dml {
   /**
     References to tables that are deleted from in a multitable delete statement.
     Only used to track such tables from the parser. In preparation and
-    optimization, use the TABLE_LIST::updating property instead.
+    optimization, use the Table_ref::updating property instead.
   */
-  SQL_I_List<TABLE_LIST> *delete_tables;
+  SQL_I_List<Table_ref> *delete_tables;
 };
 
 /// Find out which of the delete target tables can be deleted from immediately

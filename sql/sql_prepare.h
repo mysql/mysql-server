@@ -46,7 +46,7 @@ class Query_result_send;
 class String;
 struct LEX;
 struct PS_PARAM;
-struct TABLE_LIST;
+class Table_ref;
 union COM_DATA;
 
 /**

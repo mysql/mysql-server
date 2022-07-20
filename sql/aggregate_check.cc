@@ -394,7 +394,7 @@ bool Group_check::is_fd_on_source(Item *item) {
         @todo make table_ref non-NULL for gcols, then use it for 'tl'.
         Do the same in Item_field::used_tables_for_level().
       */
-      TABLE_LIST *const tl = item_field->field->table->pos_in_table_list;
+      Table_ref *const tl = item_field->field->table->pos_in_table_list;
 
       if (tested_map_for_keys & tl->map()) continue;
       tested_map_for_keys |= tl->map();
@@ -534,7 +534,7 @@ void Group_check::add_to_fd(Item *item, bool local_column,
   item = item->real_item();  // for merged view containing mat table
   if (item->type() == Item::FIELD_ITEM) {
     Item_field *const item_field = (Item_field *)item;
-    TABLE_LIST *const tl = item_field->field->table->pos_in_table_list;
+    Table_ref *const tl = item_field->field->table->pos_in_table_list;
     if (tl->uses_materialization() &&  // materialized table
         !tl->is_table_function())      // there's no underlying query expr
       add_to_source_of_mat_table(item_field, tl);
@@ -610,7 +610,7 @@ Item *Group_check::select_expression(uint idx) {
    @param  tl          mat table
 */
 void Group_check::add_to_source_of_mat_table(Item_field *item_field,
-                                             TABLE_LIST *tl) {
+                                             Table_ref *tl) {
   Query_expression *const mat_query_expression = tl->derived_query_expression();
   // Query expression underlying 'tl':
   Query_block *const mat_query_block =
@@ -763,7 +763,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       todo When we eliminate all uses of cached_table, we can probably add a
       derived_table_ref field to Item_view_ref objects and use it here.
     */
-    TABLE_LIST *const tl = item->cached_table;
+    Table_ref *const tl = item->cached_table;
     assert(tl->is_view_or_derived());
     /*
       We might find expression-based FDs in the result of the view's query
@@ -796,7 +796,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       @todo make table_ref non-NULL for gcols, then use it for 'tl'.
       Do the same in Item_field::used_tables_for_level().
     */
-    TABLE_LIST *const tl = item_field->field->table->pos_in_table_list;
+    Table_ref *const tl = item_field->field->table->pos_in_table_list;
     if (item_field->field->is_gcol())  // Generated column
     {
       assert(!tl->uses_materialization());
@@ -1101,8 +1101,8 @@ void Group_check::find_fd_in_cond(Item *cond, table_map weak_tables,
    @param  join_list  members of the join nest
 */
 void Group_check::find_fd_in_joined_table(
-    mem_root_deque<TABLE_LIST *> *join_list) {
-  for (const TABLE_LIST *table : *join_list) {
+    mem_root_deque<Table_ref *> *join_list) {
+  for (const Table_ref *table : *join_list) {
     if (table->is_sj_or_aj_nest()) {
       /*
         We can ignore this nest as:

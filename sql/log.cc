@@ -874,9 +874,9 @@ bool Log_to_csv_event_handler::log_general(
   ulonglong save_thd_options = thd->variables.option_bits;
   thd->variables.option_bits &= ~OPTION_BIN_LOG;
 
-  TABLE_LIST table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
-                        GENERAL_LOG_NAME.str, GENERAL_LOG_NAME.length,
-                        GENERAL_LOG_NAME.str, TL_WRITE_CONCURRENT_INSERT);
+  Table_ref table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                       GENERAL_LOG_NAME.str, GENERAL_LOG_NAME.length,
+                       GENERAL_LOG_NAME.str, TL_WRITE_CONCURRENT_INSERT);
 
   /*
     1) open_log_table generates an error if the
@@ -999,9 +999,9 @@ bool Log_to_csv_event_handler::log_slow(
   */
   bool save_time_zone_used = thd->time_zone_used;
 
-  TABLE_LIST table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
-                        SLOW_LOG_NAME.str, SLOW_LOG_NAME.length,
-                        SLOW_LOG_NAME.str, TL_WRITE_CONCURRENT_INSERT);
+  Table_ref table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                       SLOW_LOG_NAME.str, SLOW_LOG_NAME.length,
+                       SLOW_LOG_NAME.str, TL_WRITE_CONCURRENT_INSERT);
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
@@ -1171,9 +1171,9 @@ bool Log_to_csv_event_handler::activate_log(
       assert(false);
   }
 
-  TABLE_LIST table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
-                        log_name, log_name_length, log_name,
-                        TL_WRITE_CONCURRENT_INSERT);
+  Table_ref table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                       log_name, log_name_length, log_name,
+                       TL_WRITE_CONCURRENT_INSERT);
 
   Open_tables_backup open_tables_backup;
   if (open_log_table(thd, &table_list, &open_tables_backup) != nullptr) {
@@ -1545,7 +1545,7 @@ bool Query_logger::reopen_log_file(enum_log_table_type log_type) {
 }
 
 enum_log_table_type Query_logger::check_if_log_table(
-    TABLE_LIST *table_list, bool check_if_opened) const {
+    Table_ref *table_list, bool check_if_opened) const {
   if (table_list->db_length == MYSQL_SCHEMA_NAME.length &&
       !my_strcasecmp(system_charset_info, table_list->db,
                      MYSQL_SCHEMA_NAME.str)) {

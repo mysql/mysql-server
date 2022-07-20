@@ -904,7 +904,7 @@ int ZeroRowsAggregatedIterator::Read() {
   }
 
   // Mark tables as containing only NULL values
-  for (TABLE_LIST *table = m_join->query_block->leaf_tables; table;
+  for (Table_ref *table = m_join->query_block->leaf_tables; table;
        table = table->next_leaf) {
     table->table->set_null_row();
   }

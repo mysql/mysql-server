@@ -141,8 +141,8 @@ void *handler_open_table(
 
   lock_mode = (lock_type <= HDL_READ) ? TL_READ : TL_WRITE;
 
-  TABLE_LIST tables(db_name, strlen(db_name), table_name, strlen(table_name),
-                    table_name, lock_mode);
+  Table_ref tables(db_name, strlen(db_name), table_name, strlen(table_name),
+                   table_name, lock_mode);
 
   /* For flush, we need to request exclusive mdl lock. */
   if (lock_type == HDL_FLUSH) {

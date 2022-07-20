@@ -50,7 +50,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_servers.h"
 #include "sql/strfunc.h"  // casedn
-#include "sql/table.h"    // TABLE_LIST
+#include "sql/table.h"    // Table_ref
 #include "thr_lock.h"
 
 namespace dd {
@@ -130,13 +130,13 @@ bool Import_target::load(THD *thd, String_type *shared_buffer) {
   return false;
 }
 
-TABLE_LIST Import_target::make_table_list() const {
-  return TABLE_LIST(can_schema_name()->c_str(),  // schema_name, with case
-                    can_schema_name()->length(),
-                    can_table_name()->c_str(),  // table_name, with case
-                    can_table_name()->length(),
-                    m_table_object->name().c_str(),  // alias, lower_cased
-                    TL_IGNORE);
+Table_ref Import_target::make_table_ref() const {
+  return Table_ref(can_schema_name()->c_str(),  // schema_name, with case
+                   can_schema_name()->length(),
+                   can_table_name()->c_str(),  // table_name, with case
+                   can_table_name()->length(),
+                   m_table_object->name().c_str(),  // alias, lower_cased
+                   TL_IGNORE);
 }
 
 bool Import_target::store_in_dd(THD *thd) const {
@@ -175,7 +175,7 @@ bool Import_target::store_in_dd(THD *thd) const {
     return true;
   }
 
-  TABLE_LIST tl = make_table_list();
+  Table_ref tl = make_table_ref();
 
   //   tl.init_one_table(schema->name().c_str(),
   //                     schema->name().length(),
@@ -189,7 +189,7 @@ bool Import_target::store_in_dd(THD *thd) const {
     return true;
   }
 
-  TABLE_LIST *tlp = &tl;
+  Table_ref *tlp = &tl;
   uint dummy = 0;
   // Downgrade all errors from open to warnings as we don't want to
   // fail import here, but rather give the user a chance to repair the
@@ -215,7 +215,7 @@ bool check_privileges(THD *thd, const Import_target &t) {
   // const char *schema_name= t.can_schema_name()->c_str();
   // size_t schema_len= t.can_schema_name()->length();
 
-  TABLE_LIST tl = t.make_table_list();
+  Table_ref tl = t.make_table_ref();
 
   //   tl.init_one_table(schema_name, schema_len, table_name, table_len,
   //                     table_name, TL_IGNORE);

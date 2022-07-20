@@ -39,7 +39,7 @@
 */
 
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 class Field;
 
 namespace rules_table_service {
@@ -165,7 +165,7 @@ class Cursor {
   int m_normalized_pattern_column;
 
   THD *m_thd;
-  TABLE_LIST *m_table_list;
+  Table_ref *m_table_list;
 
   bool m_is_finished;
   bool m_table_is_malformed;

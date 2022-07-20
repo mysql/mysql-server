@@ -134,7 +134,7 @@ TEST_F(TableFactorSyntaxTest, Union) {
   EXPECT_EQ(block, top_union->first_query_block());
   EXPECT_EQ(nullptr, block->next_query_block());
 
-  TABLE_LIST *dt = block->table_list.first;
+  Table_ref *dt = block->table_list.first;
   EXPECT_EQ(dt, block->context.first_name_resolution_table);
 
   Item_func *top_where_cond = down_cast<Item_func *>(block->where_cond());
@@ -150,8 +150,8 @@ TEST_F(TableFactorSyntaxTest, Union) {
   Query_block *first_inner_block = inner_union->first_query_block();
   Query_block *second_inner_block = first_inner_block->next_query_block();
 
-  TABLE_LIST *t1 = first_inner_block->table_list.first;
-  TABLE_LIST *t2 = second_inner_block->table_list.first;
+  Table_ref *t1 = first_inner_block->table_list.first;
+  Table_ref *t2 = second_inner_block->table_list.first;
 
   EXPECT_EQ(t1, first_inner_block->context.first_name_resolution_table);
   EXPECT_EQ(t2, second_inner_block->context.first_name_resolution_table);
@@ -202,11 +202,11 @@ TEST_F(TableFactorSyntaxTest, NestedTableReferenceList) {
   EXPECT_STREQ("(nest_last_join)", term1->join_list->front()->alias);
   EXPECT_STREQ("(nest_last_join)", term2->join_list->front()->alias);
 
-  TABLE_LIST *t2_join_t3_join_t4 = term1->join_list->front();
-  TABLE_LIST *t2_join_t3_join_t4_2 = term2->join_list->front();
+  Table_ref *t2_join_t3_join_t4 = term1->join_list->front();
+  Table_ref *t2_join_t3_join_t4_2 = term2->join_list->front();
 
-  TABLE_LIST *t3_join_t4 = t2_join_t3_join_t4->nested_join->join_list.front();
-  TABLE_LIST *t3_join_t4_2 =
+  Table_ref *t3_join_t4 = t2_join_t3_join_t4->nested_join->join_list.front();
+  Table_ref *t3_join_t4_2 =
       t2_join_t3_join_t4_2->nested_join->join_list.front();
 
   EXPECT_STREQ("(nest_last_join)", t3_join_t4->alias);

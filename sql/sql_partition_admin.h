@@ -28,7 +28,7 @@
 #include "sql/sql_alter.h"  // Sql_cmd_common_alter_table
 
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 /**
   Class that represents the ALTER TABLE t1 EXCHANGE PARTITION p
@@ -42,7 +42,7 @@ class Sql_cmd_alter_table_exchange_partition
   bool execute(THD *thd) override;
 
  private:
-  bool exchange_partition(THD *thd, TABLE_LIST *, Alter_info *);
+  bool exchange_partition(THD *thd, Table_ref *, Alter_info *);
 };
 
 /**

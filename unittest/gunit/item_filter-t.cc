@@ -205,7 +205,7 @@ class ItemFilterTest : public ::testing::Test {
   MEM_ROOT m_alloc;
 
   Fake_TABLE *m_table;
-  TABLE_LIST *m_table_list;
+  Table_ref *m_table_list;
   /*
     Pointer to m_table->field. Only valid if the table was
     created by calling one of ItemFilterTest::create_table*()

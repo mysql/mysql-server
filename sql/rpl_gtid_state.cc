@@ -48,7 +48,7 @@
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
 
-struct TABLE_LIST;
+class Table_ref;
 
 PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
@@ -757,7 +757,7 @@ int Gtid_state::compress(THD *thd) {
   return gtid_table_persistor->compress(thd);
 }
 
-int Gtid_state::warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table) {
+int Gtid_state::warn_or_err_on_modify_gtid_table(THD *thd, Table_ref *table) {
   DBUG_TRACE;
   int ret =
       gtid_table_persistor->warn_or_err_on_explicit_modification(thd, table);

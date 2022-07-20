@@ -134,7 +134,7 @@ bool Sql_cmd_update::precheck(THD *thd) {
       Ensure that we have UPDATE or SELECT privilege for each table
       The exact privilege is checked in mysql_multi_update()
     */
-    for (TABLE_LIST *tr = lex->query_tables; tr; tr = tr->next_global) {
+    for (Table_ref *tr = lex->query_tables; tr; tr = tr->next_global) {
       /*
         "uses_materialization()" covers the case where a prepared statement is
         executed and a view is decided to be materialized during preparation.
@@ -376,8 +376,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   Query_block *const query_block = lex->query_block;
   Query_expression *const unit = lex->unit;
-  TABLE_LIST *const table_list = query_block->get_table_list();
-  TABLE_LIST *const update_table_ref = table_list->updatable_base_table();
+  Table_ref *const table_list = query_block->get_table_list();
+  Table_ref *const update_table_ref = table_list->updatable_base_table();
   TABLE *const table = update_table_ref->table;
 
   assert(table->pos_in_table_list == update_table_ref);
@@ -1248,8 +1248,8 @@ static TABLE *GetOutermostTable(const JOIN *join) {
     true   if the update is unsafe, in which case an error message is also set,
     false  otherwise.
 */
-static bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update) {
-  TABLE_LIST *tl = leaves;
+static bool unsafe_key_update(Table_ref *leaves, table_map tables_for_update) {
+  Table_ref *tl = leaves;
 
   for (tl = leaves; tl; tl = tl->next_leaf) {
     if (tl->map() & tables_for_update) {
@@ -1261,7 +1261,7 @@ static bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update) {
 
       if (!table_partitioned && !primkey_clustered) continue;
 
-      for (TABLE_LIST *tl2 = tl->next_leaf; tl2; tl2 = tl2->next_leaf) {
+      for (Table_ref *tl2 = tl->next_leaf; tl2; tl2 = tl2->next_leaf) {
         /*
           Look at "next" tables only since all previous tables have
           already been checked
@@ -1432,7 +1432,7 @@ static bool prepare_partial_update(Opt_trace_context *trace,
  */
 bool should_switch_to_multi_table_if_subqueries(const THD *thd,
                                                 const Query_block *select,
-                                                const TABLE_LIST *table_list) {
+                                                const Table_ref *table_list) {
   TABLE *t = table_list->updatable_base_table()->table;
   handler *h = t->file;
   // Secondary engine is never the target of updates here (updates are done
@@ -1467,9 +1467,9 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   DBUG_TRACE;
 
   Query_block *const select = lex->query_block;
-  TABLE_LIST *const table_list = select->get_table_list();
+  Table_ref *const table_list = select->get_table_list();
 
-  TABLE_LIST *single_table_updated = nullptr;
+  Table_ref *single_table_updated = nullptr;
 
   const bool using_lock_tables = thd->locked_tables_mode != LTM_NONE;
   const bool is_single_table_syntax = !multitable;
@@ -1611,7 +1611,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     Some tables may be marked for update, even though they have no columns
     that are updated. Adjust "updating" flag based on actual updated columns.
   */
-  for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
+  for (Table_ref *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
     if (tr->map() & tables_for_update) tr->set_updated();
     tr->updating = tr->is_updated();
   }
@@ -1659,7 +1659,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
       return true;
   }
 
-  for (TABLE_LIST *tl = select->leaf_tables; tl; tl = tl->next_leaf) {
+  for (Table_ref *tl = select->leaf_tables; tl; tl = tl->next_leaf) {
     if (tl->is_updated()) {
       // Cannot update a table if the storage engine does not support update.
       if (tl->table->file->ha_table_flags() & HA_UPDATE_NOT_SUPPORTED) {
@@ -1672,7 +1672,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
         return true; /* purecov: inspected */
 
       // Mark all containing view references as updating
-      for (TABLE_LIST *ref = tl; ref != nullptr; ref = ref->referencing_view)
+      for (Table_ref *ref = tl; ref != nullptr; ref = ref->referencing_view)
         ref->updating = true;
 
       // Check that table is unique, updatability has already been checked.
@@ -1715,9 +1715,9 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   */
   select->exclude_from_table_unique_test = true;
 
-  for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
+  for (Table_ref *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
     if (tr->is_updated()) {
-      TABLE_LIST *duplicate = unique_table(tr, select->leaf_tables, false);
+      Table_ref *duplicate = unique_table(tr, select->leaf_tables, false);
       if (duplicate != nullptr) {
         update_non_unique_table_error(select->leaf_tables, "UPDATE", duplicate);
         return true;
@@ -1732,10 +1732,10 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   select->exclude_from_table_unique_test = false;
 
   /* check single table update for view compound from several tables */
-  for (TABLE_LIST *tl = table_list; tl; tl = tl->next_local) {
+  for (Table_ref *tl = table_list; tl; tl = tl->next_local) {
     if (tl->is_merged()) {
       assert(tl->is_view_or_derived());
-      TABLE_LIST *for_update = nullptr;
+      Table_ref *for_update = nullptr;
       if (tl->check_single_table(&for_update, tables_for_update)) {
         my_error(ER_VIEW_MULTIUPDATE, MYF(0), tl->db, tl->table_name);
         return true;
@@ -1820,17 +1820,17 @@ bool Sql_cmd_update::execute_inner(THD *thd) {
 
 bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
                                   Query_expression *u) {
-  SQL_I_List<TABLE_LIST> update_list;
+  SQL_I_List<Table_ref> update_list;
   DBUG_TRACE;
 
   unit = u;
 
   Query_block *const select = unit->first_query_block();
-  TABLE_LIST *const leaves = select->leaf_tables;
+  Table_ref *const leaves = select->leaf_tables;
 
   const table_map tables_to_update = get_table_map(*fields);
 
-  for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
+  for (Table_ref *tr = leaves; tr; tr = tr->next_leaf) {
     if (tr->check_option) {
       // Resolving may be needed for subsequent executions
       if (!tr->check_option->fixed &&
@@ -1859,10 +1859,10 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
   */
 
   update_list.clear();
-  for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
+  for (Table_ref *tr = leaves; tr; tr = tr->next_leaf) {
     /* TODO: add support of view of join support */
     if (tables_to_update & tr->map()) {
-      auto dup = new (thd->mem_root) TABLE_LIST(*tr);
+      auto dup = new (thd->mem_root) Table_ref(*tr);
       if (dup == nullptr) return true;
 
       update_list.link_in_list(dup, &dup->next_local);
@@ -1923,7 +1923,7 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
                                              select->leaf_table_count));
   copy_field = new (thd->mem_root) Copy_field[max_fields];
 
-  for (TABLE_LIST *ref = leaves; ref != nullptr; ref = ref->next_leaf) {
+  for (Table_ref *ref = leaves; ref != nullptr; ref = ref->next_leaf) {
     if (tables_to_update & ref->map()) {
       const uint position = ref->shared;
       mem_root_deque<Item *> *cols = fields_for_table[position];
@@ -1962,7 +1962,7 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
 // conditions. The given table is assumed to be the first (outermost) table in
 // the join order. The referenced columns are collected into TABLE::tmp_set.
 static void CollectColumnsReferencedInJoinConditions(
-    const JOIN *join, const TABLE_LIST *table_ref) {
+    const JOIN *join, const Table_ref *table_ref) {
   TABLE *table = table_ref->table;
 
   // Verify tmp_set is not in use.
@@ -2028,8 +2028,8 @@ static void CollectColumnsReferencedInJoinConditions(
 */
 
 static bool safe_update_on_fly(const QEP_TAB *join_tab,
-                               const TABLE_LIST *table_ref,
-                               TABLE_LIST *all_tables) {
+                               const Table_ref *table_ref,
+                               Table_ref *all_tables) {
   TABLE *table = join_tab->table();
 
   // Check that the table is not joined to itself:
@@ -2182,12 +2182,12 @@ bool Query_result_update::optimize() {
   JOIN *const join = select->join;
   THD *thd = join->thd;
 
-  TABLE_LIST *leaves = select->leaf_tables;
+  Table_ref *leaves = select->leaf_tables;
 
   // Ensure table pointers are synced in repeated executions
 
-  TABLE_LIST *update_table = update_tables;
-  for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
+  Table_ref *update_table = update_tables;
+  for (Table_ref *tr = leaves; tr; tr = tr->next_leaf) {
     if (tr->is_updated()) {
       TABLE *const table = tr->table;
 
@@ -2245,11 +2245,11 @@ bool Query_result_update::optimize() {
    table.
    For a regular multi-update it refers to some updated table.
   */
-  TABLE_LIST *first_table_for_update =
+  Table_ref *first_table_for_update =
       down_cast<Item_field *>(*VisibleFields(*fields).begin())->table_ref;
 
   /* Create a temporary table for keys to all tables, except main table */
-  for (TABLE_LIST *table_ref = update_tables; table_ref != nullptr;
+  for (Table_ref *table_ref = update_tables; table_ref != nullptr;
        table_ref = table_ref->next_local) {
     TABLE *table = table_ref->table;
     uint cnt = table_ref->shared;
@@ -2313,7 +2313,7 @@ bool Query_result_update::optimize() {
         table_ref->check_option) {
       table_map unupdated_tables = table_ref->check_option->used_tables() &
                                    ~first_table_for_update->map();
-      for (TABLE_LIST *tbl_ref = leaves; unupdated_tables && tbl_ref;
+      for (Table_ref *tbl_ref = leaves; unupdated_tables && tbl_ref;
            tbl_ref = tbl_ref->next_leaf) {
         if (unupdated_tables & tbl_ref->map())
           unupdated_tables &= ~tbl_ref->map();
@@ -2377,7 +2377,7 @@ bool Query_result_update::start_execution(THD *thd) {
 
 void Query_result_update::cleanup() {
   assert(CountHiddenFields(*values) == 0);
-  for (TABLE_LIST *tr = update_tables; tr != nullptr; tr = tr->next_local) {
+  for (Table_ref *tr = update_tables; tr != nullptr; tr = tr->next_local) {
     tr->table = nullptr;
   }
   if (tmp_tables) {
@@ -2424,7 +2424,7 @@ bool UpdateRowsIterator::DoImmediateUpdatesAndBufferRowIds(
     return false;
   }
 
-  for (TABLE_LIST *cur_table = m_update_tables; cur_table != nullptr;
+  for (Table_ref *cur_table = m_update_tables; cur_table != nullptr;
        cur_table = cur_table->next_local) {
     TABLE *table = cur_table->table;
     uint offset = cur_table->shared;
@@ -2594,7 +2594,7 @@ bool UpdateRowsIterator::DoDelayedUpdates(bool *trans_safe,
       the binary log when the format is STMT or MIXED.
     */
     if (mysql_bin_log.is_open()) {
-      for (TABLE_LIST *cur_table = m_update_tables; cur_table != nullptr;
+      for (Table_ref *cur_table = m_update_tables; cur_table != nullptr;
            cur_table = cur_table->next_local) {
         if (cur_table->table->file->has_transactions()) {
           *transactional_tables = true;
@@ -2611,12 +2611,12 @@ bool UpdateRowsIterator::DoDelayedUpdates(bool *trans_safe,
   // If we're updating based on an outer join, the executor may have left some
   // rows in NULL row state. Reset them before we start looking at rows,
   // so that generated fields don't inadvertedly get NULL inputs.
-  for (TABLE_LIST *cur_table = m_update_tables; cur_table != nullptr;
+  for (Table_ref *cur_table = m_update_tables; cur_table != nullptr;
        cur_table = cur_table->next_local) {
     cur_table->table->reset_null_row();
   }
 
-  for (TABLE_LIST *cur_table = m_update_tables; cur_table != nullptr;
+  for (Table_ref *cur_table = m_update_tables; cur_table != nullptr;
        cur_table = cur_table->next_local) {
     uint offset = cur_table->shared;
 
@@ -3000,7 +3000,7 @@ table_map GetImmediateUpdateTable(const JOIN *join, bool single_target) {
   assert(join->qep_tab != nullptr);
   assert(join->tables > 0);
   const QEP_TAB *const first_table = &join->qep_tab[0];
-  const TABLE_LIST *const first_table_ref = first_table->table_ref;
+  const Table_ref *const first_table_ref = first_table->table_ref;
 
   if (!first_table_ref->is_updated()) {
     return 0;
@@ -3033,7 +3033,7 @@ bool FinalizeOptimizationForUpdate(JOIN *join) {
 
 UpdateRowsIterator::UpdateRowsIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source,
-    TABLE *outermost_table, TABLE *immediate_table, TABLE_LIST *update_tables,
+    TABLE *outermost_table, TABLE *immediate_table, Table_ref *update_tables,
     TABLE **tmp_tables, Copy_field *copy_fields,
     List<TABLE> unupdated_check_opt_tables, COPY_INFO **update_operations,
     mem_root_deque<Item *> **fields_for_table,

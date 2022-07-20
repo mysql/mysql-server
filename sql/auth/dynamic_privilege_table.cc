@@ -85,7 +85,7 @@ Dynamic_privilege_register *get_dynamic_privilege_register(void) {
     @retval false Success
 */
 
-bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
+bool populate_dynamic_privilege_caches(THD *thd, Table_ref *tablelst) {
   DBUG_TRACE;
   bool error = false;
   assert(assert_acl_cache_write_lock(thd));

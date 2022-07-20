@@ -153,12 +153,12 @@ bool Trigger_chain::execute_triggers(THD *thd) {
 
   @param [in]     thd               thread context
   @param [in,out] prelocking_ctx    prelocking context of the statement
-  @param [in]     table_list        TABLE_LIST for the table
+  @param [in]     table_list        Table_ref for the table
 */
 
 void Trigger_chain::add_tables_and_routines(THD *thd,
                                             Query_tables_list *prelocking_ctx,
-                                            TABLE_LIST *table_list) {
+                                            Table_ref *table_list) {
   List_iterator_fast<Trigger> it(m_triggers);
   Trigger *t;
 

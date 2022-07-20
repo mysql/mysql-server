@@ -342,26 +342,26 @@ class Unique_fifo_queue {
 
 class Dbug_table_list_dumper {
   FILE *out;
-  Unique_fifo_queue<TABLE_LIST> tables_fifo;
-  Unique_fifo_queue<mem_root_deque<TABLE_LIST *>> tbl_lists;
+  Unique_fifo_queue<Table_ref> tables_fifo;
+  Unique_fifo_queue<mem_root_deque<Table_ref *>> tbl_lists;
 
  public:
-  void dump_one_struct(TABLE_LIST *tbl);
+  void dump_one_struct(Table_ref *tbl);
 
-  int dump_graph(Query_block *query_block, TABLE_LIST *first_leaf);
+  int dump_graph(Query_block *query_block, Table_ref *first_leaf);
 };
 
-void dump_TABLE_LIST_graph(Query_block *query_block, TABLE_LIST *tl) {
+void dump_TABLE_LIST_graph(Query_block *query_block, Table_ref *tl) {
   Dbug_table_list_dumper dumper;
   dumper.dump_graph(query_block, tl);
 }
 
 /*
-  - Dump one TABLE_LIST objects and its outgoing edges
+  - Dump one Table_ref objects and its outgoing edges
   - Schedule that other objects seen along the edges are dumped too.
 */
 
-void Dbug_table_list_dumper::dump_one_struct(TABLE_LIST *tbl) {
+void Dbug_table_list_dumper::dump_one_struct(Table_ref *tbl) {
   fprintf(out, "\"%p\" [\n", tbl);
   fprintf(out, "  label = \"%p|", tbl);
   fprintf(out, "alias=%s|", tbl->alias ? tbl->alias : "NULL");
@@ -407,7 +407,7 @@ void Dbug_table_list_dumper::dump_one_struct(TABLE_LIST *tbl) {
 }
 
 int Dbug_table_list_dumper::dump_graph(Query_block *query_block,
-                                       TABLE_LIST *first_leaf) {
+                                       Table_ref *first_leaf) {
   DBUG_TRACE;
   char filename[500];
   int no = 0;
@@ -433,14 +433,14 @@ int Dbug_table_list_dumper::dump_graph(Query_block *query_block,
   fputs("  rankdir = \"LR\"", out);
   fputs("];", out);
 
-  TABLE_LIST *tbl;
+  Table_ref *tbl;
   tables_fifo.reset();
   dump_one_struct(first_leaf);
   while (tables_fifo.pop_first(&tbl)) {
     dump_one_struct(tbl);
   }
 
-  mem_root_deque<TABLE_LIST *> *plist;
+  mem_root_deque<Table_ref *> *plist;
   tbl_lists.push_back(&query_block->top_join_list);
   while (tbl_lists.pop_first(&plist)) {
     fprintf(out, "\"%p\" [\n", plist);
@@ -450,7 +450,7 @@ int Dbug_table_list_dumper::dump_graph(Query_block *query_block,
   }
 
   fprintf(out, " { rank = same; ");
-  for (TABLE_LIST *tl = first_leaf; tl; tl = tl->next_leaf)
+  for (Table_ref *tl = first_leaf; tl; tl = tl->next_leaf)
     fprintf(out, " \"%p\"; ", tl);
   fprintf(out, "};\n");
   fputs("}", out);

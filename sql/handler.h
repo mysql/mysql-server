@@ -98,7 +98,7 @@ struct LEX;
 struct MY_BITMAP;
 struct SAVEPOINT;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 struct TABLE_SHARE;
 struct Tablespace_options;
 struct handlerton;
@@ -1642,7 +1642,7 @@ typedef bool (*get_tablespace_type_t)(const dd::Tablespace &space,
 typedef bool (*get_tablespace_type_by_name_t)(const char *tablespace_name,
                                               Tablespace_type *space_type);
 
-typedef int (*fill_is_table_t)(handlerton *hton, THD *thd, TABLE_LIST *tables,
+typedef int (*fill_is_table_t)(handlerton *hton, THD *thd, Table_ref *tables,
                                class Item *cond, enum enum_schema_tables);
 
 typedef int (*binlog_func_t)(handlerton *hton, THD *thd, enum_binlog_func fn,
@@ -3031,7 +3031,7 @@ struct HA_CREATE_INFO {
   uint stats_sample_pages{0}; /* number of pages to sample during
                            stats estimation, if used, otherwise 0. */
   enum_stats_auto_recalc stats_auto_recalc{HA_STATS_AUTO_RECALC_DEFAULT};
-  SQL_I_List<TABLE_LIST> merge_list;
+  SQL_I_List<Table_ref> merge_list;
   handlerton *db_type{nullptr};
   /**
     Row type of the table definition.

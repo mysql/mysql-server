@@ -1255,7 +1255,7 @@ static bool fill_value_maps(
   return false;
 }
 
-bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
+bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
                       int num_buckets, LEX_STRING data, results_map &results) {
   dd::cache::Dictionary_client::Auto_releaser auto_releaser(thd->dd_client());
 
@@ -1504,7 +1504,7 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
   return ret;
 }
 
-bool drop_all_histograms(THD *thd, TABLE_LIST &table,
+bool drop_all_histograms(THD *thd, Table_ref &table,
                          const dd::Table &table_definition,
                          results_map &results) {
   columns_set columns;
@@ -1514,7 +1514,7 @@ bool drop_all_histograms(THD *thd, TABLE_LIST &table,
   return drop_histograms(thd, table, columns, false, results);
 }
 
-bool drop_histograms(THD *thd, TABLE_LIST &table, const columns_set &columns,
+bool drop_histograms(THD *thd, Table_ref &table, const columns_set &columns,
                      bool needs_lock, results_map &results) {
   dd::cache::Dictionary_client *client = thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser auto_releaser(client);

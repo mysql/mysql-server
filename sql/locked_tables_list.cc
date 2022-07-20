@@ -26,7 +26,7 @@
 #include "sql/mysqld.h"     // table_alias_charset
 #include "sql/sql_base.h"   // close_thread_tables
 #include "sql/sql_class.h"  // THD
-#include "sql/table.h"      // TABLE TABLE_LIST
+#include "sql/table.h"      // TABLE Table_ref
 
 Locked_tables_list::Locked_tables_list()
     : m_locked_tables(nullptr),
@@ -39,7 +39,7 @@ Locked_tables_list::Locked_tables_list()
 
   Enter the LOCK TABLES mode using all the tables that are
   currently open and locked in this connection.
-  Initializes a TABLE_LIST instance for every locked table.
+  Initializes a Table_ref instance for every locked table.
 
   @param  thd  thread handle
 
@@ -54,12 +54,12 @@ bool Locked_tables_list::init_locked_tables(THD *thd) {
 
   for (TABLE *table = thd->open_tables; table;
        table = table->next, m_locked_tables_count++) {
-    TABLE_LIST *src_table_list = table->pos_in_table_list;
+    Table_ref *src_table_list = table->pos_in_table_list;
     char *db, *table_name, *alias;
     size_t db_len = src_table_list->db_length;
     size_t table_name_len = src_table_list->table_name_length;
     size_t alias_len = strlen(src_table_list->alias);
-    TABLE_LIST *dst_table_list;
+    Table_ref *dst_table_list;
 
     if (!multi_alloc_root(&m_locked_tables_root, &dst_table_list,
                           sizeof(*dst_table_list), &db, db_len + 1, &table_name,
@@ -79,8 +79,8 @@ bool Locked_tables_list::init_locked_tables(THD *thd) {
       thd->update_lock_default.
     */
     new (dst_table_list)
-        TABLE_LIST(table, db, db_len, table_name, table_name_len, alias,
-                   src_table_list->table->reginfo.lock_type);
+        Table_ref(table, db, db_len, table_name, table_name_len, alias,
+                  src_table_list->table->reginfo.lock_type);
 
     dst_table_list->mdl_request.ticket = src_table_list->mdl_request.ticket;
 
@@ -135,7 +135,7 @@ void Locked_tables_list::unlock_locked_tables(THD *thd)
     */
     if (thd->locked_tables_mode != LTM_LOCK_TABLES) return;
 
-    for (TABLE_LIST *table_list = m_locked_tables; table_list;
+    for (Table_ref *table_list = m_locked_tables; table_list;
          table_list = table_list->next_global) {
       /*
         Clear the position in the list, the TABLE object will be
@@ -159,7 +159,7 @@ void Locked_tables_list::unlock_locked_tables(THD *thd)
   }
   /*
     After closing tables we can free memory used for storing lock
-    request for metadata locks and TABLE_LIST elements.
+    request for metadata locks and Table_ref elements.
   */
   m_locked_tables_root.Clear();
   m_locked_tables = nullptr;
@@ -175,8 +175,8 @@ void Locked_tables_list::unlock_locked_tables(THD *thd)
   @param  thd        thread handle
   @param  table_list the element of locked tables list.
                      The implementation assumes that this argument
-                     points to a TABLE_LIST element linked into
-                     the locked tables list. Passing a TABLE_LIST
+                     points to a Table_ref element linked into
+                     the locked tables list. Passing a Table_ref
                      instance that is not part of locked tables
                      list will lead to a crash.
   @param  remove_from_locked_tables
@@ -188,8 +188,7 @@ void Locked_tables_list::unlock_locked_tables(THD *thd)
   @sa Locked_tables_list::reopen_tables()
 */
 
-void Locked_tables_list::unlink_from_list(const THD *thd,
-                                          TABLE_LIST *table_list,
+void Locked_tables_list::unlink_from_list(const THD *thd, Table_ref *table_list,
                                           bool remove_from_locked_tables) {
   /*
     If mode is not LTM_LOCK_TABLES, we needn't do anything. Moreover,
@@ -258,7 +257,7 @@ void Locked_tables_list::unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock,
     }
   }
   /* Exclude all closed tables from the LOCK TABLES list. */
-  for (TABLE_LIST *table_list = m_locked_tables; table_list;
+  for (Table_ref *table_list = m_locked_tables; table_list;
        table_list = table_list->next_global) {
     if (table_list->table == nullptr) {
       /* Unlink from list. */
@@ -298,7 +297,7 @@ bool Locked_tables_list::reopen_tables(THD *thd) {
   Diagnostics_area tmp_da(false);
   thd->push_diagnostics_area(&tmp_da, false);
 
-  for (TABLE_LIST *table_list = m_locked_tables; table_list;
+  for (Table_ref *table_list = m_locked_tables; table_list;
        table_list = table_list->next_global) {
     if (table_list->table) /* The table was not closed */
       continue;
@@ -366,11 +365,11 @@ bool Locked_tables_list::reopen_tables(THD *thd) {
   @note This function is a no-op if we're not under LOCK TABLES.
 */
 
-void Locked_tables_list::rename_locked_table(TABLE_LIST *old_table_list,
+void Locked_tables_list::rename_locked_table(Table_ref *old_table_list,
                                              const char *new_db,
                                              const char *new_table_name,
                                              MDL_ticket *target_mdl_ticket) {
-  for (TABLE_LIST *table_list = m_locked_tables; table_list;
+  for (Table_ref *table_list = m_locked_tables; table_list;
        table_list = table_list->next_global) {
     if (my_strcasecmp(table_alias_charset, table_list->db,
                       old_table_list->db) == 0 &&
@@ -379,7 +378,7 @@ void Locked_tables_list::rename_locked_table(TABLE_LIST *old_table_list,
       assert(table_list->table == nullptr);
 
       /*
-        Update TABLE_LIST element with new db and name. Allocate
+        Update Table_ref element with new db and name. Allocate
         them on Locked_tables_list private memory root.
       */
       size_t new_db_len = strlen(new_db);
@@ -390,8 +389,8 @@ void Locked_tables_list::rename_locked_table(TABLE_LIST *old_table_list,
           &m_locked_tables_root, new_table_name, new_table_name_len);
 
       if (new_db_root != nullptr && new_table_name_root != nullptr) {
-        TABLE_LIST *save_next_global = table_list->next_global;
-        TABLE_LIST **save_prev_global = table_list->prev_global;
+        Table_ref *save_next_global = table_list->next_global;
+        Table_ref **save_prev_global = table_list->prev_global;
 
         /*
           If explicit alias was used in LOCK TABLES then it makes sense
@@ -403,7 +402,7 @@ void Locked_tables_list::rename_locked_table(TABLE_LIST *old_table_list,
             my_strcasecmp(table_alias_charset, table_list->table_name,
                           table_list->alias) != 0;
 
-        *table_list = TABLE_LIST(
+        *table_list = Table_ref(
             new_db_root, new_db_len, new_table_name_root, new_table_name_len,
             real_alias ? table_list->alias : new_table_name_root,
             table_list->lock_descriptor().type);

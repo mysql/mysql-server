@@ -322,7 +322,7 @@ static bool CompareJoinCost(THD *thd, const JOIN &join, double optimizer_cost,
   DBUG_EXECUTE_IF("secondary_engine_mock_change_join_order", {
     double cost = join.tables;
     for (size_t i = 0; i < join.tables; ++i) {
-      const TABLE_LIST *ref = join.positions[i].table->table_ref;
+      const Table_ref *ref = join.positions[i].table->table_ref;
       if (std::string(ref->alias) == "X") {
         cost += i;
       }

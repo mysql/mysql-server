@@ -1486,7 +1486,7 @@ bool MDL_context::fix_pins() {
   Note that initialization and allocation are split into two
   calls. This is to allow flexible memory management of lock
   requests. Normally a lock request is stored in statement memory
-  (e.g. is a member of struct TABLE_LIST), but we would also like
+  (e.g. is a member of class Table_ref), but we would also like
   to allow allocation of lock requests in other memory roots,
   for example in the grant subsystem, to lock privilege tables.
 

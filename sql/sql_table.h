@@ -50,7 +50,7 @@ class handler;
 struct CHARSET_INFO;
 struct MEM_ROOT;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 struct handlerton;
 
 namespace dd {
@@ -107,7 +107,7 @@ size_t inline build_table_filename(char *buff, size_t bufflen, const char *db,
                               &truncated_not_used);
 }
 size_t build_tmptable_filename(THD *thd, char *buff, size_t bufflen);
-bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
+bool mysql_create_table(THD *thd, Table_ref *create_table,
                         HA_CREATE_INFO *create_info, Alter_info *alter_info);
 bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 const char *table_name,
@@ -115,7 +115,7 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 Alter_info *alter_info, uint select_field_count,
                                 bool find_parent_keys, bool *is_trans,
                                 handlerton **post_ddl_ht);
-bool mysql_discard_or_import_tablespace(THD *thd, TABLE_LIST *table_list);
+bool mysql_discard_or_import_tablespace(THD *thd, Table_ref *table_list);
 
 /**
   Helper class for keeping track for which tables we need to invalidate
@@ -451,23 +451,23 @@ bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
 bool mysql_trans_prepare_alter_copy_data(THD *thd);
 bool mysql_trans_commit_alter_copy_data(THD *thd);
 bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
-                       HA_CREATE_INFO *create_info, TABLE_LIST *table_list,
+                       HA_CREATE_INFO *create_info, Table_ref *table_list,
                        Alter_info *alter_info);
 bool mysql_compare_tables(THD *thd, TABLE *table, Alter_info *alter_info,
                           HA_CREATE_INFO *create_info, bool *metadata_equal);
-bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy);
-bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
+bool mysql_recreate_table(THD *thd, Table_ref *table_list, bool table_copy);
+bool mysql_create_like_table(THD *thd, Table_ref *table, Table_ref *src_table,
                              HA_CREATE_INFO *create_info);
 bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                         const char *old_name, const char *old_fk_db,
                         const char *old_fk_name, const dd::Schema &new_schema,
                         const char *new_db, const char *new_name, uint flags);
 
-bool mysql_checksum_table(THD *thd, TABLE_LIST *table_list,
+bool mysql_checksum_table(THD *thd, Table_ref *table_list,
                           HA_CHECK_OPT *check_opt);
-bool mysql_rm_table(THD *thd, TABLE_LIST *tables, bool if_exists,
+bool mysql_rm_table(THD *thd, Table_ref *tables, bool if_exists,
                     bool drop_temporary);
-bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
+bool mysql_rm_table_no_locks(THD *thd, Table_ref *tables, bool if_exists,
                              bool drop_temporary, bool drop_database,
                              bool *dropped_non_atomic_flag,
                              std::set<handlerton *> *post_ddl_htons,
@@ -486,7 +486,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   @retval True  - Failure.
 */
 [[nodiscard]] bool rm_table_do_discovery_and_lock_fk_tables(THD *thd,
-                                                            TABLE_LIST *tables);
+                                                            Table_ref *tables);
 
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
@@ -589,7 +589,7 @@ extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
     @retval true  Failure
 */
 
-bool lock_trigger_names(THD *thd, TABLE_LIST *tables);
+bool lock_trigger_names(THD *thd, Table_ref *tables);
 struct TYPELIB;
 TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def);
 
@@ -603,7 +603,7 @@ TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def);
   @retval       false   Success.
   @retval       true    Failure.
 */
-bool lock_check_constraint_names(THD *thd, TABLE_LIST *tables);
+bool lock_check_constraint_names(THD *thd, Table_ref *tables);
 
 /**
   Method to lock check constraint names for rename table operation.

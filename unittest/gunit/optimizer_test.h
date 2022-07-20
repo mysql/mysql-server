@@ -72,9 +72,9 @@ inline void ResolveQueryBlock(
 inline void ResolveFieldToFakeTable(
     Item *item, const std::unordered_map<string, Fake_TABLE *> &fake_tables);
 inline void ResolveAllFieldsToFakeTable(
-    const mem_root_deque<TABLE_LIST *> &join_list,
+    const mem_root_deque<Table_ref *> &join_list,
     const std::unordered_map<string, Fake_TABLE *> &fake_tables);
-inline void SetJoinConditions(const mem_root_deque<TABLE_LIST *> &join_list);
+inline void SetJoinConditions(const mem_root_deque<Table_ref *> &join_list);
 
 inline void DestroyFakeTables(
     const std::unordered_map<string, Fake_TABLE *> &fake_tables) {
@@ -160,7 +160,7 @@ inline void ResolveQueryBlock(
 
   // Create fake TABLE objects for all tables mentioned in the query.
   int num_tables = 0;
-  for (TABLE_LIST *tl = query_block->get_table_list(); tl != nullptr;
+  for (Table_ref *tl = query_block->get_table_list(); tl != nullptr;
        tl = tl->next_global) {
     // If we already have created a fake table with this name (for example to
     // get columns of specific types), use that one. Otherwise, create a new one
@@ -244,7 +244,7 @@ inline void ResolveQueryBlock(
   switch (thd->lex->sql_command) {
     case SQLCOM_DELETE:
     case SQLCOM_DELETE_MULTI:
-      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
+      for (Table_ref *tl = query_block->leaf_tables; tl != nullptr;
            tl = tl->next_leaf) {
         if (tl->updating) {
           tl->set_deleted();
@@ -257,7 +257,7 @@ inline void ResolveQueryBlock(
       for (Item *item : query_block->visible_fields()) {
         update_tables |= item->used_tables();
       }
-      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
+      for (Table_ref *tl = query_block->leaf_tables; tl != nullptr;
            tl = tl->next_leaf) {
         if (Overlaps(tl->map(), update_tables)) {
           tl->set_updated();
@@ -323,9 +323,9 @@ inline void ResolveFieldToFakeTable(
 }
 
 inline void ResolveAllFieldsToFakeTable(
-    const mem_root_deque<TABLE_LIST *> &join_list,
+    const mem_root_deque<Table_ref *> &join_list,
     const std::unordered_map<string, Fake_TABLE *> &fake_tables) {
-  for (TABLE_LIST *tl : join_list) {
+  for (Table_ref *tl : join_list) {
     if (tl->join_cond() != nullptr) {
       ResolveFieldToFakeTable(tl->join_cond(), fake_tables);
     }
@@ -335,8 +335,8 @@ inline void ResolveAllFieldsToFakeTable(
   }
 }
 
-inline void SetJoinConditions(const mem_root_deque<TABLE_LIST *> &join_list) {
-  for (TABLE_LIST *tl : join_list) {
+inline void SetJoinConditions(const mem_root_deque<Table_ref *> &join_list) {
+  for (Table_ref *tl : join_list) {
     tl->set_join_cond_optim(tl->join_cond());
     if (tl->nested_join != nullptr) {
       SetJoinConditions(tl->nested_join->join_list);

@@ -1689,10 +1689,10 @@ const ACL_internal_table_access *IS_internal_schema_access::lookup(
   @retval true  - Failure.
 */
 
-bool lock_tables_precheck(THD *thd, TABLE_LIST *tables) {
-  TABLE_LIST *first_not_own_table = thd->lex->first_not_own_table();
+bool lock_tables_precheck(THD *thd, Table_ref *tables) {
+  Table_ref *first_not_own_table = thd->lex->first_not_own_table();
 
-  for (TABLE_LIST *table = tables; table != first_not_own_table && table;
+  for (Table_ref *table = tables; table != first_not_own_table && table;
        table = table->next_global) {
     if (is_temporary_table(table)) continue;
 
@@ -1717,8 +1717,8 @@ bool lock_tables_precheck(THD *thd, TABLE_LIST *tables) {
     true   Error
 */
 
-bool create_table_precheck(THD *thd, TABLE_LIST *tables,
-                           TABLE_LIST *create_table) {
+bool create_table_precheck(THD *thd, Table_ref *tables,
+                           Table_ref *create_table) {
   LEX *lex = thd->lex;
   Query_block *query_block = lex->query_block;
   ulong want_priv;
@@ -1876,12 +1876,12 @@ void err_readonly(THD *thd) {
   @returns false on success, true on access denied error
 */
 
-bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables) {
+bool check_one_table_access(THD *thd, ulong privilege, Table_ref *all_tables) {
   if (check_single_table_access(thd, privilege, all_tables, false)) return true;
 
   // Check privileges on tables from subqueries and implicitly opened tables
-  TABLE_LIST *subquery_table;
-  TABLE_LIST *const view = all_tables->is_view() ? all_tables : nullptr;
+  Table_ref *subquery_table;
+  Table_ref *const view = all_tables->is_view() ? all_tables : nullptr;
 
   if ((subquery_table = all_tables->next_global)) {
     /*
@@ -1915,8 +1915,8 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables) {
     1   access denied, error is sent to client
 */
 
-bool check_single_table_access(THD *thd, ulong privilege,
-                               TABLE_LIST *all_tables, bool no_errors) {
+bool check_single_table_access(THD *thd, ulong privilege, Table_ref *all_tables,
+                               bool no_errors) {
   /*
     Optimizer internal tables and the DD tables used under the
     INFORMATION_SCHEMA system views does not need any privilege checking.
@@ -1955,9 +1955,9 @@ deny:
 bool check_routine_access(THD *thd, ulong want_access, const char *db,
                           char *name, bool is_proc, bool no_errors) {
   DBUG_TRACE;
-  TABLE_LIST tables[1];
+  Table_ref tables[1];
 
-  new (&tables[0]) TABLE_LIST();
+  new (&tables[0]) Table_ref();
   tables->db = db;
   tables->db_length = strlen(db);
   tables->table_name = tables->alias = name;
@@ -2004,7 +2004,7 @@ bool check_routine_access(THD *thd, ulong want_access, const char *db,
     1  error
 */
 
-bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table) {
+bool check_some_access(THD *thd, ulong want_access, Table_ref *table) {
   ulong access;
   DBUG_TRACE;
 
@@ -2327,12 +2327,12 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
       be checked also.
 */
 
-bool check_table_access(THD *thd, ulong requirements, TABLE_LIST *tables,
+bool check_table_access(THD *thd, ulong requirements, Table_ref *tables,
                         bool any_combination_of_privileges_will_do, uint number,
                         bool no_errors) {
   DBUG_TRACE;
-  TABLE_LIST *org_tables = tables;
-  TABLE_LIST *first_not_own_table = thd->lex->first_not_own_table();
+  Table_ref *org_tables = tables;
+  Table_ref *first_not_own_table = thd->lex->first_not_own_table();
   uint i = 0;
   Security_context *sctx = thd->security_context();
   Security_context *backup_ctx = thd->security_context();
@@ -2344,7 +2344,7 @@ bool check_table_access(THD *thd, ulong requirements, TABLE_LIST *tables,
   */
   for (; i < number && tables != first_not_own_table && tables;
        tables = tables->next_global, i++) {
-    TABLE_LIST *const table_ref =
+    Table_ref *const table_ref =
         tables->correspondent_table ? tables->correspondent_table : tables;
     ulong want_access = requirements;
     if (table_ref->security_ctx)
@@ -2414,7 +2414,7 @@ bool check_table_encryption_admin_access(THD *thd) {
 }
 
 /**
-  Given a TABLE_LIST object this function checks against
+  Given a Table_ref object this function checks against
    1. global privileges
    2. db privileges
    3. table level privileges
@@ -2425,13 +2425,13 @@ bool check_table_encryption_admin_access(THD *thd) {
 
   @param thd Thread handle
   @param required_acl The privileges which are required to continue
-  @param table An initialized, single TABLE_LIST object
+  @param table An initialized, single Table_ref object
 
   @retval true Access is granted
   @retval false Access denied
 */
 
-bool is_granted_table_access(THD *thd, ulong required_acl, TABLE_LIST *table) {
+bool is_granted_table_access(THD *thd, ulong required_acl, Table_ref *table) {
   DBUG_TRACE;
   const char *table_name = table->get_table_name();
   const char *db_name = table->get_db_name();
@@ -2612,13 +2612,13 @@ bool report_missing_user_grant_message(THD *thd, bool user_exists,
     true  error
 */
 
-int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
+int mysql_table_grant(THD *thd, Table_ref *table_list,
                       List<LEX_USER> &user_list, List<LEX_COLUMN> &columns,
                       ulong rights, bool revoke_grant) {
   ulong column_priv = 0;
   List_iterator<LEX_USER> str_list(user_list);
   LEX_USER *Str, *tmp_Str;
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   const char *db_name, *table_name;
   bool transactional_tables;
   acl_table::Pod_user_what_to_update what_to_set;
@@ -2655,7 +2655,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       }
       while ((column = column_iter++)) {
         uint unused_field_idx = NO_FIELD_INDEX;
-        TABLE_LIST *dummy;
+        Table_ref *dummy;
         Field *f = find_field_in_table_ref(
             thd, table_list, column->column.ptr(), column->column.length(),
             column->column.ptr(), nullptr, nullptr, nullptr,
@@ -2899,12 +2899,12 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   @retval true An error occurred.
 */
 
-bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
+bool mysql_routine_grant(THD *thd, Table_ref *table_list, bool is_proc,
                          List<LEX_USER> &user_list, ulong rights,
                          bool revoke_grant, bool write_to_binlog) {
   List_iterator<LEX_USER> str_list(user_list);
   LEX_USER *Str, *tmp_Str;
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   const char *db_name, *table_name;
   bool transactional_tables;
   acl_table::Pod_user_what_to_update what_to_set;
@@ -3075,7 +3075,7 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
     values when we are out of this function scope
   */
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   List_iterator<LEX_USER> users_it(const_cast<List<LEX_USER> &>(*users));
   List_iterator<LEX_USER> roles_it(const_cast<List<LEX_USER> &>(*roles));
   bool errors = false;
@@ -3303,7 +3303,7 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
     values when we are out of this function scope
   */
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   List_iterator<LEX_USER> users_it(const_cast<List<LEX_USER> &>(*users));
   bool errors = false;
   LEX_USER *lex_user;
@@ -3422,7 +3422,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
                  bool grant_all_current_privileges, LEX_GRANT_AS *grant_as) {
   List_iterator<LEX_USER> str_list(list);
   LEX_USER *user, *target_user, *proxied_user = nullptr;
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   bool transactional_tables;
   acl_table::Pod_user_what_to_update what_to_set;
   bool error = false;
@@ -3750,19 +3750,19 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
 
 */
 
-bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
+bool check_grant(THD *thd, ulong want_access, Table_ref *tables,
                  bool any_combination_will_do, uint number, bool no_errors) {
-  TABLE_LIST *tl;
-  TABLE_LIST *const first_not_own_table = thd->lex->first_not_own_table();
+  Table_ref *tl;
+  Table_ref *const first_not_own_table = thd->lex->first_not_own_table();
   Security_context *sctx = thd->security_context();
   ulong orig_want_access = want_access;
-  std::vector<TABLE_LIST *> tables_to_be_processed_further;
+  std::vector<Table_ref *> tables_to_be_processed_further;
   DBUG_TRACE;
   assert(number > 0);
 
   for (tl = tables; tl && number-- && tl != first_not_own_table;
        tl = tl->next_global) {
-    TABLE_LIST *const t_ref =
+    Table_ref *const t_ref =
         tl->correspondent_table ? tl->correspondent_table : tl;
     sctx = (t_ref->security_ctx != nullptr) ? t_ref->security_ctx
                                             : thd->security_context();
@@ -3843,7 +3843,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     } else {
       /*
         For these tables we have to access ACL caches.
-        We will first go over all TABLE_LIST objects and
+        We will first go over all Table_ref objects and
         create a list of objects to be processed further.
         Later, we will access ACL caches for these tables.
         It allows us to delay locking of ACL caches.
@@ -3857,9 +3857,9 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
     if (!acl_cache_lock.lock(!no_errors)) return true;
 
-    for (TABLE_LIST *tl_tmp : tables_to_be_processed_further) {
+    for (Table_ref *tl_tmp : tables_to_be_processed_further) {
       tl = tl_tmp;
-      TABLE_LIST *const t_ref =
+      Table_ref *const t_ref =
           tl->correspondent_table ? tl->correspondent_table : tl;
       sctx = (t_ref->security_ctx != nullptr) ? t_ref->security_ctx
                                               : thd->security_context();
@@ -4014,7 +4014,7 @@ err:
   @returns false if success, true if error (access denied)
 */
 
-bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
+bool check_column_grant_in_table_ref(THD *thd, Table_ref *table_ref,
                                      const char *name, size_t length,
                                      ulong want_privilege) {
   DBUG_TRACE;
@@ -4055,7 +4055,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
       return true;
     }
   } else if (table_ref->nested_join) {
-    for (TABLE_LIST *table : table_ref->nested_join->join_list) {
+    for (Table_ref *table : table_ref->nested_join->join_list) {
       if (check_column_grant_in_table_ref(thd, table, name, length,
                                           want_privilege)) {
         return true;
@@ -4303,9 +4303,9 @@ bool check_grant_db(THD *thd, const char *db,
      true  Error: User did not have the requested privielges
 ****************************************************************************/
 
-bool check_grant_routine(THD *thd, ulong want_access, TABLE_LIST *procs,
+bool check_grant_routine(THD *thd, ulong want_access, Table_ref *procs,
                          bool is_proc, bool no_errors) {
-  TABLE_LIST *table;
+  Table_ref *table;
   Security_context *sctx = thd->security_context();
   const char *user = sctx->priv_user().str;
   const char *host = sctx->priv_host().str;
@@ -4405,7 +4405,7 @@ static bool check_routine_level_acl(THD *thd, const char *db, const char *name,
   Functions to retrieve the grant for a table/column  (for SHOW functions)
 *****************************************************************************/
 
-ulong get_table_grant(THD *thd, TABLE_LIST *table) {
+ulong get_table_grant(THD *thd, Table_ref *table) {
   ulong privilege;
   Security_context *sctx = thd->security_context();
   const char *db = table->db ? table->db : thd->db().str;
@@ -5111,7 +5111,7 @@ static int remove_procedure_access_privileges(THD *thd, TABLE *procs_priv_table,
 
 bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
   bool result = false;
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   bool transactional_tables;
   int ret = 0;
   DBUG_TRACE;
@@ -5283,7 +5283,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   bool revoked;
   int int_result;
   bool result = false;
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   Silence_routine_definer_errors error_handler;
   bool transactional_tables;
   DBUG_TRACE;
@@ -5369,7 +5369,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
 bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc) {
-  TABLE_LIST tables[1];
+  Table_ref tables[1];
   List<LEX_USER> user_list;
   bool result = true;
   Dummy_error_handler error_handler;
@@ -5393,7 +5393,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   acl_cache_lock.unlock();
 
-  new (&tables[0]) TABLE_LIST();
+  new (&tables[0]) Table_ref();
   user_list.clear();
 
   tables->db = sp_db;
@@ -5588,7 +5588,7 @@ bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
 static const int GRANTEE_MAX_BUFF_LENGTH =
     USERNAME_LENGTH + 1 + HOSTNAME_LENGTH + 4 + 1;
 
-int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *) {
+int fill_schema_user_privileges(THD *thd, Table_ref *tables, Item *) {
   int error = 0;
   ACL_USER *acl_user;
   ulong want_access;
@@ -5663,7 +5663,7 @@ err:
   return error;
 }
 
-int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *) {
+int fill_schema_schema_privileges(THD *thd, Table_ref *tables, Item *) {
   int error = 0;
   ACL_DB *acl_db;
   ulong want_access;
@@ -5724,7 +5724,7 @@ err:
   return error;
 }
 
-int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *) {
+int fill_schema_table_privileges(THD *thd, Table_ref *tables, Item *) {
   int error = 0;
   char buff[GRANTEE_MAX_BUFF_LENGTH];
   TABLE *table = tables->table;
@@ -5789,7 +5789,7 @@ err:
   return error;
 }
 
-int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *) {
+int fill_schema_column_privileges(THD *thd, Table_ref *tables, Item *) {
   int error = 0;
   char buff[GRANTEE_MAX_BUFF_LENGTH];
   TABLE *table = tables->table;
@@ -5917,9 +5917,9 @@ bool check_fk_parent_table_access(THD *thd, HA_CREATE_INFO *create_info,
     if (key->type == KEYTYPE_FOREIGN) {
       const Foreign_key_spec *fk_key = down_cast<const Foreign_key_spec *>(key);
 
-      TABLE_LIST parent_table(fk_key->ref_db.str, fk_key->ref_db.length,
-                              fk_key->ref_table.str, fk_key->ref_table.length,
-                              fk_key->ref_table.str, TL_IGNORE);
+      Table_ref parent_table(fk_key->ref_db.str, fk_key->ref_db.length,
+                             fk_key->ref_table.str, fk_key->ref_table.length,
+                             fk_key->ref_table.str, TL_IGNORE);
 
       /*
        Check if user has REFERENCES_ACL privilege at table level on
@@ -5966,7 +5966,7 @@ bool check_fk_parent_table_access(THD *thd, HA_CREATE_INFO *create_info,
   @retval false   Success.
   @retval true    Access denied. Error has been reported.
 */
-bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
+bool check_lock_view_underlying_table_access(THD *thd, Table_ref *tbl,
                                              bool *fake_lock_tables_acl) {
   ulong want_access = SELECT_ACL | LOCK_TABLES_ACL;
   *fake_lock_tables_acl = false;
@@ -6392,7 +6392,7 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
   Auth_id_ref authid;
   LEX_USER *user = nullptr;
   LEX_USER *role = nullptr;
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   int result = 0;
   bool transactional_tables = false;
 

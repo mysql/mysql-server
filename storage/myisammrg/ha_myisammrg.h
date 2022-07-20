@@ -83,9 +83,9 @@ class ha_myisammrg : public handler {
   /* mem root for children list */
   MEM_ROOT children_mem_root{rg_key_memory_children, FN_REFLEN};
   List<Mrg_child_def> child_def_list;
-  TABLE_LIST *children_l;       /* children list */
-  TABLE_LIST **children_last_l; /* children list end */
-  uint test_if_locked;          /* flags from ::open() */
+  Table_ref *children_l;       /* children list */
+  Table_ref **children_last_l; /* children list end */
+  uint test_if_locked;         /* flags from ::open() */
 
   ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_myisammrg() override = default;

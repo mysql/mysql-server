@@ -875,7 +875,7 @@ class Item_func_trig_cond final : public Item_bool_func {
   /// '@<if@>', to distinguish from the if() SQL function
   const char *func_name() const override { return "<if>"; }
   /// Get range of inner tables spanned by associated outer join operation
-  void get_table_range(TABLE_LIST **first_table, TABLE_LIST **last_table) const;
+  void get_table_range(Table_ref **first_table, Table_ref **last_table) const;
   /// Get table_map of inner tables spanned by associated outer join operation
   table_map get_inner_tables() const;
   bool fix_fields(THD *thd, Item **ref) override {

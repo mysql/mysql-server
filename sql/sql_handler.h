@@ -29,7 +29,7 @@
 
 class Item;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 enum class enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 template <class T>
@@ -113,10 +113,10 @@ class Sql_cmd_handler_close : public Sql_cmd {
 };
 
 void mysql_ha_flush(THD *thd);
-void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables);
+void mysql_ha_flush_tables(THD *thd, Table_ref *all_tables);
 void mysql_ha_flush_table(THD *thd, const char *db_name,
                           const char *table_name);
-void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
+void mysql_ha_rm_tables(THD *thd, Table_ref *tables);
 void mysql_ha_rm_temporary_tables(THD *thd);
 void mysql_ha_cleanup(THD *thd);
 void mysql_ha_set_explicit_lock_duration(THD *thd);

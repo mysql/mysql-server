@@ -616,12 +616,12 @@ cleanup:
 
   @param [in]     thd               thread handle
   @param [in,out] prelocking_ctx    prelocking context of the statement
-  @param [in]     table_list        TABLE_LIST for the table
+  @param [in]     table_list        Table_ref for the table
 */
 
 void Trigger::add_tables_and_routines(THD *thd,
                                       Query_tables_list *prelocking_ctx,
-                                      TABLE_LIST *table_list) {
+                                      Table_ref *table_list) {
   if (has_parse_error()) return;
 
   if (sp_add_used_routine(prelocking_ctx, thd->stmt_arena,

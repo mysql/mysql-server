@@ -580,7 +580,7 @@ bool Table_trigger_dispatcher::process_triggers(
 */
 
 bool Table_trigger_dispatcher::add_tables_and_routines_for_triggers(
-    THD *thd, Query_tables_list *prelocking_ctx, TABLE_LIST *table_list) {
+    THD *thd, Query_tables_list *prelocking_ctx, Table_ref *table_list) {
   assert(static_cast<int>(table_list->lock_descriptor().type) >=
          static_cast<int>(TL_WRITE_ALLOW_WRITE));
 

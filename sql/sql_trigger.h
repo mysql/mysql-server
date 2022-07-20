@@ -45,7 +45,7 @@
 
 class THD;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 
 namespace dd {
 class Table;
@@ -62,7 +62,7 @@ class Table;
                                     "IF EXISTS" clause. That means a warning
                                     instead of error should be thrown if trigger
                                     with given name does not exist.
-  @param[out] table                 Pointer to TABLE_LIST object for the
+  @param[out] table                 Pointer to Table_ref object for the
                                     table trigger.
 
   @return Operation status
@@ -72,7 +72,7 @@ class Table;
 
 bool get_table_for_trigger(THD *thd, const LEX_CSTRING &db_name,
                            const LEX_STRING &trigger_name,
-                           bool continue_if_not_exist, TABLE_LIST **table);
+                           bool continue_if_not_exist, Table_ref **table);
 
 /**
   Check for table with triggers that old database name and new database name
@@ -172,13 +172,13 @@ class Sql_cmd_ddl_trigger_common : public Sql_cmd {
     @param trigger_table  a table associated with a trigger.
   */
 
-  void set_table(TABLE_LIST *trigger_table) { m_trigger_table = trigger_table; }
+  void set_table(Table_ref *trigger_table) { m_trigger_table = trigger_table; }
 
  protected:
   Sql_cmd_ddl_trigger_common() : m_trigger_table(nullptr) {}
 
-  bool check_trg_priv_on_subj_table(THD *thd, TABLE_LIST *table) const;
-  TABLE *open_and_lock_subj_table(THD *thd, TABLE_LIST *tables,
+  bool check_trg_priv_on_subj_table(THD *thd, Table_ref *table) const;
+  TABLE *open_and_lock_subj_table(THD *thd, Table_ref *tables,
                                   MDL_ticket **mdl_ticket) const;
 
   /**
@@ -190,7 +190,7 @@ class Sql_cmd_ddl_trigger_common : public Sql_cmd {
 
   void restore_original_mdl_state(THD *thd, MDL_ticket *mdl_ticket) const;
 
-  TABLE_LIST *m_trigger_table{nullptr};
+  Table_ref *m_trigger_table{nullptr};
 };
 
 /**

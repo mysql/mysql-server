@@ -352,9 +352,9 @@ static bool create_tmp_table_for_set_op(THD *thd, Query_term *qt,
   Query_term_set_op *const parent = qt->parent();
   const bool distinct = parent->m_last_distinct > 0;
 
-  auto tl = new (thd->mem_root) TABLE_LIST();
+  auto tl = new (thd->mem_root) Table_ref();
   if (tl == nullptr) return true;
-  qt->set_result_table_list(tl);
+  qt->set_result_table(tl);
 
   char *buffer = new (thd->mem_root) char[64 + 1];
   if (buffer == nullptr) return true;
@@ -365,20 +365,20 @@ static bool create_tmp_table_for_set_op(THD *thd, Query_term *qt,
           /*instantiate_tmp_table*/ parent->m_is_materialized, parent))
     return true;
   qt->setop_query_result_union()->table->pos_in_table_list =
-      &qt->result_table_list();
-  qt->result_table_list().db = "";
+      &qt->result_table();
+  qt->result_table().db = "";
   // We set the table_name and alias to an empty string here: this avoids
   // giving the user likely unwanted information about the name of the temporary
   // table e.g. as:
   //    Note  1276  Field or reference '<union temporary>.a' of SELECT #3 was
   //                resolved in SELECT #1
   // We prefer just "reference 'a'" in such a case.
-  qt->result_table_list().table_name = "";
-  qt->result_table_list().alias = "";
-  qt->result_table_list().table = qt->setop_query_result_union()->table;
-  qt->result_table_list().query_block = qt->query_block();
-  qt->result_table_list().set_tableno(0);
-  qt->result_table_list().set_privileges(SELECT_ACL);
+  qt->result_table().table_name = "";
+  qt->result_table().alias = "";
+  qt->result_table().table = qt->setop_query_result_union()->table;
+  qt->result_table().query_block = qt->query_block();
+  qt->result_table().set_tableno(0);
+  qt->result_table().set_privileges(SELECT_ACL);
 
   return false;
 }
@@ -649,7 +649,7 @@ bool Query_expression::prepare_query_term(THD *thd, Query_term *qt,
 
     auto pb = parent->query_block();
     // Parent's input is this tmp table
-    TABLE_LIST &input_to_parent = qt->result_table_list();
+    Table_ref &input_to_parent = qt->result_table();
     pb->table_list.link_in_list(&input_to_parent, &input_to_parent.next_local);
     if (pb->table_list.first->table->fill_item_list(il))
       return true;  // purecov: inspected
@@ -1017,7 +1017,7 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
 
     estimated_cost += query_block->join->best_read;
 
-    // TABLE_LIST::fetch_number_of_rows() expects to get the number of rows
+    // Table_ref::fetch_number_of_rows() expects to get the number of rows
     // from all earlier query blocks from the query result, so we need to update
     // it as we go. In particular, this is used when optimizing a recursive
     // SELECT in a CTE, so that it knows how many rows the non-recursive query
@@ -1568,7 +1568,7 @@ bool Query_expression::explain(THD *explain_thd, const THD *query_thd) {
 
 bool Common_table_expr::clear_all_references() {
   bool reset_tables = false;
-  for (TABLE_LIST *tl : references) {
+  for (Table_ref *tl : references) {
     if (tl->table &&
         tl->derived_query_expression()->uncacheable & UNCACHEABLE_DEPENDENT) {
       reset_tables = true;
@@ -1580,7 +1580,7 @@ bool Common_table_expr::clear_all_references() {
     */
   }
   if (!reset_tables) return false;
-  for (TABLE_LIST *tl : tmp_tables) {
+  for (Table_ref *tl : tmp_tables) {
     if (tl->is_derived()) continue;  // handled above
     if (tl->table->empty_result_table()) return true;
     // This loop has found all recursive clones (only readers).
@@ -1589,8 +1589,8 @@ bool Common_table_expr::clear_all_references() {
     Above, emptying all clones is necessary, to rewind every handler (cursor) to
     the table's start. Setting materialized=false on all is also important or
     the writer would skip materialization, see loop at start of
-    TABLE_LIST::materialize_derived()). There is one "recursive table" which we
-    don't find here: it's the UNION DISTINCT tmp table. It's reset in
+    Table_ref::materialize_derived()). There is one "recursive table"
+    which we don't find here: it's the UNION DISTINCT tmp table. It's reset in
     unit::execute() of the unit which is the body of the CTE.
   */
   return false;
@@ -1860,7 +1860,7 @@ void Query_expression::destroy() {
         qt->setop_query_result_union()->table != nullptr) {
       // Destroy materialized result set for a set operation
       free_tmp_table(qt->setop_query_result_union()->table);
-      qt->result_table_list().table = nullptr;
+      qt->result_table().table = nullptr;
     }
     qt->query_block()->destroy();
   }
@@ -1987,7 +1987,7 @@ void Query_expression::change_to_access_path_without_in2exists(THD *thd) {
 
   @param list List of tables to search in
 */
-static void cleanup_tmp_tables(TABLE_LIST *list) {
+static void cleanup_tmp_tables(Table_ref *list) {
   for (auto tl = list; tl; tl = tl->next_local) {
     if (tl->merge_underlying_list) {
       // Find a materialized view inside another view.
@@ -2017,7 +2017,7 @@ static void cleanup_tmp_tables(TABLE_LIST *list) {
 
    @param list List of tables to search in
 */
-static void destroy_tmp_tables(TABLE_LIST *list) {
+static void destroy_tmp_tables(Table_ref *list) {
   for (auto tl = list; tl; tl = tl->next_local) {
     if (tl->merge_underlying_list) {
       // Find a materialized view inside another view.

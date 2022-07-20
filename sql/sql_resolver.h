@@ -28,7 +28,7 @@
 class Item;
 class THD;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 
 struct ORDER;
 template <typename Element_type>
@@ -46,15 +46,15 @@ class mem_root_deque;
   Name resolution functions.
 */
 
-void propagate_nullability(mem_root_deque<TABLE_LIST *> *tables, bool nullable);
+void propagate_nullability(mem_root_deque<Table_ref *> *tables, bool nullable);
 
-bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
+bool setup_order(THD *thd, Ref_item_array ref_item_array, Table_ref *tables,
                  mem_root_deque<Item *> *fields, ORDER *order);
 bool validate_gc_assignment(const mem_root_deque<Item *> &fields,
                             const mem_root_deque<Item *> &values, TABLE *tab);
 
 bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
-                        TABLE_LIST *tables, ORDER *order,
+                        Table_ref *tables, ORDER *order,
                         mem_root_deque<Item *> *fields, bool is_group_field,
                         bool is_window_order);
 

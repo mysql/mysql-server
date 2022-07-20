@@ -457,7 +457,7 @@ static bool push_check_constraint_mdl_request_to_list(
     THD *thd, const char *db, const char *cc_name,
     MDL_request_list &cc_mdl_request_list);
 static bool prepare_check_constraints_for_create_like_table(
-    THD *thd, TABLE_LIST *src_table, TABLE_LIST *table, Alter_info *alter_info);
+    THD *thd, Table_ref *src_table, Table_ref *table, Alter_info *alter_info);
 static bool prepare_check_constraints_for_alter(THD *thd, const TABLE *table,
                                                 Alter_info *alter_info,
                                                 Alter_table_ctx *alter_tbl_ctx);
@@ -1236,8 +1236,8 @@ int write_bin_log(THD *thd, bool clear_error, const char *query,
   return error;
 }
 
-bool lock_trigger_names(THD *thd, TABLE_LIST *tables) {
-  for (TABLE_LIST *table = tables; table; table = table->next_global) {
+bool lock_trigger_names(THD *thd, Table_ref *tables) {
+  for (Table_ref *table = tables; table; table = table->next_global) {
     if (table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
       continue;
@@ -1405,11 +1405,11 @@ static bool collect_fk_names(THD *thd, const char *db,
   return false;
 }
 
-bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, TABLE_LIST *tables) {
+bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, Table_ref *tables) {
   MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
   MDL_request_list mdl_requests;
 
-  for (TABLE_LIST *table = tables; table; table = table->next_local) {
+  for (Table_ref *table = tables; table; table = table->next_local) {
     if (table->open_type != OT_BASE_ONLY && is_temporary_table(table)) continue;
 
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -1547,11 +1547,11 @@ void Foreign_key_parents_invalidator::invalidate(THD *thd) {
 
 */
 
-bool mysql_rm_table(THD *thd, TABLE_LIST *tables, bool if_exists,
+bool mysql_rm_table(THD *thd, Table_ref *tables, bool if_exists,
                     bool drop_temporary) {
   bool error;
   Drop_table_error_handler err_handler;
-  TABLE_LIST *table;
+  Table_ref *table;
   uint have_non_tmp_table = 0;
 
   DBUG_TRACE;
@@ -1757,14 +1757,14 @@ class Drop_tables_ctx {
   const bool drop_database;
 
   /* Different table groups of tables to be dropped. */
-  Prealloced_array<TABLE_LIST *, 1> base_atomic_tables;
-  Prealloced_array<TABLE_LIST *, 1> base_non_atomic_tables;
-  Prealloced_array<TABLE_LIST *, 1> tmp_trans_tables;
-  Prealloced_array<TABLE_LIST *, 1> tmp_trans_tables_to_binlog;
-  Prealloced_array<TABLE_LIST *, 1> tmp_non_trans_tables;
-  Prealloced_array<TABLE_LIST *, 1> tmp_non_trans_tables_to_binlog;
-  Prealloced_array<TABLE_LIST *, 1> nonexistent_tables;
-  Prealloced_array<TABLE_LIST *, 1> views;
+  Prealloced_array<Table_ref *, 1> base_atomic_tables;
+  Prealloced_array<Table_ref *, 1> base_non_atomic_tables;
+  Prealloced_array<Table_ref *, 1> tmp_trans_tables;
+  Prealloced_array<Table_ref *, 1> tmp_trans_tables_to_binlog;
+  Prealloced_array<Table_ref *, 1> tmp_non_trans_tables;
+  Prealloced_array<Table_ref *, 1> tmp_non_trans_tables_to_binlog;
+  Prealloced_array<Table_ref *, 1> nonexistent_tables;
+  Prealloced_array<Table_ref *, 1> views;
 
   /* Methods which simplify checking state of the above groups. */
   bool has_base_atomic_tables() const { return base_atomic_tables.size() != 0; }
@@ -1804,7 +1804,7 @@ class Drop_tables_ctx {
     Base tables in SE which do not support atomic DDL which we managed to
     drop so far.
   */
-  Prealloced_array<TABLE_LIST *, 1> dropped_non_atomic;
+  Prealloced_array<Table_ref *, 1> dropped_non_atomic;
 
   bool has_dropped_non_atomic() const { return dropped_non_atomic.size() != 0; }
 
@@ -1845,7 +1845,7 @@ class Drop_tables_ctx {
 */
 
 static void append_table_ident(const THD *thd, String *to,
-                               const TABLE_LIST *table, bool force_db) {
+                               const Table_ref *table, bool force_db) {
   //  Don't write the database name if it is the current one.
   if (thd->db().str == nullptr || strcmp(table->db, thd->db().str) != 0 ||
       force_db) {
@@ -1862,7 +1862,7 @@ static void append_table_ident(const THD *thd, String *to,
   the table (without quoting).
 */
 
-static void append_table_name(String *to, const TABLE_LIST *table) {
+static void append_table_name(String *to, const Table_ref *table) {
   to->append(String(table->db, system_charset_info));
   to->append('.');
   to->append(String(table->table_name, system_charset_info));
@@ -1909,7 +1909,7 @@ class Drop_tables_query_builder {
   }
 
  private:
-  void add_table_impl(const TABLE_LIST *table) {
+  void add_table_impl(const Table_ref *table) {
     append_table_ident(m_thd, &m_built_query, table, m_no_db);
     m_built_query.append(",");
 
@@ -1917,13 +1917,13 @@ class Drop_tables_query_builder {
   }
 
  public:
-  void add_table(const TABLE_LIST *table) {
+  void add_table(const Table_ref *table) {
     if (m_bin_log_is_open) add_table_impl(table);
   }
 
-  void add_array(const Prealloced_array<TABLE_LIST *, 1> &tables) {
+  void add_array(const Prealloced_array<Table_ref *, 1> &tables) {
     if (m_bin_log_is_open) {
-      for (TABLE_LIST *table : tables) add_table_impl(table);
+      for (Table_ref *table : tables) add_table_impl(table);
     }
   }
 
@@ -1962,7 +1962,7 @@ class Drop_tables_query_builder {
 */
 
 static bool rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
-                                      TABLE_LIST *tables) {
+                                      Table_ref *tables) {
   /*
     Sort tables into groups according to type of handling they require:
 
@@ -2062,7 +2062,7 @@ static bool rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
          are enabled, since otherwise the statement, which already has
          a GTID, would need two different GTIDs.
   */
-  for (TABLE_LIST *table = tables; table; table = table->next_local) {
+  for (Table_ref *table = tables; table; table = table->next_local) {
     /*
       Check THD::killed flag, so we can abort potentially lengthy loop.
       This can be relevant for DROP DATABASE, for example.
@@ -2443,7 +2443,7 @@ static bool rm_table_check_fks(THD *thd, Drop_tables_ctx *drop_ctx) {
   if (thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS) return false;
 
   // Earlier we assert that only SEs supporting atomic DDL support FKs.
-  for (TABLE_LIST *table : drop_ctx->base_atomic_tables) {
+  for (Table_ref *table : drop_ctx->base_atomic_tables) {
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Table *table_def = nullptr;
     if (thd->dd_client()->acquire(table->db, table->table_name, &table_def))
@@ -2478,7 +2478,7 @@ static bool rm_table_check_fks(THD *thd, Drop_tables_ctx *drop_ctx) {
 
         bool child_dropped = false;
 
-        for (TABLE_LIST *dropped : drop_ctx->base_atomic_tables) {
+        for (Table_ref *dropped : drop_ctx->base_atomic_tables) {
           if (my_strcasecmp(table_alias_charset,
                             fk->child_schema_name().c_str(),
                             dropped->db) == 0 &&
@@ -2787,7 +2787,7 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
 */
 
 static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
-                            TABLE_LIST *table, bool atomic,
+                            Table_ref *table, bool atomic,
                             std::set<handlerton *> *post_ddl_htons,
                             Foreign_key_parents_invalidator *fk_invalidator,
                             std::vector<MDL_ticket *> *safe_to_release_mdl,
@@ -2882,7 +2882,7 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
 
         bool child_dropped = false;
 
-        for (TABLE_LIST *dropped : drop_ctx.base_atomic_tables) {
+        for (Table_ref *dropped : drop_ctx.base_atomic_tables) {
           if (my_strcasecmp(table_alias_charset,
                             fk->child_schema_name().c_str(),
                             dropped->db) == 0 &&
@@ -3105,7 +3105,7 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
         not all.
 */
 
-bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
+bool mysql_rm_table_no_locks(THD *thd, Table_ref *tables, bool if_exists,
                              bool drop_temporary, bool drop_database,
                              bool *dropped_non_atomic_flag,
                              std::set<handlerton *> *post_ddl_htons,
@@ -3142,7 +3142,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     */
     String wrong_tables;
 
-    for (TABLE_LIST *table : drop_ctx.nonexistent_tables) {
+    for (Table_ref *table : drop_ctx.nonexistent_tables) {
       if (wrong_tables.length()) wrong_tables.append(',');
       append_table_name(&wrong_tables, table);
     }
@@ -3155,7 +3155,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   if (rm_table_check_fks(thd, &drop_ctx)) return true;
 
   if (drop_ctx.if_exists && drop_ctx.has_any_nonexistent_tables()) {
-    for (TABLE_LIST *table : drop_ctx.nonexistent_tables) {
+    for (Table_ref *table : drop_ctx.nonexistent_tables) {
       String tbl_name;
       append_table_name(&tbl_name, table);
       push_warning_printf(thd, Sql_condition::SL_NOTE, ER_BAD_TABLE_ERROR,
@@ -3209,7 +3209,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       avoid situations when DROP TABLES for mixed set of tables will fail
       and leave changes to atomic, "transactional" tables around.
     */
-    for (TABLE_LIST *table : drop_ctx.base_non_atomic_tables) {
+    for (Table_ref *table : drop_ctx.base_non_atomic_tables) {
       if (drop_base_table(thd, drop_ctx, table, false /* non-atomic */, nullptr,
                           nullptr, safe_to_release_mdl, &foreach_table_root))
         goto err_with_rollback;
@@ -3321,7 +3321,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       goto err_with_rollback;
     });
 
-    for (TABLE_LIST *table : drop_ctx.base_atomic_tables) {
+    for (Table_ref *table : drop_ctx.base_atomic_tables) {
       if (drop_base_table(thd, drop_ctx, table, true /* atomic */,
                           post_ddl_htons, fk_invalidator,
                           &safe_to_release_mdl_atomic, &foreach_table_root)) {
@@ -3335,7 +3335,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       goto err_with_rollback;
     });
 
-    for (TABLE_LIST *table : drop_ctx.views) {
+    for (Table_ref *table : drop_ctx.views) {
       /* Check that we have an exclusive lock on the view to be dropped. */
       assert(thd->mdl_context.owns_equal_or_stronger_lock(
           MDL_key::TABLE, table->db, table->table_name, MDL_EXCLUSIVE));
@@ -3364,7 +3364,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
 
 #ifndef NDEBUG
-    for (TABLE_LIST *table : drop_ctx.nonexistent_tables) {
+    for (Table_ref *table : drop_ctx.nonexistent_tables) {
       /*
         Check that we have an exclusive lock on the table which we were
         supposed drop.
@@ -9996,7 +9996,7 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
   close of thread tables.
 */
 
-bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
+bool mysql_create_table(THD *thd, Table_ref *create_table,
                         HA_CREATE_INFO *create_info, Alter_info *alter_info) {
   bool result = false;
   bool is_trans = false;
@@ -10420,7 +10420,7 @@ static bool rename_histograms(THD *thd, const char *old_schema_name,
 
   @return false on success, true on error
 */
-static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
+static bool alter_table_drop_histograms(THD *thd, Table_ref *table,
                                         Alter_info *alter_info,
                                         HA_CREATE_INFO *create_info,
                                         histograms::columns_set &columns,
@@ -10796,7 +10796,7 @@ bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     true  error
 */
 
-bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
+bool mysql_create_like_table(THD *thd, Table_ref *table, Table_ref *src_table,
                              HA_CREATE_INFO *create_info) {
   Alter_info local_alter_info(thd->mem_root);
   Alter_table_ctx local_alter_ctx;  // Not used
@@ -11190,7 +11190,7 @@ err:
 
 /* table_list should contain just one table */
 bool Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(
-    THD *thd, TABLE_LIST *table_list) {
+    THD *thd, Table_ref *table_list) {
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   int error;
   DBUG_TRACE;
@@ -11427,7 +11427,7 @@ bool Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(
  * @return True if error, false otherwise.
  */
 bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
-    THD *thd, TABLE_LIST *table_list) {
+    THD *thd, Table_ref *table_list) {
   Alter_table_prelocking_strategy alter_prelocking_strategy;
 
   // Because SECONDARY_LOAD and SECONDARY_UNLOAD are standalone alter table
@@ -12819,7 +12819,7 @@ static bool collect_fk_parents_for_dropped_fks(
   @retval operation outcome, false if no error.
 */
 static bool collect_and_lock_fk_tables_for_complex_alter_table(
-    THD *thd, TABLE_LIST *table_list, const dd::Table *old_table_def,
+    THD *thd, Table_ref *table_list, const dd::Table *old_table_def,
     const Alter_table_ctx *alter_ctx, const Alter_info *alter_info,
     handlerton *old_hton, handlerton *new_hton,
     Foreign_key_parents_invalidator *fk_invalidator) {
@@ -12892,7 +12892,7 @@ static bool collect_and_lock_fk_tables_for_complex_alter_table(
   @retval operation outcome, false if no error.
 */
 static bool adjust_fks_for_complex_alter_table(
-    THD *thd, TABLE_LIST *table_list, Alter_table_ctx *alter_ctx,
+    THD *thd, Table_ref *table_list, Alter_table_ctx *alter_ctx,
     Alter_info *alter_info, handlerton *new_hton,
     const Foreign_key_parents_invalidator *fk_invalidator) {
   if (!(new_hton->flags & HTON_SUPPORTS_FOREIGN_KEYS)) return false;
@@ -13041,7 +13041,7 @@ static bool collect_fk_names_for_rename_table(
           false - otherwise.
 */
 
-static bool check_fk_names_before_rename(THD *thd, TABLE_LIST *table_list,
+static bool check_fk_names_before_rename(THD *thd, Table_ref *table_list,
                                          const dd::Table &table_def,
                                          handlerton *hton,
                                          const dd::Schema &new_schema,
@@ -13133,7 +13133,7 @@ static bool table_is_empty(TABLE *table, bool *is_empty) {
  *
  * @return True if error, false otherwise.
  */
-static bool remove_secondary_engine(THD *thd, const TABLE_LIST &table,
+static bool remove_secondary_engine(THD *thd, const Table_ref &table,
                                     const HA_CREATE_INFO &create_info,
                                     const dd::Table *old_table_def) {
   // Nothing to do if no secondary engine defined for the table.
@@ -13163,7 +13163,7 @@ static bool remove_secondary_engine(THD *thd, const TABLE_LIST &table,
   @param new_schema         Target schema.
   @param table_def          Table object for the original table.
   @param altered_table_def  Table object for the new version of the table.
-  @param table_list         TABLE_LIST for the table to change.
+  @param table_list         Table_ref for the table to change.
   @param table              The original TABLE.
   @param altered_table      TABLE object for new version of the table.
   @param ha_alter_info      Structure describing ALTER TABLE to be carried
@@ -13199,7 +13199,7 @@ static bool remove_secondary_engine(THD *thd, const TABLE_LIST &table,
 static bool mysql_inplace_alter_table(
     THD *thd, const dd::Schema &schema, const dd::Schema &new_schema,
     const dd::Table *table_def, dd::Table *altered_table_def,
-    TABLE_LIST *table_list, TABLE *table, TABLE *altered_table,
+    Table_ref *table_list, TABLE *table, TABLE *altered_table,
     Alter_inplace_info *ha_alter_info,
     enum_alter_inplace_result inplace_supported, Alter_table_ctx *alter_ctx,
     histograms::columns_set &columns, FOREIGN_KEY *fk_key_info,
@@ -13692,8 +13692,8 @@ static bool mysql_inplace_alter_table(
       Finally we can tell SE supporting atomic DDL that the changed table
       in the data-dictionary.
     */
-    TABLE_LIST new_table_list(alter_ctx->new_db, alter_ctx->new_name,
-                              alter_ctx->new_alias, TL_READ);
+    Table_ref new_table_list(alter_ctx->new_db, alter_ctx->new_name,
+                             alter_ctx->new_alias, TL_READ);
     new_table_list.mdl_request.ticket =
         alter_ctx->is_table_renamed() ? alter_ctx->target_mdl_request.ticket
                                       : mdl_ticket;
@@ -15378,7 +15378,7 @@ static fk_column_change_type fk_check_column_changes(
         and thus will end-up in error anyway.
 
   @param[in]  thd          Thread context.
-  @param[in]  table_list   TABLE_LIST element for the table to be altered.
+  @param[in]  table_list   Table_ref element for the table to be altered.
   @param[in]  table_def    dd::Table for old version of table to be altered.
   @param[in]  alter_info   Lists of fields, keys to be changed, added
                            or dropped.
@@ -15388,7 +15388,7 @@ static fk_column_change_type fk_check_column_changes(
                  with foreign key definitions on the table.
 */
 
-static bool fk_check_copy_alter_table(THD *thd, TABLE_LIST *table_list,
+static bool fk_check_copy_alter_table(THD *thd, Table_ref *table_list,
                                       const dd::Table *table_def,
                                       Alter_info *alter_info) {
   DBUG_TRACE;
@@ -15645,7 +15645,7 @@ static bool is_simple_rename_or_index_change(const Alter_info *alter_info) {
 
   @param thd                Thread handler
   @param new_schema         Target schema.
-  @param table_list         TABLE_LIST for the table to change
+  @param table_list         Table_ref for the table to change
   @param keys_onoff         ENABLE or DISABLE KEYS?
   @param alter_ctx          ALTER TABLE runtime context.
 
@@ -15654,7 +15654,7 @@ static bool is_simple_rename_or_index_change(const Alter_info *alter_info) {
     @retval true            Failure
 */
 static bool simple_rename_or_index_change(
-    THD *thd, const dd::Schema &new_schema, TABLE_LIST *table_list,
+    THD *thd, const dd::Schema &new_schema, Table_ref *table_list,
     Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
   TABLE *table = table_list->table;
   MDL_ticket *mdl_ticket = table->mdl_ticket;
@@ -16024,7 +16024,7 @@ static bool collect_fk_names_for_dropped_fks(THD *thd, const char *db,
   @retval false on success
  */
 static bool handle_drop_functional_index(THD *thd, Alter_info *alter_info,
-                                         TABLE_LIST *table_list) {
+                                         Table_ref *table_list) {
   // Check if we are dropping a functional index. In that case, we need to drop
   // the source column as well.
   for (const Alter_drop *drop : alter_info->drop_list) {
@@ -16077,7 +16077,7 @@ static bool handle_drop_functional_index(THD *thd, Alter_info *alter_info,
   @retval false success
 */
 static bool handle_rename_functional_index(THD *thd, Alter_info *alter_info,
-                                           TABLE_LIST *table_list) {
+                                           Table_ref *table_list) {
   assert(alter_info->flags & Alter_info::ALTER_RENAME_INDEX);
 
   for (const Alter_rename_key *alter_rename_key :
@@ -16160,7 +16160,7 @@ static bool handle_rename_functional_index(THD *thd, Alter_info *alter_info,
 */
 
 bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
-                       HA_CREATE_INFO *create_info, TABLE_LIST *table_list,
+                       HA_CREATE_INFO *create_info, Table_ref *table_list,
                        Alter_info *alter_info) {
   DBUG_TRACE;
 
@@ -17574,7 +17574,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     /* Open the table since we need to copy the data. */
     if (table->s->tmp_table != NO_TMP_TABLE) {
-      TABLE_LIST tbl(alter_ctx.new_db, alter_ctx.tmp_name, TL_READ_NO_INSERT);
+      Table_ref tbl(alter_ctx.new_db, alter_ctx.tmp_name, TL_READ_NO_INSERT);
       /* Table is in thd->temporary_tables */
       (void)open_temporary_table(thd, &tbl);
       new_table = tbl.table;
@@ -18066,8 +18066,8 @@ end_inplace_noop:
 
 #ifndef WORKAROUND_TO_BE_REMOVED_BY_WL6049
   {
-    TABLE_LIST table_list_reopen(alter_ctx.new_db, alter_ctx.new_name,
-                                 alter_ctx.new_alias, TL_READ);
+    Table_ref table_list_reopen(alter_ctx.new_db, alter_ctx.new_name,
+                                alter_ctx.new_alias, TL_READ);
     table_list_reopen.mdl_request.ticket =
         alter_ctx.is_table_renamed() ? alter_ctx.target_mdl_request.ticket
                                      : mdl_ticket;
@@ -18443,7 +18443,7 @@ static int copy_data_between_tables(
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
   if (order != nullptr) {
-    TABLE_LIST tables;
+    Table_ref tables;
     tables.table = from;
     tables.alias = tables.table_name = from->s->table_name.str;
     tables.db = from->s->db.str;
@@ -18620,7 +18620,7 @@ err:
  RETURN
     Like mysql_alter_table().
 */
-bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy) {
+bool mysql_recreate_table(THD *thd, Table_ref *table_list, bool table_copy) {
   HA_CREATE_INFO create_info;
   Alter_info alter_info(thd->mem_root);
 
@@ -18646,9 +18646,9 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy) {
   return ret;
 }
 
-bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
+bool mysql_checksum_table(THD *thd, Table_ref *tables,
                           HA_CHECK_OPT *check_opt) {
-  TABLE_LIST *table;
+  Table_ref *table;
   Item *item;
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
@@ -18680,7 +18680,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   for (table = tables; table; table = table->next_local) {
     char table_name[NAME_LEN * 2 + 2];
     TABLE *t;
-    TABLE_LIST *save_next_global;
+    Table_ref *save_next_global;
 
     strxmov(table_name, table->db, ".", table->table_name, NullS);
 
@@ -19011,8 +19011,10 @@ bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
 
 
   @param            thd                   Thread handle.
-  @param            src_table             TABLE_LIST instance for source table.
-  @param            target_table          TABLE_LIST instance for target table.
+  @param            src_table             Table_ref instance for source
+  table.
+  @param            target_table          Table_ref instance for target
+  table.
   @param            alter_info            Alter_info instance to prepare
                                           list of check constraint spec
                                           for table being created.
@@ -19021,7 +19023,7 @@ bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
   @retval           true                  Failure.
 */
 static bool prepare_check_constraints_for_create_like_table(
-    THD *thd, TABLE_LIST *src_table, TABLE_LIST *target_table,
+    THD *thd, Table_ref *src_table, Table_ref *target_table,
     Alter_info *alter_info) {
   DBUG_TRACE;
   MDL_request_list cc_mdl_request_list;
@@ -19707,13 +19709,12 @@ bool lock_check_constraint_names_for_rename(THD *thd, const char *db,
   return false;
 }
 
-bool lock_check_constraint_names(THD *thd, TABLE_LIST *tables) {
+bool lock_check_constraint_names(THD *thd, Table_ref *tables) {
   DBUG_TRACE;
   MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
   MDL_request_list mdl_requests;
 
-  for (TABLE_LIST *table = tables; table != nullptr;
-       table = table->next_local) {
+  for (Table_ref *table = tables; table != nullptr; table = table->next_local) {
     if (table->open_type != OT_BASE_ONLY && is_temporary_table(table)) continue;
 
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());

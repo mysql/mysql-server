@@ -79,7 +79,7 @@ static const size_t MAX_QUERY_LENGTH = 300;
   Connects Information_Schema and Profiling.
 */
 int fill_query_profile_statistics_info(THD *thd [[maybe_unused]],
-                                       TABLE_LIST *tables [[maybe_unused]],
+                                       Table_ref *tables [[maybe_unused]],
                                        Item *) {
 #if defined(ENABLED_PROFILING)
   const char *old = thd->lex->sql_command == SQLCOM_SHOW_PROFILE
@@ -497,7 +497,7 @@ void PROFILING::set_query_source(const char *query_source_arg,
   There are two ways to get to this function:  Selecting from the information
   schema, and a SHOW command.
 */
-int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables) {
+int PROFILING::fill_statistics_info(THD *thd_arg, Table_ref *tables) {
   DBUG_TRACE;
   TABLE *table = tables->table;
   ulonglong row_number = 0;

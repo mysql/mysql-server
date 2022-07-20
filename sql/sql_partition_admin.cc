@@ -77,7 +77,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
   /* first Query_block (have special meaning for many of non-SELECTcommands) */
   Query_block *query_block = lex->query_block;
   /* first table of first Query_block */
-  TABLE_LIST *first_table = query_block->table_list.first;
+  Table_ref *first_table = query_block->table_list.first;
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -307,9 +307,9 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   @note This is a DDL operation so triggers will not be used.
 */
 bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
-    THD *thd, TABLE_LIST *table_list, Alter_info *alter_info) {
+    THD *thd, Table_ref *table_list, Alter_info *alter_info) {
   TABLE *part_table, *swap_table;
-  TABLE_LIST *swap_table_list;
+  Table_ref *swap_table_list;
   partition_element *part_elem;
   String *partition_name;
   uint swap_part_id;
@@ -584,7 +584,7 @@ bool Sql_cmd_alter_table_repair_partition::execute(THD *thd) {
 bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   int error;
   ulong timeout = thd->variables.lock_wait_timeout;
-  TABLE_LIST *first_table = thd->lex->query_block->table_list.first;
+  Table_ref *first_table = thd->lex->query_block->table_list.first;
   uint table_counter;
   Partition_handler *part_handler = nullptr;
   handlerton *hton;

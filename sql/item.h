@@ -410,7 +410,7 @@ struct Name_resolution_context {
     statements we have to change this member dynamically to ensure correct
     name resolution of different parts of the statement.
   */
-  TABLE_LIST *table_list;
+  Table_ref *table_list;
   /*
     In most cases the two table references below replace 'table_list' above
     for the purpose of name resolution. The first and last name resolution
@@ -418,12 +418,12 @@ struct Name_resolution_context {
     join tree in a FROM clause. This is needed for NATURAL JOIN, JOIN ... USING
     and JOIN ... ON.
   */
-  TABLE_LIST *first_name_resolution_table;
+  Table_ref *first_name_resolution_table;
   /*
     Last table to search in the list of leaf table references that begins
     with first_name_resolution_table.
   */
-  TABLE_LIST *last_name_resolution_table;
+  Table_ref *last_name_resolution_table;
 
   /*
     Query_block item belong to, in case of merged VIEW it can differ from
@@ -438,7 +438,7 @@ struct Name_resolution_context {
     errors for views)
   */
   bool view_error_handler;
-  TABLE_LIST *view_error_handler_arg;
+  Table_ref *view_error_handler_arg;
 
   /**
     When true, items are resolved in this context against
@@ -473,7 +473,7 @@ struct Name_resolution_context {
     last_name_resolution_table = nullptr;
   }
 
-  void resolve_in_table_list_only(TABLE_LIST *tables) {
+  void resolve_in_table_list_only(Table_ref *tables) {
     table_list = first_name_resolution_table = tables;
     resolve_in_select_list = false;
   }
@@ -516,15 +516,15 @@ struct Check_function_as_value_generator_parameters {
 
 class Name_resolution_context_state {
  private:
-  TABLE_LIST *save_table_list;
-  TABLE_LIST *save_first_name_resolution_table;
-  TABLE_LIST *save_next_name_resolution_table;
+  Table_ref *save_table_list;
+  Table_ref *save_first_name_resolution_table;
+  Table_ref *save_next_name_resolution_table;
   bool save_resolve_in_select_list;
-  TABLE_LIST *save_next_local;
+  Table_ref *save_next_local;
 
  public:
   /* Save the state of a name resolution context. */
-  void save_state(Name_resolution_context *context, TABLE_LIST *table_list) {
+  void save_state(Name_resolution_context *context, Table_ref *table_list) {
     save_table_list = context->table_list;
     save_first_name_resolution_table = context->first_name_resolution_table;
     save_resolve_in_select_list = context->resolve_in_select_list;
@@ -533,7 +533,7 @@ class Name_resolution_context_state {
   }
 
   /* Restore a name resolution context from saved state. */
-  void restore_state(Name_resolution_context *context, TABLE_LIST *table_list) {
+  void restore_state(Name_resolution_context *context, Table_ref *table_list) {
     table_list->next_local = save_next_local;
     table_list->next_name_resolution_table = save_next_name_resolution_table;
     context->table_list = save_table_list;
@@ -541,11 +541,11 @@ class Name_resolution_context_state {
     context->resolve_in_select_list = save_resolve_in_select_list;
   }
 
-  void update_next_local(TABLE_LIST *table_list) {
+  void update_next_local(Table_ref *table_list) {
     save_next_local = table_list;
   }
 
-  TABLE_LIST *get_first_name_resolution_table() {
+  Table_ref *get_first_name_resolution_table() {
     return save_first_name_resolution_table;
   }
 };
@@ -839,7 +839,7 @@ struct ContainedSubquery {
   special precautions when referencing objects with shorter lifespan.
   For example, TABLE and Field objects against most tables are valid only for
   one execution. For such objects, Item classes should rather reference
-  TABLE_LIST and Item_field objects instead of TABLE and Field, because
+  Table_ref and Item_field objects instead of TABLE and Field, because
   these classes support dynamic rebinding of objects before each execution.
   See Item::bind_fields() which binds new objects per execution and
   Item::cleanup() that deletes references to such objects.
@@ -3940,7 +3940,7 @@ class Item_ident : public Item {
     @todo Notice that this is usually the same as Item_field::table_ref.
           cached_table should be replaced by table_ref ASAP.
   */
-  TABLE_LIST *cached_table;
+  Table_ref *cached_table;
   Query_block *depended_from;
 
   Item_ident(Name_resolution_context *context_arg, const char *db_name_arg,
@@ -4140,13 +4140,13 @@ class Item_field : public Item_ident {
   /**
     Table containing this resolved field. This is required e.g for calculation
     of table map. Notice that for the following types of "tables",
-    no TABLE_LIST object is assigned and hence table_ref is NULL:
+    no Table_ref object is assigned and hence table_ref is NULL:
      - Temporary tables assigned by join optimizer for sorting and aggregation.
      - Stored procedure dummy tables.
     For fields referencing such tables, table number is always 0, and other
     uses of table_ref is not needed.
   */
-  TABLE_LIST *table_ref;
+  Table_ref *table_ref;
   /// Source field
   Field *field;
 
@@ -4232,7 +4232,7 @@ class Item_field : public Item_ident {
   Item_field(const POS &pos, const char *db_arg, const char *table_name_arg,
              const char *field_name_arg);
   Item_field(THD *thd, Item_field *item);
-  Item_field(THD *thd, Name_resolution_context *context_arg, TABLE_LIST *tr,
+  Item_field(THD *thd, Name_resolution_context *context_arg, Table_ref *tr,
              Field *field);
   Item_field(Field *field);
 
@@ -5910,7 +5910,7 @@ class Item_view_ref final : public Item_ref {
   Item_view_ref(Name_resolution_context *context_arg, Item **item,
                 const char *db_name_arg, const char *alias_name_arg,
                 const char *table_name_arg, const char *field_name_arg,
-                TABLE_LIST *tl)
+                Table_ref *tl)
       : Item_ref(context_arg, item, db_name_arg, alias_name_arg,
                  field_name_arg),
         first_inner_table(nullptr) {
@@ -6001,7 +6001,7 @@ class Item_view_ref final : public Item_ref {
   bool collect_item_field_or_view_ref_processor(uchar *arg) override;
   Item *replace_item_view_ref(uchar *arg) override;
   Item *replace_view_refs_with_clone(uchar *arg) override;
-  TABLE_LIST *get_first_inner_table() const { return first_inner_table; }
+  Table_ref *get_first_inner_table() const { return first_inner_table; }
 
  protected:
   type_conversion_status save_in_field_inner(Field *field,
@@ -6017,7 +6017,7 @@ class Item_view_ref final : public Item_ref {
     If this column belongs to a view that is an inner table of an outer join,
     then this field points to the first leaf table of the view, otherwise NULL.
   */
-  TABLE_LIST *first_inner_table;
+  Table_ref *first_inner_table;
 };
 
 /*

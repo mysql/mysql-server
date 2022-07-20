@@ -75,7 +75,7 @@ class Acl_table_intact : public System_table_intact {
   static const TABLE_FIELD_DEF mysql_acl_table_defs[];
 };
 
-int handle_grant_table(THD *, TABLE_LIST *tables, ACL_TABLES table_no,
-                       bool drop, LEX_USER *user_from, LEX_USER *user_to);
+int handle_grant_table(THD *, Table_ref *tables, ACL_TABLES table_no, bool drop,
+                       LEX_USER *user_from, LEX_USER *user_to);
 
 #endif /* SQL_USER_TABLE_INCLUDED */

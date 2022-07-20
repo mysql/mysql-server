@@ -63,7 +63,7 @@ class Security_context;
 class ACL_USER;
 struct TABLE;
 struct MEM_ROOT;
-struct TABLE_LIST;
+class Table_ref;
 enum class role_enum;
 enum class Consumer_type;
 class LEX_GRANT_AS;
@@ -768,7 +768,7 @@ bool is_acl_user(THD *thd, const char *host, const char *user);
 bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
                  const char *host, const char *ip, const char *db);
 bool check_acl_tables_intact(THD *thd, bool mdl_locked);
-bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables);
+bool check_acl_tables_intact(THD *thd, Table_ref *tables);
 void notify_flush_event(THD *thd);
 bool wildcard_db_grant_exists();
 void append_auth_id_string(const THD *thd, const char *user, size_t user_len,
@@ -784,22 +784,22 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
                  bool revoke_grant, bool is_proxy,
                  const List<LEX_CSTRING> &dynamic_privilege,
                  bool grant_all_current_privileges, LEX_GRANT_AS *grant_as);
-bool mysql_routine_grant(THD *thd, TABLE_LIST *table, bool is_proc,
+bool mysql_routine_grant(THD *thd, Table_ref *table, bool is_proc,
                          List<LEX_USER> &user_list, ulong rights, bool revoke,
                          bool write_to_binlog);
-int mysql_table_grant(THD *thd, TABLE_LIST *table, List<LEX_USER> &user_list,
+int mysql_table_grant(THD *thd, Table_ref *table, List<LEX_USER> &user_list,
                       List<LEX_COLUMN> &column_list, ulong rights, bool revoke);
-bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
+bool check_grant(THD *thd, ulong want_access, Table_ref *tables,
                  bool any_combination_will_do, uint number, bool no_errors);
 bool check_grant_column(THD *thd, GRANT_INFO *grant, const char *db_name,
                         const char *table_name, const char *name, size_t length,
                         Security_context *sctx, ulong want_privilege);
-bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
+bool check_column_grant_in_table_ref(THD *thd, Table_ref *table_ref,
                                      const char *name, size_t length,
                                      ulong want_privilege);
 bool check_grant_all_columns(THD *thd, ulong want_access,
                              Field_iterator_table_ref *fields);
-bool check_grant_routine(THD *thd, ulong want_access, TABLE_LIST *procs,
+bool check_grant_routine(THD *thd, ulong want_access, Table_ref *procs,
                          bool is_proc, bool no_error);
 bool check_grant_db(THD *thd, const char *db,
                     const bool check_table_grant = false);
@@ -807,7 +807,7 @@ bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
                                   bool with_grant);
 void get_privilege_desc(char *to, uint max_length, ulong access);
 void get_mqh(THD *thd, const char *user, const char *host, USER_CONN *uc);
-ulong get_table_grant(THD *thd, TABLE_LIST *table);
+ulong get_table_grant(THD *thd, Table_ref *table);
 ulong get_column_grant(THD *thd, GRANT_INFO *grant, const char *db_name,
                        const char *table_name, const char *field_name);
 bool mysql_show_grants(THD *, LEX_USER *, const List_of_auth_id_refs &, bool,
@@ -820,31 +820,31 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc);
 void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                                      const char *db, const char *table);
-int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
-int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
-int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
-int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_schema_user_privileges(THD *thd, Table_ref *tables, Item *cond);
+int fill_schema_schema_privileges(THD *thd, Table_ref *tables, Item *cond);
+int fill_schema_table_privileges(THD *thd, Table_ref *tables, Item *cond);
+int fill_schema_column_privileges(THD *thd, Table_ref *tables, Item *cond);
 const ACL_internal_schema_access *get_cached_schema_access(
     GRANT_INTERNAL_INFO *grant_internal_info, const char *schema_name);
 
-bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
-bool create_table_precheck(THD *thd, TABLE_LIST *tables,
-                           TABLE_LIST *create_table);
+bool lock_tables_precheck(THD *thd, Table_ref *tables);
+bool create_table_precheck(THD *thd, Table_ref *tables,
+                           Table_ref *create_table);
 bool check_fk_parent_table_access(THD *thd, HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
-bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
+bool check_lock_view_underlying_table_access(THD *thd, Table_ref *tbl,
                                              bool *fake_lock_tables_acl);
 bool check_readonly(THD *thd, bool err_if_readonly);
 void err_readonly(THD *thd);
 
 bool is_secure_transport(int vio_type);
 
-bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
-bool check_single_table_access(THD *thd, ulong privilege, TABLE_LIST *tables,
+bool check_one_table_access(THD *thd, ulong privilege, Table_ref *tables);
+bool check_single_table_access(THD *thd, ulong privilege, Table_ref *tables,
                                bool no_errors);
 bool check_routine_access(THD *thd, ulong want_access, const char *db,
                           char *name, bool is_proc, bool no_errors);
-bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
+bool check_some_access(THD *thd, ulong want_access, Table_ref *table);
 bool has_full_view_routine_access(THD *thd, const char *db,
                                   const char *definer_user,
                                   const char *definer_host);
@@ -853,7 +853,7 @@ bool has_partial_view_routine_access(THD *thd, const char *db,
 bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                   GRANT_INTERNAL_INFO *grant_internal_info,
                   bool dont_check_global_grants, bool no_errors);
-bool check_table_access(THD *thd, ulong requirements, TABLE_LIST *tables,
+bool check_table_access(THD *thd, ulong requirements, Table_ref *tables,
                         bool any_combination_of_privileges_will_do, uint number,
                         bool no_errors);
 bool check_table_encryption_admin_access(THD *thd);
@@ -863,7 +863,7 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
                        const List<LEX_USER> *roles);
 void get_default_roles(const Auth_id_ref &user, List_of_auth_id_refs &list);
 
-bool is_granted_table_access(THD *thd, ulong required_acl, TABLE_LIST *table);
+bool is_granted_table_access(THD *thd, ulong required_acl, Table_ref *table);
 
 bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
                                         const List<LEX_USER> *users,

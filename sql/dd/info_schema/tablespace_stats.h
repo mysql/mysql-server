@@ -27,7 +27,6 @@
 #include "sql_string.h"   // String
 
 class THD;
-struct TABLE_LIST;
 
 namespace dd {
 namespace info_schema {

@@ -760,12 +760,11 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
   @return Matching table, NULL if error.
 */
 
-static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
-                                            TABLE_LIST *tables) {
-  TABLE_LIST *match = nullptr;
+static Table_ref *multi_delete_table_match(Table_ref *tbl, Table_ref *tables) {
+  Table_ref *match = nullptr;
   DBUG_TRACE;
 
-  for (TABLE_LIST *elem = tables; elem; elem = elem->next_local) {
+  for (Table_ref *elem = tables; elem; elem = elem->next_local) {
     int cmp;
 
     if (tbl->is_fqtn && elem->is_alias) continue; /* no match */
@@ -807,15 +806,15 @@ static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
 */
 
 static bool multi_delete_link_tables(Parse_context *pc,
-                                     SQL_I_List<TABLE_LIST> *delete_tables) {
+                                     SQL_I_List<Table_ref> *delete_tables) {
   DBUG_TRACE;
 
-  TABLE_LIST *tables = pc->select->table_list.first;
+  Table_ref *tables = pc->select->table_list.first;
 
-  for (TABLE_LIST *target_tbl = delete_tables->first; target_tbl;
+  for (Table_ref *target_tbl = delete_tables->first; target_tbl;
        target_tbl = target_tbl->next_local) {
     /* All tables in aux_tables must be found in FROM PART */
-    TABLE_LIST *walk = multi_delete_table_match(target_tbl, tables);
+    Table_ref *walk = multi_delete_table_match(target_tbl, tables);
     if (!walk) return true;
     if (!walk->is_derived()) {
       target_tbl->table_name = walk->table_name;
@@ -1045,7 +1044,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
       The following work only with the local list, the global list
       is created correctly in this case
     */
-    SQL_I_List<TABLE_LIST> save_list;
+    SQL_I_List<Table_ref> save_list;
     Query_block *const save_query_block = pc.select;
     save_query_block->table_list.save_and_clear(&save_list);
 
@@ -1074,7 +1073,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
   // which can be referred to from ON DUPLICATE KEY UPDATE. Naming the derived
   // table columns is deferred to Sql_cmd_insert_base::prepare_inner, as this
   // requires the insert table to be resolved.
-  TABLE_LIST *values_table{nullptr};
+  Table_ref *values_table{nullptr};
   if (opt_values_table_alias != nullptr && opt_values_column_list != nullptr) {
     if (!strcmp(opt_values_table_alias, table_ident->table.str)) {
       my_error(ER_NONUNIQ_TABLE, MYF(0), opt_values_table_alias);
@@ -1097,7 +1096,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
                opt_on_duplicate_column_list->elements());
 
     lex->duplicates = DUP_UPDATE;
-    TABLE_LIST *first_table = lex->query_block->table_list.first;
+    Table_ref *first_table = lex->query_block->table_list.first;
     /* Fix lock for ON DUPLICATE KEY UPDATE */
     if (first_table->lock_descriptor().type == TL_WRITE_CONCURRENT_DEFAULT)
       first_table->set_lock({TL_WRITE_DEFAULT, THR_DEFAULT});
@@ -1817,7 +1816,7 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
     if (pc->alter_info->new_db_name.str) {
       db = orig_db = pc->alter_info->new_db_name;
     } else {
-      TABLE_LIST *child_table = lex->query_block->get_table_list();
+      Table_ref *child_table = lex->query_block->get_table_list();
       db = orig_db = LEX_CSTRING{child_table->db, child_table->db_length};
     }
   }
@@ -2042,8 +2041,8 @@ bool PT_create_union_option::contextualize(Table_ddl_parse_context *pc) {
   LEX *const lex = thd->lex;
   const Yacc_state *yyps = &thd->m_parser_state->m_yacc;
 
-  TABLE_LIST **exclude_merge_engine_tables = lex->query_tables_last;
-  SQL_I_List<TABLE_LIST> save_list;
+  Table_ref **exclude_merge_engine_tables = lex->query_tables_last;
+  SQL_I_List<Table_ref> save_list;
   lex->query_block->table_list.save_and_clear(&save_list);
   if (pc->select->add_tables(thd, tables, TL_OPTION_UPDATING, yyps->m_lock_type,
                              yyps->m_mdl_type))
@@ -2129,14 +2128,14 @@ bool PT_locking_clause::contextualize(Parse_context *pc) {
 }
 
 using Local_tables_iterator =
-    IntrusiveListIterator<TABLE_LIST, &TABLE_LIST::next_local>;
+    IntrusiveListIterator<Table_ref, &Table_ref::next_local>;
 
-/// A list interface over the TABLE_LIST::next_local pointer.
+/// A list interface over the Table_ref::next_local pointer.
 using Local_tables_list = IteratorContainer<Local_tables_iterator>;
 
 bool PT_query_block_locking_clause::set_lock_for_tables(Parse_context *pc) {
   Local_tables_list local_tables(pc->select->table_list.first);
-  for (TABLE_LIST *table_list : local_tables)
+  for (Table_ref *table_list : local_tables)
     if (!table_list->is_derived()) {
       if (table_list->lock_descriptor().type != TL_READ_DEFAULT) {
         my_error(ER_DUPLICATE_TABLE_LOCK, MYF(0), table_list->alias);
@@ -2185,11 +2184,11 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
 
   Parse_context pc(thd, lex->current_query_block());
 
-  TABLE_LIST *table = pc.select->add_table_to_list(
+  Table_ref *table = pc.select->add_table_to_list(
       thd, table_name, nullptr, TL_OPTION_UPDATING, TL_WRITE, MDL_SHARED);
   if (table == nullptr) return nullptr;
 
-  table->open_strategy = TABLE_LIST::OPEN_FOR_CREATE;
+  table->open_strategy = Table_ref::OPEN_FOR_CREATE;
 
   lex->create_info = &m_create_info;
   Table_ddl_parse_context pc2(thd, pc.select, &m_alter_info);
@@ -2204,12 +2203,12 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
   lex->name.str = nullptr;
   lex->name.length = 0;
 
-  TABLE_LIST *qe_tables = nullptr;
+  Table_ref *qe_tables = nullptr;
 
   if (opt_like_clause != nullptr) {
     pc2.create_info->options |= HA_LEX_CREATE_TABLE_LIKE;
-    TABLE_LIST **like_clause_table = &lex->query_tables->next_global;
-    TABLE_LIST *src_table = pc.select->add_table_to_list(
+    Table_ref **like_clause_table = &lex->query_tables->next_global;
+    Table_ref *src_table = pc.select->add_table_to_list(
         thd, opt_like_clause, nullptr, 0, TL_READ, MDL_SHARED_READ);
     if (!src_table) return nullptr;
     /* CREATE TABLE ... LIKE is not allowed for views. */
@@ -2228,7 +2227,7 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
     }
 
     if (opt_partitioning) {
-      TABLE_LIST **exclude_part_tables = lex->query_tables_last;
+      Table_ref **exclude_part_tables = lex->query_tables_last;
       if (opt_partitioning->contextualize(&pc)) return nullptr;
       /*
         Remove all tables used in PARTITION clause from the global table
@@ -2253,7 +2252,7 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
     }
 
     if (opt_query_expression) {
-      TABLE_LIST **query_expression_tables = &lex->query_tables->next_global;
+      Table_ref **query_expression_tables = &lex->query_tables->next_global;
       /*
         In CREATE TABLE t ... SELECT the table_list initially contains
         here a table entry for the destination table `t'.
@@ -2267,7 +2266,7 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
         The following work only with the local list, the global list
         is created correctly in this case
       */
-      SQL_I_List<TABLE_LIST> save_list;
+      SQL_I_List<Table_ref> save_list;
       Query_block *const save_query_block = pc.select;
       save_query_block->table_list.save_and_clear(&save_list);
 
@@ -2307,7 +2306,7 @@ bool PT_table_locking_clause::set_lock_for_tables(Parse_context *pc) {
   for (Table_ident *table_ident : m_tables) {
     Query_block *select = pc->select;
 
-    TABLE_LIST *table_list = select->find_table_by_name(table_ident);
+    Table_ref *table_list = select->find_table_by_name(table_ident);
 
     THD *thd = pc->thd;
 
@@ -2330,10 +2329,10 @@ bool PT_show_table_base::make_table_base_cmd(THD *thd, bool *temporary) {
   lex->sql_command = m_sql_command;
 
   // Create empty query block and add user specified table.
-  TABLE_LIST **query_tables_last = lex->query_tables_last;
+  Table_ref **query_tables_last = lex->query_tables_last;
   Query_block *schema_query_block = lex->new_empty_query_block();
   if (schema_query_block == nullptr) return true;
-  TABLE_LIST *tbl = schema_query_block->add_table_to_list(
+  Table_ref *tbl = schema_query_block->add_table_to_list(
       thd, m_table_ident, nullptr, 0, TL_READ, MDL_SHARED_READ);
   if (tbl == nullptr) return true;
   lex->query_tables_last = query_tables_last;
@@ -2358,7 +2357,7 @@ bool PT_show_table_base::make_table_base_cmd(THD *thd, bool *temporary) {
                                                : SCH_TMP_TABLE_KEYS;
     if (make_schema_query_block(thd, query_block, schema_table)) return true;
 
-    TABLE_LIST *table_list = query_block->table_list.first;
+    Table_ref *table_list = query_block->table_list.first;
     table_list->schema_query_block = schema_query_block;
     table_list->schema_table_reformed = true;
   } else {
@@ -2380,7 +2379,7 @@ bool PT_show_table_base::make_table_base_cmd(THD *thd, bool *temporary) {
 
     if (sel == nullptr) return true;
 
-    TABLE_LIST *table_list = sel->table_list.first;
+    Table_ref *table_list = sel->table_list.first;
     table_list->schema_query_block = schema_query_block;
   }
 

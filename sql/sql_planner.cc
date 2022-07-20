@@ -122,7 +122,7 @@ static uint cache_record_length(JOIN *join, uint idx) {
 }
 
 Optimize_table_order::Optimize_table_order(THD *thd_arg, JOIN *join_arg,
-                                           TABLE_LIST *sjm_nest_arg)
+                                           Table_ref *sjm_nest_arg)
     : thd(thd_arg),
       join(join_arg),
       search_depth(determine_search_depth(thd->variables.optimizer_search_depth,
@@ -1556,7 +1556,7 @@ static ulonglong get_bound_sj_equalities(const JOIN_TAB *tab,
     Item_field *const item_field = static_cast<Item_field *>(item);
     Item_equal *item_equal = item_field->item_equal;
     if (!item_equal) {
-      TABLE_LIST *const nest = item_field->table_ref->outer_join_nest();
+      Table_ref *const nest = item_field->table_ref->outer_join_nest();
       item_equal = item_field->find_item_equal(nest ? nest->cond_equal
                                                     : tab->join()->cond_equal);
     }
@@ -1903,10 +1903,10 @@ class Join_tab_compare_straight {
 */
 class Join_tab_compare_embedded_first {
  private:
-  const TABLE_LIST *emb_nest;
+  const Table_ref *emb_nest;
 
  public:
-  explicit Join_tab_compare_embedded_first(const TABLE_LIST *nest)
+  explicit Join_tab_compare_embedded_first(const Table_ref *nest)
       : emb_nest(nest) {}
 
   bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2) const {
@@ -2211,7 +2211,7 @@ static int semijoin_order_allows_materialization(const JOIN *join,
     1. We're in a semi-join nest that can be run with SJ-materialization
     2. All the tables from the subquery are in the prefix
   */
-  const TABLE_LIST *emb_sj_nest = tab->emb_sj_nest;
+  const Table_ref *emb_sj_nest = tab->emb_sj_nest;
   if (!emb_sj_nest || !emb_sj_nest->nested_join->sjm.positions ||
       (remaining_tables & emb_sj_nest->sj_inner_tables))
     return SJ_OPT_NONE;
@@ -2512,7 +2512,7 @@ bool Optimize_table_order::consider_plan(uint idx,
       if (join->positions[i].sj_strategy == SJ_OPT_DUPS_WEEDOUT) {
         uint first = join->positions[i].first_dupsweedout_table;
         for (uint j = first; j <= i; j++) {
-          TABLE_LIST *emb_sj_nest = join->positions[j].table->emb_sj_nest;
+          Table_ref *emb_sj_nest = join->positions[j].table->emb_sj_nest;
           if (emb_sj_nest && !(emb_sj_nest->nested_join->sj_enabled_strategies &
                                OPTIMIZER_SWITCH_DUPSWEEDOUT))
             plan_uses_allowed_sj = false;
@@ -3374,7 +3374,7 @@ bool Optimize_table_order::fix_semijoin_strategies() {
 
     uint first = 0;
     if (pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP) {
-      TABLE_LIST *const sjm_nest = pos->table->emb_sj_nest;
+      Table_ref *const sjm_nest = pos->table->emb_sj_nest;
       const uint table_count = my_count_bits(sjm_nest->sj_inner_tables);
       /*
         This memcpy() copies a partial QEP produced by
@@ -3403,7 +3403,7 @@ bool Optimize_table_order::fix_semijoin_strategies() {
                                      "MaterializeLookup");
     } else if (pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN) {
       const uint last_inner = pos->sjm_scan_last_inner;
-      TABLE_LIST *const sjm_nest =
+      Table_ref *const sjm_nest =
           (join->best_positions + last_inner)->table->emb_sj_nest;
       const uint table_count = my_count_bits(sjm_nest->sj_inner_tables);
       first = last_inner - table_count + 1;
@@ -3589,7 +3589,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab) {
     */
     return true;
   }
-  const TABLE_LIST *next_emb = tab->table_ref->embedding;
+  const Table_ref *next_emb = tab->table_ref->embedding;
   /*
     Do update counters for "pairs of brackets" that we've left (marked as
     X,Y,Z in the above picture)
@@ -3812,7 +3812,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
 
 void Optimize_table_order::semijoin_mat_scan_access_paths(
     uint last_inner_tab, uint last_outer_tab, table_map remaining_tables,
-    TABLE_LIST *sjm_nest, double *newcount, double *newcost) {
+    Table_ref *sjm_nest, double *newcount, double *newcost) {
   DBUG_TRACE;
 
   const Cost_model_server *const cost_model = join->cost_model();
@@ -3892,8 +3892,10 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
     costs of accessing the outer tables.
 */
 
-void Optimize_table_order::semijoin_mat_lookup_access_paths(
-    uint last_inner, TABLE_LIST *sjm_nest, double *newcount, double *newcost) {
+void Optimize_table_order::semijoin_mat_lookup_access_paths(uint last_inner,
+                                                            Table_ref *sjm_nest,
+                                                            double *newcount,
+                                                            double *newcost) {
   DBUG_TRACE;
 
   const uint inner_count = my_count_bits(sjm_nest->sj_inner_tables);
@@ -4099,7 +4101,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
                                             const JOIN_TAB *new_join_tab,
                                             uint idx) {
   Opt_trace_context *const trace = &thd->opt_trace;
-  TABLE_LIST *const emb_sj_nest = new_join_tab->emb_sj_nest;
+  Table_ref *const emb_sj_nest = new_join_tab->emb_sj_nest;
   POSITION *const pos = join->positions + idx;
   double best_cost = pos->prefix_cost;
   double best_rowcount = pos->prefix_rowcount;
@@ -4181,7 +4183,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
   */
 
   if (pos->first_firstmatch_table != MAX_TABLES) {
-    const TABLE_LIST *first_emb_sj_nest =
+    const Table_ref *first_emb_sj_nest =
         join->positions[pos->first_firstmatch_table].table->emb_sj_nest;
     if (emb_sj_nest != first_emb_sj_nest) {
       // Can't handle interleaving between tables from the
@@ -4286,7 +4288,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
   */
   {
     if (pos->first_loosescan_table != MAX_TABLES) {
-      const TABLE_LIST *first_emb_sj_nest =
+      const Table_ref *first_emb_sj_nest =
           join->positions[pos->first_loosescan_table].table->emb_sj_nest;
       if (first_emb_sj_nest->sj_inner_tables & remaining_tables_incl) {
         // Stage 2: Accept remaining tables from the semi-join nest:
@@ -4478,7 +4480,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
 
   if (pos->sjm_scan_need_tables && /* Have SJM-Scan prefix */
       !(pos->sjm_scan_need_tables & remaining_tables)) {
-    TABLE_LIST *const sjm_nest =
+    Table_ref *const sjm_nest =
         join->positions[pos->sjm_scan_last_inner].table->emb_sj_nest;
 
     double cost, rowcount;
@@ -4650,7 +4652,7 @@ void Optimize_table_order::backout_nj_state(const table_map remaining_tables
   assert(remaining_tables & tab->table_ref->map());
 
   /* Restore the nested join state */
-  TABLE_LIST *last_emb = tab->table_ref->embedding;
+  Table_ref *last_emb = tab->table_ref->embedding;
 
   for (; last_emb != emb_sjm_nest; last_emb = last_emb->embedding) {
     // Ignore join nests that are not outer joins.
@@ -4769,15 +4771,15 @@ void Optimize_table_order::recalculate_lateral_deps_incrementally(
 }
 
 /**
-   Check if any TABLE_LIST appears twice in the plan (which is an error).
+   Check if any Table_ref appears twice in the plan (which is an error).
    @return 'true' if there are any duplicates.
 */
 bool Optimize_table_order::plan_has_duplicate_tabs() const {
   table_map plan{0};
   for (uint i = 0; i < join->tables; i++) {
-    TABLE_LIST *const tab_ref = got_final_plan
-                                    ? join->best_positions[i].table->table_ref
-                                    : join->best_ref[i]->table_ref;
+    Table_ref *const tab_ref = got_final_plan
+                                   ? join->best_positions[i].table->table_ref
+                                   : join->best_ref[i]->table_ref;
 
     if (tab_ref != nullptr) {
       if ((plan & tab_ref->map()) != 0) {
@@ -4796,7 +4798,7 @@ static void trace_plan_prefix(JOIN *join, uint idx, table_map excluded_tables) {
   THD *const thd = join->thd;
   Opt_trace_array plan_prefix(&thd->opt_trace, "plan_prefix");
   for (uint i = 0; i < idx; i++) {
-    TABLE_LIST *const tr = join->positions[i].table->table_ref;
+    Table_ref *const tr = join->positions[i].table->table_ref;
     if (!(tr->map() & excluded_tables)) {
       StringBuffer<32> str;
       tr->print(

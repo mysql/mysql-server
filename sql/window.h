@@ -970,7 +970,7 @@ class Window {
     @return false if success, true if error
   */
   static bool setup_windows1(THD *thd, Query_block *select,
-                             Ref_item_array ref_item_array, TABLE_LIST *tables,
+                             Ref_item_array ref_item_array, Table_ref *tables,
                              mem_root_deque<Item *> *fields,
                              List<Window> *windows);
   /**
@@ -1006,7 +1006,7 @@ class Window {
     @returns false if success, true if error
   */
   bool resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
-                               TABLE_LIST *tables,
+                               Table_ref *tables,
                                mem_root_deque<Item *> *fields, ORDER *o,
                                bool partition_order);
   /**

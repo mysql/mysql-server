@@ -1649,8 +1649,8 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   @retval true  Not found
 */
 
-bool sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc) {
-  TABLE_LIST *routine;
+bool sp_exist_routines(THD *thd, Table_ref *routines, bool is_proc) {
+  Table_ref *routine;
   bool sp_object_found;
   DBUG_TRACE;
   for (routine = routines; routine; routine = routine->next_global) {
@@ -1717,7 +1717,7 @@ static bool sp_add_used_routine(Query_tables_list *prelocking_ctx,
                                 Query_arena *arena, const uchar *key,
                                 size_t key_length, size_t db_length,
                                 const char *name, size_t name_length,
-                                TABLE_LIST *belong_to_view) {
+                                Table_ref *belong_to_view) {
   if (prelocking_ctx->sroutines == nullptr) {
     prelocking_ctx->sroutines.reset(
         new malloc_unordered_map<std::string, Sroutine_hash_entry *>(
@@ -1792,7 +1792,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          size_t db_length, const char *name, size_t name_length,
                          bool lowercase_db,
                          Sp_name_normalize_type name_normalize_type,
-                         bool own_routine, TABLE_LIST *belong_to_view) {
+                         bool own_routine, Table_ref *belong_to_view) {
   // Length of routine name components needs to be checked earlier.
   assert(db_length <= NAME_LEN && name_length <= NAME_LEN);
 
@@ -1917,7 +1917,7 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx) {
 void sp_update_stmt_used_routines(
     THD *thd, Query_tables_list *prelocking_ctx,
     malloc_unordered_map<std::string, Sroutine_hash_entry *> *src,
-    TABLE_LIST *belong_to_view) {
+    Table_ref *belong_to_view) {
   for (const auto &key_and_value : *src) {
     Sroutine_hash_entry *rt = key_and_value.second;
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
@@ -1943,7 +1943,7 @@ void sp_update_stmt_used_routines(
 
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                   SQL_I_List<Sroutine_hash_entry> *src,
-                                  TABLE_LIST *belong_to_view) {
+                                  Table_ref *belong_to_view) {
   for (Sroutine_hash_entry *rt = src->first; rt; rt = rt->next)
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
                               pointer_cast<const uchar *>(rt->m_key),

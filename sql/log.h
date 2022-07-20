@@ -60,7 +60,7 @@
 
 class THD;
 struct CHARSET_INFO;
-struct TABLE_LIST;
+class Table_ref;
 
 ////////////////////////////////////////////////////////////
 //
@@ -411,16 +411,16 @@ class Query_logger {
   bool set_log_file(enum_log_table_type log_type);
 
   /**
-     Check if given TABLE_LIST has a query log table name and
+     Check if given Table_ref has a query log table name and
      optionally check if the query log is currently enabled.
 
-     @param table_list       TABLE_LIST representing the table to check
+     @param table_list       Table_ref representing the table to check
      @param check_if_opened  Always return QUERY_LOG_NONE unless the
                              query log table is enabled.
 
      @retval QUERY_LOG_NONE, QUERY_LOG_SLOW or QUERY_LOG_GENERAL
   */
-  enum_log_table_type check_if_log_table(TABLE_LIST *table_list,
+  enum_log_table_type check_if_log_table(Table_ref *table_list,
                                          bool check_if_opened) const;
 };
 

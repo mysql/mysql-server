@@ -25,7 +25,7 @@
 
 struct MEM_ROOT;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 namespace dd {
 class Schema;
@@ -36,7 +36,7 @@ class View;
 
   @param   thd                Thread handle.
   @param   schema             Schema where the view should be created.
-  @param   view               TABLE_LIST element describing the view.
+  @param   view               Table_ref element describing the view.
 
   @note The caller must rollback both statement and transaction on failure,
         before any further accesses to DD. This is because such a failure
@@ -47,14 +47,14 @@ class View;
   @retval  false        On Success.
   @retval  true         On Failure.
 */
-bool create_view(THD *thd, const dd::Schema &schema, TABLE_LIST *view);
+bool create_view(THD *thd, const dd::Schema &schema, Table_ref *view);
 
 /**
   Update view metadata in dd.views.
 
   @param thd                Thread handle.
   @param new_view           View object that should be updated.
-  @param view               TABLE_LIST element describing the new view.
+  @param view               Table_ref element describing the new view.
 
   @note The caller must rollback both statement and transaction on failure,
         before any further accesses to DD. This is because such a failure
@@ -65,10 +65,10 @@ bool create_view(THD *thd, const dd::Schema &schema, TABLE_LIST *view);
   @retval false       On success.
   @retval true        On failure.
 */
-bool update_view(THD *thd, dd::View *new_view, TABLE_LIST *view);
+bool update_view(THD *thd, dd::View *new_view, Table_ref *view);
 
-/** Read view metadata from dd.views into TABLE_LIST */
-bool read_view(TABLE_LIST *view, const dd::View &view_ref, MEM_ROOT *mem_root);
+/** Read view metadata from dd.views into Table_ref */
+bool read_view(Table_ref *view, const dd::View &view_ref, MEM_ROOT *mem_root);
 
 /**
   Update view status(valid/invalid) value in dd.views.options.

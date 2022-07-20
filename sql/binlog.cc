@@ -9616,8 +9616,8 @@ void THD::add_to_binlog_accessed_dbs(const char *db_param) {
     inside your statement).
 */
 
-static bool has_write_table_with_auto_increment(TABLE_LIST *tables) {
-  for (TABLE_LIST *table = tables; table; table = table->next_global) {
+static bool has_write_table_with_auto_increment(Table_ref *tables) {
+  for (Table_ref *table = tables; table; table = table->next_global) {
     /* we must do preliminary checks as table->table may be NULL */
     if (!table->is_placeholder() && table->table->found_next_number_field &&
         (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE))
@@ -9643,10 +9643,10 @@ static bool has_write_table_with_auto_increment(TABLE_LIST *tables) {
 */
 
 static bool has_write_table_with_auto_increment_and_query_block(
-    TABLE_LIST *tables) {
+    Table_ref *tables) {
   bool has_query_block = false;
   bool has_auto_increment_tables = has_write_table_with_auto_increment(tables);
-  for (TABLE_LIST *table = tables; table; table = table->next_global) {
+  for (Table_ref *table = tables; table; table = table->next_global) {
     if (!table->is_placeholder() &&
         (table->lock_descriptor().type <= TL_READ_NO_INSERT)) {
       has_query_block = true;
@@ -9666,8 +9666,8 @@ static bool has_write_table_with_auto_increment_and_query_block(
   @return true if the table exists, fais if does not.
 */
 
-static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables) {
-  for (TABLE_LIST *table = tables; table; table = table->next_global) {
+static bool has_write_table_auto_increment_not_first_in_pk(Table_ref *tables) {
+  for (Table_ref *table = tables; table; table = table->next_global) {
     /* we must do preliminary checks as table->table may be NULL */
     if (!table->is_placeholder() && table->table->found_next_number_field &&
         (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE) &&
@@ -9690,12 +9690,12 @@ static bool has_nondeterministic_default(const TABLE *table) {
 }
 
 /**
-  Checks if a TABLE_LIST contains a table that has been opened for writing, and
-  that has a column with a non-deterministic DEFAULT expression.
+  Checks if a Table_ref contains a table that has been opened for writing,
+  and that has a column with a non-deterministic DEFAULT expression.
 */
 static bool has_write_table_with_nondeterministic_default(
-    const TABLE_LIST *tables) {
-  for (const TABLE_LIST *table = tables; table != nullptr;
+    const Table_ref *tables) {
+  for (const Table_ref *table = tables; table != nullptr;
        table = table->next_global) {
     /* we must do preliminary checks as table->table may be NULL */
     if (!table->is_placeholder() &&
@@ -9710,12 +9710,12 @@ static bool has_write_table_with_nondeterministic_default(
   Checks if we have reads from ACL tables in table list.
 
   @param  thd       Current thread
-  @param  tl_list   TABLE_LIST used by current command.
+  @param  tl_list   Table_ref used by current command.
 
   @returns true, if we statement is unsafe, otherwise false.
 */
-static bool has_acl_table_read(THD *thd, const TABLE_LIST *tl_list) {
-  for (const TABLE_LIST *tl = tl_list; tl != nullptr; tl = tl->next_global) {
+static bool has_acl_table_read(THD *thd, const Table_ref *tl_list) {
+  for (const Table_ref *tl = tl_list; tl != nullptr; tl = tl->next_global) {
     if (is_acl_table_in_non_LTM(tl, thd->locked_tables_mode) &&
         (tl->lock_descriptor().type == TL_READ_DEFAULT ||
          tl->lock_descriptor().type == TL_READ_HIGH_PRIORITY))
@@ -9858,7 +9858,7 @@ const char *get_locked_tables_mode_name(
   @retval -1 One of the error conditions above applies (1, 2, 4, 5, 6 or 9).
 */
 
-int THD::decide_logging_format(TABLE_LIST *tables) {
+int THD::decide_logging_format(Table_ref *tables) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("query: %s", query().str));
   DBUG_PRINT("info", ("variables.binlog_format: %lu", variables.binlog_format));
@@ -10017,7 +10017,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
       Get the capabilities vector for all involved storage engines and
       mask out the flags for the binary log.
     */
-    for (TABLE_LIST *table = tables; table; table = table->next_global) {
+    for (Table_ref *table = tables; table; table = table->next_global) {
       if (table->is_placeholder()) {
         /*
           Detect if this is a CREATE TEMPORARY or DROP of a
@@ -10376,7 +10376,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
         In case the number of databases exceeds MAX_DBS_IN_EVENT_MTS maximum
         the list gathering breaks since it won't be sent to the slave.
       */
-      for (TABLE_LIST *table = tables; table; table = table->next_global) {
+      for (Table_ref *table = tables; table; table = table->next_global) {
         if (table->is_placeholder()) continue;
 
         assert(table->table);
@@ -10408,7 +10408,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
         Generate a warning for UPDATE/DELETE statements that modify a
         BLACKHOLE table, as row events are not logged in row format.
       */
-      for (TABLE_LIST *table = tables; table; table = table->next_global) {
+      for (Table_ref *table = tables; table; table = table->next_global) {
         if (table->is_placeholder()) continue;
         if (table->table->file->ht->db_type == DB_TYPE_BLACKHOLE_DB &&
             table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE) {
@@ -10440,7 +10440,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
          mysql_bin_log.is_open(), (variables.option_bits & OPTION_BIN_LOG),
          variables.binlog_format, binlog_filter->db_ok(m_db.str)));
 
-    for (TABLE_LIST *table = tables; table; table = table->next_global) {
+    for (Table_ref *table = tables; table; table = table->next_global) {
       if (!table->is_placeholder() && table->table->no_replicate &&
           gtid_state->warn_or_err_on_modify_gtid_table(this, table))
         break;

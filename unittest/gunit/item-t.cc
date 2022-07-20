@@ -391,7 +391,7 @@ TEST_F(ItemTest, ItemViewRef) {
 
   // Create a view reference over a constant expression from an inner
   // table of an outer join.
-  TABLE_LIST table;
+  Table_ref table;
   table.outer_join = true;
   table.set_tableno(2);
   Item_view_ref *view_ref =

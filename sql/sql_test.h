@@ -33,7 +33,7 @@
 
 class Item;
 class JOIN;
-struct TABLE_LIST;
+class Table_ref;
 
 typedef Mem_root_array<Key_use> Key_use_array;
 
@@ -45,7 +45,7 @@ void print_where(const THD *thd, const Item *cond, const char *info,
 void TEST_join(JOIN *join);
 void print_plan(JOIN *join, uint idx, double record_count, double read_time,
                 double current_read_time, const char *info);
-void dump_TABLE_LIST_graph(Query_block *query_block, TABLE_LIST *tl);
+void dump_TABLE_LIST_graph(Query_block *query_block, Table_ref *tl);
 #endif
 class Opt_trace_context;
 

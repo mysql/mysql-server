@@ -315,7 +315,7 @@ class Security_context {
   std::pair<bool, bool> fetch_global_grant(const ACL_USER &acl_user,
                                            const std::string &privilege,
                                            bool cumulative = false);
-  bool has_table_access(ulong priv, TABLE_LIST *table);
+  bool has_table_access(ulong priv, Table_ref *table);
 
  private:
   /**

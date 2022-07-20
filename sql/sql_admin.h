@@ -40,7 +40,7 @@ class Clone_handler;
 class String;
 class THD;
 
-struct TABLE_LIST;
+class Table_ref;
 template <class T>
 class List;
 
@@ -130,7 +130,7 @@ class Sql_cmd_analyze_table : public Sql_cmd_ddl_table {
     @return false on success, true otherwise.
   */
   bool send_histogram_results(THD *thd, const histograms::results_map &results,
-                              const TABLE_LIST *table);
+                              const Table_ref *table);
 
   /**
     Update one or more histograms
@@ -145,7 +145,7 @@ class Sql_cmd_analyze_table : public Sql_cmd_ddl_table {
 
     @return false on success, true on error.
   */
-  bool update_histogram(THD *thd, TABLE_LIST *table,
+  bool update_histogram(THD *thd, Table_ref *table,
                         histograms::results_map &results);
 
   /**
@@ -161,10 +161,10 @@ class Sql_cmd_analyze_table : public Sql_cmd_ddl_table {
 
     @return false on success, true on error.
   */
-  bool drop_histogram(THD *thd, TABLE_LIST *table,
+  bool drop_histogram(THD *thd, Table_ref *table,
                       histograms::results_map &results);
 
-  bool handle_histogram_command(THD *thd, TABLE_LIST *table);
+  bool handle_histogram_command(THD *thd, Table_ref *table);
 };
 
 /**

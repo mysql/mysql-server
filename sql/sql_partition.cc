@@ -210,7 +210,7 @@ static uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
 Item *convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs) {
   THD *thd = current_thd;
   Name_resolution_context *context = &thd->lex->current_query_block()->context;
-  TABLE_LIST *save_list = context->table_list;
+  Table_ref *save_list = context->table_list;
   const char *save_where = thd->where;
 
   item = item->safe_charset_converter(thd, cs);
@@ -844,7 +844,7 @@ static bool init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex) {
       thd->get_protocol(), table->s->db, table->s->table_name, true);
   if (table_ident == nullptr) return true;
 
-  TABLE_LIST *table_list =
+  Table_ref *table_list =
       query_block->add_table_to_list(thd, table_ident, nullptr, 0);
   if (table_list == nullptr) return true;
 
@@ -1456,7 +1456,7 @@ bool check_part_func_fields(Field **ptr, bool ok_with_charsets) {
   DESCRIPTION
     The name parameter contains the full table name and is used to get the
     database name of the table which is used to set-up a correct
-    TABLE_LIST object for use in fix_fields.
+    Table_ref object for use in fix_fields.
 
 NOTES
     This function is called as part of opening the table by opening the .frm

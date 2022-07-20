@@ -132,7 +132,7 @@ class user_var_entry;
 struct LEX;
 struct LEX_USER;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 struct timeval;
 struct User_level_lock;
 struct YYLTYPE;
@@ -1480,7 +1480,7 @@ class THD : public MDL_context_owner,
 
   ulong max_client_packet_length;
 
-  collation_unordered_map<std::string, unique_ptr_my_free<TABLE_LIST>>
+  collation_unordered_map<std::string, unique_ptr_my_free<Table_ref>>
       handler_tables_hash{&my_charset_latin1,
                           key_memory_THD_handler_tables_hash};
   /*
@@ -4203,7 +4203,7 @@ class THD : public MDL_context_owner,
     locked_tables_mode = mode_arg;
   }
   void leave_locked_tables_mode();
-  int decide_logging_format(TABLE_LIST *tables);
+  int decide_logging_format(Table_ref *tables);
   /**
     is_dml_gtid_compatible() and is_ddl_gtid_compatible() check if the
     statement that is about to be processed will safely get a

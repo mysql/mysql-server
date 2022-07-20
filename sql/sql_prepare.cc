@@ -1045,7 +1045,7 @@ static bool send_statement(THD *thd, const Prepared_statement *stmt,
 
 static bool mysql_test_set_fields(THD *thd,
                                   Prepared_statement *stmt [[maybe_unused]],
-                                  TABLE_LIST *tables,
+                                  Table_ref *tables,
                                   List<set_var_base> *var_list) {
   List_iterator_fast<set_var_base> it(*var_list);
   set_var_base *var;
@@ -1110,7 +1110,7 @@ static bool select_like_stmt_test(THD *thd, Query_result *result,
 bool Sql_cmd_create_table::prepare(THD *thd) {
   LEX *const lex = thd->lex;
   Query_block *query_block = lex->query_block;
-  TABLE_LIST *create_table = lex->query_tables;
+  Table_ref *create_table = lex->query_tables;
   DBUG_TRACE;
 
   if (create_table_precheck(thd, query_expression_tables, create_table))
@@ -1180,8 +1180,8 @@ static bool mysql_test_create_view(THD *thd, Prepared_statement *stmt) {
   bool res = true;
   /* Skip first table, which is the view we are creating */
   bool link_to_local;
-  TABLE_LIST *view = lex->unlink_first_table(&link_to_local);
-  TABLE_LIST *tables = lex->query_tables;
+  Table_ref *view = lex->unlink_first_table(&link_to_local);
+  Table_ref *tables = lex->query_tables;
 
   if (create_view_precheck(thd, tables, view, lex->create_view_mode)) goto err;
 
@@ -1257,7 +1257,7 @@ bool Prepared_statement::prepare_query(THD *thd) {
              ("command: %d  param_count: %u", sql_command, m_param_count));
 
   m_lex->first_lists_tables_same();
-  TABLE_LIST *const tables = m_lex->query_tables;
+  Table_ref *const tables = m_lex->query_tables;
 
   /* set context for commands which do not use setup_tables */
   query_block->context.resolve_in_table_list_only(

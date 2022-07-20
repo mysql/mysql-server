@@ -33,7 +33,7 @@ struct MYSQL_LOCK;
 class MDL_context;
 class MDL_ticket;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 class THD;
 
 /**
@@ -64,7 +64,7 @@ const char *get_locked_tables_mode_name(
 /**
   Tables that were locked with LOCK TABLES statement.
 
-  Encapsulates a list of TABLE_LIST instances for tables
+  Encapsulates a list of Table_ref instances for tables
   locked by LOCK TABLES statement, memory root for metadata locks,
   and, generally, the context of LOCK TABLES statement.
 
@@ -78,7 +78,7 @@ const char *get_locked_tables_mode_name(
 
   Some SQL commands, like FLUSH TABLE or ALTER TABLE, demand that
   the tables they operate on are closed, at least temporarily.
-  This class encapsulates a list of TABLE_LIST instances, one
+  This class encapsulates a list of Table_ref instances, one
   for each base table from LOCK TABLES list,
   which helps conveniently close the TABLEs when it's necessary
   and later reopen them.
@@ -89,8 +89,8 @@ class Locked_tables_list {
  private:
   MEM_ROOT m_locked_tables_root{key_memory_locked_table_list,
                                 MEM_ROOT_BLOCK_SIZE};
-  TABLE_LIST *m_locked_tables;
-  TABLE_LIST **m_locked_tables_last;
+  Table_ref *m_locked_tables;
+  Table_ref **m_locked_tables_last;
   /** An auxiliary array used only in reopen_tables(). */
   TABLE **m_reopen_array;
   /**
@@ -118,13 +118,13 @@ class Locked_tables_list {
     assert(m_rename_tablespace_mdls.empty());
   }
   bool init_locked_tables(THD *thd);
-  TABLE_LIST *locked_tables() const { return m_locked_tables; }
-  void unlink_from_list(const THD *thd, TABLE_LIST *table_list,
+  Table_ref *locked_tables() const { return m_locked_tables; }
+  void unlink_from_list(const THD *thd, Table_ref *table_list,
                         bool remove_from_locked_tables);
   void unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock,
                                 size_t reopen_count);
   bool reopen_tables(THD *thd);
-  void rename_locked_table(TABLE_LIST *old_table_list, const char *new_db,
+  void rename_locked_table(Table_ref *old_table_list, const char *new_db,
                            const char *new_table_name,
                            MDL_ticket *target_mdl_ticket);
 

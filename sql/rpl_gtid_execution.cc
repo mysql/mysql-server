@@ -396,8 +396,8 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd) {
  */
 static bool is_stmt_taking_table_wr_locks(const THD *thd) {
   DBUG_TRACE;
-  TABLE_LIST *tables = thd->lex->query_tables;
-  for (TABLE_LIST *table = tables; table; table = table->next_global) {
+  Table_ref *tables = thd->lex->query_tables;
+  for (Table_ref *table = tables; table; table = table->next_global) {
     if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE) {
       return true;
     }

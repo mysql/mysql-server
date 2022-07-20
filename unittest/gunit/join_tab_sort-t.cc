@@ -59,7 +59,7 @@ class MOCK_JOIN_TAB : public JOIN_TAB {
   }
 
   TABLE m_table;
-  TABLE_LIST m_table_list;
+  Table_ref m_table_list;
   QEP_shared m_shared;
 };
 

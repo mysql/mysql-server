@@ -60,7 +60,7 @@ bool Open_dictionary_tables_ctx::open_tables() {
   Object_table_map::iterator it = m_tables.begin();
   Object_table_map::iterator it_next = m_tables.begin();
 
-  TABLE_LIST *table_list = it_next->second->get_table_list();
+  Table_ref *table_list = it_next->second->get_table_ref();
 
   ++it_next;
 
@@ -68,8 +68,7 @@ bool Open_dictionary_tables_ctx::open_tables() {
   while (it_next != m_tables.end()) {
     // fprintf(stderr, "  - '%s'\n", it->first.c_str());
 
-    it->second->get_table_list()->next_global =
-        it_next->second->get_table_list();
+    it->second->get_table_ref()->next_global = it_next->second->get_table_ref();
 
     ++it;
     ++it_next;
@@ -115,7 +114,7 @@ bool Open_dictionary_tables_ctx::open_tables() {
     is not really necessary for replicating data-dictionary changes
     (as we do not aim to replicate exact IDs in the data-dictionary).
   */
-  for (TABLE_LIST *t = table_list; t; t = t->next_global) {
+  for (Table_ref *t = table_list; t; t = t->next_global) {
     assert(t->table->file->ha_table_flags() & HA_ATTACHABLE_TRX_COMPATIBLE);
     if (t->table->file->ha_extra(HA_EXTRA_NO_AUTOINC_LOCKING)) return true;
   }

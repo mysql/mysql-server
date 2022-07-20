@@ -311,7 +311,7 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
         return param->table == param->cte->tmp_tables[0]->table &&
                std::none_of(param->cte->tmp_tables.cbegin(),
                             param->cte->tmp_tables.cend(),
-                            [](const TABLE_LIST *tab) {
+                            [](const Table_ref *tab) {
                               return tab->table->materialized;
                             });
       } else {
@@ -1591,7 +1591,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       error |=
           AddMemberToObject<Json_string>(obj, "access_type", "delete_rows");
       string tables;
-      for (TABLE_LIST *t = join->query_block->leaf_tables; t != nullptr;
+      for (Table_ref *t = join->query_block->leaf_tables; t != nullptr;
            t = t->next_leaf) {
         if (Overlaps(t->map(), path->delete_rows().tables_to_delete_from)) {
           if (!tables.empty()) {
@@ -1612,7 +1612,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
     }
     case AccessPath::UPDATE_ROWS: {
       string tables;
-      for (TABLE_LIST *t = join->query_block->leaf_tables; t != nullptr;
+      for (Table_ref *t = join->query_block->leaf_tables; t != nullptr;
            t = t->next_leaf) {
         if (Overlaps(t->map(), path->update_rows().tables_to_update)) {
           if (!tables.empty()) {

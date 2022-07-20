@@ -49,7 +49,7 @@ namespace dd {
 class Table;
 }  // namespace dd
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 template <class T>
 class List;
 
@@ -156,7 +156,7 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
 
   bool add_tables_and_routines_for_triggers(THD *thd,
                                             Query_tables_list *prelocking_ctx,
-                                            TABLE_LIST *table_list);
+                                            Table_ref *table_list);
 
   void enable_fields_temporary_nullability(THD *thd);
   void disable_fields_temporary_nullability();

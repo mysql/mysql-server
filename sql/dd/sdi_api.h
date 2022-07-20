@@ -31,7 +31,7 @@
 struct MEM_ROOT;
 class MDL_request;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 namespace dd {
 namespace sdi {
@@ -136,14 +136,14 @@ class Import_target {
   bool load(THD *thd, String_type *shared_buffer);
 
   /**
-    Constructs a TABLE_LIST object with info from this Import_target.
-    TABLE_LIST::db and TABLE_LIST::table_name are initialized to the
+    Constructs a Table_ref object with info from this Import_target.
+    Table_ref::db and Table_ref::table_name are initialized to the
     canonical (lowercased for lctn==2) representation,
-    TABLE_LIST::alias to the native
-    table_name, and TABLE_LIST::m_lock_descriptor.type is set to
+    Table_ref::alias to the native
+    table_name, and Table_ref::m_lock_descriptor.type is set to
     TL_IGNORE.
    */
-  TABLE_LIST make_table_list() const;
+  Table_ref make_table_ref() const;
 
   /**
     Update the schema reference in the Table object and store

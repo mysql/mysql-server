@@ -664,7 +664,7 @@ bool Window::setup_ordering_cached_items(THD *thd, Query_block *select,
 }
 
 bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
-                                     TABLE_LIST *tables,
+                                     Table_ref *tables,
                                      mem_root_deque<Item *> *fields, ORDER *o,
                                      bool partition_order) {
   DBUG_TRACE;
@@ -1081,7 +1081,7 @@ void Window::eliminate_unused_objects(List<Window> *windows) {
 }
 
 bool Window::setup_windows1(THD *thd, Query_block *select,
-                            Ref_item_array ref_item_array, TABLE_LIST *tables,
+                            Ref_item_array ref_item_array, Table_ref *tables,
                             mem_root_deque<Item *> *fields,
                             List<Window> *windows) {
   // Only possible at resolution time.

@@ -69,7 +69,7 @@ class Temp_table_param;
 class my_decimal;
 class subselect_indexsubquery_engine;
 struct AccessPath;
-struct TABLE_LIST;
+class Table_ref;
 
 template <class T>
 class List;
@@ -429,11 +429,11 @@ class Item_exists_subselect : public Item_subselect {
   /**
     Used by subquery optimizations to keep track about where this subquery
     predicate is located, and whether it is a candidate for transformation.
-      (TABLE_LIST*) 1   - the predicate is an AND-part of the WHERE
-      join nest pointer - the predicate is an AND-part of ON expression
-                          of a join nest
-      NULL              - for all other locations. It also means that the
-                          predicate is not a candidate for transformation.
+      (Table_ref*) 1 - the predicate is an AND-part of the WHERE
+      join nest pointer    - the predicate is an AND-part of ON expression
+                             of a join nest
+      NULL                 - for all other locations. It also means that the
+                             predicate is not a candidate for transformation.
     See also THD::emb_on_expr_nest.
 
     As for the second case above (the join nest pointer), note that this value
@@ -441,7 +441,7 @@ class Item_exists_subselect : public Item_subselect {
     cf. transform_scalar_subqueries_to_join_with_derived, due to the need to
     build new join nests. The change is performed in Query_block::nest_derived.
   */
-  TABLE_LIST *embedding_join_nest{nullptr};
+  Table_ref *embedding_join_nest{nullptr};
 
   Item_exists_subselect(Query_block *select);
 
@@ -803,7 +803,7 @@ class subselect_indexsubquery_engine {
   Query_result_union *result = nullptr; /* results storage class */
   /// Table which is read, using one of eq_ref, ref, ref_or_null.
   TABLE *table{nullptr};
-  TABLE_LIST *table_ref{nullptr};
+  Table_ref *table_ref{nullptr};
   Index_lookup ref;
   join_type type{JT_UNKNOWN};
   Item *cond;     /* The WHERE condition of subselect */
@@ -825,7 +825,7 @@ class subselect_indexsubquery_engine {
  public:
   enum enum_engine_type { INDEXSUBQUERY_ENGINE, HASH_SJ_ENGINE };
 
-  subselect_indexsubquery_engine(TABLE *table, TABLE_LIST *table_ref,
+  subselect_indexsubquery_engine(TABLE *table, Table_ref *table_ref,
                                  const Index_lookup &ref,
                                  enum join_type join_type,
                                  Item_in_subselect *subs, Item *where,

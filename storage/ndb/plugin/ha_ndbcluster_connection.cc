@@ -494,7 +494,7 @@ static ST_FIELD_INFO ndb_transid_mysql_connection_map_fields_info[] = {
     {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, "", 0}};
 
 static int ndb_transid_mysql_connection_map_fill_table(THD *thd,
-                                                       TABLE_LIST *tables,
+                                                       Table_ref *tables,
                                                        Item *) {
   DBUG_TRACE;
 

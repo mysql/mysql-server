@@ -351,7 +351,7 @@ class Query_term {
   /**
      Result temporary table for the set operation, if applicable
    */
-  TABLE_LIST *m_result_table{nullptr};
+  Table_ref *m_result_table{nullptr};
   /**
     Used only when streaming, i.e. not materialized result set
   */
@@ -375,9 +375,9 @@ class Query_term {
   bool owning_operand() { return m_owning_operand; }
 
   /// Setter for m_result_table, q.v.
-  void set_result_table_list(TABLE_LIST *tl) { m_result_table = tl; }
+  void set_result_table(Table_ref *tl) { m_result_table = tl; }
   /// Getter for m_result_table, q.v.
-  TABLE_LIST &result_table_list() { return *m_result_table; }
+  Table_ref &result_table() { return *m_result_table; }
 
   // Setter for m_fields, q.v.
   void set_fields(mem_root_deque<Item *> *fields) { m_fields = fields; }

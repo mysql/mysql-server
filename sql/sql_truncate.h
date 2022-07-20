@@ -32,7 +32,7 @@
 
 class MDL_ticket;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 struct handlerton;
 
 using Up_table = std::unique_ptr<dd::Table>;
@@ -61,19 +61,19 @@ class Sql_cmd_truncate_table : public Sql_cmd {
 
  private:
   /* Handle locking a base table for truncate. */
-  bool lock_table(THD *, TABLE_LIST *);
+  bool lock_table(THD *, Table_ref *);
 
   /*
     Optimized delete of all rows by doing a full regenerate of the table.
     Depending on the storage engine, it can be accomplished through a
     drop and recreate or via the handler truncate method.
   */
-  void truncate_base(THD *, TABLE_LIST *);
-  void truncate_temporary(THD *, TABLE_LIST *);
+  void truncate_base(THD *, Table_ref *);
+  void truncate_temporary(THD *, Table_ref *);
 
   void end_transaction(THD *, bool, bool);
   void cleanup_base(THD *, const handlerton *);
-  void cleanup_temporary(THD *, handlerton *, const TABLE_LIST &, Up_table *,
+  void cleanup_temporary(THD *, handlerton *, const Table_ref &, Up_table *,
                          const std::string &);
 };
 

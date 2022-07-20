@@ -71,7 +71,7 @@ class Value_map;
 }  // namespace histograms
 struct CHARSET_INFO;
 struct MEM_ROOT;
-struct TABLE_LIST;
+class Table_ref;
 class Json_dom;
 
 namespace histograms {
@@ -695,7 +695,7 @@ Histogram *build_histogram(MEM_ROOT *mem_root, const Value_map<T> &value_map,
 
   @return false on success, true on error.
 */
-bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
+bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
                       int num_buckets, LEX_STRING data, results_map &results);
 
 /**
@@ -711,7 +711,7 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
 
   @return false on success, true on error.
 */
-bool drop_all_histograms(THD *thd, TABLE_LIST &table,
+bool drop_all_histograms(THD *thd, Table_ref &table,
                          const dd::Table &original_table_def,
                          results_map &results);
 
@@ -734,7 +734,7 @@ bool drop_all_histograms(THD *thd, TABLE_LIST &table,
 
   @return false on success, true on error.
 */
-bool drop_histograms(THD *thd, TABLE_LIST &table, const columns_set &columns,
+bool drop_histograms(THD *thd, Table_ref &table, const columns_set &columns,
                      bool needs_lock, results_map &results);
 
 /**

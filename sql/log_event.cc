@@ -9692,35 +9692,35 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
         NOTE: The base tables are added here are removed when
               close_thread_tables is called.
        */
-      TABLE_LIST *table_list_ptr = rli->tables_to_lock;
+      Table_ref *table_list_ptr = rli->tables_to_lock;
       for (uint i = 0; table_list_ptr && (i < rli->tables_to_lock_count);
            table_list_ptr = table_list_ptr->next_global, i++) {
         /*
           Below if condition takes care of skipping base tables that
           make up the MERGE table (which are added by open_tables()
           call). They are added next to the merge table in the list.
-          For eg: If RPL_TABLE_LIST is t3->t1->t2 (where t1 and t2
+          For eg: If RPL_Table_ref is t3->t1->t2 (where t1 and t2
           are base tables for merge table 't3'), open_tables will modify
           the list by adding t1 and t2 again immediately after t3 in the
           list (*not at the end of the list*). New table_to_lock list will
-          look like t3->t1'->t2'->t1->t2 (where t1' and t2' are TABLE_LIST
+          look like t3->t1'->t2'->t1->t2 (where t1' and t2' are Table_ref
           objects added by open_tables() call). There is no flag(or logic) in
           open_tables() that can skip adding these base tables to the list.
           So the logic here should take care of skipping them.
 
           tables_to_lock_count logic will take care of skipping base tables
           that are added at the end of the list.
-          For eg: If RPL_TABLE_LIST is t1->t2->t3, open_tables will modify
+          For eg: If RPL_Table_ref is t1->t2->t3, open_tables will modify
           the list into t1->t2->t3->t1'->t2'. t1' and t2' will be skipped
           because tables_to_lock_count logic in this for loop.
         */
         if (table_list_ptr->parent_l) continue;
         /*
           We can use a down cast here since we know that every table added
-          to the tables_to_lock is a RPL_TABLE_LIST (or child table which is
+          to the tables_to_lock is a RPL_Table_ref (or child table which is
           skipped above).
         */
-        RPL_TABLE_LIST *ptr = static_cast<RPL_TABLE_LIST *>(table_list_ptr);
+        RPL_Table_ref *ptr = static_cast<RPL_Table_ref *>(table_list_ptr);
         assert(ptr->m_tabledef_valid);
         TABLE *conv_table;
         if (!ptr->m_tabledef.compatible_with(thd,
@@ -9751,7 +9751,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       ... and then we add all the tables to the table map and but keep
       them in the tables to lock list.
      */
-    TABLE_LIST *ptr = rli->tables_to_lock;
+    Table_ref *ptr = rli->tables_to_lock;
     for (uint i = 0; ptr && (i < rli->tables_to_lock_count);
          ptr = ptr->next_global, i++) {
       /*
@@ -10791,7 +10791,7 @@ enum enum_tbl_map_status {
             rli->tables_to_lock.
 */
 static enum_tbl_map_status check_table_map(Relay_log_info const *rli,
-                                           RPL_TABLE_LIST *table_list) {
+                                           RPL_Table_ref *table_list) {
   DBUG_TRACE;
   enum_tbl_map_status res = OK_TO_PROCESS;
 
@@ -10805,9 +10805,9 @@ static enum_tbl_map_status check_table_map(Relay_log_info const *rli,
     else
       res = FILTERED_OUT;
   else {
-    RPL_TABLE_LIST *ptr = static_cast<RPL_TABLE_LIST *>(rli->tables_to_lock);
+    RPL_Table_ref *ptr = static_cast<RPL_Table_ref *>(rli->tables_to_lock);
     for (uint i = 0; ptr && (i < rli->tables_to_lock_count);
-         ptr = static_cast<RPL_TABLE_LIST *>(ptr->next_local), i++) {
+         ptr = static_cast<RPL_Table_ref *>(ptr->next_local), i++) {
       if (ptr->table_id == table_list->table_id) {
         if (strcmp(ptr->db, table_list->db) ||
             strcmp(ptr->alias, table_list->table_name) ||
@@ -10828,7 +10828,7 @@ static enum_tbl_map_status check_table_map(Relay_log_info const *rli,
 }
 
 int Table_map_log_event::do_apply_event(Relay_log_info const *rli) {
-  RPL_TABLE_LIST *table_list;
+  RPL_Table_ref *table_list;
   char *db_mem, *tname_mem;
   const char *ptr;
   size_t dummy_len;
@@ -10841,7 +10841,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli) {
 
   if (!(memory =
             my_multi_malloc(key_memory_log_event, MYF(MY_WME), &table_list,
-                            sizeof(RPL_TABLE_LIST), &db_mem, (uint)NAME_LEN + 1,
+                            sizeof(RPL_Table_ref), &db_mem, (uint)NAME_LEN + 1,
                             &tname_mem, (uint)NAME_LEN + 1, NullS)))
     return HA_ERR_OUT_OF_MEM;
 
@@ -10860,8 +10860,8 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli) {
     my_stpcpy(db_mem, ptr);
   }
 
-  new (table_list) RPL_TABLE_LIST(db_mem, strlen(db_mem), tname_mem,
-                                  strlen(tname_mem), tname_mem, TL_WRITE);
+  new (table_list) RPL_Table_ref(db_mem, strlen(db_mem), tname_mem,
+                                 strlen(tname_mem), tname_mem, TL_WRITE);
 
   table_list->table_id = DBUG_EVALUATE_IF(
       "inject_tblmap_same_id_maps_diff_table", 0, m_table_id.id());

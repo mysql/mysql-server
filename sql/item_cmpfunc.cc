@@ -7132,8 +7132,8 @@ longlong Item_func_trig_cond::val_int() {
   return *trig_var ? args[0]->val_int() : 1;
 }
 
-void Item_func_trig_cond::get_table_range(TABLE_LIST **first_table,
-                                          TABLE_LIST **last_table) const {
+void Item_func_trig_cond::get_table_range(Table_ref **first_table,
+                                          Table_ref **last_table) const {
   *first_table = nullptr;
   *last_table = nullptr;
   if (m_join == nullptr) return;
@@ -7198,7 +7198,7 @@ void Item_func_trig_cond::print(const THD *thd, String *str,
       assert(0);
   }
   if (m_join != nullptr) {
-    TABLE_LIST *first_table, *last_table;
+    Table_ref *first_table, *last_table;
     get_table_range(&first_table, &last_table);
     str->append("(");
     str->append(first_table->table->alias);
@@ -7321,7 +7321,7 @@ Item_field *Item_equal::get_subst_item(const Item_field *field) {
 */
 
 Item *Item_equal::equality_substitution_transformer(uchar *arg) {
-  TABLE_LIST *sj_nest = reinterpret_cast<TABLE_LIST *>(arg);
+  Table_ref *sj_nest = reinterpret_cast<Table_ref *>(arg);
   List_iterator<Item_field> it(fields);
   List<Item_field> added_fields;
   Item_field *item;
@@ -7356,7 +7356,7 @@ Item *Item_equal::equality_substitution_transformer(uchar *arg) {
     @see JOIN::update_equalities_for_sjm() for why this is needed.
 */
 Item *Item_func_eq::equality_substitution_transformer(uchar *arg) {
-  TABLE_LIST *sj_nest = reinterpret_cast<TABLE_LIST *>(arg);
+  Table_ref *sj_nest = reinterpret_cast<Table_ref *>(arg);
 
   // Skip if equality can be processed during materialization
   if (((used_tables() & ~INNER_TABLE_BIT) & ~sj_nest->sj_inner_tables) == 0) {

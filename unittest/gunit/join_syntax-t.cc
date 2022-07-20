@@ -39,8 +39,8 @@ using my_testing::Server_initializer;
 class JoinSyntaxTest : public ParserTest {};
 
 void check_name_resolution_tables(std::initializer_list<const char *> aliases,
-                                  SQL_I_List<TABLE_LIST> tables) {
-  TABLE_LIST *table_list = tables.first;
+                                  SQL_I_List<Table_ref> tables) {
+  Table_ref *table_list = tables.first;
   for (auto alias : aliases) {
     ASSERT_FALSE(table_list == nullptr);
     EXPECT_STREQ(alias, table_list->alias)

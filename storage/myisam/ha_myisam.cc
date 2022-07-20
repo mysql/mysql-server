@@ -1135,7 +1135,7 @@ int ha_myisam::assign_to_keycache(THD *thd, HA_CHECK_OPT *check_opt) {
   KEY_CACHE *new_key_cache = check_opt->key_cache;
   int error = HA_ADMIN_OK;
   ulonglong map;
-  TABLE_LIST *table_list = table->pos_in_table_list;
+  Table_ref *table_list = table->pos_in_table_list;
   DBUG_TRACE;
 
   table->keys_in_use_for_query.clear_all();
@@ -1175,7 +1175,7 @@ int ha_myisam::preload_keys(THD *thd, HA_CHECK_OPT *) {
   int error;
   const char *errmsg;
   ulonglong map;
-  TABLE_LIST *table_list = table->pos_in_table_list;
+  Table_ref *table_list = table->pos_in_table_list;
   bool ignore_leaves = table_list->ignore_leaves;
   char buf[MYSQL_ERRMSG_SIZE];
 

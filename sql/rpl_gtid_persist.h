@@ -204,7 +204,7 @@ class Gtid_table_persistor {
     @retval 1 Push a warning to client.
     @retval 2 Push an error to client.
   */
-  int warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table) {
+  int warn_or_err_on_explicit_modification(THD *thd, Table_ref *table) {
     DBUG_TRACE;
 
     if (!thd->is_operating_gtid_table_implicitly &&

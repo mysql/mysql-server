@@ -364,7 +364,7 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key,
   return do_add(key, value.total_cost());
 }
 
-Opt_trace_struct &Opt_trace_struct::do_add_utf8_table(const TABLE_LIST *tl) {
+Opt_trace_struct &Opt_trace_struct::do_add_utf8_table(const Table_ref *tl) {
   if (tl != nullptr) {
     StringBuffer<32> str;
     tl->print(current_thd, &str,
@@ -1120,8 +1120,8 @@ void Opt_trace_context::missing_privilege() {
     disabled.
     Storing in Opt_trace_context would require an external memory (probably a
     RAII object), which would not be possible in
-    TABLE_LIST::prepare_security(), where I_S must be disabled even after the
-    end of that function - so RAII would not work.
+    Table_ref::prepare_security(), where I_S must be disabled even after
+    the end of that function - so RAII would not work.
 
     Which is why this function needs an existing current_stmt_in_gen.
   */

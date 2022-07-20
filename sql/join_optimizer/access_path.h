@@ -306,7 +306,7 @@ struct AccessPath {
   ///
   /// Note that this is an index into CostingReceiver's array of nodes, and is
   /// not necessarily equal to the table number within the query block given by
-  /// TABLE_LIST::tableno().
+  /// Table_ref::tableno().
   ///
   /// The table, if any, is currently always the outermost table in the path.
   ///
@@ -1156,7 +1156,7 @@ struct AccessPath {
     } materialize;
     struct {
       AccessPath *table_path;
-      TABLE_LIST *table_list;
+      Table_ref *table_list;
       Item *condition;
     } materialize_information_schema_table;
     struct {
@@ -1588,7 +1588,7 @@ inline AccessPath *NewMaterializeAccessPath(
 }
 
 inline AccessPath *NewMaterializeInformationSchemaTableAccessPath(
-    THD *thd, AccessPath *table_path, TABLE_LIST *table_list, Item *condition) {
+    THD *thd, AccessPath *table_path, Table_ref *table_list, Item *condition) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE;
   path->materialize_information_schema_table().table_path = table_path;

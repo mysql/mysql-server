@@ -313,7 +313,7 @@ static bool report_error_except_ignore_dup(THD *thd, const char *object_type) {
 namespace dd {
 namespace info_schema {
 
-bool update_table_stats(THD *thd, TABLE_LIST *table) {
+bool update_table_stats(THD *thd, Table_ref *table) {
   // Update the object properties
   HA_CREATE_INFO create_info;
 
@@ -339,7 +339,7 @@ bool update_table_stats(THD *thd, TABLE_LIST *table) {
          report_error_except_ignore_dup(thd, "table");
 }
 
-bool update_index_stats(THD *thd, TABLE_LIST *table) {
+bool update_index_stats(THD *thd, Table_ref *table) {
   // Update the object properties
   TABLE *analyze_table = table->table;
   KEY *key_info = analyze_table->s->key_info;
@@ -711,7 +711,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
     goto end;
   }
 
-  TABLE_LIST *table_list;
+  Table_ref *table_list;
   table_list = lex->query_block->table_list.first;
   table_list->required_type = dd::enum_table_type::BASE_TABLE;
 

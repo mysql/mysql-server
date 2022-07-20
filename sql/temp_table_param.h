@@ -170,7 +170,7 @@ class Temp_table_param {
     true <=> don't actually create table handler when creating the result
     table. This allows range optimizer to add indexes later.
     Used for materialized derived tables/views.
-    @see TABLE_LIST::update_derived_keys.
+    @see Table_ref::update_derived_keys.
   */
   bool skip_create_table;
   /*

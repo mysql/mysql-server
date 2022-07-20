@@ -519,7 +519,7 @@ class Table_access_impl {
 
  private:
   /** Array of size m_max_count. */
-  TABLE_LIST *m_table_array;
+  Table_ref *m_table_array;
   /** Array of size m_max_count. */
   Table_state *m_table_state_array;
   size_t m_current_count;
@@ -610,7 +610,7 @@ Table_access_impl::Table_access_impl(THD *thd, size_t count)
   */
   Global_THD_manager::get_instance()->add_thd(m_child_thd);
 
-  m_table_array = new TABLE_LIST[m_max_count];
+  m_table_array = new Table_ref[m_max_count];
   m_table_state_array = new Table_state[m_max_count];
 }
 
@@ -704,21 +704,21 @@ size_t Table_access_impl::add_table(const char *schema_name,
       table_name, table_name_length, cs, &errors);
   state->m_table_name[state->m_table_name_length] = '\0';
 
-  TABLE_LIST *current = &m_table_array[m_current_count];
+  Table_ref *current = &m_table_array[m_current_count];
 
   // FIXME : passing alias = table_name to force MDL key init.
-  *current = TABLE_LIST(state->m_schema_name, state->m_schema_name_length,
-                        state->m_table_name, state->m_table_name_length,
-                        state->m_table_name, lock_type);
+  *current = Table_ref(state->m_schema_name, state->m_schema_name_length,
+                       state->m_table_name, state->m_table_name_length,
+                       state->m_table_name, lock_type);
   assert(current->mdl_request.key.length() != 0);
 
   current->next_local = nullptr;
   current->next_global = nullptr;
   current->open_type = OT_BASE_ONLY;  // TODO: VIEWS ?
-  current->open_strategy = TABLE_LIST::OPEN_IF_EXISTS;
+  current->open_strategy = Table_ref::OPEN_IF_EXISTS;
 
   if (m_current_count > 0) {
-    TABLE_LIST *prev = &m_table_array[m_current_count - 1];
+    Table_ref *prev = &m_table_array[m_current_count - 1];
     prev->next_local = current;
     prev->next_global = current;
   }

@@ -38,7 +38,7 @@
 #include "sql/sql_base.h"   // close_thread_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"    // Query_tables_list
-#include "sql/table.h"      // TABLE_LIST
+#include "sql/table.h"      // Table_ref
 
 bool System_table_access::open_table(THD *thd, const LEX_CSTRING dbstr,
                                      const LEX_CSTRING tbstr,
@@ -72,10 +72,10 @@ bool System_table_access::open_table(THD *thd, std::string dbstr,
   thd->reset_n_backup_open_tables_state(backup,
                                         Open_tables_state::SYSTEM_TABLES);
 
-  TABLE_LIST tables(dbstr.c_str(), dbstr.length(), tbstr.c_str(),
-                    tbstr.length(), tbstr.c_str(), lock_type);
+  Table_ref tables(dbstr.c_str(), dbstr.length(), tbstr.c_str(), tbstr.length(),
+                   tbstr.c_str(), lock_type);
 
-  tables.open_strategy = TABLE_LIST::OPEN_IF_EXISTS;
+  tables.open_strategy = Table_ref::OPEN_IF_EXISTS;
 
   if (!open_n_lock_single_table(thd, &tables, tables.lock_descriptor().type,
                                 m_flags)) {

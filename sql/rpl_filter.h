@@ -44,7 +44,7 @@
 
 class Item;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 template <class T>
 class mem_root_deque;
 
@@ -219,7 +219,7 @@ class Rpl_filter {
 
   /* Checks - returns true if ok to replicate/log */
 
-  bool tables_ok(const char *db, TABLE_LIST *tables);
+  bool tables_ok(const char *db, Table_ref *tables);
   bool db_ok(const char *db, bool need_increase_counter = true);
   bool db_ok_with_wild_table(const char *db);
 

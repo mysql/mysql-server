@@ -119,7 +119,7 @@ static const char *fk_info_str(const THD *thd,
                  error was emitted.
 */
 
-static bool fk_truncate_illegal_if_parent(THD *thd, TABLE_LIST *table_list,
+static bool fk_truncate_illegal_if_parent(THD *thd, Table_ref *table_list,
                                           dd::Table *table_def) {
   for (const dd::Foreign_key_parent *fk_p : table_def->foreign_key_parents()) {
     if (my_strcasecmp(table_alias_charset, fk_p->child_schema_name().c_str(),
@@ -164,7 +164,7 @@ enum class Truncate_result {
                         do not binlog the statement.
 */
 
-static Truncate_result handler_truncate_base(THD *thd, TABLE_LIST *table_ref,
+static Truncate_result handler_truncate_base(THD *thd, Table_ref *table_ref,
                                              dd::Table *table_def) {
   DBUG_TRACE;
   assert(table_def != nullptr);
@@ -257,7 +257,7 @@ static Truncate_result handler_truncate_base(THD *thd, TABLE_LIST *table_ref,
 */
 
 static Truncate_result handler_truncate_temporary(THD *thd,
-                                                  TABLE_LIST *table_ref) {
+                                                  Table_ref *table_ref) {
   DBUG_TRACE;
 
   /*
@@ -300,7 +300,7 @@ static Truncate_result handler_truncate_temporary(THD *thd,
   @retval  true   Error.
 */
 
-bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref) {
+bool Sql_cmd_truncate_table::lock_table(THD *thd, Table_ref *table_ref) {
   TABLE *table = nullptr;
   DBUG_TRACE;
 
@@ -419,7 +419,7 @@ void Sql_cmd_truncate_table::cleanup_base(THD *thd, const handlerton *hton) {
    Deletes table and flags error if unuccessful.
 */
 void Sql_cmd_truncate_table::cleanup_temporary(THD *thd, handlerton *hton,
-                                               const TABLE_LIST &table_ref,
+                                               const Table_ref &table_ref,
                                                Up_table *tdef_holder_ptr,
                                                const std::string &saved_path) {
   assert(m_ticket_downgrade == nullptr);
@@ -464,7 +464,7 @@ void Sql_cmd_truncate_table::cleanup_temporary(THD *thd, handlerton *hton,
   @param  table_ref   Table list element for the table to be truncated.
 */
 
-void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
+void Sql_cmd_truncate_table::truncate_base(THD *thd, Table_ref *table_ref) {
   DBUG_TRACE;
   assert(is_temporary_table(table_ref) == false);
 
@@ -624,7 +624,7 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
 */
 
 void Sql_cmd_truncate_table::truncate_temporary(THD *thd,
-                                                TABLE_LIST *table_ref) {
+                                                Table_ref *table_ref) {
   DBUG_TRACE;
   assert(is_temporary_table(table_ref));
 
@@ -740,7 +740,7 @@ void Sql_cmd_truncate_table::truncate_temporary(THD *thd,
 bool Sql_cmd_truncate_table::execute(THD *thd) {
   DBUG_TRACE;
 
-  TABLE_LIST *first_table = thd->lex->query_block->table_list.first;
+  Table_ref *first_table = thd->lex->query_block->table_list.first;
   if (check_one_table_access(thd, DROP_ACL, first_table)) return true;
 
   if (is_temporary_table(first_table))

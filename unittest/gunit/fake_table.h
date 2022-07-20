@@ -60,12 +60,13 @@ using ::testing::NiceMock;
 static const uint MAX_TABLE_COLUMNS = sizeof(int) * 8;
 
 /*
-  A fake class for setting up TABLE_LIST object, required for table id mgmt.
+  A fake class for setting up Table_ref object, required for table id
+  mgmt.
 */
-class Fake_TABLE_LIST : public TABLE_LIST {
+class Fake_Table_ref : public Table_ref {
  public:
-  Fake_TABLE_LIST() = default;
-  ~Fake_TABLE_LIST() = default;
+  Fake_Table_ref() = default;
+  ~Fake_Table_ref() = default;
 };
 
 /*
@@ -139,7 +140,7 @@ class Fake_TABLE : public TABLE {
     read_set = &read_set_struct;
     write_set = &write_set_struct;
     next_number_field = nullptr;  // No autoinc column
-    pos_in_table_list = new (*THR_MALLOC) Fake_TABLE_LIST();
+    pos_in_table_list = new (*THR_MALLOC) Fake_Table_ref();
     pos_in_table_list->table = this;
     pos_in_table_list->query_block =
         new (&mem_root) Query_block(&mem_root, nullptr, nullptr);

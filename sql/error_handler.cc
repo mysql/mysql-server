@@ -38,7 +38,7 @@
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/system_variables.h"
-#include "sql/table.h"  // TABLE_LIST
+#include "sql/table.h"  // Table_ref
 #include "sql/transaction_info.h"
 #include "sql_string.h"
 
@@ -132,13 +132,13 @@ bool View_error_handler::handle_condition(THD *thd, uint sql_errno,
     case ER_TABLEACCESS_DENIED_ERROR:
     // ER_TABLE_NOT_LOCKED cannot happen here.
     case ER_NO_SUCH_TABLE: {
-      TABLE_LIST *top = m_top_view->top_table();
+      Table_ref *top = m_top_view->top_table();
       my_error(ER_VIEW_INVALID, MYF(0), top->db, top->table_name);
       return true;
     }
 
     case ER_NO_DEFAULT_FOR_FIELD: {
-      TABLE_LIST *top = m_top_view->top_table();
+      Table_ref *top = m_top_view->top_table();
       // TODO: make correct error message
       my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), top->db, top->table_name);
       return true;
@@ -502,10 +502,10 @@ bool Foreign_key_error_handler::handle_condition(
   if (sql_errno == ER_NO_REFERENCED_ROW_2) {
     for (TABLE_SHARE_FOREIGN_KEY_INFO *fk = share->foreign_key;
          fk < share->foreign_key + share->foreign_keys; ++fk) {
-      TABLE_LIST table(fk->referenced_table_db.str,
-                       fk->referenced_table_db.length,
-                       fk->referenced_table_name.str,
-                       fk->referenced_table_name.length, TL_READ);
+      Table_ref table(fk->referenced_table_db.str,
+                      fk->referenced_table_db.length,
+                      fk->referenced_table_name.str,
+                      fk->referenced_table_name.length, TL_READ);
       if (check_table_access(m_thd, TABLE_OP_ACLS, &table, true, 1, true)) {
         my_error(ER_NO_REFERENCED_ROW, MYF(0));
         return true;
@@ -515,10 +515,10 @@ bool Foreign_key_error_handler::handle_condition(
     for (TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *fk_p = share->foreign_key_parent;
          fk_p < share->foreign_key_parent + share->foreign_key_parents;
          ++fk_p) {
-      TABLE_LIST table(fk_p->referencing_table_db.str,
-                       fk_p->referencing_table_db.length,
-                       fk_p->referencing_table_name.str,
-                       fk_p->referencing_table_name.length, TL_READ);
+      Table_ref table(fk_p->referencing_table_db.str,
+                      fk_p->referencing_table_db.length,
+                      fk_p->referencing_table_name.str,
+                      fk_p->referencing_table_name.length, TL_READ);
       if (check_table_access(m_thd, TABLE_OP_ACLS, &table, true, 1, true)) {
         my_error(ER_ROW_IS_REFERENCED, MYF(0));
         return true;

@@ -56,12 +56,12 @@ class Intrusive_list_indexer {
   SQL_I_List<T> m_list;
 };
 
-typedef Intrusive_list_indexer<TABLE_LIST> Table_list_indexer;
+typedef Intrusive_list_indexer<Table_ref> Table_list_indexer;
 
 using Local_tables_iterator =
-    IntrusiveListIterator<TABLE_LIST, &TABLE_LIST::next_local>;
+    IntrusiveListIterator<Table_ref, &Table_ref::next_local>;
 
-/// A list interface over the TABLE_LIST::next_local pointer.
+/// A list interface over the Table_ref::next_local pointer.
 using Local_tables_list = IteratorContainer<Local_tables_iterator>;
 
 TEST_F(LockingClauseSyntaxTest, LegacyForUpdate) {

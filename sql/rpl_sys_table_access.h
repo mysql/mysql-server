@@ -280,8 +280,8 @@ class Rpl_sys_table_access {
   /* The variable determine if table is opened or closed successfully. */
   bool m_error{false};
 
-  /* TABLE_LIST object */
-  TABLE_LIST *m_table_list{nullptr};
+  /* Table_ref object */
+  Table_ref *m_table_list{nullptr};
   enum thr_lock_type m_lock_type;
 
   std::string m_schema_name;

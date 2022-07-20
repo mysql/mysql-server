@@ -8233,7 +8233,7 @@ bool Item_func_sp::init_result_field(THD *thd) {
   assert(m_sp == nullptr);
   assert(sp_result_field == nullptr);
 
-  Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
+  Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
   m_sp = sp_find_routine(thd, enum_sp_type::FUNCTION, m_name,
                          &thd->sp_func_cache, true);
@@ -8359,7 +8359,7 @@ bool Item_func_sp::val_json(Json_wrapper *result) {
 bool Item_func_sp::execute() {
   THD *thd = current_thd;
 
-  Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
+  Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
 
   // Bind to an instance of the stored function:
@@ -8525,7 +8525,7 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
       Check whether user has execute privilege or not
      */
 
-    Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
+    Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
         thd, context->view_error_handler, context->view_error_handler_arg);
 
     bool res = check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
@@ -8794,7 +8794,7 @@ static bool check_table_and_trigger_access(Item **args, bool check_trigger_acl,
                    false, true))
     return false;
 
-  TABLE_LIST table_list;
+  Table_ref table_list;
   table_list.db = schema_name_ptr->ptr();
   table_list.db_length = schema_name_ptr->length();
   table_list.table_name = table_name_ptr->ptr();
@@ -9293,7 +9293,7 @@ longlong Item_func_can_access_view::val_int() {
   //
   // Check for ACL's
   //
-  TABLE_LIST table_list;
+  Table_ref table_list;
   table_list.db = schema_name_ptr->ptr();
   table_list.db_length = schema_name_ptr->length();
   table_list.table_name = table_name_ptr->ptr();

@@ -3490,7 +3490,7 @@ class Item_func_match final : public Item_real_func {
   bool score_from_index_scan{false};
   DTCollation cmp_collation;
   FT_INFO *ft_handler;
-  TABLE_LIST *table_ref;
+  Table_ref *table_ref;
   /**
      Master item means that if identical items are present in the
      statement, they use the same FT handler. FT handler is initialized

@@ -71,7 +71,7 @@ struct ConflictRule {
   These are used as an abstract precursor to the join hypergraph;
   they represent the joins in the query block more or less directly,
   without any reordering. (The parser should largely have output a
-  structure like this instead of TABLE_LIST, but we are not there yet.)
+  structure like this instead of Table_ref, but we are not there yet.)
   The only real manipulation we do on them is pushing down conditions,
   identifying equijoin conditions from other join conditions,
   and identifying join conditions that touch given tables (also a form
@@ -120,7 +120,7 @@ struct RelationalExpression {
   hypergraph::NodeMap nodes_in_subtree;
 
   // If type == TABLE.
-  const TABLE_LIST *table;
+  const Table_ref *table;
   Mem_root_array<Item *> join_conditions_pushable_to_this;
   // Tables in the same companion set are those that are inner-joined
   // against each other; we use this to see in what parts of the graph

@@ -53,7 +53,7 @@ class Item;
 class Key_spec;
 class String;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 /**
   Class representing DROP COLUMN, DROP KEY, DROP FOREIGN KEY, DROP CHECK
@@ -508,7 +508,7 @@ class Alter_table_ctx {
  public:
   Alter_table_ctx();
 
-  Alter_table_ctx(THD *thd, TABLE_LIST *table_list, uint tables_opened_arg,
+  Alter_table_ctx(THD *thd, Table_ref *table_list, uint tables_opened_arg,
                   const char *new_db_arg, const char *new_name_arg);
 
   ~Alter_table_ctx();
@@ -629,7 +629,7 @@ class Sql_cmd_discard_import_tablespace : public Sql_cmd_common_alter_table {
   bool execute(THD *thd) override;
 
  private:
-  bool mysql_discard_or_import_tablespace(THD *thd, TABLE_LIST *table_list);
+  bool mysql_discard_or_import_tablespace(THD *thd, Table_ref *table_list);
 };
 
 /**
@@ -643,7 +643,7 @@ class Sql_cmd_secondary_load_unload final : public Sql_cmd_common_alter_table {
   bool execute(THD *thd) override;
 
  private:
-  bool mysql_secondary_load_or_unload(THD *thd, TABLE_LIST *table_list);
+  bool mysql_secondary_load_or_unload(THD *thd, Table_ref *table_list);
 };
 
 #endif

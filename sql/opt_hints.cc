@@ -221,7 +221,7 @@ PT_hint *Opt_hints_qb::get_complex_hints(opt_hints_enum type) {
   return nullptr;
 }
 
-Opt_hints_table *Opt_hints_qb::adjust_table_hints(TABLE_LIST *tr) {
+Opt_hints_table *Opt_hints_qb::adjust_table_hints(Table_ref *tr) {
   const LEX_CSTRING str = {tr->alias, strlen(tr->alias)};
   Opt_hints_table *tab =
       static_cast<Opt_hints_table *>(find_by_name(&str, table_alias_charset));
@@ -307,17 +307,17 @@ static void print_join_order_warn(THD *thd, opt_hints_enum type,
 }
 
 /**
-  Function compares hint table name and TABLE_LIST table name.
+  Function compares hint table name and Table_ref table name.
   Query block name is taken into account.
 
   @param hint_table         hint table name
-  @param table              pointer to TABLE_LIST object
+  @param table              pointer to Table_ref object
 
   @return false if table names are equal, true otherwise.
 */
 
 static bool compare_table_name(const Hint_param_table *hint_table,
-                               const TABLE_LIST *table) {
+                               const Table_ref *table) {
   const LEX_CSTRING *hint_qb_name = &hint_table->opt_query_block;
   const LEX_CSTRING *hint_table_name = &hint_table->table;
 
@@ -429,7 +429,7 @@ class Join_order_hint_handler {
 
 static void update_nested_join_deps(JOIN *join, const JOIN_TAB *hint_tab,
                                     table_map hint_tab_map) {
-  const TABLE_LIST *table = hint_tab->table_ref;
+  const Table_ref *table = hint_tab->table_ref;
   if (table->embedding) {
     for (uint i = 0; i < join->tables; i++) {
       JOIN_TAB *tab = &join->join_tab[i];
@@ -474,7 +474,7 @@ static bool set_join_hint_deps(JOIN *join,
        hint_table < hint_table_list->end(); hint_table++) {
     bool hint_table_found = false;
     for (uint i = 0; i < join->tables; i++) {
-      const TABLE_LIST *table = join->join_tab[i].table_ref;
+      const Table_ref *table = join->join_tab[i].table_ref;
       if (!compare_table_name(hint_table, table)) {
         hint_table_found = true;
         /*
@@ -525,7 +525,7 @@ void Opt_hints_qb::apply_join_order_hints(JOIN *join) {
   }
 }
 
-void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr) {
+void Opt_hints_table::adjust_key_hints(Table_ref *tr) {
   set_resolved();
   if (child_array_ptr()->size() == 0)  // No key level hints
   {
@@ -887,7 +887,7 @@ static bool get_hint_state(Opt_hints *hint, Opt_hints *parent_hint,
   return false;
 }
 
-bool hint_key_state(const THD *thd, const TABLE_LIST *table, uint keyno,
+bool hint_key_state(const THD *thd, const Table_ref *table, uint keyno,
                     opt_hints_enum type_arg, uint optimizer_switch) {
   Opt_hints_table *table_hints = table->opt_hints_table;
 
@@ -904,7 +904,7 @@ bool hint_key_state(const THD *thd, const TABLE_LIST *table, uint keyno,
   return thd->optimizer_switch_flag(optimizer_switch);
 }
 
-bool hint_table_state(const THD *thd, const TABLE_LIST *table_list,
+bool hint_table_state(const THD *thd, const Table_ref *table_list,
                       opt_hints_enum type_arg, uint optimizer_switch) {
   if (table_list->opt_hints_qb) {
     bool ret_val = false;

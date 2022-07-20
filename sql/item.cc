@@ -915,7 +915,7 @@ bool Item_field::find_item_in_field_list_processor(uchar *arg) {
 bool Item_field::is_valid_for_pushdown(uchar *arg) {
   Condition_pushdown::Derived_table_info *dti =
       pointer_cast<Condition_pushdown::Derived_table_info *>(arg);
-  TABLE_LIST *derived_table = dti->m_derived_table;
+  Table_ref *derived_table = dti->m_derived_table;
   if (table_ref == derived_table) {
     assert(field->table == derived_table->table);
     // For set operations, if there is result type mismatch for this
@@ -1048,7 +1048,7 @@ Item *Item_field::replace_with_derived_expr(uchar *arg) {
   // column has already been replaced with derived table expression (Maybe
   // there was an earlier reference to the same column in the condition that
   // is being pushed down). There is no need to do anything in such a case.
-  TABLE_LIST *derived_table = dti->m_derived_table;
+  Table_ref *derived_table = dti->m_derived_table;
   if (derived_table != table_ref) return this;
   Query_block *query_block = dti->m_derived_query_block;
   return query_block->clone_expression(
@@ -1064,7 +1064,7 @@ Item *Item_field::replace_with_derived_expr_ref(uchar *arg) {
   // column has already been replaced with derived table expression (Maybe
   // there was an earlier reference to the same column in the condition that
   // is being pushed down). There is no need to do anything in such a case.
-  TABLE_LIST *derived_table = dti->m_derived_table;
+  Table_ref *derived_table = dti->m_derived_table;
   if (derived_table != table_ref) return this;
   Query_block *query_block = dti->m_derived_query_block;
 
@@ -1144,7 +1144,7 @@ bool Item_field::check_function_as_value_generator(uchar *checker_args) {
 bool Item_field::check_column_privileges(uchar *arg) {
   THD *thd = (THD *)arg;
 
-  Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
+  Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
   if (check_column_grant_in_table_ref(thd, table_ref, field_name,
                                       strlen(field_name),
@@ -1169,7 +1169,7 @@ bool Item_view_ref::check_column_privileges(uchar *arg) {
   if (cached_table->is_derived())  // Rely on checking underlying tables
     return false;
 
-  Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
+  Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
 
   assert(strlen(cached_table->get_table_name()) > 0);
@@ -2683,7 +2683,7 @@ bool Item_ident_for_show::fix_fields(THD *, Item **) {
 */
 
 Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
-                       TABLE_LIST *tr, Field *f)
+                       Table_ref *tr, Field *f)
     : Item_ident(context_arg, f->table->s->db.str, *f->table_name,
                  f->field_name),
       table_ref(tr),
@@ -3111,7 +3111,7 @@ table_map Item_field::used_tables() const {
 }
 
 bool Item_field::used_tables_for_level(uchar *arg) {
-  const TABLE_LIST *tr = field->table->pos_in_table_list;
+  const Table_ref *tr = field->table->pos_in_table_list;
   // Used by resolver only, so can never reach a "const" table.
   assert(!tr->table->const_table);
   Used_tables *const ut = pointer_cast<Used_tables *>(arg);
@@ -5253,14 +5253,14 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
       immediately contained
       - in a scalar/row subquery (Item_subselect), or
       - in a table subquery itself immediately contained in a quantified
-      predicate (Item_subselect) or a derived table (TABLE_LIST).
+      predicate (Item_subselect) or a derived table (Table_ref).
       'this' has an 'outer_context' where it should be searched first.
       'outer_context' is the context of a query block or sometimes
       of a specific part of a query block (e.g. JOIN... ON condition).
       We go up from 'context' to 'outer_context', from inner to outer
       subqueries. On that bottom-up path, we stop at the subquery unit which
       is simply contained in 'outer_context': it belongs to an
-      Item_subselect/TABLE_LIST object which we note OUTER_CONTEXT_OBJECT.
+      Item_subselect/Table_ref object which we note OUTER_CONTEXT_OBJECT.
       Then the search of 'this' in 'outer_context' is influenced by
       where OUTER_CONTEXT_OBJECT is in 'outer_context'. For example, if
       OUTER_CONTEXT_OBJECT is in WHERE, a search by alias is not done.
@@ -5666,14 +5666,14 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
   Field *from_field = not_found_field;
   bool outer_fixed = false;
 
-  Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
+  Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
 
   if (table_ref) {
     // This is a cloned field (used during condition pushdown to derived
     // tables). It has table reference and the field too. Make a call to
     // set_field() to ensure everything else gets set correctly.
-    TABLE_LIST *orig_table_ref = table_ref;
+    Table_ref *orig_table_ref = table_ref;
     set_field(field);
     // Note that the call to set_field() above would have set the "table_ref"
     // derived from field's table which in most cases is same as the already
@@ -5925,7 +5925,7 @@ void Item_field::cleanup() {
 
   Item_ident::cleanup();
   /*
-    When TABLE is detached from TABLE_LIST, field pointers are invalid,
+    When TABLE is detached from Table_ref, field pointers are invalid,
     unless field objects are created as part of statement (placeholder tables).
     Also invalidate the original field name, since it is usually determined
     from the field name in the Field object.
@@ -7990,7 +7990,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
   DBUG_TRACE;
   assert(!fixed);
 
-  Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
+  Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
 
   if (m_ref_item == nullptr || m_ref_item == not_found_item) {
@@ -8795,7 +8795,7 @@ bool Item_default_value::eq(const Item *item, bool binary_cmp) const {
 bool Item_default_value::fix_fields(THD *thd, Item **) {
   assert(!fixed);
 
-  Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
+  Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
   if (arg == nullptr) {
     fixed = true;
@@ -8876,7 +8876,7 @@ type_conversion_status Item_default_value::save_in_field_inner(
       }
 
       if (context->view_error_handler) {
-        TABLE_LIST *view = cached_table->top_table();
+        Table_ref *view = cached_table->top_table();
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
                             ER_THD(thd, ER_NO_DEFAULT_FOR_VIEW_FIELD), view->db,
@@ -8929,7 +8929,7 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference) {
   assert(!fixed);
   // Argument must be resolved from first table
   if (!arg->fixed) {
-    TABLE_LIST *orig_next_table = context->last_name_resolution_table;
+    Table_ref *orig_next_table = context->last_name_resolution_table;
     context->last_name_resolution_table = context->first_name_resolution_table;
     bool res = arg->fix_fields(thd, &arg);
     context->last_name_resolution_table = orig_next_table;
@@ -9189,7 +9189,8 @@ void Item_trigger_field::print(const THD *, String *str,
 
 void Item_trigger_field::cleanup() {
   /*
-    A trigger is bound to a TABLE, so the TABLE_LIST may vary between executions
+    A trigger is bound to a TABLE, so the Table_ref may vary between
+    executions
   */
   table_ref = nullptr;
 

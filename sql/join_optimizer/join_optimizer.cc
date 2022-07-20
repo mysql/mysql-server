@@ -361,7 +361,7 @@ class CostingReceiver {
   const Mem_root_array<FullTextIndexInfo> *m_fulltext_searches;
 
   /// A map of tables that are referenced by a MATCH function (those tables that
-  /// have TABLE_LIST::is_fulltext_searched() == true). It is used for
+  /// have Table_ref::is_fulltext_searched() == true). It is used for
   /// preventing hash joins involving tables that are full-text searched.
   NodeMap m_fulltext_tables = 0;
 
@@ -670,7 +670,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       ~SecondaryEngineCostingFlag::HAS_MULTIPLE_BASE_TABLES;
 
   TABLE *table = m_graph->nodes[node_idx].table;
-  TABLE_LIST *tl = table->pos_in_table_list;
+  Table_ref *tl = table->pos_in_table_list;
 
   if (m_trace != nullptr) {
     *m_trace += StringPrintf("\nFound node %s [rows=%llu]\n",
@@ -2232,7 +2232,7 @@ bool CostingReceiver::ProposeTableScan(
 
   // See if this is an information schema table that must be filled in before
   // we scan.
-  TABLE_LIST *tl = table->pos_in_table_list;
+  Table_ref *tl = table->pos_in_table_list;
   if (tl->schema_table != nullptr && tl->schema_table->fill_table) {
     // TODO(sgunders): We don't need to allocate materialize_path on the
     // MEM_ROOT.
@@ -2816,7 +2816,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
  */
 bool LateralDependenciesAreSatisfied(int node_idx, NodeMap tables,
                                      const JoinHypergraph &graph) {
-  const TABLE_LIST *table_ref = graph.nodes[node_idx].table->pos_in_table_list;
+  const Table_ref *table_ref = graph.nodes[node_idx].table->pos_in_table_list;
 
   if (table_ref->is_derived()) {
     const NodeMap lateral_deps = GetNodeMapFromTableMap(
@@ -5098,7 +5098,7 @@ bool CreateTemporaryTableForFullTextFunctions(
   immediate delete. Whether it actually ends up being deleted from immediately,
   depends on the plan that is chosen.
  */
-bool IsImmediateDeleteCandidate(const TABLE_LIST *table_ref,
+bool IsImmediateDeleteCandidate(const Table_ref *table_ref,
                                 const Query_block *query_block) {
   assert(table_ref->is_deleted());
 
@@ -5124,7 +5124,7 @@ void AddFieldsToTmpSet(Item *item, TABLE *table) {
   immediate update. Whether it actually ends up being updated immediately,
   depends on the plan that is chosen.
  */
-bool IsImmediateUpdateCandidate(const TABLE_LIST *table_ref, int node_idx,
+bool IsImmediateUpdateCandidate(const Table_ref *table_ref, int node_idx,
                                 const JoinHypergraph &graph,
                                 table_map target_tables) {
   assert(table_ref->is_updated());
@@ -5207,7 +5207,7 @@ bool IsImmediateUpdateCandidate(const TABLE_LIST *table_ref, int node_idx,
  */
 table_map FindUpdateDeleteTargetTables(const Query_block *query_block) {
   table_map target_tables = 0;
-  for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
+  for (Table_ref *tl = query_block->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
     if (tl->is_updated() || tl->is_deleted()) {
       target_tables |= tl->map();
@@ -5235,7 +5235,7 @@ table_map FindImmediateUpdateDeleteCandidates(const JoinHypergraph &graph,
   table_map candidates = 0;
   for (unsigned node_idx = 0; node_idx < graph.nodes.size(); ++node_idx) {
     const JoinHypergraph::Node &node = graph.nodes[node_idx];
-    const TABLE_LIST *tl = node.table->pos_in_table_list;
+    const Table_ref *tl = node.table->pos_in_table_list;
     if (Overlaps(tl->map(), target_tables)) {
       if (is_delete ? IsImmediateDeleteCandidate(tl, graph.query_block())
                     : IsImmediateUpdateCandidate(tl, node_idx, graph,
@@ -6573,8 +6573,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         break;
       }
     }
-    for (TABLE_LIST *tl = query_block->leaf_tables;
-         tl != nullptr && !need_rowid; tl = tl->next_leaf) {
+    for (Table_ref *tl = query_block->leaf_tables; tl != nullptr && !need_rowid;
+         tl = tl->next_leaf) {
       if (SortWillBeOnRowId(tl->table)) {
         need_rowid = true;
       }

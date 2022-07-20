@@ -1697,7 +1697,7 @@ void notify_flush_event(THD *thd) {
     @retval false Success
     @retval true failure
 */
-static bool reload_roles_cache(THD *thd, TABLE_LIST *tablelst) {
+static bool reload_roles_cache(THD *thd, Table_ref *tablelst) {
   DBUG_TRACE;
   assert(tablelst);
   sql_mode_t old_sql_mode = thd->variables.sql_mode;
@@ -1823,7 +1823,7 @@ void clean_user_cache() {
     true   Error
 */
 
-static bool acl_load(THD *thd, TABLE_LIST *tables) {
+static bool acl_load(THD *thd, Table_ref *tables) {
   TABLE *table;
   unique_ptr_destroy_only<RowIterator> iterator;
   bool return_val = true;
@@ -1999,7 +1999,7 @@ void acl_free(bool end /*= false*/) {
 }
 
 bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked) {
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   uint flags = mdl_locked
                    ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
                          MYSQL_OPEN_IGNORE_FLUSH
@@ -2050,7 +2050,7 @@ class Acl_ignore_error_handler : public Internal_error_handler {
 
 /**
   Helper function that checks the sanity of tables object present in
-  the TABLE_LIST object. it logs a warning message when a table is
+  the Table_ref object. it logs a warning message when a table is
   missing
 
   @param thd        Handle of current thread.
@@ -2060,7 +2060,7 @@ class Acl_ignore_error_handler : public Internal_error_handler {
     false       OK.
     true        Error.
 */
-bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables) {
+bool check_acl_tables_intact(THD *thd, Table_ref *tables) {
   Acl_table_intact table_intact(thd, WARNING_LEVEL);
   bool result_acl = false;
 
@@ -2095,7 +2095,7 @@ bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables) {
     true        Unable to open the table(s).
 */
 bool check_acl_tables_intact(THD *thd, bool mdl_locked) {
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   Acl_ignore_error_handler acl_ignore_handler;
   uint flags = mdl_locked
                    ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
@@ -2185,23 +2185,23 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     To avoid deadlocks we should obtain table locks before obtaining
     acl_cache->lock mutex.
   */
-  TABLE_LIST tables[6] = {
-      TABLE_LIST("mysql", "user", TL_READ, MDL_SHARED_READ_ONLY),
+  Table_ref tables[6] = {
+      Table_ref("mysql", "user", TL_READ, MDL_SHARED_READ_ONLY),
       /*
-        For a TABLE_LIST element that is inited with a lock type TL_READ
+        For a Table_ref element that is inited with a lock type TL_READ
         the type MDL_SHARED_READ_ONLY of MDL is requested for.
         Acquiring strong MDL lock allows to avoid deadlock and timeout errors
         from SE level.
       */
-      TABLE_LIST("mysql", "db", TL_READ, MDL_SHARED_READ_ONLY),
+      Table_ref("mysql", "db", TL_READ, MDL_SHARED_READ_ONLY),
 
-      TABLE_LIST("mysql", "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY),
+      Table_ref("mysql", "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY),
 
-      TABLE_LIST("mysql", "global_grants", TL_READ, MDL_SHARED_READ_ONLY),
+      Table_ref("mysql", "global_grants", TL_READ, MDL_SHARED_READ_ONLY),
 
-      TABLE_LIST("mysql", "role_edges", TL_READ, MDL_SHARED_READ_ONLY),
+      Table_ref("mysql", "role_edges", TL_READ, MDL_SHARED_READ_ONLY),
 
-      TABLE_LIST("mysql", "default_roles", TL_READ, MDL_SHARED_READ_ONLY)};
+      Table_ref("mysql", "default_roles", TL_READ, MDL_SHARED_READ_ONLY)};
 
   tables[0].next_local = tables[0].next_global = tables + 1;
   tables[1].next_local = tables[1].next_global = tables + 2;
@@ -2213,7 +2213,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
       tables[3].open_type = tables[4].open_type = tables[5].open_type =
           OT_BASE_ONLY;
   tables[3].open_strategy = tables[4].open_strategy = tables[5].open_strategy =
-      TABLE_LIST::OPEN_IF_EXISTS;
+      Table_ref::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, flags)) {
     /*
@@ -2494,7 +2494,7 @@ end_unlock:
     @retval true Error
 */
 
-static bool grant_load(THD *thd, TABLE_LIST *tables) {
+static bool grant_load(THD *thd, Table_ref *tables) {
   bool return_val = true;
   int error;
   TABLE *t_table = nullptr, *c_table = nullptr;
@@ -2600,7 +2600,7 @@ end_index_init:
     @retval true An error has occurred.
 */
 
-static bool grant_reload_procs_priv(TABLE_LIST *table) {
+static bool grant_reload_procs_priv(Table_ref *table) {
   DBUG_TRACE;
 
   /* Save a copy of the current hash if we need to undo the grant load */
@@ -2653,17 +2653,17 @@ bool grant_reload(THD *thd, bool mdl_locked) {
   /* Don't do anything if running with --skip-grant-tables */
   if (!initialized) return false;
 
-  TABLE_LIST tables[3] = {
+  Table_ref tables[3] = {
 
       /*
         Acquiring strong MDL lock allows to avoid deadlock and timeout errors
         from SE level.
       */
-      TABLE_LIST("mysql", "tables_priv", TL_READ, MDL_SHARED_READ_ONLY),
+      Table_ref("mysql", "tables_priv", TL_READ, MDL_SHARED_READ_ONLY),
 
-      TABLE_LIST("mysql", "columns_priv", TL_READ, MDL_SHARED_READ_ONLY),
+      Table_ref("mysql", "columns_priv", TL_READ, MDL_SHARED_READ_ONLY),
 
-      TABLE_LIST("mysql", "procs_priv", TL_READ, MDL_SHARED_READ_ONLY)};
+      Table_ref("mysql", "procs_priv", TL_READ, MDL_SHARED_READ_ONLY)};
 
   tables[0].next_local = tables[0].next_global = tables + 1;
   tables[1].next_local = tables[1].next_global = tables + 2;
@@ -3664,7 +3664,7 @@ bool reload_acl_caches(THD *thd, bool mdl_locked) {
     MDLs and thus, no need to acquire MDLs.
   */
   if (!mdl_locked) {
-    TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+    Table_ref tables[ACL_TABLES::LAST_ENTRY];
     acl_tables_setup_for_read(tables);
     /*
       Ideally, we can just call lock_table_names() here because all we want

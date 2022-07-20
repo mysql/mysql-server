@@ -825,7 +825,7 @@ class MaterializeInformationSchemaTableIterator final : public RowIterator {
  public:
   MaterializeInformationSchemaTableIterator(
       THD *thd, unique_ptr_destroy_only<RowIterator> table_iterator,
-      TABLE_LIST *table_list, Item *condition);
+      Table_ref *table_list, Item *condition);
 
   bool Init() override;
   int Read() override { return m_table_iterator->Read(); }
@@ -846,7 +846,7 @@ class MaterializeInformationSchemaTableIterator final : public RowIterator {
  private:
   /// The iterator that reads from the materialized table.
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
-  TABLE_LIST *m_table_list;
+  Table_ref *m_table_list;
   Item *m_condition;
 };
 

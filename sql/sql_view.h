@@ -30,7 +30,7 @@
 class Item;
 class THD;
 struct LEX;
-struct TABLE_LIST;
+class Table_ref;
 struct TABLE_SHARE;
 template <class T>
 class List;
@@ -39,19 +39,18 @@ class mem_root_deque;
 
 enum class enum_view_create_mode;
 
-bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
+bool create_view_precheck(THD *thd, Table_ref *tables, Table_ref *view,
                           enum_view_create_mode mode);
 
-bool mysql_create_view(THD *thd, TABLE_LIST *view, enum_view_create_mode mode);
+bool mysql_create_view(THD *thd, Table_ref *view, enum_view_create_mode mode);
 
-bool mysql_register_view(THD *thd, TABLE_LIST *view,
-                         enum_view_create_mode mode);
+bool mysql_register_view(THD *thd, Table_ref *view, enum_view_create_mode mode);
 
-bool mysql_drop_view(THD *thd, TABLE_LIST *view);
+bool mysql_drop_view(THD *thd, Table_ref *view);
 
-bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref);
+bool check_key_in_view(THD *thd, Table_ref *view, const Table_ref *table_ref);
 
-bool insert_view_fields(mem_root_deque<Item *> *list, TABLE_LIST *view);
+bool insert_view_fields(mem_root_deque<Item *> *list, Table_ref *view);
 
 typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 bool check_duplicate_names(const Create_col_name_list *column_names,
@@ -59,9 +58,9 @@ bool check_duplicate_names(const Create_col_name_list *column_names,
                            bool gen_unique_view_names);
 void make_valid_column_names(LEX *lex);
 
-bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref);
+bool open_and_read_view(THD *thd, TABLE_SHARE *share, Table_ref *view_ref);
 
-bool parse_view_definition(THD *thd, TABLE_LIST *view_ref);
+bool parse_view_definition(THD *thd, Table_ref *view_ref);
 
 /*
   Check if view is updatable.
@@ -72,7 +71,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref);
   @retval true      View is updatable.
   @retval false     Otherwise.
 */
-bool is_updatable_view(THD *thd, TABLE_LIST *view);
+bool is_updatable_view(THD *thd, Table_ref *view);
 
 #define VIEW_ANY_ACL (SELECT_ACL | UPDATE_ACL | INSERT_ACL | DELETE_ACL)
 

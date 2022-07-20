@@ -846,7 +846,7 @@ static table_map ConvertQepTabMapToTableMap(JOIN *join, qep_tab_map tables) {
 AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
                                 qep_tab_map left_tables, AccessPath *inner_path,
                                 qep_tab_map right_tables, TABLE *table,
-                                TABLE_LIST *table_list, Index_lookup *ref,
+                                Table_ref *table_list, Index_lookup *ref,
                                 JoinType join_type) {
   table_map left_table_map = ConvertQepTabMapToTableMap(join, left_tables);
   table_map right_table_map = ConvertQepTabMapToTableMap(join, right_tables);
@@ -1640,7 +1640,7 @@ AccessPath *MoveCompositeIteratorsFromTablePath(
 }
 
 AccessPath *GetAccessPathForDerivedTable(
-    THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
+    THD *thd, Table_ref *table_ref, TABLE *table, bool rematerialize,
     Mem_root_array<const AccessPath *> *invalidators, bool need_rowid,
     AccessPath *table_path) {
   if (table_ref->access_path_for_derived != nullptr) {
@@ -1683,7 +1683,7 @@ AccessPath *GetAccessPathForDerivedTable(
     // into a UNION result table, then from there into our own).
     //
     // We will already have set up a unique index on the table if
-    // required; see TABLE_LIST::setup_materialized_derived_tmp_table().
+    // required; see Table_ref::setup_materialized_derived_tmp_table().
     path = NewMaterializeAccessPath(
         thd, query_expression->release_query_blocks_to_materialize(),
         invalidators, table, table_path, table_ref->common_table_expr(),
@@ -2939,7 +2939,7 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
 static table_map get_update_or_delete_target_tables(const JOIN *join) {
   table_map target_tables = 0;
 
-  for (const TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
+  for (const Table_ref *tr = join->query_block->leaf_tables; tr != nullptr;
        tr = tr->next_leaf) {
     if (tr->updating) {
       target_tables |= tr->map();
@@ -3398,7 +3398,7 @@ void JOIN::create_access_paths_for_index_subquery() {
     path = NewFilterAccessPath(thd, path, first_qep_tab->condition());
   }
 
-  TABLE_LIST *const tl = qep_tab->table_ref;
+  Table_ref *const tl = qep_tab->table_ref;
   if (tl && tl->uses_materialization()) {
     if (tl->is_table_function()) {
       path = NewMaterializedTableFunctionAccessPath(thd, first_qep_tab->table(),
@@ -3602,10 +3602,10 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
   JOIN *const join = tab->join();
   if (join->where_cond && update_const_equal_items(thd, join->where_cond, tab))
     return 1;
-  TABLE_LIST *tbl;
+  Table_ref *tbl;
   for (tbl = join->query_block->leaf_tables; tbl; tbl = tbl->next_leaf) {
-    TABLE_LIST *embedded;
-    TABLE_LIST *embedding = tbl;
+    Table_ref *embedded;
+    Table_ref *embedding = tbl;
     do {
       embedded = embedding;
       if (embedded->join_cond_optim() &&
@@ -4706,7 +4706,7 @@ bool MaterializeIsDoingDeduplication(TABLE *table) {
  */
 AccessPath *create_table_access_path(THD *thd, TABLE *table,
                                      AccessPath *range_scan,
-                                     TABLE_LIST *table_ref, POSITION *position,
+                                     Table_ref *table_ref, POSITION *position,
                                      bool count_examined_rows) {
   AccessPath *path;
   if (range_scan != nullptr) {
@@ -4725,7 +4725,7 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table,
 }
 
 unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, AccessPath *range_scan, TABLE_LIST *table_ref,
+    THD *thd, TABLE *table, AccessPath *range_scan, Table_ref *table_ref,
     POSITION *position, bool ignore_not_found_rows, bool count_examined_rows) {
   unique_ptr_destroy_only<RowIterator> iterator;
 

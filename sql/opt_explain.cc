@@ -404,7 +404,7 @@ class Explain_table_base : public Explain {
   AccessPath *range_scan_path{nullptr};
   Item *condition{nullptr};
   bool dynamic_range{false};
-  TABLE_LIST *table_ref{nullptr};
+  Table_ref *table_ref{nullptr};
   bool skip_records_in_range{false};
   bool reversed_access{false};
 
@@ -671,7 +671,7 @@ bool Explain::explain_subqueries() {
     uint derived_clone_id = 0;
     bool is_derived_clone = false;
     if (context == CTX_DERIVED) {
-      TABLE_LIST *tl = unit->derived_table;
+      Table_ref *tl = unit->derived_table;
       derived_clone_id = tl->query_block_id_for_explain();
       assert(derived_clone_id);
       is_derived_clone = derived_clone_id != tl->query_block_id();
@@ -1453,7 +1453,7 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   @returns true if error.
 */
 static bool store_table_name(
-    TABLE_LIST *tr, Explain_format *fmt,
+    Table_ref *tr, Explain_format *fmt,
     std::function<bool(const char *name, size_t len)> func) {
   char namebuf[NAME_LEN];
   size_t len = sizeof(namebuf);
@@ -1870,8 +1870,8 @@ static bool explain_no_table(THD *explain_thd, const THD *query_thd,
     false  Caller can EXPLAIN query
 */
 
-static bool check_acl_for_explain(const TABLE_LIST *table_list) {
-  for (const TABLE_LIST *tbl = table_list; tbl; tbl = tbl->next_global) {
+static bool check_acl_for_explain(const Table_ref *table_list) {
+  for (const Table_ref *tbl = table_list; tbl; tbl = tbl->next_global) {
     if (tbl->is_view() && tbl->view_no_explain) {
       my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
       return true;

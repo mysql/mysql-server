@@ -568,7 +568,7 @@ bool migrate_events_to_dd(THD *thd) {
   MEM_ROOT records_mem_root;
   Thd_mem_root_guard root_guard(thd, &records_mem_root);
 
-  TABLE_LIST tables("mysql", "event", TL_READ);
+  Table_ref tables("mysql", "event", TL_READ);
   auto table_list = &tables;
 
   if (open_and_lock_tables(thd, table_list, flags, &prelocking_strategy)) {

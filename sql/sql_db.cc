@@ -94,7 +94,7 @@
 #include "sql/sql_handler.h"  // mysql_ha_rm_tables
 #include "sql/sql_table.h"    // build_table_filename
 #include "sql/system_variables.h"
-#include "sql/table.h"  // TABLE_LIST
+#include "sql/table.h"  // Table_ref
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql_string.h"
@@ -113,7 +113,7 @@ static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
                                                     const char *path);
 
 static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
-                           TABLE_LIST **tables);
+                           Table_ref **tables);
 
 static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static bool rm_dir_w_symlink(const char *org_path, bool send_error);
@@ -570,7 +570,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     only check and the COMMIT are not done atomically, we use the table MDL
     to serialize ALTER SCHEMA and any write statements.
   */
-  TABLE_LIST *tables = nullptr;
+  Table_ref *tables = nullptr;
   if (find_db_tables(thd, *schema, db, &tables) ||
       lock_table_names(thd, tables, nullptr, thd->variables.lock_wait_timeout,
                        0))
@@ -640,7 +640,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   */
   if (create_info->used_fields & HA_CREATE_USED_READ_ONLY) {
     mysql_ha_flush_tables(thd, tables);
-    for (TABLE_LIST *table = tables; table != nullptr;
+    for (Table_ref *table = tables; table != nullptr;
          table = table->next_global) {
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
                        false);
@@ -705,8 +705,8 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
   ulong deleted_tables = 0;
   bool error = false;
   char path[2 * FN_REFLEN + 16];
-  TABLE_LIST *tables = nullptr;
-  TABLE_LIST *table;
+  Table_ref *tables = nullptr;
+  Table_ref *table;
   Drop_table_error_handler err_handler;
   bool dropped_non_atomic = false;
   std::set<handlerton *> post_ddl_htons;
@@ -794,7 +794,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
         lock_db_routines(thd, *schema) || lock_trigger_names(thd, tables))
       return true;
 
-    /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
+    /* mysql_ha_rm_tables() requires a non-null Table_ref. */
     if (tables) mysql_ha_rm_tables(thd, tables);
 
     for (table = tables; table; table = table->next_local) {
@@ -1019,8 +1019,8 @@ found_other_files:
 */
 
 static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
-                           TABLE_LIST **tables) {
-  TABLE_LIST *tot_list = nullptr, **tot_list_next_local, **tot_list_next_global;
+                           Table_ref **tables) {
+  Table_ref *tot_list = nullptr, **tot_list_next_local, **tot_list_next_global;
   DBUG_TRACE;
 
   tot_list_next_local = tot_list_next_global = &tot_list;
@@ -1037,7 +1037,7 @@ static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
     return true;
 
   for (const dd::String_type &table_name : sch_tables) {
-    TABLE_LIST *table_list = new (thd->mem_root) TABLE_LIST;
+    Table_ref *table_list = new (thd->mem_root) Table_ref;
     if (table_list == nullptr) return true; /* purecov: inspected */
 
     table_list->db = thd->mem_strdup(db);

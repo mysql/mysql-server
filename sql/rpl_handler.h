@@ -50,7 +50,7 @@ struct Binlog_storage_observer;
 struct Binlog_transmit_observer;
 struct Server_state_observer;
 struct Trans_observer;
-struct TABLE_LIST;
+class Table_ref;
 
 /**
   Variable to keep the value set for the
@@ -459,6 +459,6 @@ extern Binlog_relay_IO_delegate *binlog_relay_io_delegate;
 
 #define NO_HOOK(group) (group##_delegate->is_empty())
 
-int launch_hook_trans_begin(THD *thd, TABLE_LIST *table);
+int launch_hook_trans_begin(THD *thd, Table_ref *table);
 
 #endif /* RPL_HANDLER_H */

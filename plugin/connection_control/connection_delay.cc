@@ -330,7 +330,7 @@ int connection_delay_IS_table_writer(const uchar *ptr,
                      information_schema.connection_control_failed_attempts
 */
 
-void Connection_delay_event::fill_IS_table(TABLE_LIST *tables) {
+void Connection_delay_event::fill_IS_table(Table_ref *tables) {
   DBUG_TRACE;
   TABLE *table = tables->table;
   set_connection_delay_IS_table(table);
@@ -729,7 +729,7 @@ static bool get_equal_condition_argument(Item *cond, Sql_string *eq_arg,
   @param [in] cond    Condition if any.
 */
 
-void Connection_delay_action::fill_IS_table(THD *thd, TABLE_LIST *tables,
+void Connection_delay_action::fill_IS_table(THD *thd, Table_ref *tables,
                                             Item *cond) {
   DBUG_TRACE;
   Security_context_wrapper sctx_wrapper(thd);
@@ -807,7 +807,7 @@ void deinit_connection_delay_event() {
   @returns Always returns false.
 */
 
-int fill_failed_attempts_view(THD *thd, TABLE_LIST *tables, Item *cond) {
+int fill_failed_attempts_view(THD *thd, Table_ref *tables, Item *cond) {
   if (connection_control::g_max_failed_connection_handler)
     connection_control::g_max_failed_connection_handler->fill_IS_table(
         thd, tables, cond);

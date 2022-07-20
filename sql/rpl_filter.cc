@@ -56,7 +56,7 @@
 #include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
-#include "sql/table.h"  // TABLE_LIST
+#include "sql/table.h"  // Table_ref
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "template_utils.h"  // my_free_container_pointers
@@ -358,7 +358,7 @@ err:
 
   SYNOPSIS
     tables_ok()
-    db              db to use if db in TABLE_LIST is undefined for a table
+    db              db to use if db in Table_ref is undefined for a table
     tables          list of tables to check
 
   NOTES
@@ -391,7 +391,7 @@ err:
     1           should be logged/replicated
 */
 
-bool Rpl_filter::tables_ok(const char *db, TABLE_LIST *tables) {
+bool Rpl_filter::tables_ok(const char *db, Table_ref *tables) {
   bool some_tables_updating = false;
   DBUG_TRACE;
 

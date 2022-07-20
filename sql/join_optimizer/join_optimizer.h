@@ -64,7 +64,7 @@ struct JoinHypergraph;
   block and returns an access path to execute it (or nullptr, for error).
   It works as follows:
 
-    1. Convert the query block from MySQL's TABLE_LIST structures into
+    1. Convert the query block from MySQL's Table_ref structures into
        a hypergraph (see make_join_hypergraph.h).
     2. Find all legal subplans in the hypergraph, calculate costs for
        them and create access paths -- if there are multiple ways to make a

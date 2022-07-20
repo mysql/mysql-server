@@ -170,7 +170,7 @@ class Table_function {
       false on success
   */
   virtual bool do_init_args() = 0;
-  friend bool TABLE_LIST::setup_table_function(THD *thd);
+  friend bool Table_ref::setup_table_function(THD *thd);
   virtual void do_cleanup() {}
 };
 

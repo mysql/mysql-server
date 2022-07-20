@@ -1374,7 +1374,7 @@ void Relay_log_info::clear_tables_to_lock() {
     point.
    */
   uint i = 0;
-  for (TABLE_LIST *ptr = tables_to_lock; ptr; ptr = ptr->next_global, i++)
+  for (Table_ref *ptr = tables_to_lock; ptr; ptr = ptr->next_global, i++)
     ;
   assert(i == tables_to_lock_count);
 #endif
@@ -1394,7 +1394,7 @@ void Relay_log_info::clear_tables_to_lock() {
     */
     if (tables_to_lock->m_conv_table) free_blobs(tables_to_lock->m_conv_table);
 
-    tables_to_lock = static_cast<RPL_TABLE_LIST *>(tables_to_lock->next_global);
+    tables_to_lock = static_cast<RPL_Table_ref *>(tables_to_lock->next_global);
     tables_to_lock_count--;
     my_free(to_free);
   }

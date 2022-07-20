@@ -41,7 +41,7 @@
 class Item;
 class READ_INFO;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 class Sql_cmd_load_table final : public Sql_cmd {
  public:
@@ -109,14 +109,14 @@ class Sql_cmd_load_table final : public Sql_cmd {
  private:
   bool execute_inner(THD *thd, enum enum_duplicates handle_duplicates);
 
-  bool read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
+  bool read_fixed_length(THD *thd, COPY_INFO &info, Table_ref *table_list,
                          READ_INFO &read_info, ulong skip_lines);
 
-  bool read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
+  bool read_sep_field(THD *thd, COPY_INFO &info, Table_ref *table_list,
                       READ_INFO &read_info, const String &enclosed,
                       ulong skip_lines);
 
-  bool read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
+  bool read_xml_field(THD *thd, COPY_INFO &info, Table_ref *table_list,
                       READ_INFO &read_info, ulong skip_lines);
 
   bool write_execute_load_query_log_event(

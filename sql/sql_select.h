@@ -64,7 +64,7 @@ struct MYSQL_LEX_CSTRING;
 struct ORDER;
 struct SJ_TMP_TABLE_TAB;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 class Window;
 
 typedef ulonglong nested_join_map;
@@ -189,7 +189,7 @@ class Key_use {
         fanout(0.0),
         read_cost(0.0) {}
 
-  Key_use(TABLE_LIST *table_ref_arg, Item *val_arg, table_map used_tables_arg,
+  Key_use(Table_ref *table_ref_arg, Item *val_arg, table_map used_tables_arg,
           uint key_arg, uint keypart_arg, uint optimize_arg,
           key_part_map keypart_map_arg, ha_rows ref_table_rows_arg,
           bool null_rejecting_arg, bool *cond_guard_arg, uint sj_pred_no_arg)
@@ -208,7 +208,7 @@ class Key_use {
         fanout(0.0),
         read_cost(0.0) {}
 
-  TABLE_LIST *table_ref;  ///< table owning the index
+  Table_ref *table_ref;  ///< table owning the index
   /**
     Value used for lookup into @c key. It may be an Item_field, a
     constant or any other expression. If @c val contains a field from
@@ -601,15 +601,15 @@ class JOIN_TAB : public QEP_shared_owner {
 
   void set_table(TABLE *t);
 
-  /// Sets the pointer to the join condition of TABLE_LIST
-  void init_join_cond_ref(TABLE_LIST *tl);
+  /// Sets the pointer to the join condition of Table_ref
+  void init_join_cond_ref(Table_ref *tl);
 
   /// @returns join condition
   Item *join_cond() const { return *m_join_cond_ref; }
 
   /**
      Sets join condition
-     @note this also changes TABLE_LIST::m_join_cond.
+     @note this also changes Table_ref::m_join_cond.
   */
   void set_join_cond(Item *cond) { *m_join_cond_ref = cond; }
 
@@ -627,7 +627,7 @@ class JOIN_TAB : public QEP_shared_owner {
   Key_use *keyuse() const { return m_keyuse; }
   void set_keyuse(Key_use *k) { m_keyuse = k; }
 
-  TABLE_LIST *table_ref; /**< points to table reference               */
+  Table_ref *table_ref; /**< points to table reference               */
 
  private:
   Key_use *m_keyuse; /**< pointer to first used key               */
@@ -638,9 +638,9 @@ class JOIN_TAB : public QEP_shared_owner {
     - if this is a table with position==NULL (e.g. internal sort/group
       temporary table), pointer is NULL
 
-    - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
-      Thus, the pointee is the same as TABLE_LIST::m_join_cond (changing one
-      changes the other; thus, optimizations made on the second are reflected
+    - otherwise, pointer is the address of some Table_ref::m_join_cond.
+      Thus, the pointee is the same as Table_ref::m_join_cond (changing
+    one changes the other; thus, optimizations made on the second are reflected
       in Query_block::print_table_array() which uses the first one).
   */
   Item **m_join_cond_ref;
@@ -725,7 +725,7 @@ class JOIN_TAB : public QEP_shared_owner {
     It is the closest semijoin or antijoin nest.
     This variable holds the result of table pullout.
   */
-  TABLE_LIST *emb_sj_nest;
+  Table_ref *emb_sj_nest;
 
   /* NestedOuterJoins: Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
@@ -798,7 +798,7 @@ extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b);
 constexpr const char *STORE_KEY_CONST_NAME = "const";
 
 /// Check privileges for all columns referenced from join expression
-bool check_privileges_for_join(THD *thd, mem_root_deque<TABLE_LIST *> *tables);
+bool check_privileges_for_join(THD *thd, mem_root_deque<Table_ref *> *tables);
 
 /// Check privileges for all columns referenced from an expression list
 bool check_privileges_for_list(THD *thd, const mem_root_deque<Item *> &items,

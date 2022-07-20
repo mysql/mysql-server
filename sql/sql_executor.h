@@ -142,7 +142,7 @@ class SJ_TMP_TABLE {
 */
 class Semijoin_mat_exec {
  public:
-  Semijoin_mat_exec(TABLE_LIST *sj_nest, bool is_scan, uint table_count,
+  Semijoin_mat_exec(Table_ref *sj_nest, bool is_scan, uint table_count,
                     uint mat_table_index, uint inner_table_index)
       : sj_nest(sj_nest),
         is_scan(is_scan),
@@ -152,7 +152,7 @@ class Semijoin_mat_exec {
         table_param(),
         table(nullptr) {}
   ~Semijoin_mat_exec() = default;
-  TABLE_LIST *const sj_nest;     ///< Semi-join nest for this materialization
+  Table_ref *const sj_nest;      ///< Semi-join nest for this materialization
   const bool is_scan;            ///< true if executing a scan, false if lookup
   const uint table_count;        ///< Number of tables in the sj-nest
   const uint mat_table_index;    ///< Index in join_tab for materialized table
@@ -350,7 +350,7 @@ class QEP_TAB : public QEP_shared_owner {
 
  public:
   /// Pointer to table reference
-  TABLE_LIST *table_ref;
+  Table_ref *table_ref;
 
   /* Variables for semi-join duplicate elimination */
   SJ_TMP_TABLE *flush_weedout_table;
@@ -551,7 +551,7 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path,
 AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
                                          AccessPath *table_path);
 AccessPath *GetAccessPathForDerivedTable(
-    THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
+    THD *thd, Table_ref *table_ref, TABLE *table, bool rematerialize,
     Mem_root_array<const AccessPath *> *invalidators, bool need_rowid,
     AccessPath *table_path);
 
@@ -573,7 +573,7 @@ void ExtractConditions(Item *condition,
 
 AccessPath *create_table_access_path(THD *thd, TABLE *table,
                                      AccessPath *range_scan,
-                                     TABLE_LIST *table_ref, POSITION *position,
+                                     Table_ref *table_ref, POSITION *position,
                                      bool count_examined_rows);
 
 /**
@@ -583,7 +583,7 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table,
   Returns nullptr on failure.
  */
 unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, AccessPath *range_scan, TABLE_LIST *table_ref,
+    THD *thd, TABLE *table, AccessPath *range_scan, Table_ref *table_ref,
     POSITION *position, bool ignore_not_found_rows, bool count_examined_rows);
 
 /**

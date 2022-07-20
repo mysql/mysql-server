@@ -33,7 +33,7 @@
 class Item;
 class Item_field;
 struct POSITION;
-struct TABLE_LIST;
+class Table_ref;
 
 /*
   Used to identify NESTED_JOIN structures within a join (applicable to
@@ -80,7 +80,7 @@ struct NESTED_JOIN {
         sj_outer_exprs(*THR_MALLOC),
         sj_inner_exprs(*THR_MALLOC) {}
 
-  mem_root_deque<TABLE_LIST *>
+  mem_root_deque<Table_ref *>
       join_list;                /* list of elements in the nested join */
   table_map used_tables{0};     /* bitmap of tables in the nested join */
   table_map not_null_tables{0}; /* tables that rejects nulls           */

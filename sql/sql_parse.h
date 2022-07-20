@@ -54,7 +54,7 @@ struct LEX;
 struct LEX_USER;
 struct ORDER;
 struct Parse_context;
-struct TABLE_LIST;
+class Table_ref;
 union COM_DATA;
 
 extern "C" int test_if_data_home_dir(const char *dir);
@@ -115,9 +115,9 @@ int append_file_to_dir(THD *thd, const char **filename_ptr,
 void execute_init_command(THD *thd, LEX_STRING *init_command,
                           mysql_rwlock_t *var_lock);
 void add_to_list(SQL_I_List<ORDER> &list, ORDER *order);
-void add_join_on(TABLE_LIST *b, Item *expr);
-bool push_new_name_resolution_context(Parse_context *pc, TABLE_LIST *left_op,
-                                      TABLE_LIST *right_op);
+void add_join_on(Table_ref *b, Item *expr);
+bool push_new_name_resolution_context(Parse_context *pc, Table_ref *left_op,
+                                      Table_ref *right_op);
 void init_sql_command_flags(void);
 const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs);
 void killall_non_super_threads(THD *thd);
@@ -283,8 +283,8 @@ bool is_normal_transaction_boundary_stmt(enum enum_sql_command command);
  */
 bool is_xa_transaction_boundary_stmt(enum enum_sql_command command);
 
-bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
-bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
+bool all_tables_not_ok(THD *thd, Table_ref *tables);
+bool some_non_temp_table_to_be_updated(THD *thd, Table_ref *tables);
 
 // TODO: remove after refactoring of ALTER DATABASE:
 bool set_default_charset(HA_CREATE_INFO *create_info,

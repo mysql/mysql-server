@@ -491,7 +491,7 @@ const TABLE_FIELD_DEF Acl_table_intact::mysql_acl_table_defs[] = {
     {MYSQL_PASSWORD_HISTORY_FIELD_COUNT, mysql_password_history_table_fields}};
 
 static bool acl_tables_setup_for_write_and_acquire_mdl(THD *thd,
-                                                       TABLE_LIST *tables);
+                                                       Table_ref *tables);
 /**
   A helper function to commit statement transaction and close
   ACL tables after reading some data from them as part of FLUSH
@@ -1693,18 +1693,17 @@ table_error:
 }
 
 /**
-  Construct TABLE_LIST array for ACL tables.
+  Construct Table_ref array for ACL tables.
 
-  @param [in, out] tables         TABLE_LIST array
+  @param [in, out] tables         Table_ref array
   @param [in]      lock_type      Read or Write
   @param [in]      mdl_type       MDL to be used
 */
-static void acl_tables_setup(TABLE_LIST *tables, thr_lock_type lock_type,
+static void acl_tables_setup(Table_ref *tables, thr_lock_type lock_type,
                              enum_mdl_type mdl_type) {
   int idx = 0;
   for (idx = 0; idx < ACL_TABLES::LAST_ENTRY; ++idx) {
-    tables[idx] =
-        TABLE_LIST("mysql", ACL_TABLE_NAMES[idx], lock_type, mdl_type);
+    tables[idx] = Table_ref("mysql", ACL_TABLE_NAMES[idx], lock_type, mdl_type);
   }
 
   if (lock_type <= TL_READ_NO_INSERT) {
@@ -1713,13 +1712,13 @@ static void acl_tables_setup(TABLE_LIST *tables, thr_lock_type lock_type,
       reading as mysql_upgrade must work
     */
     tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].open_strategy =
-        TABLE_LIST::OPEN_IF_EXISTS;
+        Table_ref::OPEN_IF_EXISTS;
     tables[ACL_TABLES::TABLE_ROLE_EDGES].open_strategy =
-        TABLE_LIST::OPEN_IF_EXISTS;
+        Table_ref::OPEN_IF_EXISTS;
     tables[ACL_TABLES::TABLE_DEFAULT_ROLES].open_strategy =
-        TABLE_LIST::OPEN_IF_EXISTS;
+        Table_ref::OPEN_IF_EXISTS;
     tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].open_strategy =
-        TABLE_LIST::OPEN_IF_EXISTS;
+        Table_ref::OPEN_IF_EXISTS;
   }
 
   for (idx = 0; idx < ACL_TABLES::LAST_ENTRY - 1; ++idx) {
@@ -1739,7 +1738,7 @@ static void acl_tables_setup(TABLE_LIST *tables, thr_lock_type lock_type,
 
   @param [in, out] tables Table handles
 */
-void acl_tables_setup_for_read(TABLE_LIST *tables) {
+void acl_tables_setup_for_read(Table_ref *tables) {
   /*
     This function is called in following cases:
     1. check validity of ACL tables (schema, storage engine etc)
@@ -1807,7 +1806,7 @@ class acl_tables_setup_for_write_and_acquire_mdl_error_handler
     @retval true  Error
 */
 static bool acl_tables_setup_for_write_and_acquire_mdl(THD *thd,
-                                                       TABLE_LIST *tables) {
+                                                       Table_ref *tables) {
   /*
     This function is called perform an ACL DDL operation
 
@@ -1959,8 +1958,7 @@ static bool acl_tables_setup_for_write_and_acquire_mdl(THD *thd,
          this function.
 */
 
-int open_grant_tables(THD *thd, TABLE_LIST *tables,
-                      bool *transactional_tables) {
+int open_grant_tables(THD *thd, Table_ref *tables, bool *transactional_tables) {
   DBUG_TRACE;
 
   if (!initialized) {
@@ -2094,8 +2092,8 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     @retval  > 0  At least one record matched.
 */
 
-int handle_grant_table(THD *, TABLE_LIST *tables, ACL_TABLES table_no,
-                       bool drop, LEX_USER *user_from, LEX_USER *user_to) {
+int handle_grant_table(THD *, Table_ref *tables, ACL_TABLES table_no, bool drop,
+                       LEX_USER *user_from, LEX_USER *user_to) {
   int result = 0;
   int error = 0;
   TABLE *table = tables[table_no].table;
@@ -2183,10 +2181,10 @@ int handle_grant_table(THD *, TABLE_LIST *tables, ACL_TABLES table_no,
     @retval true  some of ACL tables has an unsupported engine type.
 */
 
-bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error) {
+bool check_engine_type_for_acl_table(Table_ref *tables, bool report_error) {
   bool invalid_table_found = false;
 
-  for (TABLE_LIST *t = tables; t; t = t->next_local) {
+  for (Table_ref *t = tables; t; t = t->next_local) {
     if (t->table && !t->table->file->ht->is_supported_system_table(
                         t->db, t->table_name, true)) {
       invalid_table_found = true;

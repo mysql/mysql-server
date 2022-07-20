@@ -2612,7 +2612,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
   share.db_plugin = ha_lock_engine(thd, innodb_hton);
 
-  TABLE_LIST *const wtable_list = wtable->pos_in_table_list;
+  Table_ref *const wtable_list = wtable->pos_in_table_list;
   Derived_refs_iterator ref_it(wtable_list);
 
   if (wtable_list) {

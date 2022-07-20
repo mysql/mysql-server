@@ -105,7 +105,7 @@ class SchemaTest : public ::testing::Test {
     ctx->otx.register_tables<Schema>();
 
     // Fake ctx->open_tables() by assigning fake schema TABLE object directly.
-    ctx->otx.get_table<dd::Schema>()->get_table_list()->table =
+    ctx->otx.get_table<dd::Schema>()->get_table_ref()->table =
         get_schema_table(thd(), hton());
 
     return ctx;

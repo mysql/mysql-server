@@ -67,8 +67,8 @@ class Opt_trace_context;
 
 /**
    Produces, from the first tmp TABLE object, a clone TABLE object for
-   TABLE_LIST 'tl', to have a single materialization of multiple references to
-   a CTE.
+   Table_ref 'tl', to have a single materialization of multiple references
+   to a CTE.
 
    How sharing of a single tmp table works
    =======================================
@@ -166,7 +166,7 @@ class Opt_trace_context;
    @returns New clone, or NULL if error
 */
 
-TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
+TABLE *Common_table_expr::clone_tmp_table(THD *thd, Table_ref *tl) {
   // Should have been attached to CTE already.
   assert(tl->common_table_expr() == this);
 
@@ -231,7 +231,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
 */
 bool Common_table_expr::substitute_recursive_reference(THD *thd,
                                                        Query_block *sl) {
-  TABLE_LIST *tl = sl->recursive_reference;
+  Table_ref *tl = sl->recursive_reference;
   assert(tl != nullptr && tl->table == nullptr);
   TABLE *t = clone_tmp_table(thd, tl);
   if (t == nullptr) return true; /* purecov: inspected */
@@ -242,7 +242,7 @@ bool Common_table_expr::substitute_recursive_reference(THD *thd,
   return false;
 }
 
-void Common_table_expr::remove_table(TABLE_LIST *tr) {
+void Common_table_expr::remove_table(Table_ref *tr) {
   (void)tmp_tables.erase_value(tr);
 }
 
@@ -256,7 +256,7 @@ void Common_table_expr::remove_table(TABLE_LIST *tr) {
   @returns false if success, true if error
 */
 
-bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
+bool Table_ref::resolve_derived(THD *thd, bool apply_semijoin) {
   DBUG_TRACE;
 
   /*
@@ -459,7 +459,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   return false;
 }
 
-/// Helper function for TABLE_LIST::setup_materialized_derived()
+/// Helper function for Table_ref::setup_materialized_derived()
 static void swap_column_names_of_unit_and_tmp_table(
     const mem_root_deque<Item *> &unit_items,
     const Create_col_name_list &tmp_table_col_names) {
@@ -492,12 +492,12 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
   class Field_info {
    public:
     Name_resolution_context *m_field_context{nullptr};
-    TABLE_LIST *m_table_ref{nullptr};
+    Table_ref *m_table_ref{nullptr};
     Query_block *m_depended_from{nullptr};
-    TABLE_LIST *m_cached_table{nullptr};
+    Table_ref *m_cached_table{nullptr};
     Field *m_field{nullptr};
-    Field_info(Name_resolution_context *field_context, TABLE_LIST *table_ref,
-               Query_block *depended_from, TABLE_LIST *cached_table,
+    Field_info(Name_resolution_context *field_context, Table_ref *table_ref,
+               Query_block *depended_from, Table_ref *cached_table,
                Field *field)
         : m_field_context(field_context),
           m_table_ref(table_ref),
@@ -755,7 +755,7 @@ Item *Query_block::clone_expression(THD *thd, Item *item) {
 
   @return false if successful, true if error
 */
-bool TABLE_LIST::setup_materialized_derived(THD *thd)
+bool Table_ref::setup_materialized_derived(THD *thd)
 
 {
   return setup_materialized_derived_tmp_table(thd) ||
@@ -767,7 +767,7 @@ bool TABLE_LIST::setup_materialized_derived(THD *thd)
   @param  thd   THD pointer
   @return false if successful, true if error
 */
-bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
+bool Table_ref::setup_materialized_derived_tmp_table(THD *thd)
 
 {
   DBUG_TRACE;
@@ -891,7 +891,7 @@ bool Query_expression::check_materialized_derived_query_blocks(THD *thd_arg) {
 
   @return false if successful, true if error
 */
-bool TABLE_LIST::setup_table_function(THD *thd) {
+bool Table_ref::setup_table_function(THD *thd) {
   DBUG_TRACE;
 
   assert(is_table_function());
@@ -973,7 +973,7 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
   in SELECT list of the derived table.
 */
 
-bool TABLE_LIST::can_push_condition_to_derived(THD *thd) {
+bool Table_ref::can_push_condition_to_derived(THD *thd) {
   Query_expression const *unit = derived_query_expression();
   return hint_table_state(thd, this, DERIVED_CONDITION_PUSHDOWN_HINT_ENUM,
                           OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN) &&  // 1
@@ -1197,7 +1197,7 @@ Item *Query_block::get_derived_expr(uint field_index) {
   // In some cases (noticed when derived table has multiple query blocks),
   // "field_index" does not always represent the index in the visible
   // field list. So, we adjust the index accordingly.
-  TABLE_LIST *derived_table = master_query_expression()->derived_table;
+  Table_ref *derived_table = master_query_expression()->derived_table;
   uint adjusted_field_index =
       field_index - derived_table->get_hidden_field_count_for_derived();
   for (auto item : visible_fields())
@@ -1390,7 +1390,7 @@ void Condition_pushdown::check_and_remove_sj_exprs(Item *cond) {
   // To check for all the semi-join outer expressions that could be part of
   // the condition.
   if (m_derived_table->join_list) {
-    for (TABLE_LIST *tl : *m_derived_table->join_list) {
+    for (Table_ref *tl : *m_derived_table->join_list) {
       if (tl->is_sj_or_aj_nest()) remove_sj_exprs(cond, tl->nested_join);
     }
   }
@@ -1526,7 +1526,7 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
   @returns false if success, true if error.
 */
 
-bool TABLE_LIST::optimize_derived(THD *thd) {
+bool Table_ref::optimize_derived(THD *thd) {
   DBUG_TRACE;
 
   Query_expression *const unit = derived_query_expression();
@@ -1574,7 +1574,7 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
   @returns false if success, true if error.
 */
 
-bool TABLE_LIST::create_materialized_table(THD *thd) {
+bool Table_ref::create_materialized_table(THD *thd) {
   DBUG_TRACE;
 
   // @todo: Be able to assert !table->is_created() as well
@@ -1637,7 +1637,7 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
   @returns false if success, true if error.
 */
 
-bool TABLE_LIST::materialize_derived(THD *thd) {
+bool Table_ref::materialize_derived(THD *thd) {
   DBUG_TRACE;
   assert(is_view_or_derived() && uses_materialization());
   assert(table && table->is_created() && !table->materialized);
@@ -1680,7 +1680,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
 
   if (!res) {
     /*
-      Here we entirely fix both TABLE_LIST and list of SELECT's as
+      Here we entirely fix both Table_ref and list of SELECT's as
       there were no derived tables
     */
     if (derived_result->flush()) res = true; /* purecov: inspected */
@@ -1699,7 +1699,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
    Clean up the query expression for a materialized derived table
 */
 
-void TABLE_LIST::cleanup_derived() {
+void Table_ref::cleanup_derived() {
   assert(is_view_or_derived() && uses_materialization());
   derived_query_expression()->cleanup(false);
 }

@@ -116,7 +116,7 @@ using std::min;
 const char *antijoin_null_cond = "<ANTIJOIN-NULL>";
 
 static bool optimize_semijoin_nests_for_materialization(JOIN *join);
-static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
+static void calculate_materialization_costs(JOIN *join, Table_ref *sj_nest,
                                             uint n_tables,
                                             Semijoin_mat_optimize *sjm);
 static bool make_join_query_block(JOIN *join, Item *item);
@@ -125,7 +125,7 @@ static bool list_contains_unique_index(JOIN_TAB *tab,
                                        void *data);
 static bool find_field_in_item_list(Field *field, void *data);
 static bool find_field_in_order_list(Field *field, void *data);
-static TABLE *get_sort_by_table(ORDER *a, ORDER *b, TABLE_LIST *tables);
+static TABLE *get_sort_by_table(ORDER *a, ORDER *b, Table_ref *tables);
 static void trace_table_dependencies(Opt_trace_context *trace,
                                      JOIN_TAB *join_tabs, uint table_count);
 static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
@@ -182,7 +182,7 @@ JOIN::JOIN(THD *thd_arg, Query_block *select)
       where_cond(reinterpret_cast<Item *>(1)),
       having_cond(reinterpret_cast<Item *>(1)),
       having_for_explain(reinterpret_cast<Item *>(1)),
-      tables_list(reinterpret_cast<TABLE_LIST *>(1)),
+      tables_list(reinterpret_cast<Table_ref *>(1)),
       current_ref_item_slice(REF_SLICE_SAVED_BASE),
       with_json_agg(select->json_agg_func_used()) {
   rollup_state = RollupState::NONE;
@@ -289,7 +289,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
   assert(query_block->leaf_table_count == 0 ||
          thd->lex->is_query_tables_locked() ||
          query_block == set_operand_block);
-  assert(tables == 0 && primary_tables == 0 && tables_list == (TABLE_LIST *)1);
+  assert(tables == 0 && primary_tables == 0 && tables_list == (Table_ref *)1);
 
   // to prevent double initialization on EXPLAIN
   if (optimized) return false;
@@ -345,7 +345,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
   */
   // if (query_block->materialized_derived_table_count) {
   {  // WL#6570
-    for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
+    for (Table_ref *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       tl->access_path_for_derived = nullptr;
       if (tl->is_view_or_derived()) {
         if (tl->optimize_derived(thd)) return true;
@@ -1109,7 +1109,7 @@ bool JOIN::push_to_engines() {
   DBUG_TRACE;
   assert(m_root_access_path != nullptr);
 
-  for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
+  for (Table_ref *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
     const handlerton *hton = tl->table->file->hton_supporting_engine_pushdown();
     if (hton != nullptr) {  // Involved an engine supporting pushdown.
       if (unlikely(hton->push_to_engine(thd, m_root_access_path, this))) {
@@ -1159,7 +1159,7 @@ bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
   Opt_trace_object subst_gc(trace, "substitute_generated_columns");
 
   // Collect all GCs that are a part of a key
-  for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
+  for (Table_ref *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
     if (tl->table->s->keys == 0) continue;
     for (uint i = 0; i < tl->table->s->fields; i++) {
       Field *fld = tl->table->field[i];
@@ -2723,7 +2723,7 @@ fix_ICP:
 bool JOIN::prune_table_partitions() {
   assert(query_block->partitioned_table_count);
 
-  for (TABLE_LIST *tbl = query_block->leaf_tables; tbl; tbl = tbl->next_leaf) {
+  for (Table_ref *tbl = query_block->leaf_tables; tbl; tbl = tbl->next_leaf) {
     // This will try to prune non-static conditions, which can be probed after
     // the tables are locked.
 
@@ -2734,7 +2734,7 @@ bool JOIN::prune_table_partitions() {
     // Look up the join nest hierarchy for the outermost condition:
     Item *cond = where_cond;
     const table_map tbl_map = tbl->map();
-    for (TABLE_LIST *nest = tbl; nest != nullptr; nest = nest->embedding) {
+    for (Table_ref *nest = tbl; nest != nullptr; nest = nest->embedding) {
       if (nest->join_cond_optim() != nullptr &&
           Overlaps(tbl_map, nest->join_cond_optim()->used_tables())) {
         cond = nest->join_cond_optim();
@@ -2875,7 +2875,7 @@ void JOIN::adjust_access_methods() {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
   for (uint i = const_tables; i < tables; i++) {
     JOIN_TAB *const tab = best_ref[i];
-    TABLE_LIST *const tl = tab->table_ref;
+    Table_ref *const tl = tab->table_ref;
 
     if (tab->type() == JT_ALL) {
       /*
@@ -3071,7 +3071,7 @@ bool JOIN::get_best_combination() {
     if (has_semijoin && sj_is_materialize_strategy(pos->sj_strategy)) {
       assert(outer_target < inner_target);
 
-      TABLE_LIST *const sj_nest = pos->table->emb_sj_nest;
+      Table_ref *const sj_nest = pos->table->emb_sj_nest;
 
       // Handle this many inner tables of materialized semi-join
       remaining_sjm_inner = pos->n_sj_tables;
@@ -3196,7 +3196,7 @@ bool JOIN::get_best_combination() {
   if (query_block->outer_join) make_outerjoin_info();
 
   // sjm is no longer needed, trash it. To reuse it, reset its members!
-  for (TABLE_LIST *sj_nest : query_block->sj_nests) {
+  for (Table_ref *sj_nest : query_block->sj_nests) {
     TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
   }
 
@@ -4352,7 +4352,7 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
 
 bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
-                       mem_root_deque<TABLE_LIST *> *join_list,
+                       mem_root_deque<Table_ref *> *join_list,
                        COND_EQUAL **cond_equal_ref) {
   COND_EQUAL *cond_equal = nullptr;
 
@@ -4382,9 +4382,9 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
   *cond_equal_ref = cond_equal;
 
   if (join_list) {
-    for (TABLE_LIST *table : *join_list) {
+    for (Table_ref *table : *join_list) {
       if (table->join_cond_optim()) {
-        mem_root_deque<TABLE_LIST *> *nested_join_list =
+        mem_root_deque<Table_ref *> *nested_join_list =
             table->nested_join ? &table->nested_join->join_list : nullptr;
         Item *join_cond;
         if (build_equal_items(thd, table->join_cond_optim(), &join_cond,
@@ -4908,10 +4908,10 @@ static bool propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
     First unused bit in nested_join_map after the call.
 */
 
-uint build_bitmap_for_nested_joins(mem_root_deque<TABLE_LIST *> *join_list,
+uint build_bitmap_for_nested_joins(mem_root_deque<Table_ref *> *join_list,
                                    uint first_unused) {
   DBUG_TRACE;
-  for (TABLE_LIST *table : *join_list) {
+  for (Table_ref *table : *join_list) {
     NESTED_JOIN *nested_join;
     if ((nested_join = table->nested_join)) {
       // We should have a join condition or a semi-join condition or both
@@ -5024,7 +5024,7 @@ bool JOIN::update_equalities_for_sjm() {
   List_iterator<Semijoin_mat_exec> sj_it(sjm_exec_list);
   Semijoin_mat_exec *sjm_exec;
   while ((sjm_exec = sj_it++)) {
-    TABLE_LIST *const sj_nest = sjm_exec->sj_nest;
+    Table_ref *const sj_nest = sjm_exec->sj_nest;
 
     Item *cond;
     /*
@@ -5363,7 +5363,7 @@ bool JOIN::init_planner_arrays() {
     Initialize dependencies between tables.
   */
   JOIN_TAB **best_ref_p = best_ref;
-  TABLE_LIST *tl = query_block->leaf_tables;
+  Table_ref *tl = query_block->leaf_tables;
 
   for (JOIN_TAB *tab = join_tab; tl; tab++, tl = tl->next_leaf, best_ref_p++) {
     *best_ref_p = tab;
@@ -5414,7 +5414,7 @@ bool JOIN::init_planner_arrays() {
     if (tl->outer_join_nest()) {
       // tab belongs to a nested join, maybe to several embedding joins
       tab->embedding_map = 0;
-      for (TABLE_LIST *embedding = tl->embedding; embedding;
+      for (Table_ref *embedding = tl->embedding; embedding;
            embedding = embedding->embedding) {
         NESTED_JOIN *const nested_join = embedding->nested_join;
         tab->embedding_map |= nested_join->nj_map;
@@ -5423,7 +5423,7 @@ bool JOIN::init_planner_arrays() {
     } else if (tab->join_cond()) {
       // tab is the only inner table of an outer join
       tab->embedding_map = 0;
-      for (TABLE_LIST *embedding = tl->embedding; embedding;
+      for (Table_ref *embedding = tl->embedding; embedding;
            embedding = embedding->embedding)
         tab->embedding_map |= embedding->nested_join->nj_map;
     }
@@ -5516,7 +5516,7 @@ bool JOIN::extract_const_tables() {
   JOIN_TAB *const tab_end = join_tab + tables;
   for (JOIN_TAB *tab = join_tab; tab < tab_end; tab++) {
     TABLE *const table = tab->table();
-    TABLE_LIST *const tl = tab->table_ref;
+    Table_ref *const tl = tab->table_ref;
     enum enum_const_table_extraction extract_method = extract_const_table;
 
     const bool all_partitions_pruned_away = table->all_partitions_pruned_away;
@@ -5614,7 +5614,7 @@ bool JOIN::extract_func_dependent_tables() {
     for (JOIN_TAB **pos = best_ref + const_tables; *pos; pos++) {
       JOIN_TAB *const tab = *pos;
       TABLE *const table = tab->table();
-      TABLE_LIST *const tl = tab->table_ref;
+      Table_ref *const tl = tab->table_ref;
       /*
         If equi-join condition by a key is null rejecting and after a
         substitution of a const table the key value happens to be null
@@ -5836,7 +5836,7 @@ bool JOIN::estimate_rowcount() {
       Don't do range analysis if on the inner side of an outer join (2).
       Do range analysis if on the inner side of a semi-join (3).
     */
-    TABLE_LIST *const tl = tab->table_ref;
+    Table_ref *const tl = tab->table_ref;
     if ((!tab->const_keys.is_clear_all() ||
          !tab->skip_scan_keys.is_clear_all()) &&                 // (1)
         (!tl->embedding ||                                       // (2)
@@ -5901,7 +5901,7 @@ bool JOIN::estimate_rowcount() {
   even for tables within outer join nests embedded in semi-join nests.
   A table can never be part of multiple semi-join nests, hence no
   ambiguities can ever occur.
-  Note also that the pointer is not set for TABLE_LIST objects that
+  Note also that the pointer is not set for Table_ref objects that
   are outer join nests within semi-join nests.
 */
 
@@ -5912,7 +5912,7 @@ void JOIN::set_semijoin_embedding() {
 
   for (JOIN_TAB *tab = join_tab; tab < tab_end; tab++) {
     tab->emb_sj_nest = nullptr;
-    for (TABLE_LIST *tl = tab->table_ref; tl->embedding; tl = tl->embedding) {
+    for (Table_ref *tl = tab->table_ref; tl->embedding; tl = tl->embedding) {
       if (tl->embedding->is_sj_or_aj_nest()) {
         assert(!tab->emb_sj_nest);
         tab->emb_sj_nest = tl->embedding;
@@ -5951,7 +5951,7 @@ void JOIN::set_semijoin_embedding() {
        BLOB/GEOMETRY columns are allowed.
 */
 
-static void semijoin_types_allow_materialization(TABLE_LIST *sj_nest) {
+static void semijoin_types_allow_materialization(Table_ref *sj_nest) {
   DBUG_TRACE;
 
   assert(sj_nest->nested_join->sj_outer_exprs.size() ==
@@ -6074,7 +6074,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
   uchar buff[STACK_BUFF_ALLOC];
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return 0;  // Fatal error flag is set
-  TABLE_LIST *const tl = tab->table_ref;
+  Table_ref *const tl = tab->table_ref;
   tab->set_skip_records_in_range(
       check_skip_records_in_range_qualification(tab, thd));
 
@@ -6170,7 +6170,7 @@ static void trace_table_dependencies(Opt_trace_context *trace,
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_array trace_dep(trace, "table_dependencies");
   for (uint i = 0; i < table_count; i++) {
-    TABLE_LIST *table_ref = join_tabs[i].table_ref;
+    Table_ref *table_ref = join_tabs[i].table_ref;
     Opt_trace_object trace_one_table(trace);
     trace_one_table.add_utf8_table(table_ref).add(
         "row_may_be_null", table_ref->table->is_nullable());
@@ -6447,7 +6447,7 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join) {
   DBUG_TRACE;
   Opt_trace_context *const trace = &join->thd->opt_trace;
 
-  for (TABLE_LIST *sj_nest : join->query_block->sj_nests) {
+  for (Table_ref *sj_nest : join->query_block->sj_nests) {
     /* As a precaution, reset pointers that were used in prior execution */
     sj_nest->nested_join->sjm.positions = nullptr;
 
@@ -6516,7 +6516,7 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join) {
     false - Otherwise
 */
 
-static bool find_eq_ref_candidate(TABLE_LIST *tl, table_map sj_inner_tables) {
+static bool find_eq_ref_candidate(Table_ref *tl, table_map sj_inner_tables) {
   Key_use *keyuse = tl->table->reginfo.join_tab->keyuse();
 
   if (keyuse) {
@@ -6611,7 +6611,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
   /* Try pulling out tables from each semi-join nest */
   for (auto sj_list_it = join->query_block->sj_nests.begin();
        sj_list_it != join->query_block->sj_nests.end();) {
-    TABLE_LIST *sj_nest = *sj_list_it;
+    Table_ref *sj_nest = *sj_list_it;
     if (sj_nest->is_aj_nest()) {
       ++sj_list_it;
       continue;
@@ -6624,7 +6624,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
       t2 cannot be pulled out because t3 depends on it.
     */
     table_map dep_tables = 0;
-    for (TABLE_LIST *tbl : sj_nest->nested_join->join_list) {
+    for (Table_ref *tbl : sj_nest->nested_join->join_list) {
       if (tbl->dep_tables & sj_nest->nested_join->used_tables)
         dep_tables |= tbl->dep_tables;
     }
@@ -6636,7 +6636,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
     bool pulled_a_table;
     do {
       pulled_a_table = false;
-      for (TABLE_LIST *tbl : sj_nest->nested_join->join_list) {
+      for (Table_ref *tbl : sj_nest->nested_join->join_list) {
         if (tbl->table && !(pulled_tables & tbl->map()) &&
             !(dep_tables & tbl->map())) {
           if (find_eq_ref_candidate(
@@ -6657,7 +6657,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
     } while (pulled_a_table);
 
     /*
-      Move the pulled out TABLE_LIST elements to the parents.
+      Move the pulled out Table_ref elements to the parents.
     */
     sj_nest->nested_join->used_tables &= ~pulled_tables;
     sj_nest->nested_join->not_null_tables &= ~pulled_tables;
@@ -6667,7 +6667,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
 
     bool remove = false;
     if (pulled_tables) {
-      mem_root_deque<TABLE_LIST *> *upper_join_list =
+      mem_root_deque<Table_ref *> *upper_join_list =
           (sj_nest->embedding != nullptr)
               ? &sj_nest->embedding->nested_join->join_list
               : &join->query_block->top_join_list;
@@ -6676,7 +6676,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
 
       for (auto child_li = sj_nest->nested_join->join_list.begin();
            child_li != sj_nest->nested_join->join_list.end();) {
-        TABLE_LIST *tbl = *child_li;
+        Table_ref *tbl = *child_li;
         if (tbl->table && !(sj_nest->nested_join->used_tables & tbl->map())) {
           /*
             Pull the table up in the same way as simplify_joins() does:
@@ -6854,7 +6854,7 @@ static Key_field *merge_key_fields(Key_field *start, Key_field *new_fields,
 */
 
 static uint get_semi_join_select_list_index(Item_field *item_field) {
-  TABLE_LIST *emb_sj_nest = item_field->table_ref->embedding;
+  Table_ref *emb_sj_nest = item_field->table_ref->embedding;
   if (emb_sj_nest && emb_sj_nest->is_sj_or_aj_nest()) {
     const mem_root_deque<Item *> &items =
         emb_sj_nest->nested_join->sj_inner_exprs;
@@ -6965,7 +6965,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
          cond->functype() == Item_func::SP_CROSSES_FUNC);
 
   Field *const field = item_field->field;
-  TABLE_LIST *const tl = item_field->table_ref;
+  Table_ref *const tl = item_field->table_ref;
 
   if (tl->table->reginfo.join_tab == nullptr) {
     /*
@@ -7614,7 +7614,7 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
 static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS)) {
     const Field *const field = key_field->item_field->field;
-    TABLE_LIST *const tl = key_field->item_field->table_ref;
+    Table_ref *const tl = key_field->item_field->table_ref;
     TABLE *const table = tl->table;
 
     for (uint key = 0; key < table->s->keys; key++) {
@@ -7727,7 +7727,7 @@ static bool add_ft_keys(Key_use_array *keyuse_array, Item *cond,
       !(usable_tables & cond_func->table_ref->map()))
     return false;
 
-  TABLE_LIST *tbl = cond_func->table_ref;
+  Table_ref *tbl = cond_func->table_ref;
   if (!tbl->table->keys_in_use_for_query.is_set(cond_func->key)) return false;
 
   cond_func->set_simple_expression(simple_match_expr);
@@ -7812,10 +7812,9 @@ static bool sort_keyuse(const Key_use &a, const Key_use &b) {
 */
 
 static bool add_key_fields_for_nj(THD *thd, JOIN *join,
-                                  TABLE_LIST *nested_join_table,
-                                  Key_field **end, uint *and_level,
-                                  SARGABLE_PARAM **sargables) {
-  mem_root_deque<TABLE_LIST *> &join_list =
+                                  Table_ref *nested_join_table, Key_field **end,
+                                  uint *and_level, SARGABLE_PARAM **sargables) {
+  mem_root_deque<Table_ref *> &join_list =
       nested_join_table->nested_join->join_list;
   auto li = join_list.begin();
   auto li_end = join_list.end();
@@ -7823,7 +7822,7 @@ static bool add_key_fields_for_nj(THD *thd, JOIN *join,
   auto li2_end = join_list.end();
   bool have_another = false;
   table_map tables = 0;
-  TABLE_LIST *table;
+  Table_ref *table;
 
   while ((table = (li != li_end) ? *li++ : nullptr) ||
          (have_another && li2 != join_list.end() &&
@@ -8209,7 +8208,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
   }
 
   /* Process ON conditions for the nested joins */
-  for (TABLE_LIST *tl : query_block->top_join_list) {
+  for (Table_ref *tl : query_block->top_join_list) {
     if (tl->nested_join &&
         add_key_fields_for_nj(thd, join, tl, &end, &and_level, sargables))
       return true;
@@ -8381,7 +8380,7 @@ void JOIN::make_outerjoin_info() {
     TABLE *const table = tab->table();
     if (!table) continue;
 
-    TABLE_LIST *const tbl = tab->table_ref;
+    Table_ref *const tbl = tab->table_ref;
     /*
       If 'tbl' is inside a SJ/AJ nest served by materialization, we must
       limit setting first_inner, last_inner and first_upper for join nests
@@ -8405,7 +8404,7 @@ void JOIN::make_outerjoin_info() {
         If this outer join nest is embedded in another join nest,
         link the join-tabs:
       */
-      TABLE_LIST *const outer_join_nest = tbl->outer_join_nest();
+      Table_ref *const outer_join_nest = tbl->outer_join_nest();
       if (outer_join_nest) {
         assert(outer_join_nest->nested_join->first_nested != NO_PLAN_IDX);
         if (!sj_mat_inner ||
@@ -8415,7 +8414,7 @@ void JOIN::make_outerjoin_info() {
           tab->set_first_upper(outer_join_nest->nested_join->first_nested);
       }
     }
-    for (TABLE_LIST *embedding = tbl->embedding; embedding;
+    for (Table_ref *embedding = tbl->embedding; embedding;
          embedding = embedding->embedding) {
       // When reaching the outer tables of the materialized temporary table,
       // the decoration for this table is complete.
@@ -8433,7 +8432,7 @@ void JOIN::make_outerjoin_info() {
         tab->init_join_cond_ref(embedding);
         tab->cond_equal = tbl->cond_equal;
 
-        TABLE_LIST *const outer_join_nest = embedding->outer_join_nest();
+        Table_ref *const outer_join_nest = embedding->outer_join_nest();
         if (outer_join_nest) {
           assert(outer_join_nest->nested_join->first_nested != NO_PLAN_IDX);
           if (!sj_mat_inner ||
@@ -8659,7 +8658,7 @@ bool JOIN::attach_join_conditions(plan_idx last_tab) {
     if (sjm->inner_table_index + sjm->table_count - 1 == (uint)last_tab) {
       // we're at last table of sjmat nest
       Item *join_cond = best_ref[mat_tbl]->join_cond();
-      TABLE_LIST *tr = best_ref[mat_tbl]->table_ref;
+      Table_ref *tr = best_ref[mat_tbl]->table_ref;
       while (join_cond == nullptr && tr->embedding != nullptr &&
              tr->embedding->is_derived()) {
         // If subquery table(s) come from a derived table
@@ -9041,8 +9040,8 @@ bool JOIN::finalize_table_conditions() {
 
   @details
   This function generates keys for all derived tables/views of the query_block
-  to which this join corresponds to with help of the TABLE_LIST:generate_keys
-  function.
+  to which this join corresponds to with help of the
+  Table_ref:generate_keys function.
 
   @return false all keys were successfully added.
   @return true OOM error
@@ -9051,7 +9050,7 @@ bool JOIN::finalize_table_conditions() {
 bool JOIN::generate_derived_keys() {
   assert(query_block->materialized_derived_table_count);
 
-  for (TABLE_LIST *table = query_block->leaf_tables; table;
+  for (Table_ref *table = query_block->leaf_tables; table;
        table = table->next_leaf) {
     table->derived_keys_ready = true;
     /* Process tables that aren't materialized yet. */
@@ -9078,7 +9077,7 @@ void JOIN::finalize_derived_keys() {
   for (uint i = 0; i < tables; i++) {
     JOIN_TAB *tab = best_ref[i];
     TABLE *table = tab->table();
-    TABLE_LIST *table_ref = tab->table_ref;
+    Table_ref *table_ref = tab->table_ref;
     /*
      Save chosen key description if:
      1) it's a materialized derived table
@@ -9207,7 +9206,7 @@ void JOIN::finalize_derived_keys() {
   for (uint i = 0; i < tables; i++) {
     JOIN_TAB *tab = best_ref[i];
     TABLE *table = tab->table();
-    TABLE_LIST *table_ref = tab->table_ref;
+    Table_ref *table_ref = tab->table_ref;
     if (table && table_ref->uses_materialization() && !table->is_created() &&
         table->s->keys > 0) {
       if (table->s->owner_of_possible_tmp_keys != query_block) continue;
@@ -10105,7 +10104,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change,
 */
 
 bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
-                   mem_root_deque<TABLE_LIST *> *join_list,
+                   mem_root_deque<Table_ref *> *join_list,
                    Item::cond_result *cond_value) {
   DBUG_TRACE;
   Opt_trace_context *const trace = &thd->opt_trace;
@@ -10551,7 +10550,7 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
   and group and order is compatible, else return 0.
 */
 
-static TABLE *get_sort_by_table(ORDER *a, ORDER *b, TABLE_LIST *tables) {
+static TABLE *get_sort_by_table(ORDER *a, ORDER *b, Table_ref *tables) {
   DBUG_TRACE;
   table_map map = (table_map)0;
 
@@ -10725,7 +10724,7 @@ bool JOIN::fts_index_access(JOIN_TAB *tab) {
    @note that this function modifies join->map2table, which has to be filled
    correctly later.
 */
-static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
+static void calculate_materialization_costs(JOIN *join, Table_ref *sj_nest,
                                             uint n_tables,
                                             Semijoin_mat_optimize *sjm) {
   double mat_cost;           // Estimated cost of materialization

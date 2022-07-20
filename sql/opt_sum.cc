@@ -99,9 +99,9 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond);
 
     @retval Product of number of rows in all tables. ULLONG_MAX for error.
 */
-static ulonglong get_exact_record_count(TABLE_LIST *tables) {
+static ulonglong get_exact_record_count(Table_ref *tables) {
   ulonglong count = 1;
-  for (TABLE_LIST *tl = tables; tl; tl = tl->next_leaf) {
+  for (Table_ref *tl = tables; tl; tl = tl->next_leaf) {
     ha_rows tmp = 0;
     int error = tl->table->file->ha_records(&tmp);
     if (error != 0) return ULLONG_MAX;
@@ -296,7 +296,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
   // The set of tables in the join, excluding the inner tables of outer join
   table_map used_tables = 0;
 
-  TABLE_LIST *tables = select->leaf_tables;
+  Table_ref *tables = select->leaf_tables;
 
   int error;
 
@@ -322,7 +322,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
     Analyze outer join dependencies, and, if possible, compute the number
     of returned rows.
   */
-  for (TABLE_LIST *tl = tables; tl; tl = tl->next_leaf) {
+  for (Table_ref *tl = tables; tl; tl = tl->next_leaf) {
     // Don't replace expression on a table that is part of an outer join
     if (tl->is_inner_table_of_outer_join()) {
       inner_tables |= tl->map();
@@ -470,7 +470,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
 
             ref.key_buff = key_buff;
             Item_field *item_field = down_cast<Item_field *>(expr);
-            TABLE_LIST *tr = item_field->table_ref;
+            Table_ref *tr = item_field->table_ref;
             TABLE *table = tr->table;
 
             /*

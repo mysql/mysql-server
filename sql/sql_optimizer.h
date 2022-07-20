@@ -243,7 +243,7 @@ class JOIN {
      This is the bitmap of all tables which are dependencies of
      lateral derived tables which are not (yet) part of the partial
      plan.  (The value is a logical 'or' of zero or more
-     TABLE_LIST.map() values.)
+     Table_ref.map() values.)
 
      When we are building the join order, there is a partial plan (an
      ordered sequence of JOIN_TABs), and an unordered set of JOIN_TABs
@@ -505,7 +505,7 @@ class JOIN {
     optimization. May be changed (to NULL) only if optimize_aggregated_query()
     optimizes tables away.
   */
-  TABLE_LIST *tables_list;
+  Table_ref *tables_list;
   COND_EQUAL *cond_equal{nullptr};
   /*
     Join tab to return to. Points to an element of join->join_tab array, or to
@@ -1061,14 +1061,14 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
 bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
                      Item::cond_result *cond_value);
 bool optimize_cond(THD *thd, Item **conds, COND_EQUAL **cond_equal,
-                   mem_root_deque<TABLE_LIST *> *join_list,
+                   mem_root_deque<Table_ref *> *join_list,
                    Item::cond_result *cond_value);
 Item *substitute_for_best_equal_field(THD *thd, Item *cond,
                                       COND_EQUAL *cond_equal,
                                       JOIN_TAB **table_join_idx);
 bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
-                       mem_root_deque<TABLE_LIST *> *join_list,
+                       mem_root_deque<Table_ref *> *join_list,
                        COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join,
                              mem_root_deque<Item_field *> *out_args);
@@ -1078,7 +1078,7 @@ Key_use_array *create_keyuse_for_table(
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *make_cond_for_table(THD *thd, Item *cond, table_map tables,
                           table_map used_table, bool exclude_expensive_cond);
-uint build_bitmap_for_nested_joins(mem_root_deque<TABLE_LIST *> *join_list,
+uint build_bitmap_for_nested_joins(mem_root_deque<Table_ref *> *join_list,
                                    uint first_unused);
 
 /**

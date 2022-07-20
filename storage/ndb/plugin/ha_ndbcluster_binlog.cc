@@ -4352,9 +4352,9 @@ class Ndb_binlog_index_table_util {
     const char *save_proc_info =
         thd_proc_info(thd, "Opening 'mysql.ndb_binlog_index'");
 
-    TABLE_LIST tables(DB_NAME,     // db
-                      TABLE_NAME,  // name, alias
-                      TL_WRITE);   // for write
+    Table_ref tables(DB_NAME,     // db
+                     TABLE_NAME,  // name, alias
+                     TL_WRITE);   // for write
 
     /* Only allow real table to be opened */
     tables.required_type = dd::enum_table_type::BASE_TABLE;

@@ -834,7 +834,7 @@ bool MaterializeIterator<Profiler>::Init() {
   // If so, check if we have already been materialized through any of our alias
   // tables.
   if (!table()->materialized && m_cte != nullptr) {
-    for (TABLE_LIST *table_ref : m_cte->tmp_tables) {
+    for (Table_ref *table_ref : m_cte->tmp_tables) {
       if (table_ref->table != nullptr && table_ref->table->materialized) {
         table()->materialized = true;
         break;
@@ -2181,7 +2181,7 @@ int NestedLoopSemiJoinWithDuplicateRemovalIterator::Read() {
 MaterializeInformationSchemaTableIterator::
     MaterializeInformationSchemaTableIterator(
         THD *thd, unique_ptr_destroy_only<RowIterator> table_iterator,
-        TABLE_LIST *table_list, Item *condition)
+        Table_ref *table_list, Item *condition)
     : RowIterator(thd),
       m_table_iterator(move(table_iterator)),
       m_table_list(table_list),

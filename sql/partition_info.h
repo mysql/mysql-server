@@ -49,7 +49,7 @@ struct handlerton;
 class Create_field;
 class partition_info;
 struct PARTITION_ITERATOR;
-struct TABLE_LIST;
+class Table_ref;
 
 /**
   A "Get next" function for partition iterator.
@@ -470,7 +470,7 @@ class partition_info {
   partition_info *get_clone(THD *thd, bool reset = false);
   partition_info *get_full_clone(THD *thd);
   bool set_named_partition_bitmap(const char *part_name, size_t length);
-  bool set_partition_bitmaps(TABLE_LIST *table_list);
+  bool set_partition_bitmaps(Table_ref *table_list);
   bool set_read_partitions(List<String> *partition_names);
   /* Answers the question if subpartitioning is used for a certain table */
   inline bool is_sub_partitioned() const {

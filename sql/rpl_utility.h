@@ -45,7 +45,7 @@ struct MY_BITMAP;
 
 #include "map_helpers.h"
 #include "prealloced_array.h"  // Prealloced_array
-#include "sql/table.h"         // TABLE_LIST
+#include "sql/table.h"         // Table_ref
 
 class Log_event;
 class Relay_log_info;
@@ -247,8 +247,8 @@ class Hash_slave_rows {
 class table_def {
  public:
   /**
-    No-op constructor. Instances of RPL_TABLE_LIST are created by first
-    allocating memory, then placement-new-ing an RPL_TABLE_LIST object
+    No-op constructor. Instances of RPL_Table_ref are created by first
+    allocating memory, then placement-new-ing an RPL_Table_ref object
     containing an uninitialized table_def object which is only conditionally
     initialized. See Table_map_log_event::do_apply_event().
   */
@@ -458,15 +458,15 @@ class table_def {
 
 #ifdef MYSQL_SERVER
 /**
-   Extend the normal table list with a few new fields needed by the
+   Extend the normal Table_ref with a few new fields needed by the
    slave thread, but nowhere else.
  */
-struct RPL_TABLE_LIST : public TABLE_LIST {
-  RPL_TABLE_LIST(const char *db_name_arg, size_t db_length_arg,
-                 const char *table_name_arg, size_t table_name_length_arg,
-                 const char *alias_arg, enum thr_lock_type lock_type_arg)
-      : TABLE_LIST(db_name_arg, db_length_arg, table_name_arg,
-                   table_name_length_arg, alias_arg, lock_type_arg) {}
+struct RPL_Table_ref : public Table_ref {
+  RPL_Table_ref(const char *db_name_arg, size_t db_length_arg,
+                const char *table_name_arg, size_t table_name_length_arg,
+                const char *alias_arg, enum thr_lock_type lock_type_arg)
+      : Table_ref(db_name_arg, db_length_arg, table_name_arg,
+                  table_name_length_arg, alias_arg, lock_type_arg) {}
 
   bool m_tabledef_valid;
   table_def m_tabledef;

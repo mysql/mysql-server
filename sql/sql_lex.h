@@ -86,7 +86,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_servers.h"  // Server_options
 #include "sql/sql_udf.h"      // Item_udftype
-#include "sql/table.h"        // TABLE_LIST
+#include "sql/table.h"        // Table_ref
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"  // enum_trigger_action_time_type
 #include "sql/visible_fields.h"
@@ -819,7 +819,7 @@ class Query_expression {
     If this query expression is underlying of a derived table, the derived
     table. NULL if none.
   */
-  TABLE_LIST *derived_table;
+  Table_ref *derived_table;
   /**
      First query block (in this UNION) which references the CTE.
      NULL if not the query expression of a recursive CTE.
@@ -1104,14 +1104,14 @@ class Query_expression {
 
   /**
     If unit is a subquery, which forms an object of the upper level (an
-    Item_subselect, a derived TABLE_LIST), adds to this object a map
+    Item_subselect, a derived Table_ref), adds to this object a map
     of tables of the upper level which the unit references.
   */
   void accumulate_used_tables(table_map map);
 
   /**
     If unit is a subquery, which forms an object of the upper level (an
-    Item_subselect, a derived TABLE_LIST), returns the place of this object
+    Item_subselect, a derived Table_ref), returns the place of this object
     in the upper level query block.
   */
   enum_parsing_context place() const;
@@ -1122,7 +1122,7 @@ class Query_expression {
     An exception: this is the only function that needs to adjust
     explain_marker.
   */
-  friend bool parse_view_definition(THD *thd, TABLE_LIST *view_ref);
+  friend bool parse_view_definition(THD *thd, Table_ref *view_ref);
 };
 
 typedef Bounds_checked_array<Item *> Ref_item_array;
@@ -1237,14 +1237,14 @@ class Query_block : public Query_term {
   */
   void set_tables_readonly() {
     // Set all referenced base tables as read only.
-    for (TABLE_LIST *tr = leaf_tables; tr != nullptr; tr = tr->next_leaf)
+    for (Table_ref *tr = leaf_tables; tr != nullptr; tr = tr->next_leaf)
       tr->set_readonly();
   }
 
   /// @returns a map of all tables references in the query block
   table_map all_tables_map() const { return (1ULL << leaf_table_count) - 1; }
 
-  void remove_derived(THD *thd, TABLE_LIST *tl);
+  void remove_derived(THD *thd, Table_ref *tl);
   bool remove_aggregates(THD *thd, Query_block *select);
 
   Query_expression *master_query_expression() const { return master; }
@@ -1252,7 +1252,7 @@ class Query_block : public Query_term {
   Query_block *outer_query_block() const { return master->outer_query_block(); }
   Query_block *next_query_block() const { return next; }
 
-  TABLE_LIST *find_table_by_name(const Table_ident *ident);
+  Table_ref *find_table_by_name(const Table_ident *ident);
 
   /**
     @return true  If STRAIGHT_JOIN applies to all tables.
@@ -1261,7 +1261,7 @@ class Query_block : public Query_term {
   bool is_straight_join() {
     bool straight_join = true;
     /// false for example in t1 STRAIGHT_JOIN t2 JOIN t3.
-    for (TABLE_LIST *tbl = leaf_tables->next_leaf; tbl; tbl = tbl->next_leaf)
+    for (Table_ref *tbl = leaf_tables->next_leaf; tbl; tbl = tbl->next_leaf)
       straight_join &= tbl->straight;
     return straight_join || (active_options() & SELECT_STRAIGHT_JOIN);
   }
@@ -1375,14 +1375,14 @@ class Query_block : public Query_term {
   bool add_item_to_list(Item *item);
   bool add_ftfunc_to_list(Item_func_match *func);
   void add_order_to_list(ORDER *order);
-  TABLE_LIST *add_table_to_list(THD *thd, Table_ident *table, const char *alias,
-                                ulong table_options,
-                                thr_lock_type flags = TL_UNLOCK,
-                                enum_mdl_type mdl_type = MDL_SHARED_READ,
-                                List<Index_hint> *hints = nullptr,
-                                List<String> *partition_names = nullptr,
-                                LEX_STRING *option = nullptr,
-                                Parse_context *pc = nullptr);
+  Table_ref *add_table_to_list(THD *thd, Table_ident *table, const char *alias,
+                               ulong table_options,
+                               thr_lock_type flags = TL_UNLOCK,
+                               enum_mdl_type mdl_type = MDL_SHARED_READ,
+                               List<Index_hint> *hints = nullptr,
+                               List<String> *partition_names = nullptr,
+                               LEX_STRING *option = nullptr,
+                               Parse_context *pc = nullptr);
 
   /**
     Add item to the hidden part of select list
@@ -1396,11 +1396,11 @@ class Query_block : public Query_term {
   /// Remove hidden items from select list
   void remove_hidden_items();
 
-  TABLE_LIST *get_table_list() const { return table_list.first; }
+  Table_ref *get_table_list() const { return table_list.first; }
   bool init_nested_join(THD *thd);
-  TABLE_LIST *end_nested_join();
-  TABLE_LIST *nest_last_join(THD *thd, size_t table_cnt = 2);
-  bool add_joined_table(TABLE_LIST *table);
+  Table_ref *end_nested_join();
+  Table_ref *nest_last_join(THD *thd, size_t table_cnt = 2);
+  bool add_joined_table(Table_ref *table);
   mem_root_deque<Item *> *get_fields_list() { return &fields; }
 
   /// Wrappers over fields / get_fields_list() that hide items where
@@ -1418,7 +1418,7 @@ class Query_block : public Query_term {
   bool check_privileges_for_subqueries(THD *thd);
 
   /// Resolve and prepare information about tables for one query block
-  bool setup_tables(THD *thd, TABLE_LIST *tables, bool select_insert);
+  bool setup_tables(THD *thd, Table_ref *tables, bool select_insert);
 
   /// Resolve OFFSET and LIMIT clauses
   bool resolve_limits(THD *thd);
@@ -1433,7 +1433,7 @@ class Query_block : public Query_term {
   void merge_contexts(Query_block *inner);
 
   /// Merge derived table into query block
-  bool merge_derived(THD *thd, TABLE_LIST *derived_table);
+  bool merge_derived(THD *thd, Table_ref *derived_table);
 
   bool flatten_subqueries(THD *thd);
 
@@ -1487,7 +1487,7 @@ class Query_block : public Query_term {
   /// Add full-text function elements from a list into this query block
   bool add_ftfunc_list(List<Item_func_match> *ftfuncs);
 
-  void set_lock_for_table(const Lock_descriptor &descriptor, TABLE_LIST *table);
+  void set_lock_for_table(const Lock_descriptor &descriptor, Table_ref *table);
 
   void set_lock_for_tables(thr_lock_type lock_type);
 
@@ -1623,11 +1623,11 @@ class Query_block : public Query_term {
 
     @param      thd          Thread handler
     @param[out] str          String of output
-    @param      table_list   TABLE_LIST object
+    @param      table_list   Table_ref object
     @param      query_type   Options to print out string output
   */
   void print_table_references(const THD *thd, String *str,
-                              TABLE_LIST *table_list,
+                              Table_ref *table_list,
                               enum_query_type query_type);
 
   /**
@@ -1860,7 +1860,7 @@ class Query_block : public Query_term {
   bool setup_conds(THD *thd);
   bool prepare(THD *thd, mem_root_deque<Item *> *insert_field_list);
   bool optimize(THD *thd, bool finalize_access_paths);
-  void reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list = nullptr);
+  void reset_nj_counters(mem_root_deque<Table_ref *> *join_list = nullptr);
 
   bool change_group_ref_for_func(THD *thd, Item *func, bool *changed);
   bool change_group_ref_for_cond(THD *thd, Item_cond *cond, bool *changed);
@@ -1930,10 +1930,10 @@ class Query_block : public Query_term {
   mem_root_deque<mem_root_deque<Item *> *> *row_value_list{nullptr};
 
   /// List of semi-join nests generated for this query block
-  mem_root_deque<TABLE_LIST *> sj_nests;
+  mem_root_deque<Table_ref *> sj_nests;
 
-  /// List of tables in FROM clause - use TABLE_LIST::next_local to traverse
-  SQL_I_List<TABLE_LIST> table_list{};
+  /// List of tables in FROM clause - use Table_ref::next_local to traverse
+  SQL_I_List<Table_ref> table_list{};
 
   /**
     ORDER BY clause.
@@ -1969,10 +1969,10 @@ class Query_block : public Query_term {
 
   /**
      If this query block is a recursive member of a recursive unit: the
-     TABLE_LIST, in this recursive member, referencing the query
+     Table_ref, in this recursive member, referencing the query
      name.
   */
-  TABLE_LIST *recursive_reference{nullptr};
+  Table_ref *recursive_reference{nullptr};
 
   /// Reference to LEX that this query block belongs to
   LEX *parent_lex{nullptr};
@@ -2003,20 +2003,20 @@ class Query_block : public Query_term {
   */
   JOIN *join{nullptr};
   /// join list of the top level
-  mem_root_deque<TABLE_LIST *> top_join_list;
+  mem_root_deque<Table_ref *> top_join_list;
   /// list for the currently parsed join
-  mem_root_deque<TABLE_LIST *> *join_list;
+  mem_root_deque<Table_ref *> *join_list;
   /// table embedding the above list
-  TABLE_LIST *embedding{nullptr};
+  Table_ref *embedding{nullptr};
   /**
     Points to first leaf table of query block. After setup_tables() is done,
     this is a list of base tables and derived tables. After derived tables
     processing is done, this is a list of base tables only.
-    Use TABLE_LIST::next_leaf to traverse the list.
+    Use Table_ref::next_leaf to traverse the list.
   */
-  TABLE_LIST *leaf_tables{nullptr};
+  Table_ref *leaf_tables{nullptr};
   // Last table for LATERAL join, used by table functions
-  TABLE_LIST *end_lateral_table{nullptr};
+  Table_ref *end_lateral_table{nullptr};
 
   /// LIMIT clause, NULL if no limit is given
   Item *select_limit{nullptr};
@@ -2221,8 +2221,8 @@ class Query_block : public Query_term {
   bool save_order_properties(THD *thd, SQL_I_List<ORDER> *list,
                              Group_list_ptrs **list_ptrs);
 
-  bool record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables);
-  bool simplify_joins(THD *thd, mem_root_deque<TABLE_LIST *> *join_list,
+  bool record_join_nest_info(mem_root_deque<Table_ref *> *tables);
+  bool simplify_joins(THD *thd, mem_root_deque<Table_ref *> *join_list,
                       bool top, bool in_sj, Item **new_conds,
                       uint *changelog = nullptr);
   /// Remove semijoin condition for this query block
@@ -2232,13 +2232,13 @@ class Query_block : public Query_term {
                      Query_block *subq_query_block, table_map outer_tables_map,
                      Item **sj_cond);
   bool decorrelate_condition(Semijoin_decorrelation &sj_decor,
-                             TABLE_LIST *join_nest);
+                             Table_ref *join_nest);
 
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
-  TABLE_LIST *synthesize_derived(THD *thd, Query_expression *unit,
-                                 Item *join_cond, bool left_outer,
-                                 bool use_inner_join);
-  bool transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
+  Table_ref *synthesize_derived(THD *thd, Query_expression *unit,
+                                Item *join_cond, bool left_outer,
+                                bool use_inner_join);
+  bool transform_subquery_to_derived(THD *thd, Table_ref **out_tl,
                                      Query_expression *subs_query_expression,
                                      Item_subselect *subq, bool use_inner_join,
                                      bool reject_multiple_rows,
@@ -2247,10 +2247,10 @@ class Query_block : public Query_term {
   bool transform_table_subquery_to_join_with_derived(
       THD *thd, Item_exists_subselect *subq_pred);
   bool decorrelate_derived_scalar_subquery_pre(
-      THD *thd, TABLE_LIST *derived, Item *lifted_where,
+      THD *thd, Table_ref *derived, Item *lifted_where,
       Lifted_fields_map *lifted_where_fields, bool *added_card_check);
   bool decorrelate_derived_scalar_subquery_post(
-      THD *thd, TABLE_LIST *derived, Lifted_fields_map *lifted_where_fields,
+      THD *thd, Table_ref *derived, Lifted_fields_map *lifted_where_fields,
       bool added_card_check);
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
@@ -2265,11 +2265,11 @@ class Query_block : public Query_term {
                          Query_block *removed_query_block);
   void remove_redundant_subquery_clauses(THD *thd,
                                          int hidden_group_field_count);
-  void repoint_contexts_of_join_nests(mem_root_deque<TABLE_LIST *> join_list);
+  void repoint_contexts_of_join_nests(mem_root_deque<Table_ref *> join_list);
   void empty_order_list(Query_block *sl);
-  bool setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
+  bool setup_join_cond(THD *thd, mem_root_deque<Table_ref *> *tables,
                        bool in_update);
-  bool find_common_table_expr(THD *thd, Table_ident *table_id, TABLE_LIST *tl,
+  bool find_common_table_expr(THD *thd, Table_ident *table_id, Table_ref *tl,
                               Parse_context *pc, bool *found);
   /**
     Transform eligible scalar subqueries in the SELECT list, WHERE condition,
@@ -2304,15 +2304,15 @@ class Query_block : public Query_term {
                                             Item **lifted_where);
   bool transform_grouped_to_derived(THD *thd, bool *break_off);
   bool replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
-                                TABLE_LIST *tr, Item **expr);
+                                Table_ref *tr, Item **expr);
   bool nest_derived(THD *thd, Item *join_cond,
-                    mem_root_deque<TABLE_LIST *> *join_list,
-                    TABLE_LIST *new_derived_table);
+                    mem_root_deque<Table_ref *> *join_list,
+                    Table_ref *new_derived_table);
 
   bool resolve_table_value_constructor_values(THD *thd);
 
   // Delete unused columns from merged derived tables
-  void delete_unused_merged_columns(mem_root_deque<TABLE_LIST *> *tables);
+  void delete_unused_merged_columns(mem_root_deque<Table_ref *> *tables);
 
   /// Helper for fix_prepare_information()
   void fix_prepare_information_for_order(THD *thd, SQL_I_List<ORDER> *list,
@@ -2366,7 +2366,7 @@ class Query_block : public Query_term {
   */
   ulonglong m_active_options{0};
 
-  TABLE_LIST *resolve_nest{
+  Table_ref *resolve_nest{
       nullptr};  ///< Used when resolving outer join condition
 
   /**
@@ -2452,8 +2452,8 @@ class Condition_context {
   enum_condition_context saved_value;
 };
 
-bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
-                    std::function<bool(TABLE_LIST *)> action);
+bool walk_join_list(mem_root_deque<Table_ref *> &list,
+                    std::function<bool(Table_ref *)> action);
 
 /**
   Base class for secondary engine execution context objects. Secondary
@@ -2535,16 +2535,16 @@ class Query_tables_list {
   */
   enum_sql_command sql_command;
   /* Global list of all tables used by this statement */
-  TABLE_LIST *query_tables;
+  Table_ref *query_tables;
   /* Pointer to next_global member of last element in the previous list. */
-  TABLE_LIST **query_tables_last;
+  Table_ref **query_tables_last;
   /*
     If non-0 then indicates that query requires prelocking and points to
     next_global member of last own element in query table list (i.e. last
     table which was not added to it as part of preparation to prelocking).
     0 - indicates that this query does not need prelocking.
   */
-  TABLE_LIST **query_tables_own_last;
+  Table_ref **query_tables_own_last;
   /*
     Set of stored routines called by statement.
     (Note that we use lazy-initialization for this hash).
@@ -2614,16 +2614,16 @@ class Query_tables_list {
     If you are using this function, you must ensure that the table
     object, in particular table->db member, is initialized.
   */
-  void add_to_query_tables(TABLE_LIST *table) {
+  void add_to_query_tables(Table_ref *table) {
     *(table->prev_global = query_tables_last) = table;
     query_tables_last = &table->next_global;
   }
   bool requires_prelocking() { return query_tables_own_last; }
-  void mark_as_requiring_prelocking(TABLE_LIST **tables_own_last) {
+  void mark_as_requiring_prelocking(Table_ref **tables_own_last) {
     query_tables_own_last = tables_own_last;
   }
   /* Return pointer to first not-own table in query-tables or 0 */
-  TABLE_LIST *first_not_own_table() {
+  Table_ref *first_not_own_table() {
     return (query_tables_own_last ? *query_tables_own_last : nullptr);
   }
   void chop_off_not_own_tables() {
@@ -3794,9 +3794,9 @@ struct LEX : public Query_tables_list {
   Plugins_array plugins;
 
   /// Table being inserted into (may be a view)
-  TABLE_LIST *insert_table;
+  Table_ref *insert_table;
   /// Leaf table being inserted into (always a base table)
-  TABLE_LIST *insert_table_leaf;
+  Table_ref *insert_table_leaf;
 
   /** SELECT of CREATE VIEW statement */
   LEX_STRING create_view_query_block;
@@ -4282,14 +4282,14 @@ struct LEX : public Query_tables_list {
   }
   void set_trg_event_type_for_tables();
 
-  TABLE_LIST *unlink_first_table(bool *link_to_local);
-  void link_first_table_back(TABLE_LIST *first, bool link_to_local);
+  Table_ref *unlink_first_table(bool *link_to_local);
+  void link_first_table_back(Table_ref *first, bool link_to_local);
   void first_lists_tables_same();
 
   void restore_cmd_properties() { unit->restore_cmd_properties(); }
 
   void restore_properties_for_insert() {
-    for (TABLE_LIST *tr = insert_table->first_leaf_table(); tr != nullptr;
+    for (Table_ref *tr = insert_table->first_leaf_table(); tr != nullptr;
          tr = tr->next_leaf)
       tr->restore_properties();
   }
@@ -4793,10 +4793,10 @@ inline void assert_consistent_hidden_flags(const mem_root_deque<Item *> &fields
 
 bool walk_item(Item *item, Select_lex_visitor *visitor);
 bool accept_for_order(SQL_I_List<ORDER> orders, Select_lex_visitor *visitor);
-bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor);
-bool accept_for_join(mem_root_deque<TABLE_LIST *> *tables,
+bool accept_table(Table_ref *t, Select_lex_visitor *visitor);
+bool accept_for_join(mem_root_deque<Table_ref *> *tables,
                      Select_lex_visitor *visitor);
-TABLE_LIST *nest_join(THD *thd, Query_block *select, TABLE_LIST *embedding,
-                      mem_root_deque<TABLE_LIST *> *jlist, size_t table_cnt,
-                      const char *legend);
+Table_ref *nest_join(THD *thd, Query_block *select, Table_ref *embedding,
+                     mem_root_deque<Table_ref *> *jlist, size_t table_cnt,
+                     const char *legend);
 #endif /* SQL_LEX_INCLUDED */

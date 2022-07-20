@@ -518,7 +518,7 @@ class Opt_trace_context;
 class Opt_trace_object;
 class Query_block;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 template <class T>
 class mem_root_deque;
@@ -610,7 +610,7 @@ class Group_check : public Item_tree_walker {
      children itself. If this Group_check is a child, 'table' points to the
      materialized table, otherwise it is NULL.
   */
-  TABLE_LIST *const table;
+  Table_ref *const table;
 
   /**
      Bit N is set if the N-th expression of GROUP BY is functionally dependent
@@ -647,7 +647,7 @@ class Group_check : public Item_tree_walker {
   bool is_child() const { return table != nullptr; }
 
   /// Private ctor, for a Group_check to build a child Group_check
-  Group_check(Query_block *select_arg, MEM_ROOT *root, TABLE_LIST *table_arg)
+  Group_check(Query_block *select_arg, MEM_ROOT *root, Table_ref *table_arg)
       : select(select_arg),
         search_in_underlying(false),
         non_null_in_source(false),
@@ -670,7 +670,7 @@ class Group_check : public Item_tree_walker {
     whole_tables_fd |= m;
     find_group_in_fd(nullptr);
   }
-  void add_to_source_of_mat_table(Item_field *item_field, TABLE_LIST *tl);
+  void add_to_source_of_mat_table(Item_field *item_field, Table_ref *tl);
   bool is_in_fd(Item *item);
   bool is_in_fd_of_underlying(Item_ident *item);
   Item *get_fd_equal(Item *item);
@@ -680,7 +680,7 @@ class Group_check : public Item_tree_walker {
                          table_map weak_tables, bool weak_side_upwards);
   void find_fd_in_cond(Item *cond, table_map weak_tables,
                        bool weak_side_upwards);
-  void find_fd_in_joined_table(mem_root_deque<TABLE_LIST *> *join_list);
+  void find_fd_in_joined_table(mem_root_deque<Table_ref *> *join_list);
   void to_opt_trace2(Opt_trace_context *ctx, Opt_trace_object *parent);
   void find_group_in_fd(Item *item);
   Item *select_expression(uint idx);

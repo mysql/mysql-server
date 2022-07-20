@@ -114,7 +114,7 @@ Alter_table_ctx::Alter_table_ctx()
 {
 }
 
-Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
+Alter_table_ctx::Alter_table_ctx(THD *thd, Table_ref *table_list,
                                  uint tables_opened_arg, const char *new_db_arg,
                                  const char *new_name_arg)
     : datetime_field(nullptr),
@@ -224,7 +224,7 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
   /* first Query_block (have special meaning for many of non-SELECTcommands) */
   Query_block *query_block = lex->query_block;
   /* first table of first Query_block */
-  TABLE_LIST *first_table = query_block->get_table_list();
+  Table_ref *first_table = query_block->get_table_list();
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -321,7 +321,7 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
       !test_all_bits(priv, INSERT_ACL | CREATE_ACL)) {
     // Rename of table
     assert(alter_info.flags & Alter_info::ALTER_RENAME);
-    TABLE_LIST tmp_table;
+    Table_ref tmp_table;
     tmp_table.table_name = alter_info.new_table_name.str;
     tmp_table.db = alter_info.new_db_name.str;
     tmp_table.grant.privilege = priv;
@@ -372,7 +372,7 @@ bool Sql_cmd_discard_import_tablespace::execute(THD *thd) {
   /* first Query_block (have special meaning for many of non-SELECTcommands) */
   Query_block *query_block = thd->lex->query_block;
   /* first table of first Query_block */
-  TABLE_LIST *table_list = query_block->get_table_list();
+  Table_ref *table_list = query_block->get_table_list();
 
   if (check_access(thd, ALTER_ACL, table_list->db, &table_list->grant.privilege,
                    &table_list->grant.m_internal, false, false))
@@ -418,7 +418,7 @@ bool Sql_cmd_secondary_load_unload::execute(THD *thd) {
   assert(!(m_alter_info->flags & ~(Alter_info::ALTER_SECONDARY_LOAD |
                                    Alter_info::ALTER_SECONDARY_UNLOAD)));
 
-  TABLE_LIST *table_list = thd->lex->query_block->get_table_list();
+  Table_ref *table_list = thd->lex->query_block->get_table_list();
 
   if (check_access(thd, ALTER_ACL, table_list->db, &table_list->grant.privilege,
                    &table_list->grant.m_internal, false, false))

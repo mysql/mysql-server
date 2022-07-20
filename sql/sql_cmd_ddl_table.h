@@ -29,7 +29,7 @@
 
 class Alter_info;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 /**
   A base class for CREATE/ALTER TABLE commands and friends.
@@ -61,7 +61,7 @@ inline Sql_cmd_ddl_table::~Sql_cmd_ddl_table() = default;
 class Sql_cmd_create_table final : public Sql_cmd_ddl_table {
  public:
   Sql_cmd_create_table(Alter_info *alter_info,
-                       TABLE_LIST *query_expression_tables)
+                       Table_ref *query_expression_tables)
       : Sql_cmd_ddl_table(alter_info),
         query_expression_tables(query_expression_tables) {}
 
@@ -75,7 +75,7 @@ class Sql_cmd_create_table final : public Sql_cmd_ddl_table {
   bool prepare(THD *thd) override;
 
  private:
-  TABLE_LIST *query_expression_tables;
+  Table_ref *query_expression_tables;
 };
 
 class Sql_cmd_create_or_drop_index_base : public Sql_cmd_ddl_table {
@@ -120,7 +120,7 @@ class Sql_cmd_cache_index final : public Sql_cmd_ddl_table {
   bool execute(THD *thd) override;
 
  private:
-  bool assign_to_keycache(THD *thd, TABLE_LIST *tables);
+  bool assign_to_keycache(THD *thd, Table_ref *tables);
 
  private:
   const LEX_CSTRING m_key_cache_name;
@@ -137,7 +137,7 @@ class Sql_cmd_load_index final : public Sql_cmd_ddl_table {
   bool execute(THD *thd) override;
 
  private:
-  bool preload_keys(THD *thd, TABLE_LIST *tables);
+  bool preload_keys(THD *thd, Table_ref *tables);
 };
 
 #endif /* SQL_CMD_CREATE_TABLE_INCLUDED */

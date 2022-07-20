@@ -55,7 +55,7 @@ class Sroutine_hash_entry;
 class String;
 class sp_cache;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 
 typedef ulonglong sql_mode_t;
 template <typename T>
@@ -195,7 +195,7 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
                                      const sp_name *name, bool lookup_only,
                                      sp_head **sp);
 
-bool sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
+bool sp_exist_routines(THD *thd, Table_ref *procs, bool is_proc);
 
 bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name);
 
@@ -321,7 +321,7 @@ class Sroutine_hash_entry {
     0 if routine is not used in view. Note that it also can be 0 if
     statement uses routine both via view and directly.
   */
-  TABLE_LIST *belong_to_view;
+  Table_ref *belong_to_view;
   /**
     This is for prepared statement validation purposes.
     A statement looks up and pre-loads all its stored functions
@@ -353,7 +353,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          size_t db_length, const char *name, size_t name_length,
                          bool lowercase_db,
                          Sp_name_normalize_type name_normalize_type,
-                         bool own_routine, TABLE_LIST *belong_to_view);
+                         bool own_routine, Table_ref *belong_to_view);
 
 /**
   Convenience wrapper around sp_add_used_routine() for most common case -
@@ -377,10 +377,10 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);
 void sp_update_stmt_used_routines(
     THD *thd, Query_tables_list *prelocking_ctx,
     malloc_unordered_map<std::string, Sroutine_hash_entry *> *src,
-    TABLE_LIST *belong_to_view);
+    Table_ref *belong_to_view);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                   SQL_I_List<Sroutine_hash_entry> *src,
-                                  TABLE_LIST *belong_to_view);
+                                  Table_ref *belong_to_view);
 
 const uchar *sp_sroutine_key(const uchar *ptr, size_t *plen);
 
@@ -404,8 +404,8 @@ uint sp_get_flags_for_command(LEX *lex);
 
 bool sp_check_name(LEX_STRING *ident);
 
-TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex, const char *db,
-                                   const char *name);
+Table_ref *sp_add_to_query_tables(THD *thd, LEX *lex, const char *db,
+                                  const char *name);
 
 Item *sp_prepare_func_item(THD *thd, Item **it_addr);
 

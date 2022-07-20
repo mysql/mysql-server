@@ -132,7 +132,7 @@ class Trigger {
   bool parse(THD *thd, bool is_upgrade);
 
   void add_tables_and_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                               TABLE_LIST *table_list);
+                               Table_ref *table_list);
 
   void print_upgrade_warning(THD *thd);
 

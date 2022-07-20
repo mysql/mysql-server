@@ -785,9 +785,9 @@ class sp_head {
     routine, NULL if none.
   */
   void add_used_tables_to_table_list(THD *thd,
-                                     TABLE_LIST ***query_tables_last_ptr,
+                                     Table_ref ***query_tables_last_ptr,
                                      enum_sql_command sql_command,
-                                     TABLE_LIST *belong_to_view);
+                                     Table_ref *belong_to_view);
 
   /**
     Check if this stored routine contains statements disallowed
@@ -983,7 +983,7 @@ class sp_head {
 
     @return Error status.
   */
-  bool merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check);
+  bool merge_table_list(THD *thd, Table_ref *table, LEX *lex_for_tmp_check);
 
   friend sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type,
                                    sp_name *sp_name);

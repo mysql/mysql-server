@@ -1184,7 +1184,7 @@ std::pair<bool, bool> Security_context::fetch_global_grant(
   @retval true Success
   @retval false Failure
  */
-bool Security_context::has_table_access(ulong priv, TABLE_LIST *tables) {
+bool Security_context::has_table_access(ulong priv, Table_ref *tables) {
   DBUG_TRACE;
   assert(tables != nullptr);
   TABLE const *table = tables->table;
@@ -1239,7 +1239,7 @@ bool Security_context::is_table_blocked(ulong priv, TABLE const *table) {
   table_name.length = strlen(table->alias);
 
   /* Table privs */
-  TABLE_LIST tables;
+  Table_ref tables;
   tables.table = const_cast<TABLE *>(table);
   tables.db = db.str;
   tables.db_length = db.length;
@@ -1273,7 +1273,7 @@ bool Security_context::has_column_access(ulong priv, TABLE const *table,
   table_name.length = strlen(table->alias);
 
   /* Table privs */
-  TABLE_LIST tables;
+  Table_ref tables;
   tables.table = const_cast<TABLE *>(table);
   tables.db = db.str;
   tables.db_length = db.length;

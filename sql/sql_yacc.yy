@@ -14082,7 +14082,7 @@ opt_flush_lock:
           /* empty */ {}
         | WITH READ_SYM LOCK_SYM
           {
-            TABLE_LIST *tables= Lex->query_tables;
+            Table_ref *tables= Lex->query_tables;
             Lex->type|= REFRESH_READ_LOCK;
             for (; tables; tables= tables->next_global)
             {
@@ -14102,7 +14102,7 @@ opt_flush_lock:
           }
           EXPORT_SYM
           {
-            TABLE_LIST *tables= Lex->query_tables;
+            Table_ref *tables= Lex->query_tables;
             Lex->type|= REFRESH_FOR_EXPORT;
             for (; tables; tables= tables->next_global)
             {
@@ -17405,7 +17405,7 @@ view_tail:
                                                     TL_IGNORE,
                                                     MDL_EXCLUSIVE))
               MYSQL_YYABORT;
-            lex->query_tables->open_strategy= TABLE_LIST::OPEN_STUB;
+            lex->query_tables->open_strategy= Table_ref::OPEN_STUB;
             thd->parsing_system_view= lex->query_tables->is_system_view;
             if ($4.size())
             {
@@ -17454,7 +17454,7 @@ view_query_block:
               The following work only with the local list, the global list
               is created correctly in this case
             */
-            SQL_I_List<TABLE_LIST> save_list;
+            SQL_I_List<Table_ref> save_list;
             Query_block * const save_query_block= Select;
             save_query_block->table_list.save_and_clear(&save_list);
 

@@ -1859,7 +1859,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
   bool result;
   DBUG_TRACE;
 
-  TABLE_LIST tables("mysql", "plugin", TL_READ);
+  Table_ref tables("mysql", "plugin", TL_READ);
   new_thd->thread_stack = (char *)&tables;
   new_thd->store_globals();
   LEX_CSTRING db_lex_cstr = {STRING_WITH_LEN("mysql")};
@@ -2265,7 +2265,7 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
   Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  TABLE_LIST tables("mysql", "plugin", TL_WRITE);
+  Table_ref tables("mysql", "plugin", TL_WRITE);
 
   if (!opt_noacl &&
       check_table_access(thd, INSERT_ACL, &tables, false, 1, false))
@@ -2482,7 +2482,7 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
 
   DBUG_TRACE;
 
-  TABLE_LIST tables("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
+  Table_ref tables("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
 
   if (!opt_noacl &&
       check_table_access(thd, DELETE_ACL, &tables, false, 1, false)) {

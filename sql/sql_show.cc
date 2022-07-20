@@ -187,9 +187,9 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
                                           String *output_str,
                                           const CHARSET_INFO *cs, bool use_hex);
 
-static void append_algorithm(TABLE_LIST *table, String *buff);
+static void append_algorithm(Table_ref *table, String *buff);
 
-static void view_store_create_info(const THD *thd, TABLE_LIST *table,
+static void view_store_create_info(const THD *thd, Table_ref *table,
                                    String *buff);
 
 bool Sql_cmd_show::check_privileges(THD *thd) {
@@ -225,7 +225,7 @@ bool Sql_cmd_show_schema_base::set_metadata_lock(THD *thd) {
 }
 
 bool Sql_cmd_show_schema_base::check_privileges(THD *thd) {
-  TABLE_LIST *const tables = thd->lex->query_tables;
+  Table_ref *const tables = thd->lex->query_tables;
 
   if (check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
     return true;
@@ -271,12 +271,12 @@ bool Sql_cmd_show_schema_base::check_parameters(THD *thd) {
 }
 
 bool Sql_cmd_show_table_base::check_privileges(THD *thd) {
-  TABLE_LIST *const table = thd->lex->query_tables;
+  Table_ref *const table = thd->lex->query_tables;
 
   if (check_table_access(thd, SELECT_ACL, table, false, UINT_MAX, false))
     return true;
 
-  TABLE_LIST *dst_table = table->schema_query_block->table_list.first;
+  Table_ref *dst_table = table->schema_query_block->table_list.first;
   assert(dst_table != nullptr);
 
   if (m_temporary) return false;
@@ -361,7 +361,7 @@ bool Sql_cmd_show_create_table::execute_inner(THD *thd) {
   if (lex->query_block->add_table_to_list(thd, m_table_ident, nullptr, 0) ==
       nullptr)
     return true;
-  TABLE_LIST *tbl = lex->query_tables;
+  Table_ref *tbl = lex->query_tables;
 
   /*
     Access check:
@@ -438,7 +438,7 @@ bool Sql_cmd_show_create_user::execute_inner(THD *thd) {
 }
 
 bool Sql_cmd_show_databases::check_privileges(THD *thd) {
-  TABLE_LIST *const table = thd->lex->query_tables;
+  Table_ref *const table = thd->lex->query_tables;
 
   if (check_table_access(thd, SELECT_ACL, table, false, UINT_MAX, false))
     return true;
@@ -521,7 +521,7 @@ bool Sql_cmd_show_grants::execute_inner(THD *thd) {
     }
   } else if (strcmp(thd->security_context()->priv_user().str,
                     for_user->user.str) != 0) {
-    TABLE_LIST table("mysql", "user", nullptr, TL_READ);
+    Table_ref table("mysql", "user", nullptr, TL_READ);
     if (!is_granted_table_access(thd, SELECT_ACL, &table)) {
       char command[128];
       get_privilege_desc(command, sizeof(command), SELECT_ACL);
@@ -662,12 +662,12 @@ bool Sql_cmd_show_replica_status::execute_inner(THD *thd) {
   @note This function assumes that there are no other metadata lock requests
         in the current metadata locking context.
 
-  @retval false  No error, if lock was obtained TABLE_LIST::mdl_request::ticket
-                 is set to non-NULL value.
+  @retval false  No error, if lock was obtained
+  Table_ref::mdl_request::ticket is set to non-NULL value.
   @retval true   Some error occurred (probably thread was killed).
 */
 
-static bool try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
+static bool try_acquire_high_prio_shared_mdl_lock(THD *thd, Table_ref *table,
                                                   bool can_deadlock) {
   bool error;
   MDL_REQUEST_INIT(&table->mdl_request, MDL_key::TABLE, table->db,
@@ -697,8 +697,8 @@ bool Sql_cmd_show_table_base::check_parameters(THD *thd) {
   // No MDL lock required for temporary tables
   if (m_temporary) return false;
   bool can_deadlock = thd->mdl_context.has_locks();
-  TABLE_LIST *table = thd->lex->query_tables;
-  TABLE_LIST *dst_table = table->schema_query_block->table_list.first;
+  Table_ref *table = thd->lex->query_tables;
+  Table_ref *dst_table = table->schema_query_block->table_list.first;
   if (try_acquire_high_prio_shared_mdl_lock(thd, dst_table, can_deadlock)) {
     /*
       Some error occurred (most probably we have been killed while
@@ -875,7 +875,7 @@ static bool show_plugins(THD *thd, plugin_ref plugin, void *arg) {
   return schema_table_store_record(thd, table);
 }
 
-static int fill_plugins(THD *thd, TABLE_LIST *tables, Item *) {
+static int fill_plugins(THD *thd, Table_ref *tables, Item *) {
   DBUG_TRACE;
 
   if (plugin_foreach_with_mask(thd, show_plugins, MYSQL_ANY_PLUGIN,
@@ -995,7 +995,7 @@ bool mysqld_show_privileges(THD *thd) {
      can't untangle its access checking from that of the view itself.
  */
 class Show_create_error_handler : public Internal_error_handler {
-  TABLE_LIST *m_top_view;
+  Table_ref *m_top_view;
   bool m_handling;
   Security_context *m_sctx;
 
@@ -1011,7 +1011,7 @@ class Show_create_error_handler : public Internal_error_handler {
      @param top_view The view. We do not verify at this point that top_view is
      in fact a view since, alas, these things do not stay constant.
   */
-  explicit Show_create_error_handler(THD *thd, TABLE_LIST *top_view)
+  explicit Show_create_error_handler(THD *thd, Table_ref *top_view)
       : m_top_view(top_view),
         m_handling(false),
         m_view_access_denied_message_ptr(nullptr) {
@@ -1092,7 +1092,7 @@ class Show_create_error_handler : public Internal_error_handler {
   }
 };
 
-bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
+bool mysqld_show_create(THD *thd, Table_ref *table_list) {
   Protocol *protocol = thd->get_protocol();
   char buff[2048];
   mem_root_deque<Item *> field_list(thd->mem_root);
@@ -1158,7 +1158,7 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
       the unresolved table function.
     */
     if (open_error && table_list->is_view()) {
-      for (TABLE_LIST *tl = table_list; tl != nullptr; tl = tl->next_global) {
+      for (Table_ref *tl = table_list; tl != nullptr; tl = tl->next_global) {
         if (tl->is_table_function() && tl->table == nullptr) {
           my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                    "SHOW CREATE VIEW on a view that references a non-existent "
@@ -1365,7 +1365,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   Use "show table wildcard" in mysql instead of this
 ****************************************************************************/
 
-void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
+void mysqld_list_fields(THD *thd, Table_ref *table_list, const char *wild) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s", table_list->table_name));
 
@@ -1865,7 +1865,7 @@ static void print_foreign_key_info(THD *thd, const LEX_CSTRING *db,
   @returns true if error, false otherwise.
 */
 
-bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
+bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
                        HA_CREATE_INFO *create_info_arg, bool show_database,
                        bool for_show_create_stmt) {
   char tmp[MAX_FIELD_WIDTH], buff[128], def_value_buf[MAX_FIELD_WIDTH];
@@ -2569,7 +2569,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
   }
 }
 
-void view_store_options(const THD *thd, TABLE_LIST *table, String *buff) {
+void view_store_options(const THD *thd, Table_ref *table, String *buff) {
   append_algorithm(table, buff);
   append_definer(thd, buff, table->definer.user, table->definer.host);
   if (table->view_suid)
@@ -2585,7 +2585,7 @@ void view_store_options(const THD *thd, TABLE_LIST *table, String *buff) {
   @param [in,out] buff      buffer to hold ALGORITHM clause
 */
 
-static void append_algorithm(TABLE_LIST *table, String *buff) {
+static void append_algorithm(Table_ref *table, String *buff) {
   buff->append(STRING_WITH_LEN("ALGORITHM="));
   switch ((int8)table->algorithm) {
     case VIEW_ALGORITHM_UNDEFINED:
@@ -2621,7 +2621,7 @@ void append_definer(const THD *thd, String *buffer,
   buffer->append(' ');
 }
 
-static void view_store_create_info(const THD *thd, TABLE_LIST *table,
+static void view_store_create_info(const THD *thd, Table_ref *table,
                                    String *buff) {
   bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
 
@@ -2955,10 +2955,10 @@ class Fill_process_list : public Do_THD_Impl {
   /* THD of connected client. */
   THD *m_client_thd;
   /* Information of each process is added as records into this table. */
-  TABLE_LIST *m_tables;
+  Table_ref *m_tables;
 
  public:
-  Fill_process_list(THD *thd_value, TABLE_LIST *tables_value)
+  Fill_process_list(THD *thd_value, Table_ref *tables_value)
       : m_client_thd(thd_value), m_tables(tables_value) {}
 
   ~Fill_process_list() override {
@@ -3121,7 +3121,7 @@ class Fill_process_list : public Do_THD_Impl {
   }
 };
 
-static int fill_schema_processlist(THD *thd, TABLE_LIST *tables, Item *) {
+static int fill_schema_processlist(THD *thd, Table_ref *tables, Item *) {
   DBUG_TRACE;
 
   Fill_process_list fill_process_list(thd, tables);
@@ -3730,7 +3730,7 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table) {
  * @param tables        Table to fill with data
  */
 
-static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
+static int show_temporary_tables(THD *thd, Table_ref *tables, Item *) {
   TABLE *table = tables->table;
   Query_block *lsel = tables->schema_query_block;
   ST_SCHEMA_TABLE *schema_table = tables->schema_table;
@@ -3800,7 +3800,7 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
   */
   lex->wild = old_lex->wild;
 
-  TABLE_LIST *table_list;
+  Table_ref *table_list;
   bool result = true;
 
   /*
@@ -3901,7 +3901,7 @@ end:
 #define TMP_TABLE_COLUMNS_COLUMN_COMMENT 8
 #define TMP_TABLE_COLUMNS_GENERATION_EXPRESSION 9
 
-static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
+static int get_schema_tmp_table_columns_record(THD *thd, Table_ref *tables,
                                                TABLE *table, bool res,
                                                LEX_CSTRING db_name,
                                                LEX_CSTRING table_name) {
@@ -4106,7 +4106,7 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
   return false;
 }
 
-static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *) {
+static int fill_schema_engines(THD *thd, Table_ref *tables, Item *) {
   DBUG_TRACE;
   if (plugin_foreach_with_mask(thd, iter_schema_engines,
                                MYSQL_STORAGE_ENGINE_PLUGIN, ~PLUGIN_IS_FREED,
@@ -4133,7 +4133,7 @@ static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *) {
 #define TMP_TABLE_KEYS_IS_VISIBLE 14
 #define TMP_TABLE_KEYS_EXPRESSION 15
 
-static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
+static int get_schema_tmp_table_keys_record(THD *thd, Table_ref *tables,
                                             TABLE *table, bool res, LEX_CSTRING,
                                             LEX_CSTRING table_name) {
   DBUG_TRACE;
@@ -4346,7 +4346,7 @@ bool get_cs_converted_part_value_from_string(THD *thd, Item *item,
   return false;
 }
 
-static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *) {
+static int fill_open_tables(THD *thd, Table_ref *tables, Item *) {
   DBUG_TRACE;
   const char *wild = thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   TABLE *table = tables->table;
@@ -4456,7 +4456,7 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx) {
   @retval  NULL           Can't create table
 */
 
-static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
+static TABLE *create_schema_table(THD *thd, Table_ref *table_list) {
   int field_count = 0;
   Item *item;
   TABLE *table;
@@ -4632,7 +4632,7 @@ static int make_tmp_table_columns_format(THD *thd,
   @return true on error, false otherwise.
 */
 
-bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
+bool mysql_schema_table(THD *thd, LEX *lex, Table_ref *table_list) {
   DBUG_TRACE;
   TABLE *table = create_schema_table(thd, table_list);
   if (table == nullptr) return true;
@@ -4730,7 +4730,7 @@ bool make_schema_query_block(THD *thd, Query_block *sel,
     return true;
   }
 
-  TABLE_LIST *const schema_tlist = sel->add_table_to_list(
+  Table_ref *const schema_tlist = sel->add_table_to_list(
       thd,
       new (thd->mem_root) Table_ident(thd->get_protocol(), to_lex_cstring(db),
                                       to_lex_cstring(table), false),
@@ -4781,7 +4781,7 @@ bool make_schema_query_block(THD *thd, Query_block *sel,
   @retval true Error.
   @retval false Success.
 */
-bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
+bool do_fill_information_schema_table(THD *thd, Table_ref *table_list,
                                       Item *condition) {
   /*
     Return if there is already an error reported.
@@ -4830,7 +4830,7 @@ bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
 }
 
 struct run_hton_fill_schema_table_args {
-  TABLE_LIST *tables;
+  Table_ref *tables;
   Item *cond;
 };
 
@@ -4843,7 +4843,7 @@ static bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin, void *arg) {
   return false;
 }
 
-static int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+static int hton_fill_schema_table(THD *thd, Table_ref *tables, Item *cond) {
   DBUG_TRACE;
 
   struct run_hton_fill_schema_table_args args;
@@ -5199,12 +5199,12 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger) {
   @param thd      Thread context.
   @param trg_name Trigger name.
 
-  @return TABLE_LIST object corresponding to the base table.
+  @return Table_ref object corresponding to the base table.
 
   TODO: This function is a copy&paste from add_table_to_list() and
   sp_add_to_query_tables(). The problem is that in order to be compatible
   with Stored Programs (Prepared Statements), we should not touch thd->lex.
-  The "source" functions also add created TABLE_LIST object to the
+  The "source" functions also add created Table_ref object to the
   thd->lex->query_tables.
 
   The plan to eliminate this copy&paste is to:
@@ -5216,7 +5216,7 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger) {
     - do not update Lex::query_tables in add_table_to_list().
 */
 
-static TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name) {
+static Table_ref *get_trigger_table(THD *thd, const sp_name *trg_name) {
   LEX_CSTRING db;
   LEX_STRING tbl_name;
 
@@ -5266,8 +5266,8 @@ static TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name) {
 
   /* We need to reset statement table list to be PS/SP friendly. */
   return new (thd->mem_root)
-      TABLE_LIST(db.str, db.length, tbl_name.str, tbl_name.length, tbl_name.str,
-                 TL_IGNORE);
+      Table_ref(db.str, db.length, tbl_name.str, tbl_name.length, tbl_name.str,
+                TL_IGNORE);
 }
 
 /**
@@ -5321,7 +5321,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name) {
                                      trg_name->m_name.str))
     return true;
 
-  TABLE_LIST *lst = get_trigger_table(thd, trg_name);
+  Table_ref *lst = get_trigger_table(thd, trg_name);
 
   if (!lst) return true;
 

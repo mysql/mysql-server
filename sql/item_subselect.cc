@@ -243,7 +243,7 @@ void Item_subselect::accumulate_properties(Query_block *select) {
   if (select->where_cond()) accumulate_condition(select->where_cond());
 
   if (select->join_list)
-    walk_join_list(*select->join_list, [this](TABLE_LIST *tr) -> bool {
+    walk_join_list(*select->join_list, [this](Table_ref *tr) -> bool {
       if (tr->join_cond()) accumulate_condition(tr->join_cond());
       return false;
     });
@@ -3318,9 +3318,9 @@ bool subselect_hash_sj_engine::setup(
 
     Prepared statements execution requires that fix_fields is called
     for every execution. In order to call fix_fields we need to create a
-    Name_resolution_context and a corresponding TABLE_LIST for the temporary
-    table for the subquery, so that all column references to the materialized
-    subquery table can be resolved correctly.
+    Name_resolution_context and a corresponding Table_ref for the
+    temporary table for the subquery, so that all column references to the
+    materialized subquery table can be resolved correctly.
   */
   assert(cond == nullptr);
   if (!(cond = new Item_cond_and)) return true;
@@ -3328,11 +3328,11 @@ bool subselect_hash_sj_engine::setup(
     Table reference for tmp_table that is used to resolve column references
     (Item_fields) to columns in tmp_table.
   */
-  TABLE_LIST *tmp_table_ref =
-      new (thd->mem_root) TABLE_LIST(tmp_table, "<materialized_subquery>");
+  Table_ref *tmp_table_ref =
+      new (thd->mem_root) Table_ref(tmp_table, "<materialized_subquery>");
   if (tmp_table_ref == nullptr) return true;
 
-  // Assign TABLE_LIST pointer temporarily, while creatung fields:
+  // Assign Table_ref pointer temporarily, while creatung fields:
   tmp_table->pos_in_table_list = tmp_table_ref;
   tmp_table_ref->query_block = unit->first_query_block();
 

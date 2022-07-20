@@ -34,7 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define i_s_h
 
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 extern struct st_mysql_plugin i_s_innodb_trx;
 extern struct st_mysql_plugin i_s_innodb_cmp;

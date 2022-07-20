@@ -113,10 +113,10 @@ namespace dd {
 class Table;
 }  // namespace dd
 
-static bool check_view_insertability(THD *thd, TABLE_LIST *view,
-                                     const TABLE_LIST *insert_table_ref);
+static bool check_view_insertability(THD *thd, Table_ref *view,
+                                     const Table_ref *insert_table_ref);
 
-static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables);
+static void prepare_for_positional_update(TABLE *table, Table_ref *tables);
 
 /**
   Check that insert fields are from a single table of a multi-table view.
@@ -133,8 +133,8 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables);
 */
 
 static bool check_single_table_insert(const mem_root_deque<Item *> &fields,
-                                      TABLE_LIST *view,
-                                      TABLE_LIST **insert_table_ref) {
+                                      Table_ref *view,
+                                      Table_ref **insert_table_ref) {
   // It is join view => we need to find the table for insert
   *insert_table_ref = nullptr;  // reset for call to check_single_table()
   table_map tables = 0;
@@ -162,12 +162,12 @@ static bool check_single_table_insert(const mem_root_deque<Item *> &fields,
   Resolved reference to base table is returned in lex->insert_table_leaf.
 */
 
-static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
+static bool check_insert_fields(THD *thd, Table_ref *table_list,
                                 mem_root_deque<Item *> *fields) {
   LEX *const lex = thd->lex;
 
 #ifndef NDEBUG
-  TABLE_LIST *const saved_insert_table_leaf = lex->insert_table_leaf;
+  Table_ref *const saved_insert_table_leaf = lex->insert_table_leaf;
 #endif
 
   TABLE *table = table_list->table;
@@ -275,7 +275,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
   @return false if success, true if error
 */
 
-static bool check_valid_table_refs(const TABLE_LIST *view,
+static bool check_valid_table_refs(const Table_ref *view,
                                    const mem_root_deque<Item *> &values,
                                    table_map map) {
   if (!view->is_view())  // Ignore check if called with base table.
@@ -499,7 +499,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
 
   Query_block *const query_block = lex->query_block;
 
-  TABLE_LIST *const table_list = lex->insert_table;
+  Table_ref *const table_list = lex->insert_table;
   TABLE *const insert_table = lex->insert_table_leaf->table;
 
   if (duplicates == DUP_UPDATE || duplicates == DUP_REPLACE)
@@ -813,8 +813,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
   @retval true if table is not insertable-into (no error is reported)
 */
 
-static bool check_view_insertability(THD *thd, TABLE_LIST *view,
-                                     const TABLE_LIST *insert_table_ref) {
+static bool check_view_insertability(THD *thd, Table_ref *view,
+                                     const Table_ref *insert_table_ref) {
   DBUG_TRACE;
 
   const uint num = view->view_query()->query_block->num_visible_fields();
@@ -893,7 +893,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
 
   @return false if success, true if error
 */
-static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr) {
+static bool fix_join_cond_for_insert(THD *thd, Table_ref *tr) {
   if (tr->join_cond() && !tr->join_cond()->fixed) {
     Column_privilege_tracker column_privilege(thd, SELECT_ACL);
 
@@ -903,7 +903,7 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr) {
 
   if (tr->nested_join == nullptr) return false;
 
-  for (TABLE_LIST *ti : tr->nested_join->join_list) {
+  for (Table_ref *ti : tr->nested_join->join_list) {
     if (fix_join_cond_for_insert(thd, ti)) return true; /* purecov: inspected */
   }
   return false;
@@ -914,17 +914,17 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr) {
 
   @param table     table(TABLE object) we insert into,
                    might be NULL in case of view
-  @param tables (TABLE_LIST object) or view we insert into
+  @param tables (Table_ref object) or view we insert into
 */
 
-static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables) {
+static void prepare_for_positional_update(TABLE *table, Table_ref *tables) {
   if (table) {
     table->prepare_for_position();
     return;
   }
 
   assert(tables->is_view());
-  for (TABLE_LIST *tbl : *tables->view_tables) {
+  for (Table_ref *tbl : *tables->view_tables) {
     prepare_for_positional_update(tbl->table, tbl);
   }
 }
@@ -1017,7 +1017,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   Name_resolution_context *const context = &select->context;
   Name_resolution_context_state ctx_state;
 
-  TABLE_LIST *const table_list = lex->query_tables;
+  Table_ref *const table_list = lex->query_tables;
   lex->insert_table = table_list;
 
   const bool insert_into_view = table_list->is_view();
@@ -1036,7 +1036,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   lex->in_update_value_clause = false;
 
   // first_query_block_table is the first table after the table inserted into
-  TABLE_LIST *first_query_block_table = table_list->next_local;
+  Table_ref *first_query_block_table = table_list->next_local;
 
   // Setup the insert table only
   table_list->next_local = nullptr;
@@ -1044,7 +1044,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   // The VALUES table should only be available from within the update
   // expressions (i.e. the rhs of ODKU updates). The context must be restored
   // before resolve_update_expressions for ODKU statements.
-  TABLE_LIST *next_name_resolution_table =
+  Table_ref *next_name_resolution_table =
       table_list->next_name_resolution_table;
   table_list->next_name_resolution_table = nullptr;
 
@@ -1281,7 +1281,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
   if (!select_insert) {
     // Duplicate tables in subqueries in VALUES clause are not allowed.
-    TABLE_LIST *const duplicate =
+    Table_ref *const duplicate =
         unique_table(lex->insert_table_leaf, table_list->next_global, true);
     if (duplicate != nullptr) {
       update_non_unique_table_error(table_list, "INSERT", duplicate);
@@ -1532,8 +1532,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     unit->set_prepared();
   } else {
     if (!is_regular()) {
-      for (TABLE_LIST *tr = lex->insert_table->first_leaf_table();
-           tr != nullptr; tr = tr->next_leaf)
+      for (Table_ref *tr = lex->insert_table->first_leaf_table(); tr != nullptr;
+           tr = tr->next_leaf)
         if (tr->save_properties()) return true;
     }
   }
@@ -1570,7 +1570,7 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   if (insert_field_list.empty()) {
-    TABLE_LIST *insert_table = lex->query_block->table_list.first;
+    Table_ref *insert_table = lex->query_block->table_list.first;
     Field_iterator_table_ref it;
     it.set(insert_table);
 
@@ -1678,8 +1678,8 @@ bool Sql_cmd_insert_base::resolve_values_table_columns(THD *thd) {
 bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd) {
   DBUG_TRACE;
 
-  TABLE_LIST *const insert_table_ref = lex->query_tables;
-  TABLE_LIST *const insert_table_leaf = lex->insert_table_leaf;
+  Table_ref *const insert_table_ref = lex->query_tables;
+  Table_ref *const insert_table_leaf = lex->insert_table_leaf;
 
   const bool select_insert = insert_many_values.empty();
 
@@ -1997,7 +1997,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
             should satisfy the CHECK OPTION.
           */
           {
-            const TABLE_LIST *inserted_view =
+            const Table_ref *inserted_view =
                 table->pos_in_table_list->belong_to_view;
             if (inserted_view != nullptr) {
               res = inserted_view->view_check_option(thd);
@@ -2062,7 +2062,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
         goto ok_or_after_trg_err;
       } else /* DUP_REPLACE */
       {
-        TABLE_LIST *view = table->pos_in_table_list->belong_to_view;
+        Table_ref *view = table->pos_in_table_list->belong_to_view;
 
         if (view && view->replace_filter) {
           const size_t record_length = table->s->reclength;
@@ -2223,7 +2223,7 @@ before_trg_err:
 */
 
 bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
-                                            TABLE_LIST *table_list) {
+                                            Table_ref *table_list) {
   MY_BITMAP *write_set = entry->fields_set_during_insert;
 
   for (Field **field = entry->field; *field; field++) {
@@ -2633,8 +2633,8 @@ void Query_result_insert::abort_result_set(THD *thd) {
   @param [in] thd               Thread object
   @param [in] create_info       Create information (like MAX_ROWS, ENGINE or
                                 temporary table flag)
-  @param [in] create_table      Pointer to TABLE_LIST object providing database
-                                and name for table to be created or to be open
+  @param [in] create_table      Pointer to Table_ref object providing
+  database and name for table to be created or to be open
   @param [in,out] alter_info    Initial list of columns and indexes for the
                                 table to be created
   @param [in] items             The source table columns. Corresponding column
@@ -2661,7 +2661,7 @@ void Query_result_insert::abort_result_set(THD *thd) {
 */
 
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
-                                      TABLE_LIST *create_table,
+                                      Table_ref *create_table,
                                       Alter_info *alter_info,
                                       const mem_root_deque<Item *> &items,
                                       handlerton **post_ddl_ht) {
@@ -2818,10 +2818,10 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   return table;
 }
 
-Query_result_create::Query_result_create(TABLE_LIST *table_arg,
+Query_result_create::Query_result_create(Table_ref *table_arg,
                                          mem_root_deque<Item *> *fields,
                                          enum_duplicates duplic,
-                                         TABLE_LIST *select_tables_arg)
+                                         Table_ref *select_tables_arg)
     : Query_result_insert(nullptr,  // table_list_par
                           nullptr,  // target_columns
                           fields,
@@ -2987,7 +2987,7 @@ bool Query_result_create::start_execution(THD *thd) {
 int Query_result_create::binlog_show_create_table(THD *thd) {
   DBUG_TRACE;
 
-  TABLE_LIST *save_next_global = create_table->next_global;
+  Table_ref *save_next_global = create_table->next_global;
   create_table->next_global = select_tables;
   int error = thd->decide_logging_format(create_table);
   create_table->next_global = save_next_global;
@@ -3026,7 +3026,7 @@ int Query_result_create::binlog_show_create_table(THD *thd) {
   char buf[2048];
   String query(buf, sizeof(buf), system_charset_info);
   int result;
-  TABLE_LIST tmp_table_list(table);
+  Table_ref tmp_table_list(table);
 
   query.length(0);  // Have to zero it since constructor doesn't
 

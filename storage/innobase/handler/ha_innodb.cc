@@ -1704,7 +1704,7 @@ static void innodb_enable_monitor_at_startup(
 @return Operation status */
 static int innobase_fill_i_s_table(handlerton *hton [[maybe_unused]],
                                    THD *thd [[maybe_unused]],
-                                   TABLE_LIST *tables [[maybe_unused]],
+                                   Table_ref *tables [[maybe_unused]],
                                    Item *idx_cond [[maybe_unused]],
                                    enum_schema_tables idx) {
   assert(idx == SCH_TABLESPACES);

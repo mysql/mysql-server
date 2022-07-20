@@ -74,7 +74,7 @@
 #include "sql/sql_plugin.h"              // check_valid_path
 #include "sql/sql_system_table_check.h"  // System_table_intact
 #include "sql/sql_table.h"               // write_bin_log
-#include "sql/table.h"                   // TABLE_LIST
+#include "sql/table.h"                   // Table_ref
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_*
@@ -242,7 +242,7 @@ void udf_read_functions_table() {
     new_thd->set_db(db_lex_cstr);
   }
 
-  TABLE_LIST tables(db, "func", TL_READ, MDL_SHARED_READ_ONLY);
+  Table_ref tables(db, "func", TL_READ, MDL_SHARED_READ_ONLY);
 
   if (open_trans_system_tables_for_read(new_thd, &tables)) {
     DBUG_PRINT("error", ("Can't open udf table"));
@@ -645,7 +645,7 @@ bool mysql_create_function(THD *thd, udf_func *udf, bool if_not_exists) {
     Acquire MDL SNRW for TL_WRITE type so that deadlock and
     timeout errors are avoided from the Storage Engine.
   */
-  TABLE_LIST tables("mysql", "func", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+  Table_ref tables("mysql", "func", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
   if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
     return error;
@@ -782,7 +782,7 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
     return error;
   }
 
-  TABLE_LIST tables("mysql", "func", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+  Table_ref tables("mysql", "func", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
   if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
     return error;

@@ -3207,7 +3207,7 @@ bool sp_head::show_routine_code(THD *thd) {
 }
 #endif  // ifndef NDEBUG
 
-bool sp_head::merge_table_list(THD *thd, TABLE_LIST *table,
+bool sp_head::merge_table_list(THD *thd, Table_ref *table,
                                LEX *lex_for_tmp_check) {
   if (lex_for_tmp_check->sql_command == SQLCOM_DROP_TABLE &&
       lex_for_tmp_check->drop_temporary)
@@ -3298,9 +3298,9 @@ bool sp_head::merge_table_list(THD *thd, TABLE_LIST *table,
 }
 
 void sp_head::add_used_tables_to_table_list(THD *thd,
-                                            TABLE_LIST ***query_tables_last_ptr,
+                                            Table_ref ***query_tables_last_ptr,
                                             enum_sql_command sql_command,
-                                            TABLE_LIST *belong_to_view) {
+                                            Table_ref *belong_to_view) {
   /*
     Use persistent arena for table list allocation to be PS/SP friendly.
     Note that we also have to copy database/table names and alias to PS/SP
@@ -3315,7 +3315,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
     if (stab->temp || stab->lock_type == TL_IGNORE) continue;
 
     char *tab_buff = static_cast<char *>(
-        thd->alloc(ALIGN_SIZE(sizeof(TABLE_LIST)) * stab->lock_count));
+        thd->alloc(ALIGN_SIZE(sizeof(Table_ref)) * stab->lock_count));
     char *key_buff =
         static_cast<char *>(thd->memdup(stab->qname.str, stab->qname.length));
     if (!tab_buff || !key_buff) return;
@@ -3346,7 +3346,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
         mdl_lock_type = mdl_type_for_dml(stab->lock_type);
       }
 
-      TABLE_LIST *table = new (tab_buff) TABLE_LIST(
+      Table_ref *table = new (tab_buff) Table_ref(
           key_buff, stab->db_length, key_buff + stab->db_length + 1,
           stab->table_name_length,
           key_buff + stab->db_length + 1 + stab->table_name_length + 1,
@@ -3365,7 +3365,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
       table->prev_global = *query_tables_last_ptr;
       *query_tables_last_ptr = &table->next_global;
 
-      tab_buff += ALIGN_SIZE(sizeof(TABLE_LIST));
+      tab_buff += ALIGN_SIZE(sizeof(Table_ref));
     }
   }
 }

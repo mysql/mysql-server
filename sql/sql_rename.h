@@ -24,8 +24,8 @@
 #define SQL_RENAME_INCLUDED
 
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
-bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
+bool mysql_rename_tables(THD *thd, Table_ref *table_list);
 
 #endif /* SQL_RENAME_INCLUDED */

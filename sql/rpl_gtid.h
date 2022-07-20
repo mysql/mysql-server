@@ -40,7 +40,7 @@
 #include "sql/rpl_reporting.h"       // MAX_SLAVE_ERRMSG
 #include "template_utils.h"
 
-struct TABLE_LIST;
+class Table_ref;
 class THD;
 
 /**
@@ -3338,7 +3338,7 @@ class Gtid_state {
     @retval 1 Push a warning to client.
     @retval 2 Push an error to client.
   */
-  int warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
+  int warn_or_err_on_modify_gtid_table(THD *thd, Table_ref *table);
 #endif
 
  private:

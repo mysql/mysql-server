@@ -35,7 +35,7 @@ class Create_field;
 class Field;
 class String;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 class handler;
 
 /**
@@ -199,10 +199,10 @@ class MDL_deadlock_and_lock_abort_error_handler
 
 */
 class View_error_handler : public Internal_error_handler {
-  TABLE_LIST *m_top_view;
+  Table_ref *m_top_view;
 
  public:
-  View_error_handler(TABLE_LIST *top_view) : m_top_view(top_view) {}
+  View_error_handler(Table_ref *top_view) : m_top_view(top_view) {}
   bool handle_condition(THD *thd, uint sql_errno, const char *,
                         Sql_condition::enum_severity_level *level,
                         const char *message) override;

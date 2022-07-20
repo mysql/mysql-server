@@ -59,7 +59,7 @@ struct NESTED_JOIN;
 
 class Condition_pushdown {
  public:
-  Condition_pushdown(Item *cond, TABLE_LIST *derived, THD *thd_arg,
+  Condition_pushdown(Item *cond, Table_ref *derived, THD *thd_arg,
                      Opt_trace_context *trace_arg)
       : m_cond_to_check(cond),
         m_derived_table(derived),
@@ -77,13 +77,13 @@ class Condition_pushdown {
   /// Used to pass information during condition pushdown.
   class Derived_table_info {
    public:
-    TABLE_LIST *m_derived_table;
+    Table_ref *m_derived_table;
     Query_block *m_derived_query_block;
     bool is_set_operation() const {
       return m_derived_table->derived_query_expression()->is_set_operation();
     }
 
-    Derived_table_info(TABLE_LIST *derived_table, Query_block *query_block)
+    Derived_table_info(Table_ref *derived_table, Query_block *query_block)
         : m_derived_table(derived_table), m_derived_query_block(query_block) {}
   };
 
@@ -102,7 +102,7 @@ class Condition_pushdown {
   Item *m_cond_to_check;
 
   /// Derived table to push the condition to.
-  TABLE_LIST *m_derived_table;
+  Table_ref *m_derived_table;
 
   /**
    Condition that is extracted from outer WHERE condition to be pushed to

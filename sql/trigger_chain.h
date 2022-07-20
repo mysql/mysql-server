@@ -35,7 +35,7 @@ class Trigger;
 struct MEM_ROOT;
 struct MY_BITMAP;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 
 class Trigger_chain {
  public:
@@ -57,7 +57,7 @@ class Trigger_chain {
   bool execute_triggers(THD *thd);
 
   void add_tables_and_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                               TABLE_LIST *table_list);
+                               Table_ref *table_list);
 
   void mark_fields(TABLE *subject_table);
 
