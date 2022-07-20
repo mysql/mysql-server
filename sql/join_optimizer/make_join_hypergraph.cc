@@ -145,8 +145,18 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
         Item_equal *equal = down_cast<Item_equal *>(item);
 
         List<Item> eq_items;
-
-        if (equal->get_const() != nullptr) {
+        // If this condition is a constant, do the evaluation
+        // and add a "false" condition if needed.
+        // This cannot be skipped as optimize_cond() expects
+        // the value stored in "cond_false" to be checked for
+        // Item_equal before creating equalities from it.
+        // We do not need to check for the const item evaluating
+        // to be "true", as that could happen only when const table
+        // optimization is used (It is currently not done for
+        // hypergraph).
+        if (item->const_item() && !equal->val_int()) {
+          eq_items.push_back(new Item_func_false);
+        } else if (equal->get_const() != nullptr) {
           // If there is a constant element, do a simple expansion.
           for (Item_field &field : equal->get_fields()) {
             if (IsSubset(field.used_tables(), tables_in_subtree)) {
@@ -258,11 +268,11 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
     join->tables_in_subtree =
         join->left->tables_in_subtree | join->right->tables_in_subtree;
     if (tl->is_aj_nest()) {
-      assert(tl->join_cond() != nullptr);
+      assert(tl->join_cond_optim() != nullptr);
     }
-    if (tl->join_cond() != nullptr) {
-      Item *join_cond =
-          EarlyExpandMultipleEquals(tl->join_cond(), join->tables_in_subtree);
+    if (tl->join_cond_optim() != nullptr) {
+      Item *join_cond = EarlyExpandMultipleEquals(tl->join_cond_optim(),
+                                                  join->tables_in_subtree);
       ExtractConditions(join_cond, &join->join_conditions);
       EarlyNormalizeConditions(thd, &join->join_conditions);
     }
@@ -2193,9 +2203,9 @@ string PrintJoinList(const mem_root_deque<TABLE_LIST *> &join_list, int level) {
   std::vector<TABLE_LIST *> list(join_list.begin(), join_list.end());
   for (TABLE_LIST *tbl : list) {
     for (int i = 0; i < level * 2; ++i) str += ' ';
-    if (tbl->join_cond() != nullptr) {
+    if (tbl->join_cond_optim() != nullptr) {
       str += StringPrintf("* %s %s  join_type=%s\n", tbl->alias,
-                          ItemToString(tbl->join_cond()).c_str(),
+                          ItemToString(tbl->join_cond_optim()).c_str(),
                           join_types[tbl->outer_join]);
     } else {
       str += StringPrintf("* %s  join_type=%s\n", tbl->alias,
