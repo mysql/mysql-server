@@ -27,6 +27,7 @@
 #include <charconv>
 #include <iterator>  // back_inserter
 #include <string>
+#include <utility>  // exchange
 
 namespace mysql_harness {
 
