@@ -1,0 +1,49 @@
+--source include/have_hypergraph.inc
+--source include/have_optimizer_trace.inc
+
+# This should have been a unit test. But unit tests do not have framework
+# for prepared statements yet. So we are adding this.
+
+--echo #
+--echo # Bug#34402003: HYPERGRAPH BUG: Offload issue with execute statement.
+--echo #
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+CREATE TABLE t3(a INT);
+INSERT INTO t1 VALUES (1),(2),(5);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+ANALYZE TABLE t1, t2, t3;
+# Hypergraph should be able to use the multiple equality (5, t1.a, t2.a).
+# So, the join condition (t1.a=t2.a) should not be seen in the final plan.
+# Instead, it should see filters (t1.a=5) and (t2.a=5).
+SET optimizer_trace='enabled=on';
+let $query = SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a JOIN t3 ON t1.a=5;
+eval PREPARE stmt FROM "EXPLAIN FORMAT=tree $query";
+eval EXECUTE stmt;
+# Check that we are using the optimized join condition for generating the
+# plan i.e it should be using multiple equalities that are established during
+# optimization.
+SELECT
+IF(TRACE LIKE '%Left join (extra join condition = (t1.a = 5) AND (t2.a = 5))%',
+   'OK', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval PREPARE stmt FROM "$query";
+eval EXECUTE stmt;
+SET optimizer_trace="enabled=off";
+DROP TABLE t1,t2,t3;
+
+CREATE TABLE t0 (a0 INTEGER);
+CREATE TABLE t1 (a1 INTEGER);
+CREATE TABLE t2 (a2 INTEGER);
+CREATE TABLE t3 (a3 INTEGER);
+INSERT INTO t0 VALUES (0),(1);
+INSERT INTO t1 VALUES (0),(1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+# Hypergraph should be able to detect that a1=5 cannot be true resulting
+# in Zero rows access path for right side of the join.
+EXPLAIN FORMAT=tree SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
+SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
+DROP TABLE t0,t1,t2,t3;

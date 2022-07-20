@@ -1,0 +1,62 @@
+#
+# Bug#34402003: HYPERGRAPH BUG: Offload issue with execute statement.
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+CREATE TABLE t3(a INT);
+INSERT INTO t1 VALUES (1),(2),(5);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+SET optimizer_trace='enabled=on';
+PREPARE stmt FROM "EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a JOIN t3 ON t1.a=5";
+EXECUTE stmt;
+EXPLAIN
+-> Nested loop inner join  (cost=1.16..1.16 rows=0.3)
+    -> Nested loop left join  (cost=0.91..0.91 rows=0.3)
+        -> Filter: (t1.a = 5)  (cost=0.55..0.55 rows=0.3)
+            -> Table scan on t1  (cost=0.08..0.25 rows=3)
+        -> Filter: (t1.a = 5)  (cost=0.36..0.36 rows=0.01)
+            -> Filter: (t2.a = 5)  (cost=0.35..0.35 rows=0.1)
+                -> Table scan on t2  (cost=0.25..0.25 rows=1)
+    -> Table scan on t3  (cost=0.25..0.25 rows=1)
+
+SELECT
+IF(TRACE LIKE '%Left join (extra join condition = (t1.a = 5) AND (t2.a = 5))%',
+'OK', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+IF(TRACE LIKE '%Left join (extra join condition = (t1.a = 5) AND (t2.a = 5))%',
+'OK', TRACE)
+OK
+PREPARE stmt FROM "SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a JOIN t3 ON t1.a=5";
+EXECUTE stmt;
+a	a	a
+5	NULL	3
+SET optimizer_trace="enabled=off";
+DROP TABLE t1,t2,t3;
+CREATE TABLE t0 (a0 INTEGER);
+CREATE TABLE t1 (a1 INTEGER);
+CREATE TABLE t2 (a2 INTEGER);
+CREATE TABLE t3 (a3 INTEGER);
+INSERT INTO t0 VALUES (0),(1);
+INSERT INTO t1 VALUES (0),(1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+EXPLAIN FORMAT=tree SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
+EXPLAIN
+-> Nested loop left join  (cost=0.90..0.90 rows=0.04)
+    -> Nested loop inner join  (cost=0.90..0.90 rows=0.04)
+        -> Filter: (t0.a0 = 1)  (cost=0.45..0.45 rows=0.2)
+            -> Table scan on t0  (cost=0.12..0.25 rows=2)
+        -> Filter: (t1.a1 = 1)  (cost=0.45..0.45 rows=0.2)
+            -> Table scan on t1  (cost=0.12..0.25 rows=2)
+    -> Zero rows (Join condition rejects all rows)  (cost=0.00..0.00 rows=0)
+
+SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
+a0	a1	a2	a3
+1	1	NULL	NULL
+DROP TABLE t0,t1,t2,t3;
