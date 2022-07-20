@@ -358,6 +358,29 @@ SELECT * FROM test.t3;
 --force-rmdir $MYSQLD_DATADIR1
 --remove_file $MYSQL_TMP_DIR/data57.zip
 
---let $restart_parameters = restart:
---source include/start_mysqld.inc
---source include/mysql_upgrade_cleanup.inc
+--echo ###########################################################################
+--echo # BUG#33919635: 8.0 upgrade ( MS 5.6) crashes with Assertion failure: dict0dict.cc:1236:table2
+--echo ###########################################################################
+
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/datadir57.zip $MYSQL_TMP_DIR/datadir57.zip
+--file_exists $MYSQL_TMP_DIR/datadir57.zip
+--exec unzip -qo $MYSQL_TMP_DIR/datadir57.zip -d $MYSQL_TMP_DIR
+
+--let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir57
+
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1
+--let $wait_counter= 10000
+--source include/start_mysqld_no_echo.inc
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+
+--force-rmdir $MYSQLD_DATADIR1
+--remove_file $MYSQL_TMP_DIR/datadir57.zip
+
+ --let $restart_parameters = restart:
+ --source include/start_mysqld.inc
