@@ -10122,11 +10122,8 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
   }
   /*
     change field = field to field = const for each found field = const
-    Note: Since we disable multi-equalities in the hypergraph optimizer for now,
-    we also cannot run this optimization; it causes spurious “Impossible WHERE”
-    in e.g. main.select_none.
    */
-  if (*cond && !thd->lex->using_hypergraph_optimizer) {
+  if (*cond) {
     Opt_trace_object step_wrapper(trace);
     step_wrapper.add_alnum("transformation", "constant_propagation");
     {
