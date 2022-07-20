@@ -60,3 +60,17 @@ SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 a0	a1	a2	a3
 1	1	NULL	NULL
 DROP TABLE t0,t1,t2,t3;
+#
+# Bug#34401789: Enable constant propagation in conditions
+#               for hypergraph optimizer
+#
+CREATE TABLE t1 (f1 INTEGER);
+EXPLAIN FORMAT=tree
+SELECT f1 FROM t1 GROUP BY f1 HAVING f1 = 10 AND f1 <> 11;
+EXPLAIN
+-> Filter: (t1.f1 = 10)  (cost=0.55..0.55 rows=0.1)
+    -> Group (no aggregates)  (cost=0.45..0.45 rows=1)
+        -> Sort: t1.f1  (cost=0.35..0.35 rows=1)
+            -> Table scan on t1  (cost=0.25..0.25 rows=1)
+
+DROP TABLE t1;

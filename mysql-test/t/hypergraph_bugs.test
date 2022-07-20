@@ -47,3 +47,12 @@ INSERT INTO t3 VALUES (1);
 EXPLAIN FORMAT=tree SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 DROP TABLE t0,t1,t2,t3;
+--echo #
+--echo # Bug#34401789: Enable constant propagation in conditions
+--echo #               for hypergraph optimizer
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+EXPLAIN FORMAT=tree
+SELECT f1 FROM t1 GROUP BY f1 HAVING f1 = 10 AND f1 <> 11;
+DROP TABLE t1;

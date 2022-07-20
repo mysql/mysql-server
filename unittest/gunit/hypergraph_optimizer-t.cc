@@ -4657,6 +4657,20 @@ TEST_F(HypergraphOptimizerTest, IndexMergeInexactRangeWithOverflowBitset) {
   EXPECT_EQ(predicates, ItemToString(root->filter().condition));
 }
 
+TEST_F(HypergraphOptimizerTest, PropagateCondConstants) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x FROM t1 WHERE t1.x = 10 and t1.x <> 11",
+                      /*nullable=*/true);
+
+  m_initializer.thd()->lex->using_hypergraph_optimizer = true;
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             nullptr, &query_block->cond_value));
+  // Check that the second predicate in the where condition is removed
+  // as it's always true.
+  EXPECT_EQ("(t1.x = 10)", ItemToString(query_block->where_cond()));
+}
+
 TEST_F(HypergraphOptimizerTest, RowCountImplicitlyGrouped) {
   Query_block *query_block =
       ParseAndResolve("SELECT SUM(t1.x) FROM t1", /*nullable=*/true);
