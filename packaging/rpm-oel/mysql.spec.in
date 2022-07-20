@@ -1813,6 +1813,10 @@ fi
 * Tue Jun 28 2022 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.0.31-1
 - Added component_keyring_oci
 
+* Mon Jun 20 2022 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.31-1
+- Added component_test_mysql_command_services.so test component
+- Added test_services_command_services.so test plugin
+
 * Wed Feb 02 2022 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.30-1
 - Added component_enterprise_encryption
 
