@@ -1842,10 +1842,27 @@ void dict_table_change_id_in_cache(
   ut_ad(dict_sys_mutex_own());
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
+#ifdef UNIV_DEBUG
+
+  auto id_fold = ut::hash_uint64(table->id);
+  /* Table with the same id should not exist in cache */
+  {
+    dict_table_t *table2;
+    HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold, dict_table_t *,
+                table2, ut_ad(table2->cached), table2->id == new_id);
+    ut_ad(table2 == nullptr);
+
+    if (table2 != nullptr) {
+      return;
+    }
+  }
+#endif /*UNIV_DEBUG*/
+
   /* Remove the table from the hash table of id's */
 
   HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
               ut::hash_uint64(table->id), table);
+
   table->id = new_id;
 
   /* Add the table back to the hash table */
@@ -5842,7 +5859,18 @@ an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES
 void dict_table_change_id_sys_tables() {
   ut_ad(dict_sys_mutex_own());
 
-  for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
+  /* On upgrading from 5.6 to 5.7, new system table SYS_VIRTUAL is given table
+   id after the last created user table. So, if last user table was created
+   with table_id as 1027, SYS_VIRTUAL would get id 1028. On upgrade to 8.0,
+   all these tables are shifted by 1024. On 5.7, the SYS_FIELDS has table id
+   4, which gets updated to 1028 on upgrade. This would later assert when we
+   try to open the SYS_VIRTUAL table (having id 1028) for upgrade. Hence, we
+   need to upgrade system tables in reverse order to avoid that.
+   These tables are created on boot. And hence this issue can only be caused by
+   a new table being added at a later stage - the SYS_VIRTUAL table being added
+   on upgrading to 5.7. */
+
+  for (int i = SYS_NUM_SYSTEM_TABLES - 1; i >= 0; i--) {
     dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
     ut_a(system_table != nullptr);
