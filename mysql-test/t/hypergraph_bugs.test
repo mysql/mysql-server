@@ -56,3 +56,18 @@ CREATE TABLE t1 (f1 INTEGER);
 EXPLAIN FORMAT=tree
 SELECT f1 FROM t1 GROUP BY f1 HAVING f1 = 10 AND f1 <> 11;
 DROP TABLE t1;
+
+# This should have been a unit test. But unit tests do not have framework
+# for type "year" yet.
+# We are basically testing that "f1" in the non-equality predicate gets
+# substituted with value "1" propagated from "f1 = 1" predicate which
+# will make the condition to be always true.
+
+--echo #
+--echo # Bug#34080394: Hypergraph Offload issue : Problem in
+--echo #               ExtractRequiredItemsForFilter.
+--echo #
+
+CREATE TABLE t1 (f1 YEAR);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = 1 AND f1 <> 11;
+DROP TABLE t1;
