@@ -615,7 +615,11 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
   bool result = parse_sql(thd, &parser_state, nullptr);
 
   thd->lex->reparse_derived_table_condition = false;
-  thd->lex->reparse_derived_table_params_at.clear();
+  // Delete the vector contents:
+  std::vector<uint>().swap(thd->lex->reparse_derived_table_params_at);
+  // thd->lex is now in a MEM_ROOT, so we need to delete:
+  delete thd->lex->sroutines.release();
+
   // lex_end() would try to destroy sphead if set. So we reset it.
   thd->lex->set_sp_current_parsing_ctx(nullptr);
   thd->lex->sphead = nullptr;
