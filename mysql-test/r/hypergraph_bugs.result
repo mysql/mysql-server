@@ -74,3 +74,14 @@ EXPLAIN
             -> Table scan on t1  (cost=0.25..0.25 rows=1)
 
 DROP TABLE t1;
+#
+# Bug#34080394: Hypergraph Offload issue : Problem in
+#               ExtractRequiredItemsForFilter.
+#
+CREATE TABLE t1 (f1 YEAR);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = 1 AND f1 <> 11;
+EXPLAIN
+-> Filter: (t1.f1 = 2001)  (cost=0.35..0.35 rows=0.1)
+    -> Table scan on t1  (cost=0.25..0.25 rows=1)
+
+DROP TABLE t1;

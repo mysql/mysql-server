@@ -2173,11 +2173,36 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
 }
 
 /**
-  Do some constant conversion/folding work needed for correctness.
+  Do some constant propagation, conversion/folding work needed for correctness.
  */
 bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
   CSEConditions(thd, conditions);
   for (auto it = conditions->begin(); it != conditions->end();) {
+    /**
+      For simple filters, propagate constants if there are any
+      established through multiple equalities. Note that most of the
+      propagation is already done in optimize_cond(). This is to handle
+      only the corner cases where equality propagation in optimize_cond()
+      would have been rejected (which is done in old optimizer at a later
+      point).
+    */
+    if (!AreMultipleBitsSet((*it)->used_tables() & ~PSEUDO_TABLE_BITS)) {
+      *it = CompileItem(
+          *it, [](Item *) { return true; },
+          [](Item *item) -> Item * {
+            if (item->type() == Item::FIELD_ITEM) {
+              Item_equal *item_equal =
+                  down_cast<Item_field *>(item)->item_equal;
+              if (item_equal) {
+                Item *const_item = item_equal->get_const();
+                if (const_item != nullptr &&
+                    item_equal->has_compatible_context(const_item))
+                  return const_item;
+              }
+            }
+            return item;
+          });
+    }
     Item::cond_result res;
     if (remove_eq_conds(thd, *it, &*it, &res)) {
       return true;
@@ -2193,7 +2218,6 @@ bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
       ++it;
     }
   }
-
   return false;
 }
 
