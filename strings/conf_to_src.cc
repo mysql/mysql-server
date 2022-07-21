@@ -104,6 +104,7 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
   if (from->csname) to->csname = strdup(from->csname);
 
   if (from->m_coll_name) to->m_coll_name = strdup(from->m_coll_name);
+  if (from->comment) to->comment = strdup(from->comment);
 
   if (from->ctype) to->ctype = mdup(from->ctype, MY_CS_CTYPE_TABLE_SIZE);
   if (from->to_lower)
@@ -208,56 +209,60 @@ static void dispcset(FILE *f, CHARSET_INFO *cs) {
           !my_charset_is_ascii_compatible(cs) ? "|MY_CS_NONASCII" : "");
 
   if (cs->m_coll_name) {
-    fprintf(f, "  \"%s\",                     /* cset name     */\n",
-            cs->csname);
-    fprintf(f, "  \"%s\",                     /* coll name     */\n",
+    fprintf(f, "  \"%s\",                     /* csname */\n", cs->csname);
+    fprintf(f, "  \"%s\",                    /* m_collname */\n",
             cs->m_coll_name);
-    fprintf(f, "  \"\",                       /* comment       */\n");
-    fprintf(f, "  NULL,                       /* tailoring     */\n");
-    fprintf(f, "  NULL,                       /* coll_param    */\n");
+    if (cs->comment) {
+      fprintf(f, "  \"%s\",                   /* comment */\n", cs->comment);
+    } else {
+      fprintf(f, "  \"\",                     /* comment */\n");
+    }
+    fprintf(f, "  nullptr,                    /* tailoring */\n");
+    fprintf(f, "  nullptr,                    /* coll_param */\n");
     fprintf(f, "  ctype_%s,                   /* ctype         */\n",
             cs->m_coll_name);
-    fprintf(f, "  to_lower_%s,                /* lower         */\n",
+    fprintf(f, "  to_lower_%s,                /* to_lower */\n",
             cs->m_coll_name);
-    fprintf(f, "  to_upper_%s,                /* upper         */\n",
+    fprintf(f, "  to_upper_%s,                /* to_upper */\n",
             cs->m_coll_name);
     if (cs->sort_order)
-      fprintf(f, "  sort_order_%s,            /* sort_order    */\n",
+      fprintf(f, "  sort_order_%s,            /* sort_order */\n",
               cs->m_coll_name);
     else
-      fprintf(f, "  NULL,                     /* sort_order    */\n");
-    fprintf(f, "  NULL,                       /* uca           */\n");
+      fprintf(f, "  nullptr,                     /* sort_order */\n");
+
+    fprintf(f, "  nullptr,                    /* uca */\n");
     fprintf(f, "  to_uni_%s,                  /* to_uni        */\n",
             cs->m_coll_name);
   } else {
-    fprintf(f, "  NULL,                       /* cset name     */\n");
-    fprintf(f, "  NULL,                       /* coll name     */\n");
-    fprintf(f, "  NULL,                       /* comment       */\n");
-    fprintf(f, "  NULL,                       /* tailoring     */\n");
-    fprintf(f, "  NULL,                       /* coll_param    */\n");
-    fprintf(f, "  NULL,                       /* ctype         */\n");
-    fprintf(f, "  NULL,                       /* lower         */\n");
-    fprintf(f, "  NULL,                       /* upper         */\n");
-    fprintf(f, "  NULL,                       /* sort order    */\n");
-    fprintf(f, "  NULL,                       /* uca           */\n");
-    fprintf(f, "  NULL,                       /* to_uni        */\n");
+    fprintf(f, "  nullptr,                    /* cset name     */\n");
+    fprintf(f, "  nullptr,                    /* coll name     */\n");
+    fprintf(f, "  nullptr,                    /* comment       */\n");
+    fprintf(f, "  nullptr,                    /* tailoring     */\n");
+    fprintf(f, "  nullptr,                    /* coll_param    */\n");
+    fprintf(f, "  nullptr,                    /* ctype         */\n");
+    fprintf(f, "  nullptr,                    /* lower         */\n");
+    fprintf(f, "  nullptr,                    /* upper         */\n");
+    fprintf(f, "  nullptr,                    /* sort order    */\n");
+    fprintf(f, "  nullptr,                    /* uca           */\n");
+    fprintf(f, "  nullptr,                    /* to_uni        */\n");
   }
 
-  fprintf(f, "  NULL,                       /* from_uni      */\n");
-  fprintf(f, "  &my_unicase_default,        /* caseinfo      */\n");
-  fprintf(f, "  NULL,                       /* state map     */\n");
-  fprintf(f, "  NULL,                       /* ident map     */\n");
-  fprintf(f, "  1,                          /* strxfrm_multiply*/\n");
-  fprintf(f, "  1,                          /* caseup_multiply*/\n");
-  fprintf(f, "  1,                          /* casedn_multiply*/\n");
-  fprintf(f, "  1,                          /* mbminlen      */\n");
-  fprintf(f, "  1,                          /* mbmaxlen      */\n");
-  fprintf(f, "  1,                          /* mbmaxlenlen   */\n");
-  fprintf(f, "  0,                          /* min_sort_char */\n");
-  fprintf(f, "  255,                        /* max_sort_char */\n");
-  fprintf(f, "  ' ',                        /* pad_char      */\n");
+  fprintf(f, "  nullptr,                    /* from_uni         */\n");
+  fprintf(f, "  &my_unicase_default,        /* caseinfo         */\n");
+  fprintf(f, "  nullptr,                    /* state map        */\n");
+  fprintf(f, "  nullptr,                    /* ident map        */\n");
+  fprintf(f, "  1,                          /* strxfrm_multiply */\n");
+  fprintf(f, "  1,                          /* caseup_multiply  */\n");
+  fprintf(f, "  1,                          /* casedn_multiply  */\n");
+  fprintf(f, "  1,                          /* mbminlen         */\n");
+  fprintf(f, "  1,                          /* mbmaxlen         */\n");
+  fprintf(f, "  1,                          /* mbmaxlenlen      */\n");
+  fprintf(f, "  0,                          /* min_sort_char    */\n");
+  fprintf(f, "  255,                        /* max_sort_char    */\n");
+  fprintf(f, "  ' ',                        /* pad_char         */\n");
   fprintf(f,
-          "  0,                          /* escape_with_backslash_is_dangerous "
+          "  false,                      /* escape_with_backslash_is_dangerous "
           "*/\n");
   fprintf(f, "  1,                          /* levels_for_compare */\n");
 
@@ -269,7 +274,7 @@ static void dispcset(FILE *f, CHARSET_INFO *cs) {
     fprintf(f, "  &my_collation_8bit_bin_handler,\n");
   else
     fprintf(f, "  &my_collation_8bit_simple_ci_handler,\n");
-  fprintf(f, "  PAD_SPACE\n");
+  fprintf(f, "  PAD_SPACE                   /* pad_attribute */\n");
   fprintf(f, "}\n");
 }
 
@@ -306,16 +311,18 @@ int main(int argc, char **argv [[maybe_unused]]) {
           "Do not edit it directly,\n");
   fprintf(f, "  edit the XML definitions in share/charsets/ instead.\n\n");
   fprintf(f,
-          "  To re-generate, run the following in the strings/ "
+          "  To re-generate, run the following in the build "
           "directory:\n");
   fprintf(f,
-          "    ./conf_to_src {CMAKE_SOURCE_DIR}/share/charsets/ > "
-          "ctype-extra.cc\n");
+          "    ./bin/conf_to_src ${CMAKE_SOURCE_DIR}/share/charsets/ >\n"
+          "    ${CMAKE_SOURCE_DIR}/strings/ctype-extra.cc\n");
   fprintf(f, "*/\n\n");
   fprintf(f, ORACLE_GPL_FOSS_COPYRIGHT_NOTICE("2003"));
   fprintf(f, "#include <stddef.h>\n\n");
   fprintf(f, "#include \"m_ctype.h\"\n");
   fprintf(f, "#include \"my_inttypes.h\"\n\n");
+
+  fprintf(f, "/* clang-format off */\n\n");
 
   for (cs = all_charsets; cs < all_charsets + array_elements(all_charsets);
        cs++) {
@@ -335,7 +342,6 @@ int main(int argc, char **argv [[maybe_unused]]) {
     }
   }
 
-  fprintf(f, "extern \"C\" {\n");
   fprintf(f, "CHARSET_INFO compiled_charsets[] = {\n");
   for (cs = all_charsets; cs < all_charsets + array_elements(all_charsets);
        cs++) {
@@ -347,7 +353,6 @@ int main(int argc, char **argv [[maybe_unused]]) {
 
   dispcset(f, &ncs);
   fprintf(f, "};\n");
-  fprintf(f, "} // extern \"C\"\n");
 
   return 0;
 }
