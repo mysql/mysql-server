@@ -198,7 +198,8 @@ class Protocol_classic : public Protocol {
   /* Return raw packet buffer */
   uchar *get_raw_packet() { return input_raw_packet; }
   /* Set read timeout */
-  virtual void set_read_timeout(ulong read_timeout);
+  virtual void set_read_timeout(ulong read_timeout,
+                                bool on_full_packet = false);
   /* Set write timeout */
   virtual void set_write_timeout(ulong write_timeout);
 

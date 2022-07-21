@@ -61,6 +61,7 @@ typedef struct NET_SERVER {
   void *m_user_data;
   struct compression_attributes compression;
   mysql_compress_context compress_ctx;
+  bool timeout_on_full_packet;
 } NET_SERVER;
 
 #endif

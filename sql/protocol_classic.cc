@@ -1356,8 +1356,12 @@ bool Protocol_classic::send_error(uint sql_errno, const char *err_msg,
   return retval;
 }
 
-void Protocol_classic::set_read_timeout(ulong read_timeout) {
+void Protocol_classic::set_read_timeout(ulong read_timeout,
+                                        bool on_full_packet) {
   my_net_set_read_timeout(&m_thd->net, read_timeout);
+  NET_SERVER *ext = static_cast<NET_SERVER *>(m_thd->net.extension);
+  assert(ext);
+  ext->timeout_on_full_packet = on_full_packet;
 }
 
 void Protocol_classic::set_write_timeout(ulong write_timeout) {
