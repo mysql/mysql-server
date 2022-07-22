@@ -61,6 +61,7 @@ static ndb_key_from_stdin_option opt_encrypt_key_from_stdin(
     opt_encrypt_key_state);
 
 static int g_info = 0;
+static int g_detailed_info = 0;
 static int g_encrypt_block_size = 0;
 static int g_encrypt_cipher = ndb_ndbxfrm1::cipher_cbc;
 static int g_encrypt_kdf_iter_count = -1; // ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
@@ -121,6 +122,9 @@ static struct my_option my_long_options[] =
   { "info", 'i', "Print info about file",
     &g_info, nullptr, nullptr, GET_BOOL, NO_ARG,
     0, 0, 0, nullptr, 0, nullptr },
+    { "detailed-info", NDB_OPT_NOSHORT, "Print info about file including file header and trailer",
+    &g_detailed_info, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
 #if defined(TODO_READ_REVERSE)
   { "read-reverse", 'R', "Read file in reverse",
     &g_read_reverse, nullptr, nullptr, GET_BOOL, NO_ARG,
@@ -132,7 +136,7 @@ static struct my_option my_long_options[] =
 
 static const char* load_defaults_groups[] = { "ndbxfrm", nullptr };
 
-static int dump_info(const char name[]);
+static int dump_info(const char name[], bool print_header_and_trailer);
 static int copy_file(const char src[], const char dst[]);
 
 int main(int argc, char* argv[])
@@ -154,7 +158,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  if (g_info && (do_write || g_read_reverse))
+  if (g_info || g_detailed_info) && (do_write || g_read_reverse))
   {
     fprintf(stderr,
             "Error: Writing (--encrypt-password, --compress) or reading "
@@ -213,7 +217,16 @@ int main(int argc, char* argv[])
   {
     for (int argi = 0; argi < argc; argi++)
     {
-      dump_info(argv[argi]);
+      dump_info(argv[argi], false);
+    }
+    return 0;
+  }  
+  
+  if (g_detailed_info)
+  {
+    for (int argi = 0; argi < argc; argi++)
+    {
+      dump_info(argv[argi], true);
     }
     return 0;
   }
@@ -241,7 +254,7 @@ int main(int argc, char* argv[])
   return rc;
 }
 
-int dump_info(const char name[])
+int dump_info(const char name[], bool print_header_and_trailer)
 {
   ndb_file file;
   ndbxfrm_file xfrm;
@@ -255,33 +268,32 @@ int dump_info(const char name[])
             name);
     return 1;
   }
-
-  const byte* src_pwd_key =
-      opt_decrypt_key_state.get_key() != nullptr
-          ? opt_decrypt_key_state.get_key()
-          : reinterpret_cast<const byte*>(
-                opt_decrypt_password_state.get_password());
-  const size_t src_pwd_key_len =
-      opt_decrypt_key_state.get_key() != nullptr
-          ? opt_decrypt_key_state.get_key_length()
-          : opt_decrypt_password_state.get_password_length();
-  r = xfrm.open(file, src_pwd_key, src_pwd_key_len);
+  ndb_ndbxfrm1::header header;
+  ndb_ndbxfrm1::trailer trailer;
+  r = xfrm.read_header_and_trailer(file, header, trailer);
   if (r == -1)
   {
-    fprintf(stderr, "Error: Could not open file '%s' for read.\n", name);
+    fprintf(stderr, "Error: Could not read file '%s'.\n", name);
     return 1;
   }
-  require(r == 0 || r == -2);
-
+  require(r == 0);
+  
+  if(print_header_and_trailer)
+  {
+    header.printf(stdout);
+    trailer.printf(stdout);
+  }
+  
+  Uint32 cipher = 0;
+  header.get_encryption_cipher(&cipher);
+  bool is_compressed = (header.get_compression_method() != 0);
+  bool is_encrypted  = (cipher != 0);
   printf("File=%s, compression=%s, encryption=%s\n",
          name,
-         xfrm.is_compressed() ? "yes" : "no",
-         xfrm.is_encrypted() ? "yes" : "no");
-
-  const bool abort = (r == -2);
-  xfrm.close(abort);
+         is_compressed ? "yes" : "no",
+         is_encrypted  ? "yes" : "no");
+  
   file.close();
-
   return 0;
 }
 
@@ -337,9 +349,8 @@ int copy_file(const char src[], const char dst[])
           ? opt_decrypt_key_state.get_key_length()
           : opt_decrypt_password_state.get_password_length();
   r = src_xfrm.open(src_file, src_pwd_key, src_pwd_key_len);
-  if (r != 0)
+  if (r == -1)
   {
-    if (r == -2) src_xfrm.close(true);
     src_file.close();
     dst_file.close();
     dst_file.remove(dst);

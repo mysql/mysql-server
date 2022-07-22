@@ -311,7 +311,6 @@ AsyncFile::openReq(Request * request)
     {
       rc = m_xfile.open(m_file, pwd, pwd_len);
       if (rc < 0) NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-      if (rc == -2) m_xfile.close(true);
     }
     if (rc < 0)
     {
