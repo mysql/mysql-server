@@ -27,6 +27,12 @@
 /* Header file for my_aes.c */
 /* Wrapper to give simple interface for MySQL to AES standard encryption */
 
+#include <string>
+#include <vector>
+
+using std::string;
+using std::vector;
+
 C_MODE_START
 
 /** AES IV size is 16 bytes for all supported ciphers except ECB */
@@ -79,14 +85,16 @@ extern const char *my_aes_opmode_names[];
   @param mode           [in]  encryption mode
   @param iv             [in]  16 bytes initialization vector if needed. Otherwise NULL
   @param padding        [in]  if padding needed.
+  @param kdf_options    [in]  KDF options
   @return              size of encrypted data, or negative in case of error
 */
 
 int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
-		   const unsigned char *key, uint32 key_length,
+                   const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding = true);
+                   bool padding = true,
+                   vector<string> *kdf_options = NULL);
 
 /**
   Decrypt an AES encrypted buffer
@@ -99,6 +107,7 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   @param mode           encryption mode
   @param iv             16 bytes initialization vector if needed. Otherwise NULL
   @param padding        if padding needed.
+  @param kdf_options    [in]  KDF options
   @return size of original data.
 */
 
@@ -107,7 +116,8 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding = true);
+                   bool padding = true,
+                   vector<string> *kdf_options = NULL);
 
 /**
   Calculate the size of a buffer large enough for encrypted data

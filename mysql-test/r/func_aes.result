@@ -100,6 +100,8 @@ AES_ENCRYPT('a', 'a') = AES_ENCRYPT(REPEAT('a',1000), 'a')
 SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', REPEAT('a',1000));
 AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', REPEAT('a',1000))
 0
+Warnings:
+Warning	3237	AES key size should be 16 bytes length or secure KDF methods hkdf or pbkdf2_hmac should be used, please provide exact AES key size or use KDF methods for better security.
 #### persistense
 CREATE TABLE t1 (a BINARY(16) PRIMARY KEY);
 # must pass without a warning
