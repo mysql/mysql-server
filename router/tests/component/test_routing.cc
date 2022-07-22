@@ -528,7 +528,7 @@ TEST_F(RouterMaxConnectionsTest, RoutingTooManyConnections) {
 
   // launch the router with the created configuration
   launch_router({"-c", conf_file});
-  EXPECT_TRUE(wait_for_port_not_available(router_port));
+  EXPECT_TRUE(wait_for_port_used(router_port));
 
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded

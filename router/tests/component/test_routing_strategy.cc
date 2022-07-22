@@ -535,7 +535,7 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   const std::string routing_section = get_static_routing_section(
       router_port, server_ports, routing_strategy, mode);
   auto &router = launch_router_static(conf_dir.name(), routing_section);
-  EXPECT_TRUE(wait_for_port_not_available(router_port));
+  EXPECT_TRUE(wait_for_port_used(router_port));
 
   // expect consecutive connections to be done in round-robin fashion
   make_new_connection_ok(router_port, server_ports[0]);
@@ -548,7 +548,7 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   SCOPED_TRACE("// kill 1st and 2nd server");
   for (int i = 0; i < 2; i++) {
     kill_server(server_instances[i]);
-    EXPECT_TRUE(wait_for_port_available(server_ports[i], 200s));
+    EXPECT_TRUE(wait_for_port_unused(server_ports[i], 200s));
     // Go through all destinations to trigger the quarantine
     for (std::size_t i = 0; i < server_ports.size(); ++i) {
       connect_client_and_query_port(router_port, node_port);
@@ -558,12 +558,12 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
                                       std::to_string(server_ports[i]) +
                                       "' to quarantine",
                                   2s));
-    EXPECT_FALSE(is_port_available(router_port));
+    EXPECT_FALSE(is_port_bindable(router_port));
   }
 
   SCOPED_TRACE("// kill 3rd server");
   kill_server(server_instances[2]);
-  EXPECT_TRUE(wait_for_port_available(server_ports[2], 200s));
+  EXPECT_TRUE(wait_for_port_unused(server_ports[2], 200s));
   connect_client_and_query_port(router_port, node_port, /*should_fail*/ true);
   SCOPED_TRACE("// third node is added to quarantine");
   EXPECT_TRUE(wait_log_contains(router,
@@ -583,7 +583,7 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
 
   // socket can end up in a TIME_WAIT state so it could take a while for it
   // to be available again.
-  EXPECT_TRUE(wait_for_port_available(router_port, 200s));
+  EXPECT_TRUE(wait_for_port_unused(router_port, 200s));
 
   SCOPED_TRACE("// bring back 1st server");
   server_instances.emplace_back(
@@ -651,7 +651,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   const std::string routing_section = get_static_routing_section(
       router_port, server_ports, routing_strategy, mode);
   auto &router = launch_router_static(conf_dir.name(), routing_section);
-  EXPECT_TRUE(wait_for_port_not_available(router_port));
+  EXPECT_TRUE(wait_for_port_used(router_port));
 
   // expect consecutive connections to be done in first-available fashion
   make_new_connection_ok(router_port, server_ports[0]);
@@ -659,9 +659,9 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
 
   SCOPED_TRACE("// 'kill' server 1 and 2, expect moving to server 3");
   kill_server(server_instances[0]);
-  EXPECT_TRUE(wait_for_port_available(server_ports[0], 200s));
+  EXPECT_TRUE(wait_for_port_unused(server_ports[0], 200s));
   kill_server(server_instances[1]);
-  EXPECT_TRUE(wait_for_port_available(server_ports[1], 200s));
+  EXPECT_TRUE(wait_for_port_unused(server_ports[1], 200s));
   SCOPED_TRACE("// now we should connect to 3rd server");
   make_new_connection_ok(router_port, server_ports[2]);
   SCOPED_TRACE("// nodes 1 and two should be quarantined at this point");
@@ -674,11 +674,11 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   }
 
   SCOPED_TRACE("// router listening port is still open");
-  EXPECT_FALSE(is_port_available(router_port));
+  EXPECT_FALSE(is_port_bindable(router_port));
 
   SCOPED_TRACE("// kill also 3rd server");
   kill_server(server_instances[2]);
-  EXPECT_TRUE(wait_for_port_available(server_ports[2], 200s));
+  EXPECT_TRUE(wait_for_port_unused(server_ports[2], 200s));
   SCOPED_TRACE("// expect connection failure");
   verify_new_connection_fails(router_port);
 
@@ -701,7 +701,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   SCOPED_TRACE(
       "// in case of first-available policy we never close the listening "
       "ports");
-  EXPECT_FALSE(is_port_available(router_port));
+  EXPECT_FALSE(is_port_bindable(router_port));
 
   SCOPED_TRACE("// bring back 1st server on port " +
                std::to_string(server_ports[0]));
@@ -709,7 +709,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
       &launch_standalone_server(server_ports[0], get_data_dir().str()));
   ASSERT_NO_FATAL_FAILURE(check_port_ready(
       *server_instances[server_instances.size() - 1], server_ports[0]));
-  EXPECT_TRUE(wait_for_port_not_available(router_port, 200s));
+  EXPECT_TRUE(wait_for_port_used(router_port, 200s));
 
   SCOPED_TRACE(
       "// 1st node is reachable and should be removed from quarantine");
@@ -722,7 +722,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   SCOPED_TRACE("// we should now succesfully connect to server on port " +
                std::to_string(server_ports[0]));
   make_new_connection_ok(router_port, server_ports[0]);
-  EXPECT_FALSE(is_port_available(router_port));
+  EXPECT_FALSE(is_port_bindable(router_port));
 }
 
 // We expect first-available for routing-strategy=first-available and as default
@@ -764,12 +764,12 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   const std::string routing_section =
       get_static_routing_section(router_port, server_ports, "next-available");
   auto &router = launch_router_static(conf_dir.name(), routing_section);
-  EXPECT_TRUE(wait_for_port_not_available(router_port));
+  EXPECT_TRUE(wait_for_port_used(router_port));
 
   // expect consecutive connections to be done in first-available fashion
   make_new_connection_ok(router_port, server_ports[0]);
   make_new_connection_ok(router_port, server_ports[0]);
-  EXPECT_FALSE(is_port_available(router_port));
+  EXPECT_FALSE(is_port_bindable(router_port));
 
   SCOPED_TRACE(
       "// 'kill' server 1 and 2, expect connection to server 3 after that");
@@ -785,7 +785,7 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
                                       "' to quarantine",
                                   2s));
   }
-  EXPECT_FALSE(is_port_available(router_port));
+  EXPECT_FALSE(is_port_bindable(router_port));
 
   SCOPED_TRACE("// kill also 3rd server");
   kill_server(server_instances[2]);
@@ -798,7 +798,7 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
                                 2s));
   // socket can end up in a TIME_WAIT state so it could take a while for it
   // to be available again.
-  EXPECT_TRUE(wait_for_port_available(router_port, 200s));
+  EXPECT_TRUE(wait_for_port_unused(router_port, 200s));
 
   SCOPED_TRACE("// bring back 1st server");
   server_instances.emplace_back(
@@ -818,7 +818,7 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   verify_new_connection_fails(router_port);
   // socket can end up in a TIME_WAIT state so it could take a while for it
   // to be available again.
-  EXPECT_TRUE(wait_for_port_available(router_port, 200s));
+  EXPECT_TRUE(wait_for_port_unused(router_port, 200s));
 }
 
 // configuration error scenarios
@@ -949,7 +949,7 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
   SCOPED_TRACE("// launch the router with static routing");
   auto &router = launch_router_static(conf_dir.name(), routing_section);
   for (int i = 0; i < 2; i++) {
-    EXPECT_TRUE(wait_for_port_not_available(router_ports[i]));
+    EXPECT_TRUE(wait_for_port_used(router_ports[i]));
   }
 
   SCOPED_TRACE("// kill 1st server");

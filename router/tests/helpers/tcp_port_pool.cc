@@ -231,6 +231,6 @@ uint16_t TcpPortPool::get_next_available() {
     unsigned result = 10000 + unique_ids_.back().get() * kPortsPerFile +
                       number_of_ids_used_++;
 
-    if (is_port_available(result)) return result;
+    if (is_port_bindable(result)) return result;
   }
 }

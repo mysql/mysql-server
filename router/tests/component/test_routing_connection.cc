@@ -677,7 +677,7 @@ TEST_P(IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
   launch_router(router_rw_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port_));
 
   SCOPED_TRACE("// connect clients");
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
@@ -754,7 +754,7 @@ TEST_P(IsRWConnectionsClosedWhenPrimaryFailoverTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port_));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port_));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(2);
@@ -868,7 +868,7 @@ TEST_P(IsROConnectionsKeptWhenPrimaryFailoverTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(
                     temp_test_dir_.name(), GetParam().cluster_type, true));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port_));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(4);
@@ -931,7 +931,7 @@ TEST_P(RouterRoutingConnectionPromotedTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port_));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
@@ -1001,7 +1001,7 @@ TEST_P(IsConnectionToSecondaryClosedWhenPromotedToPrimaryTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port_));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
@@ -1067,7 +1067,7 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port_));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port_));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(10);
@@ -1153,7 +1153,7 @@ TEST_P(IsConnectionClosedWhenClusterOverloadedTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port_));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
@@ -1218,7 +1218,7 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port_));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
@@ -1333,7 +1333,7 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
   auto &router = launch_router(
       router_ro_port_, config_generator_->build_config_file(
                            temp_test_dir_.name(), GetParam().cluster_type));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port_));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port_));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(10);
