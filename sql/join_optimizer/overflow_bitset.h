@@ -132,7 +132,7 @@ class OverflowBitset {
   static_assert(alignof(Ext) % 2 == 0, "The lowest bit must be zero.");
 
   union {
-    uintptr_t m_bits;  // Lowest bit must be 1.
+    uint64_t m_bits;  // Lowest bit must be 1.
     Ext *m_ext;
   };
   static constexpr int kInlineBits = sizeof(m_bits) * CHAR_BIT - 1;
