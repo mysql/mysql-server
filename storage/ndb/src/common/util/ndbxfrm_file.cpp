@@ -38,8 +38,6 @@
 //#define RETURN(r) return (r)
 // clang-format on
 
-bool ndbxfrm_file::print_file_header_and_trailer = false;
-
 /*
  * Made for multi threaded concurrent read and write of whole pages (assume not
  * two concurrent ops on the same page).
@@ -106,6 +104,32 @@ bool ndbxfrm_file::is_open() const { return m_file_format != FF_UNKNOWN; }
 
 int ndbxfrm_file::open(ndb_file &file, const byte *pwd_key, size_t pwd_key_len)
 {
+   ndb_ndbxfrm1::header header;
+   ndb_ndbxfrm1::trailer trailer;
+   int ret = open(file, pwd_key, pwd_key_len, header, trailer);
+   return (ret<0) ? -1 : ret;
+}
+
+
+int ndbxfrm_file::read_header_and_trailer(ndb_file &file,
+                                          ndb_ndbxfrm1::header& header,
+                                          ndb_ndbxfrm1::trailer& trailer)
+{
+  int ret = open(file, nullptr, 0, header, trailer);
+  if(ret==0)
+  {
+    close(true);
+  }
+  /*
+   * if ret==-2 header and trailer were read successfully so return 0.
+   */
+  return (ret==-1) ? -1 : 0;
+}
+
+int ndbxfrm_file::open(ndb_file &file, const byte *pwd_key,
+                       size_t pwd_key_len, ndb_ndbxfrm1::header& header,
+                       ndb_ndbxfrm1::trailer& trailer)
+{
   reset();
   // file fixed properties
   m_file = &file;
@@ -149,10 +173,15 @@ int ndbxfrm_file::open(ndb_file &file, const byte *pwd_key, size_t pwd_key_len)
     m_file_buffer.update_write(out);
   }
   size_t trailer_max_size;
+  int rh;
   {
     ndbxfrm_input_iterator in = m_file_buffer.get_input_iterator();
-    int rh = read_header(&in, pwd_key, pwd_key_len, &trailer_max_size);
-    if (rh != 0) return rh;
+    rh = read_header(&in, pwd_key, pwd_key_len, &trailer_max_size, 
+                         header);
+    if(rh==-1) return rh;
+    //if rh == -2 does nothing for now. It could be ok if
+    //we just wont to get header and trailer without decrypting the file
+    
     m_file_buffer.update_read(in);
     m_file_buffer.rebase(m_file_block_size);
   }
@@ -190,7 +219,7 @@ int ndbxfrm_file::open(ndb_file &file, const byte *pwd_key, size_t pwd_key_len)
 
       ndbxfrm_input_reverse_iterator rin = {out.begin(), page, out.last()};
 
-      int rt = read_trailer(&rin);
+      int rt = read_trailer(&rin, trailer);
       if (rt == -1) return rt;
       if (rt != 0)
       {
@@ -221,8 +250,13 @@ int ndbxfrm_file::open(ndb_file &file, const byte *pwd_key, size_t pwd_key_len)
 
   require(is_open());
   m_data_pos = 0;
-  return 0;
+  if(rh==-2)
+  {
+    close(true);
+  }
+  return rh;
 }
+
 
 int ndbxfrm_file::create(
     ndb_file &file,
@@ -588,7 +622,8 @@ int ndbxfrm_file::untransform_pages(ndb_openssl_evp::operation *op,
 int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
                               const byte *pwd_key,
                               size_t pwd_key_len,
-                              size_t *trailer_max_size)
+                              size_t *trailer_max_size,
+                              ndb_ndbxfrm1::header& ndbxfrm_header)
 {
   bool unwrap_keys_failed = false;
   const byte *in_begin = in->cbegin();
@@ -618,9 +653,7 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
     {
       RETURN(-1);
     }
-    ndb_ndbxfrm1::header ndbxfrm;
-    int rv = ndbxfrm.read_header(in);
-    if (unlikely(print_file_header_and_trailer)) ndbxfrm.printf(stdout);
+    int rv = ndbxfrm_header.read_header(in);
     if (rv == -1)
     {
       RETURN(-1);
@@ -630,13 +663,13 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
       RETURN(-1);
     }
     m_file_format = FF_NDBXFRM1;
-    ndbxfrm.get_file_block_size(&m_file_block_size);
-    ndbxfrm.get_trailer_max_size(trailer_max_size);
-    m_compressed = (ndbxfrm.get_compression_method() != 0);
+    ndbxfrm_header.get_file_block_size(&m_file_block_size);
+    ndbxfrm_header.get_trailer_max_size(trailer_max_size);
+    m_compressed = (ndbxfrm_header.get_compression_method() != 0);
     int compress_padding = 0;
     if (m_compressed)
     {
-      compress_padding = ndbxfrm.get_compression_padding();
+      compress_padding = ndbxfrm_header.get_compression_padding();
       switch (compress_padding)
       {
         case 0: /* no padding */
@@ -650,7 +683,7 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
     }
 
     Uint32 cipher = 0;
-    ndbxfrm.get_encryption_cipher(&cipher);
+    ndbxfrm_header.get_encryption_cipher(&cipher);
     m_encrypted = (cipher != 0);
     Uint32 enc_data_unit_size = 0;
     if (m_encrypted)
@@ -664,12 +697,12 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
       size_t keying_material_size = 0;
       size_t keying_material_count = 0;
 
-      require(ndbxfrm.get_encryption_padding(&padding) == 0);
-      require(ndbxfrm.get_encryption_krm(&krm) == 0);
-      require(ndbxfrm.get_encryption_krm_kdf_iter_count(&kdf_iter_count) == 0);
-      require(ndbxfrm.get_encryption_key_selection_mode(
+      require(ndbxfrm_header.get_encryption_padding(&padding) == 0);
+      require(ndbxfrm_header.get_encryption_krm(&krm) == 0);
+      require(ndbxfrm_header.get_encryption_krm_kdf_iter_count(&kdf_iter_count) == 0);
+      require(ndbxfrm_header.get_encryption_key_selection_mode(
                   &key_selection_mode, &enc_data_unit_size) == 0);
-      require(ndbxfrm.get_encryption_keying_material(keying_material,
+      require(ndbxfrm_header.get_encryption_keying_material(keying_material,
                                                      sizeof(keying_material),
                                                      &keying_material_size,
                                                      &keying_material_count) ==
@@ -791,7 +824,8 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
   return (unwrap_keys_failed ? -2 : 0);
 }
 
-int ndbxfrm_file::read_trailer(ndbxfrm_input_reverse_iterator *rin)
+int ndbxfrm_file::read_trailer(ndbxfrm_input_reverse_iterator *rin, 
+                               ndb_ndbxfrm1::trailer& ndbxfrm_trailer)
 {
   if (m_file_format == FF_AZ31)
   {
@@ -819,7 +853,6 @@ int ndbxfrm_file::read_trailer(ndbxfrm_input_reverse_iterator *rin)
   else if (m_file_format == FF_NDBXFRM1)
   {
     const byte *in_begin = rin->cbegin();
-    ndb_ndbxfrm1::trailer ndbxfrm_trailer;
     int rv = ndbxfrm_trailer.read_trailer(rin);
     size_t trailer_size = in_begin - rin->cbegin();
     size_t tsz;
@@ -831,7 +864,6 @@ int ndbxfrm_file::read_trailer(ndbxfrm_input_reverse_iterator *rin)
       require((uintmax_t)file_size == m_file_size);
       m_payload_end = file_size - tsz;
     }
-    if (unlikely(print_file_header_and_trailer)) ndbxfrm_trailer.printf(stdout);
     if (rv == -1)
     {
       RETURN(-1);

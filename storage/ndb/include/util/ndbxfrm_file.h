@@ -78,7 +78,7 @@
  *
  * The header and trailer themself are never compressed nor encrypted.
  *
- * For backward compatibility compressed backup files will use same fileformat,
+ * For backward compatibility compressed backup files will use same file format,
  * called AZ31, consisting of a file header with fixed content and a trailer
  * containing checksum and size of uncompressed data.
  *
@@ -149,7 +149,7 @@
  *
  * The minimal block size supported by an implementation is the least
  * supporting any special mode requirements for underlying file, such as for
- * example O_DIRECT, and, i fencryption is used the key reuse block size, this
+ * example O_DIRECT, and, if encryption is used the key reuse block size, this
  * will be called the random access block size.  The random access block size
  * is not a property of the file itself but depends on how the implementation
  * can access the file.
@@ -252,7 +252,6 @@
 class ndbxfrm_file
 {
  public:
-  static bool print_file_header_and_trailer;
   static constexpr size_t BUFFER_SIZE = ndbxfrm_buffer::size();
   static constexpr Uint64 INDEFINITE_SIZE = UINT64_MAX;
   static constexpr off_t INDEFINITE_OFFSET = -1;
@@ -264,17 +263,20 @@ class ndbxfrm_file
   bool is_open() const;
   void reset();
   /*
-   * open returns 0 on success, -1 on failure, -2 almost succeeded properties
-   * like is_encrypted() and is_compressed() are valid but for example
-   * unwrapping encryption keys failed.
-   * Note that -2 will require close(true) to be called.
-   * The -2 is needed to allow "ndbxfrm -i" to report a file as encrypted even
-   * if no or wrong password is provided. Closing file will reset most
-   * properties.
+   * open returns 0 on success, -1 on failure.
    */
   int open(ndb_file& file,
            const byte* pwd_key,
            size_t pwd_key_len);
+
+  /*
+   * Returns 0 on success, -1 on failure.
+   * Used by ndbxfrmt tool to access file header and trailer even if no
+   * or wrong password is provided.
+   */
+  int read_header_and_trailer(ndb_file &file, ndb_ndbxfrm1::header& header,
+                              ndb_ndbxfrm1::trailer& trailer);
+
   int create(ndb_file& file,
              bool compress,
              const byte* pwd,
@@ -290,7 +292,7 @@ class ndbxfrm_file
   /*
    * Use abort when you for example has not fulfilled the initialization of the
    * file content and intend to remove the file after close.
-   * For some transforms the data that application sofar have passed to
+   * For some transforms the data that application so far have passed to
    * ndbxfrm_file may not be possible to fulfil the transform for.
    * The abort flag will in such case ignore writing the pending data.
    *
@@ -388,6 +390,17 @@ class ndbxfrm_file
   ndbxfrm_buffer m_file_buffer;
   Uint64 m_data_pos;
 
+  /*
+  * open returns 0 on success, -1 on failure, -2 almost succeeded
+  * header and trailer are valid but for example unwrapping encryption
+  * keys failed.
+  * The -2 is needed to allow "ndbxfrm --[detailed-]info" to access file
+  * header and trailer even if no or wrong password is provided.
+  */
+  int open(ndb_file& file, const byte* pwd_key,
+           size_t pwd_key_len, ndb_ndbxfrm1::header& header,
+           ndb_ndbxfrm1::trailer& trailer);
+
   int flush_payload();
 
   bool in_file_mode() const { return (m_payload_end >= 0); }
@@ -395,8 +408,10 @@ class ndbxfrm_file
   int read_header(ndbxfrm_input_iterator* in,
                   const byte* pwd_key,
                   size_t pwd_key_len,
-                  size_t* max_trailer_size);
-  int read_trailer(ndbxfrm_input_reverse_iterator* in);
+                  size_t* max_trailer_size,
+                  ndb_ndbxfrm1::header& header);
+  int read_trailer(ndbxfrm_input_reverse_iterator* in,
+                   ndb_ndbxfrm1::trailer& trailer);
   int generate_keying_material(ndb_ndbxfrm1::header* ndbxfrm1,
                                const byte* pwd_key,
                                size_t pwd_key_len,
