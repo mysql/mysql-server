@@ -3,6 +3,8 @@
 --source include/have_optimizer_trace.inc
 # InnoDB page size influences cost numbers
 
+--source suite/opt_trace/include/elide_trace_costs.inc
+
 let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
 eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
 
@@ -527,6 +529,7 @@ enable_query_log;
 ANALYZE TABLE t1;
 
 EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1;
+--replace_regex $elide_trace_costs
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 DROP TABLE t1;
 
