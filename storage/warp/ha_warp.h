@@ -91,6 +91,7 @@
 #include "include/fastbit/resource.h"
 #include "include/fastbit/util.h"
 #include "include/fastbit/qExpr.h"
+#include "include/fastbit/index.h"
 
 // WARP includes
 #include "sparse.hpp"
@@ -613,7 +614,7 @@ class ha_warp : public handler {
   void write_buffered_rows_to_disk();
   void foreground_write();
   int append_column_filter(const Item* cond, std::string& push_where_clause); 
-  static void maintain_indexes(const char* datadir);
+  void maintain_indexes(const char* datadir);
   void open_deleted_bitmap(int lock_mode = LOCK_SH);
   void close_deleted_bitmap();
   bool is_deleted(uint64_t rowid);
@@ -779,6 +780,7 @@ class ha_warp : public handler {
   bool is_row_visible_to_read(uint64_t rowid);
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
+  
   //int truncate(dd::Table *);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);

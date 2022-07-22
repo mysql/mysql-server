@@ -80,7 +80,6 @@
 using namespace SIMDCompressionLib;
 #endif
 
-
 // Stuff for shares */
 mysql_mutex_t warp_mutex;
 static std::unique_ptr<collation_unordered_multimap<std::string, WARP_SHARE *>>
@@ -160,7 +159,7 @@ static int warp_init_func(void *p) {
   handlerton *warp_hton;
   ibis::fileManager::adjustCacheSize(my_cache_size);
   ibis::init(NULL, "/tmp/fastbit.log");
-  ibis::util::setVerboseLevel(0);
+  ibis::util::setVerboseLevel(1);
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
 #endif
@@ -819,15 +818,17 @@ std::string ha_warp::get_writer_partition() {
 /* write the rows and destroy the writer*/
 void ha_warp::write_buffered_rows_to_disk() {
   mysql_mutex_lock(&share->mutex);
+
   std::string part_dir = get_writer_partition();
   auto part_dir_copy = strdup(part_dir.c_str());
   auto part_name = basename(part_dir_copy);
+  //std::cerr << "Writing " << writer->mRows() << " to disk\n";  
   writer->write(part_dir.c_str(), part_name);
   writer->clearData();
+  //maintain_indexes(part_dir.c_str());
   free(part_dir_copy);
-  fflush(NULL);
-  delete writer;
-  writer = NULL;
+  //delete writer;
+  //writer = NULL;
   
   mysql_mutex_unlock(&share->mutex);
 };
@@ -1117,6 +1118,15 @@ int ha_warp::info(uint) {
   DBUG_RETURN(0);
 }
 
+int file_exists(const char *file_name) {
+  struct stat buf;
+  return (stat(file_name, &buf) == 0);
+}
+
+int file_exists(std::string file_name) {
+  return file_exists(file_name.c_str());
+}
+
 void index_builder(ibis::table* tbl, const char* cname, const char* comment) {
   tbl->buildIndex(cname, comment);
 }
@@ -1124,19 +1134,32 @@ void index_builder(ibis::table* tbl, const char* cname, const char* comment) {
    of bitmap index is to be set manually, the comment on the field will be
    taken into account. */
 void ha_warp::maintain_indexes(const char *datadir) {
+  
   ibis::table::stringArray columns;
-  int count=0;
-  for(auto it=update_column_set.begin();it!=update_column_set.end();++it) {
-    columns.push_back(("c" + std::to_string(*it)).c_str());
-    if(nullable_column_set[count] == 1) {
-      columns.push_back(("n" + std::to_string(*it)).c_str());
+  std::string opt = "";
+  
+  auto tbl = new ibis::part(datadir);
+  for (Field **field = table->field; *field; field++) {
+    std::string columnIndexFilename = std::string(datadir) + "/c" + std::to_string((*field)->field_index()) + ".idx";
+    std::string columnIndexNullFilename = std::string(datadir) + "/n" + std::to_string((*field)->field_index());
+    if(file_exists(columnIndexFilename)) {
+      ibis::fileManager::instance().flushFile(columnIndexFilename.c_str());
+      auto col = tbl->getColumn((*field)->field_index());
+      if(col->hasIndex()) {
+        col->loadIndex();
+        if (col->indexedRows() != tbl->nRows() ) {
+                    // rebuild the index if the existing one does not
+                    // have the same number of rows as the current data
+                    // partition
+                    col->unloadIndex();
+                    //col->purgeIndexFile();
+                    auto idx = ibis::index::create(col, NULL);
+                    delete idx;
+        }
+        col->unloadIndex();
+      }
     }
-    
-    ++count;
   }
-  auto base_table = ibis::mensa::create(datadir);
-  base_table->buildIndexes(columns);
-  delete (base_table);
 }
 
 /* The ::extra function is called a bunch of times before and after various
@@ -1149,9 +1172,9 @@ int ha_warp::extra(enum ha_extra_function) {
   /* if not bulk insert, and there are buffered inserts, write them out
      to disk.  This will destroy the writer.
   */
-  if(writer != NULL) {
+  /*if(writer != NULL) {
     write_buffered_rows_to_disk();
-  }
+  }*/
   return 0;
 }
 
@@ -1215,20 +1238,11 @@ THR_LOCK_DATA **ha_warp::store_lock(THD *, THR_LOCK_DATA **to,
   DBUG_RETURN(to);
 }
 
-int file_exists(const char *file_name) {
-  struct stat buf;
-  return (stat(file_name, &buf) == 0);
-}
-
-int file_exists(std::string file_name) {
-  return file_exists(file_name.c_str());
-}
-
 void ha_warp::create_writer(TABLE *table_arg) {
   if(writer != NULL) {
-    // delete writer;
     return;
   }
+  
   /*
   Add the columns of the table to the writer object.
 
@@ -1378,7 +1392,7 @@ void ha_warp::create_writer(TABLE *table_arg) {
       }
     }
     
-    writer->addColumn(name.c_str(), datatype, NULL, "none");
+    writer->addColumn(name.c_str(), datatype, NULL, index_spec);
 
     /* Columns which are NULLable have a NULL marker.  A better approach might
        to have one NULL bitmap stored as a separate column instead of one byte
@@ -1390,8 +1404,8 @@ void ha_warp::create_writer(TABLE *table_arg) {
       // correspondingly numbered column");
       writer->addColumn(nname.c_str(), ibis::UBYTE,
                         "NULL marker for the correspondingly numbered column",
-                        //"<binning none/><encoding equality/>");
-                        "none");
+                        "<binning none/><encoding equality/>");
+                        //"none");
     }
   }
   /* This is the psuedo-rowid which is used for deletes and updates */
@@ -1912,6 +1926,7 @@ fetch_again:
       assert(base_table != NULL);
             
       // this will do some IO to read in projected columns that where not used for filters
+      maintain_indexes(find_it->first.c_str());
       filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
       
       if(!filtered_table) {
@@ -1937,6 +1952,8 @@ fetch_again:
       
       base_table = ibis::table::create((*part_it)->currentDataDir());
       assert(base_table != NULL);
+      
+      maintain_indexes((*part_it)->currentDataDir());
       filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
       
       if(filtered_table==NULL) {
@@ -2091,7 +2108,7 @@ int ha_warp::rnd_end() {
   blobroot.Clear();
    
   push_where_clause = "";
-    
+
   if(cursor) delete cursor;
   if(filtered_table) delete filtered_table;
   if(base_table) delete base_table;
@@ -2103,6 +2120,12 @@ int ha_warp::rnd_end() {
     } 
     delete partitions;
   }
+  
+  if(writer != NULL) {
+    write_buffered_rows_to_disk();
+  }
+  ibis::fileManager::instance().flushDir(share->data_dir_name);
+
   base_table = NULL;
   filtered_table = NULL;
   cursor = NULL;
