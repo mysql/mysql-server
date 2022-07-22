@@ -13,6 +13,8 @@
 #include "utilidor.h"   // ibis::util::reorder
 #include <sstream>      // std::ostringstream
 
+#define FASTBIT_SYNC_WRITE 1
+
 //////////////////////////////////////////////////////////////////////
 // functions of class bundle
 

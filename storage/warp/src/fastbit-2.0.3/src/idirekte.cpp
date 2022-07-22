@@ -7,6 +7,7 @@
 #include <typeinfo>     // std::typeid
 #include <memory>       // std::unique_ptr
 
+#define FASTBIT_SYNC_WRITE 1
 /// Constructing a new ibis::direkte object from base data in a file.
 /// Both arguments are expected to be valid pointers.
 ibis::direkte::direkte(const ibis::column* c, const char* f)

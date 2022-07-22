@@ -17,6 +17,8 @@
 #include <algorithm>    // std::copy
 #include <memory>       // std::unique_ptr
 
+#define FASTBIT_SYNC_WRITE 1 
+
 ////////////////////////////////////////////////////////////////////////
 // functions for ibis::category
 ibis::category::category(const part* tbl, FILE* file)

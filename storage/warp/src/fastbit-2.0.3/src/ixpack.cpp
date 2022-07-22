@@ -15,6 +15,7 @@
 #include "resource.h"
 
 #include <string>
+#define FASTBIT_SYNC_WRITE 1
 /// Constructor.
 /// Generate an ibis::pack from ibis::bin.
 ibis::pack::pack(const ibis::bin& rhs) {

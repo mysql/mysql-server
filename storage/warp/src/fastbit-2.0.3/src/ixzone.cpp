@@ -16,6 +16,7 @@
 
 #include <string>
 #include <limits>       // std::numeric_limits<double>::infinity()
+#define FASTBIT_SYNC_WRITE 1
 
 /// Copy constructor.
 /// Generate a ibis::zone from ibis::bin.

@@ -15,6 +15,7 @@
 #include "part.h"
 
 #include <sstream>      // std::ostringstream
+#define FASTBIT_SYNC_WRITE 1
 
 ////////////////////////////////////////////////////////////////////////
 ibis::fuzz::fuzz(const ibis::column *c, const char *f)

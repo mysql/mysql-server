@@ -11,6 +11,7 @@
 
 #include <algorithm>    // std::sort
 
+#define FASTBIT_SYNC_WRITE 1
 /// Constructor.  It first tries to read the terms (@c .terms) and the
 /// tdmat (@c .idx) files if they both exist.  If that fails, it will
 /// attempt to build an index using the externally provided term-document

@@ -20,6 +20,7 @@
 #include <sstream>      // std::ostringstream
 #include <typeinfo>     // std::typeid
 
+#define FASTBIT_SYNC_WRITE 1
 ////////////////////////////////////////////////////////////////////////
 // functions from ibis::irelic
 //

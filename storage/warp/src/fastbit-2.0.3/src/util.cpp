@@ -28,6 +28,8 @@
 #include <pwd.h>        // getpwuid
 #endif
 
+#define FASTBIT_SYNC_WRITE 1
+
 // global variables
 #if defined(DEBUG)
 int FASTBIT_CXX_DLLSPEC ibis::gVerbose = 10;

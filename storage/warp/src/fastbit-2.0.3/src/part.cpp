@@ -44,6 +44,8 @@
 #define pclose _pclose
 #endif
 
+#define FASTBIT_SYNC_WRITE 1
+
 // A higher quality random number generator within the file scope.  Use a
 // function to (possibly) delay the invocation of the constructor.
 static ibis::MersenneTwister& _ibis_part_urand() {
@@ -216,7 +218,8 @@ extern "C" {
                 if (! (col->upperBound() >= col->lowerBound()))
                     col->computeMinMax();
                 col->loadIndex(iopt);
-                if (col->indexedRows() != pool.tbl.nRows()) {
+                if (col->indexedRows() != pool.tbl.nRows() && col->indexedRows() > 0) {
+                    std::cerr << "FBHERE\n";
                     // rebuild the index if the existing one does not
                     // have the same number of rows as the current data
                     // partition
@@ -226,6 +229,7 @@ extern "C" {
                         tmp(ibis::index::create(col, 0, iopt));
                 }
                 else {
+                    std::cerr << "FBHERE2\n";
                     col->unloadIndex();
                 }
                 // std::string snm;

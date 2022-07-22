@@ -22,6 +22,7 @@
 // be misunderstood!
 #undef max
 #undef min
+#define FASTBIT_SYNC_WRITE 1
 
 /// Add metadata about a new column.
 /// Return value

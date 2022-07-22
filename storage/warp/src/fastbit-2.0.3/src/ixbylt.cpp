@@ -15,6 +15,7 @@
 #include "part.h"
 
 #include <sstream> // std::ostringstream
+#define FASTBIT_SYNC_WRITE 1
 
 ////////////////////////////////////////////////////////////////////////
 ibis::bylt::bylt(const ibis::column *c, const char *f)

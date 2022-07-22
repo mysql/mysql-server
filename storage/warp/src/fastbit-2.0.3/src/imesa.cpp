@@ -14,6 +14,7 @@
 #include "resource.h"
 
 #include <string>
+#define FASTBIT_SYNC_WRITE 1
 
 /// Constructor.  Generate index from the base data.
 ibis::mesa::mesa(const ibis::column* c, const char* f) : ibis::bin(c, f) {

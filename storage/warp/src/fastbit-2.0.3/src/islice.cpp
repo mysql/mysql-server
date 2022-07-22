@@ -14,6 +14,7 @@
 
 #include <typeinfo>     // typeid
 
+#define FASTBIT_SYNC_WRITE 1
 ////////////////////////////////////////////////////////////////////////
 // functions from ibis::islice
 //

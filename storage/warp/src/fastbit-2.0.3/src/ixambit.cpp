@@ -18,6 +18,8 @@
 
 #include <string>
 
+#define FASTBIT_SYNC_WRITE 1
+
 // generate a new index from attribute values (stored in a file)
 ibis::ambit::ambit(const ibis::column* c, const char* f) : ibis::bin(c, f) {
     if (c == 0) return;

@@ -21,6 +21,8 @@
 #include <memory>       // std::unique_ptr
 #include <algorithm>    // std::reverse, std::copy
 
+#define FASTBIT_SYNC_WRITE 1
+
 /// Constructor.  The responsibility of freeing the memory pointed by the
 /// elements of buf is transferred to this object.
 ibis::bord::bord(const char *tn, const char *td, uint64_t nr,

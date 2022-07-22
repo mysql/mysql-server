@@ -16,6 +16,7 @@
 #include "resource.h"
 
 #include <string>
+#define FASTBIT_SYNC_WRITE 1
 //
 // generate a ibis::pale from ibis::bin
 ibis::pale::pale(const ibis::bin& rhs) {

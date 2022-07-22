@@ -31,6 +31,8 @@
 #endif
 #endif
 
+#define FASTBIT_SYNC_WRITE 1
+
 // constants defined for type name and type code used in the metadata file
 static const char* _ibis_TYPESTRING_local[] = {
     "UNKNOWN", "OID", "BYTE", "UBYTE", "SHORT", "USHORT", "INT", "UINT",

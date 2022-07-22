@@ -12,6 +12,7 @@
 #include "column.h"
 #include "resource.h"
 
+#define FASTBIT_SYNC_WRITE 1
 ////////////////////////////////////////////////////////////////////////
 // functions from ibis::iskive
 //

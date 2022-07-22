@@ -17,6 +17,7 @@
 #include "resource.h"
 #include <sstream> // std::ostringstream
 
+#define FASTBIT_SYNC_WRITE 1
 ////////////////////////////////////////////////////////////////////////
 // functions from ibis::range
 //

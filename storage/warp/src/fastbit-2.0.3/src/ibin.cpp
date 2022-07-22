@@ -24,6 +24,8 @@
 #define IBIS_DEFAULT_NBINS 10000
 #endif
 
+#define FASTBIT_SYNC_WRITE 1
+
 /// Constructor.  Construct a bitmap index from current data.
 ibis::bin::bin(const ibis::column* c, const char* f)
     : ibis::index(c), nobs(0) {

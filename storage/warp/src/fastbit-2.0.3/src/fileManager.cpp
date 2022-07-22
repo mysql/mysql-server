@@ -29,6 +29,7 @@
 #include <time.h>
 #include <stdexcept>    // std::runtime_error
 #include <iomanip>      // std::setprecision
+#include <iostream>
 
 #if defined(HAVE_SYS_SYSCTL) || defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h> // sysctl
@@ -220,6 +221,8 @@ void ibis::fileManager::printStatus(std::ostream& out) const {
 
 // remove a file from cache
 void ibis::fileManager::flushFile(const char* name) {
+    //std::cerr << "ibis::fileManager::flushFile: " << name << "\n";
+
     if (name == 0 || *name == 0) return;
     ibis::util::mutexLock lck(&mutex, name);
     fileList::iterator it = mapped.find(name);

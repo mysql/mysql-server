@@ -8,6 +8,8 @@
 
 #include <iomanip>      // std::setprecision, std::setw
 
+#define FASTBIT_SYNC_WRITE 1
+
 /// Contruct a blob by reading from a metadata file.
 ibis::blob::blob(const part *prt, FILE *file) : ibis::column(prt, file) {
 }
