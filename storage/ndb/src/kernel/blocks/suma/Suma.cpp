@@ -7090,25 +7090,23 @@ Suma::out_of_buffer_release(Signal* signal, Uint32 buck)
   ndbrequire(buck < NO_OF_BUCKETS);
   Bucket* bucket = c_buckets + buck;
   Uint32 tail= bucket->m_buffer_tail;
-  
+
   if(tail != RNIL)
   {
     Buffer_page* page= c_page_pool.getPtr(tail);
     bucket->m_buffer_tail = page->m_next_page;
     free_page(tail, page);
-    signal->theData[0] = SumaContinueB::OUT_OF_BUFFER_RELEASE;
-    signal->theData[1] = buck;
-    sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 2, JBB);
-    return;
   }
 
-  /**
-   * Clear head
-   */
-  bucket->m_buffer_head.m_page_id = RNIL;
-  bucket->m_buffer_head.m_page_pos = Buffer_page::DATA_WORDS + 1;
-  
-  buck++;
+  // If the page freed above is the last page, update the head
+  // and continue releasing the next bucket.
+  if (tail == RNIL) {
+    bucket->m_buffer_head.m_page_id = RNIL;
+    bucket->m_buffer_head.m_page_pos = Buffer_page::DATA_WORDS + 1;
+
+    buck++;
+  }
+
   if(buck != c_no_of_buckets)
   {
     signal->theData[0] = SumaContinueB::OUT_OF_BUFFER_RELEASE;
