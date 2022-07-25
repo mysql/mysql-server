@@ -8641,7 +8641,15 @@ bool JOIN::attach_join_conditions(plan_idx last_tab) {
     assert(sjm);
     if (sjm->inner_table_index + sjm->table_count - 1 == (uint)last_tab) {
       // we're at last table of sjmat nest
-      auto join_cond = best_ref[mat_tbl]->join_cond();
+      Item *join_cond = best_ref[mat_tbl]->join_cond();
+      TABLE_LIST *tr = best_ref[mat_tbl]->table_ref;
+      while (join_cond == nullptr && tr->embedding != nullptr &&
+             tr->embedding->is_derived()) {
+        // If subquery table(s) come from a derived table
+        join_cond = tr->embedding->join_cond();
+        tr = tr->embedding;
+        assert(tr->is_merged());
+      }
       if (join_cond && attach_join_condition_to_nest(sjm->inner_table_index,
                                                      last_tab, join_cond, true))
         return true;
