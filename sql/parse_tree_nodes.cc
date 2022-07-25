@@ -148,31 +148,32 @@ PT_joined_table *PT_table_reference::add_cross_join(PT_cross_join *cj) {
 }
 
 bool PT_joined_table::contextualize_tabs(Parse_context *pc) {
-  if (tr1 != nullptr) return false;  // already done
+  if (m_left_table_ref != nullptr) return false;  // already done
 
-  bool was_right = m_type & JTT_RIGHT;
-  if (was_right)  // rewrite to LEFT
-  {
+  bool was_right_join = m_type & JTT_RIGHT;
+  // rewrite to LEFT JOIN
+  if (was_right_join) {
     m_type =
         static_cast<PT_joined_table_type>((m_type & ~JTT_RIGHT) | JTT_LEFT);
-    std::swap(tab1_node, tab2_node);
+    std::swap(m_left_pt_table, m_right_pt_table);
   }
 
-  if (tab1_node->contextualize(pc) || tab2_node->contextualize(pc)) return true;
+  if (m_left_pt_table->contextualize(pc) || m_right_pt_table->contextualize(pc))
+    return true;
 
-  tr1 = tab1_node->value;
-  tr2 = tab2_node->value;
+  m_left_table_ref = m_left_pt_table->m_table_ref;
+  m_right_table_ref = m_right_pt_table->m_table_ref;
 
-  if (tr1 == nullptr || tr2 == nullptr) {
-    error(pc, join_pos);
+  if (m_left_table_ref == nullptr || m_right_table_ref == nullptr) {
+    error(pc, m_join_pos);
     return true;
   }
 
   if (m_type & JTT_LEFT) {
-    tr2->outer_join = true;
-    if (was_right) {
-      tr2->join_order_swapped = true;
-      tr2->query_block->set_right_joins();
+    m_right_table_ref->outer_join = true;
+    if (was_right_join) {
+      m_right_table_ref->join_order_swapped = true;
+      m_right_table_ref->query_block->set_right_joins();
     }
   }
 
@@ -1299,9 +1300,10 @@ bool PT_table_factor_function::contextualize(Parse_context *pc) {
   auto ti = new (pc->mem_root) Table_ident(alias, jtf);
   if (ti == nullptr) return true;
 
-  value = pc->select->add_table_to_list(pc->thd, ti, m_table_alias.str, 0,
-                                        TL_READ, MDL_SHARED_READ);
-  if (value == nullptr || pc->select->add_joined_table(value)) return true;
+  m_table_ref = pc->select->add_table_to_list(pc->thd, ti, m_table_alias.str, 0,
+                                              TL_READ, MDL_SHARED_READ);
+  if (m_table_ref == nullptr || pc->select->add_joined_table(m_table_ref))
+    return true;
 
   return false;
 }
@@ -1347,15 +1349,16 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
   Table_ident *ti = new (pc->mem_root) Table_ident(unit);
   if (ti == nullptr) return true;
 
-  value = pc->select->add_table_to_list(pc->thd, ti, m_table_alias, 0, TL_READ,
-                                        MDL_SHARED_READ);
-  if (value == nullptr) return true;
-  if (column_names.size()) value->set_derived_column_names(&column_names);
+  m_table_ref = pc->select->add_table_to_list(pc->thd, ti, m_table_alias, 0,
+                                              TL_READ, MDL_SHARED_READ);
+  if (m_table_ref == nullptr) return true;
+  if (column_names.size()) m_table_ref->set_derived_column_names(&column_names);
   if (m_lateral) {
     // Mark the unit as LATERAL, by turning on one bit in the map:
-    value->derived_query_expression()->m_lateral_deps = OUTER_REF_TABLE_BIT;
+    m_table_ref->derived_query_expression()->m_lateral_deps =
+        OUTER_REF_TABLE_BIT;
   }
-  if (pc->select->add_joined_table(value)) return true;
+  if (pc->select->add_joined_table(m_table_ref)) return true;
 
   return false;
 }
@@ -1367,7 +1370,7 @@ bool PT_table_factor_joined_table::contextualize(Parse_context *pc) {
   if (outer_query_block->init_nested_join(pc->thd)) return true;
 
   if (m_joined_table->contextualize(pc)) return true;
-  value = m_joined_table->value;
+  m_table_ref = m_joined_table->m_table_ref;
 
   if (outer_query_block->end_nested_join() == nullptr) return true;
 
@@ -3609,11 +3612,11 @@ bool PT_table_factor_table_ident::contextualize(Parse_context *pc) {
   THD *thd = pc->thd;
   Yacc_state *yyps = &thd->m_parser_state->m_yacc;
 
-  value = pc->select->add_table_to_list(
+  m_table_ref = pc->select->add_table_to_list(
       thd, table_ident, opt_table_alias, 0, yyps->m_lock_type, yyps->m_mdl_type,
       opt_key_definition, opt_use_partition, nullptr, pc);
-  if (value == nullptr) return true;
-  if (pc->select->add_joined_table(value)) return true;
+  if (m_table_ref == nullptr) return true;
+  if (pc->select->add_joined_table(m_table_ref)) return true;
   return false;
 }
 
@@ -3622,31 +3625,33 @@ bool PT_table_reference_list_parens::contextualize(Parse_context *pc) {
     return true;
 
   assert(table_list.size() >= 2);
-  value = pc->select->nest_last_join(pc->thd, table_list.size());
-  return value == nullptr;
+  m_table_ref = pc->select->nest_last_join(pc->thd, table_list.size());
+  return m_table_ref == nullptr;
 }
 
 bool PT_joined_table::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || contextualize_tabs(pc)) return true;
 
-  if (m_type & JTT_NATURAL) tr1->add_join_natural(tr2);
+  if (m_type & JTT_NATURAL)
+    m_left_table_ref->add_join_natural(m_right_table_ref);
 
-  if (m_type & JTT_STRAIGHT) tr2->straight = true;
+  if (m_type & JTT_STRAIGHT) m_right_table_ref->straight = true;
 
   return false;
 }
 
 bool PT_cross_join::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  value = pc->select->nest_last_join(pc->thd);
-  return value == nullptr;
+  m_table_ref = pc->select->nest_last_join(pc->thd);
+  return m_table_ref == nullptr;
 }
 
 bool PT_joined_table_on::contextualize(Parse_context *pc) {
   if (this->contextualize_tabs(pc)) return true;
 
-  if (push_new_name_resolution_context(pc, this->tr1, this->tr2)) {
-    this->error(pc, this->join_pos);
+  if (push_new_name_resolution_context(pc, this->m_left_table_ref,
+                                       this->m_right_table_ref)) {
+    this->error(pc, this->m_join_pos);
     return true;
   }
 
@@ -3660,21 +3665,21 @@ bool PT_joined_table_on::contextualize(Parse_context *pc) {
   }
   assert(sel == pc->select);
 
-  add_join_on(this->tr2, on);
+  add_join_on(this->m_right_table_ref, on);
   pc->thd->lex->pop_context();
   assert(sel->parsing_place == CTX_ON);
   sel->parsing_place = CTX_NONE;
-  value = pc->select->nest_last_join(pc->thd);
-  return value == nullptr;
+  m_table_ref = pc->select->nest_last_join(pc->thd);
+  return m_table_ref == nullptr;
 }
 
 bool PT_joined_table_using::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
-  tr1->add_join_natural(tr2);
-  value = pc->select->nest_last_join(pc->thd);
-  if (value == nullptr) return true;
-  value->join_using_fields = using_fields;
+  m_left_table_ref->add_join_natural(m_right_table_ref);
+  m_table_ref = pc->select->nest_last_join(pc->thd);
+  if (m_table_ref == nullptr) return true;
+  m_table_ref->join_using_fields = using_fields;
 
   return false;
 }

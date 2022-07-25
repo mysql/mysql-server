@@ -404,7 +404,7 @@ class PT_joined_table;
 
 class PT_table_reference : public Parse_tree_node {
  public:
-  Table_ref *value;
+  Table_ref *m_table_ref;
 
   /**
     Lets us build a parse tree top-down, which is necessary due to the
@@ -516,23 +516,21 @@ class PT_joined_table : public PT_table_reference {
   typedef PT_table_reference super;
 
  protected:
-  PT_table_reference *tab1_node;
-  POS join_pos;
+  PT_table_reference *m_left_pt_table;
+  POS m_join_pos;
   PT_joined_table_type m_type;
-  PT_table_reference *tab2_node;
+  PT_table_reference *m_right_pt_table;
 
-  Table_ref *tr1;
-  Table_ref *tr2;
+  Table_ref *m_left_table_ref{nullptr};
+  Table_ref *m_right_table_ref{nullptr};
 
  public:
   PT_joined_table(PT_table_reference *tab1_node_arg, const POS &join_pos_arg,
                   PT_joined_table_type type, PT_table_reference *tab2_node_arg)
-      : tab1_node(tab1_node_arg),
-        join_pos(join_pos_arg),
+      : m_left_pt_table(tab1_node_arg),
+        m_join_pos(join_pos_arg),
         m_type(type),
-        tab2_node(tab2_node_arg),
-        tr1(nullptr),
-        tr2(nullptr) {
+        m_right_pt_table(tab2_node_arg) {
     static_assert(is_single_bit(JTT_INNER), "not a single bit");
     static_assert(is_single_bit(JTT_STRAIGHT), "not a single bit");
     static_assert(is_single_bit(JTT_NATURAL), "not a single bit");
@@ -549,14 +547,14 @@ class PT_joined_table : public PT_table_reference {
     the table reference on the left-hand side.
   */
   PT_joined_table *add_cross_join(PT_cross_join *cj) override {
-    tab1_node = tab1_node->add_cross_join(cj);
+    m_left_pt_table = m_left_pt_table->add_cross_join(cj);
     return this;
   }
 
   /// Adds the table reference as the right-hand side of this join.
   void add_rhs(PT_table_reference *table) {
-    assert(tab2_node == nullptr);
-    tab2_node = table;
+    assert(m_right_pt_table == nullptr);
+    m_right_pt_table = table;
   }
 
   bool contextualize(Parse_context *pc) override;
