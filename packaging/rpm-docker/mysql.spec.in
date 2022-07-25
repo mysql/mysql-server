@@ -382,6 +382,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/ndb_index_stat
 %attr(755, root, root) %{_bindir}/ndb_redo_log_reader
 %attr(755, root, root) %{_bindir}/ndb_restore
+%attr(755, root, root) %{_bindir}/ndb_secretsfile_reader
 %attr(755, root, root) %{_bindir}/ndb_select_all
 %attr(755, root, root) %{_bindir}/ndb_select_count
 %attr(755, root, root) %{_bindir}/ndb_show_tables

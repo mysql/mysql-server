@@ -135,6 +135,7 @@ Description: nodejs
 /usr/bin/ndb_print_sys_file
 /usr/bin/ndb_redo_log_reader
 /usr/bin/ndb_restore
+/usr/bin/ndb_secretsfile_reader
 /usr/bin/ndb_select_all
 /usr/bin/ndb_select_count
 /usr/bin/ndb_show_tables
@@ -162,13 +163,15 @@ Description: nodejs
 /usr/share/man/man1/ndb_print_frag_file.1*
 /usr/share/man/man1/ndb_print_schema_file.1*
 /usr/share/man/man1/ndb_print_sys_file.1*
+/usr/share/man/man1/ndb_redo_log_reader.1*
 /usr/share/man/man1/ndb_restore.1*
+/usr/share/man/man1/ndb_secretsfile_reader.1*
 /usr/share/man/man1/ndb_select_all.1*
 /usr/share/man/man1/ndb_select_count.1*
 /usr/share/man/man1/ndb_show_tables.1*
 /usr/share/man/man1/ndb_size.pl.1*
 /usr/share/man/man1/ndb_top.1*
 /usr/share/man/man1/ndb_waiter.1*
-/usr/share/man/man1/ndb_redo_log_reader.1*
 /usr/share/man/man1/ndbinfo_select_all.1*
+/usr/share/man/man1/ndbxfrm.1*
 ")

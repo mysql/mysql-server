@@ -208,11 +208,18 @@ NDB_ADD_EXECUTABLE(ndb_move_data
   )
 
 NDB_ADD_EXECUTABLE(ndbxfrm
-  ndbxfrm.cpp
-  COMPONENT ClusterTools
-  ENABLE_EXPORTS
-  LINK_LIBRARIES ndbmgmapi ndbgeneral ndbportlib
-  )
+        ndbxfrm.cpp
+        COMPONENT ClusterTools
+        ENABLE_EXPORTS
+        LINK_LIBRARIES ndbmgmapi ndbgeneral ndbportlib
+        )
+
+NDB_ADD_EXECUTABLE(ndb_secretsfile_reader
+        ndb_secretsfile_reader.cpp
+        COMPONENT ClusterTools
+        ENABLE_EXPORTS
+        LINK_LIBRARIES ndbmgmapi ndbgeneral ndbportlib
+        )
 
 IF(NOT WIN32 AND NOT SOLARIS)
   IF (HAVE_NCURSESW_1 OR
