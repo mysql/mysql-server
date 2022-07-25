@@ -1224,7 +1224,7 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
-* Mon June 20 2022 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.31-1
+* Mon Jun 20 2022 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.31-1
 - Added component_test_mysql_command_services.so test component
 - Added test_services_command_services.so test plugin
 
