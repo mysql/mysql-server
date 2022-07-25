@@ -32,15 +32,23 @@ INCLUDE (CheckCSourceRuns)
 INCLUDE (CheckSymbolExists)
 INCLUDE (CheckTypeSize)
 
+IF(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+  SET(WIN_ARM64 1)
+ENDIF()
+
 IF(MY_COMPILER_IS_CLANG)
+  IF(WIN_ARM64)
+    IF(FORCE_UNSUPPORTED_COMPILER)
+      MESSAGE(WARNING "Using clang for ARM64 platforms is untested!")
+    ELSE()
+      MESSAGE(WARNING "Clang on windows ARM64 platforms is currently unsupported")
+    ENDIF()
+  ENDIF()
+
   SET(WIN32_CLANG 1)
   SET(CMAKE_INCLUDE_SYSTEM_FLAG_C "/imsvc ")
   SET(CMAKE_INCLUDE_SYSTEM_FLAG_CXX "/imsvc ")
   ADD_DEFINITIONS(-DWIN32_CLANG)
-ENDIF()
-
-IF(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
-  SET(WIN_ARM64 1)
 ENDIF()
 
 # avoid running system checks by using pre-cached check results
