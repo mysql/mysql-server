@@ -3161,6 +3161,7 @@ sub environment_setup {
       ndb_show_tables
       ndb_waiter
       ndbxfrm
+      ndb_secretsfile_reader
     );
 
     foreach my $tool ( @ndb_tools)
