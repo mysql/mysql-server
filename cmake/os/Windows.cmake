@@ -50,12 +50,18 @@ GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
 # We require at least Visual Studio 2019 Update 9 (aka 16.9),
-# which has version nr 1928.
+# which has version nr 1928 on x64 platforms.
 # https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=msvc-160
+# ARM64 platforms require VS2022 17.3
 MESSAGE(STATUS "MSVC_VERSION is ${MSVC_VERSION}")
-IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1928)
-  MESSAGE(FATAL_ERROR
-    "Visual Studio 2019 Update 9 or newer is required!")
+IF(NOT FORCE_UNSUPPORTED_COMPILER)
+  IF(WIN_ARM64 AND MSVC_VERSION LESS 1933)
+    MESSAGE(FATAL_ERROR
+      "Visual Studio 2022 17.3 or newer is required for ARM64!")
+  ELSEIF(MSVC_VERSION LESS 1928)
+    MESSAGE(FATAL_ERROR
+      "Visual Studio 2019 Update 9 or newer is required for x64!")
+  ENDIF()
 ENDIF()
 
 # OS display name (version_compile_os etc).
