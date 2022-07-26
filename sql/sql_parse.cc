@@ -2629,6 +2629,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 */
 
 bool alloc_query(THD *thd, const char *packet, size_t packet_length) {
+  DBUG_TRACE;
   /* Remove garbage at start and end of query */
   while (packet_length > 0 && my_isspace(thd->charset(), packet[0])) {
     packet++;
@@ -2647,7 +2648,8 @@ bool alloc_query(THD *thd, const char *packet, size_t packet_length) {
   query[packet_length] = '\0';
 
   thd->set_query(query, packet_length);
-
+  DBUG_PRINT("thd_query", ("thd->thread_id():%u thd:%p query:%s",
+                           thd->thread_id(), thd, query));
   return false;
 }
 
