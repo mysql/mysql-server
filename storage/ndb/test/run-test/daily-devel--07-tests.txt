@@ -256,3 +256,7 @@ cmd: testInterpreter
 args: -n BranchNonZeroLabel T6 T16
 max-time: 180
 
+cmd: testBasic
+args : -n AbortIgnoreError
+max-time: 360
+

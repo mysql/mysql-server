@@ -602,12 +602,12 @@ UtilTransactions::selectCount(Ndb* pNdb,
   abort(); /* Should never happen */
   return NDBT_FAILED;
 }
-  
+
 int 
 UtilTransactions::verifyIndex(Ndb* pNdb,
 			      const char* indexName,
 			      int parallelism,
-			      bool transactional){
+			      bool transactional) {
   
 
   const NdbDictionary::Index* pIndex
@@ -616,20 +616,61 @@ UtilTransactions::verifyIndex(Ndb* pNdb,
     ndbout << " Index " << indexName << " does not exist!" << endl;
     return NDBT_FAILED;
   }
-  
-  switch (pIndex->getType()){
-  case NdbDictionary::Index::UniqueHashIndex:
-    return verifyUniqueIndex(pNdb, pIndex, parallelism, transactional);
-  case NdbDictionary::Index::OrderedIndex:
-    return verifyOrderedIndex(pNdb, pIndex, parallelism, transactional);
-    break;
-  default:
-    ndbout << "Unknown index type" << endl;
-    break;
-  }
-  
-  return NDBT_FAILED;
+
+  /* Scan from table, check pks, check index without finding nulls */
+  return verifyIndex(pNdb, pIndex, false, false);
 }
+
+int UtilTransactions::verifyIndex(Ndb* pNdb,
+                                  const NdbDictionary::Index* targetIndex,
+                                  bool checkFromIndex,
+                                  bool findNulls)
+{
+  if (m_verbosity > 0)
+  {
+    ndbout << "|- Checking index " << targetIndex->getName()
+           << " options (checkFromIndex " << checkFromIndex
+           << " findNulls " << findNulls
+           << ")" << endl;
+  }
+  if (targetIndex)
+  {
+    if (!checkFromIndex)
+    {
+      /* Table scan drives check of index */
+      switch (targetIndex->getType()){
+      case NdbDictionary::Index::UniqueHashIndex:
+        return verifyUniqueIndex(pNdb, targetIndex, 1, true);
+      case NdbDictionary::Index::OrderedIndex:
+        return verifyOrderedIndex(pNdb, NULL, targetIndex, 1, true, findNulls);
+      default:
+        ndbout << "Unknown index type" << endl;
+        return NDBT_FAILED;
+      }
+    }
+    else
+    {
+      /* Index scan drives check of table */
+      switch (targetIndex->getType()){
+      case NdbDictionary::Index::UniqueHashIndex:
+        /* TODO : UI table scan not implemented yet */
+        return NDBT_OK;
+      case NdbDictionary::Index::OrderedIndex:
+        return verifyOrderedIndex(pNdb, targetIndex, NULL, 1, true, findNulls);
+      default:
+        ndbout << "Unknown index type" << endl;
+        return NDBT_FAILED;
+      }
+    }
+  }
+  else
+  {
+    /* NULL index - just check table */
+    return verifyOrderedIndex(pNdb, NULL, NULL, 1, true, findNulls);
+  }
+}
+
+
 
 int 
 UtilTransactions::verifyUniqueIndex(Ndb* pNdb,
@@ -693,7 +734,7 @@ restart:
       return NDBT_FAILED;
     }
 
-    pOp = pTrans->getNdbScanOperation(tab.getName());	
+    pOp = pTrans->getNdbScanOperation(tab.getName());
     if (pOp == NULL) {
       const NdbError err = pNdb->getNdbError();
       closeTransaction(pNdb);
@@ -1031,7 +1072,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
 	}
       }
       if (!(tabRow.c_str() == indexRow.c_str())){
-	ndbout << "Error when comapring records" << endl;
+	ndbout << "Error when comparing records" << endl;
 	ndbout << " tabRow: \n" << tabRow.c_str().c_str() << endl;
 	ndbout << " indexRow: \n" << indexRow.c_str().c_str() << endl;
 	goto close_all;
@@ -1057,20 +1098,21 @@ close_all:
 
 int 
 UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
-				     const NdbDictionary::Index* pIndex,
+                                     const NdbDictionary::Index* sourceIndex,
+				     const NdbDictionary::Index* destIndex,
 				     int parallelism,
-				     bool transactional){
+				     bool transactional,
+                                     bool findNulls){
   
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check;
-  NdbScanOperation     *pOp = NULL;
+  NdbScanOperation      *pOp = NULL;
   NdbIndexScanOperation *iop = NULL;
 
   NDBT_ResultRow       scanRow(tab);
   NDBT_ResultRow       pkRow(tab);
   NDBT_ResultRow       indexRow(tab);
-  const char * indexName = pIndex->getName();
 
   int res;
   parallelism = 1;
@@ -1097,7 +1139,17 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    pOp = pTrans->getNdbScanOperation(tab.getName());	
+    if (sourceIndex == NULL)
+    {
+      /* Scan table */
+      pOp = pTrans->getNdbScanOperation(tab.getName());
+    }
+    else
+    {
+      /* Scan ordered index */
+      pOp = pTrans->getNdbIndexScanOperation(sourceIndex->getName(),
+                                             tab.getName());
+    }
     if (pOp == NULL) {
       NDB_ERR(pTrans->getNdbError());
       closeTransaction(pNdb);
@@ -1136,77 +1188,106 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
     while(check == 0 && (eof = pOp->nextResult()) == 0){
       rows++;
 
-      bool null_found= false;
-      for(int a = 0; a<(int)pIndex->getNoOfColumns(); a++){
-	const NdbDictionary::Column *  col = pIndex->getColumn(a);
-	if (scanRow.attributeStore(col->getName())->isNULL())
-	{
-	  null_found= true;
-	  break;
-	}
+      bool checkDestIndex = (destIndex != NULL);
+      if (checkDestIndex &&
+          !findNulls)
+      {
+        /* Check for NULLs */
+        /* If we are checking the dest index, but not for null
+         * values, then we need to check now whether this row has
+         * null values or not to decide whether to check the dest index.
+         * Otherwise (not checking, or checking nulls) no need.
+         */
+        for(int a = 0; a<(int)destIndex->getNoOfColumns(); a++){
+          const NdbDictionary::Column *  col = destIndex->getColumn(a);
+          if (scanRow.attributeStore(col->getName())->isNULL())
+          {
+            /* This row has a null, no check of dest index this time */
+            checkDestIndex = false;
+            break;
+          }
+        }
       }
       
-      // Do pk lookup
+      // Do pk lookup to check that the row is reachable by pk
+      // in the base table
       NdbOperation * pk = pTrans->getNdbOperation(tab.getName());
-      if(!pk || pk->readTuple())
+      if (!pk || pk->readTuple(NdbOperation::LM_CommittedRead))
 	goto error;
-      if(equal(&tab, pk, scanRow) || get_values(pk, pkRow))
+      if (equal(&tab, pk, scanRow) || get_values(pk, pkRow))
 	goto error;
 
-      if(!null_found)
+      if (checkDestIndex)
       {
-	if((iop= pTrans->getNdbIndexScanOperation(indexName, 
-                                                  tab.getName())) != NULL)
-	{
-	  if(iop->readTuples(NdbScanOperation::LM_CommittedRead, 
-			     parallelism))
-	    goto error;
-	  if(get_values(iop, indexRow))
-	    goto error;
-          if(equal(pIndex, iop, scanRow))
+        /* Check that the row can be found via the dest index */
+        /* We set bounds on the dest index, but these may be loose
+         * so we may have to check through a number of non equal 
+         * candidate rows to find our row.
+         */
+        if ((iop= pTrans->getNdbIndexScanOperation(destIndex->getName(),
+                                                   tab.getName())) != NULL)
+        {
+          if (iop->readTuples(NdbScanOperation::LM_CommittedRead,
+                              parallelism))
             goto error;
-	}
-	else
+          if (get_values(iop, indexRow))
+            goto error;
+          if (equal(destIndex, iop, scanRow, true))
+            goto error;
+        }
+        else
         {
           goto error;
         }
-      }     
+      }
 
       check = pTrans->execute(NoCommit, AbortOnError);
       if(check)
 	goto error;
 
-      if(scanRow.c_str() != pkRow.c_str()){
-	g_err << "Error when comapring records" << endl;
-	g_err << " scanRow: \n" << scanRow.c_str().c_str() << endl;
-	g_err << " pkRow: \n" << pkRow.c_str().c_str() << endl;
+      if (scanRow.c_str() != pkRow.c_str()){
+	g_err << "Error when comparing records "
+              << " source (" << (sourceIndex?sourceIndex->getName():"Table")
+              << ") dest (" << (destIndex?destIndex->getName():"Table")
+              << endl;
+	g_err << " source scanRow: \n" << scanRow.c_str().c_str() << endl;
+	g_err << " lookup pkRow: \n" << pkRow.c_str().c_str() << endl;
 	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
-
-      if(!null_found)
+      else
       {
-	if((res= iop->nextResult()) != 0){
-	  g_err << "Failed to find row using index: " << res << endl;
-	  NDB_ERR(pTrans->getNdbError());
-	  closeTransaction(pNdb);
-	  return NDBT_FAILED;
-	}
+        //g_err << "Pk ok" << endl;
+      }
+
+      if (checkDestIndex)
+      {
+        Uint32 candidate_row_count = 0;
+        const BaseString scanRowString = scanRow.c_str();
+        while (true)
+        {
+          if ((res= iop->nextResult()) != 0){
+            g_err << "Failed to find row using index: "
+                  << destIndex->getName() << endl;
+            g_err << " source index : " << (sourceIndex?sourceIndex->getName():"Table") << endl;
+            g_err << " source scanRow: \n" << scanRow.c_str().c_str() << endl;
+            g_err << " index candidate rows : " << candidate_row_count << endl;
+            NDB_ERR(pTrans->getNdbError());
+            closeTransaction(pNdb);
+            return NDBT_FAILED;
+          }
+
+          candidate_row_count++;
 	
-	if(scanRow.c_str() != indexRow.c_str()){
-	  g_err << "Error when comapring records" << endl;
-	  g_err << " scanRow: \n" << scanRow.c_str().c_str() << endl;
-	  g_err << " indexRow: \n" << indexRow.c_str().c_str() << endl;
-	  closeTransaction(pNdb);
-	  return NDBT_FAILED;
-	}
-	
-	if(iop->nextResult() == 0){
-	  g_err << "Found extra row!!" << endl;
-	  g_err << " indexRow: \n" << indexRow.c_str().c_str() << endl;
-	  closeTransaction(pNdb);
-	  return NDBT_FAILED;
-	}
+          if (scanRowString == indexRow.c_str()){
+            //g_err << "Match found" << endl;
+            // Found row, exit
+            break;
+          }
+          //g_err << "No match between :" << endl;
+          //g_err << "  scanRow  : \n" << scanRow.c_str().c_str() << endl;
+          //g_err << "  indexRow : \n" << indexRow.c_str().c_str() << endl;
+        }
         iop->close(false,true);  // Close, and release 'iop'
         iop = NULL;
       }
@@ -1241,6 +1322,612 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 }
 
 int
+UtilTransactions::verifyTableAndAllIndexes(Ndb* pNdb,
+                                           bool findNulls,
+                                           bool bidirectional,
+                                           bool views,
+                                           bool allSources)
+{
+  if (verifyTableReplicas(pNdb, allSources) != NDBT_OK)
+  {
+    return NDBT_FAILED;
+  }
+
+  return verifyAllIndexes(pNdb, findNulls, bidirectional, views);
+}
+
+
+int
+UtilTransactions::verifyTableReplicas(Ndb* pNdb, bool allSources)
+{
+  Uint32 result = NDBT_OK;
+  if (!allSources)
+  {
+    /* Any source */
+    if (verifyTableReplicasWithSource(pNdb, 0) != NDBT_OK)
+    {
+      result = NDBT_FAILED;
+    }
+  }
+  else
+  {
+    Ndb_cluster_connection* ncc = &pNdb->get_ndb_cluster_connection();
+    Ndb_cluster_connection_node_iter nodeIter;
+    ncc->init_get_next_node(nodeIter);
+    unsigned int nodeId = 0;
+
+    while ((nodeId = ncc->get_next_alive_node(nodeIter)) != 0)
+    {
+      if (verifyTableReplicasWithSource(pNdb, nodeId) != NDBT_OK)
+      {
+        result = NDBT_FAILED;
+      }
+    }
+  }
+
+  return result;
+}
+
+
+int
+UtilTransactions::verifyTableReplicasWithSource(Ndb* pNdb, Uint32 sourceNodeId)
+{
+  int                  retryAttempt = 0;
+  const int            retryMax = 100;
+  int                  check;
+  NdbScanOperation      *pOp = NULL;
+  NdbIndexScanOperation *iop = NULL;
+
+  NDBT_ResultRow       scanRow(tab);
+  NDBT_ResultRow       pkRow(tab);
+
+  Uint32 numDataNodes = 0;
+  Uint32 dataNodes[256];
+  {
+    Ndb_cluster_connection* ncc = &pNdb->get_ndb_cluster_connection();
+    Ndb_cluster_connection_node_iter node_iter;
+    ncc->init_get_next_node(node_iter);
+    unsigned int node_id = ncc->get_next_alive_node(node_iter);
+    while (node_id != 0)
+    {
+      dataNodes[numDataNodes++] = node_id;
+      //ndbout_c("Found node %u", node_id);
+      node_id = ncc->get_next_alive_node(node_iter);
+    }
+    //ndbout_c("Found %u data nodes", numDataNodes);
+  }
+
+  if (m_verbosity > 0)
+  {
+    ndbout_c("|- Checking replicas of table %s with source node %u from %u data nodes",
+             tab.getName(),
+             sourceNodeId,
+             numDataNodes);
+  }
+
+  while (true){
+
+    if (retryAttempt >= retryMax){
+      g_err << "ERROR: has retried this operation " << retryAttempt
+	     << " times, failing!, line: " << __LINE__ << endl;
+      return NDBT_FAILED;
+    }
+    pTrans = pNdb->startTransaction(sourceNodeId, 0);
+    if (pTrans == NULL) {
+      const NdbError err = pNdb->getNdbError();
+
+      if (err.status == NdbError::TemporaryError){
+	NDB_ERR(err);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      NDB_ERR(err);
+      return NDBT_FAILED;
+    }
+    if (sourceNodeId && pTrans->getConnectedNodeId() != sourceNodeId)
+    {
+      g_err << "Transaction requested on node " << sourceNodeId
+            << " but running on node " << pTrans->getConnectedNodeId()
+            << " continuing..." << endl;
+    }
+
+    /* Scan table */
+    pOp = pTrans->getNdbScanOperation(tab.getName());
+
+    if (pOp == NULL) {
+      NDB_ERR(pTrans->getNdbError());
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
+    }
+
+    if( pOp->readTuples(NdbScanOperation::LM_Read) ) {
+      NDB_ERR(pTrans->getNdbError());
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
+    }
+
+    if(get_values(pOp, scanRow))
+    {
+      abort();
+    }
+
+    check = pTrans->execute(NoCommit, AbortOnError);
+    if( check == -1 ) {
+      const NdbError err = pTrans->getNdbError();
+
+      if (err.status == NdbError::TemporaryError){
+	NDB_ERR(err);
+	closeTransaction(pNdb);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      NDB_ERR(err);
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
+    }
+
+    int eof;
+    int rows = 0;
+    int checks = 0;
+    int mismatchRows = 0;
+    int mismatchReplicas = 0;
+    while(check == 0 && (eof = pOp->nextResult()) == 0){
+      rows++;
+      NdbTransaction* nodeTrans = NULL;
+
+      int mismatches = 0;
+      for (Uint32 n=0; n < numDataNodes; n++)
+      {
+        nodeTrans = pNdb->startTransaction(dataNodes[n], 0);
+        if (nodeTrans->getConnectedNodeId() != dataNodes[n])
+        {
+          g_err << "Tried to start transaction on node " << dataNodes[n]
+                << " but started on node " << nodeTrans->getConnectedNodeId() << endl;
+          closeTransaction(pNdb);
+          return NDBT_FAILED;
+        }
+
+        // Do pk lookup using simpleRead
+        NdbOperation * pk = nodeTrans->getNdbOperation(tab.getName());
+        if(!pk || pk->simpleRead())
+          goto lookuperror;
+        if(equal(&tab, pk, scanRow) || get_values(pk, pkRow))
+          goto lookuperror;
+
+        check = nodeTrans->execute(Commit, AbortOnError);
+        if(check)
+        {
+          goto lookuperror;
+        }
+
+        if(scanRow.c_str() != pkRow.c_str()){
+          g_err << "Error when comparing records" << endl;
+          g_err << " scanRow (from node  "
+                << pTrans->getConnectedNodeId()
+                << ") : \n" << scanRow.c_str().c_str() << endl;
+          g_err << " pkRow from node " << dataNodes[n] << " : \n"
+                << pkRow.c_str().c_str() << endl;
+          mismatches++;
+        }
+        else
+        {
+          //g_err << "Pk ok" << endl;
+        }
+
+        nodeTrans->close();
+        continue;
+    lookuperror:
+        const NdbError err = nodeTrans->getNdbError();
+        if (err.status == NdbError::TemporaryError){
+          NDB_ERR(err);
+          nodeTrans->close();
+          NdbSleep_MilliSleep(50);
+          retryAttempt++;
+          continue;
+        }
+        NDB_ERR(err);
+        nodeTrans->close();
+        closeTransaction(pNdb);
+        return NDBT_FAILED;
+      }
+
+      checks += numDataNodes;
+      mismatchReplicas += mismatches;
+      if (mismatches)
+        mismatchRows++;
+    } // while 'pOp->nextResult()'
+
+    pOp->close();
+    pOp = NULL;
+    if (eof == -1 || check == -1) {
+      const NdbError err = pTrans->getNdbError();
+
+      if (err.status == NdbError::TemporaryError){
+	NDB_ERR(err);
+	iop = 0;
+	closeTransaction(pNdb);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	rows--;
+	continue;
+      }
+      NDB_ERR(err);
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
+    }
+
+    closeTransaction(pNdb);
+
+    if (mismatchRows)
+    {
+      g_err << "|- Checked "
+            << rows << " rows with "
+            << checks << " checks across "
+            << numDataNodes << " data nodes." << endl;
+      g_err << "  Found "
+            << mismatchReplicas << " mismatches in "
+            << mismatchRows << " rows" << endl;
+      return NDBT_FAILED;
+    }
+
+    if (m_verbosity > 0)
+    {
+      ndbout << "|- Checked "
+             << rows
+             << " rows with " << checks
+             << " checks, no mismatches found." << endl;
+    }
+
+    return NDBT_OK;
+  }
+  abort(); /* Should never happen */
+  return NDBT_FAILED;
+
+}
+
+
+int
+UtilTransactions::verifyAllIndexes(Ndb* pNdb,
+                                   bool findNulls,
+                                   bool bidirectional,
+                                   bool views)
+{
+  NdbDictionary::Dictionary::List indexList;
+
+  if (pNdb->getDictionary()->listIndexes(indexList,
+                                         tab.getName()) != 0)
+  {
+    ndbout << " Failed to list indexes on table " << tab.getName()
+           << " Error " << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  for (unsigned i = 0; i < indexList.count; i++)
+  {
+    const char* indexName = indexList.elements[i].name;
+//    ndbout << "Verifying table " << tab.getName()
+//           << " index " << indexName
+//           << endl;
+
+    const NdbDictionary::Index* index = pNdb->getDictionary()->getIndex(indexName,
+                                                                        tab);
+    if (index == NULL)
+    {
+      g_err << "Failed to find index " << indexName << " on table "
+            << tab.getName() << endl;
+      return NDBT_FAILED;
+    }
+
+    /* Scan table, finding rows in index struct */
+    if (verifyIndex(pNdb,
+                    index,
+                    false, /* Scan table, check index */
+                    findNulls) != NDBT_OK)
+    {
+      return NDBT_FAILED;
+    }
+
+    if (bidirectional)
+    {
+      /* Scan index struct, finding rows in table */
+      if (verifyIndex(pNdb,
+                      index,
+                      true, /* Scan table, check index */
+                      findNulls) != NDBT_OK)
+      {
+        return NDBT_FAILED;
+      }
+    }
+
+
+    if (views)
+    {
+      /**
+       * Check that all data node's views of this index are
+       * aligned
+       */
+      if (verifyIndexViews(pNdb,
+                           index) != NDBT_OK)
+      {
+        return NDBT_FAILED;
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+UtilTransactions::verifyIndexViews(Ndb* pNdb,
+                                   const NdbDictionary::Index* pIndex)
+{
+  switch (pIndex->getType()){
+  case NdbDictionary::Index::UniqueHashIndex:
+    /* Not yet implemented unique index view verification */
+    return NDBT_OK;
+  case NdbDictionary::Index::OrderedIndex:
+    return verifyOrderedIndexViews(pNdb,
+                                   pIndex);
+  default:
+    ndbout << "Unknown index type" << endl;
+    break;
+  }
+
+  return NDBT_FAILED;
+}
+
+/**
+ * verifyOrderedIndexViews
+ * Verify views of an ordered index are the same from all
+ * nodes
+ */
+int
+UtilTransactions::verifyOrderedIndexViews(Ndb* pNdb,
+                                          const NdbDictionary::Index* index)
+{
+  Uint32 numDataNodes = 0;
+  Uint32 dataNodes[256];
+  {
+    Ndb_cluster_connection* ncc = &pNdb->get_ndb_cluster_connection();
+    Ndb_cluster_connection_node_iter node_iter;
+    ncc->init_get_next_node(node_iter);
+    unsigned int node_id = ncc->get_next_alive_node(node_iter);
+    while (node_id != 0)
+    {
+      dataNodes[numDataNodes++] = node_id;
+      //ndbout_c("Found node %u", node_id);
+      node_id = ncc->get_next_alive_node(node_iter);
+    }
+    //ndbout_c("Found %u data nodes", numDataNodes);
+  }
+
+  if (numDataNodes == 1)
+  {
+    /* No replicas */
+    return NDBT_OK;
+  }
+
+  int result = NDBT_OK;
+
+  /* Compare overlapping pairs of replicas */
+  for (Uint32 comparison=0; comparison < numDataNodes -1; comparison++)
+  {
+    if (verifyTwoOrderedIndexViews(pNdb,
+                                   index,
+                                   dataNodes[comparison],
+                                   dataNodes[comparison+1]) != NDBT_OK)
+    {
+      result = NDBT_FAILED;
+    }
+  }
+
+  return result;
+}
+
+
+/**
+ * verifyTwoOrderedIndexViews
+ * Use an (ordered) zipper comparison to check that two
+ * views of an ordered index (from different nodes) are
+ * the same
+ */
+int
+UtilTransactions::verifyTwoOrderedIndexViews(Ndb* pNdb,
+                                             const NdbDictionary::Index* index,
+                                             Uint32 node1,
+                                             Uint32 node2)
+{
+  int                  retryAttempt = 0;
+  const int            retryMax = 100;
+  NdbTransaction* scan1Trans = NULL;
+  NdbTransaction* scan2Trans = NULL;
+  NdbIndexScanOperation *scan1Op = NULL;
+  NdbIndexScanOperation *scan2Op = NULL;
+
+  NDBT_ResultRow       scan1row(tab);
+  NDBT_ResultRow       scan2row(tab);
+
+  if (m_verbosity > 0)
+  {
+    ndbout << "|- Checking views of ordered index "
+           << index->getName()
+           << " on table " << tab.getName()
+           << " from two data nodes : "
+           << node1 << ", " << node2
+           << endl;
+  }
+
+  while (true){
+
+    if (retryAttempt >= retryMax){
+      g_err << "ERROR: has retried this operation " << retryAttempt
+	     << " times, failing!, line: " << __LINE__ << endl;
+      return NDBT_FAILED;
+    }
+
+    if (defineOrderedScan(pNdb, index, node1, scan1Trans, scan1Op, scan1row) != 0)
+    {
+      return NDBT_FAILED;
+    }
+
+    if (defineOrderedScan(pNdb, index, node2, scan2Trans, scan2Op, scan2row) != 0)
+    {
+      scan1Trans->close();
+      return NDBT_FAILED;
+    }
+
+    int result = NDBT_OK;
+
+    while (true)
+    {
+      /* Merge compare of ordered scan results */
+      int eof1 = scan1Op->nextResult();
+      int eof2 = scan2Op->nextResult();
+
+      if (eof1 == -1 || eof2 == -1)
+      {
+        /* Error */
+        const NdbError err = (eof1 == -1)?
+          scan1Op->getNdbError():
+          scan2Op->getNdbError();
+
+        if (err.status == NdbError::TemporaryError)
+        {
+          NDB_ERR(err);
+          goto temp_error;
+        }
+        NDB_ERR(err);
+        scan1Trans->close();
+        scan2Trans->close();
+        return NDBT_FAILED;
+      }
+
+      if (eof1 || eof2)
+      {
+        if ((eof1 == 1) && (eof2 == 1))
+        {
+          /* Finished */
+          break;
+        }
+
+        /* One scan finished before the other */
+        g_err << "Error : Scan on node "
+              << (eof1? node1 : node2)
+              << " returned fewer rows." << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+
+      if(scan1row.c_str() != scan2row.c_str()){
+	g_err << "Error when comparing entries for index "
+              << index->getName() << endl;
+	g_err << " row from node " << node1 << " : \n"
+              << scan1row.c_str().c_str() << endl;
+	g_err << " row from node " << node2 << " : \n"
+              << scan2row.c_str().c_str() << endl;
+        result = NDBT_FAILED;
+      }
+    } // while 'pOp->nextResult()'
+
+    scan1Trans->close();
+    scan2Trans->close();
+
+    return result;
+temp_error:
+    scan1Trans->close();
+    scan2Trans->close();
+    NdbSleep_MilliSleep(50);
+    retryAttempt++;
+  }
+  abort(); /* Should never happen */
+  return NDBT_FAILED;
+}
+
+int
+UtilTransactions::defineOrderedScan(Ndb* pNdb,
+                                    const NdbDictionary::Index* index,
+                                    Uint32 nodeId,
+                                    NdbTransaction*& scanTrans,
+                                    NdbIndexScanOperation*& scanOp,
+                                    NDBT_ResultRow& row)
+{
+  Uint32 retryAttempt = 0;
+  Uint32 retryMax = 10;
+  while (true){
+
+    if (retryAttempt >= retryMax){
+      g_err << "ERROR: has retried this operation " << retryAttempt
+	     << " times, failing!, line: " << __LINE__ << endl;
+      return NDBT_FAILED;
+    }
+
+    NdbTransaction* trans = pNdb->startTransaction(nodeId, 0);
+    if (trans == NULL) {
+      const NdbError err = pNdb->getNdbError();
+
+      if (err.status == NdbError::TemporaryError){
+        NDB_ERR(err);
+        NdbSleep_MilliSleep(50);
+        retryAttempt++;
+        continue;
+      }
+      NDB_ERR(err);
+      return NDBT_FAILED;
+    }
+
+    if (trans->getConnectedNodeId() != nodeId)
+    {
+      g_err << "Failed to start transaction on node " << nodeId << endl;
+      trans->close();
+      return NDBT_FAILED;
+    }
+
+    NdbIndexScanOperation* op = trans->getNdbIndexScanOperation(index->getName(),
+                                                                tab.getName());
+
+    if (op == NULL) {
+      NDB_ERR(trans->getNdbError());
+      trans->close();
+      return NDBT_FAILED;
+    }
+
+    if( op->readTuples(NdbScanOperation::LM_Read,
+                       NdbScanOperation::SF_OrderBy) ) {
+      NDB_ERR(trans->getNdbError());
+      trans->close();
+      return NDBT_FAILED;
+    }
+
+    if(get_values(op, row))
+    {
+      abort();
+    }
+
+    int check = trans->execute(NoCommit, AbortOnError);
+    if( check == -1 ) {
+      const NdbError err = trans->getNdbError();
+
+      if (err.status == NdbError::TemporaryError){
+	NDB_ERR(err);
+	trans->close();
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      NDB_ERR(err);
+      trans->close();
+      return NDBT_FAILED;
+    }
+
+    scanTrans = trans;
+    scanOp = op;
+    return NDBT_OK;
+  }
+}
+
+int
 UtilTransactions::get_values(NdbOperation* op, NDBT_ResultRow& dst)
 {
   for (int a = 0; a < tab.getNoOfColumns(); a++){
@@ -1256,10 +1943,19 @@ UtilTransactions::get_values(NdbOperation* op, NDBT_ResultRow& dst)
 
 int
 UtilTransactions::equal(const NdbDictionary::Index* pIndex, 
-			NdbOperation* op, const NDBT_ResultRow& src)
+			NdbOperation* op,
+                        const NDBT_ResultRow& src,
+                        bool skipNull)
 {
   for(Uint32 a = 0; a<pIndex->getNoOfColumns(); a++){
     const NdbDictionary::Column *  col = pIndex->getColumn(a);
+    if (skipNull &&
+        src.attributeStore(col->getName())->isNULL())
+    {
+      //ndbout_c("equal() exits before col %u", a);
+      /* Have defined as many bounds as we can */
+      return 0;
+    }
     if(op->equal(col->getName(), 
 		 src.attributeStore(col->getName())->aRef()) != 0){
       g_err << "Line: " << __LINE__ << " equal failed" << endl;
@@ -1509,3 +2205,14 @@ error:
   return return_code;
 }
 
+void
+UtilTransactions::setVerbosity(Uint32 v)
+{
+  m_verbosity = v;
+}
+
+Uint32
+UtilTransactions::getVerbosity() const
+{
+  return m_verbosity;
+}
