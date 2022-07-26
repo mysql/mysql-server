@@ -1,0 +1,87 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/assert.inc [group_replication_paxos_single_leader must be disabled]
+[connection server2]
+include/assert.inc [group_replication_paxos_single_leader must be disabled]
+[connection server3]
+include/assert.inc [group_replication_paxos_single_leader must be disabled]
+[connection server3]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = 1;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_paxos_single_leader = 1;
+include/start_group_replication.inc
+[connection server3]
+SET GLOBAL group_replication_paxos_single_leader = 1;
+include/start_group_replication.inc
+[connection server1]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server2]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server3]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+SELECT group_replication_switch_to_single_primary_mode();
+group_replication_switch_to_single_primary_mode()
+Mode switched to single-primary successfully.
+[connection server1]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server2]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server3]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server2]
+SET GLOBAL group_replication_paxos_single_leader = 0;
+[connection server3]
+SET GLOBAL group_replication_paxos_single_leader = 0;
+[connection server1]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server2]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server3]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+SELECT group_replication_set_communication_protocol("8.0.21");
+group_replication_set_communication_protocol("8.0.21")
+The operation group_replication_set_communication_protocol completed successfully
+[connection server1]
+include/assert.inc [group_replication_paxos_single_leader must be disabled]
+[connection server2]
+include/assert.inc [group_replication_paxos_single_leader must be disabled]
+[connection server3]
+include/assert.inc [group_replication_paxos_single_leader must be disabled]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+[connection server1]
+include/assert.inc [group_replication_paxos_single_leader must be disabled]
+[connection server2]
+include/assert.inc [group_replication_paxos_single_leader must be disabled]
+[connection server3]
+include/assert.inc [group_replication_paxos_single_leader must be disabled]
+SELECT group_replication_set_communication_protocol("8.0.27");
+group_replication_set_communication_protocol("8.0.27")
+The operation group_replication_set_communication_protocol completed successfully
+[connection server1]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server2]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server3]
+include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = 0;
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = 0;
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = 0;
+include/group_replication_end.inc

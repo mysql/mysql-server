@@ -1,0 +1,12 @@
+!include ../my.cnf
+
+[mysqld.1]
+
+[mysqld.2]
+
+[mysqld.3]
+report-port=        @mysqld.3.port
+
+[ENV]
+SERVER_MYPORT_3=                @mysqld.3.port
+SERVER_MYSOCK_3=                @mysqld.3.socket
