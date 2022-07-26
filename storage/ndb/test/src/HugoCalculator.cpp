@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -343,7 +343,7 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	{
 	  g_err << "|- Invalid data found in attribute " << i << ": \""
 		<< "Length of expected=" << real_len << endl
-		<< "Lenght of read=" 
+		<< "Length of read="
 		<< pRow->attributeStore(i)->get_size_in_bytes() << endl;
 	  result= -1;
 	}
@@ -365,9 +365,10 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 		<< pRow->attributeStore(i)->aRef()
 		<< "\" != \"" << res << "\"" << endl
 		<< "Length of expected=" << (unsigned)strlen(res) << endl
-		<< "Lenght of read="
+		<< "Length of read="
 		<< pRow->attributeStore(i)->get_size_in_bytes() << endl;
 	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
+          g_err << "|- Row id : " << id << endl;
 	  result = -1;
 	}
       }

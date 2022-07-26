@@ -5064,7 +5064,7 @@ void Dbacc::commitOperation(Signal* signal)
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   Uint32 op = opbits & Operationrec::OP_MASK;
   ndbrequire((opbits & Operationrec::OP_STATE_MASK) == Operationrec::OP_STATE_EXECUTED);
-  ndbassert((opbits & Operationrec::OP_PENDING_ABORT) == 0);
+  ndbrequire((opbits & Operationrec::OP_PENDING_ABORT) == 0);
   if ((opbits & Operationrec::OP_COMMIT_DELETE_CHECK) == 0 && 
       (op != ZREAD && op != ZSCAN_OP))
   {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -854,7 +854,8 @@ class LqhKeyRef {
   friend bool printLQHKEYREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLengthWithoutFlags = 5 );
+  STATIC_CONST( SignalLength = 6 );
 
 private:
 
@@ -866,8 +867,30 @@ private:
   Uint32 errorCode;
   Uint32 transId1;
   Uint32 transId2;
+  Uint32 flags;
+
+  static Uint32 getReplicaErrorFlag(const Uint32& flags);
+  static void setReplicaErrorFlag(Uint32& flags, Uint32 val);
+
+  enum Flags {
+    LKR_REPLICA_ERROR_SHIFT  = 0
+  };
 };
 
+inline
+Uint32
+LqhKeyRef::getReplicaErrorFlag(const Uint32& flags)
+{
+  return ((flags >> LKR_REPLICA_ERROR_SHIFT) & 0x1);
+}
+
+inline
+void
+LqhKeyRef::setReplicaErrorFlag(Uint32& flags, Uint32 val)
+{
+  ASSERT_BOOL(val, "LqhKeyRef::setReplicaErrorFlag");
+  flags |= (val << LKR_REPLICA_ERROR_SHIFT);
+}
 
 #undef JAM_FILE_ID
 

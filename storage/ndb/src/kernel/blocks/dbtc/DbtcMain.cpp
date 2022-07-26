@@ -7755,7 +7755,17 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	warningReport(signal, 25);
 	return;
       }//if
-
+      Uint32 flags = 0;
+      if (signal->getLength() >= LqhKeyRef::SignalLength)
+      {
+        jam();
+        flags = lqhKeyRef->flags;
+      }
+      /**
+       * If the error came from a backup replica rather than the primary
+       * then we will abort the transaction in all cases.
+       */
+      const bool needAbort = (LqhKeyRef::getReplicaErrorFlag(flags) != 0);
       const Uint32 triggeringOp = regTcPtr->triggeringOperation;
       ConnectionState TapiConnectstate = regApiPtr->apiConnectstate;
 
@@ -7763,7 +7773,8 @@ void Dbtc::execLQHKEYREF(Signal* signal)
                                     refToNode(regApiPtr->ndbapiBlockref),
                                     regTcPtr->tcNodedata[0]);
 
-      if (unlikely(TapiConnectstate == CS_ABORTING))
+      if (unlikely(TapiConnectstate == CS_ABORTING ||
+                   needAbort))
       {
         jam();
         goto do_abort;
@@ -7934,7 +7945,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       }
       
       const Uint32 abort = regTcPtr->m_execAbortOption;
-      if (abort == TcKeyReq::AbortOnError || triggeringOp != RNIL) {
+      if (abort == TcKeyReq::AbortOnError || triggeringOp != RNIL || needAbort) {
 	/**
 	 * No error is allowed on this operation
 	 */
