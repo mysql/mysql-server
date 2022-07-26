@@ -396,22 +396,6 @@ bool restore_system_thread_resource_group(THD *thd,
           resource_grp_switch_context);
   auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
 
-  bool res =
-      res_grp_mgr->restore_system_thread_resource_group(thd, rg_switch_context);
-
-  DBUG_EXECUTE_IF("enable_wait_after_system_thread_rp_restore", {
-    if (thd->mdl_context.owns_equal_or_stronger_lock(
-            MDL_key::USER_LEVEL_LOCK, "",
-            "wait_after_system_thread_rg_restore_lock_1", MDL_EXCLUSIVE)) {
-      MDL_request ull_request;
-      MDL_REQUEST_INIT(&ull_request, MDL_key::USER_LEVEL_LOCK, "",
-                       "wait_after_system_thread_rg_restore_lock_2",
-                       MDL_EXCLUSIVE, MDL_EXPLICIT);
-      if (!thd->mdl_context.acquire_lock(&ull_request,
-                                         thd->variables.lock_wait_timeout))
-        thd->mdl_context.release_lock(ull_request.ticket);
-    }
-  });
-
-  return res;
+  return res_grp_mgr->restore_system_thread_resource_group(thd,
+                                                           rg_switch_context);
 }
