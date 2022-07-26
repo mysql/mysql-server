@@ -82,7 +82,7 @@ class TcpPortPool {
   unsigned number_of_ids_used_{0};
   static const constexpr unsigned kPortsPerFile{10};
   static const constexpr unsigned kPortsStartFrom{100};
-  static const constexpr unsigned kPortsRange{200};
+  static const constexpr unsigned kPortsRange{500};
 };
 
 #endif  // _TCP_PORT_POOL_H_
