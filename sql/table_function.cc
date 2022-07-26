@@ -433,6 +433,7 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
         fld->store(1, true);
       else
         fld->store(0, true);
+      if (current_thd->is_error()) return true;
       fld->set_notnull();
       break;
     }
