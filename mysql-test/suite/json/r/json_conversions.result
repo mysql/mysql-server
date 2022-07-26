@@ -18314,3 +18314,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 "Testcase for Set"
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
+#
+# Bug #34416304 WriteRowToChunk : Assertion `!thd->is_error()' failed
+#
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field

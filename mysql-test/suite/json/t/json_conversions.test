@@ -5575,3 +5575,31 @@ drop table t;
 drop table at;
 
 drop function get_json_weight;
+
+--echo #
+--echo # Bug #34416304 WriteRowToChunk : Assertion `!thd->is_error()' failed
+--echo #
+
+CREATE TABLE t (
+  `a` DOUBLE,
+  `b` DATETIME
+) engine=innodb;
+INSERT INTO t VALUES();
+INSERT INTO t VALUES();
+INSERT INTO t VALUES();
+INSERT INTO t VALUES();
+INSERT INTO t VALUES();
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+SELECT * FROM t,
+JSON_TABLE(
+ '[{"w":[{"a":true},false],"e":"r"},"x","c",1]','$[*]'
+COLUMNS(
+ b VARCHAR(6595)
+   EXISTS PATH '$[0].a'  ,
+ a GEOMETRY
+   EXISTS PATH '$.ba'
+ )
+) q;
+
+DROP TABLE t;
