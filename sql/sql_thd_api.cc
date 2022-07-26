@@ -215,6 +215,14 @@ bool thd_is_transaction_active(THD *thd) {
 }
 
 /**
+  Predicate for determining if connection is in active multi-statement
+  transaction.
+ */
+bool thd_in_multi_stmt_transaction_mode(const THD *thd) {
+  return thd->in_multi_stmt_transaction_mode();
+}
+
+/**
   Check if there is buffered data on the socket representing the connection
 
   @param thd                  THD object
