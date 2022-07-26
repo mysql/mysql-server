@@ -290,47 +290,4 @@ bool thd_is_bootstrap_thread(THD *thd);
 bool thd_is_dd_update_stmt(const THD *thd);
 
 my_thread_id thd_thread_id(const THD *thd);
-
-/**
-  Sets resource group of a thread identified by the user_thread_pfs_id to the
-  system thread.
-
-  This method must be called from the threads marked as system or background
-  thread by the PFS. PFS interprets all threads with thread_id = 0 as system
-  or background threads.
-
-  @param      thd                           Thread handle.
-  @param      user_thread_pfs_id            PFS thread id of a user thread.
-  @param[out] resource_grp_switch_context   Resource group switch context
-                                            instance. Holds resource group
-                                            switch handler for a user thread
-                                            resource group and a system thread
-                                            resource group.
-
-  @retval     false   On success.
-  @retval     true    On failure.
-*/
-bool set_user_thread_resource_group_to_system_thread(
-    THD *thd, ulonglong user_thread_pfs_id, void **resource_grp_switch_context);
-
-/**
-  If user thread resource group is set to the system thread then restore system
-  thread's resource group.
-
-  This method must be called from the threads marked as system or background
-  thread from the PFS. PFS interprets all threads with thread_id = 0 as system
-  or background threads.
-
-  @param         thd                           Thread handle.
-  @param[in,out] resource_grp_switch_context   Resource group switch context
-                                               instance. Holds resource group
-                                               switch handler for a user thread
-                                               resource group and a system
-                                               thread resource group.
-
-  @retval     false   On success.
-  @retval     true    On failure.
-*/
-bool restore_system_thread_resource_group(THD *thd,
-                                          void **resource_grp_switch_context);
 #endif  // SQL_THD_INTERNAL_API_INCLUDED

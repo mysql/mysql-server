@@ -120,7 +120,7 @@ ALTER RESOURCE GROUP user_resource ENABLE;
 
 --echo # 7. Test FORCE option of ALTER
 SET RESOURCE GROUP user_resource;
-SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="user_resource" AND TYPE="FOREGROUND";
+SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="user_resource";
 --error ER_INVALID_USE_OF_FORCE_OPTION
 ALTER RESOURCE GROUP user_resource FORCE;
 ALTER RESOURCE GROUP user_resource DISABLE;
@@ -217,7 +217,7 @@ SET RESOURCE GROUP user_resource;
 --echo # 2. SET current session to a resource group.
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=7;
 SET RESOURCE GROUP user_resource;
-SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="user_resource" AND TYPE="FOREGROUND";
+SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="user_resource";
 
 --echo # 3. Assign a system thread to a user resource group.
 let $pfs_system_thread_id=`select thread_id from performance_schema.threads where name='thread/innodb/io_write_thread'`;
@@ -338,7 +338,7 @@ BEGIN
 END|
 delimiter ;|
 SELECT func();
-SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="Batch" AND TYPE="FOREGROUND";
+SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="Batch";
 DROP RESOURCE GROUP Batch FORCE;
 DROP FUNCTION func;
 
@@ -352,5 +352,5 @@ SET @cmd = CONCAT("SET RESOURCE GROUP ", @rg_name);
 SELECT @cmd;
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
-SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="test" AND TYPE="FOREGROUND";
+SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="test";
 DROP RESOURCE GROUP test FORCE;
