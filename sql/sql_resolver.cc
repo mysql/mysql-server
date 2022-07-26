@@ -4262,7 +4262,6 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     }
     order->item = &ref_item_array[count - 1];
     order->in_field_list = true;
-    order->is_position = true;
     return false;
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
@@ -4826,15 +4825,6 @@ bool Query_block::field_list_is_empty() const {
     if (!item->hidden) return false;
   }
   return true;
-}
-
-void Query_block::remove_hidden_fields() {
-  // We cannot use erase combined with std::remove_if(),
-  // since remove_if() does not maintain pointer stability
-  // (see the comment on Query_block::fields).
-  for (uint i = 0; i < hidden_items_from_optimization; ++i) {
-    fields.pop_front();
-  }
 }
 
 /**
@@ -5769,56 +5759,6 @@ Table_ref *Query_block::synthesize_derived(THD *thd, Query_expression *unit,
 
   unit->derived_table = derived_table;
   return derived_table;
-}
-
-/**
-  Remove a derived table we added previously as part of
-  transform_scalar_subqueries_to_join_with_derived. This can happen when
-  the transformed scalar subquery is part of a view that
-  is not used in a query block referencing the view, e.g. if the view
-  has a scalar subquery in the select list and this field is not referenced
-  by the query invoking the view.
-
-  @param thd      Session state
-  @param tl       The derived table that should be removed
-*/
-void Query_block::remove_derived(THD *thd, Table_ref *tl) {
-  // Remove from leaf_tables
-  materialized_derived_table_count--;
-  derived_table_count--;
-
-  Table_ref **leafp = &leaf_tables;
-  while (*leafp != nullptr) {
-    if (*leafp == tl) {
-      *leafp = (*leafp)->next_leaf;
-      break;
-    }
-    leafp = &(*leafp)->next_leaf;
-  }
-  // Remove query expression from this block's set of query expressions
-  Query_expression **unitp = &slave;
-  while (*unitp != nullptr) {
-    if (*unitp == tl->derived_query_expression()) {
-      *unitp = (*unitp)->next;
-      if (*unitp != nullptr) {
-        (*unitp)->prev = unitp;
-      }
-      break;
-    }
-    unitp = &(*unitp)->next;
-  }
-  // Remove derived table's query block from global list
-  Query_block **qbp = &thd->lex->all_query_blocks_list;
-  while (*qbp != nullptr) {
-    if (*qbp == tl->derived_query_expression()->first_query_block()) {
-      *qbp = (*qbp)->link_next;
-      if (*qbp != nullptr) {
-        (*qbp)->link_prev = qbp;
-      }
-      break;
-    }
-    qbp = &(*qbp)->link_next;
-  }
 }
 
 /**
@@ -6882,7 +6822,6 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
         ORDER *o = new (thd->mem_root) PT_order_expr(in_select, ORDER_ASC);
         if (o == nullptr) return true;
         o->direction = ORDER_NOT_RELEVANT;  // ignored by constructur
-        o->is_position = false;
         o->in_field_list = true;
         o->used = in_select->used_tables();
         // Add at back of list

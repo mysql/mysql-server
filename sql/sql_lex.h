@@ -835,13 +835,6 @@ class Query_expression {
     body, this is the proper map (with no PSEUDO_TABLE_BITS anymore).
   */
   table_map m_lateral_deps;
-  /**
-    True if the with-recursive algorithm has produced the complete result.
-    In a recursive CTE, a JOIN is executed several times in a loop, and
-    should not be cleaned up (e.g. by join_free()) before all iterations of
-    the loop are done (i.e. before the CTE's result is complete).
-  */
-  bool got_all_recursive_rows;
 
   /**
     This query expression represents a scalar subquery and we need a run-time
@@ -1244,7 +1237,6 @@ class Query_block : public Query_term {
   /// @returns a map of all tables references in the query block
   table_map all_tables_map() const { return (1ULL << leaf_table_count) - 1; }
 
-  void remove_derived(THD *thd, Table_ref *tl);
   bool remove_aggregates(THD *thd, Query_block *select);
 
   Query_expression *master_query_expression() const { return master; }
@@ -1253,25 +1245,6 @@ class Query_block : public Query_term {
   Query_block *next_query_block() const { return next; }
 
   Table_ref *find_table_by_name(const Table_ident *ident);
-
-  /**
-    @return true  If STRAIGHT_JOIN applies to all tables.
-    @return false Else.
-  */
-  bool is_straight_join() {
-    bool straight_join = true;
-    /// false for example in t1 STRAIGHT_JOIN t2 JOIN t3.
-    for (Table_ref *tbl = leaf_tables->next_leaf; tbl; tbl = tbl->next_leaf)
-      straight_join &= tbl->straight;
-    return straight_join || (active_options() & SELECT_STRAIGHT_JOIN);
-  }
-
-  Query_block *last_query_block() {
-    Query_block *mylast = this;
-    for (; mylast->next_query_block(); mylast = mylast->next_query_block()) {
-    }
-    return mylast;
-  }
 
   Query_block *next_select_in_list() const { return link_next; }
 
@@ -1287,21 +1260,6 @@ class Query_block : public Query_term {
   */
   bool is_implicitly_grouped() const {
     return m_agg_func_used && group_list.elements == 0;
-  }
-
-  /**
-    True if this query block is implicitly grouped.
-
-    @note Not reliable before name resolution.
-
-    @return true if this query block is implicitly grouped and returns exactly
-    one row, which happens when it does not have a HAVING clause.
-
-    @remark This function is currently unused.
-  */
-  bool is_single_grouped() const {
-    return m_agg_func_used && group_list.elements == 0 &&
-           m_having_cond == nullptr;
   }
 
   /**
@@ -1374,7 +1332,6 @@ class Query_block : public Query_term {
 
   bool add_item_to_list(Item *item);
   bool add_ftfunc_to_list(Item_func_match *func);
-  void add_order_to_list(ORDER *order);
   Table_ref *add_table_to_list(THD *thd, Table_ident *table, const char *alias,
                                ulong table_options,
                                thr_lock_type flags = TL_UNLOCK,
@@ -1862,9 +1819,6 @@ class Query_block : public Query_term {
   bool optimize(THD *thd, bool finalize_access_paths);
   void reset_nj_counters(mem_root_deque<Table_ref *> *join_list = nullptr);
 
-  bool change_group_ref_for_func(THD *thd, Item *func, bool *changed);
-  bool change_group_ref_for_cond(THD *thd, Item_cond *cond, bool *changed);
-
   // If the query block has exactly one single visible field, returns it.
   // If not, returns nullptr.
   Item *single_visible_field() const;
@@ -1875,7 +1829,6 @@ class Query_block : public Query_term {
   // from INSERT INTO ... VALUES queries.
   bool field_list_is_empty() const;
 
-  void remove_hidden_fields();
   /// Creates a clone for the given expression by re-parsing the
   /// expression. Used in condition pushdown to derived tables.
   Item *clone_expression(THD *thd, Item *item);
@@ -1908,9 +1861,8 @@ class Query_block : public Query_term {
 
     Currently, all hidden items must be before all visible items.
     This is primarily due to the requirement for pointer stability
-    (remove_hidden_fields() runs during cleanup), but also because
-    change_to_use_tmp_fields() depends on it when mapping items to
-    ref_item_array indexes. It would be good to get rid of this
+    but also because change_to_use_tmp_fields() depends on it when mapping
+    items to ref_item_array indexes. It would be good to get rid of this
     requirement in the future.
    */
   mem_root_deque<Item *> fields;
@@ -2313,10 +2265,6 @@ class Query_block : public Query_term {
 
   // Delete unused columns from merged derived tables
   void delete_unused_merged_columns(mem_root_deque<Table_ref *> *tables);
-
-  /// Helper for fix_prepare_information()
-  void fix_prepare_information_for_order(THD *thd, SQL_I_List<ORDER> *list,
-                                         Group_list_ptrs **list_ptrs);
 
   bool prepare_values(THD *thd);
   bool check_only_full_group_by(THD *thd);

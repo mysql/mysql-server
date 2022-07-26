@@ -4559,7 +4559,6 @@ static TABLE *create_schema_table(THD *thd, Table_ref *table_list) {
   bitmap_init(&table->def_read_set, bitmaps, field_count);
   table->read_set = &table->def_read_set;
   bitmap_clear_all(table->read_set);
-  table_list->schema_table_param = tmp_table_param;
   return table;
 }
 

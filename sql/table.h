@@ -321,7 +321,6 @@ struct ORDER {
   Field *field_in_tmp_table{nullptr};
   char *buff{nullptr}; /* If tmp-table group */
   table_map used{0}, depend_map{0};
-  bool is_position{false}; /* An item expresses a position in a ORDER clause */
   bool is_explicit{false}; /* Whether ASC/DESC is explicitly specified */
 };
 
@@ -3251,9 +3250,6 @@ class Table_ref {
   /// created for this derived table.
   uint get_hidden_field_count_for_derived() const;
 
-  /// Clean up the query expression for a materialized derived table
-  void cleanup_derived();
-
   /// Prepare security context for a view
   bool prepare_security(THD *thd);
 
@@ -3591,7 +3587,6 @@ class Table_ref {
     schema table fields for backwards compatibility with SHOW command.
   */
   bool schema_table_reformed{false};
-  Temp_table_param *schema_table_param{nullptr};
   /* link to query_block where this table was used */
   Query_block *query_block{nullptr};
 
@@ -3826,10 +3821,6 @@ class Table_ref {
     the parsed tree is created.
   */
   uint8 trg_event_map{0};
-  uint i_s_requested_object{0};
-  bool has_db_lookup_value{false};
-  bool has_table_lookup_value{false};
-  uint table_open_method{0};
   bool schema_table_filled{false};
 
   MDL_request mdl_request;

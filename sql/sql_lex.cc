@@ -2433,10 +2433,6 @@ ha_rows Query_block::get_limit(const THD *thd) const {
     return ha_rows{HA_POS_ERROR};
 }
 
-void Query_block::add_order_to_list(ORDER *order) {
-  add_to_list(order_list, order);
-}
-
 bool Query_block::add_item_to_list(Item *item) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("Item: %p", item));

@@ -1694,12 +1694,3 @@ bool Table_ref::materialize_derived(THD *thd) {
 
   return res;
 }
-
-/**
-   Clean up the query expression for a materialized derived table
-*/
-
-void Table_ref::cleanup_derived() {
-  assert(is_view_or_derived() && uses_materialization());
-  derived_query_expression()->cleanup(false);
-}
