@@ -4,9 +4,9 @@
 # Sets $have_openssl_zlib to 0|1
 #
 --error 0,1,2,127
---exec openssl list -cipher-commands > $MYSQL_TMP_DIR/openssl.out 2>&1
+--exec $OPENSSL_EXECUTABLE list -cipher-commands > $MYSQL_TMP_DIR/openssl.out 2>&1
 --error 0,1,2,127
---exec openssl list-cipher-commands >> $MYSQL_TMP_DIR/openssl.out 2>&1
+--exec $OPENSSL_EXECUTABLE list-cipher-commands >> $MYSQL_TMP_DIR/openssl.out 2>&1
 
 --perl
   use strict;

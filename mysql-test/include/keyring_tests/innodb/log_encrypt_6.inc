@@ -11,13 +11,13 @@ call mtr.add_suppression("Error while loading keyring content. The keyring might
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find masterkey, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression (" New log files created");
+call mtr.add_suppression (" New redo log files created");
 --enable_query_log
 
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
 let $START_PAGE_SIZE= `select @@innodb_page_size`;
-let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
+let $LOG_SIZE= `select @@innodb_redo_log_capacity`;
 let $MYSQLD_BASEDIR= `select @@basedir`;
 
 --mkdir $MYSQL_TMP_DIR/log_encrypt_dir1
@@ -33,13 +33,13 @@ EOF
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
 
-let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=ON </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap1.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=ON </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap1.log 2>&1;
 
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
 
 --echo # Start the DB server with datadir1
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE"
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
@@ -96,7 +96,7 @@ DROP DATABASE tde_db;
 --source include/keyring_tests/helper/binary_backup_manifest.inc
 
 --echo # Try starting without keyring : Error
-let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1  --secure-file-priv="" --console </dev/null>>$MYSQL_TMP_DIR/wl9290.err 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1  --secure-file-priv="" --console </dev/null>>$MYSQL_TMP_DIR/wl9290.err 2>&1;
 --error 1,42
 --exec $NEW_CMD
 
@@ -108,11 +108,10 @@ let SEARCH_PATTERN= Aborting;
 --source include/search_pattern.inc
 
 --echo # Restart without keyring plugin possible if redo files removed
---remove_file $MYSQLD_DATADIR1/ib_logfile0
---remove_file $MYSQLD_DATADIR1/ib_logfile1
+--remove_files_wildcard $MYSQLD_DATADIR1/#innodb_redo #ib_redo*
 
 --echo # Start the DB server with datadir1
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE"
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
@@ -122,7 +121,7 @@ let SEARCH_PATTERN= Aborting;
 
 --echo # Try starting without keyring and --innodb_force_recovery=SRV_FORCE_NO_LOG_REDO. 
 --echo # Start the DB server with datadir1
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_force_recovery=6 --no-console --log-error=$MYSQL_TMP_DIR/wl9290_2.err "
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE --innodb_force_recovery=6 --no-console --log-error=$MYSQL_TMP_DIR/wl9290_2.err "
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 SELECT 1;

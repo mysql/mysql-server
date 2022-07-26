@@ -41,7 +41,7 @@ using namespace std;
 */
 fido_make_cred::fido_make_cred() {
   m_cred = fido_cred_new();
-  // always set defaut type algorithm to COSE_ES256
+  // always set default type algorithm to COSE_ES256
   set_type();
 }
 
@@ -57,7 +57,7 @@ fido_make_cred::~fido_make_cred() { fido_cred_free(&m_cred); }
 
   @param [in] challenge       buffer holding the server challenge
 
-  @retval false   successfull generation of credentials.
+  @retval false   successful generation of credentials.
   @retval true    error occurred.
 */
 bool fido_make_cred::make_credentials(const char *challenge) {
@@ -121,10 +121,10 @@ bool fido_make_cred::parse_challenge(const char *challenge) {
   This method checks if a token device is available on client host.
   If device is present, device expects user to perform gesture action,
   upon which device generates credential details, which consists of
-  authenticator data, signature and optinal x509 certificate which is
+  authenticator data, signature and optional x509 certificate which is
   passed to server.
 
-  @retval FIDO_OK(false) successfull generation of credentials.
+  @retval FIDO_OK(false) successful generation of credentials.
   @retval true           error occurred.
 */
 bool fido_make_cred::generate_signature() {

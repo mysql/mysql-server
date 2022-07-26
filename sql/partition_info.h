@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,7 +155,7 @@ typedef int (*get_subpart_id_func)(partition_info *part_info, uint32 *part_id);
 
   @return Operation status
     @retval 0   No matching partitions, iterator not initialized
-    @retval 1   Some partitions would match, iterator intialized for traversing
+    @retval 1   Some partitions would match, iterator initialized for traversing
   them
     @retval -1  All partitions would match, iterator not initialized
 */
@@ -297,7 +297,7 @@ class partition_info {
     * lock_partitions  - partitions that must be locked (read or write).
     Usually read_partitions is the same set as lock_partitions, but
     in case of UPDATE the WHERE clause can limit the read_partitions set,
-    but not neccesarily the lock_partitions set.
+    but not necessarily the lock_partitions set.
     Usage pattern:
     * Initialized in ha_partition::open().
     * read+lock_partitions is set  according to explicit PARTITION,

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -99,8 +99,9 @@ OPTION(WITH_JSON_BINLOG_LIBRARY
 IF(WITH_JSON_BINLOG_LIBRARY)
   UNSET(INSTALL_JSON_BINLOG_LIBRARY)
   INSTALL(FILES
-    ../sql/json_binary.h
-    DESTINATION ${INSTALL_INCLUDEDIR}
+    ../sql-common/json_binary.h
+    ../sql-common/json_error_handler.h
+    DESTINATION ${INSTALL_INCLUDEDIR}/sql-common
     COMPONENT Development
     )
 ELSE()
@@ -126,9 +127,10 @@ ENDIF()
 # Always build it, but do not *use* it for mysqlbinlog unless
 # WITH_JSON_BINLOG_LIBRARY=ON
 ADD_SHARED_LIBRARY(json_binlog
-  ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
-  ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
-  ${CMAKE_SOURCE_DIR}/sql/json_syntax_check.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_binary.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_dom.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_path.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_syntax_check.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
 
   COMPILE_DEFINITIONS DISABLE_PSI_MUTEX EXPORT_JSON_FUNCTIONS
@@ -141,9 +143,10 @@ ADD_SHARED_LIBRARY(json_binlog
   )
 
 ADD_CONVENIENCE_LIBRARY(json_client_library
-  ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
-  ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
-  ${CMAKE_SOURCE_DIR}/sql/json_syntax_check.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_binary.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_dom.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_path.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_syntax_check.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
 
   COMPILE_DEFINITIONS DISABLE_PSI_MUTEX
@@ -163,6 +166,15 @@ MERGE_CONVENIENCE_LIBRARIES(json_binlog_static
   ${INSTALL_JSON_BINLOG_LIBRARY}
   )
 
+# This is a test executable which verifies that Json_wrapper::seek,
+# Json_dom::seek and Json_dom::parse functions are visible and can be called.
+MYSQL_ADD_EXECUTABLE(json_client_library_main
+  json_client_library_main.cc
+  INCLUDE_DIRECTORIES ../sql
+  LINK_LIBRARIES json_client_library  strings
+  SKIP_INSTALL
+  )
+
 # A test executable which does nothing, except verify that symbols are visible.
 # To test standalone build:
 #   cmake -DINSTALL_MYSQLTESTDIR=0
@@ -172,7 +184,7 @@ MERGE_CONVENIENCE_LIBRARIES(json_binlog_static
 #       -ljson_binlog
 MYSQL_ADD_EXECUTABLE(json_binlog_main
   json_binlog_main.cc
-  INCLUDE_DIRECTORIES ../sql
+  INCLUDE_DIRECTORIES ../sql ../sql-common
   LINK_LIBRARIES json_binlog
   SKIP_INSTALL
   )
@@ -184,7 +196,7 @@ MYSQL_ADD_EXECUTABLE(json_binlog_main
 #       -ljson_binlog_static -lpthread
 MYSQL_ADD_EXECUTABLE(json_binlog_main_static
   json_binlog_main.cc
-  INCLUDE_DIRECTORIES ../sql
+  INCLUDE_DIRECTORIES ../sql ../sql-common
   LINK_LIBRARIES json_binlog_static
   SKIP_INSTALL
   )

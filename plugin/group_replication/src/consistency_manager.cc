@@ -33,7 +33,7 @@ Transaction_consistency_info::Transaction_consistency_info(
     my_thread_id thread_id, bool local_transaction, const rpl_sid *sid,
     rpl_sidno sidno, rpl_gno gno,
     enum_group_replication_consistency_level consistency_level,
-    std::list<Gcs_member_identifier> *members_that_must_prepare_the_transaction)
+    Members_list *members_that_must_prepare_the_transaction)
     : m_thread_id(thread_id),
       m_local_transaction(local_transaction),
       m_sid_specified(sid != nullptr ? true : false),
@@ -243,7 +243,20 @@ int Transaction_consistency_info::handle_member_leave(
 }
 
 Transaction_consistency_manager::Transaction_consistency_manager()
-    : m_plugin_stopping(true), m_primary_election_active(false) {
+    : m_map(
+          Malloc_allocator<std::pair<const Transaction_consistency_manager_key,
+                                     Transaction_consistency_info *>>(
+              key_consistent_transactions)),
+      m_prepared_transactions_on_my_applier(
+          Malloc_allocator<Transaction_consistency_manager_key>(
+              key_consistent_transactions_prepared)),
+      m_new_transactions_waiting(
+          Malloc_allocator<my_thread_id>(key_consistent_transactions_waiting)),
+      m_delayed_view_change_events(
+          Malloc_allocator<Transaction_consistency_manager_pevent_pair>(
+              key_consistent_transactions_delayed_view_change)),
+      m_plugin_stopping(true),
+      m_primary_election_active(false) {
   m_map_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
       key_GR_RWLOCK_transaction_consistency_manager_map
@@ -298,6 +311,7 @@ int Transaction_consistency_manager::after_certification(
   int error = 0;
   Transaction_consistency_manager_key key(transaction_info->get_sidno(),
                                           transaction_info->get_gno());
+
   m_map_lock->wrlock();
 
   typename Transaction_consistency_manager_map::iterator it = m_map.find(key);
@@ -331,6 +345,17 @@ int Transaction_consistency_manager::after_certification(
     error = 1;
     /* purecov: end */
   }
+
+  DBUG_EXECUTE_IF("group_replication_consistency_manager_after_certification", {
+    const char act[] =
+        "now signal "
+        "signal.group_replication_consistency_manager_after_certification_"
+        "reached "
+        "wait_for "
+        "signal.group_replication_consistency_manager_after_certification_"
+        "continue";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  };);
 
   DBUG_PRINT("info",
              ("gtid: %d:%" PRId64 "; consistency_level: %d; ",

@@ -1,0 +1,180 @@
+# 1. Test redo log files with invalid value of redo format (from future).
+# 2. Test redo log files filled with 0x00 only.
+
+--source include/have_debug.inc
+
+--source ../include/redo_log_error_patterns.inc
+
+let $tmpdir = $MYSQLTEST_VARDIR/tmp;
+
+let MYSQLD_DATADIR = $tmpdir/log_invalid_format;
+--mkdir $MYSQLD_DATADIR
+
+
+let MYSQLD_ERROR_LOG = $tmpdir/my_restart.err;
+let SEARCH_FILE = $MYSQLD_ERROR_LOG;
+
+--echo # Create new data directory (in order to corrupt its redo log files)...
+--source include/initialize_datadir.inc
+
+--force-rmdir $MYSQLD_DATADIR/#innodb_redo
+
+--echo ############################################################################################
+--echo # Case 1. Attempt to start with redo files in old location, filled with 0x00.
+--echo ############################################################################################
+
+--remove_file $SEARCH_FILE
+
+--echo # Prepare...
+
+let IB_LOGFILE0_PATH = $MYSQLD_DATADIR/ib_logfile0;
+let IB_LOGFILE1_PATH = $MYSQLD_DATADIR/ib_logfile1;
+
+perl;
+sub create_empty_file {
+    my ($file_path, $file_size) = @_;
+    open my $fh, '>:raw', $file_path or die "open failed: $!\n";
+    syswrite $fh, "\0" x $file_size or die "print failed: $!\n";
+    close $fh or die "closed failed: $!\n";
+}
+create_empty_file($ENV{IB_LOGFILE0_PATH}, 4*1024*1024);
+create_empty_file($ENV{IB_LOGFILE1_PATH}, 4*1024*1024);
+EOF
+
+let $i = 1;
+while ($i <= 2) {
+    --echo # Start MySQL... (attempt $i)
+    --error 1,42
+    --exec $MYSQLD --no-defaults $MYSQLD_ARGS --$UNKNOWN_PARAM
+
+    --echo # Verify...
+
+    let SEARCH_PATTERN = Unsupported redo log format \(v0\);
+    # Expected: found
+    --source include/search_pattern.inc
+
+    let SEARCH_PATTERN = $PATTERN_UNKNOWN_PARAM;
+    # Expected: not found
+    --source include/search_pattern.inc
+
+    inc $i;
+}
+
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_invalid_format-1.err
+
+--echo ############################################################################################
+--echo # Case 2. Attempt to start with redo files in new location, filled with 0x00.
+--echo ############################################################################################
+
+--echo # Prepare...
+--mkdir $MYSQLD_DATADIR/#innodb_redo
+
+--move_file $IB_LOGFILE0_PATH $MYSQLD_DATADIR/#innodb_redo/#ib_redo1
+--move_file $IB_LOGFILE1_PATH $MYSQLD_DATADIR/#innodb_redo/#ib_redo2
+
+let $i = 1;
+while ($i <= 2) {
+    --echo # Start MySQL... (attempt $i)
+    --error 1,42
+    --exec $MYSQLD --no-defaults $MYSQLD_ARGS --$UNKNOWN_PARAM
+
+    --echo # Verify...
+
+    let SEARCH_PATTERN = Found redo log file.*#ib_redo1 which has format \(v0\) and is stored inside #innodb_redo;
+    # Expected: found
+    --source include/search_pattern.inc
+
+    let SEARCH_PATTERN = $PATTERN_UNKNOWN_PARAM;
+    # Expected: not found
+    --source include/search_pattern.inc
+
+    inc $i;
+}
+
+--move_file $MYSQLD_DATADIR/#innodb_redo/#ib_redo1 $IB_LOGFILE0_PATH
+--move_file $MYSQLD_DATADIR/#innodb_redo/#ib_redo2 $IB_LOGFILE1_PATH
+
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_invalid_format-2.err
+
+--force-rmdir $MYSQLD_DATADIR/#innodb_redo
+
+--echo ############################################################################################
+--echo # Case 3. Attempt to start with redo files in old location, with future format (4294967295).
+--echo ############################################################################################
+
+--echo # Prepare...
+perl;
+sub log_update_file_format {
+    my ($file_path, $format) = @_;
+    open my $fh, '+<:raw', $file_path or die "open failed: $!\n";
+    seek $fh, 0, 0;
+    syswrite($fh, pack('N', $format), 4) > 0 or die "print failed: $!\n";
+    close $fh or die "closed failed: $!\n";
+}
+log_update_file_format($ENV{IB_LOGFILE0_PATH}, 4294967295);
+log_update_file_format($ENV{IB_LOGFILE1_PATH}, 4294967295);
+EOF
+
+let $i = 1;
+while ($i <= 2) {
+    --echo # Start MySQL... (attempt $i)
+    --error 1,42
+    --exec $MYSQLD --no-defaults $MYSQLD_ARGS --debug="d,log_header_checksum_disabled" --$UNKNOWN_PARAM
+
+    --echo # Verify...
+
+    let SEARCH_PATTERN = Found redo log file .*ib_logfile0 which has format \(v4294967295\) and is stored outside #innodb_redo;
+    # Expected: found
+    --source include/search_pattern.inc
+
+    let SEARCH_PATTERN = $PATTERN_UNKNOWN_PARAM;
+    # Expected: not found
+    --source include/search_pattern.inc
+
+    inc $i;
+}
+
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_invalid_format-3.err
+
+--echo ############################################################################################
+--echo # Case 4. Attempt to start with redo files in new location, with future format (4294967295).
+--echo ############################################################################################
+
+--echo # Prepare...
+--mkdir $MYSQLD_DATADIR/#innodb_redo
+
+--move_file $IB_LOGFILE0_PATH $MYSQLD_DATADIR/#innodb_redo/#ib_redo1
+--move_file $IB_LOGFILE1_PATH $MYSQLD_DATADIR/#innodb_redo/#ib_redo2
+
+let $i = 1;
+while ($i <= 2) {
+    --echo # Start MySQL... (attempt $i)
+    --error 1,42
+    --exec $MYSQLD --no-defaults $MYSQLD_ARGS --debug="d,log_header_checksum_disabled" --$UNKNOWN_PARAM
+
+    --echo # Verify...
+
+    let SEARCH_PATTERN = Unknown redo log format \(v4294967295\) in file.*#ib_redo1;
+    # Expected: found
+    --source include/search_pattern.inc
+
+    let SEARCH_PATTERN = $PATTERN_UNKNOWN_PARAM;
+    # Expected: not found
+    --source include/search_pattern.inc
+
+    inc $i;
+}
+
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_invalid_format-4.err
+
+--echo ############################################################################################
+
+--echo # Cleanup...
+
+--force-rmdir $MYSQLD_DATADIR
+
+let MYSQLD_ARGS=;
+let MYSQLD_DATADIR=;
+let MYSQLD_ERROR_LOG=;
+let SEARCH_FILE=;
+let SEARCH_PATTERN=;

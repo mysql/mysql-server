@@ -75,7 +75,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "lex_string.h"
-#include "log0log.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 
 #include "my_dbug.h"
 #include "my_io.h"
@@ -10836,11 +10837,11 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
   const table_id_t table_id = swap_table->se_private_id();
   dict_table_t *part = m_part_share->get_table_part(part_id);
   dict_table_t *swap;
-  const ulint fold = ut_fold_ull(table_id);
+  const auto hash_value = ut::hash_uint64(table_id);
 
   dict_sys_mutex_enter();
-  HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, dict_table_t *, swap,
-              ut_ad(swap->cached), swap->id == table_id);
+  HASH_SEARCH(id_hash, dict_sys->table_id_hash, hash_value, dict_table_t *,
+              swap, ut_ad(swap->cached), swap->id == table_id);
   dict_sys_mutex_exit();
   ut_ad(swap != nullptr);
   ut_ad(swap->n_ref_count == 1);

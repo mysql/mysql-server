@@ -382,3 +382,15 @@ SET sql_mode = CONCAT(@@sql_mode, ',NO_BACKSLASH_ESCAPES');
 SELECT _latin1'a\bc' LIKE _latin1'a\%' AS col1,
        _utf8mb4'a\bc' LIKE _utf8mb4'a\%' AS col2;
 SET sql_mode = DEFAULT;
+
+--echo # Bug#33852756: ESCAPE keyword with non-string values
+
+CREATE TABLE t1(c1 VARCHAR(20) NOT NULL);
+INSERT INTO t1 VALUES ('100'), ('abc\\d');
+SELECT * FROM t1 WHERE c1 LIKE c1;
+SELECT c1 LIKE c1 AS l FROM t1;
+SELECT * FROM t1 WHERE c1 LIKE c1 ESCAPE '1';
+SELECT c1 LIKE c1 ESCAPE '1' AS l FROM t1;
+SELECT * FROM t1 WHERE c1 LIKE c1 ESCAPE 1;
+SELECT c1 LIKE c1 ESCAPE 1 AS l FROM t1;
+DROP TABLE t1;

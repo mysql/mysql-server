@@ -23,17 +23,20 @@
 #include "sql/join_optimizer/join_optimizer.h"
 
 #include <assert.h>
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+
 #include <algorithm>
-#include <array>
 #include <bitset>
 #include <initializer_list>
-#include <iterator>
+#include <memory>
+#include <optional>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -44,7 +47,9 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -68,11 +73,11 @@
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/find_contained_subqueries.h"
 #include "sql/join_optimizer/graph_simplification.h"
+#include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/interesting_orders.h"
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/node_map.h"
-#include "sql/join_optimizer/online_cycle_finder.h"
 #include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
@@ -83,9 +88,12 @@
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_costmodel.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/partition_info.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/index_range_scan_plan.h"
 #include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_analysis.h"
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_optimizer.h"
@@ -101,6 +109,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_partition.h"
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
@@ -110,10 +119,6 @@
 #include "sql/uniques.h"
 #include "sql/window.h"
 #include "template_utils.h"
-
-namespace hypergraph {
-struct Hyperedge;
-}  // namespace hypergraph
 
 using hypergraph::Hyperedge;
 using hypergraph::Node;
@@ -254,7 +259,7 @@ class CostingReceiver {
     Besides the access paths for a set of nodes (see m_access_paths),
     AccessPathSet contains information that is common between all access
     paths for that set. One would believe num_output_rows would be such
-    a member (a set of tables should produce the same number of ouptut
+    a member (a set of tables should produce the same number of output
     rows no matter the join order), but due to parameterized paths,
     different access paths could have different outputs. delayed_predicates
     is another, but currently, it's already efficiently hidden space-wise
@@ -420,7 +425,7 @@ class CostingReceiver {
   MEM_ROOT m_range_optimizer_mem_root;
 
   /// For trace use only.
-  std::string PrintSet(NodeMap x) {
+  string PrintSet(NodeMap x) const {
     std::string ret = "{";
     bool first = true;
     for (size_t node_idx : BitsSetIn(x)) {
@@ -432,6 +437,11 @@ class CostingReceiver {
     }
     return ret + "}";
   }
+
+  /// For trace use only.
+  string PrintSubgraphHeader(const JoinPredicate *edge,
+                             const AccessPath &join_path, NodeMap left,
+                             NodeMap right) const;
 
   /// Checks whether the given engine flag is active or not.
   bool SupportedEngineFlag(SecondaryEngineFlag flag) const {
@@ -475,8 +485,7 @@ class CostingReceiver {
                         table_map allowed_parameter_tables, int ordering_idx);
   bool RedundantThroughSargable(
       OverflowBitset redundant_against_sargable_predicates,
-      OverflowBitset left_applied_sargable_join_predicates,
-      OverflowBitset right_applied_sargable_join_predicates, NodeMap left,
+      const AccessPath *left_path, const AccessPath *right_path, NodeMap left,
       NodeMap right);
   inline pair<bool, bool> AlreadyAppliedAsSargable(
       Item *condition, const AccessPath *left_path,
@@ -491,7 +500,8 @@ class CostingReceiver {
                              AccessPath *right_path, const JoinPredicate *edge,
                              bool rewrite_semi_to_inner,
                              FunctionalDependencySet new_fd_set,
-                             OrderingSet new_obsolete_orderings);
+                             OrderingSet new_obsolete_orderings,
+                             bool *wrote_trace);
   void ProposeHashJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                        AccessPath *right_path, const JoinPredicate *edge,
                        FunctionalDependencySet new_fd_set,
@@ -587,6 +597,18 @@ Item_func_match *GetSargableFullTextPredicate(const Predicate &predicate) {
       assert(false);
       return nullptr;
   }
+}
+
+/// Is the current statement a DELETE statement?
+bool IsDeleteStatement(const THD *thd) {
+  return thd->lex->sql_command == SQLCOM_DELETE ||
+         thd->lex->sql_command == SQLCOM_DELETE_MULTI;
+}
+
+/// Is the current statement a DELETE statement?
+bool IsUpdateStatement(const THD *thd) {
+  return thd->lex->sql_command == SQLCOM_UPDATE ||
+         thd->lex->sql_command == SQLCOM_UPDATE_MULTI;
 }
 
 void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
@@ -1364,6 +1386,11 @@ bool CostingReceiver::FindIndexRangeScans(
 
     if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
       path.immediate_update_delete_table = node_idx;
+      // Don't allow immediate update of the key that is being scanned.
+      if (IsUpdateStatement(m_thd) &&
+          uses_index_on_fields(&path, table->write_set)) {
+        path.immediate_update_delete_table = -1;
+      }
     }
 
     bool contains_subqueries = false;  // Filled on the first iteration below.
@@ -1598,6 +1625,11 @@ void CostingReceiver::ProposeIndexMerge(
 
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     imerge_path.immediate_update_delete_table = node_idx;
+    // Don't allow immediate update of any keys being scanned.
+    if (IsUpdateStatement(m_thd) &&
+        uses_index_on_fields(&imerge_path, table->write_set)) {
+      imerge_path.immediate_update_delete_table = -1;
+    }
   }
 
   // Find out which ordering we would follow, if any. We nominally sort
@@ -1626,7 +1658,9 @@ void CostingReceiver::ProposeIndexMerge(
   this_predicate.SetBit(pred_idx);
   OverflowBitset applied_predicates(std::move(this_predicate));
   OverflowBitset subsumed_predicates =
-      inexact ? OverflowBitset() : applied_predicates;
+      inexact ? OverflowBitset(MutableOverflowBitset(param->temp_mem_root,
+                                                     num_where_predicates))
+              : applied_predicates;
   const bool contains_subqueries = Overlaps(imerge_path.filter_predicates,
                                             m_graph->materializable_predicates);
   for (bool materialize_subqueries : {false, true}) {
@@ -1969,6 +2003,19 @@ bool CostingReceiver::ProposeRefAccess(
 
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     path.immediate_update_delete_table = node_idx;
+    // Disallow immediate update on the key being looked up for REF_OR_NULL and
+    // REF. It might be safe to update the key on which the REF lookup is
+    // performed, but we follow the lead of the old optimizer and don't try it,
+    // since we don't know how the engine behaves if doing an index lookup on a
+    // changing index.
+    //
+    // EQ_REF should be safe, though. I has at most one matching row, with a
+    // constant lookup value as this is the first table. So this row won't be
+    // seen a second time; the iterator won't even try a second read.
+    if (path.type != AccessPath::EQ_REF && IsUpdateStatement(m_thd) &&
+        is_key_used(table, key_idx, table->write_set)) {
+      path.immediate_update_delete_table = -1;
+    }
   }
 
   ProposeAccessPathForIndex(
@@ -2061,6 +2108,15 @@ bool CostingReceiver::ProposeTableScan(
   path.cost_before_filter = path.cost = cost;
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     path.immediate_update_delete_table = node_idx;
+    // This is a table scan, but it might be using the clustered key under the
+    // cover. If so, don't allow immediate update if it's modifying the
+    // primary key.
+    if (IsUpdateStatement(m_thd) &&
+        Overlaps(table->file->ha_table_flags(), HA_PRIMARY_KEY_IN_READ_INDEX) &&
+        !table->s->is_missing_primary_key() &&
+        is_key_used(table, table->s->primary_key, table->write_set)) {
+      path.immediate_update_delete_table = -1;
+    }
   }
 
   // See if this is an information schema table that must be filled in before
@@ -2129,7 +2185,8 @@ bool CostingReceiver::ProposeTableScan(
         materialize_path->parameter_tables |= RAND_TABLE_BIT;
       }
     } else {
-      bool rematerialize = tl->derived_query_expression()->uncacheable != 0;
+      bool rematerialize = Overlaps(tl->derived_query_expression()->uncacheable,
+                                    UNCACHEABLE_DEPENDENT);
       if (tl->common_table_expr()) {
         // Handled in clear_corr_derived_tmp_tables(), not here.
         rematerialize = false;
@@ -2208,6 +2265,11 @@ bool CostingReceiver::ProposeIndexScan(
   path.cost_before_filter = path.cost = cost;
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     path.immediate_update_delete_table = node_idx;
+    // Don't allow immediate update of the key that is being scanned.
+    if (IsUpdateStatement(m_thd) &&
+        is_key_used(table, key_idx, table->write_set)) {
+      path.immediate_update_delete_table = -1;
+    }
   }
 
   ProposeAccessPathForBaseTable(node_idx, force_num_output_rows_after_filter,
@@ -2470,6 +2532,11 @@ bool CostingReceiver::ProposeFullTextIndexScan(
   path->ordering_state = ordering_state;
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     path->immediate_update_delete_table = node_idx;
+    // Don't allow immediate update of the key that is being scanned.
+    if (IsUpdateStatement(m_thd) &&
+        is_key_used(table, key_idx, table->write_set)) {
+      path->immediate_update_delete_table = -1;
+    }
   }
 
   ProposeAccessPathForIndex(
@@ -2852,12 +2919,12 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
 
       ProposeNestedLoopJoin(left, right, left_path, right_path, edge,
                             /*rewrite_semi_to_inner=*/false, new_fd_set,
-                            new_obsolete_orderings);
+                            new_obsolete_orderings, &wrote_trace);
       if (is_commutative || can_rewrite_semi_to_inner) {
         ProposeNestedLoopJoin(
             right, left, right_path, left_path, edge,
             /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
-            new_obsolete_orderings);
+            new_obsolete_orderings, &wrote_trace);
       }
       m_overflow_bitset_mem_root.ClearForReuse();
     }
@@ -2891,6 +2958,21 @@ AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
     dedup_path->cost += kAggregateOneRowCost * path->num_output_rows;
   }
   return dedup_path;
+}
+
+string CostingReceiver::PrintSubgraphHeader(const JoinPredicate *edge,
+                                            const AccessPath &join_path,
+                                            NodeMap left, NodeMap right) const {
+  string ret =
+      StringPrintf("\nFound sets %s and %s, connected by condition %s\n",
+                   PrintSet(left).c_str(), PrintSet(right).c_str(),
+                   GenerateExpressionLabel(edge->expr).c_str());
+  for (int pred_idx : BitsSetIn(join_path.filter_predicates)) {
+    ret += StringPrintf(
+        " - applied (delayed) predicate %s\n",
+        ItemToString(m_graph->predicates[pred_idx].condition).c_str());
+  }
+  return ret;
 }
 
 void CostingReceiver::ProposeHashJoin(
@@ -3037,46 +3119,29 @@ void CostingReceiver::ProposeHashJoin(
 
   // Only trace once; the rest ought to be identical.
   if (m_trace != nullptr && !*wrote_trace) {
-    *m_trace +=
-        StringPrintf("\nFound sets %s and %s, connected by condition %s\n",
-                     PrintSet(left).c_str(), PrintSet(right).c_str(),
-                     GenerateExpressionLabel(edge->expr).c_str());
-    for (int pred_idx : BitsSetIn(join_path.filter_predicates)) {
-      *m_trace += StringPrintf(
-          " - applied (delayed) predicate %s\n",
-          ItemToString(m_graph->predicates[pred_idx].condition).c_str());
-    }
+    *m_trace += PrintSubgraphHeader(edge, join_path, left, right);
     *wrote_trace = true;
   }
 
-  {
+  for (bool materialize_subqueries : {false, true}) {
+    AccessPath new_path = join_path;
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
         left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
-        /*materialize_subqueries=*/false, &join_path, &filter_fd_set);
+        edge->expr->join_predicate_last, materialize_subqueries, &new_path,
+        &filter_fd_set);
     // Hash join destroys all ordering information (even from the left side,
     // since we may have spill-to-disk).
-    join_path.ordering_state = m_orderings->ApplyFDs(
-        m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
+    new_path.ordering_state = m_orderings->ApplyFDs(m_orderings->SetOrder(0),
+                                                    new_fd_set | filter_fd_set);
     ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   new_obsolete_orderings, &join_path, "");
-  }
+                                   new_obsolete_orderings, &new_path,
+                                   materialize_subqueries ? "mat. subq." : "");
 
-  if (Overlaps(join_path.filter_predicates,
-               m_graph->materializable_predicates)) {
-    FunctionalDependencySet filter_fd_set;
-    ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
-        /*materialize_subqueries=*/true, &join_path, &filter_fd_set);
-    // Hash join destroys all ordering information (even from the left side,
-    // since we may have spill-to-disk).
-    join_path.ordering_state = m_orderings->ApplyFDs(
-        m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
-    ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   new_obsolete_orderings, &join_path,
-                                   "mat. subq");
+    if (!Overlaps(new_path.filter_predicates,
+                  m_graph->materializable_predicates)) {
+      break;
+    }
   }
 }
 
@@ -3176,8 +3241,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
           } else {
             join_path->cost += cost.cost_if_not_materialized;
           }
-          join_path->num_output_rows *= pred.selectivity;
           if (!already_applied_as_sargable) {
+            join_path->num_output_rows *= pred.selectivity;
             filter_predicates.SetBit(pred_idx);
           }
         }
@@ -3242,16 +3307,41 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     b) It causes unneeded work by adding a redundant filter.
 
   b) would normally cause the path to be pruned out due to cost, except that
-  the artifically low row count due to a) could make the path attractive as a
+  the artificially low row count due to a) could make the path attractive as a
   subplan of a larger join. Thus, we simply reject these joins; we'll see a
   different alternative for this join at some point that is not redundant
   (e.g., in the given example, we'd see the t2=t3 join).
  */
 bool CostingReceiver::RedundantThroughSargable(
     OverflowBitset redundant_against_sargable_predicates,
-    OverflowBitset left_applied_sargable_join_predicates,
-    OverflowBitset right_applied_sargable_join_predicates, NodeMap left,
+    const AccessPath *left_path, const AccessPath *right_path, NodeMap left,
     NodeMap right) {
+  // For a join condition to be redundant against an already applied sargable
+  // predicate, the applied predicate must somehow connect the left side and the
+  // right side. This means either:
+  //
+  // - One of the paths must be parameterized on at least one of the tables in
+  // the other path. In the example above, because t2=t3 is applied on the {t3}
+  // path, and t2 is not included in the path, the {t3} path is parameterized on
+  // t2. (It is only necessary to check if right_path is parameterized on
+  // left_path, since parameterization is always resolved by nested-loop joining
+  // in the parameter tables from the outer/left side into the parameterized
+  // path on the inner/right side.)
+  //
+  // - Or both paths are parameterized on some common table that is not part of
+  // either path. Say if {t1,t2} has sargable t1=t4 and {t3} has sargable t3=t4,
+  // then both paths are parameterized on t4, and joining {t1,t2} with {t3}
+  // along t1=t3 is redundant, given all three predicates (t1=t4, t3=t4, t1=t3)
+  // are from the same multiple equality.
+  //
+  // If the parameterization is not like that, we don't need to check any
+  // further.
+  assert(!Overlaps(left_path->parameter_tables, right));
+  if (!Overlaps(right_path->parameter_tables,
+                left | left_path->parameter_tables)) {
+    return false;
+  }
+
   const auto redundant_and_applied = [](uint64_t redundant_sargable,
                                         uint64_t left_applied,
                                         uint64_t right_applied) {
@@ -3262,8 +3352,8 @@ bool CostingReceiver::RedundantThroughSargable(
   for (size_t predicate_idx :
        OverflowBitsetBitsIn<3, decltype(redundant_and_applied)>(
            {redundant_against_sargable_predicates,
-            left_applied_sargable_join_predicates,
-            right_applied_sargable_join_predicates},
+            left_path->applied_sargable_join_predicates(),
+            right_path->applied_sargable_join_predicates()},
            redundant_and_applied)) {
     // The sargable condition must work as a join condition for this join
     // (not between tables we've already joined in). Note that the joining
@@ -3310,7 +3400,7 @@ bool CostingReceiver::RedundantThroughSargable(
   join condition (so we need not apply it as a filter).
  */
 pair<bool, bool> CostingReceiver::AlreadyAppliedAsSargable(
-    Item *condition, const AccessPath *left_path [[maybe_unused]],
+    Item *condition, const AccessPath *left_path,
     const AccessPath *right_path) {
   const auto it = m_graph->sargable_join_predicates.find(condition);
   if (it == m_graph->sargable_join_predicates.end()) {
@@ -3335,7 +3425,8 @@ pair<bool, bool> CostingReceiver::AlreadyAppliedAsSargable(
 void CostingReceiver::ProposeNestedLoopJoin(
     NodeMap left, NodeMap right, AccessPath *left_path, AccessPath *right_path,
     const JoinPredicate *edge, bool rewrite_semi_to_inner,
-    FunctionalDependencySet new_fd_set, OrderingSet new_obsolete_orderings) {
+    FunctionalDependencySet new_fd_set, OrderingSet new_obsolete_orderings,
+    bool *wrote_trace) {
   if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN))
     return;
 
@@ -3516,33 +3607,41 @@ void CostingReceiver::ProposeNestedLoopJoin(
     join_path.safe_for_rowid = left_path->safe_for_rowid;
   }
 
-  {
-    FunctionalDependencySet filter_fd_set;
-    ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
-        /*materialize_subqueries=*/false, &join_path, &filter_fd_set);
-    join_path.ordering_state = m_orderings->ApplyFDs(
-        join_path.ordering_state, new_fd_set | filter_fd_set);
-    ProposeAccessPathWithOrderings(
-        left | right, new_fd_set | filter_fd_set, new_obsolete_orderings,
-        &join_path, rewrite_semi_to_inner ? "dedup to inner nested loop" : "");
+  // Only trace once; the rest ought to be identical.
+  if (m_trace != nullptr && !*wrote_trace) {
+    *m_trace += PrintSubgraphHeader(edge, join_path, left, right);
+    *wrote_trace = true;
   }
 
-  if (Overlaps(join_path.filter_predicates,
-               m_graph->materializable_predicates)) {
+  for (bool materialize_subqueries : {false, true}) {
+    AccessPath new_path = join_path;
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
         left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
-        /*materialize_subqueries=*/true, &join_path, &filter_fd_set);
-    join_path.ordering_state = m_orderings->ApplyFDs(
-        join_path.ordering_state, new_fd_set | filter_fd_set);
+        edge->expr->join_predicate_last, materialize_subqueries, &new_path,
+        &filter_fd_set);
+    new_path.ordering_state = m_orderings->ApplyFDs(new_path.ordering_state,
+                                                    new_fd_set | filter_fd_set);
+
+    const char *description_for_trace = "";
+    if (m_trace != nullptr) {
+      if (materialize_subqueries && rewrite_semi_to_inner) {
+        description_for_trace = "dedup to inner nested loop, mat. subq";
+      } else if (rewrite_semi_to_inner) {
+        description_for_trace = "dedup to inner nested loop";
+      } else if (materialize_subqueries) {
+        description_for_trace = "mat. subq";
+      }
+    }
+
     ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   new_obsolete_orderings, &join_path,
-                                   rewrite_semi_to_inner
-                                       ? "dedup to inner nested loop, mat. subq"
-                                       : "mat. subq");
+                                   new_obsolete_orderings, &new_path,
+                                   description_for_trace);
+
+    if (!Overlaps(new_path.filter_predicates,
+                  m_graph->materializable_predicates)) {
+      break;
+    }
   }
 }
 
@@ -3574,10 +3673,8 @@ double CostingReceiver::FindAlreadyAppliedSelectivity(
       const auto it = m_graph->sargable_join_predicates.find(condition);
       already_applied *= m_graph->predicates[it->second].selectivity;
     } else if (RedundantThroughSargable(
-                   properties.redundant_against_sargable_predicates,
-                   left_path->applied_sargable_join_predicates(),
-                   right_path->applied_sargable_join_predicates(), left,
-                   right)) {
+                   properties.redundant_against_sargable_predicates, left_path,
+                   right_path, left, right)) {
       if (m_trace != nullptr) {
         *m_trace += " - " + PrintAccessPath(*right_path, *m_graph, "") +
                     " has a sargable predicate that is redundant with our join "
@@ -3848,6 +3945,9 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
       break;
     case AccessPath::DELETE_ROWS:
       str += "DELETE_ROWS";
+      break;
+    case AccessPath::UPDATE_ROWS:
+      str += "UPDATE_ROWS";
       break;
   }
 
@@ -4497,48 +4597,158 @@ bool CreateTemporaryTableForFullTextFunctions(
 }
 
 /**
+  Is this DELETE target table a candidate for being deleted from immediately,
+  while scanning the result of the join? It only checks if it is a candidate for
+  immediate delete. Whether it actually ends up being deleted from immediately,
+  depends on the plan that is chosen.
+ */
+bool IsImmediateDeleteCandidate(const TABLE_LIST *table_ref,
+                                const Query_block *query_block) {
+  assert(table_ref->is_deleted());
+
+  // Cannot delete from the table immediately if it's joined with itself.
+  if (unique_table(table_ref, query_block->leaf_tables,
+                   /*check_alias=*/false) != nullptr) {
+    return false;
+  }
+
+  return true;
+}
+
+/// Adds all fields of "table" that are referenced from "item" to
+/// table->tmp_set.
+void AddFieldsToTmpSet(Item *item, TABLE *table) {
+  item->walk(&Item::add_field_to_set_processor, enum_walk::SUBQUERY_POSTFIX,
+             pointer_cast<uchar *>(table));
+}
+
+/**
+  Is this UPDATE target table a candidate for being updated immediately, while
+  scanning the result of the join? It only checks if it is a candidate for
+  immediate update. Whether it actually ends up being updated immediately,
+  depends on the plan that is chosen.
+ */
+bool IsImmediateUpdateCandidate(const TABLE_LIST *table_ref, int node_idx,
+                                const JoinHypergraph &graph,
+                                table_map target_tables) {
+  assert(table_ref->is_updated());
+  assert(Overlaps(table_ref->map(), target_tables));
+  assert(table_ref->table == graph.nodes[node_idx].table);
+
+  // Cannot update the table immediately if it's joined with itself.
+  if (unique_table(table_ref, graph.query_block()->leaf_tables,
+                   /*check_alias=*/false) != nullptr) {
+    return false;
+  }
+
+  TABLE *const table = table_ref->table;
+
+  // Cannot update the table immediately if it modifies a partitioning column,
+  // as that could move the row to another partition so that it is seen more
+  // than once.
+  if (table->part_info != nullptr &&
+      table->part_info->num_partitions_used() > 1 &&
+      partition_key_modified(table, table->write_set)) {
+    return false;
+  }
+
+  // If there are at least two tables to update, t1 and t2, t1 being before t2
+  // in the plan, we need to collect all fields of t1 which influence the
+  // selection of rows from t2. If those fields are also updated, it will not be
+  // possible to update t1 on the fly.
+  if (!IsSingleBitSet(target_tables)) {
+    assert(bitmap_is_clear_all(&table->tmp_set));
+    auto restore_tmp_set =
+        create_scope_guard([table]() { bitmap_clear_all(&table->tmp_set); });
+
+    // Mark referenced fields in the join conditions in all the simple edges
+    // involving this table.
+    for (unsigned edge_idx : graph.graph.nodes[node_idx].simple_edges) {
+      const RelationalExpression *expr = graph.edges[edge_idx / 2].expr;
+      for (Item *condition : expr->join_conditions) {
+        AddFieldsToTmpSet(condition, table);
+      }
+      for (Item_func_eq *condition : expr->equijoin_conditions) {
+        AddFieldsToTmpSet(condition, table);
+      }
+    }
+
+    // Mark referenced fields in the join conditions in all the complex edges
+    // involving this table.
+    for (unsigned edge_idx : graph.graph.nodes[node_idx].complex_edges) {
+      const RelationalExpression *expr = graph.edges[edge_idx / 2].expr;
+      for (Item *condition : expr->join_conditions) {
+        AddFieldsToTmpSet(condition, table);
+      }
+      for (Item_func_eq *condition : expr->equijoin_conditions) {
+        AddFieldsToTmpSet(condition, table);
+      }
+    }
+
+    // And mark referenced fields in join conditions that are left in the WHERE
+    // clause (typically degenerate join conditions stemming from single-table
+    // filters that can't be pushed down due to pseudo-table bits in
+    // used_tables()).
+    for (unsigned i = 0; i < graph.num_where_predicates; ++i) {
+      const Predicate &predicate = graph.predicates[i];
+      if (IsProperSubset(TableBitmap(node_idx), predicate.used_nodes)) {
+        AddFieldsToTmpSet(predicate.condition, table);
+      }
+    }
+
+    if (bitmap_is_overlapping(&table->tmp_set, table->write_set)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
   Finds all the target tables of an UPDATE or DELETE statement. It additionally
   disables covering index scans on the target tables, since ha_update_row() and
   ha_delete_row() can only be called on scans reading the full row.
-
-  @param thd The session object.
-  @param query_block The query block.
-  @param[out] target_tables The set of tables modified by this statement.
-  @param[out] immediate_candidates The subset of target tables that are
-    candidates for immediate update/delete. That is, tables that can be updated
-    or deleted from while scanning the result of the join, with no need to store
-    row IDs in temporary tables for delayed update/delete after all the rows
-    from the join have been processed. These are candidates only; the actual
-    tables to update while scanning, if any, will be chosen based on cost during
-    planning.
  */
-void FindUpdateDeleteTargetTables(const THD *thd, Query_block *query_block,
-                                  table_map *target_tables,
-                                  table_map *immediate_candidates) {
-  switch (thd->lex->sql_command) {
-    case SQLCOM_DELETE_MULTI:
-    case SQLCOM_DELETE:
-    case SQLCOM_UPDATE_MULTI:
-    case SQLCOM_UPDATE:
-      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
-           tl = tl->next_leaf) {
-        if (tl->updating) {
-          *target_tables |= tl->map();
-          if (unique_table(tl, query_block->leaf_tables,
-                           /*check_alias=*/false) == nullptr) {
-            *immediate_candidates |= tl->map();
-          }
-
-          // Target tables of DELETE and UPDATE need the full row, so disable
-          // covering index scans.
-          tl->table->no_keyread = true;
-          tl->table->covering_keys.clear_all();
-        }
-      }
-      break;
-    default:
-      break;
+table_map FindUpdateDeleteTargetTables(const Query_block *query_block) {
+  table_map target_tables = 0;
+  for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
+       tl = tl->next_leaf) {
+    if (tl->is_updated() || tl->is_deleted()) {
+      target_tables |= tl->map();
+      // Target tables of DELETE and UPDATE need the full row, so disable
+      // covering index scans.
+      tl->table->no_keyread = true;
+      tl->table->covering_keys.clear_all();
+    }
   }
+  assert(target_tables != 0);
+  return target_tables;
+}
+
+/**
+  Finds all of the target tables of an UPDATE or DELETE statement that are
+  candidates from being updated or deleted from immediately while scanning the
+  results of the join, without need to buffer the row IDs in a temporary table
+  for delayed update/delete after the join has completed. These are candidates
+  only; the actual tables to update while scanning, if any, will be chosen based
+  on cost during planning.
+ */
+table_map FindImmediateUpdateDeleteCandidates(const JoinHypergraph &graph,
+                                              table_map target_tables,
+                                              bool is_delete) {
+  table_map candidates = 0;
+  for (unsigned node_idx = 0; node_idx < graph.nodes.size(); ++node_idx) {
+    const JoinHypergraph::Node &node = graph.nodes[node_idx];
+    const TABLE_LIST *tl = node.table->pos_in_table_list;
+    if (Overlaps(tl->map(), target_tables)) {
+      if (is_delete ? IsImmediateDeleteCandidate(tl, graph.query_block())
+                    : IsImmediateUpdateCandidate(tl, node_idx, graph,
+                                                 target_tables)) {
+        candidates |= tl->map();
+      }
+    }
+  }
+  return candidates;
 }
 
 // Returns a map containing the node indexes of all tables referenced by a
@@ -4942,10 +5152,19 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
 
       // We need to sort. Try all sort-ahead, not just the one directly
-      // derived from DISTINCT clause, because a broader one might help us
-      // elide ORDER BY later.
+      // derived from DISTINCT clause, because the DISTINCT clause might
+      // help us elide the sort for ORDER BY later, if the DISTINCT clause
+      // is broader than the ORDER BY clause"
       for (const SortAheadOrdering &sort_ahead_ordering :
            sort_ahead_orderings) {
+        // A broader DISTINCT could help elide ORDER BY. Not vice versa. Note
+        // that ORDER BY would generally be subset of DISTINCT, but not always.
+        // E.g. using ANY_VALUE() in ORDER BY would allow it to be not part of
+        // DISTINCT.
+        if (grouping.size() <
+            orderings.ordering(sort_ahead_ordering.ordering_idx).size()) {
+          continue;
+        }
         LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
             orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
         if (!orderings.DoesFollowOrder(ordering_state, distinct_ordering_idx)) {
@@ -5063,7 +5282,6 @@ static AccessPath *ApplyWindow(THD *thd, AccessPath *root_path, Window *window,
   AccessPath *window_path =
       NewWindowAccessPath(thd, root_path, /*temp_table_param=*/nullptr,
                           /*ref_slice=*/-1, window->needs_buffering());
-  window_path->window().temp_table = nullptr;
   window_path->window().window = window;
   CopyBasicProperties(*root_path, window_path);
   window_path->cost += kWindowOneRowCost * window_path->num_output_rows;
@@ -5685,11 +5903,18 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
   graph.materializable_predicates = std::move(materializable_predicates);
 
+  const bool is_topmost_query_block =
+      query_block->outer_query_block() == nullptr;
+  const bool is_delete = is_topmost_query_block && IsDeleteStatement(thd);
+  const bool is_update = is_topmost_query_block && IsUpdateStatement(thd);
+
   table_map update_delete_target_tables = 0;
   table_map immediate_update_delete_candidates = 0;
-  FindUpdateDeleteTargetTables(thd, join->query_block,
-                               &update_delete_target_tables,
-                               &immediate_update_delete_candidates);
+  if (is_delete || is_update) {
+    update_delete_target_tables = FindUpdateDeleteTargetTables(query_block);
+    immediate_update_delete_candidates = FindImmediateUpdateDeleteCandidates(
+        graph, update_delete_target_tables, is_delete);
+  }
 
   NodeMap fulltext_tables = 0;
   uint64_t sargable_fulltext_predicates = 0;
@@ -6069,11 +6294,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     root_candidates = std::move(new_root_candidates);
   }
 
-  // Add a DELETE_ROWS access path if this is the topmost query block of
-  // a DELETE statement.
-  if ((thd->lex->sql_command == SQLCOM_DELETE_MULTI ||
-       thd->lex->sql_command == SQLCOM_DELETE) &&
-      query_block->outer_query_block() == nullptr) {
+  // Add a DELETE_ROWS or UPDATE_ROWS access path if this is the topmost query
+  // block of a DELETE statement or an UPDATE statement.
+  if (is_delete) {
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       table_map immediate_tables = 0;
@@ -6085,6 +6308,21 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           thd, root_path, update_delete_target_tables, immediate_tables);
       EstimateDeleteRowsCost(delete_path);
       receiver.ProposeAccessPath(delete_path, &new_root_candidates,
+                                 /*obsolete_orderings=*/0, "");
+    }
+    root_candidates = std::move(new_root_candidates);
+  } else if (is_update) {
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (AccessPath *root_path : root_candidates) {
+      table_map immediate_tables = 0;
+      if (root_path->immediate_update_delete_table != -1) {
+        immediate_tables = graph.nodes[root_path->immediate_update_delete_table]
+                               .table->pos_in_table_list->map();
+      }
+      AccessPath *update_path = NewUpdateRowsAccessPath(
+          thd, root_path, update_delete_target_tables, immediate_tables);
+      EstimateUpdateRowsCost(update_path);
+      receiver.ProposeAccessPath(update_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "");
     }
     root_candidates = std::move(new_root_candidates);
@@ -6113,8 +6351,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   // Materialize the result if a top-level query block has the SQL_BUFFER_RESULT
   // option, and the chosen root path isn't already a materialization path.
   if (query_block->active_options() & OPTION_BUFFER_RESULT &&
-      query_block->outer_query_block() == nullptr &&
-      !IsMaterializationPath(root_path)) {
+      is_topmost_query_block && !IsMaterializationPath(root_path)) {
     if (trace != nullptr) {
       *trace += "Adding temporary table for SQL_BUFFER_RESULT.\n";
     }

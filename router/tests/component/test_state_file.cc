@@ -181,7 +181,7 @@ class StateFileTest : public RouterComponentTest {
       kRetrySleep *= 10;
     }
     do {
-      const auto log_content = router.get_full_logfile();
+      const auto log_content = router.get_logfile_content();
       if (log_content.find(expected_entry) != std::string::npos) return true;
 
       std::this_thread::sleep_for(kRetrySleep);
@@ -780,10 +780,9 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   // proper log should get logged
-  auto log_content = router.get_full_logfile();
+  auto log_content = router.get_logfile_content();
   for (const auto &expeted_in_log : test_params.expected_errors_in_log) {
-    EXPECT_TRUE(log_content.find(expeted_in_log) != std::string::npos)
-        << log_content << "\n";
+    EXPECT_TRUE(log_content.find(expeted_in_log) != std::string::npos);
   }
 }
 
@@ -1124,7 +1123,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
       router_cmdline, EXIT_SUCCESS, true, false, -1s,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
-  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 20s));
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
@@ -1184,7 +1183,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
       router_cmdline, EXIT_SUCCESS, true, false, -1s,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
-  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 5s));
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported

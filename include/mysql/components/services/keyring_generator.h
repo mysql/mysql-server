@@ -74,7 +74,7 @@ BEGIN_SERVICE_DEFINITION(keyring_generator)
   Examples: AES, SECRET
 
   Note: If components want to support aes_encryption service,
-  it must spport storing data of type AES.
+  it must support storing data of type AES.
 
   If error object is not initialized, the method will initialize it if returns
   false. Caller will be responsible for freeing error state in such cases.

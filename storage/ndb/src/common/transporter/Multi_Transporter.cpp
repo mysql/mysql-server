@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,12 +68,12 @@ Multi_Transporter::resetBuffers()
   send_checksum_state.init();
 }
 
-bool Multi_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
+bool Multi_Transporter::connect_server_impl(NDB_SOCKET_TYPE /*sockfd*/)
 {
   return true;
 }
 
-bool Multi_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
+bool Multi_Transporter::connect_client_impl(NDB_SOCKET_TYPE /*sockfd*/)
 {
   return true;
 }

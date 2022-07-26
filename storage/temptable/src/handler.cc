@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,7 +46,7 @@ static Sharded_key_value_store<KV_STORE_SHARDS_COUNT> kv_store_shard;
  * */
 static Lock_free_shared_block_pool<SHARED_BLOCK_POOL_SIZE> shared_block_pool;
 
-/** Small helper function which debug-prints the miscelaneous statistics which
+/** Small helper function which debug-prints the miscellaneous statistics which
  * key-value store has collected.
  * */
 void kv_store_shards_debug_dump() { kv_store_shard.dbug_print(); }

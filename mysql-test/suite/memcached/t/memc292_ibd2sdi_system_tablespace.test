@@ -34,7 +34,7 @@ write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
 EOF
 
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:20M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb-page-size=$start_page_size </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:20M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_redo_log_capacity=30M --init-file=$BOOTSTRAP_SQL --innodb-page-size=$start_page_size </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 # Run the bootstrap command
 --exec $NEW_CMD
@@ -43,7 +43,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 
 # Start the DB server
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:20M:autoextend' --innodb_log_file_size=15M --innodb_log_files_in_group=2"
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:20M:autoextend' --innodb_redo_log_capacity=30M"
 --source include/restart_mysqld.inc
 
 --disable_query_log
@@ -156,7 +156,7 @@ write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
 EOF
 
-let $BOOTSTRAP_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:2M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb-page-size=$start_page_size </dev/null>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let $BOOTSTRAP_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:2M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_redo_log_capacity=30M --init-file=$BOOTSTRAP_SQL --innodb-page-size=$start_page_size </dev/null>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 # Run the bootstrap command
 --exec $BOOTSTRAP_CMD
@@ -165,7 +165,7 @@ let $BOOTSTRAP_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initi
 
 # Start the DB server
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:2M:autoextend' --innodb_log_file_size=15M --innodb_log_files_in_group=2"
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:2M:autoextend' --innodb_redo_log_capacity=30M"
 --source include/start_mysqld.inc
 
 --disable_query_log

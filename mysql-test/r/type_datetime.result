@@ -1083,3 +1083,36 @@ pk	t0	t1	dt	b1	b2	b3	b4
 2	12:00:00	12:00:00	2020-01-01 00:00:00	NULL	NULL	NULL	NULL
 3	16:00:00	12:00:00	2020-01-01 00:00:00	0	1	0	1
 DROP TABLE t1;
+#
+# Bug #33897969 DATE/DATETIME
+#               type cover other values type in Item_func_in
+#
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+col_date date DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+col_varchar VARCHAR(1) DEFAULT NULL,
+KEY (col_varchar)
+);
+INSERT INTO t1 VALUES(5, '2022-02-25', '2022-02-25 11:01:14', 'I');
+SELECT * FROM t1 WHERE pk = 5 AND
+(col_datetime, col_varchar)
+IN (('2022-02-25 11:01:14', 'Y'), ('2022-02-25 11:01:14', 'I'));
+pk	col_date	col_datetime	col_varchar
+5	2022-02-25	2022-02-25 11:01:14	I
+SELECT * FROM t1 WHERE pk = 5 AND
+(col_datetime, col_varchar) IN ((@a, @b), (@c, @d));
+pk	col_date	col_datetime	col_varchar
+SELECT * FROM t1 WHERE pk = 5 AND
+(col_date, col_varchar) IN (('2022-02-25', 'Y'), ('2022-02-25', 'I'));
+pk	col_date	col_datetime	col_varchar
+5	2022-02-25	2022-02-25 11:01:14	I
+SELECT * FROM t1 wHERE pk = 5 AND
+(col_varchar, col_date) IN (('Y','2022-02-25'), ('I', '2022-02-25'));
+pk	col_date	col_datetime	col_varchar
+5	2022-02-25	2022-02-25 11:01:14	I
+SELECT * FROM t1 wHERE pk = 5 AND
+(col_varchar, col_date) IN (('I','2022-02-25'), ('I', '2022-02-25'));
+pk	col_date	col_datetime	col_varchar
+5	2022-02-25	2022-02-25 11:01:14	I
+DROP TABLE t1;

@@ -939,7 +939,7 @@ PropertiesImpl::unpack(const Uint32 * buf, Uint32 &bufLen, Properties * top,
 }
 
 PropertyImpl::~PropertyImpl(){
-  free((char*)name);
+  free(const_cast<char *>(name));
   switch(valueType){
   case PropertiesType_Uint32:
     delete (Uint32 *)value;
@@ -1035,7 +1035,7 @@ PropertyImpl& PropertyImpl::operator = (const PropertyImpl &prop)
     return *this;
   }
 
-  free((char*)name);
+  free(const_cast<char *>(name));
   switch(valueType)
   {
   case PropertiesType_Uint32:
@@ -1143,13 +1143,9 @@ Properties::setErrno(Uint32 pErr, Uint32 osErr) const {
     parent->setErrno(pErr, osErr);
     return ;
   }
-  
-  /**
-   * propErrno & osErrno used to be mutable,
-   * but diab didn't know what mutable meant.
-   */
-  *((Uint32*)&propErrno) = pErr;
-  *((Uint32*)&osErrno)   = osErr;
+
+  propErrno = pErr;
+  osErrno = osErr;
 }
 
 /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ int m_by_emp_by_mtype_rnd_next(PSI_table_handle *handle) {
               /* Make current row */
               make_record(&h->current_row, e_record, m_record);
           }
-          it++;
+          ++it;
         }
         /* If a record was formed */
         if (h->current_row.m_exist) {

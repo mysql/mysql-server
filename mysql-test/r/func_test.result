@@ -368,7 +368,7 @@ DROP TABLE t1, t2;
 #              MULTIBYTE STRINGS TO NUMBERS
 #
 select greatest(1,_utf16'.',_utf8'');
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,NUMERIC), (utf16_general_ci,COERCIBLE), (utf8_general_ci,COERCIBLE) for operation 'greatest'
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,NUMERIC), (utf16_general_ci,COERCIBLE), (utf8mb3_general_ci,COERCIBLE) for operation 'greatest'
 #
 # Bug#25123839: LEAST AND GREATEST MAKES INCONSISTENT DATA TYPES,
 # COMPARED TO UNION AND COALESCE
@@ -757,3 +757,25 @@ SELECT SUM(LEAST(a, b)) FROM t2;
 SUM(LEAST(a, b))
 1
 DROP TABLE t1, t2;
+#
+#Bug 33758255 - An edge case for base BUG 32038406 -
+#               FILESORT USED FOR ORDER BY ...DESC EVEN WHEN
+#               DESCENDING INDEX AVAILABLE AND USED
+#
+CREATE TABLE t1 (
+c1 VARCHAR(10),
+c2 VARCHAR(10),
+c3 DATE NOT NULL,
+c4 INT,
+UNIQUE KEY ix (c1, c3 DESC, c4 DESC));
+EXPLAIN
+SELECT c1 FROM t1
+WHERE c1= 'abc' AND
+c2 IN ('def') AND
+c3 BETWEEN '2022-03-16' AND '2022-03-16'
+ORDER BY c3 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	ix	ix	46	const,const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c3` = DATE'2022-03-16') and (`test`.`t1`.`c2` = 'def') and (`test`.`t1`.`c1` = 'abc')) order by `test`.`t1`.`c3` desc
+DROP TABLE t1;

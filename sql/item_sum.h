@@ -126,8 +126,8 @@ class Aggregator {
   virtual bool setup(THD *) = 0;
 
   /**
-    Called when we need to wipe out all the data from the aggregator :
-    all the values acumulated and all the state.
+    Called when we need to wipe out all the data from the aggregator:
+    all the values accumulated and all the state.
     Cleans up the internal structures and resets them to their initial state.
   */
   virtual void clear() = 0;
@@ -1434,8 +1434,9 @@ class Item_sum_variance : public Item_sum_num {
   /**
     Used in recurrence relation.
   */
-  double recurrence_m, recurrence_s;
-  double recurrence_s2;
+  double recurrence_m{0.0};
+  double recurrence_s{0.0};
+  double recurrence_s2{0.0};
   ulonglong count;
   uint sample;
   uint prec_increment;

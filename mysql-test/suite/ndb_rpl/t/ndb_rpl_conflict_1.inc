@@ -1,10 +1,15 @@
+# Includes tests to verify UPDATE and DELETE operations are replicated
+# as expected when the tables are configured with conflict detection
+# and resolution alogrithms.
+
 --connection slave
 --source suite/ndb_rpl/t/ndb_conflict_info_init.inc
 
 --connection master
 
 --eval create table t1 (a int, b varchar(32), X $col_type, d varchar(9), primary key (a, d)) engine ndb
-create table t2 (a int key, b varchar(32), c int unsigned, d varchar(9)) engine ndb;
+# Create a similar table without any conflict function configured
+create table t2 (a int, b varchar(32), c int unsigned, d varchar(9), primary key (a, d)) engine ndb;
 
 --echo ************************************************
 --echo * some basic positive testing, i.e. no conflicts

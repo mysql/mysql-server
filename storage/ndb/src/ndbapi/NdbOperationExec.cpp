@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1140,6 +1140,15 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
   /* Interpreted program main signal words */
   if (code)
   {
+    if (tOpType == UpdateRequest || tOpType == WriteRequest) {
+      /* Handle any Extra GetValues, treating as 'InitialRead's */
+      const NdbRecAttr *ra = theReceiver.m_firstRecAttr;
+      while (ra) {
+        res = insertATTRINFOHdr_NdbRecord(ra->attrId(), 0);
+        if (res) return res;
+        ra = ra->next();
+      }
+    }
     /* Record length of Initial Read section */
     attrinfo_section_sizes_ptr[0]= theTotalCurrAI_Len - 
       AttrInfo::SectionSizeInfoLength;
@@ -1241,9 +1250,9 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
            */
           assert(!col->is_null(key_row));
           length= 0;
-          
-          bool len_ok;
-          
+
+          bool len_ok [[maybe_unused]];
+
           if (col->flags & NdbRecord::IsMysqldShrinkVarchar)
           {
             /* Used to support special varchar format for mysqld keys. 
@@ -1362,7 +1371,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
 
         if(length>0)
         {
-          res=insertATTRINFOData_NdbRecord((char*)pvalue, length);
+          res = insertATTRINFOData_NdbRecord((const char *)pvalue, length);
           if(res)
             return res;
         }

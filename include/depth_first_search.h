@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 
 /**
   Performs a Depth First Search algorithm on a graph defined by a set of
-  vertexes being an subset of universum of values of TVertex type and, and set
+  vertices being an subset of universum of values of TVertex type and, and set
   of directed edges generated on demand by get_neighbors() method supplied.
   Search starts with a selected vertex, for each vertex that is encountered a
   visitor_start() method supplied is called and when the DFS finishes traversal
@@ -50,8 +50,8 @@
     vertex ends to be processed, i.e. all its neighbors were already processed,
     the vertex is supplied as the only argument.
   @param get_neighbors A method or lambda that takes a vertex as an argument and
-    returns a enumerable list of all vertexes to which the edges exists.
-  @param [in,out] visited_set A set of vertexes that were visited. This can be
+    returns a enumerable list of all vertices to which the edges exists.
+  @param [in,out] visited_set A set of vertices that were visited. This can be
     used to run multiple DFS runs and assure any vertex will not be visited more
     than once.
 */

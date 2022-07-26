@@ -1,0 +1,48 @@
+--source include/count_sessions.inc
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+
+--connect (con1, localhost, root,,)
+--connect (con2, localhost, root,,)
+--connect (con3, localhost, root,,)
+
+--connection con3
+  # create a read view which will prevent purging the id=1
+  BEGIN;
+  SELECT * FROM t1;
+
+--connection con1
+  # delete-mark the id=1
+  DELETE FROM t1 WHERE id=1;
+  # place LOCK_S
+  BEGIN;
+  SELECT * FROM t1 FOR SHARE;
+
+--connection con2
+  # place a WAITING LOCK_X
+  BEGIN;
+  SET DEBUG_SYNC = "lock_wait_will_wait SIGNAL con2_will_wait";
+  --send SELECT * FROM t1 FOR UPDATE
+
+--connection con1
+  SET DEBUG_SYNC = "now WAIT_FOR con2_will_wait";
+  # attempt S to X escalation, bypassing con2, and using implicit lock
+  INSERT INTO t1 VALUES (1);
+
+--connection con3
+  # insert a record just before id=1, just to trigger validation for this record
+  SET DEBUG_SYNC = "lock_wait_will_wait SIGNAL con3_will_wait";
+  --send INSERT INTO t1 VALUES (0)
+
+--connection con1
+  SET DEBUG_SYNC = "now WAIT_FOR con3_will_wait";
+
+--connection default
+--disconnect con1
+--disconnect con2
+--disconnect con3
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

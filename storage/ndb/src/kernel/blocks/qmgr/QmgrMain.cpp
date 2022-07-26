@@ -3292,7 +3292,7 @@ void Qmgr::findNeighbours(Signal* signal, Uint32 from)
 void Qmgr::initData(Signal* signal) 
 {
   // catch-all for missing initializations
-  memset(&arbitRec, 0, sizeof(arbitRec));
+  arbitRec = ArbitRec();
 
   /**
    * Timeouts
@@ -9166,12 +9166,11 @@ Qmgr::execNODE_STATE_REP(Signal* signal)
   jam();
   const NodeState prevState = getNodeState();
   SimulatedBlock::execNODE_STATE_REP(signal);
+  const NodeState newState = getNodeState();
 
   /* Check whether we are changing state */
-  const Uint32 prevStartLevel = prevState.startLevel;
-  const Uint32 newStartLevel = getNodeState().startLevel;
-
-  if (newStartLevel != prevStartLevel)
+  if (prevState.startLevel != newState.startLevel ||
+      prevState.nodeGroup != newState.nodeGroup)
   {
     jam();
     /* Inform APIs */

@@ -43,6 +43,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0types.h"
 #include "fut0fut.h"
 #include "ha_prototypes.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "my_compiler.h"
@@ -875,11 +877,9 @@ void Tablespace::set_file_name(const char *file_name) {
   m_file_name[len] = '\0';
 }
 
-/** Populate log file name based on space_id
-@param[in]      space_id        id of the undo tablespace.
-@return DB_SUCCESS or error code */
-char *Tablespace::make_log_file_name(space_id_t space_id) {
-  size_t size = strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
+char *Tablespace::make_log_file_name(space_id_t space_id,
+                                     const char *location) {
+  size_t size = strlen(location) + 22 + 1 /* NUL */
                 + strlen(undo::s_log_prefix) + strlen(undo::s_log_ext);
 
   char *name =
@@ -887,7 +887,7 @@ char *Tablespace::make_log_file_name(space_id_t space_id) {
 
   memset(name, 0, size);
 
-  strcpy(name, srv_log_group_home_dir);
+  strcpy(name, location);
   ulint len = strlen(name);
 
   if (name[len - 1] != OS_PATH_SEPARATOR) {
@@ -1043,14 +1043,22 @@ bool is_active_truncate_log_present(space_id_t space_num) {
   /* Calling id2num(space_num) will return the first space_id for this
   space_num. That is good enough since we only need the log_file_name. */
   Tablespace undo_space(id2num(space_num));
+
+  /* The truncation log file location changed to a new default location.
+  Check if it exists in either location. */
   char *log_file_name = undo_space.log_file_name();
+  if (!os_file_exists(log_file_name)) {
+    log_file_name = undo_space.log_file_name_old();
+    if (!os_file_exists(log_file_name)) {
+      log_file_name = nullptr;
+    }
+  }
 
   /* If the log file exists, check it for presence of magic
   number.  If found, then delete the file and report file
   doesn't exist as presence of magic number suggest that
   truncate action was complete. */
-
-  if (os_file_exists(log_file_name)) {
+  if (log_file_name != nullptr) {
     bool ret;
     pfs_os_file_t handle = os_file_create_simple_no_error_handling(
         innodb_log_file_key, log_file_name, OS_FILE_OPEN, OS_FILE_READ_WRITE,

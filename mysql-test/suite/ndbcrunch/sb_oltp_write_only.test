@@ -1,0 +1,12 @@
+# Run benchmark oltp_write_only
+#
+# - index updates, "UPDATE k WHERE id=?"
+# - non index updates, "UPDATE c WHERE id = ?"
+# - delete+insert, "DELETE .. WHERE id = ?" + "INSERT" again, no actual change.
+#
+--source sb_init.inc
+
+let $bench_name = oltp_write_only;
+--source sb_run.inc
+
+--source sb_cleanup.inc

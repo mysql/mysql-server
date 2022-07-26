@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_time.h"
+#include "sql-common/json_dom.h"       // Json_*
 #include "sql/histograms/value_map.h"  // Value_map
-#include "sql/json_dom.h"              // Json_*
 #include "template_utils.h"
 
 struct MEM_ROOT;
@@ -380,10 +380,10 @@ double Singleton<T>::get_greater_than_selectivity(const T &value) const {
                                       Histogram_comparator());
 
   if (found == m_buckets.begin())
-    return get_non_null_values_frequency();
+    return get_non_null_values_fraction();
   else {
     const auto previous = std::prev(found, 1);
-    return get_non_null_values_frequency() - previous->cumulative_frequency;
+    return get_non_null_values_fraction() - previous->cumulative_frequency;
   }
 }
 

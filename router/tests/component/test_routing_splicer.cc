@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -198,7 +198,6 @@ TEST_F(SplicerTest, invalid_metadata) {
         // guard against inifinite loop
         if (rounds == 100) FAIL() << "connect() should have failed by now.";
 
-        // the router's certs against the corresponding CA
         sess.connect("127.0.0.1", router_port,
                      "someuser",  // user
                      "somepass",  // pass
@@ -213,7 +212,12 @@ TEST_F(SplicerTest, invalid_metadata) {
       }
     } catch (const mysqlrouter::MySQLSession::Error &e) {
       // connect failed eventually.
-      EXPECT_EQ(e.code(), 2003);
+      // depending on the timing this cand also be "SSL connection aborted"
+      // openssl 1.1.1: 2013
+      // openssl 1.0.2: 2026
+      EXPECT_THAT(e.code(),
+                  ::testing::AnyOf(::testing::Eq(2003), ::testing::Eq(2013),
+                                   ::testing::Eq(2026)));
     }
   }
 
@@ -224,7 +228,7 @@ TEST_F(SplicerTest, invalid_metadata) {
 
   SCOPED_TRACE("// check for the expected error-msg");
   EXPECT_THAT(
-      router.get_full_logfile(),
+      router.get_logfile_content(),
       ::testing::HasSubstr("Error parsing host:port in metadata for instance"));
 }
 
@@ -271,7 +275,7 @@ TEST_P(SplicerFailParamTest, fails) {
   check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_NO_FATAL_FAILURE(GetParam().checker(
-      mysql_harness::split_string(router.get_full_logfile(), '\n')));
+      mysql_harness::split_string(router.get_logfile_content(), '\n')));
 }
 
 const SplicerFailParam splicer_fail_params[] = {
@@ -586,10 +590,13 @@ const SplicerFailParam splicer_fail_params[] = {
          {"client_ssl_dh_params", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
      },
      [](const std::vector<std::string> &output_lines) {
-       ASSERT_THAT(output_lines,
-                   ::testing::Contains(::testing::AllOf(
-                       ::testing::HasSubstr("setting client_ssl_dh_param"),
-                       ::testing::EndsWith("no start line"))));
+       ASSERT_THAT(
+           output_lines,
+           ::testing::Contains(::testing::AllOf(
+               ::testing::HasSubstr("setting client_ssl_dh_param"),
+               ::testing::AnyOf(
+                   ::testing::EndsWith("no start line"),
+                   ::testing::EndsWith("DECODER routines::unsupported")))));
      }},
     {"server_ssl_curves_unknown",  // RT2_CIPHERS_UNKNOWN_04
      {
@@ -768,7 +775,7 @@ TEST_P(SplicerConnectParamTest, check) {
 
   launch_router({"-c", conf_file}, EXIT_SUCCESS,
                 /* catch_stderr */ true, /* with_sudo */ false,
-                /* wait_for_notify_ready */ 20s);
+                /* wait_for_notify_ready */ 30s);
   EXPECT_TRUE(wait_for_port_ready(router_port));
 
   EXPECT_NO_FATAL_FAILURE(GetParam().checker(router_host_, router_port));

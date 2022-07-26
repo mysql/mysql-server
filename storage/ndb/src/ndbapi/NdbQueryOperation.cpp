@@ -1869,24 +1869,6 @@ NdbQuery::getQueryOperation(const char* ident) const
   return (op) ? &op->getInterface() : NULL;
 }
 
-Uint32
-NdbQuery::getNoOfParameters() const
-{
-  return m_impl.getNoOfParameters();
-}
-
-const NdbParamOperand*
-NdbQuery::getParameter(const char* name) const
-{
-  return m_impl.getParameter(name);
-}
-
-const NdbParamOperand*
-NdbQuery::getParameter(Uint32 num) const
-{
-  return m_impl.getParameter(num);
-}
-
 int
 NdbQuery::setBound(const NdbRecord *keyRecord,
                    const NdbIndexScanOperation::IndexBound *bound)
@@ -2073,12 +2055,6 @@ NdbQueryOperation::isRowNULL() const
   return m_impl.isRowNULL();
 }
 
-bool
-NdbQueryOperation::isRowChanged() const
-{
-  return m_impl.isRowChanged();
-}
-
 /////////////////////////////////////////////////
 /////////  NdbQueryParamValue methods ///////////
 /////////////////////////////////////////////////
@@ -2209,7 +2185,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
       }
       else if (column.m_arrayType == NDB_ARRAYTYPE_SHORT_VAR)
       {
-        len  = 1+*((Uint8*)(m_value.raw));
+        len = 1 + *((const Uint8*)(m_value.raw));
 
         assert(column.getType() == NdbDictionary::Column::Varchar ||
                     column.getType() == NdbDictionary::Column::Varbinary);
@@ -2220,7 +2196,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
       }
       else if (column.m_arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
       {
-        len  = 2+uint2korr((Uint8*)m_value.raw);
+        len = 2 + uint2korr((const Uint8*)m_value.raw);
 
         assert(column.getType() == NdbDictionary::Column::Longvarchar ||
                     column.getType() == NdbDictionary::Column::Longvarbinary);
@@ -2244,7 +2220,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
 
       {
         // Convert from two-byte to one-byte length field.
-        len = 1+uint2korr((Uint8*)m_value.raw);
+        len = 1 + uint2korr((const Uint8*)m_value.raw);
         assert(len <= 0x100);
 
         if (unlikely(len > 1+static_cast<Uint32>(column.getLength())))
@@ -2252,7 +2228,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
 
         const Uint8 shortLen = static_cast<Uint8>(len-1);
         dst.appendBytes(&shortLen, 1);
-        dst.appendBytes(((Uint8*)m_value.raw)+2, shortLen);
+        dst.appendBytes(((const Uint8*)m_value.raw) + 2, shortLen);
       }
       break;
 
@@ -2674,24 +2650,6 @@ NdbQueryImpl::getQueryOperation(const char* ident) const
   return NULL;
 }
 
-Uint32
-NdbQueryImpl::getNoOfParameters() const
-{
-  return 0;  // FIXME
-}
-
-const NdbParamOperand*
-NdbQueryImpl::getParameter(const char* name) const
-{
-  return NULL; // FIXME
-}
-
-const NdbParamOperand*
-NdbQueryImpl::getParameter(Uint32 num) const
-{
-  return NULL; // FIXME
-}
-
 /**
  * NdbQueryImpl::nextResult() - The 'global' cursor on the query results
  *
@@ -2846,7 +2804,8 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
 
     if (worker!=NULL)
     {
-      getRoot().fetchRow(worker->getResultStream(0));
+      if (unlikely(getRoot().fetchRow(worker->getResultStream(0)) == -1))
+        return NdbQuery::NextResult_error;
       return NdbQuery::NextResult_gotRow;
     }
   } // m_state != EndOfData
@@ -4496,7 +4455,7 @@ NdbQueryOperationImpl::getNoOfParentOperations() const
 }
 
 NdbQueryOperationImpl&
-NdbQueryOperationImpl::getParentOperation(Uint32 i) const
+NdbQueryOperationImpl::getParentOperation(Uint32 i [[maybe_unused]]) const
 {
   assert(i==0 && m_parent!=NULL);
   return *m_parent;
@@ -4726,7 +4685,8 @@ NdbQueryOperationImpl::firstResult()
     NdbResultStream& resultStream = worker->getResultStream(*this);
     if (resultStream.firstResult() != tupleNotFound)
     {
-      fetchRow(resultStream);
+      if (unlikely(fetchRow(resultStream) == -1))
+        return NdbQuery::NextResult_error;
       return NdbQuery::NextResult_gotRow;
     }
   }
@@ -4766,7 +4726,8 @@ NdbQueryOperationImpl::nextResult(bool fetchAllowed, bool forceSend)
       NdbResultStream& resultStream = worker->getResultStream(*this);
       if (resultStream.nextResult() != tupleNotFound)
       {
-        fetchRow(resultStream);
+        if (unlikely(fetchRow(resultStream) == -1))
+          return NdbQuery::NextResult_error;
         return NdbQuery::NextResult_gotRow;
       }
     }
@@ -4775,9 +4736,7 @@ NdbQueryOperationImpl::nextResult(bool fetchAllowed, bool forceSend)
   return NdbQuery::NextResult_scanComplete;
 } //NdbQueryOperationImpl::nextResult()
 
-
-void 
-NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
+int NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
 {
   const char* buff = resultStream.getCurrentRow();
   assert(buff!=NULL || (m_firstRecAttr==NULL && m_ndbRecord==NULL));
@@ -4787,7 +4746,8 @@ NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
   {
     // Retrieve any RecAttr (getValues()) for current row
     const int retVal = resultStream.getReceiver().get_AttrValues(m_firstRecAttr);
-    assert(retVal==0);  ((void)retVal);
+    assert(retVal == 0);
+    if (unlikely(retVal == -1)) return -1;
   }
   if (m_ndbRecord != NULL)
   {
@@ -4799,10 +4759,12 @@ NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
     else
     {
       assert(m_resultBuffer!=NULL);
+      if (unlikely(m_resultBuffer == nullptr)) return -1;
       // Copy result to buffer supplied by application.
       memcpy(m_resultBuffer, buff, m_ndbRecord->m_row_size);
     }
   }
+  return 0;
 } // NdbQueryOperationImpl::fetchRow
 
 
@@ -4830,13 +4792,6 @@ bool
 NdbQueryOperationImpl::isRowNULL() const
 {
   return m_isRowNull;
-}
-
-bool
-NdbQueryOperationImpl::isRowChanged() const
-{
-  // FIXME: Need to be implemented as scan linked with scan is now implemented.
-  return true;
 }
 
 static bool isSetInMask(const unsigned char* mask, int bitNo)

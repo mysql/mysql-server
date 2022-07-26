@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -67,9 +67,9 @@ Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
 }
 
 Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
-                                                 const dict_table_t &table)
+                                                 const table_id_t &table_id)
     : Shard_naked_latch_guard{
-          location, lock_sys->latches.table_shards.get_mutex(table)} {}
+          location, lock_sys->latches.table_shards.get_mutex(table_id)} {}
 
 Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
                                                  const page_id_t &page_id)

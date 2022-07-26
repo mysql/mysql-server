@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,12 @@
 bool
 printCREATE_FK_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateFKReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateFKReq* sig = (const CreateFKReq*)theData;
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
@@ -41,6 +47,12 @@ printCREATE_FK_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printCREATE_FK_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateFKRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateFKRef* sig = (const CreateFKRef*)theData;
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
@@ -57,6 +69,12 @@ printCREATE_FK_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printCREATE_FK_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateFKConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateFKConf* sig = (const CreateFKConf*)theData;
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " senderRef: 0x%x", sig->senderRef);

@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_HISTOGRAM_INCLUDED
 #define HISTOGRAMS_HISTOGRAM_INCLUDED
 
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -277,12 +277,19 @@ class Histogram {
   LEX_CSTRING m_column_name;
 
   /**
+    An internal function for getting a selectivity estimate prior to adustment.
+    @see get_selectivity() for details.
+   */
+  bool get_raw_selectivity(Item **items, size_t item_count, enum_operator op,
+                           double *selectivity) const;
+
+  /**
     An internal function for getting the selecitvity estimation.
 
     This function will read/evaluate the value from the given Item, and pass
     this value on to the correct selectivity estimation function based on the
     data type of the histogram. For instance, if the data type of the histogram
-    is INT, we will call "val_int" on the Item to evaulate the value as an
+    is INT, we will call "val_int" on the Item to evaluate the value as an
     integer and pass this value on to the next function.
 
     @param item The Item to read/evaluate the value from.
@@ -486,7 +493,7 @@ class Histogram {
   /**
     @return the fraction of non-null values in the histogram.
   */
-  double get_non_null_values_frequency() const {
+  double get_non_null_values_fraction() const {
     return 1.0 - get_null_values_fraction();
   }
 };

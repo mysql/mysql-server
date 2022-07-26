@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ struct Transaction_termination_ctx {
   bool m_rollback_transaction;
 
   /*
-    If the plugin has generated a GTID, then the follwoing
+    If the plugin has generated a GTID, then the following
     fields MUST be set.
    */
   bool m_generated_gtid;

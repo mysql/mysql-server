@@ -45,19 +45,21 @@ Warning	3701	Value for log_error_services got confusing at or around "log_sink_i
 Error	1231	Variable 'log_error_services' can't be set to the value of 'log_filter_internal log_sink_internal'
 # unknown component
 SET @@global.log_error_services="azundris";
-ERROR 42000: Variable 'log_error_services' can't be set to the value of 'azundris'
+ERROR HY000: Can't open shared library 'component_azundris'
 SHOW WARNINGS;
 Level	Code	Message
+Error	1126	Can't open shared library 'component_azundris'
+Error	3529	Cannot load component from specified URN: 'file://component_azundris'.
 Warning	3701	Value for log_error_services got confusing at or around "azundris". Syntax may be wrong, component may not be INSTALLed, or a component that does not support instances may be listed more than once.
-Error	1231	Variable 'log_error_services' can't be set to the value of 'azundris'
-# disallowed. this component exists, but only for internal use during
-# start-up; it may not be set by the user
+# Internal component no longer exists and is therefore looked for
+# as a loadable component (which also does not exist).
 SET @@global.log_error_services="log_sink_buffer";
-ERROR 42000: Variable 'log_error_services' can't be set to the value of 'log_sink_buffer'
+ERROR HY000: Can't open shared library 'component_log_sink_buffer'
 SHOW WARNINGS;
 Level	Code	Message
+Error	1126	Can't open shared library 'component_log_sink_buffer'
+Error	3529	Cannot load component from specified URN: 'file://component_log_sink_buffer'.
 Warning	3701	Value for log_error_services got confusing at or around "log_sink_buffer". Syntax may be wrong, component may not be INSTALLed, or a component that does not support instances may be listed more than once.
-Error	1231	Variable 'log_error_services' can't be set to the value of 'log_sink_buffer'
 SELECT "logging as JSON";
 logging as JSON
 logging as JSON

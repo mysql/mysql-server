@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,9 +48,10 @@ SimpleSignal::SimpleSignal(const SimpleSignal& src)
     ptr[i].p = 0;
     if (src.ptr[i].p != 0)
     {
-      ptr[i].p = new Uint32[src.ptr[i].sz];
+      Uint32* p = new Uint32[src.ptr[i].sz];
+      memcpy(p, src.ptr[i].p, 4 * src.ptr[i].sz);
+      ptr[i].p = p;
       ptr[i].sz = src.ptr[i].sz;
-      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
     }
   }
 }
@@ -66,9 +67,10 @@ SimpleSignal::operator=(const SimpleSignal& src)
     ptr[i].p = 0;
     if (src.ptr[i].p != 0)
     {
-      ptr[i].p = new Uint32[src.ptr[i].sz];
+      Uint32* p = new Uint32[src.ptr[i].sz];
+      memcpy(p, src.ptr[i].p, 4 * src.ptr[i].sz);
+      ptr[i].p = p;
       ptr[i].sz = src.ptr[i].sz;
-      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
     }
   }
   return * this;
@@ -103,7 +105,7 @@ SimpleSignal::print(FILE * out) const {
   for(Uint32 i = 0; i<header.m_noOfSections; i++){
     Uint32 len = ptr[i].sz;
     fprintf(out, " --- Section %d size=%d ---\n", i, len);
-    Uint32 * signalData = ptr[i].p;
+    const Uint32* signalData = ptr[i].p;
     while(len >= 7){
       fprintf(out, 
               " H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n",
@@ -230,7 +232,7 @@ SignalSender::sendFragmentedSignal(Uint16 nodeId,
 SendStatus
 SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s)
 {
-  int ret = raw_sendSignal((NdbApiSignal*)&s->header,
+  int ret = raw_sendSignal((const NdbApiSignal*)&s->header,
                            nodeId,
                            s->ptr,
                            s->header.m_noOfSections);
@@ -333,17 +335,17 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
   SimpleSignal * s = new SimpleSignal(true);
   s->header = * signal;
   for(Uint32 i = 0; i<s->header.m_noOfSections; i++){
-    s->ptr[i].p = new Uint32[ptr[i].sz];
+    Uint32* p = new Uint32[ptr[i].sz];
+    memcpy(p, ptr[i].p, 4 * ptr[i].sz);
+    s->ptr[i].p = p;
     s->ptr[i].sz = ptr[i].sz;
-    memcpy(s->ptr[i].p, ptr[i].p, 4 * ptr[i].sz);
   }
   m_jobBuffer.push_back(s);
   wakeup();
 }
 
-template<class T>
-NodeId
-SignalSender::find_node(const NodeBitmask& mask, T & t)
+NodeId SignalSender::find_node(const NodeBitmask& mask,
+                               bool (*cond)(const trp_node&))
 {
   unsigned n= 0;
   do {
@@ -354,66 +356,31 @@ SignalSender::find_node(const NodeBitmask& mask, T & t)
 
     assert(n < MAX_NODES);
 
-  } while (!t.found_ok(*this, getNodeInfo(n)));
+  } while (!cond(getNodeInfo(n)));
 
   return n;
 }
 
-
-class FindConfirmedNode {
-public:
-  bool found_ok(const SignalSender& ss, const trp_node & node){
-    return node.is_confirmed();
-  }
-};
-
-
 NodeId
 SignalSender::find_confirmed_node(const NodeBitmask& mask)
 {
-  FindConfirmedNode f;
-  return find_node(mask, f);
+  return find_node(mask,
+                   [](const trp_node& node) { return node.is_confirmed(); });
 }
-
-
-class FindConnectedNode {
-public:
-  bool found_ok(const SignalSender& ss, const trp_node & node){
-    return node.is_connected();
-  }
-};
-
 
 NodeId
 SignalSender::find_connected_node(const NodeBitmask& mask)
 {
-  FindConnectedNode f;
-  return find_node(mask, f);
+  return find_node(mask,
+                   [](const trp_node& node) { return node.is_connected(); });
 }
-
-
-class FindAliveNode {
-public:
-  bool found_ok(const SignalSender& ss, const trp_node & node){
-    return node.m_alive;
-  }
-};
-
 
 NodeId
 SignalSender::find_alive_node(const NodeBitmask& mask)
 {
-  FindAliveNode f;
-  return find_node(mask, f);
+  return find_node(mask, [](const trp_node& node) { return node.m_alive; });
 }
 
 
 template SimpleSignal* SignalSender::waitFor<WaitForAny>(unsigned, WaitForAny&);
-template NodeId SignalSender::find_node<FindConfirmedNode>(const NodeBitmask&,
-                                                           FindConfirmedNode&);
-template NodeId SignalSender::find_node<FindAliveNode>(const NodeBitmask&,
-                                                       FindAliveNode&);
-template NodeId SignalSender::find_node<FindConnectedNode>(const NodeBitmask&,
-                                                           FindConnectedNode&);
 template class Vector<SimpleSignal*>;
-  

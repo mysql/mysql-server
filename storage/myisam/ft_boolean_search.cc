@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -311,7 +311,7 @@ static int _ftb_no_dupes_cmp(const void *, const void *a, const void *b) {
   When performing prefix search (a word with truncation operator), we
   must preserve original prefix to ensure that characters which may be
   expanded/contracted do not break the prefix. This is done by storing
-  newly found key immediatly after the original word in ftbw->word
+  newly found key immediately after the original word in ftbw->word
   buffer.
 
   ftbw->word= LENGTH WORD [ LENGTH1 WORD1 ] WEIGHT REFERENCE

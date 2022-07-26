@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ bool SHA256_digest::update_digest(const void *src, unsigned int length) {
 }
 
 /**
-  Retrive generated digest
+  Retrieve generated digest
 
   @param [out] digest Digest text
   @param [in]  length Length of the digest buffer

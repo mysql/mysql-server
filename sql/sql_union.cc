@@ -38,13 +38,14 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cassert>
 #include <cstdio>
-#include <cstdlib>  // abort
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -61,14 +62,11 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
-#include "sql/item_sum.h"
-#include "sql/iterators/basic_row_iterators.h"
-#include "sql/iterators/composite_iterators.h"
 #include "sql/iterators/row_iterator.h"
-#include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
+#include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"
 #include "sql/opt_explain.h"  // explain_no_table
@@ -76,6 +74,7 @@
 #include "sql/opt_trace.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h"  // PT_with_clause
+#include "sql/parser_yystype.h"
 #include "sql/pfs_batch_mode.h"
 #include "sql/protocol.h"
 #include "sql/query_options.h"
@@ -92,6 +91,7 @@
 #include "sql/sql_tmp_table.h"   // tmp tables
 #include "sql/table_function.h"  // Table_function
 #include "sql/thd_raii.h"
+#include "sql/visible_fields.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"
 
@@ -118,7 +118,6 @@ bool Query_result_union::send_data(THD *thd,
 
   const int error = table->file->ha_write_row(table->record[0]);
   if (!error) {
-    m_rows_in_table++;
     return false;
   }
   // create_ondisk_from_heap will generate error if needed
@@ -129,7 +128,6 @@ bool Query_result_union::send_data(THD *thd,
       return true; /* purecov: inspected */
     // Table's engine changed, index is not initialized anymore
     if (table->hash_field) table->file->ha_index_init(0, false);
-    if (!is_duplicate) m_rows_in_table++;
   }
   return false;
 }
@@ -216,7 +214,6 @@ bool Query_result_union::create_result_table(
 */
 
 bool Query_result_union::reset() {
-  m_rows_in_table = 0;
   return table ? table->empty_result_table() : false;
 }
 
@@ -260,19 +257,10 @@ class Query_result_union_direct final : public Query_result_union {
     // Should never be called.
     my_abort();
   }
-  bool optimize() override {
-    if (optimized) return false;
-    optimized = true;
-
-    return result->optimize();
-  }
   bool start_execution(THD *thd) override {
     if (execution_started) return false;
     execution_started = true;
     return result->start_execution(thd);
-  }
-  void send_error(THD *thd, uint errcode, const char *err) override {
-    result->send_error(thd, errcode, err); /* purecov: inspected */
   }
   bool send_eof(THD *) override {
     // Should never be called.
@@ -1449,7 +1437,7 @@ void Query_expression::assert_not_fully_clean() {
 
 /**
   Change the query result object used to return the final result of
-  the unit, replacing occurences of old_result with new_result.
+  the unit, replacing occurrences of old_result with new_result.
 
   @param thd        Thread handle
   @param new_result New query result object

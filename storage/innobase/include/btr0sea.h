@@ -68,14 +68,15 @@ static inline btr_search_t *btr_search_get_info(
 @return own: search info struct */
 btr_search_t *btr_search_info_create(mem_heap_t *heap);
 
-/** Returns the value of ref_count. The value is protected by latch.
+/** Returns the value of ref_count.
 @param[in]      info            search info
-@param[in]      index           index identifier
 @return ref_count value. */
-ulint btr_search_info_get_ref_count(const btr_search_t *info,
-                                    const dict_index_t *index);
+size_t btr_search_info_get_ref_count(const btr_search_t *info);
 
-/** Updates the search info.
+/** Updates the search info statistics following a search in B-tree that was
+performed not using or not finding row with the AHI index. It may do nothing or
+decide to try to update the searched record on which the supplied cursor in
+positioned at, or add the whole page to AHI.
 @param[in]      index   index of the cursor
 @param[in]      cursor  cursor which was just positioned */
 static inline void btr_search_info_update(dict_index_t *index,
@@ -142,21 +143,20 @@ void btr_drop_ahi_for_table(dict_table_t *table);
 void btr_drop_ahi_for_index(const dict_index_t *index);
 
 /** Updates the page hash index when a single record is inserted on a page.
-@param[in]      cursor  cursor which was positioned to the place to insert
-                        using btr_cur_search_, and the new record has been
-                        inserted next to the cursor. */
+@param[in]      cursor  cursor which was positioned to the place to insert using
+                        btr_cur_search_, and the new record has been inserted
+                        next to the cursor. */
 void btr_search_update_hash_node_on_insert(btr_cur_t *cursor);
 
 /** Updates the page hash index when a single record is inserted on a page.
-@param[in,out]  cursor          cursor which was positioned to the
-                                place to insert using btr_cur_search_...,
-                                and the new record has been inserted next
-                                to the cursor */
+@param[in,out]  cursor  cursor which was positioned to the place to insert using
+                        btr_cur_search_..., and the new record has been inserted
+                        next to the cursor. */
 void btr_search_update_hash_on_insert(btr_cur_t *cursor);
 
 /** Updates the page hash index when a single record is deleted from a page.
 @param[in]      cursor  cursor which was positioned on the record to delete
-                        using btr_cur_search_, the record is not yet deleted.*/
+using btr_cur_search_, the record is not yet deleted. */
 void btr_search_update_hash_on_delete(btr_cur_t *cursor);
 
 /** Validates the search system.
@@ -164,10 +164,17 @@ void btr_search_update_hash_on_delete(btr_cur_t *cursor);
 bool btr_search_validate();
 
 /** X-Lock the search latch (corresponding to given index)
-@param[in] index          index handler
-@param[in] location source location */
+@param[in] index        index handler
+@param[in] location     source location */
 static inline void btr_search_x_lock(const dict_index_t *index,
                                      ut::Location location);
+
+/** X-Lock the search latch (corresponding to given index), does not block.
+@param[in]      index           index handler
+@param[in]      location        source location
+@return true if the latch could was acquired.*/
+[[nodiscard]] static inline bool btr_search_x_lock_nowait(
+    const dict_index_t *index, ut::Location location);
 
 /** X-Unlock the search latch (corresponding to given index)
 @param[in]      index   index handler */
@@ -181,17 +188,24 @@ static inline void btr_search_x_lock_all(ut::Location location);
 static inline void btr_search_x_unlock_all();
 
 /** S-Lock the search latch (corresponding to given index)
-@param[in] index          index handler
-@param[in] location source location */
+@param[in] index        index handler
+@param[in] location     source location */
 static inline void btr_search_s_lock(const dict_index_t *index,
                                      ut::Location location);
+
+/** S-Lock the search latch (corresponding to given index), does not block.
+@param[in]      index           index handler
+@param[in]      location        source location
+@return true if the latch could was acquired.*/
+[[nodiscard]] static inline bool btr_search_s_lock_nowait(
+    const dict_index_t *index, ut::Location location);
 
 /** S-Unlock the search latch (corresponding to given index)
 @param[in]      index   index handler */
 static inline void btr_search_s_unlock(const dict_index_t *index);
 
 /** Lock all search latches in shared mode.
-@param[in] location source location */
+@param[in]      location        source location */
 static inline void btr_search_s_lock_all(ut::Location location);
 
 #ifdef UNIV_DEBUG
@@ -199,17 +213,26 @@ static inline void btr_search_s_lock_all(ut::Location location);
 @param[in]      mode    lock mode check
 @retval true if owns all of them
 @retval false if does not own some of them */
-static inline bool btr_search_own_all(ulint mode);
+[[nodiscard]] static inline bool btr_search_own_all(ulint mode);
 
 /** Check if thread owns any of the search latches.
 @param[in]      mode    lock mode check
 @retval true if owns any of them
 @retval false if owns no search latch */
-static inline bool btr_search_own_any(ulint mode);
+[[nodiscard]] static inline bool btr_search_own_any(ulint mode);
 #endif /* UNIV_DEBUG */
 
 /** Unlock all search latches from shared mode. */
 static inline void btr_search_s_unlock_all();
+
+/** Get the adaptive hash search index slot ID for a b-tree specified by its IDs
+of index and space.
+@param[in] index_id Index of the b-tree index
+@param[in] space_id Index of the tablespace the index is in.
+@return Index of the slot for btr_search_sys->hash_tables and btr_search_latches
+arrays. */
+static inline size_t btr_get_search_slot(const space_index_t index_id,
+                                         const space_id_t space_id);
 
 /** Get the latch based on index attributes.
 A latch is selected from an array of latches using pair of index-id, space-id.
@@ -225,33 +248,28 @@ static inline hash_table_t *btr_get_search_table(const dict_index_t *index);
 
 /** The search info struct in an index */
 struct btr_search_t {
-  ulint ref_count; /*!< Number of blocks in this index tree
-                   that have search index built
-                   i.e. block->index points to this index.
-                   Protected by search latch except
-                   when during initialization in
-                   btr_search_info_create(). */
+  /** Number of blocks in this index tree that have search index built i.e.
+  block->index points to this index. */
+  std::atomic<ulint> ref_count;
 
   /** @{ The following fields are not protected by any latch.
-  Unfortunately, this means that they must be aligned to
-  the machine word, i.e., they cannot be turned into bit-fields. */
-  buf_block_t *root_guess; /*!< the root page frame when it was last time
-                           fetched, or NULL */
-  ulint hash_analysis;     /*!< when this exceeds
-                           BTR_SEARCH_HASH_ANALYSIS, the hash
-                           analysis starts; this is reset if no
-                           success noticed */
-  bool last_hash_succ;     /*!< true if the last search would have
-                            succeeded, or did succeed, using the hash
-                            index; NOTE that the value here is not exact:
-                            it is not calculated for every search, and the
-                            calculation itself is not always accurate! */
+  Unfortunately, this means that they must be aligned to the machine word, i.e.,
+  they cannot be turned into bit-fields. */
+
+  /** the root page frame when it was last time fetched, or NULL. */
+  buf_block_t *root_guess;
+  /** when this exceeds BTR_SEARCH_HASH_ANALYSIS, the hash analysis starts; this
+  is reset if no success noticed. */
+  ulint hash_analysis;
+  /** true if the last search would have succeeded, or did succeed, using the
+  hash index; NOTE that the value here is not exact: it is not calculated for
+  every search, and the calculation itself is not always accurate! */
+  bool last_hash_succ;
+  /** number of consecutive searches which would have succeeded, or did succeed,
+  using the hash index; the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5. */
   ulint n_hash_potential;
-  /*!< number of consecutive searches
-  which would have succeeded, or did succeed,
-  using the hash index;
-  the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5 */
   /** @} */
+
   /**---------------------- @{ */
   /** recommended prefix length for hash search: number of full fields */
   ulint n_fields;
@@ -263,16 +281,19 @@ struct btr_search_t {
   bool left_side;
   /*---------------------- @} */
 #ifdef UNIV_SEARCH_PERF_STAT
-  ulint n_hash_succ; /*!< number of successful hash searches thus
-                     far */
-  ulint n_hash_fail; /*!< number of failed hash searches */
-  ulint n_patt_succ; /*!< number of successful pattern searches thus
-                     far */
-  ulint n_searches;  /*!< number of searches */
-#endif               /* UNIV_SEARCH_PERF_STAT */
+  /** number of successful hash searches so far. */
+  std::atomic<ulint> n_hash_succ;
+  /** number of failed hash searches */
+  std::atomic<ulint> n_hash_fail;
+  /** number of successful pattern searches thus far */
+  std::atomic<ulint> n_patt_succ;
+  /** number of searches */
+  std::atomic<ulint> n_searches;
+#endif /* UNIV_SEARCH_PERF_STAT */
 #ifdef UNIV_DEBUG
-  ulint magic_n; /*!< magic number @see BTR_SEARCH_MAGIC_N */
-#endif           /* UNIV_DEBUG */
+  /** magic number @see BTR_SEARCH_MAGIC_N */
+  ulint magic_n;
+#endif /* UNIV_DEBUG */
 };
 
 #ifdef UNIV_DEBUG
@@ -282,9 +303,9 @@ constexpr uint32_t BTR_SEARCH_MAGIC_N = 1112765;
 
 /** The hash index system */
 struct btr_search_sys_t {
-  hash_table_t **hash_tables; /*!< the adaptive hash tables,
-                              mapping dtuple_fold values
-                              to rec_t pointers on index pages */
+  /** the adaptive hash tables, mapping dtuple_hash values to rec_t pointers on
+  index pages */
+  hash_table_t **hash_tables;
 };
 
 /** Latches protecting access to adaptive hash index. */

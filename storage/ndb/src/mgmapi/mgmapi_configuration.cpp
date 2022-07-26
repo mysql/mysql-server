@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include <ndb_types.h>
 #include <mgmapi.h>
 #include "mgmapi_configuration.hpp"
-#include "../mgmsrv/ConfigInfo.hpp"
+#include "mgmcommon/ConfigInfo.hpp"
 
 ndb_mgm_configuration_iterator::ndb_mgm_configuration_iterator
 (const ndb_mgm_configuration * conf, unsigned type_of_section)

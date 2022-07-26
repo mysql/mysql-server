@@ -1,0 +1,66 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/Gcs_message_data::m_buffer	YES	NULL	global_statistics	0	Memory used for the transaction data payload which is send to the network.
+include/assert.inc ['There should be 1 entry corresponding to the Gcs_message_data::m_buffer in the setup_instruments table after starting GR']
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
+EVENT_NAME
+memory/group_rpl/Gcs_message_data::m_buffer
+include/assert.inc ['There should be 1 entry corresponding to the Gcs_message_data::m_buffer in the memory_summary_global_by_event_name table after starting GR']
+
+############################################################
+# 2. Verify that the sum of bytes allocated is greater than
+#    zero for a transaction and zero after transaction is
+#    finished.
+[connection server1]
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=innodb;
+include/rpl_sync.inc
+[connection server_1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_message_broadcast';
+BEGIN;
+INSERT INTO t1 VALUES (1, repeat('a',1024*1024));
+COMMIT;
+[connection server1]
+include/assert.inc ['The sum of bytes allocated must be greater than 1MB']
+SET @@GLOBAL.DEBUG= '+d,group_replication_after_before_commit_hook';
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_message_broadcast';
+SET DEBUG_SYNC= "now SIGNAL waiting";
+include/assert.inc ['The sum of bytes allocated must be 0']
+SET @@GLOBAL.DEBUG= '-d,group_replication_after_before_commit_hook';
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_before_commit_hook_continue";
+[connection server_1]
+DROP TABLE t1;
+
+############################################################
+# 3. Stop GR
+include/stop_group_replication.inc
+
+##############################################################
+# 4. Verify that the entries corresponding to the instrumented
+#    Gcs_message_data::m_buffer remain in the tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/Gcs_message_data::m_buffer	YES	NULL	global_statistics	0	Memory used for the transaction data payload which is send to the network.
+include/assert.inc ['There should be 1 entry corresponding to the Gcs_message_data::m_buffer in the setup_instruments table after stopping GR']
+SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
+EVENT_NAME	CURRENT_NUMBER_OF_BYTES_USED
+memory/group_rpl/Gcs_message_data::m_buffer	0
+include/assert.inc ['There should be 1 entry corresponding to the Gcs_message_data::m_buffer in the memory_summary_global_by_event_name table after stopping GR']
+
+#################################################################
+# 5. Assert that the number of bytes allocated for
+#    Gcs_message_data::m_buffer event must be 0.
+include/assert.inc ['The sum of bytes allocated must be zero after stopping GR']
+
+#################################################################
+# 6. Cleanup
+include/group_replication_end.inc

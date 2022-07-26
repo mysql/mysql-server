@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@
 #include "thr_lock.h"
 
 /*
-  Defines meta information on diferent repositories.
+  Defines meta information on different repositories.
 */
 Rpl_info_factory::struct_table_data Rpl_info_factory::rli_table_data;
 Rpl_info_factory::struct_file_data Rpl_info_factory::rli_file_data;
@@ -443,8 +443,8 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
                         &handler_src, &handler_dest, &msg))
     goto err;
   /*
-    Preparing the being set up handler with search keys early.
-    The file repo type handler can't be manupulated this way and it does
+    Preparing the handler being set up with search keys early.
+    The file repo type handler can't be manipulated this way and it does
     not have to.
   */
   if (handler_dest->get_rpl_info_type() == INFO_REPOSITORY_TABLE)
@@ -504,7 +504,7 @@ static void build_worker_info_name(char *to, const char *path,
 }
 
 /**
-  Initializes startup information on diferent repositories.
+  Initializes startup information on different repositories.
 */
 void Rpl_info_factory::init_repository_metadata() {
   /* Needed for the file names and paths for worker info files. */
@@ -576,7 +576,7 @@ void Rpl_info_factory::init_repository_metadata() {
                            be used, i.e., destination repository.
   @param[out] handler_src  Source repository from where information is
                            copied into the destination repository.
-  @param[out] handler_dest Destination repository to where informaiton is
+  @param[out] handler_dest Destination repository to where information is
                            copied.
   @param[out] msg          Error message if something goes wrong.
 
@@ -751,7 +751,7 @@ enum_return_check Rpl_info_factory::check_src_repository(
 
   @param  handler_src  Source repository from where information is
                        copied into the destination repository.
-  @param  handler_dest Destination repository to where informaiton is
+  @param  handler_dest Destination repository to where information is
                        copied.
   @param  err_src      Possible error status of the source repo check
   @param  err_dst      Possible error status of the destination repo check
@@ -791,7 +791,7 @@ bool Rpl_info_factory::check_error_repository(Rpl_info_handler *handler_src,
   @param[in]  info         Either master info or relay log info.
   @param[out] handler_src  Source repository from where information is
                            copied into the destination repository.
-  @param[out] handler_dest Destination repository to where informaiton is
+  @param[out] handler_dest Destination repository to where information is
                            copied.
   @param[out] msg          Error message if something goes wrong.
 
@@ -829,7 +829,7 @@ bool Rpl_info_factory::init_repositories(Rpl_info *info,
                            be used, i.e., destination repository.
   @param[out] handler_src  Source repository from where information is
                            copied into the destination repository.
-  @param[out] handler_dest Destination repository to where informaiton is
+  @param[out] handler_dest Destination repository to where information is
                            copied.
   @param[out] msg          Error message if something goes wrong.
 
@@ -1061,10 +1061,10 @@ bool Rpl_info_factory::configure_channel_replication_filters(
 
  From the table it also follows that conversion of repositories
  is possible *ONLY* in the case of A) i.e for ex: if B) type repository
- (i.e a named slave channel) was found during server starup but the user
+ (i.e a named slave channel) was found during server startup but the user
  repository option is INFO_REPOSITORY_FILE, then we exit the function.
 
- @note: only for type A) i.e default channel, it is permissable to
+ @note: only for type A) i.e default channel, it is permissible to
         have different repo types for Master_info and Relay_log_info
         (Ex: FILE for mi and TABLE for rli)
 
@@ -1273,9 +1273,9 @@ Master_info *Rpl_info_factory::create_mi_and_rli_objects(
 }
 
 /**
-   Make a list of all the channels if existed on the previos slave run.
+   Make a list of any channels that may have existed on the previous slave run.
 
-   @param[out]  channel_list    the names of all channels that exists
+   @param[out]  channel_list    the names of all channels that exist
                                 on this slave.
 
    @param[in]   mi_instances    number of master_info repositories

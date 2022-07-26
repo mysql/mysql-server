@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #include <mysql/components/services/group_replication_message_service.h>
 #include <mysql/components/services/group_replication_status_service.h>
 #include "mysql/components/services/log_builtins.h"
-#include "sql/json_dom.h"
+#include "sql-common/json_dom.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"  // srv_registry
 #include "sql/rpl_async_conn_failover_table_operations.h"

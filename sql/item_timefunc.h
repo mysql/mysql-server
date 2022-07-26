@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1216,6 +1216,7 @@ class Item_func_from_days final : public Item_date_func {
   const char *func_name() const override { return "from_days"; }
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
   bool check_partition_func_processor(uchar *) override { return false; }
+  enum Functype functype() const override { return FROM_DAYS_FUNC; }
   bool check_valid_arguments_processor(uchar *) override {
     return has_date_args() || has_time_args();
   }

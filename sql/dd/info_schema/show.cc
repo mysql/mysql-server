@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -374,8 +374,8 @@ Query_block *build_show_databases_query(const POS &pos, THD *thd, String *wild,
   @param alias_as_alias - Add select items of the form,
                           'alias AS alias'. This is required
                           for top level query, as the real field
-                          names would be valied only the sub
-                          query that we are building for SHOW
+                          names would be valid only the
+                          subquery that we are building for SHOW
                           TABLE STATUS. Check comments in
                           sql/dd/show.h for more details.
 

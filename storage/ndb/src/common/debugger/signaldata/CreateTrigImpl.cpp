@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,12 @@
 bool
 printCREATE_TRIG_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateTrigImplReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateTrigImplReq* sig = (const CreateTrigImplReq*)theData;
   const Uint32 triggerType =
     TriggerInfo::getTriggerType(sig->triggerInfo);
@@ -80,6 +86,12 @@ printCREATE_TRIG_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint1
 bool
 printCREATE_TRIG_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateTrigImplConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateTrigImplConf* sig = (const CreateTrigImplConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -94,7 +106,13 @@ printCREATE_TRIG_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint
 bool
 printCREATE_TRIG_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const CreateTrigImplRef* sig = (CreateTrigImplRef*)theData;
+  if (len < CreateTrigImplRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const CreateTrigImplRef* sig = (const CreateTrigImplRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");  

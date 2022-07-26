@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ class COPY_INFO {
   const operation_type m_optype;
 
   /**
-     List of columns of the target table which the statement will explicitely
+     List of columns of the target table which the statement will explicitly
      fill; and thus we must not set a function default for them.
      NULL means "empty list".
   */
@@ -160,7 +160,7 @@ class COPY_INFO {
 
      @param optype           The data change operation type.
      @param inserted_columns List of columns of the target table which
-                             the statement will explicitely fill; COPY_INFO
+                             the statement will explicitly fill; COPY_INFO
                              must not set a function default for them. NULL
                              means "empty list".
      @param manage_defaults  Whether this object should manage function
@@ -196,7 +196,7 @@ class COPY_INFO {
 
      @param optype            The data change operation type.
      @param inserted_columns List of columns of the target table which
-                             the statement will explicitely fill; COPY_INFO
+                             the statement will explicitly fill; COPY_INFO
                              must not set a function default for them. NULL
                              means "empty list".
      @param inserted_columns2 A second list like inserted_columns

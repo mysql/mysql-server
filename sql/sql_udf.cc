@@ -190,7 +190,7 @@ static void init_udf_psi_keys(void) {
 /**
   Initialize the UDF global structures.
   This is done as a separate step so that the UDF registration
-  service can work when initalizing plugins, which happens
+  service can work when initializing plugins, which happens
   before reading the UDF table.
 */
 void udf_init_globals() {
@@ -341,9 +341,9 @@ end:
 }
 
 /**
-   Deintialize the UDF subsystem.
+   Deinitialize the UDF subsystem.
 
-   This function closes the shared libaries.
+   This function closes the shared libraries.
 */
 void udf_unload_udfs() {
   DBUG_TRACE;
@@ -365,7 +365,7 @@ void udf_unload_udfs() {
 }
 
 /**
-   Deintialize the UDF subsystem.
+   Deinitialize the UDF subsystem.
 
    This function does the following:
    1. Free the UDF hash.
@@ -411,7 +411,7 @@ static void udf_hash_delete(udf_func *udf) {
   } else {
     /*
       The functions is in use ; Rename the functions instead of removing it.
-      The functions will be automaticly removed when the least threads
+      The functions will be automatically removed when the least threads
       doesn't use it anymore
     */
     udf_hash->erase(it);
@@ -472,7 +472,7 @@ static void *find_udf_dl(const char *dl) {
 
   if (!dl) return nullptr;
   /*
-    Because only the function name is hashed, we have to search trough
+    Because only the function name is hashed, we have to search through
     all rows to find the dl.
   */
   for (const auto &key_and_value : *udf_hash) {

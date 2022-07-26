@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -519,7 +519,7 @@ public:
 
   static NdbEventImpl & getImpl(NdbDictionary::Event & t);
   static NdbEventImpl & getImpl(const NdbDictionary::Event & t);
-  NdbDictionary::Event * m_facade;
+  NdbDictionary::Event * const m_facade;
 private:
   NdbTableImpl *m_tableImpl;
   void setTable(NdbTableImpl *tableImpl);
@@ -687,7 +687,8 @@ public:
       Aborted
     };
     State m_state;
-    NdbError m_error;
+    // Allow update error from const methods
+    mutable NdbError m_error;
     Uint32 m_transId;   // API
     Uint32 m_transKey;  // DICT
     Uint32 m_requestId;
@@ -709,7 +710,9 @@ public:
     Uint32 nextRequestId() {
       return ++m_requestId;
     }
-    bool checkRequestId(Uint32 requestId, const char *signalName) {
+    bool checkRequestId(Uint32 requestId,
+                        const char *signalName [[maybe_unused]])
+    {
       /* NdbDictInterface protocols are synchronous/serial, so each
        * NdbDictInterface object will have only one outstanding
        * request at a time */
@@ -1038,7 +1041,8 @@ public:
   NdbDictInterface::Tx m_tx;
 
   const NdbError & getNdbError() const;
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
   int m_warn;
   Uint32 m_local_table_data_size;
 
@@ -1202,11 +1206,11 @@ NdbColumnImpl::get_var_length(const void* value, Uint32& len) const
   Uint32 max_len = m_attrSize * m_arraySize;
   switch (m_arrayType) {
   case NDB_ARRAYTYPE_SHORT_VAR:
-    len = 1 + *((Uint8*)value);
+    len = 1 + *((const Uint8 *)value);
     DBUG_PRINT("info", ("SHORT_VAR: len=%u max_len=%u", len, max_len));
     break;
   case NDB_ARRAYTYPE_MEDIUM_VAR:
-    len = 2 + uint2korr((char*)value);
+    len = 2 + uint2korr((const char *)value);
     DBUG_PRINT("info", ("MEDIUM_VAR: len=%u max_len=%u", len, max_len));
     break;
   default:

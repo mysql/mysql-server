@@ -404,8 +404,8 @@ void sync_array_cell_print(FILE *file, const sync_cell_t *cell) {
     rwlock = cell->latch.lock;
 
     fprintf(file, " RW-latch at %p created in file %s line %lu\n",
-            (void *)rwlock, innobase_basename(rwlock->cfile_name),
-            (ulong)rwlock->cline);
+            (void *)rwlock, innobase_basename(rwlock->clocation.filename),
+            (ulong)rwlock->clocation.line);
 
     writer = rw_lock_get_writer(rwlock);
 

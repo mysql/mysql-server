@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -557,7 +557,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 }
 
 bool
-SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
+SHM_Transporter::connect_common(NDB_SOCKET_TYPE /*sockfd*/)
 {
   if (!checkConnected())
   {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <signaldata/LqhFrag.hpp>
 
-bool
-printLQH_FRAG_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recB){
-  LqhFragReq* sig = (LqhFragReq*)theData;
-  
+bool printLQH_FRAG_REQ(FILE* output,
+                       const Uint32* theData,
+                       Uint32 len,
+                       Uint16 /*recB*/)
+{
+  if (len < LqhFragReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const LqhFragReq* sig = (const LqhFragReq*)theData;
+
   fprintf(output, " senderData: %d senderRef: %x",
 	  sig->senderData, sig->senderRef);
   fprintf(output, " tableId: %d fragmentId: %d", sig->tableId, sig->fragmentId);
@@ -50,19 +58,37 @@ printLQH_FRAG_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recB
           sig->changeMask, sig->partitionId, sig->createGci);
   return true;
 }
-bool
-printLQH_FRAG_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec){
-  LqhFragConf* sig = (LqhFragConf*)theData;
-  
+bool printLQH_FRAG_CONF(FILE* output,
+                        const Uint32* theData,
+                        Uint32 len,
+                        Uint16 /*rec*/)
+{
+  if (len < LqhFragConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const LqhFragConf* sig = (const LqhFragConf*)theData;
+
   fprintf(output, " senderData: %d lqhFragPtr: %d\n",
 	  sig->senderData, sig->lqhFragPtr);
   return true;
 }
 
-bool
-printLQH_FRAG_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec){
-  LqhFragRef* sig = (LqhFragRef*)theData;
-  
+bool printLQH_FRAG_REF(FILE* output,
+                       const Uint32* theData,
+                       Uint32 len,
+                       Uint16 /*rec*/)
+{
+  if (len < LqhFragRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const LqhFragRef* sig = (const LqhFragRef*)theData;
+
   fprintf(output, " senderData: %d errorCode: %d\n",
 	  sig->senderData, sig->errorCode);
   return true;

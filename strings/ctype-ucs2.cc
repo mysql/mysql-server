@@ -820,7 +820,7 @@ static void my_fill_mb2(const CHARSET_INFO *cs, char *s, size_t slen,
   assert(buflen > 0);
 
   while (slen >= (size_t)buflen) {
-    /* Enough space for the characer */
+    /* Enough space for the character */
     memcpy(s, buf, (size_t)buflen);
     s += buflen;
     slen -= buflen;

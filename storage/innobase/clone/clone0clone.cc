@@ -689,7 +689,7 @@ void Clone_Handle::close_master_file() {
 }
 
 void Clone_Sys::close_donor_master_file() {
-  IB_mutex_guard sys_mutex(get_mutex());
+  IB_mutex_guard sys_mutex(get_mutex(), UT_LOCATION_HERE);
 
   Clone_Handle *clone_donor = nullptr;
   std::tie(std::ignore, clone_donor) = clone_sys->check_active_clone();
@@ -1433,8 +1433,6 @@ void Clone_Task_Manager::reinit_apply_state(const byte *ref_loc, uint ref_len,
       break;
 
     case CLONE_SNAPSHOT_NONE:
-      [[fallthrough]];
-
     default:
       ut_d(ut_error);
   }
@@ -1530,8 +1528,6 @@ void Clone_Task_Manager::reinit_copy_state(const byte *loc, uint loc_len) {
       break;
 
     case CLONE_SNAPSHOT_NONE:
-      [[fallthrough]];
-
     default:
       ut_d(ut_error);
   }
@@ -2342,7 +2338,7 @@ int Clone_Handle::file_callback(Ha_clone_cbk *cbk, Clone_Task *task, uint len,
                                 bool buf_cbk, uint64_t offset
 #ifdef UNIV_PFS_IO
                                 ,
-                                const char *name, uint line
+                                ut::Location location
 #endif /* UNIV_PFS_IO */
 ) {
   int err;
@@ -2367,7 +2363,7 @@ int Clone_Handle::file_callback(Ha_clone_cbk *cbk, Clone_Task *task, uint len,
   psi_op = is_copy_clone() ? PSI_FILE_READ : PSI_FILE_WRITE;
 
   register_pfs_file_io_begin(&state, locker, task->m_current_file_des, len,
-                             psi_op, name, line);
+                             psi_op, location);
 #endif /* UNIV_PFS_IO */
 
   /* Call appropriate callback to transfer data. */

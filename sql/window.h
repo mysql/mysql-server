@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -449,7 +449,7 @@ class Window {
 
   /**
     Execution state: used iff m_needs_last_peer_in_frame. True if a row
-    leaving the frame is the last row in the peer set withing the frame.
+    leaving the frame is the last row in the peer set within the frame.
   */
   int64 m_is_last_row_in_peerset_within_frame;
 
@@ -614,7 +614,7 @@ class Window {
    *     copy_<kind>_window_functions()  [see process_buffered_windowing_record]
    *     w.set_<toggle>(false)
    *
-   * to achive a special semantic, since we cannot pass down extra parameters.
+   * to achieve a special semantic, since we cannot pass down extra parameters.
    *
    *------------------------------------------------------------------------*/
 

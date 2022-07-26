@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,9 +50,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Failed to connect to database: Error: %s\n",
             mysql_error(&conn));
     return 1;
-  } else {
-    printf("%s\n", mysql_error(&conn));
   }
+  printf("%s\n", mysql_error(&conn));
 
   OK = mysql_real_query(&conn, query4, (ulong)strlen(query4));
 

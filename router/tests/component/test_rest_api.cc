@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #endif
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <rapidjson/document.h>
 #include <rapidjson/pointer.h>
 #include <rapidjson/schema.h>
@@ -38,13 +39,13 @@
 #include "dim.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"  // ::join
+#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/rest_client.h"
+#include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 #include "test/temp_directory.h"
-
-#include "mysqlrouter/rest_client.h"
-#include "rest_api_testutils.h"
 
 using namespace std::chrono_literals;
 
@@ -92,7 +93,6 @@ TEST_P(RestOpenApiTest, ensure_openapi) {
 
       SCOPED_TRACE("// requesting /swagger.json with " +
                    http_method_to_string(method));
-
       JsonDocument json_doc;
       ASSERT_NO_FATAL_FAILURE(request_json(rest_client, http_uri, method,
                                            GetParam().status_code, json_doc,
@@ -284,8 +284,8 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
     {"swagger_json_invalid_methods",
      rest_api_basepath,
      "/swagger.json",
-     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect |
-         HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch,
+     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Post |
+         HttpMethod::Delete | HttpMethod::Patch,
      HttpStatusCode::MethodNotAllowed,
      kContentTypeJsonProblem,
      kRestApiUsername,
@@ -312,7 +312,7 @@ static const RestApiTestParams rest_api_invalid_methods_no_auth_params[]{
      rest_api_basepath,
      "/swagger.json",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
+         HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed,
      kContentTypeJsonProblem,
      /*username =*/"",
@@ -347,14 +347,13 @@ TEST_F(RestOpenApiTest, invalid_realm) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(router_output, ::testing::HasSubstr(
                                  "Configuration error: unknown authentication "
                                  "realm for [rest_api] '': invalidrealm, known "
-                                 "realm(s): somerealm"))
-      << router_output;
+                                 "realm(s): somerealm"));
 }
 
 /**
@@ -374,7 +373,7 @@ TEST_F(RestOpenApiTest, duplicated_rest_api_section) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_output();
   EXPECT_THAT(
@@ -398,9 +397,9 @@ TEST_F(RestOpenApiTest, rest_api_section_key) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(
       router_output,
       ::testing::HasSubstr(" Configuration error: [rest_api] section does "

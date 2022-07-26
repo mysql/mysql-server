@@ -42,6 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ddl0ddl.h"
 #include "handler0alter.h"
 #include "lob0lob.h"
+#include "log0chkp.h"
 #include "que0que.h"
 #include "row0ext.h"
 #include "row0ins.h"
@@ -1109,7 +1110,8 @@ const dtuple_t *row_log_table_get_pk(
         ut_ad(pos > 0);
 
         if (!offsets) {
-          offsets = rec_get_offsets(rec, index, nullptr, pos + 1, heap);
+          offsets = rec_get_offsets(rec, index, nullptr, pos + 1,
+                                    UT_LOCATION_HERE, heap);
         }
 
         trx_id_offs = rec_get_nth_field_offs(index, offsets, pos, &len);
@@ -1146,7 +1148,8 @@ const dtuple_t *row_log_table_get_pk(
     }
 
     if (!offsets) {
-      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, heap);
+      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, heap);
     }
 
     tuple = dtuple_create(*heap, new_n_uniq + 2);
@@ -1659,6 +1662,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
       /* We did not request buffering. */
       break;
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       goto flag_ok;
@@ -1833,6 +1837,7 @@ flag_ok:
       /* We did not request buffering. */
       break;
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       goto flag_ok;
@@ -1854,7 +1859,7 @@ flag_ok:
   }
 
   offsets = rec_get_offsets(pcur.get_rec(), index, nullptr, ULINT_UNDEFINED,
-                            &offsets_heap);
+                            UT_LOCATION_HERE, &offsets_heap);
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
   ut_a(!rec_offs_any_null_extern(index, pcur.get_rec(), offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
@@ -2054,6 +2059,7 @@ flag_ok:
     case BTR_CUR_INSERT_TO_IBUF:
       ut_d(ut_error); /* We did not request buffering. */
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       break;
@@ -2126,8 +2132,9 @@ flag_ok:
   }
 
   /* Prepare to update (or delete) the record. */
-  ulint *cur_offsets = rec_get_offsets(pcur.get_rec(), index, nullptr,
-                                       ULINT_UNDEFINED, &offsets_heap);
+  ulint *cur_offsets =
+      rec_get_offsets(pcur.get_rec(), index, nullptr, ULINT_UNDEFINED,
+                      UT_LOCATION_HERE, &offsets_heap);
 
   if (!log->same_pk) {
     /* Only update the record if DB_TRX_ID,DB_ROLL_PTR match what

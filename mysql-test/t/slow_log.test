@@ -180,6 +180,8 @@ SET @@session.long_query_time=0;
 
 let SLOW_LOG= `SELECT @@global.slow_query_log_file`;
 
+SET @my_start=CURRENT_TIMESTAMP(6);
+
 --echo
 --echo # This succeeds, and the password is correctly obfuscated.
 CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
@@ -198,13 +200,13 @@ CREATE USER ‘bad_characters’@’%’ IDENTIFIED BY 'mypassword';
 --echo # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
 SELECT "general table>",argument
   FROM mysql.general_log
- WHERE INSTR(argument,"CREATE USER")=1
+ WHERE INSTR(argument,"CREATE USER")=1 AND event_time>=@my_start
  ORDER BY event_time;
 
 --echo # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
 SELECT "slow table>",sql_text
   FROM mysql.slow_log
- WHERE INSTR(sql_text,"CREATE USER")=1
+ WHERE INSTR(sql_text,"CREATE USER")=1 AND start_time>=@my_start
  ORDER BY start_time;
 
 SET @@global.slow_query_log_file=@save_sqlf;

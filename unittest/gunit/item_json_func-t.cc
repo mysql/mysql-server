@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@
 
 #include <cstring>
 
+#include "sql-common/json_dom.h"
 #include "sql/item_json_func.h"
 #include "sql/json_diff.h"
-#include "sql/json_dom.h"
 #include "sql/sql_class.h"
 #include "sql/sql_list.h"
 #include "unittest/gunit/base_mock_field.h"
@@ -64,8 +64,9 @@ class ItemJsonFuncTest : public ::testing::Test {
   @return a DOM representing the JSON document
 */
 static Json_dom_ptr parse_json(const char *json_text) {
-  auto dom =
-      Json_dom::parse(json_text, std::strlen(json_text), nullptr, nullptr);
+  auto dom = Json_dom::parse(
+      json_text, std::strlen(json_text), [](const char *, size_t) {},
+      [] { ASSERT_TRUE(false); });
   EXPECT_NE(nullptr, dom);
   return dom;
 }
@@ -137,7 +138,7 @@ static void do_partial_update(Item_json_func *func, Field_json *field,
   const auto thd = table->in_use;
   Json_diff_vector diffs(Json_diff_vector::allocator_type(thd->mem_root));
   for (const auto &diff : *table->get_logical_diffs(field)) {
-    diffs.add_diff(diff.path(), diff.operation(), diff.value().clone_dom(thd));
+    diffs.add_diff(diff.path(), diff.operation(), diff.value().clone_dom());
   }
 
   /*
@@ -164,7 +165,7 @@ static void do_partial_update(Item_json_func *func, Field_json *field,
   // ... and applying those new diffs should produce the same result again ...
   diffs.clear();
   for (const auto &diff : *new_diffs) {
-    diffs.add_diff(diff.path(), diff.operation(), diff.value().clone_dom(thd));
+    diffs.add_diff(diff.path(), diff.operation(), diff.value().clone_dom());
   }
   table->clear_partial_update_diffs();
   store_json(field, orig_json);

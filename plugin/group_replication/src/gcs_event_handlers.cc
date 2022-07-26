@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ void Plugin_gcs_events_handler::handle_transactional_message(
 
     this->applier_module->handle(payload_data, static_cast<ulong>(payload_size),
                                  GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
-                                 nullptr);
+                                 nullptr, key_transaction_data);
   } else {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_DISCARDED);
@@ -227,7 +227,8 @@ void Plugin_gcs_events_handler::handle_transactional_with_guarantee_message(
             message.get_origin());
 
     this->applier_module->handle(payload_data, static_cast<ulong>(payload_size),
-                                 consistency_level, online_members);
+                                 consistency_level, online_members,
+                                 key_transaction_data);
   } else {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_DISCARDED);
@@ -329,6 +330,17 @@ void Plugin_gcs_events_handler::handle_recovery_message(
     */
     group_member_mgr->update_member_status(
         member_uuid, Group_member_info::MEMBER_ONLINE, m_notification_ctx);
+
+    /*
+     Take View_change_log_event transaction into account, that
+     despite being queued on applier channel was applied through
+     recovery channel.
+    */
+    if (group_member_mgr->get_number_of_members() != 1) {
+      Pipeline_stats_member_collector *pipeline_stats =
+          applier_module->get_pipeline_stats_member_collector();
+      pipeline_stats->decrement_transactions_waiting_apply();
+    }
 
     /*
       unblock threads waiting for the member to become ONLINE
@@ -794,7 +806,8 @@ int Plugin_gcs_events_handler::update_group_info_manager(
   int error = 0;
 
   // update the Group Manager with all the received states
-  vector<Group_member_info *> to_update;
+  Group_member_info_list to_update(
+      (Malloc_allocator<Group_member_info *>(key_group_member_info)));
 
   if (!is_leaving) {
     // Process local state of exchanged data.
@@ -807,7 +820,7 @@ int Plugin_gcs_events_handler::update_group_info_manager(
     // Clean-up members that are leaving
     vector<Gcs_member_identifier> leaving = new_view.get_leaving_members();
     vector<Gcs_member_identifier>::iterator left_it;
-    vector<Group_member_info *>::iterator to_update_it;
+    Group_member_info_list_iterator to_update_it;
     for (left_it = leaving.begin(); left_it != leaving.end(); left_it++) {
       for (to_update_it = to_update.begin(); to_update_it != to_update.end();
            to_update_it++) {
@@ -1177,11 +1190,11 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
     }
 
     // Process data provided by member.
-    vector<Group_member_info *> *member_infos =
+    Group_member_info_list *member_infos =
         group_member_mgr->decode(data, length);
 
     // This construct is here in order to deallocate memory of duplicates
-    vector<Group_member_info *>::iterator member_infos_it;
+    Group_member_info_list_iterator member_infos_it;
     for (member_infos_it = member_infos->begin();
          member_infos_it != member_infos->end(); member_infos_it++) {
       if (local_member_info->get_uuid() == (*member_infos_it)->get_uuid()) {
@@ -1527,9 +1540,8 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
   Compatibility_type compatibility_type = COMPATIBLE;
   bool read_compatible = false;
 
-  std::vector<Group_member_info *> *all_members =
-      group_member_mgr->get_all_members();
-  std::vector<Group_member_info *>::iterator all_members_it;
+  Group_member_info_list *all_members = group_member_mgr->get_all_members();
+  Group_member_info_list_iterator all_members_it;
 
   Member_version lowest_version(0xFFFFFF);
   std::set<Member_version> unique_version_set;
@@ -1597,9 +1609,8 @@ int Plugin_gcs_events_handler::compare_member_transaction_sets() const {
   Gtid_set local_member_set(&local_sid_map, nullptr);
   Gtid_set group_set(&group_sid_map, nullptr);
 
-  std::vector<Group_member_info *> *all_members =
-      group_member_mgr->get_all_members();
-  std::vector<Group_member_info *>::iterator all_members_it;
+  Group_member_info_list *all_members = group_member_mgr->get_all_members();
+  Group_member_info_list_iterator all_members_it;
   for (all_members_it = all_members->begin();
        all_members_it != all_members->end(); all_members_it++) {
     std::string member_exec_set_str = (*all_members_it)->get_gtid_executed();
@@ -1666,9 +1677,8 @@ cleaning:
 
 void Plugin_gcs_events_handler::collect_members_executed_sets(
     View_change_packet *view_packet) const {
-  std::vector<Group_member_info *> *all_members =
-      group_member_mgr->get_all_members();
-  std::vector<Group_member_info *>::iterator all_members_it;
+  Group_member_info_list *all_members = group_member_mgr->get_all_members();
+  Group_member_info_list_iterator all_members_it;
   for (all_members_it = all_members->begin();
        all_members_it != all_members->end(); all_members_it++) {
     // Joining/Recovering members don't have valid GTID executed information
@@ -1692,9 +1702,8 @@ void Plugin_gcs_events_handler::collect_members_executed_sets(
 int Plugin_gcs_events_handler::compare_member_option_compatibility() const {
   int result = 0;
 
-  std::vector<Group_member_info *> *all_members =
-      group_member_mgr->get_all_members();
-  std::vector<Group_member_info *>::iterator all_members_it;
+  Group_member_info_list *all_members = group_member_mgr->get_all_members();
+  Group_member_info_list_iterator all_members_it;
   for (all_members_it = all_members->begin();
        all_members_it != all_members->end(); all_members_it++) {
     if (local_member_info->get_gtid_assignment_block_size() !=
@@ -1788,8 +1797,7 @@ cleaning:
 bool Plugin_gcs_events_handler::is_group_running_a_configuration_change()
     const {
   bool is_action_running = false;
-  std::vector<Group_member_info *> *all_members =
-      group_member_mgr->get_all_members();
+  Group_member_info_list *all_members = group_member_mgr->get_all_members();
   for (Group_member_info *member_info : *all_members) {
     if (member_info->is_group_action_running()) {
       is_action_running = true;
@@ -1804,8 +1812,7 @@ bool Plugin_gcs_events_handler::is_group_running_a_configuration_change()
 
 bool Plugin_gcs_events_handler::is_group_running_a_primary_election() const {
   bool is_election_running = false;
-  std::vector<Group_member_info *> *all_members =
-      group_member_mgr->get_all_members();
+  Group_member_info_list *all_members = group_member_mgr->get_all_members();
   for (Group_member_info *member_info : *all_members) {
     if (member_info->is_primary_election_running()) {
       is_election_running = true;

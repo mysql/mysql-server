@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,6 +99,7 @@ void EstimateSortCost(AccessPath *path, ha_rows limit_rows = HA_POS_ERROR);
 void EstimateMaterializeCost(THD *thd, AccessPath *path);
 void EstimateAggregateCost(AccessPath *path, const Query_block *query_block);
 void EstimateDeleteRowsCost(AccessPath *path);
+void EstimateUpdateRowsCost(AccessPath *path);
 
 inline double FindOutputRowsForJoin(double left_rows, double right_rows,
                                     const JoinPredicate *edge) {

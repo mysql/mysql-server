@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <my_inttypes.h>  // ulong
 
+#include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
 
 namespace dd {
@@ -34,20 +35,55 @@ class Table;
 typedef unsigned long long Object_id;
 }  // namespace dd
 
+struct Ndb_dd_handle {
+  const dd::Object_id spi;
+  const int version;
+
+  Ndb_dd_handle() : spi(dd::INVALID_OBJECT_ID), version(0) {}
+  Ndb_dd_handle(int spi, int version) : spi(spi), version(version) {}
+  Ndb_dd_handle(dd::Object_id spi, int version) : spi(spi), version(version) {}
+
+  bool operator==(const Ndb_dd_handle &other) const {
+    return spi == other.spi && version == other.version;
+  }
+  bool operator!=(const Ndb_dd_handle &other) const {
+    return spi != other.spi || version != other.version;
+  }
+  bool valid() const { return spi != dd::INVALID_OBJECT_ID; }
+
+#ifndef NDEBUG
+  static constexpr const char *spi_copy = "se_private_id=";
+  static constexpr const char *version_copy = "version=";
+  std::string m_str;
+
+  const char *c_str() {
+    m_str.clear();
+    m_str += spi_copy;
+    m_str += std::to_string(spi);
+    m_str += " ";
+    m_str += version_copy;
+    m_str += std::to_string(version);
+
+    return m_str.c_str();
+  }
+#endif
+};
+
 /* Functions operating on dd::Table*, prefixed with ndb_dd_table_ */
 
 /*
    Save the tables object id and version in table definition
 */
-void ndb_dd_table_set_object_id_and_version(dd::Table *table_def, int object_id,
-                                            int object_version);
+void ndb_dd_table_set_spi_and_version(dd::Table *table_def, int spi,
+                                      int version);
+
+void ndb_dd_table_set_spi_and_version(dd::Table *table_def,
+                                      Ndb_dd_handle handle);
 
 /*
   Return table definitions object id and version
 */
-bool ndb_dd_table_get_object_id_and_version(const dd::Table *table_def,
-                                            int &object_id,
-                                            int &object_version);
+Ndb_dd_handle ndb_dd_table_get_spi_and_version(const dd::Table *table_def);
 
 /*
   Return engine of table definition
@@ -132,6 +168,11 @@ bool ndb_dd_table_get_schema_uuid(const dd::Table *table_def,
 */
 bool ndb_dd_table_check_column_varbinary(const dd::Table *table_def,
                                          const dd::String_type &col_name);
+
+/*
+  Check if table has associated triggers
+*/
+bool ndb_dd_table_has_trigger(const dd::Table *table_def);
 
 /* interface for working with opaque dd::Table RAII-style */
 class Ndb_dd_table {

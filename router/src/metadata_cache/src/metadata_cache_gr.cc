@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -443,46 +443,47 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
     // Ensure that the refresh does not result in an inconsistency during
     // the lookup.
     std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-    if (cluster_data_ != cluster_topology.cluster_data) {
-      cluster_data_ = cluster_topology.cluster_data;
+    if (cluster_topology_ != cluster_topology) {
+      cluster_topology_ = cluster_topology;
       changed = true;
     } else {
-      cluster_data_.writable_server =
+      cluster_topology_.cluster_data.writable_server =
           cluster_topology.cluster_data.writable_server;
     }
   }
 
-  on_md_refresh(changed, cluster_data_.members);
+  const auto &cluster_members = cluster_topology_.cluster_data.members;
+  on_md_refresh(changed, cluster_members);
 
   // we want to trigger those actions not only if the metadata has really
   // changed but also when something external (like unsuccessful client
   // connection) triggered the refresh so that we verified if this wasn't
   // false alarm and turn it off if it was
-  view_id = cluster_data_.view_id;
+  view_id = cluster_topology_.view_id;
   if (changed) {
     log_info(
         "Potential changes detected in cluster '%s' after metadata refresh",
         target_cluster_.c_str());
     // dump some informational/debugging information about the cluster
     log_cluster_details();
-    if (cluster_data_.empty())
+    if (cluster_members.empty())
       log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
     else {
       log_info(
           "Metadata for cluster '%s' has %zu member(s), %s: (view_id=%" PRIu64
           ")",
-          target_cluster_.c_str(), cluster_data_.members.size(),
-          cluster_data_.single_primary_mode ? "single-primary"
-                                            : "multi-primary",
+          target_cluster_.c_str(), cluster_members.size(),
+          cluster_topology_.cluster_data.single_primary_mode ? "single-primary"
+                                                             : "multi-primary",
           view_id);
-      for (const auto &mi : cluster_data_.members) {
+      for (const auto &mi : cluster_members) {
         log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
                  mi.xport, to_string(mi.mode).c_str(),
                  get_hidden_info(mi).c_str());
       }
     }
 
-    on_instances_changed(/*md_servers_reachable=*/true, cluster_data_.members,
+    on_instances_changed(/*md_servers_reachable=*/true, cluster_members,
                          cluster_topology.metadata_servers, view_id);
     // never let the list that we iterate over become empty as we would
     // not recover from that
@@ -505,14 +506,14 @@ void GRMetadataCache::log_cluster_details() const {
 
   if (cluster_type == mysqlrouter::ClusterType::GR_CS) {
     const std::string cluster_role =
-        target_cluster_.is_primary() ? "primary" : "replica";
+        cluster_topology_.cluster_data.is_primary ? "primary" : "replica";
     const std::string cluster_invalidated =
-        target_cluster_.is_invalidated()
+        cluster_topology_.cluster_data.is_invalidated
             ? "cluster is marked as invalid in the metadata; "
             : "";
 
     bool has_rw_nodes{false};
-    for (const auto &mi : cluster_data_.members) {
+    for (const auto &mi : cluster_topology_.cluster_data.members) {
       if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
         has_rw_nodes = true;
       }

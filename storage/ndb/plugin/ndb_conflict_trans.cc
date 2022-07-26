@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -478,8 +478,8 @@ int DependencyTracker::add_dependency(Uint64 trans_id,
 
   /* Now lookup dependency.  Add it if not already present */
   st_trans_dependency depKey(targetEntry, dependentEntry, NULL);
-  st_trans_dependency *dep = NULL;
-  if (!(dep = dependency_hash.get(&depKey))) {
+  st_trans_dependency *dep = dependency_hash.get(&depKey);
+  if (dep == nullptr) {
     DBUG_PRINT("info", ("Creating new dependency hash entry for "
                         "dependency of %llu on %llu.",
                         dependentEntry->getTransactionId(),

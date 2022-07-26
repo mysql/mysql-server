@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -253,7 +253,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   // is intrinsically locked to the old join optimizer's way of thinking,
   // where one made a long chain of (left-deep) nested tables, and selectivity
   // estimation would be run for the entire WHERE condition at all points
-  // in that chain. In such a situation, it would be neccessary to know which
+  // in that chain. In such a situation, it would be necessary to know which
   // tables were already in the chain and which would not, and multiple
   // equalities would also be resolved through this mechanism. In the hypergraph
   // optimizer, we no longer have a chain, and always estimate selectivity for

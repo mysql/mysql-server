@@ -1830,7 +1830,7 @@ int parse_option(const char *origin, option_string **stmt, char delm) {
     char *buffer_ptr;
 
     /*
-      Return an error if the length of the any of the comma seprated value
+      Return an error if the length of the any of the comma separated value
       exceeds HUGE_STRING_LENGTH.
     */
     if ((size_t)(retstr - ptr) > HUGE_STRING_LENGTH) return -1;
@@ -1866,7 +1866,7 @@ int parse_option(const char *origin, option_string **stmt, char delm) {
     const char *origin_ptr;
 
     /*
-      Return an error if the length of the any of the comma seprated value
+      Return an error if the length of the any of the comma separated value
       exceeds HUGE_STRING_LENGTH.
     */
     if (strlen(ptr) > HUGE_STRING_LENGTH) return -1;
@@ -2049,7 +2049,7 @@ int slap_connect(MYSQL *mysql) {
     if (mysql_real_connect(mysql, host, user, nullptr, create_schema_string,
                            opt_mysql_port, opt_mysql_unix_port,
                            connect_flags)) {
-      /* Connect suceeded */
+      /* Connect succeeded */
       connect_error = 0;
       break;
     }

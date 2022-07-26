@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,8 @@ class Sdi_wcontext;
 class Table;
 
 static const std::set<String_type> default_valid_option_keys = {
-    "block_size", "flags", "parser_name"};
+    "block_size", "flags", "parser_name",
+    "gipk" /* generated implicit primary key */};
 
 ///////////////////////////////////////////////////////////////////////////
 // Index_impl implementation.

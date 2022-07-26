@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0impl.h"
 #include "lob0lob.h"
 #include "lob0pages.h"
+#include "log0chkp.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0import.h"
@@ -2385,7 +2386,7 @@ dberr_t PageConverter::update_records(buf_block_t *block) UNIV_NOTHROW {
 
     if (deleted || clust_index) {
       m_offsets = rec_get_offsets(rec, m_index->m_srv_index, m_offsets,
-                                  ULINT_UNDEFINED, &m_heap);
+                                  ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
     }
 
     if (clust_index) {
@@ -2957,7 +2958,8 @@ static void row_import_discard_changes(
 
     rec_offs_init(offsets_);
 
-    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     field = rec_get_nth_field(index, rec, offsets,
                               index->get_sys_col_pos(DATA_ROW_ID), &len);

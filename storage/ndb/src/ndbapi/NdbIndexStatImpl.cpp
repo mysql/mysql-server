@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1000,7 +1000,7 @@ NdbIndexStatImpl::sys_sample_setkey(Con& con)
     setError(con, __LINE__);
     return -1;
   }
-  if (op->equal("stat_key", (char*)m_keyData.get_full_buf()) == -1)
+  if (op->equal("stat_key", (const char*)m_keyData.get_full_buf()) == -1)
   {
     setError(con, __LINE__);
     return -1;
@@ -2911,19 +2911,17 @@ int
 NdbIndexStatImpl::check_sysevents(Ndb* ndb)
 {
   Sys sys(this, ndb);
-  NdbDictionary::Dictionary* const dic = ndb->getDictionary();
 
   if (check_systables(sys) == -1)
     return -1;
 
-  const char* const evname = NDB_INDEX_STAT_HEAD_EVENT;
-  const NdbDictionary::Event* ev = dic->getEvent(evname);
-  if (ev == 0)
+  NdbDictionary::Event_ptr ev(
+    ndb->getDictionary()->getEvent(NDB_INDEX_STAT_HEAD_EVENT));
+  if (ev == nullptr)
   {
-    setError(dic->getNdbError().code, __LINE__);
+    setError(ndb->getDictionary()->getNdbError().code, __LINE__);
     return -1;
   }
-  delete ev; // getEvent() creates new instance
   return 0;
 }
 
@@ -2976,8 +2974,7 @@ NdbIndexStatImpl::create_listener(Ndb* ndb)
   return 0;
 }
 
-int
-NdbIndexStatImpl::execute_listener(Ndb* ndb)
+int NdbIndexStatImpl::execute_listener(Ndb* /*ndb*/)
 {
   if (m_eventOp == 0)
   {

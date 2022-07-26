@@ -1,0 +1,69 @@
+.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: May 23 2018 $
+.Dt FIDO_CRED_VERIFY 3
+.Os
+.Sh NAME
+.Nm fido_cred_verify
+.Nd verifies the attestation signature of a FIDO 2 credential
+.Sh SYNOPSIS
+.In fido.h
+.Ft int
+.Fn fido_cred_verify "const fido_cred_t *cred"
+.Sh DESCRIPTION
+The
+.Fn fido_cred_verify
+function verifies whether the attestation signature contained in
+.Fa cred
+matches the attributes of the credential.
+Before using
+.Fn fido_cred_verify
+in a sensitive context, the reader is strongly encouraged to make
+herself familiar with the FIDO 2 credential attestation process
+as defined in the Web Authentication (webauthn) standard.
+.Pp
+A brief description follows:
+.Pp
+The
+.Fn fido_cred_verify
+function verifies whether the client data hash, relying party ID,
+credential ID, type, and resident/discoverable key and user verification
+attributes of
+.Fa cred
+have been attested by the holder of the private counterpart of
+the public key contained in the credential's x509 certificate.
+.Pp
+Please note that the x509 certificate itself is not verified.
+.Pp
+The attestation statement formats supported by
+.Fn fido_cred_verify
+are
+.Em packed
+and
+.Em fido-u2f .
+The attestation type implemented by
+.Fn fido_cred_verify
+is
+.Em Basic Attestation .
+The attestation key pair is assumed to be of the type ES256.
+Other attestation formats and types are not supported.
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_cred_verify
+are defined in
+.In fido/err.h .
+If
+.Fa cred
+does not contain attestation data, then
+.Dv FIDO_ERR_INVALID_ARGUMENT
+is returned.
+If
+.Fa cred
+passes verification, then
+.Dv FIDO_OK
+is returned.
+.Sh SEE ALSO
+.Xr fido_cred_new 3 ,
+.Xr fido_cred_set_authdata 3

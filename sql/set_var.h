@@ -263,7 +263,7 @@ class sys_var {
 
   /**
     This function converts value stored in save_result to string. This
-    function must ba called after calling save_default() as save_default() will
+    function must be called after calling save_default() as save_default() will
     store default value to save_result.
   */
   virtual void saved_value_to_string(THD *thd, set_var *var, char *def_val) = 0;
@@ -510,7 +510,7 @@ enum class Is_single_thread { NO, YES };
   of static system variables.
   OTOH, the server silently accepts component-registered variable names like
   key_buffer_size etc. (conflict with qualified key cache variables), so
-  those newly-registered variables wont be easily accessible via SQL.
+  those newly-registered variables won't be easily accessible via SQL.
 
 
   API
@@ -937,7 +937,7 @@ class System_variable_tracker final {
 /**
   A base class for everything that can be set with SET command.
   It's similar to Items, an instance of this is created by the parser
-  for every assigmnent in SET (or elsewhere, e.g. in SELECT).
+  for every assignment in SET (or elsewhere, e.g. in SELECT).
 */
 class set_var_base {
  public:

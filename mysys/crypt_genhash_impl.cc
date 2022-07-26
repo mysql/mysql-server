@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,7 +177,7 @@ static uint getrounds(const char *s) {
    @param [in,out] salt_begin  As input, pointer to start of crypt passwd,
                            as output, pointer to first byte of the salt
    @param [in,out] salt_end    As input, pointer to the last byte in passwd,
-                           as output, pointer to the byte immediatly following
+                           as output, pointer to the byte immediately following
   the salt ($)
 
    @return The size of the salt identified

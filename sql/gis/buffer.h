@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_BUFFER_H_INCLUDED
 #define SQL_GIS_BUFFER_H_INCLUDED
 
-// Copyright (c) 2021, Oracle and/or its affiliates.
+// Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 //
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ struct invalid_buffer_result_exception : public std::exception {};
 /// Creates the buffer of a geometry
 ///
 /// @param[in] srs The spatial reference system.
-/// @param[in] g Input geomtry.
+/// @param[in] g Input geometry.
 /// @param[in] strategies Struct holding strategy arguments for buffer creation
 /// @param[in] func_name Function name used in error reporting.
 /// @param[out] result The geometry that is the buffer of input geometry g

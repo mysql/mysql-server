@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -981,7 +981,7 @@ AccessPath *get_best_ror_intersect(
     AccessPath *path = new (param->return_mem_root) AccessPath;
     path->type = AccessPath::ROWID_INTERSECTION;
     path->cost = intersect_best->total_cost.total_cost();
-    /* Prevent divisons by zero */
+    /* Prevent divisions by zero */
     double best_rows = max(intersect_best->out_rows, 1.0);
     table->quick_condition_rows =
         min<ha_rows>(table->quick_condition_rows, best_rows);

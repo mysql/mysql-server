@@ -102,8 +102,8 @@ int ndb_openssl_evp::library_init()
   OpenSSL_add_all_algorithms();
   SSL_load_error_strings();
   ERR_load_crypto_strings();
-  RAND_set_rand_engine(nullptr);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
+  RAND_set_rand_engine(nullptr); // Needed until OpenSSL 1.0.1e
 
   int num_locks = CRYPTO_num_locks();
   ndb_openssl_lock_array =
@@ -133,7 +133,11 @@ int ndb_openssl_evp::library_end()
   ENGINE_cleanup();
   ERR_remove_thread_state(nullptr);
 #endif
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_default_properties_enable_fips(nullptr, 0);
+#else
   FIPS_mode_set(0);
+#endif
   CONF_modules_unload(1);
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
@@ -991,7 +995,6 @@ int ndb_openssl_evp::operation::decrypt_reverse(output_reverse_iterator* out,
                                                 input_reverse_iterator* in)
 {
   require(m_op_mode == DECRYPT);
-  bool progress = false;
   const size_t data_unit_size = m_context->m_data_unit_size;
   require(m_reverse);
   require(data_unit_size == 0);
@@ -1084,7 +1087,6 @@ int ndb_openssl_evp::operation::decrypt_reverse(output_reverse_iterator* out,
   m_output_position -= real_outl + final_outl;
   in->advance(inl);
   out->advance(real_outl + final_outl);
-  progress = true;
   m_at_padding_end = false;
  
   if (in->empty() && in->last()) out->set_last();

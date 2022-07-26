@@ -158,7 +158,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -195,7 +195,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -234,7 +234,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -273,7 +273,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[end] server status: 66
@@ -346,7 +346,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -383,7 +383,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -422,7 +422,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -497,7 +497,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -534,7 +534,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -573,7 +573,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -693,7 +693,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -730,7 +730,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -769,7 +769,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -808,7 +808,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[end] server status: 66
@@ -874,7 +874,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -911,7 +911,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -950,7 +950,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -989,7 +989,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -1060,7 +1060,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -1097,7 +1097,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -1136,7 +1136,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -1175,7 +1175,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -1297,7 +1297,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -1334,7 +1334,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -1373,7 +1373,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -1412,7 +1412,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -1532,7 +1532,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -1569,7 +1569,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -1608,7 +1608,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[end] server status: 2
@@ -1711,7 +1711,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -1783,7 +1783,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -1855,7 +1855,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -1927,7 +1927,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -1999,7 +1999,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -2071,7 +2071,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -2143,7 +2143,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -2215,7 +2215,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -2305,7 +2305,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -2419,7 +2419,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -2677,7 +2677,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -2714,7 +2714,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[end] server status: 2
@@ -2781,7 +2781,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -2818,7 +2818,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -2846,7 +2846,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -3029,7 +3029,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -3154,7 +3154,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -3204,7 +3204,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -3298,7 +3298,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -3423,7 +3423,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -3473,7 +3473,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -3561,7 +3561,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -3657,7 +3657,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -3782,7 +3782,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -3832,7 +3832,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -3920,7 +3920,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -4047,7 +4047,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -4123,7 +4123,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -4248,7 +4248,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -4298,7 +4298,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -4386,7 +4386,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -4513,7 +4513,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -4617,7 +4617,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -4643,7 +4643,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: 
@@ -4660,7 +4660,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: 
@@ -4677,7 +4677,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[end] server status: 66
@@ -4777,7 +4777,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -4845,7 +4845,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -5318,7 +5318,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -5355,7 +5355,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -5394,7 +5394,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -5433,7 +5433,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[end] server status: 66
@@ -5506,7 +5506,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -5543,7 +5543,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -5582,7 +5582,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -5657,7 +5657,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -5694,7 +5694,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -5733,7 +5733,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -5853,7 +5853,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -5890,7 +5890,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -5929,7 +5929,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -5968,7 +5968,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[end] server status: 66
@@ -6034,7 +6034,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -6071,7 +6071,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -6110,7 +6110,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -6149,7 +6149,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -6220,7 +6220,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -6257,7 +6257,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -6296,7 +6296,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -6335,7 +6335,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -6457,7 +6457,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -6494,7 +6494,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -6533,7 +6533,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -6572,7 +6572,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -6692,7 +6692,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -6729,7 +6729,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -6768,7 +6768,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[end] server status: 2
@@ -6871,7 +6871,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -6943,7 +6943,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7015,7 +7015,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7087,7 +7087,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7159,7 +7159,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7231,7 +7231,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7303,7 +7303,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7375,7 +7375,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7465,7 +7465,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7579,7 +7579,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7837,7 +7837,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7874,7 +7874,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[end] server status: 2
@@ -7941,7 +7941,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -7978,7 +7978,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -8006,7 +8006,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -8189,7 +8189,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -8314,7 +8314,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -8364,7 +8364,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -8458,7 +8458,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -8583,7 +8583,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -8633,7 +8633,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -8721,7 +8721,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -8817,7 +8817,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -8942,7 +8942,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -8992,7 +8992,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -9080,7 +9080,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -9207,7 +9207,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -9283,7 +9283,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -9408,7 +9408,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: test
@@ -9458,7 +9458,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -9546,7 +9546,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -9673,7 +9673,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -9777,7 +9777,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -9803,7 +9803,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: 
@@ -9820,7 +9820,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 		[meta][field] db name: 
@@ -9837,7 +9837,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[end] server status: 66
@@ -9937,7 +9937,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0
@@ -10005,7 +10005,7 @@ handle_ok
 
 	[meta][charset result] number: 33
 	[meta][charset result] name: utf8mb3
-	[meta][charset result] collation: utf8_general_ci
+	[meta][charset result] collation: utf8mb3_general_ci
 	[meta][charset result] sort order: 
 
 	[meta] current col: 0

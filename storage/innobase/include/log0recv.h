@@ -36,10 +36,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0types.h"
 #include "dict0types.h"
 #include "hash0hash.h"
-#include "log0types.h"
+#include "log0sys.h"
 #include "mtr0types.h"
-#include "os0file.h" /* OS_FILE_LOG_BLOCK_SIZE */
-#include "univ.i"
+
+/* OS_FILE_LOG_BLOCK_SIZE */
+#include "os0file.h"
+
 #include "ut0byte.h"
 #include "ut0new.h"
 
@@ -74,9 +76,9 @@ checkpoint number so far
 than buf_len if log data ended here
 @param[out]     has_encrypted_log       set true, if buffer contains encrypted
 redo log, set false otherwise */
-void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
+void meb_scan_log_seg(byte *buf, size_t buf_len, lsn_t *scanned_lsn,
                       uint32_t *scanned_checkpoint_no, uint32_t *block_no,
-                      ulint *n_bytes_scanned, bool *has_encrypted_log);
+                      size_t *n_bytes_scanned, bool *has_encrypted_log);
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
@@ -132,31 +134,14 @@ to grow to this size, at the maximum
 segment or garbage
 @param[in]      len                     buffer length
 @param[in]      start_lsn               buffer start lsn
-@param[in]      contiguous_lsn          it is known that all log
-groups contain contiguous log data up to this lsn
 @param[out]     group_scanned_lsn       scanning succeeded up to this lsn
-@retval true    if limit_lsn has been reached, or not able to scan any
+@param[out]     err  error code as returned by recv_init_crash_recovery().
+@retval	true  if limit_lsn has been reached, or not able to scan any
 more in this log group
 @retval false   otherwise */
-bool meb_scan_log_recs(ulint available_memory, const byte *buf, ulint len,
-                       lsn_t start_lsn, lsn_t *contiguous_lsn,
-                       lsn_t *group_scanned_lsn);
+bool meb_scan_log_recs(size_t available_memory, const byte *buf, size_t len,
+                       lsn_t start_lsn, lsn_t *group_scanned_lsn, dberr_t &err);
 
-/** Creates an IORequest object for decrypting redo log with
-Encryption::decrypt_log() method. If the encryption_info parameter is
-a null pointer, then encryption information is read from
-"ib_logfile0". If the encryption_info parameter is not null, then it
-should contain a copy of the encryption info stored in the header of
-"ib_logfile0".
-@param[in,out]  encryption_request      an IORequest object
-@param[in]      encryption_info         a copy of the encryption info in
-the header of "ib_logfile0", or a null pointer
-@retval true    if the call succeeded
-@retval false   otherwise */
-bool meb_read_log_encryption(IORequest &encryption_request,
-                             byte *encryption_info = nullptr);
-
-bool recv_check_log_header_checksum(const byte *buf);
 /** Check the 4-byte checksum to the trailer checksum field of a log
 block.
 @param[in]      block   pointer to a log block
@@ -211,9 +196,9 @@ bool recv_page_is_brand_new(buf_block_t *block);
 
 /** Start recovering from a redo log checkpoint.
 @see recv_recovery_from_checkpoint_finish
-@param[in,out]  log             redo log
-@param[in]      flush_lsn       FIL_PAGE_FILE_FLUSH_LSN
-                                of first system tablespace page
+@param[in,out]  log        redo log
+@param[in]      flush_lsn  lsn stored at offset FIL_PAGE_FILE_FLUSH_LSN
+                           in the system tablespace header
 @return error code or DB_SUCCESS */
 [[nodiscard]] dberr_t recv_recovery_from_checkpoint_start(log_t &log,
                                                           lsn_t flush_lsn);
@@ -238,11 +223,11 @@ void recv_sys_init();
 @param[in]      len             This many bytes of data is added, log block
                                 headers not included
 @return LSN after data addition */
-lsn_t recv_calc_lsn_on_data_add(lsn_t lsn, uint64_t len);
+lsn_t recv_calc_lsn_on_data_add(lsn_t lsn, os_offset_t len);
 
 /** Empties the hash table of stored log records, applying them to appropriate
 pages.
-@param[in,out]  log             Redo log
+@param[in,out]  log             redo log
 @param[in]      allow_ibuf      if true, ibuf operations are allowed during
                                 the application; if false, no ibuf operations
                                 are allowed, and after the application all
@@ -251,7 +236,7 @@ pages.
                                 no new log records can be generated during
                                 the application; the caller must in this case
                                 own the log mutex */
-void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf);
+dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf);
 
 #if defined(UNIV_DEBUG) || defined(UNIV_HOTBACKUP)
 /** Return string name of the redo log record type.
@@ -374,7 +359,7 @@ class MetadataRecover {
 
   /** If there is any metadata to be applied
   @return       true if any metadata to be applied, otherwise false */
-  bool empty() const { return (m_tables.empty()); }
+  bool empty() const { return m_tables.empty(); }
 
  private:
   /** Get the dynamic metadata of a specified table,
@@ -448,7 +433,7 @@ struct recv_sys_t {
 
   using Mlog_records = std::vector<Mlog_record, ut::allocator<Mlog_record>>;
 
-  /** While scanning logs for multi-record mini transaction (mtr), we have two
+  /** While scanning logs for multi-record mini-transaction (mtr), we have two
   passes. In first pass, we check if all the logs of the mtr is present in
   current recovery buffer or not. If yes, then in second pass we go through the
   logs again the add to hash table for apply. To avoid parsing multiple times,
@@ -588,9 +573,8 @@ struct recv_sys_t {
   /** The log data has been scanned up to this lsn */
   lsn_t scanned_lsn;
 
-  /** The log data has been scanned up to this checkpoint
-  number (lowest 4 bytes) */
-  ulint scanned_checkpoint_no;
+  /** The log data has been scanned up to this epoch_no */
+  uint32_t scanned_epoch_no;
 
   /** Start offset of non-parsed log records in buf */
   ulint recovered_offset;
@@ -617,11 +601,11 @@ struct recv_sys_t {
   is detected during log scan or apply */
   bool found_corrupt_fs;
 
-  /** If the recovery is from a cloned database. */
+  /** Data directory has been recognized as cloned data directory. */
   bool is_cloned_db;
 
-  /** Recovering from MEB. */
-  bool is_meb_recovery;
+  /** Data directory has been recognized as data directory from MEB. */
+  bool is_meb_db;
 
   /** Doublewrite buffer state before MEB recovery starts. We restore to this
   state after MEB recovery completes and disable the doublewrite buffer during

@@ -496,7 +496,8 @@ void page_copy_rec_list_end_no_locks(
   while (!page_cur_is_after_last(&cur1)) {
     rec_t *cur1_rec = page_cur_get_rec(&cur1);
     rec_t *ins_rec;
-    offsets = rec_get_offsets(cur1_rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(cur1_rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     ins_rec = page_cur_insert_rec_low(cur2, index, cur1_rec, offsets, mtr);
     if (UNIV_UNLIKELY(!ins_rec)) {
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_862)
@@ -716,8 +717,8 @@ rec_t *page_copy_rec_list_start(
   } else {
     while (page_cur_get_rec(&cur1) != rec) {
       rec_t *cur1_rec = page_cur_get_rec(&cur1);
-      offsets =
-          rec_get_offsets(cur1_rec, index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(cur1_rec, index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
       cur2 = page_cur_insert_rec_low(cur2, index, cur1_rec, offsets, mtr);
       ut_a(cur2);
 
@@ -955,7 +956,8 @@ void page_delete_rec_list_end(
       page_cur_t cur;
       page_cur_position(rec, block, &cur);
 
-      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
       rec = rec_get_next_ptr(rec, true);
 #ifdef UNIV_ZIP_DEBUG
       ut_a(page_zip_validate(page_zip, page, index));
@@ -985,7 +987,8 @@ void page_delete_rec_list_end(
 
     do {
       ulint s;
-      offsets = rec_get_offsets(rec2, index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(rec2, index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
       s = rec_offs_size(offsets);
       ut_ad(rec2 - page + s - rec_offs_extra_size(offsets) < UNIV_PAGE_SIZE);
       ut_ad(size + s < UNIV_PAGE_SIZE);
@@ -1113,7 +1116,7 @@ void page_delete_rec_list_start(
 
   while (page_cur_get_rec(&cur1) != rec) {
     offsets = rec_get_offsets(page_cur_get_rec(&cur1), index, offsets,
-                              ULINT_UNDEFINED, &heap);
+                              ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
     page_cur_delete_rec(&cur1, index, offsets, mtr);
   }
 
@@ -2165,7 +2168,7 @@ bool page_validate(
   if (dict_index_is_sec_or_ibuf(index) && !index->table->is_temporary() &&
       page_is_leaf(page) && !page_is_empty(page)) {
     trx_id_t max_trx_id = page_get_max_trx_id(page);
-    /* This will be 0 during recv_apply_hashed_log_recs(true),
+    /* This will be 0 during recv_apply_hashed_log_recs(),
     because the transaction system has not been initialized yet */
     trx_id_t sys_next_trx_id_or_no = trx_sys_get_next_trx_id_or_no();
 
@@ -2213,7 +2216,8 @@ bool page_validate(
   rec = page_get_infimum_rec(page);
 
   for (;;) {
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     if (page_is_comp(page) && page_rec_is_user_rec(rec) &&
         UNIV_UNLIKELY(rec_get_node_ptr_flag(rec) == page_is_leaf(page))) {
@@ -2400,7 +2404,8 @@ bool page_validate(
   rec = page_header_get_ptr(page, PAGE_FREE);
 
   while (rec != nullptr) {
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     if (UNIV_UNLIKELY(!page_rec_validate(rec, offsets))) {
       goto func_exit;
     }

@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1837,8 +1837,8 @@ class Field {
 
   When adding a functional index at table creation, we need to resolve the
   expression we are indexing. All functions that references one or more
-  columns expects a Field to be available. But during CREATE TABLE, we only
-  have access to Create_field. So this class acts as a subsitute for the
+  columns expect a Field to be available. But during CREATE TABLE, we only
+  have access to Create_field. So this class acts as a substitute for the
   Field classes so that expressions can be properly resolved. Thus, trying
   to call store or val_* on this class will cause an assertion.
 */
@@ -3783,7 +3783,7 @@ class Field_blob : public Field_longstr {
   void set_keep_old_value(bool old_value_flag) {
     /*
       We should only need to keep a copy of the blob 'value' in the case
-      where this is a virtual genarated column (that is indexed).
+      where this is a virtual generated column (that is indexed).
     */
     assert(is_virtual_gcol());
 
@@ -3829,7 +3829,7 @@ class Field_blob : public Field_longstr {
   void keep_old_value() {
     /*
       We should only need to keep a copy of the blob value in the case
-      where this is a virtual genarated column (that is indexed).
+      where this is a virtual generated column (that is indexed).
     */
     assert(is_virtual_gcol());
 
@@ -3928,20 +3928,6 @@ class Field_geom final : public Field_blob {
 class Field_json : public Field_blob {
   type_conversion_status unsupported_conversion();
   type_conversion_status store_binary(const char *ptr, size_t length);
-
-  /**
-    Diagnostics utility for ER_INVALID_JSON_TEXT.
-
-    @param err        error message argument for ER_INVALID_JSON_TEXT
-    @param err_offset location in text at which there is an error
-  */
-  void invalid_text(const char *err, size_t err_offset) const {
-    String s;
-    s.append(*table_name);
-    s.append('.');
-    s.append(field_name);
-    my_error(ER_INVALID_JSON_TEXT, MYF(0), err, err_offset, s.c_ptr_safe());
-  }
 
  public:
   Field_json(uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
@@ -4383,7 +4369,7 @@ class Field_set final : public Field_enum {
     This is the reason:
     - Field_bit::cmp_binary() is only implemented in the base class
       (Field::cmp_binary()).
-    - Field::cmp_binary() currenly use pack_length() to calculate how
+    - Field::cmp_binary() currently uses pack_length() to calculate how
       long the data is.
     - pack_length() includes size of the bits stored in the NULL bytes
       of the record.

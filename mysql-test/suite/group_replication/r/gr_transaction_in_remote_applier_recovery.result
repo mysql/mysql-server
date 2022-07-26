@@ -1,0 +1,49 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Create table t1 and LOCK it on server2.
+CREATE TABLE test.t1 (c1 int primary key);
+include/rpl_sync.inc
+[connection server2]
+LOCK TABLE test.t1 READ;
+
+# 2. Create some transactions on server1.
+[connection server1]
+INSERT INTO test.t1 VALUES (1);
+INSERT INTO test.t1 VALUES (2);
+
+# 3. Wait for transactions to appear on applier queue on server2.
+[connection server1]
+[connection server2]
+
+# 4. UNLOCK tables on server2.
+UNLOCK TABLES;
+
+# 5. Wait for applier queue on both servers to be 0.
+[connection server1]
+[connection server2]
+
+# 6. Stop GR on server1 and server2.
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+
+# 7. Start GR on server1 and server2.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 8. Confirm COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0
+#    when all servers are online.
+[connection server1]
+[connection server2]
+
+# 9. Cleanup.
+[connection server1]
+DROP TABLE test.t1;
+include/group_replication_end.inc

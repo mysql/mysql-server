@@ -109,6 +109,7 @@
 #include <kernel/Interpreter.hpp>
 #include <signaldata/TuxBound.hpp>
 #include "../dbdih/Dbdih.hpp"
+#include "portlib/mt-asm.h"
 
 #define JAM_FILE_ID 353
 
@@ -13539,12 +13540,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     }
   }
   ndbassert(transP->ndbapiBlockref == apiBlockRef);
-
-  if (unlikely(tabptr.i >= ctabrecFilesize))
-  {
-    errCode = ZUNKNOWN_TABLE_ERROR;
-    goto SCAN_TAB_error;
-  }
 
   if (unlikely(ScanTabReq::getMultiFragFlag(ri) &&
                !ScanTabReq::getViaSPJFlag(ri)))

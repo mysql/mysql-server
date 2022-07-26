@@ -13,7 +13,7 @@ call mtr.add_suppression("\\[Warning\\] .* Plugin mysqlx reported.*");
 call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log files to be encrypted.");
 --enable_query_log
 
 let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;

@@ -33,7 +33,7 @@
   Write and read of logical packets to/from socket.
 
   Writes are cached into net_buffer_length big packets.
-  Read packets are reallocated dynamicly when reading big packets.
+  Read packets are reallocated dynamically when reading big packets.
   Each logical packet has the following pre-info:
   3 byte length & 1 byte package-number.
 */
@@ -121,8 +121,8 @@ void net_extension_free(NET *net) {
 }
 
 /**
-  Returns the appropiate compression_context based on caller.
-  If the caller is server then fetch is fromthe server extension
+  Returns the appropriate compression_context based on caller.
+  If the caller is server then fetch is from the server extension
   structure.
 
   @param[in] net    NET structure
@@ -1679,8 +1679,8 @@ static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret) {
     case NET_ASYNC_PACKET_READ_HEADER:
       /*
         We should reset compress_packet_nr even before reading the header
-        because reading can fail and then the compressed packet number wont get
-        reset
+        because reading can fail and then the compressed packet number won't get
+        reset.
       */
       net->compress_pkt_nr = net->pkt_nr;
       if (net_read_packet_header_nonblocking(net, &err) ==
@@ -1914,7 +1914,7 @@ static ulong net_read_update_offsets(NET *net, size_t start_of_packet,
       packet at read_pos[len]. Adding the size of one header
       reads the correct byte that will later be replaced. Guarded
       to avoid buffer overflow. If remain_buf = 0 then the char
-      wont be restored anyway
+      won't be restored anyway.
     */
     net->save_char = net->read_pos[len + multi_byte_packet];
   }
@@ -1976,7 +1976,7 @@ static net_async_status net_read_compressed_nonblocking(NET *net,
       break;
 
     /*
-      Read the mysql packet from vio, uncompress it and make it accessable
+      Read the mysql packet from vio, uncompress it and make it accessible
       through net->buff.
     */
     status = net_read_packet_nonblocking(net, &len);
@@ -1994,7 +1994,7 @@ static net_async_status net_read_compressed_nonblocking(NET *net,
   }
   /*
     Once the packets are read in the net->buff, adjust the tracking offsets to
-    the appropiate values
+    the appropriate values.
   */
   len = net_read_update_offsets(net, start_of_packet, first_packet_offset,
                                 buf_length, multi_byte_packet);
@@ -2062,7 +2062,7 @@ static size_t net_read_packet(NET *net, size_t *complen) {
 
   /*
     We should reset compress_packet_nr even before reading the header because
-    reading can fail and then the compressed packet number wont get reset
+    reading can fail and then the compressed packet number won't get reset.
   */
   net->compress_pkt_nr = net->pkt_nr;
 

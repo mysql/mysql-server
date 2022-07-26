@@ -1,0 +1,198 @@
+include/gtid_utils.inc
+==== 0. Initialize ====
+include/suppress_messages.inc
+# Connection 1 suppresses message <.*Crash recovery finished in InnoDB engine.*>.
+# Connection 1 suppresses message <.*Found .* prepared XA transactions.*>.
+# Connection 1 suppresses message <.*Storage engines failed to recover one or more transactions*>.
+RESET MASTER;
+CREATE TABLE t (a INT);
+==== 1. Issue XA PREPARE preceding XA COMMIT/XA ROLLBACK ====
+XA START '4';
+INSERT INTO t VALUES (4);
+XA END '4';
+XA PREPARE '4';
+XA START '5';
+INSERT INTO t VALUES (5);
+XA END '5';
+XA PREPARE '5';
+XA START '9';
+INSERT INTO t VALUES (9);
+XA END '9';
+XA PREPARE '9';
+XA START '10';
+INSERT INTO t VALUES (10);
+XA END '10';
+XA PREPARE '10';
+XA START '14';
+INSERT INTO t VALUES (14);
+XA END '14';
+XA PREPARE '14';
+XA START '15';
+INSERT INTO t VALUES (15);
+XA END '15';
+XA PREPARE '15';
+XA START '19';
+INSERT INTO t VALUES (19);
+XA END '19';
+XA PREPARE '19';
+XA START '20';
+INSERT INTO t VALUES (20);
+XA END '20';
+XA PREPARE '20';
+==== 2. Issue all the statements that hang on sync points ====
+* 1: COMMIT @ bgc_after_enrolling_for_sync_stage
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN; INSERT INTO t VALUES (1);;
+include/execute_to_conditional_timestamp_sync_point.inc [bgc_after_enrolling_for_sync_stage]
+COMMIT;
+Expected recovery action for 1: C
+Expected resulting transaction state for 1: C
+* 2: XA PREPARE '2' @ bgc_after_enrolling_for_sync_stage
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+XA START '2'; INSERT INTO t VALUES (2); XA END '2';;
+include/execute_to_conditional_timestamp_sync_point.inc [bgc_after_enrolling_for_sync_stage]
+XA PREPARE '2';
+Expected recovery action for 2: P
+Expected resulting transaction state for 2: P
+* 3: XA COMMIT '3' ONE PHASE @ bgc_after_enrolling_for_sync_stage
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
+XA START '3'; INSERT INTO t VALUES (3); XA END '3';;
+include/execute_to_conditional_timestamp_sync_point.inc [bgc_after_enrolling_for_sync_stage]
+XA COMMIT '3' ONE PHASE;
+Expected recovery action for 3: C
+Expected resulting transaction state for 3: C
+* 4: XA COMMIT '4' @ bgc_after_enrolling_for_sync_stage
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4';
+include/execute_to_conditional_timestamp_sync_point.inc [bgc_after_enrolling_for_sync_stage]
+XA COMMIT '4';
+Expected recovery action for 4: C
+Expected resulting transaction state for 4: C
+* 5: XA ROLLBACK '5' @ bgc_after_enrolling_for_sync_stage
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:5';
+include/execute_to_conditional_timestamp_sync_point.inc [bgc_after_enrolling_for_sync_stage]
+XA ROLLBACK '5';
+Expected recovery action for 5: R
+Expected resulting transaction state for 5: R
+* 6: COMMIT @ bgc_after_enrolling_for_flush_stage
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:6';
+BEGIN; INSERT INTO t VALUES (6);;
+include/execute_to_conditional_timestamp_sync_point.inc [bgc_after_enrolling_for_flush_stage]
+COMMIT;
+Expected recovery action for 6: R
+Expected resulting transaction state for 6: R
+* 7: XA PREPARE '7' @ bgc_after_enrolling_for_flush_stage
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:7';
+XA START '7'; INSERT INTO t VALUES (7); XA END '7';;
+include/execute_to_conditional_timestamp_sync_point.inc [bgc_after_enrolling_for_flush_stage]
+XA PREPARE '7';
+Expected recovery action for 7: R
+Expected resulting transaction state for 7: R
+* 8: XA COMMIT '8' ONE PHASE @ bgc_after_enrolling_for_flush_stage
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:8';
+XA START '8'; INSERT INTO t VALUES (8); XA END '8';;
+include/execute_to_conditional_timestamp_sync_point.inc [bgc_after_enrolling_for_flush_stage]
+XA COMMIT '8' ONE PHASE;
+Expected recovery action for 8: R
+Expected resulting transaction state for 8: R
+* 9: XA COMMIT '9' @ bgc_after_enrolling_for_flush_stage
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:9';
+include/execute_to_conditional_timestamp_sync_point.inc [bgc_after_enrolling_for_flush_stage]
+XA COMMIT '9';
+Expected recovery action for 9: P
+Expected resulting transaction state for 9: P
+* 10: XA ROLLBACK '10' @ bgc_after_enrolling_for_flush_stage
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10';
+include/execute_to_conditional_timestamp_sync_point.inc [bgc_after_enrolling_for_flush_stage]
+XA ROLLBACK '10';
+Expected recovery action for 10: P
+Expected resulting transaction state for 10: P
+* 11: COMMIT @ before_invoke_before_commit_hook
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11';
+BEGIN; INSERT INTO t VALUES (11);;
+include/execute_to_conditional_timestamp_sync_point.inc [before_invoke_before_commit_hook]
+COMMIT;
+Expected recovery action for 11: R
+Expected resulting transaction state for 11: R
+* 12: XA PREPARE '12' @ before_invoke_before_commit_hook
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:12';
+XA START '12'; INSERT INTO t VALUES (12); XA END '12';;
+include/execute_to_conditional_timestamp_sync_point.inc [before_invoke_before_commit_hook]
+XA PREPARE '12';
+Expected recovery action for 12: R
+Expected resulting transaction state for 12: R
+* 13: XA COMMIT '13' ONE PHASE @ before_invoke_before_commit_hook
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13';
+XA START '13'; INSERT INTO t VALUES (13); XA END '13';;
+include/execute_to_conditional_timestamp_sync_point.inc [before_invoke_before_commit_hook]
+XA COMMIT '13' ONE PHASE;
+Expected recovery action for 13: R
+Expected resulting transaction state for 13: R
+* 14: XA COMMIT '14' @ before_invoke_before_commit_hook
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14';
+include/execute_to_conditional_timestamp_sync_point.inc [before_invoke_before_commit_hook]
+XA COMMIT '14';
+Expected recovery action for 14: P
+Expected resulting transaction state for 14: P
+* 15: XA ROLLBACK '15' @ before_invoke_before_commit_hook
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15';
+include/execute_to_conditional_timestamp_sync_point.inc [before_invoke_before_commit_hook]
+XA ROLLBACK '15';
+Expected recovery action for 15: P
+Expected resulting transaction state for 15: P
+* 16: COMMIT @ before_execute_command
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:16';
+BEGIN; INSERT INTO t VALUES (16);;
+include/execute_to_conditional_timestamp_sync_point.inc [before_execute_command]
+COMMIT;
+Expected recovery action for 16: none
+Expected resulting transaction state for 16: R
+* 17: XA PREPARE '17' @ before_execute_command
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:17';
+XA START '17'; INSERT INTO t VALUES (17); XA END '17';;
+include/execute_to_conditional_timestamp_sync_point.inc [before_execute_command]
+XA PREPARE '17';
+Expected recovery action for 17: none
+Expected resulting transaction state for 17: R
+* 18: XA COMMIT '18' ONE PHASE @ before_execute_command
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:18';
+XA START '18'; INSERT INTO t VALUES (18); XA END '18';;
+include/execute_to_conditional_timestamp_sync_point.inc [before_execute_command]
+XA COMMIT '18' ONE PHASE;
+Expected recovery action for 18: none
+Expected resulting transaction state for 18: R
+* 19: XA COMMIT '19' @ before_execute_command
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:19';
+include/execute_to_conditional_timestamp_sync_point.inc [before_execute_command]
+XA COMMIT '19';
+Expected recovery action for 19: P
+Expected resulting transaction state for 19: P
+* 20: XA ROLLBACK '20' @ before_execute_command
+SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:20';
+include/execute_to_conditional_timestamp_sync_point.inc [before_execute_command]
+XA ROLLBACK '20';
+Expected recovery action for 20: P
+Expected resulting transaction state for 20: P
+==== 3. Crash and restart ====
+# Kill the server
+# restart
+==== 4. Verify the prepared transactions are as expected ====
+CREATE TABLE xa_recover (data INT PRIMARY KEY);
+include/include/save_result_in_table.inc [XA RECOVER -> xa_recover]
+include/assert.inc [Transactions 2 9 10 14 15 19 20 (and no others) should be prepared]
+DROP TABLE xa_recover;
+==== 5. Verify the table contents are as expected ====
+include/assert.inc [Rows 1 3 4 (and no others) should appear in table t]
+==== 6. Verify the log messages are as expected ====
+include/assert.inc [Found 1 log message(s) for "Successfully committed 1, rolled back 2 internal transaction.* Successfully committed 2, rolled back 5, prepared 7 XA transaction"]
+==== 7. Verify the first five transactions are committed ====
+include/assert.inc [The first 5 transactions should be committed, not the rest]
+==== 8. Clean up ====
+XA ROLLBACK '2';
+XA ROLLBACK '9';
+XA ROLLBACK '10';
+XA ROLLBACK '14';
+XA ROLLBACK '15';
+XA ROLLBACK '19';
+XA ROLLBACK '20';
+DROP TABLE t;
+include/gtid_utils_end.inc

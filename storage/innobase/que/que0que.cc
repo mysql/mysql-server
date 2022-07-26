@@ -37,7 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "eval0proc.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
-#include "log0log.h"
+#include "log0chkp.h"
 #include "pars0types.h"
 #include "que0que.h"
 #include "row0ins.h"
@@ -438,6 +438,10 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
 
     case QUE_NODE_UPDATE:
       upd = static_cast<upd_node_t *>(node);
+
+      if (upd->update) {
+        upd->update->free_per_stmt_heap();
+      }
 
       if (upd->in_mysql_interface) {
         btr_pcur_t::free_for_mysql(upd->pcur);

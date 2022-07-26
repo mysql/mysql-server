@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
    Use is subject to license terms
 
    This program is free software; you can redistribute it and/or modify
@@ -27,6 +27,12 @@
 bool
 printCREATE_INDX_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateIndxImplReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateIndxImplReq* sig = (const CreateIndxImplReq*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -45,6 +51,12 @@ printCREATE_INDX_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint1
 bool
 printCREATE_INDX_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateIndxImplConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateIndxImplConf* sig = (const CreateIndxImplConf*)theData;
   fprintf(output, " senderRef: %x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -55,6 +67,12 @@ printCREATE_INDX_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint
 bool
 printCREATE_INDX_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateIndxImplRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateIndxImplRef* sig = (const CreateIndxImplRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);

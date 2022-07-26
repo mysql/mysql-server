@@ -27,7 +27,7 @@
 #include "sql/plugin_table.h"
 #include "sql/sql_list.h"
 
-#include "storage/ndb/src/kernel/vm/NdbinfoTables.cpp"
+#include "debugger/Ndbinfo.hpp"
 #include "util/BaseString.hpp"
 
 static constexpr const char *opt_table_prefix{"ndb$"};

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -168,16 +168,12 @@ bool Ndb_binlog_client::event_exists_for_table(Ndb *ndb,
       event_name_for_table(m_dbname, m_tabname, share->get_binlog_full());
 
   // Get event from NDB
-  NdbDictionary::Dictionary *dict = ndb->getDictionary();
-  const NdbDictionary::Event *existing_event =
-      dict->getEvent(event_name.c_str());
+  NdbDictionary::Event_ptr existing_event(
+      ndb->getDictionary()->getEvent(event_name.c_str()));
   if (existing_event) {
     // The event exist
-    delete existing_event;
-
     ndb_log_verbose(1, "Event '%s' for table '%s.%s' already exists",
                     event_name.c_str(), m_dbname, m_tabname);
-
     return true;
   }
   return false;  // Does not exist

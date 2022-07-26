@@ -1,0 +1,23 @@
+include/only_with_option.inc [GLOBAL.log_bin = 0]
+include/suppress_messages.inc
+# Connection 1 suppresses message <Found .* prepared XA transactions>.
+# Connection 1 suppresses message <.*Checksum mismatch in datafile.*>.
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+XA START X'78696431',X'',1;
+INSERT INTO t1 VALUES (2);
+XA END X'78696431',X'',1;
+XA PREPARE X'78696431',X'',1;
+XA COMMIT X'78696431',X'',1;
+XA START X'78696431',X'',1;
+INSERT INTO t1 VALUES (1);
+XA END X'78696431',X'',1;
+include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_tc]
+XA COMMIT X'78696431',X'',1 ONE PHASE;
+# Kill the server
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/assert.inc [Found log message(s) for "Rolling back trx with id %, 1 rows to undo"]
+include/assert.inc [Found 1 log message(s) for "in InnoDB engine. No attempts to commit, rollback or prepare any transactions."]
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [Table 'test.t1' record count must be 1]
+DROP TABLE t1;

@@ -212,8 +212,11 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   }
 
   void disconnect() override {
+    std::lock_guard<std::mutex> lk(disconnect_mtx_);
     (void)socket_splicer()->client_conn().cancel();
     (void)socket_splicer()->server_conn().cancel();
+    connector().socket().cancel();
+    disconnect_ = true;
   }
 
   void async_run();

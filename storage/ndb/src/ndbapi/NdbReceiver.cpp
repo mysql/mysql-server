@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,8 @@
 #include <signaldata/TcKeyConf.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include "portlib/ndb_compiler.h"
-
+#include <cstddef>
+#include <cstdint>
 
 /**
  * 'class NdbReceiveBuffer' takes care of buffering multi-row
@@ -271,6 +272,10 @@ static const Uint32 beforeFirstRow = 0xFFFFFFFF;
 static
 const Uint8*
 pad(const Uint8* src, Uint32 align, Uint32 bitPos);
+
+static
+size_t
+pad_pos(size_t pos, Uint32 align, Uint32 bitPos);
 
 NdbReceiver::NdbReceiver(Ndb *aNdb) :
   theMagicNumber(0),
@@ -516,7 +521,7 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
 {
   Uint32 nullCount = 0;
   Uint32 bitPos = 0;
-  const Uint8 *pos = NULL;
+  UintPtr pos = 0;
 
   bool pk_is_known = false;
   if (likely(result_record != NULL))
@@ -540,13 +545,13 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
 
         switch(align){
         case DictTabInfo::aBit:
-          pos = pad(pos, 0, 0);
+          pos = pad_pos(pos, 0, 0);
           bitPos += col->bitCount;
           pos += 4 * (bitPos / 32);
           bitPos = (bitPos % 32);
           break;
         default:
-          pos = pad(pos, align, bitPos);
+          pos = pad_pos(pos, align, bitPos);
           bitPos = 0;
           pos += col->maxSize;
           break;
@@ -557,7 +562,7 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
       }
     }
   }
-  Uint32 sizeInWords = (Uint32)(((Uint32*)pad(pos, 0, bitPos) - (Uint32*)NULL));
+  Uint32 sizeInWords = pad_pos(pos, 0, bitPos);
 
   // Add AttributeHeader::READ_PACKED or ::READ_ALL (Uint32) and
   // variable size bitmask the 'packed' columns and their null bits.
@@ -753,16 +758,17 @@ NdbReceiver::result_bufsize(const NdbRecord *result_record,
  */
 static
 inline
-const Uint8*
-pad(const Uint8* src, Uint32 align, Uint32 bitPos)
+UintPtr
+pad_pos(UintPtr pos, Uint32 align, Uint32 bitPos)
 {
-  UintPtr ptr = UintPtr(src);
-  switch(align){
+  UintPtr ptr = pos;
+  switch(align)
+  {
   case DictTabInfo::aBit:
   case DictTabInfo::a32Bit:
   case DictTabInfo::a64Bit:
   case DictTabInfo::a128Bit:
-    return (Uint8*)(((ptr + 3) & ~(UintPtr)3) + 4 * ((bitPos + 31) >> 5));
+    return (((ptr + 3) & ~UintPtr{3}) + 4 * ((bitPos + 31) >> 5));
 
   default:
 #ifdef VM_TRACE
@@ -772,8 +778,17 @@ pad(const Uint8* src, Uint32 align, Uint32 bitPos)
 
   case DictTabInfo::an8Bit:
   case DictTabInfo::a16Bit:
-    return src + 4 * ((bitPos + 31) >> 5);
+    return pos + 4 * ((bitPos + 31) >> 5);
   }
+}
+
+static
+inline
+const Uint8*
+pad(const Uint8* src, Uint32 align, Uint32 bitPos)
+{
+  UintPtr ptr = UintPtr(src);
+  return (const Uint8*)pad_pos(ptr, align, bitPos);
 }
 
 /**
@@ -785,7 +800,7 @@ static
 void
 handle_packed_bit(const char* _src, Uint32 pos, Uint32 len, char* _dst)
 {
-  Uint32 * src = (Uint32*)_src;
+  const Uint32* src = (const Uint32*)_src;
   assert((UintPtr(src) & 3) == 0);
 
   /* Convert char* to aligned Uint32* and some byte offset */
@@ -797,22 +812,23 @@ handle_packed_bit(const char* _src, Uint32 pos, Uint32 len, char* _dst)
                          src, pos, len);
 }
 
-
 /**
  * unpackRecAttr
  * Unpack a packed stream of field values, whose presence and nullness
  * is indicated by a leading bitmap into a list of NdbRecAttr objects
  * Return the number of words read from the input stream.
+ * On failure UINT32_MAX is returned.
  */
-//static
-Uint32
-NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr, 
-                           Uint32 bmlen, 
-                           const Uint32* aDataPtr, 
-                           Uint32 aLength)
+Uint32 NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
+                                  Uint32 bmlen,
+                                  const Uint32* const aDataPtr,
+                                  Uint32 aLength)
 {
+  constexpr Uint32 ERROR = UINT32_MAX;
+  if (unlikely(bmlen > aLength)) return ERROR;
   NdbRecAttr* currRecAttr = *recAttr;
-  const Uint8 *src = (Uint8*)(aDataPtr + bmlen);
+  const Uint8* src = (const Uint8*)(aDataPtr + bmlen);
+  const Uint8* const end = (const Uint8*)(aDataPtr + aLength);
   Uint32 bitPos = 0;
   for (Uint32 i = 0, attrId = 0; i<32*bmlen; i++, attrId++)
   {
@@ -820,12 +836,12 @@ NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
     {
       const NdbColumnImpl & col = 
 	NdbColumnImpl::getImpl(* currRecAttr->getColumn());
-      if (unlikely(attrId != (Uint32)col.m_attrId))
-        goto err;
+      if (unlikely(attrId != (Uint32)col.m_attrId)) return ERROR;
       if (col.m_nullable)
       {
-	if (BitmaskImpl::get(bmlen, aDataPtr, ++i))
-	{
+        if (unlikely(i + 1 >= 32 * bmlen)) return ERROR;
+        if (BitmaskImpl::get(bmlen, aDataPtr, ++i))
+        {
 	  currRecAttr->setNULL();
 	  currRecAttr = currRecAttr->next();
 	  continue;
@@ -840,12 +856,16 @@ NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
       
       switch(align){
       case DictTabInfo::aBit: // Bit
+      {
         src = pad(src, 0, 0);
-	handle_packed_bit((const char*)src, bitPos, len, 
-                          currRecAttr->aRef());
-	src += 4 * ((bitPos + len) >> 5);
-	bitPos = (bitPos + len) & 31;
+        size_t byte_len = 4 * ((bitPos + len) >> 5);
+        if (unlikely(end < src + byte_len)) return ERROR;
+        handle_packed_bit((const char*)src, bitPos, len, currRecAttr->aRef());
+        src += byte_len;
+        bitPos = (bitPos + len) & 31;
+        currRecAttr->set_size_in_bytes(sz);
         goto next;
+      }
       default:
         src = pad(src, align, bitPos);
       }
@@ -853,28 +873,32 @@ NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
       case NDB_ARRAYTYPE_FIXED:
         break;
       case NDB_ARRAYTYPE_SHORT_VAR:
+        if (unlikely(end < src + 1)) return ERROR;
         sz = 1 + src[0];
         break;
       case NDB_ARRAYTYPE_MEDIUM_VAR:
-	sz = 2 + src[0] + 256 * src[1];
+        if (unlikely(end < src + 2)) return ERROR;
+        sz = 2 + src[0] + 256 * src[1];
         break;
       default:
-        goto err;
+        return ERROR;
       }
       
       bitPos = 0;
-      currRecAttr->receive_data((Uint32*)src, sz);
+      if (unlikely(end < src + sz)) return ERROR;
+      currRecAttr->receive_data((const Uint32*)src, sz);
       src += sz;
   next:
       currRecAttr = currRecAttr->next();
     }
   }
   * recAttr = currRecAttr;
-  return (Uint32)(((Uint32*)pad(src, 0, bitPos)) - aDataPtr);
-
-err:
-  abort();
-  return 0;
+  const Uint8* read_src = pad(src, 0, bitPos);
+  if (unlikely(end < read_src)) return ERROR;
+  const std::ptrdiff_t read_words = (const Uint32*)read_src - aDataPtr;
+  if (unlikely(read_words < 0) || unlikely(read_words > INT32_MAX))
+    return ERROR;
+  return (Uint32)read_words;
 }
 
 
@@ -955,7 +979,7 @@ NdbReceiver::unpackNdbRecord(const NdbRecord *rec,
                              char* row)
 {
   assert(bmlen <= 0x07FF);
-  const Uint8 *src = (Uint8*)(aDataPtr + bmlen);
+  const Uint8* src = (const Uint8*)(aDataPtr + bmlen);
   uint bitPos = 0;
   uint attrId = 0;
   uint bitIndex = 0;
@@ -1026,7 +1050,7 @@ NdbReceiver::unpackNdbRecord(const NdbRecord *rec,
     src += sz;
     memcpy(col_row_ptr, source, sz);
   }
-  const Uint32 len = (Uint32)(((Uint32*)pad(src, 0, bitPos)) - aDataPtr);
+  const Uint32 len = (Uint32)(((const Uint32*)pad(src, 0, bitPos)) - aDataPtr);
   return len;
 }
 
@@ -1223,7 +1247,9 @@ NdbReceiver::handle_rec_attrs(NdbRecAttr* rec_attr_list,
       {
         const Uint32 len = unpackRecAttr(&currRecAttr, 
                                          attrSize>>2, aDataPtr, aLength);
+        if (unlikely(len == UINT32_MAX)) return -1;
         assert(aLength >= len);
+        if (unlikely(aLength < len)) return -1;
         aDataPtr += len;
         aLength -= len;
         continue;

@@ -34,6 +34,7 @@
 #include "sql/item.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/node_map.h"
@@ -144,12 +145,18 @@ static TABLE *CreateTemporaryTableFromSelectList(
       }
 
       // Verify that all non-constant, non-window-related items
-      // have been added to items_to_copy.
-      assert(item->const_for_execution() || item->has_wf() ||
-             std::any_of(
-                 temp_table_param->items_to_copy->begin(),
-                 temp_table_param->items_to_copy->end(),
-                 [item](const Func_ptr &ptr) { return ptr.func() == item; }));
+      // have been added to items_to_copy. (For implicitly grouped
+      // queries, non-deterministic expressions that don't reference
+      // any tables are also considered constant by create_tmp_table(),
+      // because they are evaluated exactly once.)
+      assert(
+          item->const_for_execution() || item->has_wf() ||
+          (query_block->is_implicitly_grouped() &&
+           IsSubset(item->used_tables(), RAND_TABLE_BIT | INNER_TABLE_BIT)) ||
+          std::any_of(
+              temp_table_param->items_to_copy->begin(),
+              temp_table_param->items_to_copy->end(),
+              [item](const Func_ptr &ptr) { return ptr.func() == item; }));
     }
   } else {
     // create_tmp_table() doesn't understand that rollup group items

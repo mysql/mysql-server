@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1006,7 +1006,7 @@ bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,
     while (sub_iv->start > super_iv->end) {
       super->next();
       super_iv = super->get();
-      // If we reach end of super, then no interal covers sub_iv, so
+      // If we reach end of super, then no interval covers sub_iv, so
       // sub is not a subset of super.
       if (super_iv == nullptr) return false;
     }

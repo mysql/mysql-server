@@ -33,7 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ARCH_ARCH_INCLUDE
 
 #include <mysql/components/services/page_track_service.h>
-#include "log0log.h"
+#include "buf0buf.h" /* buf_page_t */
 #include "ut0mutex.h"
 
 #include <list>
@@ -553,32 +553,37 @@ class Arch_File_Ctx {
   @param[in]    base_dir        directory name prefix
   @param[in]    base_file       file name prefix
   @param[in]    num_files       initial number of files
-  @param[in]    file_size       file size in bytes
   @return error code. */
   dberr_t init(const char *path, const char *base_dir, const char *base_file,
-               uint num_files, uint64_t file_size);
+               uint num_files);
 
   /** Open a file at specific index
-  @param[in]    read_only       open in read only mode
-  @param[in]    start_lsn       start lsn for the group
-  @param[in]    file_index      index of the file within the group which needs
-  to be opened
-  @param[in]    file_offset     start offset
+  @param[in]  read_only    open in read only mode
+  @param[in]  start_lsn    start lsn for the group
+  @param[in]  file_index   index of the file within the group which needs
+                           to be opened
+  @param[in]  file_offset  start offset
+  @param[in]  file_size    maximum allowed file size or 0 to use its current
+                           real size on disk as the limitation (file is full)
   @return error code. */
   dberr_t open(bool read_only, lsn_t start_lsn, uint file_index,
-               uint64_t file_offset);
+               uint64_t file_offset, uint64_t file_size);
 
   /** Add a new file and open
-  @param[in]    start_lsn       start lsn for the group
-  @param[in]    file_offset     start offset
+  @param[in]  start_lsn          start lsn for the group
+  @param[in]  new_file_size      size limit for the new file
+  @param[in]  initial_file_size  initial size of file to create
   @return error code. */
-  dberr_t open_new(lsn_t start_lsn, uint64_t file_offset);
+  dberr_t open_new(lsn_t start_lsn, uint64_t new_file_size,
+                   uint64_t initial_file_size);
 
   /** Open next file for read
-  @param[in]    start_lsn       start lsn for the group
-  @param[in]    file_offset     start offset
+  @param[in]  start_lsn    start lsn for the group
+  @param[in]  file_offset  start offset
+  @param[in]  file_size    maximum allowed file size or 0 to use its current
+                           real size on disk as the limitation (file is full)
   @return error code. */
-  dberr_t open_next(lsn_t start_lsn, uint64_t file_offset);
+  dberr_t open_next(lsn_t start_lsn, uint64_t file_offset, uint64_t file_size);
 
   /** Read data from the current file that is open.
   Caller must ensure that the size is within the limits of current file
@@ -587,7 +592,12 @@ class Arch_File_Ctx {
   @param[in]            offset          file offset from where to read
   @param[in]            size            size of data to read in bytes
   @return error code */
-  dberr_t read(byte *to_buffer, const uint64_t offset, const uint size);
+  dberr_t read(byte *to_buffer, const uint64_t offset, uint size);
+
+  /** Resize file to provided size and overwrite the whole file with 0x00.
+  @param[in]  file_size   new file size
+  @return error code */
+  dberr_t resize_and_overwrite_with_zeros(uint64_t file_size);
 
   /** Write data to this file context from the given file offset.
   Data source is another file context or buffer. If buffer is NULL, data is
@@ -659,6 +669,10 @@ class Arch_File_Ctx {
   /* Fetch offset of the file open in this context.
   @return file offset */
   uint64_t get_offset() const { return (m_offset); }
+
+  /** Get current file index.
+  @return current file index */
+  uint get_index() const { return m_index; }
 
   /** Get number of files
   @return current file count */
@@ -822,11 +836,24 @@ class Arch_File_Ctx {
   std::vector<lsn_t> m_stop_points;
 };
 
+/** Number which tries to uniquely identify the archived data (unless it is
+zero, which stands for unsupported identification). Currently only redo log
+files are identified (by Log_uuid's value). */
+typedef uint32_t Arch_group_uuid;
+
 /** Contiguous archived data for redo log or page tracking.
 If there is a gap, that is if archiving is stopped and started, a new
 group is created. */
 class Arch_Group {
  public:
+  /** Function responsible to format the header of a new file which is
+  created, when the stream of data is written to a sequence of new files.
+  @param[in]  start_offset    offset at which a new file starts, expressed
+                              in bytes from the beginning of the stream
+  @param[in]  header          header to format */
+  typedef std::function<dberr_t(uint64_t start_offset, byte *header)>
+      Get_file_header_callback;
+
   /** Constructor: Initialize members
   @param[in]    start_lsn       start LSN for the group
   @param[in]    header_len      length of header for archived files
@@ -854,16 +881,19 @@ class Arch_Group {
   /** Initialize the file context for the archive group.
   File context keeps the archived data in files on disk. There
   is one file context for a archive group.
-  @param[in]    path                    path to the file
-  @param[in]    base_dir                directory name prefix
-  @param[in]    base_file               file name prefix
-  @param[in]    num_files               initial number of files
-  @param[in]    file_size               file size in bytes
+  @param[in]  path        path to the file
+  @param[in]  base_dir    directory name prefix
+  @param[in]  base_file   file name prefix
+  @param[in]  num_files   initial number of files
+  @param[in]  file_size   size of file used when a new file is created
+  @param[in]  uuid        uuid of this arch group or 0 if unknown
   @return error code. */
   dberr_t init_file_ctx(const char *path, const char *base_dir,
                         const char *base_file, uint num_files,
-                        uint64_t file_size) {
-    return (m_file_ctx.init(path, base_dir, base_file, num_files, file_size));
+                        uint64_t file_size, Arch_group_uuid uuid) {
+    m_uuid = uuid;
+    m_file_size = file_size;
+    return (m_file_ctx.init(path, base_dir, base_file, num_files));
   }
 
   /* Close the file contexts when they're not required anymore. */
@@ -897,7 +927,10 @@ class Arch_Group {
     if (is_durable) {
       ++m_dur_ref_count;
     } else {
-      ++m_ref_count;
+      ut_ad(m_ref_count < std::numeric_limits<decltype(m_ref_count)>::max());
+      if (m_ref_count < std::numeric_limits<decltype(m_ref_count)>::max()) {
+        ++m_ref_count;
+      }
     }
   }
 
@@ -931,10 +964,21 @@ class Arch_Group {
   @param[in]    is_durable      the client needs durable archiving */
   void release(bool is_durable) {
     ut_ad(mutex_own(m_arch_mutex));
-    ut_a(!is_durable);
+    ut_ad(!is_durable);
+    if (is_durable) {
+      /* For durable, m_ref_count was not incremented. */
+      return;
+    }
 
     ut_ad(m_ref_count > 0);
     --m_ref_count;
+    /* If there was a bug, and m_ref_count was 0 before the decrement,
+    it would become std::numeric_limits<decltype(m_ref_count)>::max(),
+    and the caller would not remove the group. If we called attach()
+    afterwards (holding still the m_arch_mutex), the m_ref_count would
+    stay unchanged, because there is mechanism protecting from overflows.
+    This way, the scope of the potential bug, is limited to the group not
+    being removed. */
   }
 
   /** Construct file name for the active file which indicates whether a group
@@ -1003,9 +1047,11 @@ class Arch_Group {
   @param[in]    length          size of data to copy in bytes
   @param[in]    partial_write   true if the operation is part of partial flush
   @param[in]    do_persist      doublewrite to ensure persistence
+  @param[in]    new_file        callback called for each new file being created
   @return error code */
   dberr_t write_to_file(Arch_File_Ctx *from_file, byte *from_buffer,
-                        uint length, bool partial_write, bool do_persist);
+                        uint length, bool partial_write, bool do_persist,
+                        Get_file_header_callback new_file);
 
   /** Find the appropriate reset LSN that is less than or equal to the
   given lsn and fetch the reset point.
@@ -1122,10 +1168,10 @@ class Arch_Group {
     m_file_ctx.build_name(idx, m_begin_lsn, name_buf, buf_len);
   }
 
-  /** Get file size for this group.
+  /** Get the current file size for this group.
   Fixed size files are used for archiving data in a group.
   @return file size in bytes */
-  uint64_t get_file_size() const { return (m_file_ctx.get_size()); }
+  uint64_t get_file_size() const { return m_file_size; }
 
   /** Get start LSN for this group
   @return start LSN */
@@ -1136,6 +1182,9 @@ class Arch_Group {
 
   /** @return stop block position of the group. */
   Arch_Page_Pos get_stop_pos() const { return (m_stop_pos); }
+
+  /** @return uuid for the arch group */
+  Arch_group_uuid get_uuid() const { return m_uuid; }
 
   /** Fetch the status of the page tracking system.
   @param[out]   status  vector of a pair of (ID, bool) where ID is the
@@ -1179,6 +1228,12 @@ class Arch_Group {
   void get_dir_name(char *name_buf, uint buf_len) {
     m_file_ctx.build_dir_name(m_begin_lsn, name_buf, buf_len);
   }
+
+  /** Create a new file and write the header.
+  @param[in]  start_offset  start offste
+  @param[in]  get_header    callback which prepares a header */
+  dberr_t prepare_file_with_header(uint64_t start_offset,
+                                   Get_file_header_callback &get_header);
 
  private:
   /** If the group is active */
@@ -1224,6 +1279,12 @@ class Arch_Group {
   /** Header length for the archived files */
   uint m_header_len{};
 
+  /** Size of file used when a new file is being created. */
+  uint64_t m_file_size;
+
+  /** UUID generated for this arch group. */
+  Arch_group_uuid m_uuid{};
+
   /** Archive file context */
   Arch_File_Ctx m_file_ctx;
 
@@ -1244,6 +1305,15 @@ using Arch_Grp_List = std::list<Arch_Group *, ut::allocator<Arch_Group *>>;
 
 /** An iterator for archive group */
 using Arch_Grp_List_Iter = Arch_Grp_List::iterator;
+
+class Arch_log_consumer : public Log_consumer {
+ public:
+  const std::string &get_name() const override;
+
+  lsn_t get_consumed_lsn() const override;
+
+  void consumption_requested() override;
+};
 
 /** Redo log archiving system */
 class Arch_Log_Sys {
@@ -1270,17 +1340,29 @@ class Arch_Log_Sys {
   In #ARCH_STATE_PREPARE_IDLE state, all clients have already detached
   but archiver background task is yet to finish.
   @return true, if archiving is active */
-  bool is_active() {
+  bool is_active() const {
     return (m_state == ARCH_STATE_ACTIVE || m_state == ARCH_STATE_PREPARE_IDLE);
   }
 
   /** Check if archiver system is in initial state
   @return true, if redo log archiver state is #ARCH_STATE_INIT */
-  bool is_init() { return (m_state == ARCH_STATE_INIT); }
+  bool is_init() const { return (m_state == ARCH_STATE_INIT); }
 
   /** Get LSN up to which redo is archived
   @return last archived redo LSN */
-  lsn_t get_archived_lsn() { return (m_archived_lsn.load()); }
+  lsn_t get_archived_lsn() const {
+    lsn_t archived_lsn = m_archived_lsn.load();
+    ut_ad(archived_lsn == LSN_MAX ||
+          archived_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
+    if (archived_lsn != LSN_MAX && archived_lsn % OS_FILE_LOG_BLOCK_SIZE != 0) {
+      archived_lsn = ut_uint64_align_down(archived_lsn, OS_FILE_LOG_BLOCK_SIZE);
+    }
+    return archived_lsn;
+  }
+
+  /** Get recommended archived redo file size
+  @return size of file in bytes */
+  os_offset_t get_recommended_file_size() const;
 
   /** Get current redo log archive group
   @return current archive group */
@@ -1289,10 +1371,10 @@ class Arch_Log_Sys {
   /** Start redo log archiving.
   If archiving is already in progress, the client
   is attached to current group.
-  @param[out]   group           log archive group
-  @param[out]   start_lsn       start lsn for client
-  @param[out]   header          redo log header
-  @param[in]    is_durable      if client needs durable archiving
+  @param[out]  group       log archive group
+  @param[out]  start_lsn   start lsn for client
+  @param[out]  header      redo log header
+  @param[in]   is_durable  if client needs durable archiving
   @return error code */
   int start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
             bool is_durable);
@@ -1308,7 +1390,8 @@ class Arch_Log_Sys {
   int stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
            uint32_t &blk_len);
 
-  /** Force to abort the archiver (state becomes ARCH_STATE_ABORT). */
+  /** Force to abort the archiver (state becomes ARCH_STATE_IDLE or
+  ARCH_STATE_ABORT). */
   void force_abort();
 
   /** Release the current group from client.
@@ -1357,11 +1440,10 @@ class Arch_Log_Sys {
 
   /** Update checkpoint LSN and related information in redo
   log header block.
-  @param[in]            group   archiving group
-  @param[in,out]        header  redo log header buffer
-  @param[in]    checkpoint_lsn  checkpoint LSN for recovery */
-  void update_header(const Arch_Group *group, byte *header,
-                     lsn_t checkpoint_lsn);
+  @param[in,out] header          redo log header buffer
+  @param[in]     file_start_lsn  LSN of first data byte within file
+  @param[in]     checkpoint_lsn  LSN of the checkpoint within the file or 0 */
+  void update_header(byte *header, lsn_t file_start_lsn, lsn_t checkpoint_lsn);
 
   /** Check and set log archive system state and output the
   amount of redo log available for archiving.
@@ -1372,10 +1454,23 @@ class Arch_Log_Sys {
                              uint *to_archive);
 
   /** Copy redo log from file context to archiver files.
-  @param[in]    file_ctx        file context for system redo logs
-  @param[in]    length          data to copy in bytes
+  @param[in]  file_ctx  file context for system redo logs
+  @param[in]  start_lsn lsn at which we start copying
+  @param[in]  length    data to copy in bytes
   @return error code */
-  dberr_t copy_log(Arch_File_Ctx *file_ctx, uint length);
+  dberr_t copy_log(Arch_File_Ctx *file_ctx, lsn_t start_lsn, uint length);
+
+  /** Update m_state to the given state. Then check if Arch_Log_Sys is active
+  and accordingly register or unregister the @see m_log_consumer. It is caller
+  that should acquire log_sys's: m_files_mutex and writer_mutex prior before
+  calling this method.
+  @param[in]  state   state to assign to m_state */
+  void update_state_low(Arch_State state);
+
+  /** Acquires log_sys's m_files_mutex, writer_mutex and calls
+  @see update_state_low(state).
+  @param[in]  state   state to assign to m_state */
+  void update_state(Arch_State state);
 
  private:
   /** Mutex to protect concurrent start, stop operations */
@@ -1404,6 +1499,10 @@ class Arch_Log_Sys {
 
   /** System log file offset where the archiving started */
   uint64_t m_start_log_offset;
+
+  /** Redo log consumer that can be registered to prevent consumption
+  of redo log files which still haven't been archived. */
+  Arch_log_consumer m_log_consumer;
 };
 
 /** Vector of page archive in memory blocks */

@@ -7,7 +7,7 @@ call mtr.add_suppression("Error while loading keyring content. The keyring might
 call mtr.add_suppression("\\[Warning\\] .* Plugin mysqlx reported.*");
 call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[ERROR\\] .* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log files to be encrypted.");
 --enable_query_log
 
 # Restart with redo log encryption enabled

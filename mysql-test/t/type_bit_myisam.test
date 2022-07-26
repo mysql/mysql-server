@@ -284,10 +284,10 @@ drop table t1;
 # type was not properly initalized, which caused key_copy to fail
 #
 
-create table t1(bit_field bit(2), int_field int, key a(bit_field));
-insert into t1 values (1,2);
+create table t1(bit_field bit(8), int_field int, key a(bit_field));
+insert into t1 values (49,2);
 handler t1 open as t1;
-handler t1 read a=(1);
+handler t1 read a=(49);
 handler t1 close;
 drop table t1;
 

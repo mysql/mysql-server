@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
   Thread class responsible for the collection of write sets associated
   to a transaction.
 
-  It also includes suport for save points where information will be discarded
+  It also includes support for save points where information will be discarded
   on rollbacks to a savepoint.
 
   Write set and flags are reset on

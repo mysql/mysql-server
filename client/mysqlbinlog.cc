@@ -313,7 +313,7 @@ class Database_rewrite {
     database name that is to be rewritten into the target one.
 
     The key of the map is the "from" database name. The value of the
-    map is is the "to" database name that we are rewritting the
+    map is is the "to" database name that we are rewriting the
     name into.
    */
   std::map<std::string, std::string> m_dict;
@@ -564,7 +564,7 @@ class Database_rewrite {
   /**
     Shall unregister a rewrite rule for a given database. If the name is
     not registered, then no action is taken and no error reported.
-    The name of database to be used in this invokation is the original
+    The name of database to be used in this invocation is the original
     database name.
 
     @param from the original database name used when the rewrite rule
@@ -667,10 +667,10 @@ char server_version[SERVER_VERSION_LENGTH];
 ulong filter_server_id = 0;
 
 /*
-  This strucure is used to store the event and the log postion of the events
-  which is later used to print the event details from correct log postions.
+  This structure is used to store the event and the log position of the events
+  which is later used to print the event details from correct log positions.
   The Log_event *event is used to store the pointer to the current event and
-  the event_pos is used to store the current event log postion.
+  the event_pos is used to store the current event log position.
 */
 struct buff_event_info {
   Log_event *event;
@@ -682,7 +682,7 @@ struct buff_event_info {
   User_var_log_events, and Rand_log_events, followed by one
   Query_log_event. If statements are filtered out, the filter has to be
   checked for the Query_log_event. So we have to buffer the Intvar,
-  User_var, and Rand events and their corresponding log postions until we see
+  User_var, and Rand events and their corresponding log positions until we see
   the Query_log_event. This dynamic array buff_ev is used to buffer a structure
   which stores such an event and the corresponding log position.
 */
@@ -2622,7 +2622,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   if ((retval = check_master_version()) != OK_CONTINUE) return retval;
 
   /*
-    Fake a server ID to log continously. This will show as a
+    Fake a server ID to log continuously. This will show as a
     slave on the mysql server.
   */
   if (to_last_remote_log && stop_never) {
@@ -3468,7 +3468,7 @@ void Transaction_payload_log_event::print(FILE *,
     process_event(info, ev, header()->log_pos, "", true);
 
     // lets make the buffer be allocated again, as the current
-    // buffer ownership has been handed over to the defferred event
+    // buffer ownership has been handed over to the deferred event
     if (is_deferred_event) {
       buffer = nullptr;        /* purecov: inspected */
       current_buffer_size = 0; /* purecov: inspected */

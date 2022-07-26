@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"
+#include "sql-common/json_dom.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // *_ACL
 #include "sql/auth/sql_security_ctx.h"
@@ -81,7 +82,6 @@
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/replace_item.h"
-#include "sql/json_dom.h"
 #include "sql/key.h"  // key_copy, key_cmp, key_cmp_if_same
 #include "sql/key_spec.h"
 #include "sql/lock.h"  // mysql_unlock_some_tables,
@@ -338,7 +338,9 @@ bool Sql_cmd_dml::prepare(THD *thd) {
        lex->sql_command == SQLCOM_REPLACE_SELECT ||
        lex->sql_command == SQLCOM_INSERT ||
        lex->sql_command == SQLCOM_DELETE_MULTI ||
-       lex->sql_command == SQLCOM_DELETE);
+       lex->sql_command == SQLCOM_DELETE ||
+       lex->sql_command == SQLCOM_UPDATE_MULTI ||
+       lex->sql_command == SQLCOM_UPDATE);
 
   /*
     Constant folding could cause warnings during preparation. Make
@@ -1709,7 +1711,7 @@ void JOIN::destroy() {
       }
       qep_tab[i].cleanup();
     }
-  } else {
+  } else if (thd->lex->using_hypergraph_optimizer) {
     // Same, for hypergraph queries.
     for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       TABLE *table = tl->table;
@@ -1962,7 +1964,7 @@ bool Query_block::check_privileges_for_subqueries(THD *thd) {
 *****************************************************************************/
 
 /**
-  Find how much space the prevous read not const tables takes in cache.
+  Find how much space the previous read not const tables takes in cache.
 */
 
 void calc_used_field_length(TABLE *table, bool needs_rowid,
@@ -3267,45 +3269,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
   return false;
 }
 
-/**
-  Give error if we some tables are done with a full join.
-
-  This is used by multi_table_update and multi_table_delete when running
-  in safe mode.
-
-  @param join		Join condition
-
-  @retval
-    0	ok
-  @retval
-    1	Error (full join used)
-*/
-
-bool error_if_full_join(JOIN *join) {
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
-  for (uint i = 0; i < join->primary_tables; i++) {
-    JOIN_TAB *const tab = join->best_ref[i];
-    THD *thd = join->thd;
-
-    /*
-      Safe update error isn't returned if:
-      1) It is  an EXPLAIN statement OR
-      2) Table is not the target.
-
-      Append the first warning (if any) to the error message. Allows the user
-      to understand why index access couldn't be chosen.
-    */
-
-    if (!thd->lex->is_explain() && tab->table()->pos_in_table_list->updating &&
-        tab->type() == JT_ALL) {
-      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
-               thd->get_stmt_da()->get_first_condition_message());
-      return true;
-    }
-  }
-  return false;
-}
-
 void JOIN_TAB::set_table(TABLE *t) {
   if (t != nullptr) t->reginfo.join_tab = this;
   m_qs->set_table(t);
@@ -3425,7 +3388,7 @@ bool QEP_shared_owner::and_with_condition(Item *add_cond) {
 
     For a join that is resolved using a temporary table, the first sweep is
     performed against actual tables and an intermediate result is inserted
-    into the temprorary table.
+    into the temporary table.
     The last sweep is performed against the temporary table. Therefore,
     the base tables and associated buffers used to fill the temporary table
     are no longer needed, and this function is called to free them.
@@ -3685,27 +3648,26 @@ bool check_field_is_const(Item *cond, const Item *order_item,
         return false;
     }
     return !and_level;
-  } else {
-    if (cond->type() != Item::FUNC_ITEM) return false;
-    Item_func *const func = down_cast<Item_func *>(cond);
-    if (func->functype() != Item_func::EQUAL_FUNC &&
-        func->functype() != Item_func::EQ_FUNC)
-      return false;
-    Item_func_comparison *comp = down_cast<Item_func_comparison *>(func);
-    Item *left = comp->arguments()[0];
-    Item *right = comp->arguments()[1];
-    if (equal(left, order_item, order_field)) {
-      if (equality_determines_uniqueness(comp, left, right)) {
-        if (*const_item != nullptr) return right->eq(*const_item, true);
-        *const_item = right;
-        return true;
-      }
-    } else if (equal(right, order_item, order_field)) {
-      if (equality_determines_uniqueness(comp, right, left)) {
-        if (*const_item != nullptr) return left->eq(*const_item, true);
-        *const_item = left;
-        return true;
-      }
+  }
+  if (cond->type() != Item::FUNC_ITEM) return false;
+  Item_func *const func = down_cast<Item_func *>(cond);
+  if (func->functype() != Item_func::EQUAL_FUNC &&
+      func->functype() != Item_func::EQ_FUNC)
+    return false;
+  Item_func_comparison *comp = down_cast<Item_func_comparison *>(func);
+  Item *left = comp->arguments()[0];
+  Item *right = comp->arguments()[1];
+  if (equal(left, order_item, order_field)) {
+    if (equality_determines_uniqueness(comp, left, right)) {
+      if (*const_item != nullptr) return right->eq(*const_item, true);
+      *const_item = right;
+      return true;
+    }
+  } else if (equal(right, order_item, order_field)) {
+    if (equality_determines_uniqueness(comp, right, left)) {
+      if (*const_item != nullptr) return left->eq(*const_item, true);
+      *const_item = left;
+      return true;
     }
   }
   return false;
@@ -3807,10 +3769,8 @@ bool test_if_subpart(ORDER *a, ORDER *b) {
   // If the second argument is not subpart of the first return false
   if (second) return false;
   // Else assign the direction of the second argument to the first
-  else {
-    for (; a && b; a = a->next, b = b->next) a->direction = b->direction;
-    return true;
-  }
+  for (; a && b; a = a->next, b = b->next) a->direction = b->direction;
+  return true;
 }
 
 /**
@@ -3870,7 +3830,7 @@ void calc_group_buffer(JOIN *join, ORDER *group) {
           break;
         }
         default:
-          /* This case should never be choosen */
+          /* This case should never be chosen */
           assert(0);
           my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       }
@@ -4763,7 +4723,7 @@ void JOIN::refresh_base_slice() {
     Item *item = (*fields)[i];
     size_t pos;
     // See change_to_use_tmp_fields_except_sums for an explanation of how
-    // the visible fields, hidden fields and additonal fields added by
+    // the visible fields, hidden fields and additional fields added by
     // transformations are organized in fields and ref_item_array.
     if (i < num_hidden_fields) {
       pos = fields->size() - i - 1 - query_block->m_added_non_hidden_fields;

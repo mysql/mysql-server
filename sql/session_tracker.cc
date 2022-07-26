@@ -387,7 +387,7 @@ void Session_sysvars_tracker::vars_list::reset() {
   the members from the other.
 
   @@param  from    Source vars_list object.
-  @@param  thd     THD handle to retrive the charset in use.
+  @@param  thd     THD handle to retrieve the charset in use.
 
   @@return    true if the m_registered_sysvars hash has any records.
               Else the value of track_all.
@@ -1039,7 +1039,7 @@ bool Transaction_state_tracker::store(THD *thd, String &buf) {
            legal and equivalent syntax in MySQL, or START TRANSACTION
            sans options) will re-use any one-shots set up so far
            (with SET before the first transaction started, and with
-           all subsequent STARTs), except for WITH CONSISTANT SNAPSHOT,
+           all subsequent STARTs), except for WITH CONSISTENT SNAPSHOT,
            which will never be chained and only applies when explicitly
            given.
 
@@ -1053,7 +1053,7 @@ bool Transaction_state_tracker::store(THD *thd, String &buf) {
         statement even for a transaction that isn't the first in an
         ongoing chain. Consider
 
-          SET TRANSACTION ISOLATION LEVEL READ UNCOMMITED;
+          SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
           START TRANSACTION READ ONLY, WITH CONSISTENT SNAPSHOT;
           # work
           COMMIT AND CHAIN;
@@ -1061,7 +1061,7 @@ bool Transaction_state_tracker::store(THD *thd, String &buf) {
         If we switch away at this point, the replay in the new session
         needs to be
 
-          SET TRANSACTION ISOLATION LEVEL READ UNCOMMITED;
+          SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
           START TRANSACTION READ ONLY;
 
         When a transaction ends (COMMIT/ROLLBACK sans CHAIN), all

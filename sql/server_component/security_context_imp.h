@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ class mysql_security_context_imp {
                              const char *host, const char *ip, const char *db));
 
   /**
-    Reads a named security context attribute and retuns its value.
+    Reads a named security context attribute and returns its value.
 
     @sa mysql_security_context_options::get()
   */

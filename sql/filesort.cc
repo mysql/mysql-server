@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "priority_queue.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bounded_queue.h"
 #include "sql/cmp_varlen_keys.h"
@@ -84,7 +85,6 @@
 #include "sql/item_subselect.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/iterators/sorting_iterator.h"
-#include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key_spec.h"
 #include "sql/malloc_allocator.h"
 #include "sql/merge_many_buff.h"
@@ -1102,7 +1102,7 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
                        MYF(MY_WME)))
     return 1; /* purecov: inspected */
 
-  // Check that we wont have more chunks than we can possibly keep in memory.
+  // Check that we won't have more chunks than we can possibly keep in memory.
   if (my_b_tell(chunk_file) + sizeof(Merge_chunk) > (ulonglong)UINT_MAX)
     return 1; /* purecov: inspected */
 
@@ -1371,7 +1371,7 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
     }
     case ROW_RESULT:
     default:
-      // This case should never be choosen
+      // This case should never be chosen
       assert(0);
       return dst_length.value();
   }
@@ -2147,7 +2147,7 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
         break;
       case ROW_RESULT:
       default:
-        // This case should never be choosen
+        // This case should never be chosen
         assert(0);
         break;
     }

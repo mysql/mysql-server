@@ -42,13 +42,13 @@
 #include "my_table_map.h"
 #include "mysql_time.h"
 #include "mysys_err.h"
+#include "sql-common/json_dom.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"
 #include "sql/item_strfunc.h"
 #include "sql/item_sum.h"
 #include "sql/item_timefunc.h"
-#include "sql/json_dom.h"
 #include "sql/my_decimal.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
@@ -380,6 +380,39 @@ TEST_F(ItemTest, ItemEqual) {
 
   EXPECT_FALSE(item_equal->fix_fields(thd(), nullptr));
   EXPECT_EQ(1, item_equal->val_int());
+}
+
+TEST_F(ItemTest, ItemViewRef) {
+  Mock_field_long f_field1(true);
+  Mock_field_long f_field2(true);
+  Item_field *field1 = new Item_field(&f_field1);
+  Item_field *field2 = new Item_field(&f_field2);
+  Item *field3 = new Item_int(123);
+
+  // Create a view reference over a constant expression from an inner
+  // table of an outer join.
+  TABLE_LIST table;
+  table.outer_join = true;
+  table.set_tableno(2);
+  Item_view_ref *view_ref =
+      new Item_view_ref(&thd()->lex->current_query_block()->context, &field3,
+                        nullptr, nullptr, "t1", "f1", &table);
+
+  Item_func_eq *eq1 = new Item_func_eq(field1, field2);
+  Item_func_eq *eq2 = new Item_func_eq(field1, field3);
+  Item_func_eq *eq3 = new Item_func_eq(field1, view_ref);
+
+  // True because both arguments are fields.
+  EXPECT_TRUE(eq1->contains_only_equi_join_condition());
+  // False because the right side argument is a constant and
+  // therefore concluded as a filter.
+  EXPECT_FALSE(eq2->contains_only_equi_join_condition());
+  // Even though the used table information for the right side
+  // argument says it is not a constant expression, it examines
+  // the underlying expression in the view reference and concludes
+  // it as constant expression there by making it a filter and
+  // not a equi-join condition.
+  EXPECT_FALSE(eq3->contains_only_equi_join_condition());
 }
 
 TEST_F(ItemTest, ItemRollupSwitcher) {

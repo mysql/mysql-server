@@ -1782,6 +1782,7 @@ show status like 'Handler_read_key';
 --eval explain $q
 flush status;
 --eval $q
+--skip_if_hypergraph  # Different plan.
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
 --let $q = update t2 set a = 222 where b = 7
@@ -1800,6 +1801,7 @@ SET @@optimizer_trace="enabled=off";
 }
 flush status;
 --eval $q
+--skip_if_hypergraph  # Different plan.
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
 --let $q = delete from t2 where b = 8

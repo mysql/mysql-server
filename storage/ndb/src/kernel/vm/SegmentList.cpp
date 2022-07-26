@@ -357,7 +357,7 @@ LocalSegmentList::enqWords(const Uint32* src, Uint32 len)
   {
     SectionSegment* firstSeg= m_segmentUtils.getSegmentPtr(m_headVal);
     /* Check offset / m_ownerRef not trampled above */
-    assert(firstSeg->m_ownerRef == offset);
+    require(firstSeg->m_ownerRef == offset);
   }
 #endif
 

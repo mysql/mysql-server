@@ -11,4 +11,4 @@ BatchSize = 1
 
 # Node config normally used in RQG testing
 PartitionsPerNode=1
-ThreadConfig=tc={count=1},ldm={count=1}
+ThreadConfig=main,rep,recv,tc={count=1},ldm={count=1}

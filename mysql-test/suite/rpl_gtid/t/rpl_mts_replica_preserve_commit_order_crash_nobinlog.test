@@ -110,10 +110,8 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 --let $assert_cond= "[SELECT COUNT(*) COUNT from t2, COUNT, 1]" = "1"
 --source include/assert.inc
 
---remove_files_wildcard $MYSQL_TMP_DIR ib_logfile*
---copy_file $MYSQLTEST_VARDIR/mysqld.2/data/ib_logfile0 $MYSQL_TMP_DIR/ib_logfile0_tmp1
---copy_file $MYSQLTEST_VARDIR/mysqld.2/data/ib_logfile1 $MYSQL_TMP_DIR/ib_logfile1_tmp1
-
+--mkdir $MYSQL_TMP_DIR/#innodb_redo_tmp
+--copy_files_wildcard $MYSQLTEST_VARDIR/mysqld.2/data/#innodb_redo $MYSQL_TMP_DIR/#innodb_redo_tmp #ib_redo*
 
 --echo
 --echo # 4. On server2 enable commit_order_manager_before_wait debug sync point
@@ -258,12 +256,10 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_commit_order_leader_before_ha_flush_logs_1
 
 --source include/wait_until_disconnected.inc
 
---remove_file $MYSQLTEST_VARDIR/mysqld.2/data/ib_logfile0
---remove_file $MYSQLTEST_VARDIR/mysqld.2/data/ib_logfile1
-
---copy_file $MYSQL_TMP_DIR/ib_logfile0_tmp1  $MYSQLTEST_VARDIR/mysqld.2/data/ib_logfile0
---copy_file $MYSQL_TMP_DIR/ib_logfile1_tmp1  $MYSQLTEST_VARDIR/mysqld.2/data/ib_logfile1
-
+--remove_files_wildcard $MYSQLTEST_VARDIR/mysqld.2/data/#innodb_redo #ib_redo*
+--copy_files_wildcard $MYSQL_TMP_DIR/#innodb_redo_tmp $MYSQLTEST_VARDIR/mysqld.2/data/#innodb_redo #ib_redo*
+--remove_files_wildcard $MYSQL_TMP_DIR/#innodb_redo_tmp #ib_redo*
+--rmdir $MYSQL_TMP_DIR/#innodb_redo_tmp
 
 --let $restart_parameters=restart:--skip-replica-start --skip-log-bin --log-replica-updates=0
 --exec echo "$restart_parameters" > $_expect_file_name

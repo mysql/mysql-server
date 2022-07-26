@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
   One can change info->pos_in_file to a higher value to skip bytes in file if
   also info->rc_pos is set to info->rc_end.
   If called through open_cached_file(), then the temporary file will
-  only be created if a write exeeds the file buffer or if one calls
+  only be created if a write exceeds the file buffer or if one calls
   flush_io_cache().
 */
 

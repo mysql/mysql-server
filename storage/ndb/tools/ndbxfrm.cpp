@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ static struct my_option my_long_options[] =
 
   // Specific options
   { "compress", 'c', "Compress file",
-    (uchar**) &g_compress, (uchar**) &g_compress, 0,
+    &g_compress, &g_compress, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "decrypt-password", NDB_OPT_NOSHORT, "Decryption password",
     nullptr, nullptr, 0,
@@ -104,11 +104,11 @@ static struct my_option my_long_options[] =
     GET_INT, REQUIRED_ARG, 512, 0, INT_MAX,
     0, 0, 0 },
   { "info", 'i', "Print info about file",
-    (uchar**) &g_info, (uchar**) &g_info, 0,
+    &g_info, &g_info, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #if defined(TODO_READ_REVERSE)
   { "read-reverse", 'R', "Read file in reverse",
-    (uchar**) &g_read_reverse, (uchar**) &g_read_reverse, 0,
+    &g_read_reverse, &g_read_reverse, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -169,6 +169,14 @@ int main(int argc, char* argv[])
       dump_info(argv[argi]);
     }
     return 0;
+  }
+
+  if (g_file_block_size < 0)
+  {
+    fprintf(stderr,
+            "Error: file_block_size %d can not be negative.\n",
+            g_file_block_size);
+    return 1;
   }
 
   if (argc != 2)
@@ -266,6 +274,9 @@ int copy_file(const char src[], const char dst[])
                     opt_decrypt_password_state.get_password_length());
   require(r == 0);
 
+  require(g_file_block_size >= 0);
+  size_t file_block_size = g_file_block_size;
+
   r = dst_xfrm.create(dst_file,
                       g_compress,
                       reinterpret_cast<byte*>(
@@ -276,7 +287,7 @@ int copy_file(const char src[], const char dst[])
                       ndb_ndbxfrm1::key_selection_mode_same,
                       1 /* key count */,
                       g_encrypt_block_size,
-                      g_file_block_size,
+                      file_block_size,
                       ndbxfrm_file::INDEFINITE_SIZE);
   require(r == 0);
 

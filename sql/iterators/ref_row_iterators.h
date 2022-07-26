@@ -243,7 +243,7 @@ class DynamicRangeIterator final : public TableRowIterator {
    This also offers some optimizations in implementation of ::Read().
 
    When the table access is performed as part of the pushed join,
-   all 'linked' child colums are prefetched together with the parent row.
+   all 'linked' child columns are prefetched together with the parent row.
    The handler will then only format the row as required by MySQL and set
    table status accordingly.
 

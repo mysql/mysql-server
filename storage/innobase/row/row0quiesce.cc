@@ -878,8 +878,10 @@ of dict_col_t default value part if exists.
     fil_space_t *space = fil_space_get(table->space);
     ut_ad(space != nullptr && FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
-    memcpy(table->encryption_key, space->encryption_key, Encryption::KEY_LEN);
-    memcpy(table->encryption_iv, space->encryption_iv, Encryption::KEY_LEN);
+    memcpy(table->encryption_key, space->m_encryption_metadata.m_key,
+           Encryption::KEY_LEN);
+    memcpy(table->encryption_iv, space->m_encryption_metadata.m_iv,
+           Encryption::KEY_LEN);
   }
 
   srv_get_encryption_data_filename(table, name, sizeof(name));

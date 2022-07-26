@@ -619,12 +619,12 @@ class TCP_socket {
 */
 class Unix_socket {
   std::string m_unix_sockname;  // pathname for socket to bind to.
-  uint m_backlog;  // backlog specifying lenght of pending queue connection.
+  uint m_backlog;  // backlog specifying length of pending queue connection.
   /**
     Create a lockfile which contains the pid of the mysqld instance started
     and pathname as name of unix socket pathname appended with .lock
 
-    @retval   false if lockfile creation is successful else true if lockfile
+    @retval   False if lockfile creation is successful else true if lockfile
               file could not be created.
 
   */

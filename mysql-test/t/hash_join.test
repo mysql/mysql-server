@@ -2547,3 +2547,18 @@ VALUES (0, 128), (128, 0), (382, 1), (1, 382), (-1, 385), (385, -1);
 --sorted_result
 SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a AND t1.b = t2.b;
 DROP TABLE t;
+
+--echo # Bug#33638843: Hypergraph Offload issue : Invalid Join condition
+
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TABLE t2 (f1 INTEGER);
+CREATE VIEW vmerge AS SELECT 1 AS f1, f1 AS b_f1 FROM t2;
+
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t2 VALUES (1),(2);
+
+--replace_regex /cost=\d+.\d+(\.\.\d+\.\d+)?/cost=***/  /rows=\d+/rows=***/
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN vmerge AS v ON t1.f1 = v.f1;
+
+DROP TABLE t1,t2;
+DROP VIEW vmerge;

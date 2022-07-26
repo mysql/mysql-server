@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -605,7 +605,7 @@ bool Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
 
   // Note! Deserialization of ordinal position cross-referenced
   // objects (i.e. Index and Column) must happen before deserializing
-  // objects which refrence these objects:
+  // objects which reference these objects:
   // Foreign_key_element -> Column,
   // Foreign_key         -> Index,
   // Index_element       -> Column,

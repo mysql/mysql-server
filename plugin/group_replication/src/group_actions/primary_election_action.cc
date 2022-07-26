@@ -180,7 +180,7 @@ int Primary_election_action::process_action_message(
     2. If not there, then the first member in the group (after sort).
   */
   if (invoking_member_gcs_id.empty()) {
-    std::vector<Group_member_info *> *all_members_info =
+    Group_member_info_list *all_members_info =
         group_member_mgr->get_all_members();
     std::sort(all_members_info->begin(), all_members_info->end());
 
@@ -536,7 +536,7 @@ int Primary_election_action::after_view_change(
   if (is_old_primary_leaving && current_action_phase < PRIMARY_ELECTION_PHASE) {
     *skip_primary_election = true;
 
-    std::vector<Group_member_info *> *all_members_info =
+    Group_member_info_list *all_members_info =
         group_member_mgr->get_all_members();
     std::sort(all_members_info->begin(), all_members_info->end(),
               Group_member_info::comparator_group_member_uuid);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ Referential_constraints::Referential_constraints() {
   m_target_def.add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
                          "sch.name");
   m_target_def.add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME",
-                         "fk.name COLLATE utf8_tolower_ci");
+                         "fk.name COLLATE utf8mb3_tolower_ci");
   m_target_def.add_field(FIELD_UNIQUE_CONSTRAINT_CATALOG,
                          "UNIQUE_CONSTRAINT_CATALOG",
                          "fk.referenced_table_catalog");

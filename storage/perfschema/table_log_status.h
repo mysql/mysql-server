@@ -28,7 +28,7 @@
   Table log_status (declarations).
 */
 
-#include "sql/json_dom.h"
+#include "sql-common/json_dom.h"
 #include "sql/sql_const.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"

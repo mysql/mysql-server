@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,11 @@
   Possibly use of asyncronic io.
   macros for read and writes for faster io.
   Used instead of FILE when reading or writing whole files.
-  This code makes mf_rec_cache obsolete (currently only used by ISAM)
-  One can change info->pos_in_file to a higher value to skip bytes in file if
+  This code makes mf_rec_cache obsolete (currently only used by ISAM).
+  One can change info->pos_in_file to a higher value to skip bytes in the file if
   also info->read_pos is set to info->read_end.
   If called through open_cached_file(), then the temporary file will
-  only be created if a write exeeds the file buffer or if one calls
+  only be created if a write exceeds the file buffer or if one calls
   my_b_flush_io_cache().
 
   If one uses SEQ_READ_APPEND, then two buffers are allocated, one for
@@ -109,7 +109,7 @@ bool binlog_cache_temporary_file_is_encrypted = false;
     info		IO_CACHE handler
 
   NOTES
-    This is called on automaticly on init or reinit of IO_CACHE
+    This is called on automatically on init or reinit of IO_CACHE
     It must be called externally if one moves or copies an IO_CACHE
     object.
 */
@@ -162,7 +162,7 @@ static void init_functions(IO_CACHE *info) {
                        If == 0 then use my_default_record_cache_size
     type               Type of cache
     seek_offset        Where cache should start reading/writing
-    use_async_io       Set to 1 of we should use async_io (if avaiable)
+    use_async_io       Set to 1 of we should use async_io (if available)
     cache_myflags      Bitmap of different flags
                        MY_WME | MY_FAE | MY_NABP | MY_FNABP |
                        MY_DONT_CHECK_FILESIZE

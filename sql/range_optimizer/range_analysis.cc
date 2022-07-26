@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql-common/json_dom.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/field.h"
@@ -47,7 +48,6 @@
 #include "sql/item_func.h"
 #include "sql/item_json_func.h"
 #include "sql/item_row.h"
-#include "sql/json_dom.h"
 #include "sql/key.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_trace.h"
@@ -332,7 +332,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
       if (tree && tree->type != SEL_TREE::IMPOSSIBLE) {
         /*
           Get the SEL_TREE for the last "c_last < X < +inf" interval
-          (value_item cotains c_last already)
+          (value_item contains c_last already)
         */
         tree2 = get_mm_parts(thd, param, prev_tables, read_tables, op, field,
                              Item_func::GT_FUNC, value_item);
@@ -704,10 +704,10 @@ static SEL_TREE *get_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
     a SEL_TREE for t1.a > 10 will be built for quick select from t1.
 
     A BETWEEN predicate of the form (fi [NOT] BETWEEN c1 AND c2) is treated
-    in a similar way: we build a conjuction of trees for the results
+    in a similar way: we build a conjunction of trees for the results
     of all substitutions of fi for equal fj.
     Yet a predicate of the form (c BETWEEN f1i AND f2i) is processed
-    differently. It is considered as a conjuction of two SARGable
+    differently. It is considered as a conjunction of two SARGable
     predicates (f1i <= c) and (f2i <=c) and the function get_full_func_mm_tree
     is called for each of them separately producing trees for
        AND j (f1j <=c ) and AND j (f2j <= c)
@@ -1591,7 +1591,7 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
     (b) (unsigned_int [> | >=] negative_constant) == true
     In case (a) the condition is false for all values, and in case (b) it
     is true for all values, so we can avoid unnecessary retrieval and condition
-    testing, and we also get correct comparison of unsinged integers with
+    testing, and we also get correct comparison of unsigned integers with
     negative integers (which otherwise fails because at query execution time
     negative integers are cast to unsigned if compared with unsigned).
   */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,37 +27,45 @@
 
 #include <ndb_global.h>
 #include "portlib/ndb_compiler.h"
+#include <algorithm>
 
 #include <NdbMutex.h>
 
 class LostMsgHandler
 {
 public:
-  /* Return size in bytes which must be appended to describe the lost messages */
-  virtual size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) = 0;
+ static constexpr char LOST_MESSAGES_FMT[] = "*** %zu MESSAGES LOST ***";
+ static constexpr char LOST_BYTES_FMT[] = "\n*** %zu BYTES LOST ***\n";
+ static_assert(sizeof(size_t) <= 8);  // 20 decimal digits enough for size_t
+ static constexpr size_t MAX_LOST_MESSAGE_SIZE =
+     std::max(sizeof(LOST_MESSAGES_FMT), sizeof(LOST_BYTES_FMT)) + 20;
 
-  /* Write lost message summary into the buffer for the lost message summary */
-  virtual bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs) = 0;
+ /* Return size in bytes which must be appended to describe the lost messages */
+ virtual size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) = 0;
 
-  virtual ~LostMsgHandler() {}
+ /* Write lost message summary into the buffer for the lost message summary */
+ virtual bool writeLostMsg(char* buf,
+                           size_t buf_size,
+                           size_t lost_bytes,
+                           size_t lost_msgs) = 0;
+
+ virtual ~LostMsgHandler() {}
 };
 
 class ByteStreamLostMsgHandler : public LostMsgHandler
 {
-private:
-  const char* m_lost_msg_fmt;
-
 public:
-  ByteStreamLostMsgHandler(): m_lost_msg_fmt("\n*** %u BYTES LOST ***\n")
-  {
-  }
-  /* Return size in bytes which must be appended to describe the lost messages */
-  size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) override;
+ ByteStreamLostMsgHandler() {}
+ /* Return size in bytes which must be appended to describe the lost messages */
+ size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) override;
 
-  /* Write lost message summary into the buffer for the lost message summary */
-  bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs) override;
+ /* Write lost message summary into the buffer for the lost message summary */
+ bool writeLostMsg(char* buf,
+                   size_t buf_size,
+                   size_t lost_bytes,
+                   size_t lost_msgs) override;
 
-  ~ByteStreamLostMsgHandler() override {}
+ ~ByteStreamLostMsgHandler() override {}
 };
 
 /**
@@ -126,7 +134,7 @@ public:
    * @return Number of characters appended on success and
    * 0 if there's insufficient space in the log buffer.
    */
-  size_t append(void* buf, size_t size);
+  size_t append(const void* buf, size_t size);
 
   /**
    * Remove data from the log buffer and copy to "buf".

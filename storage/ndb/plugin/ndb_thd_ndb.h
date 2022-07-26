@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,19 +196,80 @@ class Thd_ndb {
   // trans options should be enabled
   void transaction_checks(void);
 
+ private:
+  // Threshold for when to flush a batch. Configured from @@ndb_batch_size or
+  // --ndb-replica-batch-size when transaction starts.
+  uint m_batch_size;
+
+  // The size in bytes to use when batching blob writes. Configured from
+  // @@ndb_blob_write_batch_bytes or
+  // --ndb-replica-blob-write-batch-bytes when transaction starts.
+  uint m_blob_write_batch_size;
+
+ public:
+  // Return the configured value for blob write batch size
+  uint get_blob_write_batch_size() const {
+    assert(trans);  // assume trans has been started
+    return m_blob_write_batch_size;
+  }
+
+ private:
+  // Block size for the batch memroot. First block will be allocated
+  // with this size, subsequent blocks will be 50% larger each time.
+  static constexpr size_t BATCH_MEM_ROOT_BLOCK_SIZE = 8192;
+
   /*
-    This is a memroot used to buffer rows for batched execution.
-    It is reset after every execute().
+    Memroot used for batched execution, it contains rows as well as
+    other control structures that need to be kept alive until next execute().
+    The allocated memory is then reset before next execute().
   */
   MEM_ROOT m_batch_mem_root;
+
+ public:
   /*
-    Estimated pending batched execution bytes, once this is > BATCH_FLUSH_SIZE
-    we execute() to flush the rows buffered in m_batch_mem_root.
+    Return a generic buffer that will remain valid until after next execute.
+
+    The memory is freed by the first call to add_row_check_if_batch_full()
+    following any execute() call. The intention is that the memory is associated
+    with one batch of operations during batched updates.
+
+    Note in particular that using get_buffer() / copy_to_batch_mem() separately
+    from add_row_check_if_batch_full() could make memory usage grow without
+    limit, and that this sequence:
+
+      execute()
+      get_buffer() / copy_to_batch_mem()
+      add_row_check_if_batch_full()
+      ...
+      execute()
+
+    will free the memory already at add_row_check_if_batch_full() time, it
+    will not remain valid until the second execute().
   */
-  uint m_unsent_bytes;
+  uchar *get_buffer(size_t size) {
+    // Allocate buffer memory from batch MEM_ROOT
+    return static_cast<uchar *>(m_batch_mem_root.Alloc(size));
+  }
+
+  /*
+    Copy data of given size into the batch memroot.
+    Return pointer to copy
+  */
+  uchar *copy_to_batch_mem(const void *data, size_t size) {
+    uchar *row = get_buffer(size);
+    if (unlikely(!row)) {
+      return nullptr;
+    }
+    memcpy(row, data, size);
+    return row;
+  }
+
+  // Number of unsent bytes in the transaction
+  ulong m_unsent_bytes;
+  // Flag for unsent blobs in the transaction
   bool m_unsent_blob_ops;
-  uint m_batch_size;
-  bool add_row_check_if_batch_full(uint size);
+
+  bool add_row_check_if_batch_full(uint row_size);
 
   uint m_execute_count;
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ TEST_P(BootstrapDebugLevelOkTest, BootstrapDebugLevelOk) {
   cmdline.push_back(overwrite_param);
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS);
 
-  check_exit_code(router, EXIT_SUCCESS, 5s);
+  check_exit_code(router, EXIT_SUCCESS);
 
   // check that bootstrap outputs debug logs
   EXPECT_TRUE(router.output_contains(debug_level_output));
@@ -167,7 +167,7 @@ TEST_P(BootstrapOverwriteErrorTest, BootstrapOverwriteError) {
 
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
-  check_exit_code(router, EXIT_FAILURE, 5s);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.output_contains(param.expected_error_msg));
 }
 
@@ -381,7 +381,7 @@ TEST_P(OverwriteErrorTest, OverwriteError) {
   // logger issues will be reported on the console, the other in the logfile so
   // we merge them both when looking for error messages
   const std::string router_out =
-      router.get_full_logfile() + "\n" + router.get_full_output();
+      router.get_logfile_content() + "\n" + router.get_full_output();
   EXPECT_THAT(router_out, ::testing::HasSubstr(GetParam().expected_error_msg));
 }
 

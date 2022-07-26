@@ -2586,6 +2586,11 @@ connection default;
 
 
 SELECT * FROM t1 ORDER BY a;
+# It is unspecified whether the assignment of t2.b in the UPDATE
+# statement above sees the modification made to t1.b on the same row.
+# It depends on the plan, and the hypergraph optimizer chooses a
+# different plan than the old optimizer.
+--skip_if_hypergraph
 SELECT * FROM t2 ORDER BY a;
 
 --echo # Same for DELETE
@@ -2622,6 +2627,7 @@ connection default;
 
 
 SELECT * FROM t1 ORDER BY a;
+--skip_if_hypergraph  # Difference caused by non-deterministic UPDATE.
 SELECT * FROM t2 ORDER BY a;
 
 FLUSH STATUS;
@@ -2634,6 +2640,7 @@ connection default;
 
 
 SELECT * FROM t1 ORDER BY a;
+--skip_if_hypergraph  # Difference caused by non-deterministic UPDATE.
 SELECT * FROM t2 ORDER BY a;
 DROP TABLE t1, t2;
 

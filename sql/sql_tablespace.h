@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ class THD;
 
 /**
   Structure used by parser to store options for tablespace statements
-  and pass them on to Excution classes.
+  and pass them on to Execution classes.
  */
 struct Tablespace_options {
   ulonglong extent_size = 1024 * 1024;           // Default 1 MByte

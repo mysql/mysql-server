@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 #include "lex_string.h"
 
+#include "field_types.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -53,8 +54,6 @@ class Key_spec;
 class String;
 class THD;
 struct TABLE_LIST;
-
-enum enum_field_types : int;
 
 /**
   Class representing DROP COLUMN, DROP KEY, DROP FOREIGN KEY, DROP CHECK
@@ -86,10 +85,10 @@ class Alter_column {
   /// The default value supplied.
   Item *def;
 
-  /// The expression to be used to generated the default value.
+  /// The expression to be used to generate the default value.
   Value_generator *m_default_val_expr;
 
-  /// The new colum name.
+  /// The new column name.
   const char *m_new_name;
 
   enum class Type {
@@ -287,7 +286,7 @@ class Alter_info {
     /// Set for DROP FOREIGN KEY
     DROP_FOREIGN_KEY = 1ULL << 22,
 
-    /// Set for EXCHANGE PARITION
+    /// Set for EXCHANGE PARTITION
     ALTER_EXCHANGE_PARTITION = 1ULL << 23,
 
     /// Set by Sql_cmd_alter_table_truncate_partition::execute()
@@ -370,10 +369,10 @@ class Alter_info {
      Describes the level of concurrency during ALTER TABLE.
   */
   enum enum_alter_table_lock {
-    // Maximum supported level of concurency for the given operation.
+    // Maximum supported level of concurrency for the given operation.
     ALTER_TABLE_LOCK_DEFAULT,
 
-    // Allow concurrent reads & writes. If not supported, give erorr.
+    // Allow concurrent reads & writes. If not supported, give error.
     ALTER_TABLE_LOCK_NONE,
 
     // Allow concurrent reads only. If not supported, give error.

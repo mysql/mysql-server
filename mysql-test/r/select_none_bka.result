@@ -4190,7 +4190,7 @@ CREATE TABLE t1 (name varchar(255)) charset latin1;
 CREATE TABLE t2 (name varchar(255), n int, KEY (name(3))) charset latin1;
 INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
-INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
+INSERT INTO t2 VALUES (concat('cc ', '!'), 4);
 INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
@@ -4201,7 +4201,7 @@ name	n
 bb	1
 aa	2
 cc   	3
-cc 	4
+cc !	4
 cc	5
 bb 	6
 cc 	7
@@ -4210,19 +4210,19 @@ name	n
 aa	2
 bb	1
 bb 	6
-cc 	4
 cc   	3
 cc	5
 cc 	7
+cc !	4
 SELECT name, LENGTH(name), n FROM t2 ORDER BY name;
 name	LENGTH(name)	n
 aa	2	2
 bb	2	1
 bb 	3	6
-cc 	4	4
 cc   	5	3
 cc	2	5
 cc 	3	7
+cc !	4	4
 EXPLAIN SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	name	name	6	const	4	100.00	Using where
@@ -4241,7 +4241,7 @@ Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
 name	LENGTH(name)	n
 cc   	5	3
-cc 	4	4
+cc !	4	4
 cc	2	5
 cc 	3	7
 EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
@@ -4251,10 +4251,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.`name`) AS `LENGTH(name)`,`test`.`t2`.`n` AS `n` from `test`.`t2` where (`test`.`t2`.`name` like 'cc%') order by `test`.`t2`.`name`
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 name	LENGTH(name)	n
-cc 	4	4
 cc   	5	3
 cc	2	5
 cc 	3	7
+cc !	4	4
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
@@ -4276,7 +4276,7 @@ CREATE TABLE t1 (name text) charset latin1;
 CREATE TABLE t2 (name text, n int, KEY (name(3))) charset latin1;
 INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
-INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
+INSERT INTO t2 VALUES (concat('cc ', '!'), 4);
 INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
@@ -4287,7 +4287,7 @@ name	n
 bb	1
 aa	2
 cc   	3
-cc 	4
+cc !	4
 cc	5
 bb 	6
 cc 	7
@@ -4296,19 +4296,19 @@ name	n
 aa	2
 bb	1
 bb 	6
-cc 	4
 cc   	3
 cc	5
 cc 	7
+cc !	4
 SELECT name, LENGTH(name), n FROM t2 ORDER BY name;
 name	LENGTH(name)	n
 aa	2	2
 bb	2	1
 bb 	3	6
-cc 	4	4
 cc   	5	3
 cc	2	5
 cc 	3	7
+cc !	4	4
 EXPLAIN SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	name	name	6	const	4	100.00	Using where
@@ -4327,7 +4327,7 @@ Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
 name	LENGTH(name)	n
 cc   	5	3
-cc 	4	4
+cc !	4	4
 cc	2	5
 cc 	3	7
 EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
@@ -4337,10 +4337,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.`name`) AS `LENGTH(name)`,`test`.`t2`.`n` AS `n` from `test`.`t2` where (`test`.`t2`.`name` like 'cc%') order by `test`.`t2`.`name`
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 name	LENGTH(name)	n
-cc 	4	4
 cc   	5	3
 cc	2	5
 cc 	3	7
+cc !	4	4
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL

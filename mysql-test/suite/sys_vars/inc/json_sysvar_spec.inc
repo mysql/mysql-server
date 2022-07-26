@@ -253,7 +253,7 @@ let $sysvar_specs =
   {
     "name": "replica_allow_batching",
     "alias": "slave_allow_batching",
-    "default": 0,
+    "default": 1,
     $bool
   },
   {
@@ -326,7 +326,6 @@ let $sysvar_specs =
     $persist_as_readonly,
     "default": 4,
     "values": [1, 2, 100],
-    "min": 0,
     "max": 1024,
     $int_invalid
   },

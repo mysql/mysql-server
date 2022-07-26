@@ -118,7 +118,7 @@ static size_t my_lengthsp_binary(const CHARSET_INFO *cs [[maybe_unused]],
 
   SYNOPSIS
     my_strnncollsp_binary()
-    cs			Chararacter set
+    cs			Character set
     s			String to compare
     slen		Length of 's'
     t			String to compare
@@ -154,7 +154,7 @@ static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
 
   SYNOPSIS
     my_strnncollsp_8bit_bin()
-    cs			Chararacter set
+    cs			Character set
     s			String to compare
     slen		Length of 's'
     t			String to compare

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ vector<my_option> Abstract_options_provider::generate_options() {
 
   vector<my_option> res;
   for (vector<I_option *>::iterator it = this->m_options_created.begin();
-       it != this->m_options_created.end(); it++) {
+       it != this->m_options_created.end(); ++it) {
     res.push_back((*it)->get_my_option());
   }
 
@@ -128,7 +128,7 @@ Abstract_options_provider::Abstract_options_provider()
 
 Abstract_options_provider::~Abstract_options_provider() {
   for (vector<I_option *>::iterator it = this->m_options_created.begin();
-       it != this->m_options_created.end(); it++) {
+       it != this->m_options_created.end(); ++it) {
     delete *it;
   }
 }

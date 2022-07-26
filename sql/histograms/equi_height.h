@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 #define HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,6 +208,15 @@ class Equi_height : public Histogram {
     @return        true on error, false otherwise
   */
   bool histogram_to_json(Json_object *json_object) const override;
+
+  /**
+    Get the buckets of the histogram. Exposed for unit testing.
+
+    @return A const reference to the collection of buckets.
+  */
+  const Mem_root_array<equi_height::Bucket<T>> &get_buckets() const {
+    return m_buckets;
+  }
 
   /**
     Returns the histogram type as a readable string.

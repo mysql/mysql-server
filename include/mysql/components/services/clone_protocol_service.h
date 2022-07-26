@@ -64,7 +64,7 @@ struct mysql_clone_ssl_context {
   NET_SERVER *m_server_extn;
 };
 
-/** Vector of sting Values */
+/** Vector of string values */
 using Mysql_Clone_Values = std::vector<std::string>;
 
 /** Vector of string Key-Value pairs. */

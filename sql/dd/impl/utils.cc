@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@ bool unescape(String_type &dest) {
   String_type tmp_dest;
   for (String_type::iterator d = dest.begin(); d != dest.end(); d++) {
     if (*d == '\\') {
-      // An escape character preceeding end is an error, it must be succeeded
+      // An escape character preceding end is an error, it must be followed
       // by an escapable character.
       if ((d + 1) != dest.end() &&
           (*(d + 1) == '\\' || *(d + 1) == '=' || *(d + 1) == ';'))

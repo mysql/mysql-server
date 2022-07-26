@@ -37,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0types.h"
 #include "fil0fil.h"
 #include "fil0types.h"
+#include "log0log.h" /* log_get_lsn */
 #include "mach0data.h"
 #include "my_dbug.h"
 #include "page0size.h"
@@ -93,10 +94,8 @@ uint32_t buf_calc_page_crc32(const byte *page,
  to a file. Note that we must be careful to calculate the same value on
  32-bit and 64-bit architectures.
  @return checksum */
-ulint buf_calc_page_new_checksum(const byte *page) /*!< in: buffer page */
+uint32_t buf_calc_page_new_checksum(const byte *page) /*!< in: buffer page */
 {
-  ulint checksum;
-
   /* Since the field FIL_PAGE_FILE_FLUSH_LSN, and in versions <= 4.1.x
   FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, are written outside the buffer pool
   to the first pages of data files, we have to skip them in the page
@@ -104,15 +103,11 @@ ulint buf_calc_page_new_checksum(const byte *page) /*!< in: buffer page */
   We must also skip the field FIL_PAGE_SPACE_OR_CHKSUM where the
   checksum is stored, and also the last 8 bytes of page because
   there we store the old formula checksum. */
-
-  checksum =
-      ut_fold_binary(page + FIL_PAGE_OFFSET,
-                     FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET) +
-      ut_fold_binary(page + FIL_PAGE_DATA, UNIV_PAGE_SIZE - FIL_PAGE_DATA -
-                                               FIL_PAGE_END_LSN_OLD_CHKSUM);
-  checksum = checksum & 0xFFFFFFFFUL;
-
-  return (checksum);
+  return ut::hash_binary_ib(page + FIL_PAGE_OFFSET,
+                            FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET) +
+         ut::hash_binary_ib(
+             page + FIL_PAGE_DATA,
+             UNIV_PAGE_SIZE - FIL_PAGE_DATA - FIL_PAGE_END_LSN_OLD_CHKSUM);
 }
 
 /** In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
@@ -122,15 +117,9 @@ ulint buf_calc_page_new_checksum(const byte *page) /*!< in: buffer page */
  FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
  because this takes that field as an input!
  @return checksum */
-ulint buf_calc_page_old_checksum(const byte *page) /*!< in: buffer page */
+uint32_t buf_calc_page_old_checksum(const byte *page) /*!< in: buffer page */
 {
-  ulint checksum;
-
-  checksum = ut_fold_binary(page, FIL_PAGE_FILE_FLUSH_LSN);
-
-  checksum = checksum & 0xFFFFFFFFUL;
-
-  return (checksum);
+  return ut::hash_binary_ib(page, FIL_PAGE_FILE_FLUSH_LSN);
 }
 
 /** Return a printable string describing the checksum algorithm.
@@ -193,7 +182,8 @@ inline void buf_page_lsn_check(bool check_lsn, const byte *read_buf) {
       ib::error(ER_IB_MSG_147)
 #endif /* UNIV_NO_ERR_MSGS */
           << "Your database may be corrupt or you may have copied the InnoDB"
-          << " tablespace but not the InnoDB log files. " << FORCE_RECOVERY_MSG;
+          << " tablespace but not the InnoDB redo log files. "
+          << FORCE_RECOVERY_MSG;
     }
   }
 #endif /* !UNIV_HOTBACKUP && !UNIV_LIBRARY */
@@ -205,7 +195,7 @@ inline void buf_page_lsn_check(bool check_lsn, const byte *read_buf) {
 @param[in]      algo            current checksum algorithm
 @return true if the page is in innodb checksum format. */
 bool BlockReporter::is_checksum_valid_innodb(
-    ulint checksum_field1, ulint checksum_field2,
+    uint32_t checksum_field1, uint32_t checksum_field2,
     const srv_checksum_algorithm_t algo) const {
   /* There are 2 valid formulas for
   checksum_field2 (old checksum field) which algo=innodb could have
@@ -217,8 +207,8 @@ bool BlockReporter::is_checksum_valid_innodb(
   2. Newer InnoDB versions store the old formula checksum
   (buf_calc_page_old_checksum()). */
 
-  ulint old_checksum = buf_calc_page_old_checksum(m_read_buf);
-  ulint new_checksum = buf_calc_page_new_checksum(m_read_buf);
+  const auto old_checksum = buf_calc_page_old_checksum(m_read_buf);
+  const auto new_checksum = buf_calc_page_new_checksum(m_read_buf);
 
   print_innodb_checksum(old_checksum, new_checksum, checksum_field1,
                         checksum_field2, algo);
@@ -242,7 +232,7 @@ bool BlockReporter::is_checksum_valid_innodb(
 @param[in]      algo            current checksum algorithm
 @return true if the page is in none checksum format. */
 bool BlockReporter::is_checksum_valid_none(
-    ulint checksum_field1, ulint checksum_field2,
+    uint32_t checksum_field1, uint32_t checksum_field2,
     const srv_checksum_algorithm_t algo) const {
   print_strict_none(checksum_field1, checksum_field2, algo);
 
@@ -256,15 +246,15 @@ bool BlockReporter::is_checksum_valid_none(
 @param[in]      algo                    current checksum algorithm
 @param[in]      use_legacy_big_endian   big endian algorithm
 @return true if the page is in crc32 checksum format. */
-bool BlockReporter::is_checksum_valid_crc32(ulint checksum_field1,
-                                            ulint checksum_field2,
+bool BlockReporter::is_checksum_valid_crc32(uint32_t checksum_field1,
+                                            uint32_t checksum_field2,
                                             const srv_checksum_algorithm_t algo,
                                             bool use_legacy_big_endian) const {
   if (checksum_field1 != checksum_field2) {
     return (false);
   }
 
-  uint32_t crc32 = buf_calc_page_crc32(m_read_buf, use_legacy_big_endian);
+  const auto crc32 = buf_calc_page_crc32(m_read_buf, use_legacy_big_endian);
 
   print_strict_crc32(checksum_field1, checksum_field2, crc32, algo);
 
@@ -272,7 +262,7 @@ bool BlockReporter::is_checksum_valid_crc32(ulint checksum_field1,
 }
 
 bool BlockReporter::is_encrypted() const noexcept {
-  ulint page_type = mach_read_from_2(m_read_buf + FIL_PAGE_TYPE);
+  const auto page_type = mach_read_from_2(m_read_buf + FIL_PAGE_TYPE);
 
   return page_type == FIL_PAGE_ENCRYPTED ||
          page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED ||
@@ -283,9 +273,6 @@ bool BlockReporter::is_encrypted() const noexcept {
 @retval true    if page is corrupt
 @retval false   if page is not corrupt */
 bool BlockReporter::is_corrupted() const {
-  ulint checksum_field1;
-  ulint checksum_field2;
-
   /* This function should be used for unencrypted pages. During recovery it is
   possible that this function is called for encrypted pages, when decryption
   failed. So report it as corrupted. */
@@ -317,10 +304,11 @@ bool BlockReporter::is_corrupted() const {
     return (!verify_zip_checksum());
   }
 
-  checksum_field1 = mach_read_from_4(m_read_buf + FIL_PAGE_SPACE_OR_CHKSUM);
+  const auto checksum_field1 =
+      mach_read_from_4(m_read_buf + FIL_PAGE_SPACE_OR_CHKSUM);
 
-  checksum_field2 = mach_read_from_4(m_read_buf + m_page_size.logical() -
-                                     FIL_PAGE_END_LSN_OLD_CHKSUM);
+  const auto checksum_field2 = mach_read_from_4(
+      m_read_buf + m_page_size.logical() - FIL_PAGE_END_LSN_OLD_CHKSUM);
 
   static_assert(FIL_PAGE_LSN % 8 == 0, "FIL_PAGE_LSN must be 64 bit aligned");
 

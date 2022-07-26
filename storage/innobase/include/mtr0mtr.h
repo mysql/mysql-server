@@ -41,7 +41,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0types.h"
 #include "dyn0buf.h"
 #include "fil0fil.h"
-#include "log0types.h"
 #include "mtr0types.h"
 #include "srv0srv.h"
 #include "trx0types.h"
@@ -129,7 +128,7 @@ savepoint. */
 #define mtr_x_lock(l, m, loc) (m)->x_lock((l), loc)
 
 /** Lock a tablespace in x-mode. */
-#define mtr_x_lock_space(s, m) (m)->x_lock_space((s), __FILE__, __LINE__)
+#define mtr_x_lock_space(s, m) (m)->x_lock_space((s), UT_LOCATION_HERE)
 
 /** Lock an rw-lock in sx-mode. */
 #define mtr_sx_lock(l, m, loc) (m)->sx_lock((l), loc)
@@ -466,9 +465,8 @@ struct mtr_t {
   /** Acquire a tablespace X-latch.
   NOTE: use mtr_x_lock_space().
   @param[in]    space           tablespace instance
-  @param[in]    file            file name from where called
-  @param[in]    line            line number in file */
-  void x_lock_space(fil_space_t *space, const char *file, ulint line);
+  @param[in]    location        location from where called */
+  void x_lock_space(fil_space_t *space, ut::Location location);
 
   /** Release an object in the memo stack.
   @param object object
@@ -653,6 +651,10 @@ struct mtr_t {
 #ifdef UNIV_DEBUG
   /** For checking invalid mode update requests. */
   static bool s_mode_update_valid[MTR_LOG_MODE_MAX][MTR_LOG_MODE_MAX];
+
+  /** Count the number of times the same mtr object has been committed and
+  restarted. */
+  size_t m_restart_count{};
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP

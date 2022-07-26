@@ -78,6 +78,7 @@ SET GLOBAL slow_query_log_file= '.../slow33732907.log';
 SET @@global.slow_query_log=1;
 SET @@global.log_output='file,table';
 SET @@session.long_query_time=0;
+SET @my_start=CURRENT_TIMESTAMP(6);
 
 # This succeeds, and the password is correctly obfuscated.
 CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
@@ -94,7 +95,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
 SELECT "general table>",argument
 FROM mysql.general_log
-WHERE INSTR(argument,"CREATE USER")=1
+WHERE INSTR(argument,"CREATE USER")=1 AND event_time>=@my_start
 ORDER BY event_time;
 general table>	argument
 general table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>
@@ -102,7 +103,7 @@ general table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>
 # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
 SELECT "slow table>",sql_text
 FROM mysql.slow_log
-WHERE INSTR(sql_text,"CREATE USER")=1
+WHERE INSTR(sql_text,"CREATE USER")=1 AND start_time>=@my_start
 ORDER BY start_time;
 slow table>	sql_text
 slow table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>

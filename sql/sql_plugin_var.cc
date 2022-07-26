@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -419,12 +419,14 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var) {
   }
 
   if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
-      plugin_var->flags & PLUGIN_VAR_MEMALLOC)
+      plugin_var->flags & PLUGIN_VAR_MEMALLOC) {
     rc = plugin_var_memalloc_global_update(thd, plugin_var,
                                            static_cast<char **>(tgt),
                                            *static_cast<char *const *>(src));
-  else
+  } else {
     plugin_var->update(thd, plugin_var, tgt, src);
+    return (thd->is_error() ? 1 : 0);
+  }
 
   return rc;
 }
@@ -607,7 +609,7 @@ int check_func_bool(THD *, SYS_VAR *, void *save, st_mysql_value *value) {
     if (tmp > 1 || tmp < 0) goto err;
     result = (int)tmp;
   }
-  *(bool *)save = result ? true : false;
+  *(bool *)save = (result != 0);
   return 0;
 err:
   return 1;
@@ -814,10 +816,8 @@ st_bookmark *find_bookmark(const char *plugin, const char *name, int flags) {
   varname[0] = flags & PLUGIN_VAR_TYPEMASK;
 
   const auto it = get_bookmark_hash()->find(std::string(varname, length - 1));
-  if (it == get_bookmark_hash()->end())
-    return nullptr;
-  else
-    return it->second;
+  if (it == get_bookmark_hash()->end()) return nullptr;
+  return it->second;
 }
 
 void plugin_opt_set_limits(struct my_option *options, const SYS_VAR *opt) {

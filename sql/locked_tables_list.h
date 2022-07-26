@@ -55,7 +55,7 @@ enum enum_locked_tables_mode {
   Getter for the enum enum_locked_tables_mode
   @param locked_tables_mode enum for types of locked tables mode
 
-  @return The string represantation of that enum value
+  @return The string representation of that enum value
 */
 const char *get_locked_tables_mode_name(
     enum_locked_tables_mode locked_tables_mode);

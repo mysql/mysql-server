@@ -48,10 +48,9 @@
 #include <winsock2.h>  // struct timeval
 #endif                 /* _WIN32 */
 
+#include "field_types.h"
 #include "my_time_t.h"
 #include "mysql_time.h"  // struct MYSQL_TIME, shared with client code
-
-enum enum_field_types : int;
 
 extern const unsigned long long int log_10_int[20];
 extern const unsigned char days_in_month[];
@@ -480,7 +479,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
 /**
    Round the input argument to the specified precision by computing
    the remainder modulo log10 of the difference between max and
-   desired precison.
+   desired precision.
 
    @param nr number to round
    @param decimals desired precision

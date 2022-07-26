@@ -1097,7 +1097,7 @@ methods like Item::fix_fields(), which modify the internal state of items,
 
   @subsection sp_exc_rcont Runtime Context
 
-  An interpretor needs to be able to represent the state
+  An interpreter needs to be able to represent the state
   of the SQL program being executed:
   this is the role of the C++ class #sp_rcontext, or runtime context.
 
@@ -1614,7 +1614,7 @@ static void reset_start_time_for_sp(THD *thd) {
     This procedure won't create new Sroutine_hash_entry objects,
     instead it will simply add elements from source to destination
     hash. Thus time of life of elements in destination hash becomes
-    dependant on time of life of elements from source hash. It also
+    dependent on time of life of elements from source hash. It also
     won't touch lists linking elements in source and destination
     hashes.
 */
@@ -2078,7 +2078,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
 
   /*
     Switch query context. This has to be done early as this is sometimes
-    allocated trough sql_alloc
+    allocated through sql_alloc
   */
   saved_creation_ctx = m_creation_ctx->set_n_backup(thd);
 
@@ -2927,7 +2927,7 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   thd->pop_lock_usec(lock_usec_before_sp_exec);
 
   /*
-    If not insided a procedure and a function printing warning
+    If not inside a procedure and a function printing warning
     messages.
   */
   bool need_binlog_call = mysql_bin_log.is_open() &&
@@ -3359,7 +3359,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
       table->belong_to_view = belong_to_view;
       table->trg_event_map = stab->trg_event_map;
 
-      /* Everyting else should be zeroed */
+      /* Everything else should be zeroed */
 
       **query_tables_last_ptr = table;
       table->prev_global = *query_tables_last_ptr;

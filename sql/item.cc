@@ -46,6 +46,7 @@
 #include "myisampack.h"  // mi_int8store
 #include "mysql.h"       // IS_NUM
 #include "mysql_time.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // get_column_grant
@@ -62,7 +63,6 @@
 #include "sql/item_strfunc.h"  // Item_func_conv_charset
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
-#include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key.h"
 #include "sql/log_event.h"  // append_query_string
 #include "sql/mysqld.h"     // lower_case_table_names files_charset_info
@@ -919,21 +919,32 @@ bool Item_field::is_valid_for_pushdown(uchar *arg) {
     // is not correct.
     // Trigger fields need complicated resolving when we clone a condition
     // having them.
+    // Expressions which have system variables in the underlying derived
+    // table cannot be pushed as of now because Item_func_get_system_var::print
+    // does not print the original expression which leads to an incorrect clone.
     Query_expression *derived_query_expression =
         derived_table->derived_query_expression();
     for (Query_block *qb = derived_query_expression->first_query_block();
          qb != nullptr; qb = qb->next_query_block()) {
       Item *item = qb->get_derived_expr(field->field_index());
       bool has_trigger_field = false;
-      WalkItem(item, enum_walk::PREFIX, [&has_trigger_field](Item *inner_item) {
-        if (inner_item->type() == Item::TRIGGER_FIELD_ITEM) {
-          has_trigger_field = true;
-          return true;
-        }
-        return false;
-      });
+      bool has_system_var = false;
+      WalkItem(item, enum_walk::PREFIX,
+               [&has_trigger_field, &has_system_var](Item *inner_item) {
+                 if (inner_item->type() == Item::TRIGGER_FIELD_ITEM) {
+                   has_trigger_field = true;
+                   return true;
+                 }
+                 if (inner_item->type() == Item::FUNC_ITEM &&
+                     down_cast<Item_func *>(inner_item)->functype() ==
+                         Item_func::GSYSVAR_FUNC) {
+                   has_system_var = true;
+                   return true;
+                 }
+                 return false;
+               });
       if (item->has_subquery() || item->is_non_deterministic() ||
-          has_trigger_field)
+          has_trigger_field || has_system_var)
         return true;
     }
     return false;
@@ -4534,8 +4545,10 @@ bool Item_param::convert_value() {
         }
         // Finally, check if it is a valid floating point value
         value.real = my_strntod(cs, ptr, length, &endptr, &error);
-        if (error == 0 && (length == static_cast<size_t>(endptr - ptr) ||
-                           check_if_only_end_space(cs, endptr, ptr + length))) {
+        if (error == 0 &&
+            endptr - ptr > 0 &&  // my_strntod() accepts empty string as 0.0e0
+            (length == static_cast<size_t>(endptr - ptr) ||
+             check_if_only_end_space(cs, endptr, ptr + length))) {
           set_data_type_actual(MYSQL_TYPE_DOUBLE);
           return false;
         }
@@ -4590,7 +4603,7 @@ bool Item_param::convert_value() {
         }
       }
       /*
-        str_value_ptr is returned from val_str(). It must be not alloced
+        str_value_ptr is returned from val_str(). It must not be allocated
         to prevent it's modification by val_str() invoker.
       */
       str_value_ptr.set(str_value.ptr(), str_value.length(),
@@ -5509,7 +5522,7 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
     optimize subquery expressions as their optimization may lead to evaluation
     of the item (e.g. in create_ref_for_key()).
     However there is one exception where QQ's result is not empty even though
-    FROM clause's result is: when QQ is implicitely aggregated. In that case,
+    FROM clause's result is: when QQ is implicitly aggregated. In that case,
     return_zero_rows() sets all tables' columns to NULL and any expression in
     QQ's SELECT list is evaluated; to prepare for this, we mark the item 'i'
     as nullable below.
@@ -5532,7 +5545,12 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
     - or HAVING, but columns of HAVING are always also present in SELECT list
     so are Item_ref to SELECT list and get nullability from that,
     - or ORDER BY but actually no as it's optimized away in such single-row
-    query.
+    query. This is not true for hypergraph optimizer. So we mark item as
+    nullable if the query is ordered. For Ex: If there are window functions in
+    ORDER BY, the order by list is cleared but not removed (See
+    setup_order_final()). This makes hypergraph optimizer think it needs to
+    execute the window function. Old optimizer does short circuiting in this
+    case treating it as a constant plan.
     Note: we test with_sum_func (== references a set function);
     agg_func_used() (== is aggregation query) would be better but is not
     reliable yet at this stage.
@@ -5545,7 +5563,8 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
            (sl->with_sum_func || qsl->with_sum_func) &&
            qsl->group_list.elements == 0;
   else
-    return sl->resolve_place == Query_block::RESOLVE_SELECT_LIST &&
+    return (sl->resolve_place == Query_block::RESOLVE_SELECT_LIST ||
+            (thd->lex->using_hypergraph_optimizer && sl->is_ordered())) &&
            sl->with_sum_func && sl->group_list.elements == 0 &&
            thd->lex->in_sum_func == nullptr;
 }
@@ -5585,6 +5604,13 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
     Notice that compared to Item_ref::fix_fields, here we first search the FROM
     clause, and then we search the SELECT and GROUP BY clauses.
 
+  For the case where a table reference is already set for the field,
+  we just need to make a call to set_field(). This is true for a cloned
+  field used during condition pushdown to derived tables. A cloned field
+  inherits table reference, depended_from, cached_table, context and field
+  from the original field. set_field() ensures all other members are set
+  correctly.
+
   @param[in]     thd        current thread
   @param[in,out] reference  view column if this item was resolved to a
     view column
@@ -5603,6 +5629,21 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
 
+  if (table_ref) {
+    // This is a cloned field (used during condition pushdown to derived
+    // tables). It has table reference and the field too. Make a call to
+    // set_field() to ensure everything else gets set correctly.
+    TABLE_LIST *orig_table_ref = table_ref;
+    set_field(field);
+    // Note that the call to set_field() above would have set the "table_ref"
+    // derived from field's table which in most cases is same as the already
+    // set "table_ref". However, in case of update statements, while setting
+    // up update_tables, table references are changed. Since condition pushdown
+    // happens after this setup, we must make sure we set the original table
+    // reference for the field.
+    table_ref = orig_table_ref;
+    return false;
+  }
   if (!field)  // If field is not checked
   {
     /*
@@ -5846,7 +5887,7 @@ void Item_field::cleanup() {
   /*
     When TABLE is detached from TABLE_LIST, field pointers are invalid,
     unless field objects are created as part of statement (placeholder tables).
-    Also invalidate the orginal field name, since it is usually determined
+    Also invalidate the original field name, since it is usually determined
     from the field name in the Field object.
   */
   if (table_ref != nullptr && !table_ref->is_view_or_derived() &&
@@ -7144,7 +7185,7 @@ Item_json::~Item_json() = default;
 
 void Item_json::print(const THD *, String *str, enum_query_type) const {
   str->append("json'");
-  m_value->to_string(str, true, "");
+  m_value->to_string(str, true, "", JsonDocumentDefaultDepthHandler);
   str->append("'");
 }
 
@@ -7166,7 +7207,9 @@ longlong Item_json::val_int() { return m_value->coerce_int(item_name.ptr()); }
 
 String *Item_json::val_str(String *str) {
   str->length(0);
-  if (m_value->to_string(str, true, item_name.ptr())) return error_str();
+  if (m_value->to_string(str, true, item_name.ptr(),
+                         JsonDocumentDefaultDepthHandler))
+    return error_str();
   return str;
 }
 
@@ -7185,7 +7228,7 @@ bool Item_json::get_time(MYSQL_TIME *ltime) {
 Item *Item_json::clone_item() const {
   THD *const thd = current_thd;
   auto wr = make_unique_destroy_only<Json_wrapper>(thd->mem_root,
-                                                   m_value->clone_dom(thd));
+                                                   m_value->clone_dom());
   if (wr == nullptr) return nullptr;
   return new Item_json(std::move(wr), item_name);
 }
@@ -7397,7 +7440,7 @@ bool Item::cache_const_expr_analyzer(uchar **arg) {
 
       Check if such data can be cached:
       1) this item is constant
-      2) this item is an arg to a funciton
+      2) this item is an arg to a function
       3) it's a source of JSON data
       4) this item's type isn't JSON so conversion will be required
       5) it's not cached already
@@ -7424,7 +7467,7 @@ bool Item::cache_const_expr_analyzer(uchar **arg) {
     /*
       If this item will be cached, no need to explore items further down
       in the tree, but the transformer must be called, so return 'true'.
-      If this item will not be cached, items further doen in the tree
+      If this item will not be cached, items further down in the tree
       must be explored, so return 'true'.
     */
     return true;
@@ -9700,7 +9743,7 @@ bool Item_cache_json::cache_value() {
 
   if (value_cached && !null_value) {
     // the row buffer might change, so need own copy
-    m_value->to_dom(current_thd);
+    m_value->to_dom();
   }
   m_is_sorted = false;
   return value_cached;
@@ -9713,7 +9756,7 @@ void Item_cache_json::store_value(Item *expr, Json_wrapper *wr) {
   else {
     *m_value = *wr;
     // the row buffer might change, so need own copy
-    m_value->to_dom(current_thd);
+    m_value->to_dom();
   }
   m_is_sorted = false;
 }
@@ -9735,7 +9778,8 @@ inline static const char *whence(const Item_field *cached_field) {
 String *Item_cache_json::val_str(String *tmp) {
   if (has_value()) {
     tmp->length(0);
-    m_value->to_string(tmp, true, whence(cached_field));
+    m_value->to_string(tmp, true, whence(cached_field),
+                       JsonDocumentDefaultDepthHandler);
     return tmp;
   }
 
@@ -10184,7 +10228,7 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
       SELECT CONVERT("foo" USING utf8mb3);
 
     If we are in a prepared statement or a stored routine (any non-conventional
-    query that needs rollback of any item tree modifications), we neeed to
+    query that needs rollback of any item tree modifications), we need to
     remember what Item we changed ("foo" in this case) and where that Item is
     located (in the "args" array in this case) so we can roll back the changes
     done to the Item tree when the execution is done. When we enter the rollback
@@ -10218,7 +10262,7 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
 }
 
 /**
-  Calculate lenth for merging result for given Item type.
+  Calculate length for merging result for given Item type.
 
   @param item  Item for length detection
 
@@ -10689,8 +10733,10 @@ string ItemToString(const Item *item) {
   return to_string(str);
 }
 
-Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables) {
+Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables,
+                           bool replace, bool *found) {
   if (item_field->item_equal_all_join_nests == nullptr) {
+    *found = false;
     return item_field;
   }
 
@@ -10709,12 +10755,17 @@ Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables) {
 
     table_map item_field_used_tables = other_item_field.used_tables();
     if ((item_field_used_tables & reachable_tables) == item_field_used_tables) {
-      Item_field *new_item_field = new Item_field(current_thd, item_field);
-      new_item_field->reset_field(other_item_field.field);
-      return new_item_field;
+      *found = true;
+      if (replace) {
+        Item_field *new_item_field = new Item_field(current_thd, item_field);
+        new_item_field->reset_field(other_item_field.field);
+        return new_item_field;
+      } else {
+        return item_field;
+      }
     }
   }
-
+  *found = false;
   return item_field;
 }
 

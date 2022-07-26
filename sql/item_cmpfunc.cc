@@ -53,6 +53,7 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "sql-common/json_dom.h"  // Json_scalar_holder
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"  // current_thd
@@ -66,7 +67,6 @@
 #include "sql/item_sum.h"        // Item_sum_hybrid
 #include "sql/item_timefunc.h"   // Item_typecast_date
 #include "sql/join_optimizer/bit_utils.h"
-#include "sql/json_dom.h"  // Json_scalar_holder
 #include "sql/key.h"
 #include "sql/mysqld.h"  // log_10
 #include "sql/nested_join.h"
@@ -474,7 +474,7 @@ static Item *make_year_constant(Field *field) {
 
   @note
     This function may be called both at prepare and optimize stages.
-    Whne called at optimize stage, ensure that we record transient changes.
+    When called at optimize stage, ensure that we record transient changes.
 
   @returns false if success, true if error
 */
@@ -857,7 +857,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
 /**
   A minion of get_mysql_time_from_str, see its description.
   This version doesn't issue any warnings, leaving that to its parent.
-  This method has one extra argument which resturn warnings.
+  This method has one extra argument which return warnings.
 
   @param[in]   thd           Thread handle
   @param[in]   str           A string to convert
@@ -2362,6 +2362,7 @@ longlong Item_in_optimizer::val_int() {
 void Item_in_optimizer::cleanup() {
   DBUG_TRACE;
   Item_bool_func::cleanup();
+  result_for_null_param = UNKNOWN;
 }
 
 bool Item_in_optimizer::is_null() {
@@ -2888,8 +2889,8 @@ longlong Item_func_interval::val_int() {
       interval_range *range = intervals + mid;
       bool cmp_result;
       /*
-        The values in the range intervall may have different types,
-        Only do a decimal comparision of the first argument is a decimal
+        The values in the range interval may have different types,
+        Only do a decimal comparison of the first argument is a decimal
         and we are comparing against a decimal
       */
       if (dec && range->type == DECIMAL_RESULT)
@@ -2961,6 +2962,16 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref) {
   thd->lex->current_query_block()->between_count++;
 
   update_not_null_tables();
+
+  // if 'high' and 'low' are same, convert this to a _eq function
+  if (!negated && args[1]->const_item() && args[2]->const_item() &&
+      args[1]->eq(args[2], true)) {
+    Item *item = new (thd->mem_root) Item_func_eq(args[0], args[1]);
+    if (item == nullptr) return true;
+    item->item_name = item_name;
+    if (item->fix_fields(thd, ref)) return true;
+    *ref = item;
+  }
 
   return false;
 }
@@ -3996,7 +4007,7 @@ bool Item_func_case::resolve_type_inner(THD *thd) {
         If we'll do string comparison, we also need to aggregate
         character set and collation for first/WHEN items and
         install converters for some of them to cmp_collation when necessary.
-        This is done because cmp_item compatators cannot compare
+        This is done because cmp_item comparators cannot compare
         strings in two different character sets.
         Some examples when we install converters:
 
@@ -4020,7 +4031,7 @@ bool Item_func_case::resolve_type_inner(THD *thd) {
         return true;
       /*
         Now copy first expression and all WHEN expressions back to args[]
-        arrray, because some of the items might have been changed to converters
+        array, because some of the items might have been changed to converters
         (e.g. Item_func_conv_charset, or Item_string for constants).
       */
       change_item_tree_if_needed(&args[first_expr_num], agg[0]);
@@ -4535,7 +4546,7 @@ bool in_decimal::compare_elems(uint pos1, uint pos2) const {
   return base[pos1] != base[pos2];
 }
 
-cmp_item *cmp_item::get_comparator(Item_result result_type, const Item *item,
+cmp_item *cmp_item::get_comparator(Item_result result_type, Item *item,
                                    const CHARSET_INFO *cs) {
   switch (result_type) {
     case STRING_RESULT:
@@ -4552,11 +4563,11 @@ cmp_item *cmp_item::get_comparator(Item_result result_type, const Item *item,
     case REAL_RESULT:
       return new (*THR_MALLOC) cmp_item_real;
     case ROW_RESULT:
-      return new (*THR_MALLOC) cmp_item_row;
+      return new (*THR_MALLOC) cmp_item_row(current_thd, item);
     case DECIMAL_RESULT:
       return new (*THR_MALLOC) cmp_item_decimal;
     default:
-      assert(0);
+      assert(false);
       break;
   }
   return nullptr;  // to satisfy compiler :)
@@ -4665,10 +4676,6 @@ bool cmp_item_row::alloc_comparators(THD *thd, Item *item) {
     if (!(comparators[i] = cmp_item::get_comparator(
               item_i->result_type(), item_i, item_i->collation.collation)))
       return true;  // Allocation failed
-    if (item_i->result_type() == ROW_RESULT &&
-        static_cast<cmp_item_row *>(comparators[i])
-            ->alloc_comparators(thd, item_i))
-      return true;
   }
   return false;
 }
@@ -4987,7 +4994,6 @@ void Item_func_in::fix_after_pullout(Query_block *parent_query_block,
 
 bool Item_func_in::resolve_type(THD *thd) {
   if (Item_func_opt_neg::resolve_type(thd)) return true;
-  bool datetime_found = false;
   /* true <=> arguments values will be compared as DATETIMEs. */
   bool compare_as_datetime = false;
   Item *date_arg = nullptr;
@@ -5100,12 +5106,12 @@ bool Item_func_in::resolve_type(THD *thd) {
     }
     /* All DATE/DATETIME fields/functions has the STRING result type. */
     if (cmp_type == STRING_RESULT || cmp_type == ROW_RESULT) {
-      uint cols = args[0]->cols();
+      bool datetime_found = false;
+      uint num_cols = args[0]->cols();
       // Proper JSON comparison isn't yet supported if JSON is within a ROW
-      bool json_row_warning_printed = (cols > 1) ? false : true;
+      bool json_row_warning_printed = (num_cols == 1);
 
-      for (uint col = 0; col < cols; col++) {
-        bool skip_column = false;
+      for (uint col = 0; col < num_cols; col++) {
         /*
           Check that all items to be compared has the STRING result type and at
           least one of them is a DATE/DATETIME item.
@@ -5122,9 +5128,8 @@ bool Item_func_in::resolve_type(THD *thd) {
                 ER_THD(current_thd, ER_NOT_SUPPORTED_YET),
                 "comparison of JSON within a ROW in the IN operator");
           }
-          if (itm->result_type() != STRING_RESULT || skip_column) {
-            skip_column = true;
-            // If the warning wasn't printed yet, we need to continue scaning
+          if (itm->result_type() != STRING_RESULT) {
+            // If the warning wasn't printed yet, we need to continue scanning
             // through args to check whether one of them is JSON
             if (json_row_warning_printed)
               break;
@@ -5145,25 +5150,8 @@ bool Item_func_in::resolve_type(THD *thd) {
             }
           }
         }
-        if (skip_column) continue;
-        if (datetime_found) {
-          if (cmp_type == ROW_RESULT) {
-            cmp_item *cmp = new (thd->mem_root) cmp_item_datetime(date_arg);
-            if (cmp == nullptr) return true;
-            if (array) {
-              down_cast<in_row *>(array)->set_comparator(col, cmp);
-            } else {
-              down_cast<cmp_item_row *>(cmp_items[ROW_RESULT])
-                  ->set_comparator(col, cmp);
-            }
-
-            /* Reset variables for the next column. */
-            date_arg = nullptr;
-            datetime_found = false;
-          } else
-            compare_as_datetime = true;
-        }
       }
+      compare_as_datetime = (datetime_found && cmp_type != ROW_RESULT);
     }
   }
 
@@ -5637,11 +5625,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
   if (remove_condition) {
     new_item->fix_fields(thd, ref);
     used_tables_cache = 0;
-    if (func_type == COND_AND_FUNC && ignore_unknown())
-      not_null_tables_cache = 0;
-    else
-      not_null_tables_cache = ~(table_map)0;
-
+    not_null_tables_cache = 0;
     li.rewind();
     while ((item = li++)) {
       Cleanup_after_removal_context ctx(select);
@@ -5669,7 +5653,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
   on literal(s), we evaluate the item and based on the result, decide
   if the entire condition can be replaced with an ALWAYS TRUE or
   ALWAYS FALSE item.
-  For every constant conditon, if the result is true, then
+  For every constant condition, if the result is true, then
   for an OR condition we return an ALWAYS TRUE item. For an AND
   condition we return NULL if its not the only argument in the
   condition.
@@ -7390,6 +7374,10 @@ Item *Item_equal::equality_substitution_transformer(uchar *arg) {
 Item *Item_func_eq::equality_substitution_transformer(uchar *arg) {
   TABLE_LIST *sj_nest = reinterpret_cast<TABLE_LIST *>(arg);
 
+  // Skip if equality can be processed during materialization
+  if (((used_tables() & ~INNER_TABLE_BIT) & ~sj_nest->sj_inner_tables) == 0) {
+    return this;
+  }
   // Iterate over the fields selected from the subquery
   uint fieldno = 0;
   for (Item *existing : sj_nest->nested_join->sj_inner_exprs) {
@@ -7451,8 +7439,8 @@ bool Item_cond_and::contains_only_equi_join_condition() const {
 
 bool Item_func_comparison::contains_only_equi_join_condition() const {
   assert(arg_count == 2);
-  const Item *left_arg = arguments()[0];
-  const Item *right_arg = arguments()[1];
+  Item *left_arg = args[0];
+  Item *right_arg = args[1];
 
   const table_map left_arg_used_tables =
       left_arg->used_tables() & ~PSEUDO_TABLE_BITS;
@@ -7470,6 +7458,22 @@ bool Item_func_comparison::contains_only_equi_join_condition() const {
       my_count_bits(right_arg_used_tables) > 1) {
     return false;
   }
+
+  // We may have view references which are constants in the underlying
+  // derived tables but used_tables() might not reflect it because the
+  // merged derived table is an inner table of an outer join
+  // (Item_view_ref::used_tables()). Considering conditions having these
+  // constants as equi-join conditions is causing problems for secondary
+  // engine. So for now, we reject these.
+  if (left_arg->type() == Item::REF_ITEM &&
+      down_cast<Item_ref *>(left_arg)->ref_type() == Item_ref::VIEW_REF &&
+      (*(down_cast<Item_ref *>(left_arg)->ref))->used_tables() == 0)
+    return false;
+
+  if (right_arg->type() == Item::REF_ITEM &&
+      down_cast<Item_ref *>(right_arg)->ref_type() == Item_ref::VIEW_REF &&
+      (*(down_cast<Item_ref *>(right_arg)->ref))->used_tables() == 0)
+    return false;
 
   return functype() == EQ_FUNC;
 }
@@ -7874,59 +7878,97 @@ longlong Arg_comparator::extract_value_from_argument(THD *thd, Item *item,
   }
 }
 
+void find_and_adjust_equal_fields(Item *item, table_map available_tables,
+                                  bool replace, bool *found) {
+  WalkItem(item, enum_walk::PREFIX,
+           [available_tables, replace, found](Item *inner_item) {
+             if (inner_item->type() == Item::FUNC_ITEM) {
+               Item_func *func_item = down_cast<Item_func *>(inner_item);
+               for (uint i = 0; i < func_item->arg_count; ++i) {
+                 if (func_item->arguments()[i]->type() == Item::FIELD_ITEM) {
+                   func_item->arguments()[i] = FindEqualField(
+                       down_cast<Item_field *>(func_item->arguments()[i]),
+                       available_tables, replace, found);
+                   if (*found == false && !replace) return true;
+                 }
+               }
+             }
+             return false;
+           });
+}
+
 static void ensure_multi_equality_fields_are_available(
-    Item **args, int arg_idx, table_map available_tables) {
+    Item **args, int arg_idx, table_map available_tables, bool replace,
+    bool *found) {
   if (args[arg_idx]->type() == Item::FIELD_ITEM) {
-    // The argument we want to adjust is an Item_field. Create a new Item_field
-    // with a field that is reachable.
+    // The argument we want to find and adjust is an Item_field. Create a
+    // new Item_field with a field that is reachable if "replace" is
+    // set to true. Else, set "found" to true if a field is found.
     args[arg_idx] = FindEqualField(down_cast<Item_field *>(args[arg_idx]),
-                                   available_tables);
+                                   available_tables, replace, found);
   } else {
     // The argument is not a field item. Walk down the item tree and see if we
     // find any Item_field that needs adjustment.
-    args[arg_idx]->walk(
-        &Item::ensure_multi_equality_fields_are_available_walker,
-        enum_walk::PREFIX, pointer_cast<uchar *>(&available_tables));
+    find_and_adjust_equal_fields(args[arg_idx], available_tables, replace,
+                                 found);
   }
 }
 
 void Item_func_eq::ensure_multi_equality_fields_are_available(
-    table_map left_side_tables, table_map right_side_tables) {
+    table_map left_side_tables, table_map right_side_tables, bool replace,
+    bool *found) {
   table_map left_arg_used_tables = args[0]->used_tables();
   table_map right_arg_used_tables = args[1]->used_tables();
 
   if (left_arg_used_tables == 0 || right_arg_used_tables == 0) {
     // This is a filter, not a join condition.
+    *found = false;
     return;
   }
 
   if (IsSubset(left_arg_used_tables, left_side_tables) &&
-      !IsSubset(right_arg_used_tables, right_side_tables)) {
-    // The left argument matches the left side tables, so adjust the right side
-    // with an "equal" field from right side tables.
-    ::ensure_multi_equality_fields_are_available(args, /*arg_idx=*/1,
-                                                 right_side_tables);
+      IsSubset(right_arg_used_tables, right_side_tables)) {
+    // The left argument matches the left side tables, and the
+    // right one to the right side tables. This can stay
+    // on this join.
+    *found = true;
+  } else if (IsSubset(left_arg_used_tables, right_side_tables) &&
+             IsSubset(right_arg_used_tables, left_side_tables)) {
+    // The left argument matches the right side tables, and the
+    // right one to the left side tables. This can stay
+    // on this join.
+    *found = true;
+  } else if (IsSubset(left_arg_used_tables, left_side_tables) &&
+             !IsSubset(right_arg_used_tables, right_side_tables)) {
+    // The left argument matches the left side tables, so find an
+    // "equal" field from right side tables. Adjust the right side
+    // with the equal field if "replace" is set to true.
+    ::ensure_multi_equality_fields_are_available(
+        args, /*arg_idx=*/1, right_side_tables, replace, found);
   } else if (IsSubset(left_arg_used_tables, right_side_tables) &&
              !IsSubset(right_arg_used_tables, left_side_tables)) {
-    // The left argument matches the right side tables, so adjust the right side
-    // with an "equal" field from the left side tables.
-    ::ensure_multi_equality_fields_are_available(args, /*arg_idx=*/1,
-                                                 left_side_tables);
+    // The left argument matches the right side tables, so find an
+    // "equal" field from the left side tables. Adjust the right side
+    // with the equal field if "replace" is set to true.
+    ::ensure_multi_equality_fields_are_available(
+        args, /*arg_idx=*/1, left_side_tables, replace, found);
   } else if (IsSubset(right_arg_used_tables, left_side_tables) &&
              !IsSubset(left_arg_used_tables, right_side_tables)) {
-    // The right argument matches the left side tables, so adjust the left side
-    // with an "equal" field from the right side tables.
-    ::ensure_multi_equality_fields_are_available(args, /*arg_idx=*/0,
-                                                 right_side_tables);
+    // The right argument matches the left side tables, so find an
+    // "equal" field from the right side tables. Adjust the left side
+    // with the equal field if "replace" is set to true.
+    ::ensure_multi_equality_fields_are_available(
+        args, /*arg_idx=*/0, right_side_tables, replace, found);
   } else if (IsSubset(right_arg_used_tables, right_side_tables) &&
              !IsSubset(left_arg_used_tables, left_side_tables)) {
-    // The right argument matches the right side tables, so adjust the left side
-    // with an "equal" field from the left side tables.
-    ::ensure_multi_equality_fields_are_available(args, /*arg_idx=*/0,
-                                                 left_side_tables);
+    // The right argument matches the right side tables, so find an
+    // "equal" field from the left side tables. Adjust the left side
+    // with the equal field if "replace" is set to true.
+    ::ensure_multi_equality_fields_are_available(
+        args, /*arg_idx=*/0, left_side_tables, replace, found);
   }
 
   // We must update used_tables in case we replaced any of the fields in this
   // join condition.
-  update_used_tables();
+  if (replace) update_used_tables();
 }

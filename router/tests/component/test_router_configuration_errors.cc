@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ TEST_P(RouterTestBrokenConfig, ensure) {
 
   check_exit_code(router, EXIT_FAILURE);
 
-  EXPECT_THAT(router.get_full_logfile(),
+  EXPECT_THAT(router.get_logfile_content(),
               ::testing::HasSubstr(GetParam().expected_logfile_substring));
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr(GetParam().expected_stderr_substring));
@@ -468,7 +468,7 @@ TEST_P(UnreachableDestinationRefreshIntervalOption, ensure) {
 
   check_exit_code(router, EXIT_FAILURE);
 
-  EXPECT_THAT(router.get_full_logfile(),
+  EXPECT_THAT(router.get_logfile_content(),
               ::testing::HasSubstr(
                   "Configuration error: option "
                   "unreachable_destination_refresh_interval in [default] needs "

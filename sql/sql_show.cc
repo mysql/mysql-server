@@ -116,6 +116,7 @@
 #include "sql/sql_db.h"  // get_default_db_collation
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"  // QEP_TAB
+#include "sql/sql_gipk.h"      // table_has_generated_invisible_primary_key
 #include "sql/sql_lex.h"       // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
@@ -1183,7 +1184,8 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
   if (table_list->is_view())
     view_store_create_info(thd, table_list, &buffer);
   else if (store_create_info(thd, table_list, &buffer, nullptr,
-                             false /* show_database */))
+                             false /* show_database */,
+                             true /* SHOW CREATE TABLE */))
     goto exit;
 
   if (table_list->is_view()) {
@@ -1854,12 +1856,18 @@ static void print_foreign_key_info(THD *thd, const LEX_CSTRING *db,
                           that it is different from the current database.
                           If false, then do not print the database before
                           the table name.
+  @param for_show_create_stmt  If true, then build CREATE TABLE statement for
+                               SHOW CREATE TABLE statement. If false, then
+                               store_create_info() is invoked to build CREATE
+                               TABLE statement while logging event to binlog.
+
 
   @returns true if error, false otherwise.
 */
 
 bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                       HA_CREATE_INFO *create_info_arg, bool show_database) {
+                       HA_CREATE_INFO *create_info_arg, bool show_database,
+                       bool for_show_create_stmt) {
   char tmp[MAX_FIELD_WIDTH], buff[128], def_value_buf[MAX_FIELD_WIDTH];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
@@ -1938,13 +1946,34 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     });
   }
 
-  for (ptr = table->field; (field = *ptr); ptr++) {
+  /*
+    When building CREATE TABLE statement for the SHOW CREATE TABLE (i.e.
+    for_show_create_stmt = true), skip generated invisible primary key
+    if system variable 'show_gipk_in_create_table_and_information_schema' is set
+    to OFF.
+  */
+  bool skip_gipk =
+      (for_show_create_stmt &&
+       table_has_generated_invisible_primary_key(table) &&
+       !thd->variables.show_gipk_in_create_table_and_information_schema);
+
+  Field **first_field = table->field;
+  /*
+    Generated invisible primary key column is placed at the first position.
+    So skip first column when skip_gipk is set.
+  */
+  assert(!table_has_generated_invisible_primary_key(table) ||
+         is_generated_invisible_primary_key_column_name(
+             (*first_field)->field_name));
+  if (skip_gipk) first_field++;
+
+  for (ptr = first_field; (field = *ptr); ptr++) {
     // Skip hidden system fields.
     if (field->is_hidden_by_system()) continue;
 
     enum_field_types field_type = field->real_type();
 
-    if (ptr != table->field) packet->append(STRING_WITH_LEN(",\n"));
+    if (ptr != first_field) packet->append(STRING_WITH_LEN(",\n"));
 
     packet->append(STRING_WITH_LEN("  "));
     append_identifier(thd, packet, field->field_name,
@@ -2096,12 +2125,22 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   key_info = table->key_info;
+  /*
+    Primary key is always at the first position in the keys list. Skip printing
+    primary key definition when skip_gipk is set.
+  */
+  assert(!table_has_generated_invisible_primary_key(table) ||
+         ((key_info->user_defined_key_parts == 1) &&
+          is_generated_invisible_primary_key_column_name(
+              key_info->key_part->field->field_name)));
+  if (skip_gipk) key_info++;
+
   /* Allow update_create_info to update row type */
   create_info.row_type = share->row_type;
   file->update_create_info(&create_info);
   primary_key = share->primary_key;
 
-  for (uint i = 0; i < share->keys; i++, key_info++) {
+  for (uint i = skip_gipk ? 1 : 0; i < share->keys; i++, key_info++) {
     KEY_PART_INFO *key_part = key_info->key_part;
     bool found_primary = false;
     packet->append(STRING_WITH_LEN(",\n  "));
@@ -2285,13 +2324,17 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       and NEXT_ID > 1 (the default).  We must not print the clause
       for engines that do not support this as it would break the
       import of dumps, but as of this writing, the test for whether
-      AUTO_INCREMENT columns are allowed and wether AUTO_INCREMENT=...
+      AUTO_INCREMENT columns are allowed and whether AUTO_INCREMENT=...
       is supported is identical, !(file->table_flags() & HA_NO_AUTO_INCREMENT))
       Because of that, we do not explicitly test for the feature,
       but may extrapolate its existence from that of an AUTO_INCREMENT column.
+
+      If table has a generated invisible primary key and skip_gipk is set,
+      then we should not print the AUTO_INCREMENT as AUTO_INCREMENT column
+      (generated invisible primary key column) is skipped with this setting.
     */
 
-    if (create_info.auto_increment_value > 1) {
+    if (create_info.auto_increment_value > 1 && !skip_gipk) {
       char *end;
       packet->append(STRING_WITH_LEN(" AUTO_INCREMENT="));
       end = longlong10_to_str(create_info.auto_increment_value, buff, 10);
@@ -2354,7 +2397,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       end = longlong10_to_str(share->stats_sample_pages, buff, 10);
       packet->append(buff, (uint)(end - buff));
     }
-    /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
+    /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compatibility */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
@@ -2403,7 +2446,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                          share->encrypt_type.length);
       } else {
         /*
-          We print ENCRYPTION='N' only incase user did not explicitly
+          We print ENCRYPTION='N' only in case user did not explicitly
           provide ENCRYPTION clause and schema has default_encryption 'Y'.
           In other words, if there is no ENCRYPTION clause supplied, then
           it is always unencrypted table. Server always maintains
@@ -2656,19 +2699,14 @@ static const char *thread_state_info(THD *invoking_thd, THD *inspected_thd) {
   if (inspected_thd->get_protocol()->get_rw_status()) {
     if (inspected_thd->get_protocol()->get_rw_status() == 2)
       return "Sending to client";
-    else if (inspected_thd->get_command() == COM_SLEEP)
-      return "";
-    else
-      return "Receiving from client";
+    if (inspected_thd->get_command() == COM_SLEEP) return "";
+    return "Receiving from client";
   } else {
     MUTEX_LOCK(lock, &inspected_thd->LOCK_current_cond);
     const char *proc_info = inspected_thd->proc_info_session(invoking_thd);
-    if (proc_info)
-      return proc_info;
-    else if (inspected_thd->current_cond.load())
-      return "Waiting on cond";
-    else
-      return nullptr;
+    if (proc_info) return proc_info;
+    if (inspected_thd->current_cond.load()) return "Waiting on cond";
+    return nullptr;
   }
 }
 
@@ -3817,6 +3855,21 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
   show_table->use_all_columns();  // Required for default
   restore_record(show_table, s->default_values);
 
+  /*
+    If a primary key is generated for the table then hide definition of a
+    generated invisible primary key when system variable
+    show_gipk_in_create_table_and_information_schema is set to OFF.
+  */
+  if (table_has_generated_invisible_primary_key(show_table) &&
+      !thd->variables.show_gipk_in_create_table_and_information_schema) {
+    /*
+      Generated invisible primary key column is placed at the first position.
+      So skip first column.
+    */
+    assert(is_generated_invisible_primary_key_column_name((*ptr)->field_name));
+    ptr++;
+  }
+
   for (; (field = *ptr); ptr++) {
     const uchar *pos;
     char tmp[MAX_FIELD_WIDTH];
@@ -4032,7 +4085,26 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
     show_table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK |
                            HA_STATUS_TIME);
 
-  for (uint i = 0; i < show_table->s->keys; i++, key_info++) {
+  uint i = 0;
+  /*
+    If a primary key is generated for the table then hide definition of a
+    generated invisible primary key when system variable
+    show_gipk_in_create_table_and_information_schema is set to OFF.
+  */
+  if (table_has_generated_invisible_primary_key(show_table) &&
+      !thd->variables.show_gipk_in_create_table_and_information_schema) {
+    /*
+      Primary key is always at the first position in the keys list. Skip
+      printing primary key definition.
+    */
+    assert((key_info->user_defined_key_parts == 1) &&
+           (is_generated_invisible_primary_key_column_name(
+               key_info->key_part->field->field_name)));
+    i++;
+    key_info++;
+  }
+
+  for (; i < show_table->s->keys; i++, key_info++) {
     KEY_PART_INFO *key_part = key_info->key_part;
     const char *str;
     for (uint j = 0; j < key_info->user_defined_key_parts; j++, key_part++) {
@@ -4237,7 +4309,7 @@ struct schema_table_ref {
 };
 
 /*
-  Find schema_tables elment by name
+  Find schema_tables element by name
 
   SYNOPSIS
     find_schema_table_in_plugin()
@@ -4250,7 +4322,7 @@ struct schema_table_ref {
 */
 static bool find_schema_table_in_plugin(THD *, plugin_ref plugin,
                                         void *p_table) {
-  schema_table_ref *p_schema_table = (schema_table_ref *)p_table;
+  auto *p_schema_table = (schema_table_ref *)p_table;
   const char *table_name = p_schema_table->table_name;
   ST_SCHEMA_TABLE *schema_table = plugin_data<ST_SCHEMA_TABLE *>(plugin);
   DBUG_TRACE;
@@ -4265,7 +4337,7 @@ static bool find_schema_table_in_plugin(THD *, plugin_ref plugin,
 }
 
 /*
-  Find schema_tables elment by name
+  Find schema_tables element by name
 
   SYNOPSIS
     find_schema_table()
@@ -4699,8 +4771,7 @@ struct run_hton_fill_schema_table_args {
 };
 
 static bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin, void *arg) {
-  struct run_hton_fill_schema_table_args *args =
-      (run_hton_fill_schema_table_args *)arg;
+  auto *args = (run_hton_fill_schema_table_args *)arg;
   handlerton *hton = plugin_data<handlerton *>(plugin);
   if (hton->fill_is_table && hton->state == SHOW_OPTION_YES)
     hton->fill_is_table(hton, thd, args->tables, args->cond,
@@ -4762,7 +4833,7 @@ ST_FIELD_INFO tmp_table_keys_fields_info[] = {
 
 /**
   Grantee is of form 'user'@'hostname', so add +1 for '@' and +4 for the
-  single qoutes.
+  single quotes.
 */
 static const int GRANTEE_MAX_CHAR_LENGTH =
     USERNAME_CHAR_LENGTH + 1 + HOSTNAME_LENGTH + 4;
@@ -5336,7 +5407,6 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
       ptr++;
     }
   }
-  return;
 }
 
 /**

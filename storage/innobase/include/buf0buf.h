@@ -33,11 +33,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef buf0buf_h
 #define buf0buf_h
 
-#include "buf0dblwr.h"
 #include "buf0types.h"
 #include "fil0fil.h"
 #include "hash0hash.h"
-#include "log0log.h"
 #include "mtr0types.h"
 #include "os0proc.h"
 #include "page0types.h"
@@ -678,10 +676,20 @@ void buf_refresh_io_stats_all();
 /** Assert that all file pages in the buffer are in a replaceable state. */
 void buf_must_be_all_freed(void);
 
-/** Checks that there currently are no pending i/o-operations for the buffer
-pool.
-@return number of pending i/o */
-ulint buf_pool_check_no_pending_io(void);
+/** Computes number of pending I/O read operations for the buffer pool.
+@return number of pending i/o reads */
+size_t buf_pool_pending_io_reads_count();
+
+/** Computes number of pending I/O write operations for the buffer pool.
+@return number of pending i/o writes */
+size_t buf_pool_pending_io_writes_count();
+
+/** Waits until there are no pending I/O read operations for the buffer pool.
+Keep waiting in loop with sleeps, emitting information every minute.
+This is used to avoid risk of some pending async read (e.g. enqueued by
+the linear read-ahead), which would involve ibuf merge and create new
+redo records. */
+void buf_pool_wait_for_no_pending_io_reads();
 
 /** Invalidates the file pages in the buffer pool when an archive recovery is
  completed. All the file pages buffered must be in a replaceable state when
@@ -851,7 +859,7 @@ the memory pointed by it. Thus calling this function requires holding at least
 one of the latches which prevent freeing memory from buffer pool for the
 duration of the call and until you pin the block in some other way, as otherwise
 the result of this function might be obsolete by the time you dereference the
-block (an s-latch on buf_page_hash_lock_get for any bucket is enough).
+block (an s-latch on buf_page_hash_lock_get for any hash cell is enough).
 @param  buf_pool    The buffer pool instance to search in.
 @param  ptr         A pointer which you want to check. This function will not
                     dereference it.
@@ -1690,18 +1698,18 @@ struct buf_block_t {
   /** @{ */
 
   /** Counter which controls building of a new hash index for the page */
-  uint32_t n_hash_helps;
+  std::atomic<uint32_t> n_hash_helps;
 
   /** Recommended prefix length for hash search: number of bytes in an
   incomplete last field */
-  volatile uint32_t n_bytes;
+  std::atomic<uint32_t> n_bytes;
 
   /** Recommended prefix length for hash search: number of full fields */
-  volatile uint32_t n_fields;
+  std::atomic<uint32_t> n_fields;
 
   /** true or false, depending on whether the leftmost record of several
   records with the same prefix should be indexed in the hash index */
-  volatile bool left_side;
+  std::atomic<bool> left_side;
   /** @} */
 
   /** @name Hash search fields
@@ -1720,7 +1728,7 @@ struct buf_block_t {
   assigning block->index = NULL (and block->n_pointers = 0)
   is allowed whenever btr_search_own_all(RW_LOCK_X).
 
-  Another exception is that ha_insert_for_fold_func() may
+  Another exception is that ha_insert_for_hash_func() may
   decrement n_pointers without holding the appropriate latch
   in btr_search_latches[]. Thus, n_pointers must be
   protected by atomic memory access.
@@ -1869,13 +1877,14 @@ inline bool buf_block_state_valid(buf_block_t *block) {
          buf_block_get_state(block) <= BUF_BLOCK_REMOVE_HASH;
 }
 
-/** Compute the hash fold value for blocks in buf_pool->zip_hash. */
+/** Compute the hash value for blocks in buf_pool->zip_hash. */
 /** @{ */
-inline ulint BUF_POOL_ZIP_FOLD_PTR(void *ptr) {
-  return (ulint)(ptr) / UNIV_PAGE_SIZE;
+static inline uint64_t buf_pool_hash_zip_frame(void *ptr) {
+  return ut::hash_uint64(reinterpret_cast<uintptr_t>(ptr) >>
+                         UNIV_PAGE_SIZE_SHIFT);
 }
-inline ulint BUF_POOL_ZIP_FOLD(buf_block_t *b) {
-  return BUF_POOL_ZIP_FOLD_PTR(b->frame);
+static inline uint64_t buf_pool_hash_zip(buf_block_t *b) {
+  return buf_pool_hash_zip_frame(b->frame);
 }
 /** @} */
 
@@ -2234,7 +2243,7 @@ struct buf_pool_t {
   /** Old statistics */
   buf_pool_stat_t old_stat;
 
-  /* @} */
+  /** @} */
 
   /** @name Page flushing algorithm fields */
 
@@ -2294,7 +2303,7 @@ struct buf_pool_t {
   /** Maximum LSN for which write io has already started. */
   lsn_t max_lsn_io;
 
-  /* @} */
+  /** @} */
 
   /** @name LRU replacement algorithm fields */
   /** @{ */
@@ -2434,20 +2443,20 @@ Use these instead of accessing buffer pool mutexes directly. */
 /** Get appropriate page_hash_lock. */
 inline rw_lock_t *buf_page_hash_lock_get(const buf_pool_t *buf_pool,
                                          const page_id_t page_id) {
-  return hash_get_lock(buf_pool->page_hash, page_id.fold());
+  return hash_get_lock(buf_pool->page_hash, page_id.hash());
 }
 
 /** If not appropriate page_hash_lock, relock until appropriate. */
 inline rw_lock_t *buf_page_hash_lock_s_confirm(rw_lock_t *hash_lock,
                                                const buf_pool_t *buf_pool,
                                                const page_id_t page_id) {
-  return hash_lock_s_confirm(hash_lock, buf_pool->page_hash, page_id.fold());
+  return hash_lock_s_confirm(hash_lock, buf_pool->page_hash, page_id.hash());
 }
 
 inline rw_lock_t *buf_page_hash_lock_x_confirm(rw_lock_t *hash_lock,
                                                buf_pool_t *buf_pool,
                                                const page_id_t &page_id) {
-  return hash_lock_x_confirm(hash_lock, buf_pool->page_hash, page_id.fold());
+  return hash_lock_x_confirm(hash_lock, buf_pool->page_hash, page_id.hash());
 }
 #endif /* !UNIV_HOTBACKUP */
 

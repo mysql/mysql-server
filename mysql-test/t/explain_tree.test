@@ -587,10 +587,112 @@ EXPLAIN FORMAT=TREE DELETE t FROM t WHERE 0=1;
 # Demonstrates EXPLAIN ANALYZE on a DELETE statement.
 --replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
 EXPLAIN ANALYZE DELETE t1 FROM t t1, t t2 WHERE t1.x = t2.x + 1;
-# Should EXPLAIN ANALYZE DELETE actually delete rows? Currently, it
-# does not. (And EXPLAIN ANALYZE UPDATE/INSERT don't modify the table
-# either.)
+# EXPLAIN ANALYZE DELETE should delete rows. Currently, it does not.
+# (And EXPLAIN ANALYZE UPDATE/INSERT don't modify the table either.)
+# Tracked in bug#33962407.
 --sorted_result
 SELECT * FROM t;
 
 DROP TABLE t;
+
+--echo #
+--echo # WL#14672: Enable the hypergraph optimizer for UPDATE
+--echo #
+
+CREATE TABLE t(x INTEGER, y INTEGER);
+INSERT INTO t VALUES (1, 2), (2, 3), (3, 4);
+ANALYZE TABLE t;
+
+# Demonstrates EXPLAIN ANALYZE on an UPDATE statement.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE UPDATE t t1, t t2 SET t1.x = t2.y WHERE t1.x = t2.x;
+# EXPLAIN ANALYZE UPDATE should update rows. Currently, it does not.
+# (And EXPLAIN ANALYZE INSERT/DELETE don't modify the table either.)
+# Tracked in bug#33962407.
+--sorted_result
+SELECT * FROM t;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#33905399 Missing profiling data for CTE
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (1,1);
+ANALYZE TABLE t1;
+
+# Only second CTE reference evaluated.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=10*d2.a JOIN tx ON d2.b=i1) UNION
+SELECT 2 FROM tx;
+
+# Only second CTE reference evaluated (and no 'ANALYZE').
+EXPLAIN FORMAT=TREE
+WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1) UNION
+SELECT 2 FROM tx;
+
+# Only first CTE reference evaluated.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
+SELECT 2 FROM tx UNION
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1);
+
+# Both CTE references evaluated.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
+SELECT 2 FROM tx UNION
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=d2.a JOIN tx ON d2.b=i1);
+
+# No CTE reference evaluated.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=10*d2.a JOIN tx ON d2.b=i1) UNION
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1);
+
+# CTE executed in subquery only.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
+SELECT * FROM x1 y1 WHERE y1.m1 = (SELECT MAX(m1) FROM x1);
+
+--echo #
+--echo #  Bug#34051681 mysqld asan crash at ExplainMaterializeAccessPath
+--echo #
+# CTE in subquery never executed.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
+SELECT * FROM t1 y1 LEFT JOIN t1 y2 ON y1.a=-y2.a
+WHERE y1.b+y2.b = (SELECT MAX(m1) FROM x1);
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #34135465 	EXPLAIN ANALYZE: 'Aggregate using temporary table'
+--echo # shows wrong number of rows
+--echo #
+
+CREATE TABLE t1(i INT, j INT);
+INSERT INTO t1 VALUES (0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1),(2,2);
+ANALYZE TABLE t1;
+
+# Check that we get the right row count for "Aggregate using temporary table".
+# We aggregate three rows in a temporary table even if we just read two of them.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE INSERT INTO t1 SELECT 4, SUM(i) k1 FROM t1 GROUP BY j LIMIT 2;
+
+# Check that we get the right row count for "Materialize CTE".
+# We materialize three rows even if we just read two of them.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE WITH cte AS (SELECT SUM(i) k1 FROM t1 GROUP BY j)
+SELECT * FROM cte LIMIT 2;
+
+DROP TABLE t1;

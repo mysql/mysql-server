@@ -6,7 +6,7 @@
 # In this scenario, we create a LOB which does not fit in the buffer pool, thus
 # the rollback has to be smart about managing pages.
 # In particular a buggy implementaiton which tries to keep all pages of the LOB
-# in the memory until mini transaction commits, will deadlock with itself at
+# in the memory until mini-transaction commits, will deadlock with itself at
 # some point when trying to fetch next page of the LOB from storage to already
 # fully saturated buffer pool.
 

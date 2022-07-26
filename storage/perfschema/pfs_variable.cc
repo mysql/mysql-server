@@ -96,7 +96,6 @@ bool PFS_system_variable_cache::init_show_var_array(enum_var_type scope,
   mysql_mutex_assert_not_owner(&LOCK_plugin);
 #endif
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  DEBUG_SYNC(m_current_thd, "acquired_LOCK_system_variables_hash");
 
   /* Record the system variable hash version to detect subsequent changes. */
   m_version = get_dynamic_system_variable_hash_version();

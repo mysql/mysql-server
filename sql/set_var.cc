@@ -234,7 +234,7 @@ bool check_priv(THD *thd, bool static_variable) {
                    add_static_system_variable_chain() or
                    add_dynamic_system_variable_chain()
   @param name_arg  the name of the variable. Must be 0-terminated and exist
-                   for the liftime of the sys_var object. @sa my_option::name
+                   for the lifetime of the sys_var object. @sa my_option::name
   @param comment   shown in mysqld --help, @sa my_option::comment
   @param flags_arg or'ed flag_enum values
   @param off       offset of the global variable value from the
@@ -865,7 +865,7 @@ System_variable_tracker System_variable_tracker::make_tracker(
   }
 
   /*
-    2. 2D (qualified) system vairable names:
+    2. 2D (qualified) system variable names:
   */
 
   /*
@@ -1763,7 +1763,7 @@ void set_var::update_source_user_host_timestamp(THD *thd, sys_var *var) {
   @returns 0|1    ok or ERROR
 
   @note ERROR can be only due to abnormal operations involving
-  the server's execution evironment such as
+  the server's execution environment such as
   out of memory, hard disk failure or the computer blows up.
   Consider set_var::check() method if there is a need to return
   an error due to logics.

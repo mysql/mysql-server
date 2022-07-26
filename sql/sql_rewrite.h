@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,11 +41,11 @@ enum class Consumer_type {
 };
 
 /**
-  An interface to wrap the paramters required by specific Rewriter.
+  An interface to wrap the parameters required by specific Rewriter.
   Parameters required by specific Rewriter must be added in the concrete
   implementation.
   Clients need to wrap the parameters in specific concrete object.
-  The Rewrite_params objects is not expected to change and passed around as
+  The Rewrite_params objects are not expected to change and are passed around as
   const objects.
 */
 class Rewrite_params {
@@ -171,7 +171,7 @@ class Rewriter_user : public I_rewriter {
   bool rewrite(String &rlb) const override;
   /*
     Abstract method to be implemented by the concrete classes.
-    The implementation methos should add the user authID, plugin info and
+    The implementation methods should add the user authID, plugin info and
     auth str
   */
   virtual void append_user_auth_info(LEX_USER *user, bool comma,

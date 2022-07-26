@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -716,7 +716,7 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
             if (*page_size + key_length >=
                 rt_PAGE_MIN_SIZE(keyinfo->block_length)) {
               /* OK */
-              /* Calculate a new key value (MBR) for the shrinked block. */
+              /* Calculate a new key value (MBR) for the shrunk block. */
               if (rtree_set_key_mbr(info, keyinfo, k, key_length,
                                     _mi_kpos(nod_flag, k)))
                 goto err1;

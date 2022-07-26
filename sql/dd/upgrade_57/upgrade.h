@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ namespace upgrade_57 {
 
   If the dictionary tables are present, continue with restart of the server.
 
-  If the dicionary tables are not present, create the dictionary tables in
+  If the dictionary tables are not present, create the dictionary tables in
   existing data directory.  This function marks dd_upgrade_flag as true to
   indicate to the server that Data dictionary is being upgraded.
 
@@ -91,7 +91,7 @@ bool in_progress();
 bool allow_sdi_creation();
 
 /**
-  Class to manage a temporary file to maintain the progess of the
+  Class to manage a temporary file to maintain the progress of the
   upgrade. This file will help in error handling for crashes
   during upgrade. After upgrade is successful, this file will be
   deleted.

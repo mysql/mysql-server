@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,8 @@ public:
 
   int length() const { assert(Uint64(len) == Uint32(len)); return (int)len; }
 
-  void *get_data() const { return data; }
+  void *get_data() { return data; }
+  const void *get_data() const { return data; }
 
   bool empty () const { return len == 0; }
 

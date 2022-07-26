@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,7 +337,7 @@ class Opt_trace_context {
     /**
        List of remembered traces for putting into the OPTIMIZER_TRACE
        table. Element 0 is the one created first, will be first row of
-       OPTIMIZER_TRACE table. The array structure fullfills those needs:
+       OPTIMIZER_TRACE table. The array structure fulfills those needs:
        - to output traces "oldest first" in OPTIMIZER_TRACE
        - to preserve traces "newest first" when @@@@optimizer_trace_offset<0
        - to delete a trace in the middle of the list when it is permanently

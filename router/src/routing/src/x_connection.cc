@@ -40,6 +40,8 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqlrouter/classic_protocol_wire.h"
+#include "mysqlrouter/connection_pool_component.h"
+#include "mysqlrouter/routing_component.h"
 #include "router/src/routing/src/ssl_mode.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -743,17 +745,59 @@ void MysqlRoutingXConnection::connect() {
   if (!connect_res) {
     const auto ec = connect_res.error();
 
-    if (ec == make_error_condition(std::errc::operation_in_progress) ||
-        ec == make_error_condition(std::errc::operation_would_block)) {
-      connector.socket().async_wait(net::socket_base::wait_write,
-                                    [this](std::error_code ec) {
-                                      if (ec) {
-                                        return;
-                                      }
-                                      call_next_function(Function::kConnect);
-                                    });
+    // We need to keep the disconnect_mtx_ while the async handlers are being
+    // set up in order not to miss the disconnect request. Otherwise we could
+    // end up blocking for the whole 'destination_connect_timeout' duration
+    // before giving up the connection.
+    std::lock_guard<std::mutex> lk(disconnect_mtx_);
+    if ((!disconnect_) &&
+        (ec == make_error_condition(std::errc::operation_in_progress) ||
+         ec == make_error_condition(std::errc::operation_would_block))) {
+      auto &t = connector.timer();
+      t.expires_after(context().get_destination_connect_timeout());
+
+      t.async_wait([this](std::error_code ec) {
+        if (ec) {
+          return;
+        }
+
+        this->connector().connect_timed_out(true);
+        this->connector().socket().cancel();
+      });
+
+      connector.socket().async_wait(
+          net::socket_base::wait_write, [this](std::error_code ec) {
+            if (ec) {
+              if (this->connector().connect_timed_out()) {
+                // the connector will handle this.
+                return call_next_function(Function::kConnect);
+              } else {
+                return call_next_function(Function::kFinish);
+              }
+            }
+            this->connector().timer().cancel();
+
+            return call_next_function(Function::kConnect);
+          });
 
       return;
+    }
+
+    // close the server side.
+    this->connector().socket().close();
+
+    if (ec == std::errc::no_such_file_or_directory) {
+      MySQLRoutingComponent::get_instance()
+          .api(context().get_id())
+          .stop_socket_acceptors();
+    } else if (ec == make_error_condition(std::errc::too_many_files_open) ||
+               ec == make_error_condition(
+                         std::errc::too_many_files_open_in_system)) {
+      // release file-descriptors on the connection pool when out-of-fds is
+      // noticed.
+      //
+      // don't retry as router may run into an infinite loop.
+      ConnectionPoolComponent::get_instance().clear();
     }
 
     log_fatal_error_code("connecting to backend failed", ec);
@@ -3037,17 +3081,22 @@ void MysqlRoutingXConnection::finish() {
   auto &client_socket = this->socket_splicer()->client_conn();
   auto &server_socket = this->socket_splicer()->server_conn();
 
+  if (server_socket.is_open() && !client_socket.is_open()) {
 #if 0
-  if (server_socket.is_open() && !client_socket.is_open() &&
-      !client_greeting_sent_) {
-    // client hasn't sent a greeting to the server. The server would track
-    // this as "connection error" and block the router. Better send our own
-    // client-greeting.
-    client_greeting_sent_ = true;
-    return server_side_client_greeting();
-  }
+    if (!client_greeting_sent_) {
+      // client hasn't sent a greeting to the server. The server would track
+      // this as "connection error" and block the router. Better send our own
+      // client-greeting.
+      client_greeting_sent_ = true;
+      return server_side_client_greeting();
+    } else {
 #endif
-
+    // if the server is waiting on something, as client is already gone.
+    (void)server_socket.cancel();
+  } else if (!server_socket.is_open() && client_socket.is_open()) {
+    // if the client is waiting on something, as server is already gone.
+    (void)client_socket.cancel();
+  }
   if (active_work_ == 0) {
     if (server_socket.is_open()) {
       (void)server_socket.shutdown(net::socket_base::shutdown_send);

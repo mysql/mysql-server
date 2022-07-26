@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <vector>
 
@@ -116,12 +117,12 @@ class HARNESS_EXPORT Path {
    * Construct a path
    *
    * @param path Non-empty string denoting the path.
+   * @throws std::invalid_argument
    */
-  /** @overload */                // throws std::invalid_argument
-  Path(const std::string &path);  // NOLINT(runtime/explicit)
+  Path(std::string path);
 
-  /** @overload */         // throws std::invalid_argument
-  Path(const char *path);  // NOLINT(runtime/explicit)
+  Path(std::string_view path) : Path(std::string(path)) {}
+  Path(const char *path) : Path(std::string(path)) {}
 
   /**
    * Create a path from directory, basename, and extension.
@@ -239,9 +240,6 @@ class HARNESS_EXPORT Path {
    * @param other Path component to be appended to the path
    */
   Path join(const Path &other) const;
-
-  /** @overload */
-  Path join(const char *other) const { return join(Path(other)); }
 
   /**
    * Returns the canonical form of the path, resolving relative paths.

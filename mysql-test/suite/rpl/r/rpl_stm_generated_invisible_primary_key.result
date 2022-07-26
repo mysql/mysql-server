@@ -1,0 +1,20 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @saved_session_sql_generate_invisible_primary_key = @@session.sql_generate_invisible_primary_key;
+SET SESSION sql_generate_invisible_primary_key = ON;
+# Verify CREATE TABLE ... SELECT without an explicit primary key.
+# An error is generated in this case.
+CREATE TABLE t1(f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 10), (2, 20);
+CREATE TABLE t2 AS SELECT * FROM t1;
+ERROR HY000: Generating an invisible primary key for a table created using CREATE TABLE ... SELECT ... is disallowed when binlog_format=STATEMENT. It cannot be guaranteed that the SELECT retrieves rows in the same order on source and replica. Therefore, it cannot be guaranteed that the value generated for the generated implicit primary key column will be the same on source and replica for all rows. Use binlog_format=ROW or MIXED to execute this statement.
+CREATE TEMPORARY TABLE t2 AS SELECT * FROM t1;
+ERROR HY000: Generating an invisible primary key for a table created using CREATE TABLE ... SELECT ... is disallowed when binlog_format=STATEMENT. It cannot be guaranteed that the SELECT retrieves rows in the same order on source and replica. Therefore, it cannot be guaranteed that the value generated for the generated implicit primary key column will be the same on source and replica for all rows. Use binlog_format=ROW or MIXED to execute this statement.
+[connection master]
+DROP TABLE t1;
+SET SESSION sql_generate_invisible_primary_key =
+@saved_session_sql_generate_invisible_primary_key;
+include/rpl_end.inc

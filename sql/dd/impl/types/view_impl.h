@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -255,6 +255,9 @@ class View_impl : public Abstract_table_impl, public View {
     Abstract_table_impl::set_last_altered(last_altered);
   }
   Column *add_column() override { return Abstract_table_impl::add_column(); }
+  bool drop_column(const String_type &name) override {
+    return Abstract_table_impl::drop_column(name);
+  }
   const Column_collection &columns() const override {
     return Abstract_table_impl::columns();
   }

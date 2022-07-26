@@ -47,7 +47,6 @@
 #include "sql/transaction.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/include/ndbapi/ndb_cluster_connection.hpp"
-#include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"
 #include "storage/ndb/plugin/ndb_anyvalue.h"
 #include "storage/ndb/plugin/ndb_apply_status_table.h"
@@ -56,6 +55,7 @@
 #include "storage/ndb/plugin/ndb_binlog_thread.h"
 #include "storage/ndb/plugin/ndb_bitmap.h"
 #include "storage/ndb/plugin/ndb_blobs_buffer.h"
+#include "storage/ndb/plugin/ndb_conflict.h"
 #include "storage/ndb/plugin/ndb_dd.h"
 #include "storage/ndb/plugin/ndb_dd_client.h"
 #include "storage/ndb/plugin/ndb_dd_disk_data.h"
@@ -69,6 +69,7 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_mysql_services.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
+#include "storage/ndb/plugin/ndb_ndbapi_errors.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_repl_tab.h"
 #include "storage/ndb/plugin/ndb_require.h"
@@ -77,11 +78,14 @@
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
 #include "storage/ndb/plugin/ndb_schema_object.h"
 #include "storage/ndb/plugin/ndb_schema_result_table.h"
+#include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_sleep.h"
 #include "storage/ndb/plugin/ndb_stored_grants.h"
 #include "storage/ndb/plugin/ndb_table_guard.h"
+#include "storage/ndb/plugin/ndb_table_map.h"
 #include "storage/ndb/plugin/ndb_tdc.h"
 #include "storage/ndb/plugin/ndb_thd.h"
+#include "storage/ndb/plugin/ndb_thd_ndb.h"
 #include "storage/ndb/plugin/ndb_upgrade_util.h"
 
 typedef NdbDictionary::Event NDBEVENT;
@@ -1846,7 +1850,8 @@ class Ndb_schema_event_handler {
     if (!schema_dist_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
-      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
+      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code ==
+                             NDB_ERR_CLUSTER_FAILURE);
       return 1;
     }
     const NdbDictionary::Table *ndbtab = schema_dist_table.get_table();
@@ -1997,7 +2002,8 @@ class Ndb_schema_event_handler {
     if (!schema_dist_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
-      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
+      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code ==
+                             NDB_ERR_CLUSTER_FAILURE);
       return 1;
     }
     const NdbDictionary::Table *ndbtab = schema_dist_table.get_table();
@@ -2088,7 +2094,8 @@ class Ndb_schema_event_handler {
     if (!schema_result_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
-      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
+      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code ==
+                             NDB_ERR_CLUSTER_FAILURE);
       return false;
     }
 
@@ -2159,7 +2166,8 @@ class Ndb_schema_event_handler {
     if (!schema_result_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
-      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
+      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code ==
+                             NDB_ERR_CLUSTER_FAILURE);
       return;
     }
 
@@ -5143,13 +5151,15 @@ int Ndb_binlog_client::create_event(Ndb *ndb,
     }
 
     /*
-      try retrieving the event, if table version/id matches, we will get
+      Try retrieving the event, if table version/id matches, we will get
       a valid event.  Otherwise we have an old event from before
     */
-    const NDBEVENT *ev;
-    if ((ev = dict->getEvent(event_name.c_str()))) {
-      delete ev;
-      return 0;
+    {
+      NdbDictionary::Event_ptr ev(dict->getEvent(event_name.c_str()));
+      if (ev) {
+        // The event already exists in NDB
+        return 0;
+      }
     }
 
     // Old event from before; an error, but try to correct it
@@ -6125,6 +6135,11 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         handle_data_unpack_record(table, event_data->ndb_value[0].get(),
                                   &unused_bitmap, table->record[0]);
 
+        // Assume that mysql.ndb_apply_status table has two fields (which should
+        // thus have been unpacked)
+        ndbcluster::ndbrequire(table->field[0] != nullptr &&
+                               table->field[1] != nullptr);
+
         const Uint32 orig_server_id =
             (Uint32) static_cast<Field_long *>(table->field[0])->val_int();
         const Uint64 orig_epoch =
@@ -6685,10 +6700,8 @@ bool Ndb_binlog_thread::inject_apply_status_write(injector_transaction &trans,
     gci_to_store = (gciHi << 32) + gciLo;
   }
   if (DBUG_EVALUATE_IF("ndb_binlog_injector_repeat_gcis", true, false)) {
-    ulonglong gciHi = ((gci_to_store >> 32) & 0xffffffff);
-    ulonglong gciLo = (gci_to_store & 0xffffffff);
-    gciHi = 0xffffff00;
-    gciLo = 0;
+    const ulonglong gciHi = 0xffffff00;
+    const ulonglong gciLo = 0;
     log_warning("repeating gcis (%llu -> %llu)", gci_to_store,
                 (gciHi << 32) + gciLo);
     gci_to_store = (gciHi << 32) + gciLo;

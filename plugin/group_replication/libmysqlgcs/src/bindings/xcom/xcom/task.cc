@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -437,7 +437,7 @@ static void task_queue_siftdown(task_queue *q, int l, int n) {
 static task_env *task_queue_remove(task_queue *q, int i) {
   task_env *tmp = q->x[i]; /* Will return this */
   /* The element at index 0 is never part of the queue */
-  if (0 == i) return 0;
+  if (0 == i) return nullptr;
   assert(q->curn);
   IFDBG(D_NONE, FN; STRLIT("task_queue_remove "); NDBG(i, d));
   TASK_MOVE(i, q->curn); /* Fill the hole */
@@ -487,7 +487,7 @@ static task_env *task_queue_extractmin(task_queue *q) {
   assert(q->curn >= 1);
   tmp = q->x[1];
   TASK_MOVE(1, q->curn);
-  q->x[q->curn] = 0;
+  q->x[q->curn] = nullptr;
   q->curn--;
   /* Heap(2,n) */
   if (q->curn) task_queue_siftdown(q, 1, q->curn);
@@ -635,7 +635,7 @@ void *task_allocate(task_env *p, unsigned int bytes) {
     p->where += alloc_units;
     memset(ret, 0, alloc_units * sizeof(TaskAlign));
   } else {
-    ret = 0;
+    ret = nullptr;
     abort();
   }
   return ret;
@@ -704,7 +704,7 @@ static task_env *task_unref(task_env *t) {
     t->refcnt--;
     if (t->refcnt == 0) {
       task_delete(t);
-      return NULL;
+      return nullptr;
     }
   }
   return t;
@@ -767,7 +767,7 @@ static void iotasks_deinit(iotasks *iot_to_deinit) {
 
 static void poll_wakeup(u_int i) {
   activate(task_unref(get_task_env_p(&iot.tasks, i)));
-  set_task_env_p(&iot.tasks, NULL, i);
+  set_task_env_p(&iot.tasks, nullptr, i);
   iot.nwait--; /* Shrink array of pollfds */
   set_pollfd(&iot.fd, get_pollfd(&iot.fd, iot.nwait), i);
   set_task_env_p(&iot.tasks, get_task_env_p(&iot.tasks, iot.nwait), i);
@@ -841,7 +841,7 @@ static void add_fd(task_env *t, int fd, int op) {
 
 static void unpoll(u_int i) {
   task_unref(get_task_env_p(&iot.tasks, i));
-  set_task_env_p(&iot.tasks, NULL, i);
+  set_task_env_p(&iot.tasks, nullptr, i);
   {
     pollfd x;
     x.fd = -1;
@@ -872,7 +872,7 @@ void remove_and_wakeup(int fd) {
   }
 }
 
-task_env *stack = NULL;
+task_env *stack = nullptr;
 
 task_env *wait_io(task_env *t, int fd, int op) {
   t->time = 0.0;
@@ -1136,7 +1136,7 @@ void set_should_exit_getter(should_exit_getter x) { get_should_exit = x; }
 
 static double idle_time = 0.0;
 void task_loop() {
-  task_env *t = 0;
+  task_env *t = nullptr;
   /* While there are tasks */
   for (;;) {
     /* check forced exit callback */
@@ -1165,7 +1165,7 @@ void task_loop() {
             deactivate(t);
             t->terminate = TERMINATED;
             task_unref(t);
-            stack = NULL;
+            stack = nullptr;
           }
         }
       }
@@ -1184,7 +1184,8 @@ void task_loop() {
       if (delayed_tasks()) {
         int ms = msdiff(time);
         if (ms > 0) {
-          if (the_app_xcom_cfg != NULL && the_app_xcom_cfg->m_poll_spin_loops) {
+          if (the_app_xcom_cfg != nullptr &&
+              the_app_xcom_cfg->m_poll_spin_loops) {
             u_int busyloop;
             for (busyloop = 0; busyloop < the_app_xcom_cfg->m_poll_spin_loops;
                  busyloop++) {
@@ -1261,7 +1262,7 @@ static int statistics_task(task_arg arg) {
 #endif
 
 static void init_task_vars() {
-  stack = 0;
+  stack = nullptr;
   task_errno = 0;
 }
 

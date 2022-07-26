@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -142,6 +142,17 @@ bool Ndb_dd_sync::remove_all_metadata() const {
     ndb_log_verbose(50, "Found %zu NDB tables in schema '%s'",
                     ndb_tables.size(), schema_name);
     for (const std::string &table_name : ndb_tables) {
+      // Check if the table has a trigger. Such tables are handled differently
+      // and not deleted as that would result in the trigger being deleted as
+      // well
+      const dd::Table *table_def;
+      if (!dd_client.get_table(schema_name, table_name.c_str(), &table_def)) {
+        ndb_log_error("Failed to open table '%s.%s' from DD", schema_name,
+                      table_name.c_str());
+        return false;
+      }
+      if (ndb_dd_table_has_trigger(table_def)) continue;
+
       ndb_log_info("Removing table '%s.%s'", schema_name, table_name.c_str());
       if (!remove_table(schema_name, table_name.c_str())) {
         ndb_log_error("Failed to remove table '%s.%s' from DD", schema_name,
@@ -1254,9 +1265,8 @@ bool Ndb_dd_sync::synchronize_table(const char *schema_name,
     return true;  // Skipped
   }
 
-  int table_id, table_version;
-  if (!ndb_dd_table_get_object_id_and_version(existing, table_id,
-                                              table_version)) {
+  Ndb_dd_handle dd_handle = ndb_dd_table_get_spi_and_version(existing);
+  if (!dd_handle.valid()) {
     ndb_log_error(
         "Failed to extract id and version from table definition "
         "for table '%s.%s'",
@@ -1265,18 +1275,22 @@ bool Ndb_dd_sync::synchronize_table(const char *schema_name,
     return false;
   }
 
-  // Check that latest version of table definition for this NDB table
-  // is installed in DD
-  if (ndbtab->getObjectId() != table_id ||
-      ndbtab->getObjectVersion() != table_version) {
-    ndb_log_info("Table '%s.%s' have different version in DD, reinstalling...",
-                 schema_name, table_name);
-    if (!install_table(schema_name, table_name, ndbtab,
-                       true /* need overwrite */)) {
-      // Failed to create table from NDB
-      ndb_log_error("Failed to install table '%s.%s' from NDB", schema_name,
-                    table_name);
-      return false;
+  {
+    // Check that latest version of table definition for this NDB table
+    // is installed in DD
+    Ndb_dd_handle curr_handle{ndbtab->getObjectId(),
+                              ndbtab->getObjectVersion()};
+    if (curr_handle != dd_handle) {
+      ndb_log_info(
+          "Table '%s.%s' have different version in DD, reinstalling...",
+          schema_name, table_name);
+      if (!install_table(schema_name, table_name, ndbtab,
+                         true /* need overwrite */)) {
+        // Failed to create table from NDB
+        ndb_log_error("Failed to install table '%s.%s' from NDB", schema_name,
+                      table_name);
+        return false;
+      }
     }
   }
 

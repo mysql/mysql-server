@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2020,28 +2020,6 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
   return ret;
 }
 
-/// @returns a comma-separated list of all tables that are touched by UPDATE or
-/// DELETE, with a mention of whether a temporary table is used for each.
-static string FindUpdatedTables(JOIN *join) {
-  Query_result *result = join->query_block->query_result();
-  string ret;
-  for (TABLE_LIST *table_ref = join->query_block->leaf_tables;
-       table_ref != nullptr; table_ref = table_ref->next_leaf) {
-    if (table_ref == nullptr) continue;
-    TABLE *table = table_ref->table;
-    if ((table_ref->is_updated() || table_ref->is_deleted()) &&
-        table->s->table_category != TABLE_CATEGORY_TEMPORARY) {
-      if (!ret.empty()) {
-        ret += ", ";
-      }
-      ret += table->alias;
-      ret +=
-          result->immediate_update(table_ref) ? " (immediate)" : " (buffered)";
-    }
-  }
-  return ret;
-}
-
 static bool ExplainIterator(THD *ethd, const THD *query_thd,
                             Query_expression *unit) {
   Query_result_send result;
@@ -2068,11 +2046,6 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
       JOIN *join = unit->first_query_block()->join;
       const THD::Query_plan *query_plan = &query_thd->query_plan;
       switch (query_plan->get_command()) {
-        case SQLCOM_UPDATE_MULTI:
-        case SQLCOM_UPDATE:
-          explain = "-> Update " + FindUpdatedTables(join) + "\n";
-          base_level = 1;
-          break;
         case SQLCOM_INSERT_SELECT:
         case SQLCOM_INSERT:
           explain = string("-> Insert into ") +

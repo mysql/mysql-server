@@ -508,9 +508,7 @@ dberr_t SysTablespace::open_file(Datafile &file) {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Check the tablespace header for this tablespace.
-@param[out]     flushed_lsn     the value of FIL_PAGE_FILE_FLUSH_LSN
-@return DB_SUCCESS or error code */
+
 dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   /* Only relevant for the system tablespace. */
   ut_ad(space_id() == TRX_SYS_SPACE);
@@ -530,6 +528,12 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   ut_a(it->order() == 0);
 
   err = recv_sys->dblwr->load();
+
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
+
+  err = recv_sys->dblwr->reduced_load();
 
   if (err != DB_SUCCESS) {
     return (err);
@@ -790,12 +794,6 @@ dberr_t SysTablespace::check_file_spec(bool create_new_db,
   return (err);
 }
 
-/** Open or create the data files
-@param[in]  is_temp             whether this is a temporary tablespace
-@param[in]  create_new_db       whether we are creating a new database
-@param[out] sum_new_sizes       sum of sizes of the new files added
-@param[out] flush_lsn           FIL_PAGE_FILE_FLUSH_LSN of first file
-@return DB_SUCCESS or error code */
 dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
                                       page_no_t *sum_new_sizes,
                                       lsn_t *flush_lsn) {
@@ -849,11 +847,11 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
     the tablespace should be on the same medium. */
 
     if (fil_fusionio_enable_atomic_write(it->m_handle)) {
-      if (dblwr::enabled) {
+      if (dblwr::is_enabled()) {
         ib::info(ER_IB_MSG_456) << "FusionIO atomic IO enabled,"
                                    " disabling the double write buffer";
 
-        dblwr::enabled = false;
+        dblwr::g_mode = dblwr::Mode::OFF;
       }
 
       it->m_atomic_write = true;
@@ -865,12 +863,19 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
 #endif /* !NO_FALLOCATE && UNIV_LINUX*/
   }
 
-  if (!create_new_db && flush_lsn) {
-    /* Validate the header page in the first datafile
-    and read LSNs fom the others. */
-    err = read_lsn_and_check_flags(flush_lsn);
-    if (err != DB_SUCCESS) {
-      return (err);
+  if (flush_lsn != nullptr) {
+    if (create_new_db) {
+      /* There are no data files, so we assign the initial value
+      to flush_lsn instead of reading it from disk. */
+      *flush_lsn = LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
+    } else {
+      /* Validate the header page in the first datafile in the
+      system tablespace and read flush_lsn from the validated
+      header page. */
+      err = read_lsn_and_check_flags(flush_lsn);
+      if (err != DB_SUCCESS) {
+        return (err);
+      }
     }
   }
 

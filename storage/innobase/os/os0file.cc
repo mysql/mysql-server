@@ -41,7 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "os0file.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
-#include "log0log.h"
+#include "log0write.h"
 #include "my_dbug.h"
 #include "my_io.h"
 
@@ -871,7 +871,7 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
 
 #ifdef WIN_ASYNC_IO
 /** This function is only used in Windows asynchronous i/o.
-Waits for an aio operation to complete. This function is used to wait the
+Waits for an aio operation to complete. This function is used to wait
 for completed requests. The aio array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
@@ -2641,7 +2641,7 @@ and native aio.
 bool AIO::is_linux_native_aio_supported() {
   int fd;
   io_context_t io_ctx;
-  char name[1000];
+  const char *name;
 
   if (!linux_create_io_ctx(1, &io_ctx)) {
     /* The platform does not support native aio. */
@@ -2658,29 +2658,20 @@ bool AIO::is_linux_native_aio_supported() {
 
       return (false);
     }
+    name = "tmpdir";
   } else {
-    ulint dirnamelen = strlen(srv_log_group_home_dir);
+    const auto file_path = srv_sys_space.first_datafile()->filepath();
 
-    ut_a(dirnamelen < (sizeof name) - 10 - sizeof "ib_logfile");
-
-    memcpy(name, srv_log_group_home_dir, dirnamelen);
-
-    /* Add a path separator if needed. */
-    if (dirnamelen && name[dirnamelen - 1] != OS_PATH_SEPARATOR) {
-      name[dirnamelen++] = OS_PATH_SEPARATOR;
-    }
-
-    strcpy(name + dirnamelen, "ib_logfile0");
-
-    fd = ::open(name, O_RDONLY);
+    fd = ::open(file_path, O_RDONLY);
 
     if (fd == -1) {
       ib::warn(ER_IB_MSG_764) << "Unable to open"
-                              << " \"" << name << "\" to check native"
+                              << " \"" << file_path << "\" to check native"
                               << " AIO read support.";
 
       return (false);
     }
+    name = file_path;
   }
 
   struct io_event io_event;
@@ -2731,8 +2722,7 @@ bool AIO::is_linux_native_aio_supported() {
 
       [[fallthrough]];
     default:
-      ib::error(ER_IB_MSG_766) << "Linux Native AIO check on "
-                               << (srv_read_only_mode ? name : "tmpdir")
+      ib::error(ER_IB_MSG_766) << "Linux Native AIO check on " << name
                                << "returned error[" << -err << "]";
   }
 
@@ -3378,6 +3368,13 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
 @param[out]     exist           indicate if file pre-exist
 @return true if success */
 bool os_file_delete_if_exists_func(const char *name, bool *exist) {
+  if (Fil_path::get_file_type(name) == OS_FILE_TYPE_MISSING) {
+    if (exist != nullptr) {
+      *exist = false;
+    }
+    return true;
+  }
+
   if (!os_file_can_delete(name)) {
     return (false);
   }
@@ -4328,8 +4325,9 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
     access |= GENERIC_WRITE;
   }
 
-  /* Clone must allow concurrent write to file. */
-  if (type == OS_CLONE_LOG_FILE || type == OS_CLONE_DATA_FILE) {
+  /* Clone and redo log must allow concurrent write to file. */
+  if (type == OS_CLONE_LOG_FILE || type == OS_CLONE_DATA_FILE ||
+      type == OS_LOG_FILE) {
     share_mode |= FILE_SHARE_WRITE;
   }
 
@@ -4585,13 +4583,13 @@ bool os_file_rename_func(const char *oldpath, const char *newpath) {
   ut_ad(os_file_exists(oldpath));
 #endif /* UNIV_DEBUG */
 
-  if (MoveFile((LPCTSTR)oldpath, (LPCTSTR)newpath)) {
-    return (true);
+  if (MoveFileExA(oldpath, newpath, MOVEFILE_WRITE_THROUGH)) {
+    return true;
   }
 
   os_file_handle_error_no_exit(oldpath, "rename", false);
 
-  return (false);
+  return false;
 }
 
 /** NOTE! Use the corresponding macro os_file_close(), not directly
@@ -5598,7 +5596,8 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
           ((float)(current_size + n_bytes) / (float)size) * 100;
 
       if (progress_percentage >= percentage_count) {
-        ib::info(ER_IB_MSG_1062, name, ulonglong{size >> 20}, percentage_count);
+        ib::info(ER_IB_MSG_FILE_RESIZE, name, ulonglong{size >> 20},
+                 percentage_count);
         percentage_count += 10;
       }
     }
@@ -6013,26 +6012,48 @@ dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
   return (err);
 }
 
-/** Waits for an AIO operation to complete. This function is used to wait the
-for completed requests. The AIO array of pending requests is divided
-into segments. The thread specifies which segment or slot it wants to wait
-for. NOTE: this function will also take care of freeing the AIO slot,
-therefore no other thread is allowed to do the freeing!
-@param[in]      segment         The number of the segment in the AIO arrays to
-                                wait for; segment 0 is the ibuf I/O thread,
-                                segment 1 the log I/O thread, then follow the
-                                non-ibuf read threads, and as the last are the
-                                non-ibuf write threads; if this is
-                                ULINT_UNDEFINED, then it means that sync AIO
-                                is used, and this parameter is ignored
-@param[out]     m1              the messages passed with the AIO request; note
-                                that also in the case where the AIO operation
-                                failed, these output parameters are valid and
-                                can be used to restart the operation,
-                                for example
-@param[out]     m2              callback message
-@param[out]     request         OS_FILE_WRITE or ..._READ
-@return DB_SUCCESS or error code */
+bool os_file_check_mode(const char *name, bool read_only) {
+  os_file_stat_t stat;
+
+  memset(&stat, 0x0, sizeof(stat));
+
+  dberr_t err = os_file_get_status(name, &stat, true, read_only);
+
+  if (err == DB_FAIL) {
+    ib::error(ER_IB_MSG_1058, name);
+    return false;
+
+  } else if (err == DB_SUCCESS) {
+    /* Note: stat.rw_perm is only valid on files */
+
+    if (stat.type == OS_FILE_TYPE_FILE) {
+      /* Note: stat.rw_perm is true if it can be opened in
+      mode specified by the "read_only" argument. */
+      if (!stat.rw_perm) {
+        const char *mode = read_only ? "read" : "read-write";
+
+        ib::error(ER_IB_MSG_1059, name, mode);
+        return false;
+      }
+      return true;
+
+    } else {
+      /* Not a regular file, bail out. */
+      ib::error(ER_IB_MSG_1060, name);
+
+      return false;
+    }
+
+  } else {
+    /* This is OK. If the file create fails on RO media, there
+    is nothing we can do. */
+
+    ut_a(err == DB_NOT_FOUND);
+
+    return true;
+  }
+}
+
 dberr_t os_aio_handler(ulint segment, fil_node_t **m1, void **m2,
                        IORequest *request) {
   dberr_t err;
@@ -6944,10 +6965,6 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
       array = read_only ? AIO::s_reads : AIO::s_ibuf;
       break;
 
-    case AIO_mode::LOG:
-      array = read_only ? AIO::s_reads : AIO::s_log;
-      break;
-
     default:
       ut_error;
   }
@@ -7041,8 +7058,8 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
       PSI_file_locker_state state;
       register_pfs_file_io_begin(
           &state, locker, slot->file, slot->len,
-          slot->type.is_write() ? PSI_FILE_WRITE : PSI_FILE_READ, __FILE__,
-          __LINE__);
+          slot->type.is_write() ? PSI_FILE_WRITE : PSI_FILE_READ,
+          UT_LOCATION_HERE);
 #endif /* UNIV_PFS_IO */
 
       if (slot->type.is_read()) {
@@ -7826,12 +7843,19 @@ void os_aio_print(FILE *file) {
                   current_time - os_last_printout)
                   .count();
 
+  uint64_t n_log_pending_flushes;
+#ifndef UNIV_HOTBACKUP
+  n_log_pending_flushes = log_pending_flushes();
+#else
+  n_log_pending_flushes = 0;
+#endif /* !UNIV_HOTBACKUP */
+
   fprintf(file,
-          "Pending flushes (fsync) log: " ULINTPF
+          "Pending flushes (fsync) log: " UINT64PF
           "; "
           "buffer pool: " ULINTPF "\n" ULINTPF " OS file reads, " ULINTPF
           " OS file writes, " ULINTPF " OS fsyncs\n",
-          fil_n_pending_log_flushes, fil_n_pending_tablespace_flushes,
+          n_log_pending_flushes, fil_n_pending_tablespace_flushes,
           os_n_file_reads, os_n_file_writes, os_n_fsyncs);
 
   auto pending_writes = os_n_pending_writes.load();

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -517,7 +517,7 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
 #endif
   };
 
-  ASSERT_THAT(vec_from_lines(router.get_full_logfile()),
+  ASSERT_THAT(vec_from_lines(router.get_logfile_content()),
               ::testing::Contains(::testing::ContainsRegex(log_msg_re)));
 }
 
@@ -641,11 +641,11 @@ TEST_P(IsConnectionsClosedWhenPrimaryRemovedFromClusterTest,
   }
 
   // check there info about closing invalid connections in the logfile
-  const auto log_content = router.get_full_logfile();
+  const auto log_content = router.get_logfile_content();
   const std::string pattern = "INFO .* got request to disconnect " +
                               std::to_string(clients.size()) + " invalid";
 
-  EXPECT_TRUE(pattern_found(log_content, pattern)) << log_content;
+  EXPECT_TRUE(pattern_found(log_content, pattern));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1375,10 +1375,10 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
   }
 
   // check there is NO info about closing invalid connections in the logfile
-  const auto log_content = router.get_full_logfile();
+  const auto log_content = router.get_logfile_content();
   const std::string pattern = ".* got request to disconnect .* invalid";
 
-  EXPECT_FALSE(pattern_found(log_content, pattern)) << log_content;
+  EXPECT_FALSE(pattern_found(log_content, pattern));
 }
 
 MDRefreshTestParam steps[] = {

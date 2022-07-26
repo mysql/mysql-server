@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,21 @@
 #include "sql/join_optimizer/interesting_orders.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <functional>
 #include <type_traits>
 
+#include "map_helpers.h"
+#include "my_hash_combine.h"
+#include "my_pointer_arithmetic.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/print_utils.h"
+#include "sql/mem_root_array.h"
 #include "sql/parse_tree_nodes.h"
+#include "sql/sql_array.h"
 #include "sql/sql_class.h"
 
 using std::all_of;
@@ -91,11 +97,38 @@ bool OrderingsAreEqual(Ordering a, Ordering b) {
   return equal(a.begin(), a.end(), b.begin(), b.end());
 }
 
-}  // namespace
-
 bool IsGrouping(Ordering ordering) {
   return !ordering.empty() && ordering[0].direction == ORDER_NOT_RELEVANT;
 }
+
+// Calculates the hash for a DFSM state given by an index into
+// LogicalOrderings::m_dfsm_states. The hash is based on the set of NFSM states
+// the DFSM state corresponds to.
+template <typename DFSMState>
+struct DFSMStateHash {
+  const Mem_root_array<DFSMState> *dfsm_states;
+  size_t operator()(int idx) const {
+    size_t hash = 0;
+    for (int nfsm_state : (*dfsm_states)[idx].nfsm_states) {
+      my_hash_combine<size_t>(hash, nfsm_state);
+    }
+    return hash;
+  }
+};
+
+// Checks if two DFSM states represent the same set of NFSM states.
+template <typename DFSMState>
+struct DFSMStateEqual {
+  const Mem_root_array<DFSMState> *dfsm_states;
+  bool operator()(int idx1, int idx2) const {
+    return equal((*dfsm_states)[idx1].nfsm_states.begin(),
+                 (*dfsm_states)[idx1].nfsm_states.end(),
+                 (*dfsm_states)[idx2].nfsm_states.begin(),
+                 (*dfsm_states)[idx2].nfsm_states.end());
+  }
+};
+
+}  // namespace
 
 LogicalOrderings::LogicalOrderings(THD *thd)
     : m_items(thd->mem_root),
@@ -337,7 +370,7 @@ void LogicalOrderings::PruneFDs(THD *thd) {
   // The definition of prunable FDs in the papers seems to be very abstract
   // and not practically realizable, so we use a simple heuristic instead:
   // A FD is useful iff it produces an item that is part of some ordering.
-  // Discard all non-useful FDs. (Items not part of some ordering will cause
+  // Discard all useless FDs. (Items not part of some ordering will cause
   // the new proposed ordering to immediately be pruned away, so this is
   // safe. See also the comment in the .h file about transitive dependencies.)
   //
@@ -347,7 +380,7 @@ void LogicalOrderings::PruneFDs(THD *thd) {
   // the main point of the pruning), it just slows the NFSM down slightly,
   // and by far the dominant FDs to prune in our cases are the ones
   // induced by keys, e.g. S → k where S is always the same and k
-  // is non-useful. These are caught by this heuristic.
+  // is useless. These are caught by this heuristic.
 
   m_optimized_fd_mapping =
       Bounds_checked_array<int>::Alloc(thd->mem_root, m_fds.size());
@@ -1240,7 +1273,7 @@ static void DeduplicateOrdering(Ordering *ordering) {
 }
 
 void LogicalOrderings::BuildNFSM(THD *thd) {
-  // Add a state for each producable ordering.
+  // Add a state for each producible ordering.
   for (size_t i = 0; i < m_orderings.size(); ++i) {
     NFSMState state;
     state.satisfied_ordering = m_orderings[i].ordering;
@@ -1252,10 +1285,10 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
     m_states.push_back(move(state));
   }
 
-  // Add an edge from the initial state to each producable ordering/grouping.
+  // Add an edge from the initial state to each producible ordering/grouping.
   for (size_t i = 1; i < m_orderings.size(); ++i) {
     if (IsGrouping(m_orderings[i].ordering)) {
-      // Not directly producable, but we've made an ordering out of it earlier.
+      // Not directly producible, but we've made an ordering out of it earlier.
       continue;
     }
     NFSMEdge edge;
@@ -1300,12 +1333,11 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
     }
 
     if (m_states.size() >= kMaxNFSMStates) {
-      // Stop expanding new functional dependencies, causing us to end fairly
-      // soon. We won't necessarily find the optimal query, but we'll keep all
-      // essential information, and not throw away any of the information we
-      // have already gathered (unless the DFSM gets too large, too;
-      // see ConvertNFSMToDFSM()).
-      continue;
+      // Stop adding more states. We won't necessarily find the optimal query,
+      // but we'll keep all essential information, and not throw away any of the
+      // information we have already gathered (unless the DFSM gets too large,
+      // too; see ConvertNFSMToDFSM()).
+      break;
     }
 
     for (size_t fd_idx = 1; fd_idx < m_fds.size(); ++fd_idx) {
@@ -1444,6 +1476,33 @@ void LogicalOrderings::TryAddingOrderWithElementInserted(
   }
 }
 
+// Clang vectorizes the inner loop below with -O2, but GCC does not. Enable
+// vectorization with GCC too, since this loop is a bottleneck when there are
+// many NFSM states.
+#if defined(NDEBUG) && defined(__GNUC__) && !defined(__clang__)
+#pragma GCC push_options
+#pragma GCC optimize("tree-loop-vectorize")
+#endif
+
+// Calculates the transitive closure of the reachability graph.
+static void FindAllReachable(Bounds_checked_array<bool *> reachable) {
+  const int N = reachable.size();
+  for (int k = 0; k < N; ++k) {
+    for (int i = 0; i < N; ++i) {
+      if (reachable[i][k]) {
+        for (int j = 0; j < N; ++j) {
+          // If there are edges i -> k -> j, add an edge i -> j.
+          reachable[i][j] |= reachable[k][j];
+        }
+      }
+    }
+  }
+}
+
+#if defined(NDEBUG) && defined(__GNUC__) && !defined(__clang__)
+#pragma GCC pop_options
+#endif
+
 /**
   Try to prune away irrelevant nodes from the NFSM; it is worth spending some
   time on this, since the number of NFSM states can explode the size of the
@@ -1463,7 +1522,17 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
   // in reachability to interesting orders, and our graph is quite sparse),
   // but Floyd-Warshall is simple and has a low constant factor.
   const int N = m_states.size();
-  bool *reachable = thd->mem_root->ArrayAlloc<bool>(N * N);
+  // Create a two-dimensional array with N elements in each dimension. Each line
+  // starts at an eight byte word boundary, as that seems to improve the
+  // performance of the inner loop in Floyd-Warshall. reachable[i][j] == true
+  // means that state j is reachable from state i.
+  const size_t N_aligned = ALIGN_SIZE(m_states.size());
+  auto reachable = Bounds_checked_array<bool *>::Alloc(thd->mem_root, N);
+  auto reachable_buffer =
+      Bounds_checked_array<bool>::Alloc(thd->mem_root, N * N_aligned);
+  for (int i = 0; i < N; ++i) {
+    reachable[i] = reachable_buffer.data() + i * N_aligned;
+  }
 
   // We have multiple pruning techniques, all heuristic in nature.
   // If one removes something, it may help to run the others again,
@@ -1471,7 +1540,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
   bool pruned_anything;
   do {
     pruned_anything = false;
-    memset(reachable, 0, sizeof(*reachable) * N * N);
+    fill(reachable_buffer.begin(), reachable_buffer.end(), false);
 
     for (int i = 0; i < N; ++i) {
       if (m_states[i].type == NFSMState::DELETED) {
@@ -1479,21 +1548,14 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
       }
 
       // There's always an implicit self-edge.
-      reachable[i * N + i] = true;
+      reachable[i][i] = true;
 
       for (size_t edge_idx : m_states[i].outgoing_edges) {
-        reachable[i * N + m_edges[edge_idx].state_idx] = true;
+        reachable[i][m_edges[edge_idx].state_idx] = true;
       }
     }
 
-    for (int k = 0; k < N; ++k) {
-      for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
-          // If there are edges i -> k -> j, add an edge i -> j.
-          reachable[i * N + j] |= reachable[i * N + k] & reachable[k * N + j];
-        }
-      }
-    }
+    FindAllReachable(reachable);
 
     // Now prune away artificial m_states that cannot reach any
     // interesting orders, and m_states that are not reachable from
@@ -1504,7 +1566,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
         continue;
       }
 
-      if (!reachable[0 * N + i]) {
+      if (!reachable[0][i]) {
         m_states[i].type = NFSMState::DELETED;
         pruned_anything = true;
         continue;
@@ -1512,8 +1574,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
 
       bool can_reach_interesting = false;
       for (int j = 1; j < static_cast<int>(m_orderings.size()); ++j) {
-        if (reachable[i * N + j] &&
-            m_states[j].type == NFSMState::INTERESTING) {
+        if (reachable[i][j] && m_states[j].type == NFSMState::INTERESTING) {
           can_reach_interesting = true;
           break;
         }
@@ -1535,7 +1596,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
         bool can_reach_other_interesting = false;
         for (size_t k = 1; k < m_orderings.size(); ++k) {
           if (k != i && m_states[k].type == NFSMState::INTERESTING &&
-              reachable[next_state_idx * N + k]) {
+              reachable[next_state_idx][k]) {
             can_reach_other_interesting = true;
             break;
           }
@@ -1577,7 +1638,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
       if (m_states[i].type == NFSMState::DELETED) {
         continue;
       }
-      if (reachable[i * N + order_idx]) {
+      if (reachable[i][order_idx]) {
         m_states[i].can_reach_interesting_order.set(order_idx);
       }
     }
@@ -1655,6 +1716,14 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
   // See NFSMState::seen.
   int generation = 0;
 
+  // Keep track of which sets of NFSM states we've already seen, and which DFSM
+  // state we created for that set.
+  mem_root_unordered_set<int, DFSMStateHash<DFSMState>,
+                         DFSMStateEqual<DFSMState>>
+      constructed_states(thd->mem_root,
+                         DFSMStateHash<DFSMState>{&m_dfsm_states},
+                         DFSMStateEqual<DFSMState>{&m_dfsm_states});
+
   // Create the initial DFSM state. It consists of everything in the initial
   // NFSM state, and everything reachable from it with only always-active FDs.
   DFSMState initial;
@@ -1663,6 +1732,7 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
   ExpandThroughAlwaysActiveFDs(&initial.nfsm_states, &generation,
                                /*extra_allowed_fd_idx=*/0);
   m_dfsm_states.push_back(move(initial));
+  constructed_states.insert(0);
   FinalizeDFSMState(thd, /*state_idx=*/0);
 
   // Reachability information set by FinalizeDFSMState() will include those
@@ -1691,10 +1761,9 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
     }
 
     if (m_dfsm_states.size() >= kMaxDFSMStates) {
-      // Stop creating new states, causing us to end fairly soon (same as the
-      // cutoff in BuildNFSM()). Note that since the paths representing explicit
-      // sorts are put first, they will never be lost unless kMaxDFSMStates is
-      // set extremely low.
+      // Stop creating new states, causing us to end fairly soon. Note that
+      // since the paths representing explicit sorts are put first, they will
+      // never be lost unless kMaxDFSMStates is set extremely low.
       continue;
     }
 
@@ -1746,25 +1815,26 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
       auto new_end = unique(nfsm_states.begin(), nfsm_states.end());
       nfsm_states.resize(distance(nfsm_states.begin(), new_end));
 
+      // Add a new DFSM state for the NFSM states we've collected.
+      int target_dfsm_state_idx = m_dfsm_states.size();
+      m_dfsm_states.push_back(DFSMState{});
+      m_dfsm_states.back().nfsm_states = move(nfsm_states);
+
       // See if there is an existing DFSM state that matches the set of
-      // NFSM m_states we've collected.
-      int target_dfsm_state_idx = -1;
-      for (size_t i = 0; i < m_dfsm_states.size(); ++i) {
-        if (equal(nfsm_states.begin(), nfsm_states.end(),
-                  m_dfsm_states[i].nfsm_states.begin(),
-                  m_dfsm_states[i].nfsm_states.end())) {
-          target_dfsm_state_idx = i;
-          break;
-        }
-      }
-      if (target_dfsm_state_idx == -1) {
+      // NFSM states we've collected.
+      if (auto [place, inserted] =
+              constructed_states.insert(target_dfsm_state_idx);
+          inserted) {
         // There's none, so create a new one. The type doesn't really matter,
         // except for printing out the graph.
-        DFSMState state;
-        state.nfsm_states = move(nfsm_states);
-        m_dfsm_states.push_back(move(state));
-        FinalizeDFSMState(thd, m_dfsm_states.size() - 1);
-        target_dfsm_state_idx = m_dfsm_states.size() - 1;
+        FinalizeDFSMState(thd, target_dfsm_state_idx);
+      } else {
+        // Already had a DFSM state for this set of NFSM states. Remove the
+        // newly added duplicate and use the original one.
+        target_dfsm_state_idx = *place;
+        // Allow reuse of the memory in the next iteration.
+        nfsm_states = move(m_dfsm_states.back().nfsm_states);
+        m_dfsm_states.pop_back();
       }
 
       // Finally, add an edge in the DFSM. Ignore self-edges; they are implicit.

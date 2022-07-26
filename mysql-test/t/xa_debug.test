@@ -258,12 +258,12 @@ XA PREPARE 'xid1';
 --enable_connect_log
 connect (con2,localhost,root,,);
 
-set debug_sync='external_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+set debug_sync='detached_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
 --send XA COMMIT 'xid1'
 
 --connection default
 set debug_sync='now WAIT_FOR parked';
-set debug_sync='external_xa_commit_before_acquire_xa_lock SIGNAL go';
+set debug_sync='detached_xa_commit_before_acquire_xa_lock SIGNAL go';
 --error ER_XAER_NOTA
 XA COMMIT 'xid1';
 

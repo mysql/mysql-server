@@ -194,6 +194,7 @@ SELECT * FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
 --skip_if_hypergraph  # Elides ORDER BY <constant>, and does not get the error.
 --error ER_GIS_INVALID_DATA
 DELETE FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+--skip_if_hypergraph  # Elides ORDER BY <constant>, and does not get the error.
 --error ER_GIS_INVALID_DATA
 UPDATE t1 SET a=1 ORDER BY cast(st_distance(1,1) as DECIMAL);
 DROP TABLE t1;

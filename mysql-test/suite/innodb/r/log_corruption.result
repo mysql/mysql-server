@@ -1,52 +1,67 @@
-# redo log from before we started versioning in MySQL 5.7.9
-Pattern "Unsupported redo log format \(0\). The redo log was created before MySQL 5\.7\.9.*" found
-# redo log from before MySQL 8.0.3, with corrupted log block
-Pattern "Upgrade after a crash is not supported.*" found
-# redo log from MySQL 8.0.3, but with invalid header checksum
-Pattern "Invalid redo log header checksum" found
-# distant future redo log format, with valid header checksum
-Pattern "Unknown redo log format \(4294967295\).*" found
-# redo log from MySQL 8.0.3, with corrupted log checkpoint
-Pattern "No valid checkpoint found.*corrupted redo log" found
-# valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2,
-# invalid block checksum,
-# thus we cannot determine if the redo log is logically clean.
-Pattern "Database upgrade cannot be accomplished with innodb_force_recovery > 0" found
-# --innodb-force-recovery=6 (skip the entire redo log)
-Pattern "Database upgrade cannot be accomplished in read-only mode" found
-# valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block number
-# Start with innodb-force-recovery=5
-Pattern "Database upgrade cannot be accomplished with innodb_force_recovery > 0" found
-# Start with --innodb-force-recovery=6 (skip the entire redo log)
-Pattern "Database upgrade cannot be accomplished in read-only mode" found
-# valid 8.0.3 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
-Pattern "Log block 2372 at lsn 1213952 has valid header, but checksum field contains 144444122, should be 3362026715" found
-Pattern "Data Dictionary initialization failed" found
-# --innodb-force-recovery=6 (skip the entire redo log)
-Pattern "Database upgrade cannot be accomplished in read-only mode" found
-# valid 5.7.9 header, valid checkpoint 1, no matching MLOG_CHECKSUM
-Pattern "Upgrade after a crash is not supported\. This redo log was created with malicious intentions, or perhaps\." not found
-Pattern "Data Dictionary initialization failed" found
-# --innodb-force-recovery=6 (skip the entire redo log)
-Pattern "Database upgrade cannot be accomplished in read-only mode" found
-# upgrade: valid 5.7.9 header, valid checkpoint 1, logically non empty
-# redo log
-Pattern "Upgrade after a crash is not supported.*" found
-# Test a corrupted record.
-# current header, valid checkpoint 1, all-zero (invalid) checkpoint 2
-Pattern "############### CORRUPT LOG RECORD FOUND ###############" found
-Pattern "Log record type 56, page 0:0\. Log parsing proceeded successfully up to 1213964\. Previous log record type 128, is multi 0 Recv offset 0, prev 0" found
-Pattern "len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8               bogus " found
-Pattern "Set innodb_force_recovery to ignore this error" found
-# Test a corrupted record.
-# valid header, invalid checkpoint 1, valid checkpoint 2
-Pattern "The log file was created by mysqlbackup --apply-log at MEB      was here!!!1!\. The following crash recovery is part of a normal restore\." found
-Pattern "############### CORRUPT LOG RECORD FOUND ###############" found
-Pattern "Log record type 56, page 0:0\. Log parsing proceeded successfully up to 1213964\. Previous log record type 128, is multi 0 Recv offset 0, prev 0" found
-Pattern "Hex dump starting 0 bytes before and ending 22 bytes after the corrupted record" found
-Pattern "len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8               bogus " found
-Pattern "Set innodb_force_recovery to ignore this error" found
-# Test a corrupted record with creator field very long.
-# Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
-# redo log
-Pattern "Upgrading redo log: 2\*.* bytes, LSN=1319985" found
+# Initialize new data directory...
+# Restart MySQL using the new data directory...
+# restart: --datadir=tmp/log_corruption --log-error=my_restart.err
+# Prepare schema used in the tests.
+# Ensure there is a lot of free space in the redo log.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+# Disable checkpointing.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# Create connection which generates spam to the redo log.
+CALL log_spammer();
+# Create at least few redo records...
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+INSERT INTO t(a) VALUES(42);
+# Kill MySQL...
+# Kill the server
+# Remove unused redo files and prepare saved_datadir...
+############################################################################################
+# Case 1. Corrupt a mini-transaction after the checkpoint by changing type of redo record.
+#         Start recovery and observe information about the corrupted redo record (invalid
+#         type of redo record, equal to 0).
+############################################################################################
+# Start MySQL...
+# Verify...
+Pattern "CORRUPT LOG RECORD FOUND" found
+Pattern "Log record type 0, page .*:.*. Log parsing proceeded successfully up to RECOVERED_LSN" found
+Pattern "Apply batch completed" not found
+Pattern "innodb-unknown-compound-v" not found
+############################################################################################
+# Case 2. Verify that recovery could be re-executed from previous checkpoint and go further
+#         after the corrupted log block is fixed.
+############################################################################################
+# Fix the corrupted log record type...
+# Start MySQL...
+# Verify...
+Pattern "Database was not shutdown normally" found
+Pattern "Starting crash recovery" found
+Pattern "Applying a batch of.*redo log records" found
+Pattern "Apply batch completed" found
+Pattern "innodb-unknown-compound-v" found
+# Remove the data directory...
+############################################################################################
+# Case 3. Check how recovery stops on log block with invalid checksum.
+############################################################################################
+# Restore the data directory from before recovery...
+# Corrupt checksum...
+# Start MySQL...
+# Verify...
+Pattern "Log block CORRUPTED_LOG_BLOCK at lsn SCANNED_LSN has valid header, but checksum field contains .*, should be .*" found
+Pattern "Doing recovery: scanned up to log sequence number SCANNED_LSN" found
+Pattern "innodb-unknown-compound-v" not found
+############################################################################################
+# Case 4. Check how recovery stops on log block with invalid block_no.
+############################################################################################
+# Restore the data directory from before recovery...
+# Corrupt the block_no...
+# Start MySQL...
+# Verify...
+Pattern "Database was not shutdown normally" found
+Pattern "Starting crash recovery" found
+Pattern "Doing recovery: scanned up to log sequence number SCANNED_LSN" found
+Pattern "Applying a batch of.*redo log records" found
+Pattern "Apply batch completed" found
+Pattern "innodb-unknown-compound-v" not found
+############################################################################################
+# Cleanup...
+# Start MySQL...
+# restart:

@@ -118,6 +118,55 @@ int Clone_Snapshot::add_buf_pool_file() {
   return (err);
 }
 
+int Clone_Snapshot::init_redo_archiving() {
+  ut_ad(m_snapshot_type != HA_CLONE_BLOCKING);
+
+  if (m_snapshot_type == HA_CLONE_BLOCKING) {
+    /* We are not supposed to start redo archiving in this mode. */
+    m_redo_file_size = m_redo_header_size = m_redo_trailer_size = 0;
+    return ER_INTERNAL_ERROR; /* purecov: inspected */
+  }
+
+  /* If not blocking clone, allocate redo header and trailer buffer. */
+
+  m_redo_ctx.get_header_size(m_redo_header_size, m_redo_trailer_size);
+
+  m_redo_header = static_cast<byte *>(mem_heap_zalloc(
+      m_snapshot_heap,
+      m_redo_header_size + m_redo_trailer_size + UNIV_SECTOR_SIZE));
+
+  if (m_redo_header == nullptr) {
+    /* purecov: begin inspected */
+    my_error(ER_OUTOFMEMORY, MYF(0), m_redo_header_size + m_redo_trailer_size);
+
+    return ER_OUTOFMEMORY;
+    /* purecov: end */
+  }
+
+  m_redo_header =
+      static_cast<byte *>(ut_align(m_redo_header, UNIV_SECTOR_SIZE));
+
+  m_redo_trailer = m_redo_header + m_redo_header_size;
+
+  /* Start Redo Archiving */
+  const int err = m_redo_ctx.start(m_redo_header, m_redo_header_size);
+
+  if (err != 0) {
+    m_redo_file_size = 0;
+    return err; /* purecov: inspected */
+  }
+
+  m_redo_file_size = uint64_t{m_redo_ctx.get_archived_file_size()};
+  ut_ad(m_redo_file_size >= LOG_FILE_MIN_SIZE);
+
+  if (m_redo_file_size < LOG_FILE_MIN_SIZE) {
+    my_error(ER_INTERNAL_ERROR, MYF(0));
+    return ERR_R_INTERNAL_ERROR; /* purecov: inspected */
+  }
+
+  return 0;
+}
+
 #ifdef UNIV_DEBUG
 void Clone_Snapshot::debug_wait_state_transit() {
   mutex_own(&m_snapshot_mutex);
@@ -146,33 +195,13 @@ int Clone_Snapshot::init_file_copy(Snapshot_State new_state) {
 
   m_monitor.init_state(srv_stage_clone_file_copy.m_key, m_enable_pfs);
 
-  /* If not blocking clone, allocate redo header and trailer buffer. */
-  if (m_snapshot_type != HA_CLONE_BLOCKING) {
-    m_redo_ctx.get_header_size(m_redo_file_size, m_redo_header_size,
-                               m_redo_trailer_size);
+  if (m_snapshot_type == HA_CLONE_BLOCKING) {
+    /* In HA_CLONE_BLOCKING mode we treat redo files as usual files.
+    We need to clear these special treatment not to count them twice. */
+    m_redo_file_size = m_redo_header_size = m_redo_trailer_size = 0;
 
-    m_redo_header = static_cast<byte *>(mem_heap_zalloc(
-        m_snapshot_heap,
-        m_redo_header_size + m_redo_trailer_size + UNIV_SECTOR_SIZE));
-
-    if (m_redo_header == nullptr) {
-      /* purecov: begin inspected */
-      my_error(ER_OUTOFMEMORY, MYF(0),
-               m_redo_header_size + m_redo_trailer_size);
-
-      return ER_OUTOFMEMORY;
-      /* purecov: end */
-    }
-
-    m_redo_header =
-        static_cast<byte *>(ut_align(m_redo_header, UNIV_SECTOR_SIZE));
-
-    m_redo_trailer = m_redo_header + m_redo_header_size;
-  }
-
-  if (m_snapshot_type == HA_CLONE_REDO) {
-    /* Start Redo Archiving */
-    err = m_redo_ctx.start(m_redo_header, m_redo_header_size);
+  } else if (m_snapshot_type == HA_CLONE_REDO) {
+    err = init_redo_archiving();
 
   } else if (m_snapshot_type == HA_CLONE_HYBRID ||
              m_snapshot_type == HA_CLONE_PAGE) {
@@ -180,6 +209,7 @@ int Clone_Snapshot::init_file_copy(Snapshot_State new_state) {
     err = m_page_ctx.start(false, nullptr);
   } else {
     ut_ad(m_snapshot_type == HA_CLONE_BLOCKING);
+    err = ER_INTERNAL_ERROR;
   }
 
   if (err != 0) {
@@ -196,12 +226,9 @@ int Clone_Snapshot::init_file_copy(Snapshot_State new_state) {
     return err; /* purecov: inspected */
   }
 
-  /* Do not include redo files in file list. */
-  bool include_log = (m_snapshot_type == HA_CLONE_BLOCKING);
-
   /* Iterate all tablespace files and add persistent data files. */
   auto error = Fil_iterator::for_each_file(
-      include_log, [&](fil_node_t *file) { return (add_node(file, false)); });
+      [&](fil_node_t *file) { return (add_node(file, false)); });
 
   if (error != DB_SUCCESS) {
     return ER_INTERNAL_ERROR; /* purecov: inspected */
@@ -232,7 +259,7 @@ int Clone_Snapshot::init_page_copy(Snapshot_State new_state, byte *page_buffer,
 
   if (m_snapshot_type == HA_CLONE_HYBRID) {
     /* Start Redo Archiving */
-    err = m_redo_ctx.start(m_redo_header, m_redo_header_size);
+    err = init_redo_archiving();
 
   } else if (m_snapshot_type == HA_CLONE_PAGE) {
     /* Start COW for all modified pages - Not implemented. */
@@ -262,7 +289,7 @@ int Clone_Snapshot::init_page_copy(Snapshot_State new_state, byte *page_buffer,
 
   /* Iterate all tablespace files and add new data files created. */
   auto error = Fil_iterator::for_each_file(
-      false, [&](fil_node_t *file) { return (add_node(file, true)); });
+      [&](fil_node_t *file) { return add_node(file, true); });
 
   if (error != DB_SUCCESS) {
     return ER_INTERNAL_ERROR; /* purecov: inspected */
@@ -511,7 +538,7 @@ int Clone_Snapshot::init_redo_copy(Snapshot_State new_state,
 
   /* Iterate all tablespace files and add new data files created. */
   auto error = Fil_iterator::for_each_file(
-      false, [&](fil_node_t *file) { return (add_node(file, true)); });
+      [&](fil_node_t *file) { return add_node(file, true); });
 
   if (error != DB_SUCCESS) {
     return ER_INTERNAL_ERROR; /* purecov: inspected */
@@ -702,7 +729,8 @@ bool Clone_Snapshot::file_ctx_changed(const fil_node_t *node,
   const auto file_meta = file_ctx->get_file_meta_read();
 
   /* Check if encryption property has changed. */
-  if (file_meta->m_encrypt_type != space->encryption_type ||
+  if (file_meta->m_encryption_metadata.m_type !=
+          space->m_encryption_metadata.m_type ||
       space->encryption_op_in_progress != Encryption::Progress::NONE) {
     return true;
   }
@@ -776,7 +804,7 @@ int Clone_Snapshot::add_file(const char *name, uint64_t size_bytes,
   auto space = node->space;
   file_meta->m_space_id = space->id;
   file_meta->m_compress_type = space->compression_type;
-  file_meta->m_encrypt_type = space->encryption_type;
+  file_meta->m_encryption_metadata = space->m_encryption_metadata;
   file_meta->m_fsp_flags = static_cast<uint32_t>(space->flags);
   file_meta->m_punch_hole = node->punch_hole;
   file_meta->m_fsblk_size = node->block_size;
@@ -804,13 +832,7 @@ int Clone_Snapshot::add_file(const char *name, uint64_t size_bytes,
 
   bool is_redo_copy = (get_state() == CLONE_SNAPSHOT_REDO_COPY);
 
-  /* Save current encryption key information. */
-  if (file_meta->m_encrypt_type != Encryption::NONE) {
-    memcpy(file_meta->m_encryption_key, space->encryption_key,
-           Encryption::KEY_LEN);
-    memcpy(file_meta->m_encryption_iv, space->encryption_iv,
-           Encryption::KEY_LEN);
-
+  if (file_meta->can_encrypt()) {
     /* All encrypted files created during PAGE_COPY state have their keys redo
     logged. The recovered keys from redo log are encrypted by donor master key
     and cannot be used is recipient. We send the keys explicitly in this case
@@ -849,7 +871,7 @@ dberr_t Clone_Snapshot::add_node(fil_node_t *node, bool by_ddl) {
 
   bool is_page_copy = (get_state() == CLONE_SNAPSHOT_PAGE_COPY);
 
-  if (by_ddl && is_page_copy && space->encryption_type != Encryption::NONE) {
+  if (by_ddl && is_page_copy && space->can_encrypt()) {
     /* Add page 0 always for encrypted tablespace. */
     Clone_Page page_zero;
     page_zero.m_space_id = space->id;
@@ -940,19 +962,13 @@ int Clone_Snapshot::add_redo_file(char *file_name, uint64_t file_size,
   }
 
   file_meta->m_alloc_size = 0;
-  file_meta->m_space_id = dict_sys_t::s_log_space_first_id;
 
-  /* Fill encryption type from redo tablespace. */
-  auto redo_space = fil_space_get(dict_sys_t::s_log_space_first_id);
-  file_meta->m_encrypt_type = redo_space->encryption_type;
-
-  if (file_meta->m_encrypt_type != Encryption::NONE) {
-    const byte *key = redo_space->encryption_key;
-    const byte *iv = redo_space->encryption_iv;
-    byte *dest = m_redo_header + LOG_ENCRYPTION;
-
-    log_file_header_fill_encryption(dest, key, iv, false);
-  }
+  file_meta->m_space_id = dict_sys_t::s_log_space_id;
+  file_meta->m_compress_type = Compression::NONE;
+  file_meta->m_encryption_metadata = log_sys->m_encryption_metadata;
+  file_meta->m_fsp_flags = UINT32_UNDEFINED;
+  file_meta->m_punch_hole = false;
+  file_meta->m_fsblk_size = 0;
 
   file_meta->m_file_index = num_redo_files();
 
@@ -965,7 +981,8 @@ int Clone_Snapshot::add_redo_file(char *file_name, uint64_t file_size,
   slow data transfer. Currently we support maximum 1k redo files. */
   if (num_redo_files() > SRV_N_LOG_FILES_CLONE_MAX) {
     my_error(ER_INTERNAL_ERROR, MYF(0),
-             "More than 1000 archived redo files. Please retry clone.");
+             "More than %zu archived redo files. Please retry clone.",
+             SRV_N_LOG_FILES_CLONE_MAX);
     return (ER_INTERNAL_ERROR);
   }
 
@@ -1169,7 +1186,7 @@ int Clone_Handle::send_file_metadata(Clone_Task *task,
   callback->clear_flags();
 
   /* Check for secure transfer for encrypted table. */
-  if (file_meta->m_encrypt_type != Encryption::NONE || srv_undo_log_encrypt ||
+  if (file_meta->can_encrypt() || srv_undo_log_encrypt ||
       srv_redo_log_encrypt) {
     callback->set_secure();
   }
@@ -1264,7 +1281,7 @@ int Clone_Handle::send_data(Clone_Task *task, const Clone_file_ctx *file_ctx,
     err = file_callback(callback, task, size, false, offset
 #ifdef UNIV_PFS_IO
                         ,
-                        __FILE__, __LINE__
+                        UT_LOCATION_HERE
 #endif /* UNIV_PFS_IO */
     );
   }

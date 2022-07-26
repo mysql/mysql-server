@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1226,7 +1226,7 @@ stack when the second lock was acquired:
   A possible fix is to change the implementation of func_blue()
   to take locks on A then C, in that order.
 
-  Fixing the code is not enought, as the lock_order_dependencies.txt file
+  Fixing the code is not enough, as the lock_order_dependencies.txt file
   now contains an arc (C -> A) that is never taken in the code.
 
   Once both:
@@ -1322,18 +1322,18 @@ stack when the second lock was acquired:
 
   First, notice how the read write lock class "rwlock/sql/B"
   is represented by four nodes, named:
-  - "rwlock/sql/B:+R", incomming read lock
+  - "rwlock/sql/B:+R", incoming read lock
   - "rwlock/sql/B:-R", outgoing read lock
-  - "rwlock/sql/B:+W", incomming write lock
+  - "rwlock/sql/B:+W", incoming write lock
   - "rwlock/sql/B:-W", outgoing write lock
 
   A practical way to represent this graphically is to draw a box
   for the lock, that contains four ports.
   Internal connections between ports represent the logic table
-  for the lock: an arc from "+R" to "-W" means that an incomming request
+  for the lock: an arc from "+R" to "-W" means that an incoming request
   for a read lock ("+R") is blocked by a write lock request already given ("-W").
 
-  Micro arcs represent the wired logic of the lock itself, these can not be changed.
+  Micro arcs represent the wired logic of the lock itself, these cannot be changed.
 
   @dot
   digraph LockOrder {
@@ -1416,9 +1416,9 @@ stack when the second lock was acquired:
   Now, at t21, rwlock_B is locked in read mode by thread green,
   so a request for a read lock should be granted, right ?
 
-  Lock order claims there is a dead lock, because a read can block indirectly a read:
+  Lock order claims there is a dead lock, because a read can indirectly block a read:
 
-  Consider the folowing code:
+  Consider the following code:
 
   @code
   func_grey() {
@@ -1695,7 +1695,7 @@ stack when the second lock was acquired:
   }
 
 #define LO_MAX_THREAD_CLASS 100
-#define LO_MAX_MUTEX_CLASS 300
+#define LO_MAX_MUTEX_CLASS 350
 #define LO_MAX_RWLOCK_CLASS 100
 #define LO_MAX_COND_CLASS 150
 #define LO_MAX_FILE_CLASS 100

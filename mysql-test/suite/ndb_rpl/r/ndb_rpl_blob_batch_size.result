@@ -1,0 +1,65 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+Assert bounds of ndb_replica_blob_write_batch_bytes
+
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = -1;
+Warnings:
+Warning	1292	Truncated incorrect ndb_replica_blob_write_batch_bytes value: '-1'
+show variables like 'ndb_replica_blob_write_batch_bytes';
+Variable_name	Value
+ndb_replica_blob_write_batch_bytes	0
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = 2 * 1024 * 1024 * 1024 + 1;
+Warnings:
+Warning	1292	Truncated incorrect ndb_replica_blob_write_batch_bytes value: '2147483649'
+show variables like 'ndb_replica_blob_write_batch_bytes';
+Variable_name	Value
+ndb_replica_blob_write_batch_bytes	2147483648
+set @@SESSION.ndb_replica_blob_write_batch_bytes = 32768;
+ERROR HY000: Variable 'ndb_replica_blob_write_batch_bytes' is a GLOBAL variable and should be set with SET GLOBAL
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = DEFAULT;
+show variables like 'ndb_replica_blob_write_batch_bytes';
+Variable_name	Value
+ndb_replica_blob_write_batch_bytes	2097152
+
+set global replica_allow_batching = ON;
+set ndb_blob_write_batch_bytes = DEFAULT;
+set ndb_blob_read_batch_bytes = DEFAULT;
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = 512;
+show global variables like 'ndb_replica_blob_write_batch_bytes';
+Variable_name	Value
+ndb_replica_blob_write_batch_bytes	512
+set global ndb_log_update_as_write = ON;
+create table t1 (a int primary key, b blob) engine=ndb;
+create table t2 (a int primary key, b blob) engine=ndb;
+
+Bulk insert (~1MB) and update with low batch size
+
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = 4 * 1024 * 1024;
+show global variables like 'ndb_replica_blob_write_batch_bytes';
+Variable_name	Value
+ndb_replica_blob_write_batch_bytes	4194304
+
+Bulk insert (~1MB) and update with higher batch size
+
+Observe that the number of execute() decrease significantly while PK ops are maintained.
+Execute() calls should have decreased by, at least, a factor of 8.
+SELECT @high_batch_exec_count < @low_batch_exec_count AS 'Large batch size execute calls are less';
+Large batch size execute calls are less
+1
+SELECT @high_batch_pk_op_count = @low_batch_pk_op_count AS 'Same PK ops';
+Same PK ops
+1
+SELECT @low_batch_exec_count / @high_batch_exec_count >= 8 AS 'Factor of at least >= 8 for large batch';
+Factor of at least >= 8 for large batch
+1
+Cleanup
+set @@GLOBAL.ndb_log_update_as_write = ON;
+drop table t1;
+drop table t2;
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = DEFAULT;
+set @@GLOBAL.replica_allow_batching = ON;
+include/rpl_end.inc

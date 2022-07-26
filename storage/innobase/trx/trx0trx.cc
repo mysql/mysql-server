@@ -45,7 +45,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
-#include "log0log.h"
+#include "log0chkp.h"
+#include "log0write.h"
 #include "os0proc.h"
 #include "que0que.h"
 #include "read0read.h"
@@ -113,6 +114,11 @@ committed.
                             trx_erase_lists.
 */
 static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised);
+
+/** Tests the durability settings and flushes logs if needed.
+@param[in,out] trx the transaction to flush the logs for.
+@param[in]     lsn the identifier of the transaction to flush. */
+static void trx_flush_logs(trx_t *trx, lsn_t lsn);
 
 /** Set flush observer for the transaction
 @param[in,out]  trx             transaction struct
@@ -259,7 +265,7 @@ struct TrxFactory {
         ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, MAX_DETAILED_ERROR_LEN));
 
     trx->lock.lock_heap =
-        mem_heap_create_typed(1024, UT_LOCATION_HERE, MEM_HEAP_FOR_LOCK_HEAP);
+        mem_heap_create(1024, UT_LOCATION_HERE, MEM_HEAP_FOR_LOCK_HEAP);
 
     mutex_create(LATCH_ID_TRX, &trx->mutex);
     mutex_create(LATCH_ID_TRX_UNDO, &trx->undo_mutex);
@@ -581,14 +587,13 @@ void trx_free_for_background(trx_t *trx) {
 void trx_free_prepared_or_active_recovered(trx_t *trx) {
   ut_a(trx->magic_n == TRX_MAGIC_N);
 
-  ulint expected_undo_state;
+  bool was_prepared{false};
   if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE) {
     ut_a(trx_state_eq(trx, TRX_STATE_ACTIVE));
     ut_a(trx->is_recovered);
-    expected_undo_state = TRX_UNDO_ACTIVE;
   } else {
     ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
-    expected_undo_state = TRX_UNDO_PREPARED;
+    was_prepared = true;
   }
   /* A PREPARED transaction which got disconnected often has nonzero will_lock,
   yet trx_free() expects it to be cleared. We clear it at the latest possible
@@ -601,7 +606,7 @@ void trx_free_prepared_or_active_recovered(trx_t *trx) {
   assert_trx_in_rw_list(trx);
 
   trx_release_impl_and_expl_locks(trx, false);
-  trx_undo_free_trx_with_prepared_or_active_logs(trx, expected_undo_state);
+  trx_undo_free_trx_with_prepared_or_active_logs(trx, was_prepared);
 
   ut_ad(!trx->in_rw_trx_list);
   ut_a(!trx->read_only);
@@ -802,7 +807,7 @@ static trx_t *trx_resurrect_insert(
     /* Prepared transactions are left in the prepared state
     waiting for a commit or abort decision from MySQL */
 
-    if (undo->state == TRX_UNDO_PREPARED) {
+    if (undo->is_prepared()) {
       ib::info(ER_IB_MSG_1204) << "Transaction " << trx_get_id_for_print(trx)
                                << " was in the XA prepared state.";
 
@@ -868,7 +873,7 @@ static void trx_resurrect_update_in_prepared_state(
   /* This is single-threaded startup code, we do not need the
   protection of trx->mutex or trx_sys->mutex here. */
 
-  if (undo->state == TRX_UNDO_PREPARED) {
+  if (undo->is_prepared()) {
     ib::info(ER_IB_MSG_1206) << "Transaction " << trx_get_id_for_print(trx)
                              << " was in the XA prepared state.";
 
@@ -2701,8 +2706,11 @@ Assumption 1.
   If a thread attempts to acquire more then one trx->mutex, then it either has
   exclusive global latch, or it attempts to acquire exactly two of them, and at
   just before calling mutex_enter for the second time it saw
-  trx1->lock.wait_lock==nullptr, trx2->lock.wait_lock!=nullptr, and it held the
-  latch for the shard containing trx2->lock.wait_lock.
+  1.1 trx1->lock.wait_lock==nullptr or it held the latch for the shard
+      containing the trx1->lock.wait_lock
+  AND
+  1.2. trx2->lock.wait_lock!=nullptr, and it held the latch for the shard
+       containing trx2->lock.wait_lock.
 
 @see asserts in trx_before_mutex_enter
 
@@ -2738,9 +2746,14 @@ By proving the theorem, and observing that the assertions hold for multiple runs
 of test suite on debug build, we gain more and more confidence that
 trx_mutex_enter() calls can not deadlock.
 
-The intuitive, albeit imprecise, version of the proof is that by Assumption 1
-each edge of the deadlock cycle leads from a trx with NULL trx->lock.wait_lock
-to one with non-NULL wait_lock, which means it has only one edge.
+The intuitive, albeit imprecise, version of the proof is that by Assumption 1,
+for each i, the edge of the deadlock cycle caused by thread[i] - which has
+already latched transaction start[i] and waits to latch transaction end[i] -
+must have non-NULL end[i]->lock.wait_lock in a shard latched by thread[i], and
+either start[i]->lock.wait_lock == NULL, or the shard containing this lock is
+latched by thread[i], in either case no other j!=i can have end[j]=start[i], as
+that would mean start[i]->lock.wait_lock is non-NULL and in shard latched by
+thread[j] instead.
 
 The difficulty lays in that wait_lock is a field which can be modified over time
 from several threads, so care must be taken to clarify at which moment in time
@@ -2762,9 +2775,22 @@ Fact 4. Another thread has latched trx_a->mutex as the first of its two latches
 Consider the situation from the point of view of this other thread, which is now
 in the deadlock waiting for mutex_enter(trx_b->mutex) for some trx_b!=trx_a.
 By Fact 2 and assumption 1, it had to take the "else" branch on the way there,
-and thus it has saw: trx_a->lock.wait_lock == nullptr at some moment in time.
+and thus at some moment in time it has saw either
+a) trx_a->lock.wait_lock == nullptr or
+b) it held the latch of the shard containing trx_a->lock.wait_lock.
 This observation was either before or after our observation that
-trx_a->lock.wait_lock != nullptr (again Fact 2 and Assumption 1).
+trx_a->lock.wait_lock != nullptr and that we hold the latch on this shard
+(again Fact 2 and Assumption 1).
+
+Let us first rule out case b). As both threads are presumably in a deadlock,
+they are still holding the latches on the lock-sys shards that they had latched,
+so in case b) both threads hold a latch on a shard which contained the current
+trx_a->lock.wait_lock value, which implies they must have latched two different
+shards, which implies they saw two different values of wait_lock field, which in
+turn means that it has changed, but by Assumption 4 it can not change while
+somebody holds a latch on its current value's shard. Thus b) is impossible!
+
+This leaves us with case a).
 
 If our thread observed non-NULL value first, then it means a change from
 non-NULL to NULL has happened, which by Assumption 4 requires a shard latch,
@@ -2797,7 +2823,11 @@ void trx_before_mutex_enter(const trx_t *trx, bool first_of_two) {
     if (!locksys::owns_exclusive_global_latch()) {
       ut_a(trx_allowed_two_latches);
       ut_a(trx_latched_count == 2);
-      ut_a(trx_first_latched_trx->lock.wait_lock == nullptr);
+      /* In theory wait_lock can change from non-null to null at any moment
+      unless we indeed hold the wait_lock's shard. Thankfully, this is exactly
+      what we assert. */
+      ut_a(trx_first_latched_trx->lock.wait_lock == nullptr ||
+           locksys::owns_lock_shard(trx_first_latched_trx->lock.wait_lock));
       ut_a(trx_first_latched_trx != trx);
       /* This is not very safe, because to read trx->lock.wait_lock we
       should already either latch trx->mutex (which we don't) or shard with
@@ -2910,9 +2940,9 @@ bool trx_is_mysql_xa(const trx_t *trx) {
   return (my_xid != 0);
 }
 
-/** Prepares a transaction. */
-static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
-{
+/** Prepares a transaction.
+@param[in]     trx the transction to prepare. */
+static void trx_prepare(trx_t *trx) {
   ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
 
   /* This transaction has crossed the point of no return and cannot
@@ -2935,31 +2965,12 @@ static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
     trx_prepare_low(trx, &trx->rsegs.m_noredo, true);
   }
 
-  /* Check and get GTID to be persisted. Do it outside trx_sys mutex. */
-  auto &gtid_persistor = clone_sys->get_gtid_persistor();
-  Gtid_desc gtid_desc;
-  gtid_persistor.get_gtid_info(trx, gtid_desc);
-
-  /*--------------------------------------*/
   ut_a(trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE);
 
   trx_sys_mutex_enter();
   trx->state.store(TRX_STATE_PREPARED, std::memory_order_relaxed);
   trx_sys->n_prepared_trx++;
   trx_sys_mutex_exit();
-
-  /* Add GTID to be persisted to disk table, if needed. */
-  if (gtid_desc.m_is_set) {
-    /* The gtid_persistor.add() might release and re-acquire the mutex. */
-    trx_sys_serialisation_mutex_enter();
-    gtid_persistor.add(gtid_desc);
-    trx_sys_serialisation_mutex_exit();
-  }
-
-  /*--------------------------------------*/
-
-  /* Reset after successfully adding GTID to in memory table. */
-  trx->persists_gtid = false;
 
   /* Force isolation level to RC and release GAP locks
   for test purpose. */
@@ -2976,38 +2987,84 @@ static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
     lock_trx_release_read_locks(trx, true);
   }
 
-  switch (thd_requested_durability(trx->mysql_thd)) {
-    case HA_IGNORE_DURABILITY:
-      /* We set the HA_IGNORE_DURABILITY during prepare phase of
-      binlog group commit to not flush redo log for every transaction
-      here. So that we can flush prepared records of transactions to
-      redo log in a group right before writing them to binary log
-      during flush stage of binlog group commit. */
-      break;
-    case HA_REGULAR_DURABILITY:
-      if (lsn == 0) {
-        break;
-      }
-      /* Depending on the my.cnf options, we may now write the log
-      buffer to the log files, making the prepared state of the
-      transaction durable if the OS does not crash. We may also
-      flush the log files to disk, making the prepared state of the
-      transaction durable also at an OS crash or a power outage.
+  if (lsn > 0) {
+    trx_flush_logs(trx, lsn);
+  }
+}
 
-      The idea in InnoDB's group prepare is that a group of
-      transactions gather behind a trx doing a physical disk write
-      to log files, and when that physical write has been completed,
-      one of those transactions does a write which prepares the whole
-      group. Note that this group prepare will only bring benefit if
-      there are > 2 users in the database. Then at least 2 users can
-      gather behind one doing the physical log write to disk.
+/** Sets the transaction as prepared in the transaction coordinator for
+the given rollback segment.
+@param[in,out] trx      The rollback segment parent transaction.
+@param[in]     undo_ptr The rollback segment.
+@return lsn assigned for commit of scheduled rollback segment */
+static lsn_t trx_set_prepared_in_tc_low(trx_t *trx, trx_undo_ptr_t *undo_ptr) {
+  if (undo_ptr->insert_undo != nullptr || undo_ptr->update_undo != nullptr) {
+    mtr_t mtr;
+    trx_rseg_t *rseg = undo_ptr->rseg;
 
-      We must not be holding any mutexes or latches here. */
+    mtr_start_sync(&mtr);
 
-      /* We should trust trx->ddl_operation instead of
-      ddl_must_flush here */
-      trx->ddl_must_flush = false;
-      trx_flush_log_if_needed(lsn, trx);
+    /* Change the undo log segment states from TRX_UNDO_ACTIVE to
+    TRX_UNDO_PREPARED: these modifications to the file data
+    structure define the transaction as prepared in the file-based
+    world, at the serialization point of lsn. */
+
+    rseg->latch();
+
+    if (undo_ptr->insert_undo != nullptr) {
+      /* It is not necessary to obtain trx->undo_mutex here
+      because only a single OS thread is allowed to do the
+      transaction prepare for this transaction. */
+      trx_undo_set_prepared_in_tc(trx, undo_ptr->insert_undo, &mtr);
+    }
+
+    if (undo_ptr->update_undo != nullptr) {
+      trx_undo_gtid_set(trx, undo_ptr->update_undo, true);
+      trx_undo_set_prepared_in_tc(trx, undo_ptr->update_undo, &mtr);
+    }
+
+    rseg->unlatch();
+
+    /*--------------*/
+    /* This mtr commit makes the transaction prepared in
+    file-based world. */
+    mtr_commit(&mtr);
+    /*--------------*/
+
+    const lsn_t lsn = mtr.commit_lsn();
+    ut_ad(lsn > 0 || !mtr_t::s_logging.is_enabled());
+    return lsn;
+  }
+
+  return 0;
+}
+
+/** Marks a transaction as prepared in the transaction coordinator.
+@param[in]     trx the transction to mark. */
+static void trx_set_prepared_in_tc(trx_t *trx) {
+  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+  ut_a(trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED);
+
+  lsn_t lsn = trx_set_prepared_in_tc_low(trx, &trx->rsegs.m_redo);
+
+  /* Check and get GTID to be persisted. Do it outside trx_sys mutex. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  Gtid_desc gtid_desc;
+  gtid_persistor.get_gtid_info(trx, gtid_desc);
+
+  /* Add GTID to be persisted to disk table, if needed. */
+  if (gtid_desc.m_is_set) {
+    /* The gtid_persistor.add() might release and re-acquire the mutex. */
+    trx_sys_serialisation_mutex_enter();
+    gtid_persistor.add(gtid_desc);
+    trx_sys_serialisation_mutex_exit();
+  }
+
+  /* Reset after successfully adding GTID to in memory table. */
+  trx->persists_gtid = false;
+
+  if (lsn > 0) {
+    trx_flush_logs(trx, lsn);
   }
 }
 
@@ -3022,12 +3079,6 @@ dberr_t trx_prepare_for_mysql(trx_t *trx) {
   if (trx_in_innodb.is_aborted() &&
       trx->killed_by != std::this_thread::get_id()) {
     return (DB_FORCED_ABORT);
-  }
-
-  /* For GTID persistence we need update undo segment. */
-  auto db_err = trx_undo_gtid_add_update_undo(trx, true, false);
-  if (db_err != DB_SUCCESS) {
-    return (db_err);
   }
 
   trx->op_info = "preparing";
@@ -3152,6 +3203,36 @@ int trx_recover_for_mysql(
   }
 
   return (int(count));
+}
+
+int trx_recover_tc_for_mysql(Xa_state_list &xa_list) {
+  /* We should set those transactions which are in the prepared state
+  to the xid_list */
+
+  trx_sys_mutex_enter();
+
+  for (trx_t *trx : trx_sys->rw_trx_list) {
+    assert_trx_in_rw_list(trx);
+
+    /* The state of a read-write transaction cannot change
+    from or to NOT_STARTED while we are holding the
+    trx_sys->mutex. It may change to PREPARED, but not if
+    trx->is_recovered. */
+    if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
+      if (trx_is_prepared_in_tc(trx)) {
+        /* We found the transaction in 2nd phase of prepare, add to XA
+           transaction state list as PREPARED_IN_TC */
+        xa_list.add(*trx->xid, enum_ha_recover_xa_state::PREPARED_IN_TC);
+      } else {
+        /* Otherwise, just add as PREPARED_IN_SE */
+        xa_list.add(*trx->xid, enum_ha_recover_xa_state::PREPARED_IN_SE);
+      }
+    }
+  }
+
+  trx_sys_mutex_exit();
+
+  return 0;
 }
 
 /** This function is used to find one X/Open XA distributed transaction
@@ -3377,11 +3458,15 @@ void trx_kill_blocking(trx_t *trx) {
 
   for (hit_list_t::reverse_iterator it = hit_list.rbegin(); it != end; ++it) {
     trx_t *victim_trx = it->m_trx;
-    ulint version = it->m_version;
+    auto version = it->m_version;
 
     /* Shouldn't commit suicide. */
     ut_ad(victim_trx != trx);
     ut_ad(victim_trx->mysql_thd != trx->mysql_thd);
+
+    if (lock_cancel_if_waiting_and_release(*it)) {
+      continue;
+    }
 
     /* Check that the transaction isn't active inside
     InnoDB code. We have to wait while it is executing
@@ -3468,10 +3553,9 @@ void trx_kill_blocking(trx_t *trx) {
     trx_rollback_for_mysql(victim_trx);
 
 #ifdef UNIV_DEBUG
-    ib::info(ER_IB_MSG_1211)
-        << "High Priority Transaction (ID): " << trx->id
-        << " killed transaction (ID): " << id << " in hit list"
-        << " - " << thr_text;
+    ib::info(ER_IB_MSG_1211, ulonglong{trx->id},
+             to_string(std::this_thread::get_id()).c_str(), ulonglong{id},
+             thr_text);
 #endif /* UNIV_DEBUG */
     trx_mutex_enter(victim_trx);
 
@@ -3505,4 +3589,73 @@ void trx_sys_update_binlog_position(trx_t *trx) {
   ulonglong pos;
   thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
   trx->mysql_log_offset = static_cast<uint64_t>(pos);
+}
+
+bool trx_is_prepared_in_tc(trx_t const *trx) {
+  trx_undo_t *undo{nullptr};
+
+  if (trx->rsegs.m_redo.rseg != nullptr && trx_is_redo_rseg_updated(trx)) {
+    if (trx->rsegs.m_redo.insert_undo != nullptr) {
+      undo = trx->rsegs.m_redo.insert_undo;
+    } else {
+      undo = trx->rsegs.m_redo.update_undo;
+    }
+  }
+
+  return undo != nullptr && (undo->state == TRX_UNDO_PREPARED_80028 ||
+                             undo->state == TRX_UNDO_PREPARED_IN_TC);
+}
+
+dberr_t trx_set_prepared_in_tc_for_mysql(trx_t *trx) {
+  ut_a(trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED);
+
+  /* For GTID persistence we need update undo segment. */
+  auto db_err = trx_undo_gtid_add_update_undo(trx, true, false);
+  if (db_err != DB_SUCCESS) {
+    return (db_err);
+  }
+
+  trx->op_info = "marking transaction as prepared in TC";
+
+  trx_set_prepared_in_tc(trx);
+
+  trx->op_info = "";
+
+  return (DB_SUCCESS);
+}
+
+static void trx_flush_logs(trx_t *trx, lsn_t lsn) {
+  if (lsn == 0) {
+    return;
+  }
+  switch (thd_requested_durability(trx->mysql_thd)) {
+    case HA_IGNORE_DURABILITY:
+      /* We set the HA_IGNORE_DURABILITY during prepare phase of
+      binlog group commit to not flush redo log for every transaction
+      here. So that we can flush prepared records of transactions to
+      redo log in a group right before writing them to binary log
+      during flush stage of binlog group commit. */
+      break;
+    case HA_REGULAR_DURABILITY:
+      /* Depending on the my.cnf options, we may now write the log
+      buffer to the log files, making the prepared state of the
+      transaction durable if the OS does not crash. We may also
+      flush the log files to disk, making the prepared state of the
+      transaction durable also at an OS crash or a power outage.
+
+      The idea in InnoDB's group prepare is that a group of
+      transactions gather behind a trx doing a physical disk write
+      to log files, and when that physical write has been completed,
+      one of those transactions does a write which prepares the whole
+      group. Note that this group prepare will only bring benefit if
+      there are > 2 users in the database. Then at least 2 users can
+      gather behind one doing the physical log write to disk.
+
+      We must not be holding any mutexes or latches here. */
+
+      /* We should trust trx->ddl_operation instead of
+      ddl_must_flush here */
+      trx->ddl_must_flush = false;
+      trx_flush_log_if_needed(lsn, trx);
+  }
 }

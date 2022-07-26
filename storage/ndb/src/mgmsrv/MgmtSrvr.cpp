@@ -1030,7 +1030,7 @@ MgmtSrvr::~MgmtSrvr()
   delete m_local_config;
 
   if (m_opts.bind_address != nullptr)
-    free((void*)m_opts.bind_address);
+    free(const_cast<char*>(m_opts.bind_address));
   NdbMutex_Destroy(m_local_config_mutex);
   NdbMutex_Destroy(m_reserved_nodes_mutex);
 }
@@ -3186,7 +3186,7 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
 }
 
 int
-MgmtSrvr::dropNodegroup(int ng)
+MgmtSrvr::dropNodegroup(unsigned ng)
 {
   int res;
   SignalSender ss(theFacade);
@@ -3270,7 +3270,32 @@ MgmtSrvr::dropNodegroup(int ng)
     }
   }
 
-  return endSchemaTrans(ss, nodeId, transId, transKey, 0);
+  int ret = endSchemaTrans(ss, nodeId, transId, transKey, 0);
+  if (ret == 0)
+  {
+    // Check whether nodegroup is dropped using the current cached node states
+    bool ng_is_empty = true;
+    NodeId node_id = 0;
+    while (getNextNodeId(&node_id, NDB_MGM_NODE_TYPE_NDB))
+    {
+      const trp_node& node = getNodeInfo(node_id);
+      if (node.is_connected() && node.m_state.nodeGroup == ng)
+      {
+        ng_is_empty = false;
+        break;
+      }
+    }
+    if (!ng_is_empty)
+    {
+      /*
+       * Some node is still reported to belong to dropped nodegroup.
+       * Wait for 4 heartbeats, when either the heartbeat with new nodegroup
+       * information should have arrived, or node should been declared failed.
+       */
+      NdbSleep_MilliSleep(4 * 100);
+    }
+  }
+  return ret;
 }
 
 
@@ -3730,8 +3755,8 @@ MgmtSrvr::clear_connect_address_cache(NodeId nodeid)
  ***************************************************************************/
 
 MgmtSrvr::NodeIdReservations::NodeIdReservations()
+    : m_reservations()  // zero fill using value initialization
 {
-  std::memset(m_reservations, 0, sizeof(m_reservations));
 }
 
 
@@ -4093,7 +4118,7 @@ MgmtSrvr::build_node_list_from_config(NodeId node_id,
       if (node_id) {
         // Caller asked for this exact nodeid, but it is not the correct type.
         BaseString type_string, current_type_string;
-        const char *alias, *str;
+        const char *alias, *str = nullptr;
         alias = ndb_mgm_get_node_type_alias_string(type, &str);
         type_string.assfmt("%s(%s)", alias, str);
         alias = ndb_mgm_get_node_type_alias_string(
@@ -4187,7 +4212,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
     error_code= NDB_MGM_ALLOCID_CONFIG_RETRY;
 
     BaseString type_string;
-    const char *alias, *str;
+    const char *alias, *str = nullptr;
     char addr_buf[NDB_ADDR_STRLEN];
     alias= ndb_mgm_get_node_type_alias_string(type, &str);
     type_string.assfmt("%s(%s)", alias, str);
@@ -4439,7 +4464,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
        * be backwards compatible wrt error messages
        */
       BaseString type_string, type_c_string;
-      const char *alias, *str;
+      const char *alias, *str = nullptr;
       alias= ndb_mgm_get_node_type_alias_string(type, &str);
       type_string.assfmt("%s(%s)", alias, str);
       alias= ndb_mgm_get_node_type_alias_string(NDB_MGM_NODE_TYPE_MGM, &str);
@@ -4582,7 +4607,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     {
       if (error_code == 0)
       {
-        const char *alias, *str;
+        const char *alias, *str = nullptr;
         alias = ndb_mgm_get_node_type_alias_string(type, &str);
         error_string.appfmt("No free node id found for %s(%s).",
                             alias,
@@ -4666,8 +4691,8 @@ MgmtSrvr::eventReport(const Uint32 *theSignalData,
                       Uint32 len,
                       const Uint32 *theData)
 {
-  const EventReport * const eventReport = (EventReport *)&theSignalData[0];
-  
+  const EventReport* const eventReport = (const EventReport*)&theSignalData[0];
+
   NodeId nodeId = eventReport->getNodeId();
   Ndb_logevent_type type = eventReport->getEventType();
   // Log event

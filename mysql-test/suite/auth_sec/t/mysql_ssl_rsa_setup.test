@@ -1,4 +1,3 @@
---source include/have_openssl_binary.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

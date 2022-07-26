@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -143,7 +143,7 @@ bool keyring_metadata_query_next_template(std::unique_ptr<config_vector> &it) {
   @param [out] value_buffer_length Length of the value buffer
 
   @returns Get length information about key and value
-    @retval false Success check out paramters
+    @retval false Success check out parameters
     @retval true  Error
 */
 bool keyring_metadata_query_get_length_template(

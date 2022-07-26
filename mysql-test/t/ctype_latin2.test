@@ -40,14 +40,14 @@ INSERT INTO t1 VALUES (0xF8),(0xF9),(0xFA),(0xFB),(0xFC),(0xFD),(0xFE),(0xFF);
 #
 # Bug#6504 upper/lower conversion bug
 #
-SELECT hex(a) ha, hex(lower(a)) hl, hex(upper(a)) hu, 
-a, lower(a) l, upper(a) u from t1 order by ha;
+SELECT hex(a) ha, hex(lower(a)) hl, hex(upper(a)) hu
+from t1 order by ha;
 
 
 #
 # Bug#6505 wrong sorting order
 #
-SELECT group_concat(a collate latin2_croatian_ci order by binary a) from t1 group by a collate latin2_croatian_ci;
+SELECT HEX(group_concat(a collate latin2_croatian_ci order by binary a)) from t1 group by a collate latin2_croatian_ci;
 drop table t1;
 
 # End of 4.1 tests

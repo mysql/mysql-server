@@ -106,33 +106,6 @@ static MYSQL_SYSVAR_SET(
     "DEFAULT, BACKUP, FORCE, QUICK, or OFF",
     nullptr, nullptr, 0, &myisam_recover_typelib);
 
-static void emit_repair_threads_warning(THD *thd, ulong val) {
-  if (val == 1) return;
-
-  if (thd)
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING,
-        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-        ER_THD_NONCONST(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-        "@@myisam_repair_threads");
-  else
-    LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-           "@@myisam_repair_threads");
-}
-
-static void repair_threads_update(THD *thd, SYS_VAR *, void *tgt,
-                                  const void *save) {
-  emit_repair_threads_warning(thd, (ulong) * (long *)const_cast<void *>(save));
-  *static_cast<long *>(tgt) = *static_cast<const long *>(save);
-}
-
-static MYSQL_THDVAR_ULONG(
-    repair_threads, PLUGIN_VAR_RQCMDARG,
-    "DEPRECATED. If larger than 1, when repairing a MyISAM table all indexes "
-    "will be created in parallel, with one thread per index. The value of 1 "
-    "disables parallel repair",
-    nullptr, repair_threads_update, 1, 1, ULONG_MAX, 1);
-
 static MYSQL_THDVAR_ULONGLONG(
     sort_buffer_size, PLUGIN_VAR_RQCMDARG,
     "The buffer that is allocated when sorting the index when doing "
@@ -225,12 +198,7 @@ static void mi_check_print_msg(MI_CHECK *param, const char *msg_type,
     TODO: switch from protocol to push_warning here. The main reason we didn't
     it yet is parallel repair. Due to following trace:
     mi_check_print_msg/push_warning/sql_alloc/my_pthread_getspecific_ptr.
-
-    Also we likely need to lock mutex here (in both cases with protocol and
-    push_warning).
   */
-  if (param->need_print_msg_lock) mysql_mutex_lock(&param->print_msg_mutex);
-
   protocol->start_row();
   protocol->store_string(name, length, system_charset_info);
   protocol->store(param->op_name, system_charset_info);
@@ -238,8 +206,6 @@ static void mi_check_print_msg(MI_CHECK *param, const char *msg_type,
   protocol->store_string(msgbuf, msg_length, system_charset_info);
   if (protocol->end_row())
     LogErr(ERROR_LEVEL, ER_MY_NET_WRITE_FAILED_FALLING_BACK_ON_STDERR, msgbuf);
-
-  if (param->need_print_msg_lock) mysql_mutex_unlock(&param->print_msg_mutex);
 
   return;
 }
@@ -458,7 +424,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
     - compare FULLTEXT keys;
     - compare SPATIAL keys;
     - compare FIELD_SKIP_ZERO which is converted to FIELD_NORMAL correctly
-      (should be corretly detected in table2myisam).
+      (should be correctly detected in table2myisam).
 */
 
 int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
@@ -1079,28 +1045,13 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
       local_testflag |= T_STATISTICS;
       param.testflag |= T_STATISTICS;  // We get this for free
       statistics_done = true;
-      if (THDVAR(thd, repair_threads) > 1) {
-        char buf[40];
-        /* TODO: respect myisam_repair_threads variable */
-        snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
-        thd_proc_info(thd, buf);
-        /*
-          The new file is created with the right stats, so we can skip
-          copying file stats from old to new.
-        */
-        error = mi_repair_parallel(&param, file, fixed_name,
-                                   param.testflag & T_QUICK, true);
-        thd_proc_info(thd, "Repair done");  // to reset proc_info, as
-                                            // it was pointing to local buffer
-      } else {
-        thd_proc_info(thd, "Repair by sorting");
-        /*
-          The new file is created with the right stats, so we can skip
-          copying file stats from old to new.
-        */
-        error = mi_repair_by_sort(&param, file, fixed_name,
-                                  param.testflag & T_QUICK, true);
-      }
+      thd_proc_info(thd, "Repair by sorting");
+      /*
+        The new file is created with the right stats, so we can skip
+        copying file stats from old to new.
+      */
+      error = mi_repair_by_sort(&param, file, fixed_name,
+                                param.testflag & T_QUICK, true);
     } else {
       thd_proc_info(thd, "Repair with keycache");
       param.testflag &= ~T_REP_BY_SORT;
@@ -1698,7 +1649,7 @@ int ha_myisam::info(uint flag) {
 
     /*
       Update share.
-      lock_shared_ha_data is slighly abused here, since there is no other
+      lock_shared_ha_data is slightly abused here, since there is no other
       way of locking the TABLE_SHARE.
     */
     lock_shared_ha_data();
@@ -2019,8 +1970,6 @@ static int myisam_init(void *p) {
   init_myisam_psi_keys();
 #endif
 
-  emit_repair_threads_warning(nullptr, THDVAR(nullptr, repair_threads));
-
   /* Set global variables based on startup options */
   if (myisam_recover_options)
     ha_open_options |= HA_OPEN_ABORT_IF_CRASHED;
@@ -2121,12 +2070,15 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item *idx_cond_arg) {
   return nullptr;
 }
 
-static SYS_VAR *myisam_sysvars[] = {
-    MYSQL_SYSVAR(block_size),         MYSQL_SYSVAR(data_pointer_size),
-    MYSQL_SYSVAR(max_sort_file_size), MYSQL_SYSVAR(recover_options),
-    MYSQL_SYSVAR(repair_threads),     MYSQL_SYSVAR(sort_buffer_size),
-    MYSQL_SYSVAR(use_mmap),           MYSQL_SYSVAR(mmap_size),
-    MYSQL_SYSVAR(stats_method),       nullptr};
+static SYS_VAR *myisam_sysvars[] = {MYSQL_SYSVAR(block_size),
+                                    MYSQL_SYSVAR(data_pointer_size),
+                                    MYSQL_SYSVAR(max_sort_file_size),
+                                    MYSQL_SYSVAR(recover_options),
+                                    MYSQL_SYSVAR(sort_buffer_size),
+                                    MYSQL_SYSVAR(use_mmap),
+                                    MYSQL_SYSVAR(mmap_size),
+                                    MYSQL_SYSVAR(stats_method),
+                                    nullptr};
 
 struct st_mysql_storage_engine myisam_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};

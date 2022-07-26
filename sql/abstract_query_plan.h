@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,14 +174,14 @@ class Table_access {
 
   const uint m_tab_no;
 
-  /** Describes an AccessPath refering a TABLE* type */
+  /** Describes an AccessPath referring a TABLE* type */
   const AccessPath *const m_path;
   const TABLE *const m_table{nullptr};  // The TABLE accessed by m_path
 
   /** An optional AccessPath::FILTER in effect for this table */
   AccessPath *const m_filter;
 
-  /** The access type used for this table. */
+  /** The access type used for this table */
   mutable enum_access_type m_access_type{AT_VOID};
 
   /**

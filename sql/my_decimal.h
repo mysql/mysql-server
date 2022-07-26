@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -286,7 +286,7 @@ inline int my_decimal_set_zero(my_decimal *d) {
   /*
     We need the up-cast here, since my_decimal has sign() member functions,
     which conflicts with decimal_t::size
-    (and decimal_make_zero is a macro, rather than a funcion).
+    (and decimal_make_zero is a macro, rather than a function).
   */
   decimal_make_zero(static_cast<decimal_t *>(d));
   return 0;

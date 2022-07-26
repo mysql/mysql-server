@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ namespace file_info {
 
    @param pt previous file_type (only relevant when assigning an fd to a stream
    in my_fdopen):
-   @param ct current file type (to differentiate betweeen streams and files).
+   @param ct current file type (to differentiate between streams and files).
  */
 void CountFileOpen(OpenType pt, OpenType ct) {
   mysql_mutex_assert_owner(&THR_LOCK_open);
@@ -136,7 +136,7 @@ void CountFileOpen(OpenType pt, OpenType ct) {
    Decrement status variables.
    @relates file_info::CountFileClose
 
-   @param ft file type (to differentiate betweeen streams and files).
+   @param ft file type (to differentiate between streams and files).
  */
 void CountFileClose(OpenType ft) {
   mysql_mutex_assert_owner(&THR_LOCK_open);

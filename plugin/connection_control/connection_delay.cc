@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -491,7 +491,7 @@ void Connection_delay_action::conditional_wait(MYSQL_THD thd,
 }
 
 /**
-  @brief  Handle a connection event and if requried,
+  @brief  Handle a connection event and, if required,
   wait for random amount of time before returning.
 
   We only care about CONNECT and CHANGE_USER sub events.

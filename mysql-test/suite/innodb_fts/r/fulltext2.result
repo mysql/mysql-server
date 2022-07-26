@@ -215,7 +215,7 @@ drop table t1;
 SET NAMES utf8mb4;
 create table t1(a text,fulltext(a)) ENGINE = INNODB collate=utf8_swedish_ci;
 Warnings:
-Warning	3778	'utf8_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values('test test '),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),

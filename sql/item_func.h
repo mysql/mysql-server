@@ -217,6 +217,7 @@ class Item_func : public Item_result_field {
     NOT_FUNC,
     NOT_ALL_FUNC,
     NOW_FUNC,
+    FROM_DAYS_FUNC,
     TRIG_COND_FUNC,
     SUSERVAR_FUNC,
     GUSERVAR_FUNC,
@@ -293,7 +294,8 @@ class Item_func : public Item_result_field {
     JSON_UNQUOTE_FUNC,
     MEMBER_OF_FUNC,
     STRCMP_FUNC,
-    TRUE_FUNC
+    TRUE_FUNC,
+    FALSE_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -393,6 +395,33 @@ class Item_func : public Item_result_field {
     args[2] = c;
     args[3] = d;
     args[4] = e;
+  }
+  Item_func(Item *a, Item *b, Item *c, Item *d, Item *e, Item *f) {
+    if (alloc_args(*THR_MALLOC, 6)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    args[3] = d;
+    args[4] = e;
+    args[5] = f;
+    m_accum_properties = 0;
+    add_accum_properties(a);
+    add_accum_properties(b);
+    add_accum_properties(c);
+    add_accum_properties(d);
+    add_accum_properties(e);
+    add_accum_properties(f);
+  }
+  Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e,
+            Item *f)
+      : Item_result_field(pos) {
+    if (alloc_args(*THR_MALLOC, 6)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    args[3] = d;
+    args[4] = e;
+    args[5] = f;
   }
   explicit Item_func(mem_root_deque<Item *> *list) {
     set_arguments(list, false);
@@ -616,8 +645,6 @@ class Item_func : public Item_result_field {
   /// for hash join (join conditions in hash join must be equi-join conditions),
   /// or if it should be placed as a filter after the join.
   virtual bool contains_only_equi_join_condition() const { return false; }
-
-  bool ensure_multi_equality_fields_are_available_walker(uchar *) override;
 
  protected:
   /**
@@ -947,7 +974,7 @@ class Item_int_func : public Item_func {
   enum Item_result result_type() const override { return INT_RESULT; }
   /*
     Concerning PS-param types,
-    resolve_type(THD *) is not overidden here, as experience shows that for
+    resolve_type(THD *) is not overridden here, as experience shows that for
     most child classes of this class, VARCHAR is the best default
   */
 };
@@ -955,19 +982,17 @@ class Item_int_func : public Item_func {
 class Item_func_connection_id final : public Item_int_func {
   typedef Item_int_func super;
 
-  longlong value;
-
  public:
   Item_func_connection_id(const POS &pos) : Item_int_func(pos) {}
 
+  table_map get_initial_pseudo_tables() const override {
+    return INNER_TABLE_BIT;
+  }
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return "connection_id"; }
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **ref) override;
-  longlong val_int() override {
-    assert(fixed);
-    return value;
-  }
+  longlong val_int() override;
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
@@ -2444,7 +2469,6 @@ class Item_func_gtid_subset final : public Item_int_func {
   const char *func_name() const override { return "gtid_subset"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, ~0U)) return true;
-    set_nullable(false);
     return false;
   }
   bool is_bool_func() const override { return true; }
@@ -2571,6 +2595,8 @@ class Item_func_is_visible_dd_object : public Item_int_func {
       : Item_int_func(pos, a) {}
   Item_func_is_visible_dd_object(const POS &pos, Item *a, Item *b)
       : Item_int_func(pos, a, b) {}
+  Item_func_is_visible_dd_object(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_int_func(pos, a, b, c) {}
   longlong val_int() override;
   const char *func_name() const override { return "is_visible_dd_object"; }
   bool resolve_type(THD *) override {
@@ -3133,7 +3159,7 @@ class user_var_entry {
     @param type           type of new value
     @param cs             charset info for new value
     @param dv             derivation for new value
-    @param unsigned_arg   indiates if a value of type INT_RESULT is unsigned
+    @param unsigned_arg   indicates if a value of type INT_RESULT is unsigned
 
     @note Sets error and fatal error if allocation fails.
 
@@ -3438,6 +3464,12 @@ class Item_func_get_system_var final : public Item_var_func {
   /* TODO: fix to support views */
   const char *func_name() const override { return "get_system_var"; }
   bool eq(const Item *item, bool binary_cmp) const override;
+  bool is_valid_for_pushdown(uchar *arg [[maybe_unused]]) override {
+    // Expressions which have system variables cannot be pushed as of
+    // now because Item_func_get_system_var::print does not print the
+    // original expression which leads to an incorrect clone.
+    return true;
+  }
 
   void cleanup() override;
 };
@@ -3676,7 +3708,7 @@ class Item_func_match final : public Item_real_func {
   bool simple_expression;
   /**
      true if MATCH function is used in WHERE condition only.
-     Used to dermine what hints can be used for FT handler.
+     Used to determine what hints can be used for FT handler.
      Note that only master MATCH function has valid value.
      it's ok since only master function is involved in the hint processing.
   */
@@ -3984,10 +4016,10 @@ class Item_func_internal_is_enabled_role : public Item_int_func {
 
   @param suffix Name of the variable (if prefix is empty) or the right
                 hand side of the composite variable name, e.g.:
-                * name of the component-registered vairable
+                * name of the component-registered variable
                 * property name of MyISAM Multiple Key Cache variable.
 
-  @param unsafe_for_replication force writting this system variable to binlog
+  @param unsafe_for_replication force writing this system variable to binlog
                 (if not written yet)
 
   @returns new item on success, otherwise nullptr
@@ -4012,6 +4044,8 @@ Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
                             Field **found = nullptr);
 
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value);
+
+bool is_function_of_type(const Item *item, Item_func::Functype type);
 
 extern bool volatile mqh_used;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,7 +97,7 @@ int Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
   int error = 0;
 
   // create the receiver queue
-  this->incoming = new Synchronized_queue<Packet *>();
+  this->incoming = new Synchronized_queue<Packet *>(key_transaction_data);
 
   stop_wait_timeout = stop_timeout;
 
@@ -325,25 +325,32 @@ int Applier_module::apply_view_change_packet(
 int Applier_module::apply_data_packet(Data_packet *data_packet,
                                       Format_description_log_event *fde_evt,
                                       Continuation *cont) {
+  DBUG_TRACE;
   int error = 0;
   uchar *payload = data_packet->payload;
   uchar *payload_end = data_packet->payload + data_packet->len;
 
   DBUG_EXECUTE_IF("group_replication_before_apply_data_packet", {
-    const char act[] = "now wait_for continue_apply";
+    const char act[] =
+        "now signal signal.group_replication_before_apply_data_packet_reached "
+        "wait_for continue_apply";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   while ((payload != payload_end) && !error) {
     uint event_len = uint4korr(((uchar *)payload) + EVENT_LEN_OFFSET);
 
-    Data_packet *new_packet = new Data_packet(payload, event_len);
+    Data_packet *new_packet =
+        new Data_packet(payload, event_len, key_transaction_data);
     payload = payload + event_len;
 
-    std::list<Gcs_member_identifier> *online_members = nullptr;
+    Members_list *online_members = nullptr;
     if (nullptr != data_packet->m_online_members) {
-      online_members =
-          new std::list<Gcs_member_identifier>(*data_packet->m_online_members);
+      online_members = new Members_list(
+          data_packet->m_online_members->begin(),
+          data_packet->m_online_members->end(),
+          Malloc_allocator<Gcs_member_identifier>(
+              key_consistent_members_that_must_prepare_transaction));
     }
 
     Pipeline_event *pevent =
@@ -351,7 +358,17 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
                            data_packet->m_consistency_level, online_members);
     error = inject_event_into_pipeline(pevent, cont);
 
+    DBUG_EXECUTE_IF("group_replication_apply_data_packet_after_inject", {
+      const char act[] =
+          "now SIGNAL "
+          "signal.group_replication_apply_data_packet_after_inject_reached "
+          "WAIT_FOR "
+          "signal.group_replication_apply_data_packet_after_inject_continue";
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    });
+
     delete pevent;
+
     DBUG_EXECUTE_IF("stop_applier_channel_after_reading_write_rows_log_event", {
       if (payload[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT) {
         error = 1;
@@ -383,18 +400,21 @@ int Applier_module::apply_single_primary_action_packet(
 
 int Applier_module::apply_transaction_prepared_action_packet(
     Transaction_prepared_action_packet *packet) {
+  DBUG_TRACE;
   return transaction_consistency_manager->handle_remote_prepare(
       packet->get_sid(), packet->m_gno, packet->m_gcs_member_id);
 }
 
 int Applier_module::apply_sync_before_execution_action_packet(
     Sync_before_execution_action_packet *packet) {
+  DBUG_TRACE;
   return transaction_consistency_manager->handle_sync_before_execution_message(
       packet->m_thread_id, packet->m_gcs_member_id);
 }
 
 int Applier_module::apply_leaving_members_action_packet(
     Leaving_members_action_packet *packet) {
+  DBUG_TRACE;
   return transaction_consistency_manager->handle_member_leave(
       packet->m_leaving_members);
 }

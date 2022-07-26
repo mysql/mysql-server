@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0types.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
-#include "log0log.h"
+#include "log0chkp.h"
 #include "mach0data.h"
 #include "pars0sym.h"
 #include "que0que.h"
@@ -493,9 +493,11 @@ void row_upd_rec_in_place(
     rec_set_info_bits_new(rec, update->info_bits);
     if (is_versioned) {
       rec_new_set_versioned(rec, true);
+      ut_ad(!rec_get_instant_flag_new(rec));
     } else if (is_instant) {
       ut_ad(index->table->has_instant_cols());
       rec_set_instant_flag_new(rec, true);
+      ut_ad(!rec_new_is_versioned(rec));
     } else {
       rec_new_set_versioned(rec, false);
       rec_set_instant_flag_new(rec, false);
@@ -852,7 +854,8 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
         (index->get_sys_col_pos(DATA_ROLL_PTR) == trx_id_pos + 1));
 
   if (!offsets) {
-    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
   } else {
     ut_ad(rec_offs_validate(rec, index, offsets));
   }
@@ -1904,7 +1907,8 @@ void row_upd_store_row(upd_node_t *node, THD *thd, TABLE *mysql_table) {
 
   rec = node->pcur->get_rec();
 
-  offsets = rec_get_offsets(rec, clust_index, offsets_, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, clust_index, offsets_, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   if (dict_table_has_atomic_blobs(node->table)) {
     /* There is no prefix of externally stored columns in
@@ -2334,7 +2338,8 @@ code or DB_LOCK_WAIT */
       if (referenced) {
         ulint *offsets;
 
-        offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+        offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                                  UT_LOCATION_HERE, &heap);
 
         /* NOTE that the following call loses
         the position of pcur ! */
@@ -2588,7 +2593,8 @@ static inline bool row_upd_clust_rec_by_insert_inherit(
       we update the primary key.  Delete-mark the old record
       in the clustered index and prepare to insert a new entry. */
       rec = btr_cur_get_rec(btr_cur);
-      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
       ut_ad(page_rec_is_user_rec(rec));
 
       if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
@@ -3013,7 +3019,8 @@ func_exit:
   }
 
   rec = pcur->get_rec();
-  offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   if (!node->has_clust_rec_x_lock) {
     err = lock_clust_rec_modify_check_and_lock(flags, pcur->get_block(), rec,

@@ -37,7 +37,7 @@ class THD;
 
   A service to fetch the current thread id
 
-  Use in conjuntion with all the related services that operate on thread ids
+  Use in conjunction with all the related services that operate on thread ids
   @sa mysql_component_mysql_current_thread_reader_imp
 */
 BEGIN_SERVICE_DEFINITION(mysql_current_thread_reader)

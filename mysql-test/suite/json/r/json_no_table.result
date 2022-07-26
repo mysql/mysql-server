@@ -3807,7 +3807,7 @@ Warning	1287	'JSON_MERGE' is deprecated and will be removed in a future release.
 # The view uses the non-deprecated variant of the function.
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select json_merge_preserve('{}','{}') AS `col`	utf8mb3	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select json_merge_preserve('{}','{}') AS `col`	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 col
 {}

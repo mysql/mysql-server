@@ -28,7 +28,6 @@ set @@persist_only.innodb_api_enable_mdl=0;
 set @@persist_only.innodb_autoinc_lock_mode=1;
 set @@persist_only.innodb_buffer_pool_chunk_size=134217728;
 set @@persist_only.innodb_buffer_pool_instances=1;
-set @@persist_only.innodb_doublewrite=1;
 set @@persist_only.innodb_force_recovery=0;
 set @@persist_only.innodb_ft_cache_size=16777216;
 set @@persist_only.innodb_ft_max_token_size=84;
@@ -36,8 +35,7 @@ set @@persist_only.innodb_ft_min_token_size=4;
 set @@persist_only.innodb_ft_sort_pll_degree=2;
 set @@persist_only.innodb_ft_total_cache_size=640000000;
 set @@persist_only.innodb_log_buffer_size=16777216;
-set @@persist_only.innodb_log_file_size=50331648;
-set @@persist_only.innodb_log_files_in_group=2;
+set @@persist_only.innodb_redo_log_capacity=100663296;
 set @@persist_only.innodb_open_files=100;
 set @@persist_only.innodb_page_cleaners=1;
 set @@persist_only.innodb_purge_threads=4;
@@ -112,7 +110,7 @@ set @@persist_only.report_user=NULL;
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-96
+94
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 101 rows.
@@ -131,7 +129,6 @@ innodb_api_enable_mdl	0
 innodb_autoinc_lock_mode	1
 innodb_buffer_pool_chunk_size	134217728
 innodb_buffer_pool_instances	1
-innodb_doublewrite	1
 innodb_force_recovery	0
 innodb_ft_cache_size	16777216
 innodb_ft_max_token_size	84
@@ -139,12 +136,11 @@ innodb_ft_min_token_size	4
 innodb_ft_sort_pll_degree	2
 innodb_ft_total_cache_size	640000000
 innodb_log_buffer_size	16777216
-innodb_log_file_size	50331648
-innodb_log_files_in_group	2
 innodb_open_files	100
 innodb_page_cleaners	1
 innodb_purge_threads	4
 innodb_read_io_threads	4
+innodb_redo_log_capacity	100663296
 innodb_rollback_on_timeout	0
 innodb_sort_buffer_size	1048576
 innodb_sync_array_size	1
@@ -229,7 +225,6 @@ innodb_api_enable_mdl
 innodb_autoinc_lock_mode
 innodb_buffer_pool_chunk_size
 innodb_buffer_pool_instances
-innodb_doublewrite
 innodb_force_recovery
 innodb_ft_cache_size
 innodb_ft_max_token_size
@@ -237,12 +232,11 @@ innodb_ft_min_token_size
 innodb_ft_sort_pll_degree
 innodb_ft_total_cache_size
 innodb_log_buffer_size
-innodb_log_file_size
-innodb_log_files_in_group
 innodb_open_files
 innodb_page_cleaners
 innodb_purge_threads
 innodb_read_io_threads
+innodb_redo_log_capacity
 innodb_rollback_on_timeout
 innodb_sort_buffer_size
 innodb_sync_array_size

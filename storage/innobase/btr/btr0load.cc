@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0pcur.h"
 #include "ibuf0ibuf.h"
 #include "lob0lob.h"
+#include "log0chkp.h"
 
 namespace ddl {
 /** Innodb B-tree index fill factor for bulk load. */
@@ -420,8 +421,8 @@ dberr_t Page_load::insert(const rec_t *rec, Rec_offsets offsets) noexcept {
   if (!page_rec_is_infimum(m_cur_rec)) {
     auto old_rec = m_cur_rec;
 
-    auto old_offsets =
-        rec_get_offsets(old_rec, m_index, nullptr, ULINT_UNDEFINED, &m_heap);
+    auto old_offsets = rec_get_offsets(
+        old_rec, m_index, nullptr, ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
 
     ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
                       page_is_spatial_non_leaf(old_rec, m_index)) > 0 ||
@@ -484,7 +485,8 @@ dberr_t Page_load::insert(const dtuple_t *tuple, const big_rec_t *big_rec,
 
   Rec_offsets offsets{};
 
-  offsets = rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED, &m_heap);
+  offsets = rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &m_heap);
 
   /* Insert the record.*/
   const auto err = insert(rec, offsets);
@@ -627,8 +629,8 @@ Page_load::Split_point Page_load::get_split_rec() noexcept {
     rec = page_rec_get_next(rec);
     ut_ad(page_rec_is_user_rec(rec));
 
-    offsets =
-        rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED, &(m_heap));
+    offsets = rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &m_heap);
     total_recs_size += rec_offs_size(offsets);
     n_recs++;
   } while (total_recs_size + page_dir_calc_reserved_space(n_recs) <
@@ -665,8 +667,8 @@ void Page_load::copy_records(const rec_t *first_rec) noexcept {
   ut_ad(page_rec_is_user_rec(rec));
 
   do {
-    offsets =
-        rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED, &(m_heap));
+    offsets = rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &m_heap);
 
     insert(rec, offsets);
 
@@ -696,7 +698,7 @@ void Page_load::split_trim(const Split_point &split_point) noexcept {
 
   Rec_offsets offsets{};
   offsets = rec_get_offsets(new_last_user_rec, m_index, offsets,
-                            ULINT_UNDEFINED, &(m_heap));
+                            ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
   m_heap_top = rec_get_end(new_last_user_rec, offsets);
 
   m_free_space +=
@@ -971,7 +973,7 @@ dberr_t Btree_load::page_commit(Page_load *page_loader,
 }
 
 void Btree_load::log_free_check() noexcept {
-  if (log_needs_free_check()) {
+  if (log_free_check_is_required()) {
     release();
 
     ::log_free_check();

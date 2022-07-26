@@ -570,3 +570,43 @@ DROP TABLE t5;
 DROP TABLE t6;
 DROP TABLE t7;
 DROP TABLE t8;
+
+
+--echo #
+--echo # Bug#33851055: Correlated subquery does not use functional index
+--echo #
+
+CREATE TABLE t (
+  id INT DEFAULT NULL,
+  KEY functional_index ((id * id))
+);
+
+CREATE TABLE t2 (
+  id INT NOT NULL AUTO_INCREMENT,
+  val INT,
+  PRIMARY KEY (id)
+);
+
+INSERT INTO t(id) VALUES (1), (1), (2), (-1), (-2);
+INSERT INTO t2(val) VALUES (1), (2), (3), (4);
+
+ANALYZE TABLE t,t2;
+# EQ
+--let $query= SELECT id, val, (SELECT id FROM t WHERE (id * id) = val LIMIT 1) AS tid FROM t2
+--eval EXPLAIN $query
+--eval $query
+
+# BETWEEN
+--let $query= SELECT id, val, (SELECT id FROM t WHERE (id * id) BETWEEN val and val + 2 LIMIT 1) AS tid FROM t2
+--eval EXPLAIN $query
+--eval $query
+
+# IN
+--let $query= SELECT id, val, (SELECT id FROM t WHERE (id * id) IN (val) LIMIT 1) AS tid FROM t2
+--eval EXPLAIN $query
+--eval $query
+
+--let $query= SELECT id, val, (SELECT id FROM t WHERE (id * id) = val + (SELECT 1 FROM t WHERE id > 1) LIMIT 1) AS tid FROM t2
+--eval EXPLAIN $query
+--eval $query
+DROP TABLE t, t2;

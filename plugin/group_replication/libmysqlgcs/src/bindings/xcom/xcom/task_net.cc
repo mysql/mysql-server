@@ -71,13 +71,13 @@ int checked_getaddrinfo(const char *nodename, const char *servname,
   memset(&_hints, 0, sizeof(_hints));
   _hints.ai_family = AF_UNSPEC;
   _hints.ai_socktype = SOCK_STREAM; /* TCP stream sockets */
-  if (hints == NULL) hints = &_hints;
+  if (hints == nullptr) hints = &_hints;
   for (attempt_nr = 0;
        errval == EAI_AGAIN && attempt_nr < NR_GETADDRINFO_ATTEMPTS;
        attempt_nr++) {
     if (*res) {
       freeaddrinfo(*res);
-      *res = NULL;
+      *res = nullptr;
     }
     errval = getaddrinfo(nodename, servname, hints, res);
   }

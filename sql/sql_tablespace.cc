@@ -79,7 +79,7 @@ bool validate_tspnamelen(const LEXSTR &name) {
   if (name.length > NAME_LEN ||
       my_numchars_mb(system_charset_info, name.str, name.str + name.length) >
           NAME_CHAR_LEN) {
-    // Byte length exceeding NAME_LEN, and character lenght exceeding
+    // Byte length exceeding NAME_LEN, and character length exceeding
     // NAME_CHAR_LEN not allowed
     my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
     return true;
@@ -839,7 +839,7 @@ static bool set_table_encryption_type(THD *thd, const dd::Tablespace &ts,
     }
     // We throw warning only when creating a unencrypted table in a schema
     // which has default encryption enabled.
-    else if (is_request_to_encrypt == false)
+    if (is_request_to_encrypt == false)
       push_warning(thd, Sql_condition::SL_WARNING,
                    WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
                    ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB));

@@ -141,8 +141,8 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
       else if (column_length == 0)
         row_string += "''";
       else if (row_group->m_fields[column].get_additional_flags() & NUM_FLAG) {
-        if (column_length >= 1 &&
-            (my_isalpha(charset_info, column_data[0]) ||
+        /* column_length is guaranteed to be >= 1 here */
+        if ((my_isalpha(charset_info, column_data[0]) ||
              (column_length >= 2 && column_data[0] == '-' &&
               my_isalpha(charset_info, column_data[1])))) {
           row_string += "NULL";
@@ -224,12 +224,10 @@ void Sql_formatter::format_table_definition(
    mysql.innodb_index_stats tables
   */
   if (innodb_stats_tables(table->get_schema(), table->get_name())) return;
-  bool use_added = false;
   if (m_options->m_drop_table)
     this->append_output("DROP TABLE IF EXISTS " +
                         this->get_quoted_object_full_name(table) + ";\n");
-  if (m_options->m_deffer_table_indexes == 0 && !use_added) {
-    use_added = true;
+  if (m_options->m_deffer_table_indexes == 0) {
     this->append_output("USE " + this->quote_name(table->get_schema()) + ";\n");
   }
   if (!m_options->m_suppress_create_table)

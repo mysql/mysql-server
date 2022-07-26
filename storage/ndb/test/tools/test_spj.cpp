@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,10 +47,10 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("spj_test"),
   { "database", 'd', "Name of database table is in",
-    (uchar**) &_dbname, (uchar**) &_dbname, 0,
+    &_dbname, &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "scan", 's', "Table scan followed by key lookup",
-    (uchar**) &_scan, (uchar**) &_scan, 0,
+    &_scan, &_scan, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

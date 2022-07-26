@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -341,4 +341,7 @@ bool read_user_application_user_metadata_from_table(LEX_CSTRING user,
                                                     TABLE *table,
                                                     bool mode_no_backslash);
 bool is_expected_or_transient_error(THD *thd);
+bool report_missing_user_grant_message(THD *thd, bool user_exists,
+                                       const char *user, const char *host,
+                                       const char *object_name, int err_code);
 #endif /* AUTH_INTERNAL_INCLUDED */

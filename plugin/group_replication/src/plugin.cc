@@ -969,6 +969,7 @@ int configure_group_member_manager() {
   // Create the membership info visible for the group
   else
     group_member_mgr = new Group_member_info_manager(local_member_info);
+
   lv.group_member_mgr_configured = true;
 
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_CONF_INFO, get_server_id(),

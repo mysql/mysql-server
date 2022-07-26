@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -27,21 +27,21 @@
 
 bool printCREATE_EVNT_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
 {
-//  const CreateEvntReq * const sig = (CreateEvntReq *) theData;
-  
+  //  const CreateEvntReq * const sig = (const CreateEvntReq *) theData;
+
   return false;
 }
 
 bool printCREATE_EVNT_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
 {
-//  const CreateEvntConf * const sig = (CreateEvntConf *) theData;
-  
+  //  const CreateEvntConf * const sig = (const CreateEvntConf *) theData;
+
   return false;
 }
 
 bool printCREATE_EVNT_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
 {
-//  const CreateEvntRef * const sig = (CreateEvntRef *) theData;
-    
+  //  const CreateEvntRef * const sig = (const CreateEvntRef *) theData;
+
   return false;
 }

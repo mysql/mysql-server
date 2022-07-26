@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -31,14 +31,29 @@ IF(CMAKE_COMPILER_IS_GNUCXX
   STRING_APPEND(CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} " -flifetime-dse=1")
 ENDIF()
 
+FOREACH(warning
+    "cast-qual"
+    # Warnings in Dbtup.hpp
+    "class-memaccess"
+    "format-overflow"
+    "maybe-uninitialized"
+    "stringop-overflow"
+    "unused-but-set-variable"
+    "unused-parameter"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()
 
 ADD_SUBDIRECTORY(error)
 ADD_SUBDIRECTORY(blocks)
 ADD_SUBDIRECTORY(vm)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
-
 INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/blocks
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/cmvmi
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbacc
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbdict
@@ -56,6 +71,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbtux
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbinfo
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbspj
+  ${CMAKE_CURRENT_SOURCE_DIR}/error
+  ${CMAKE_CURRENT_SOURCE_DIR}/vm
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
   )

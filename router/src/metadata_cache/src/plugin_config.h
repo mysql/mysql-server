@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ extern mysql_harness::Plugin METADATA_CACHE_PLUGIN_EXPORT
     harness_plugin_metadata_cache;
 }
 
-extern const std::array<const char *, 12> metadata_cache_supported_options;
+extern const std::array<const char *, 19> metadata_cache_supported_options;
 
 class METADATA_CACHE_PLUGIN_EXPORT MetadataCachePluginConfig final
     : public mysql_harness::BasePluginConfig {

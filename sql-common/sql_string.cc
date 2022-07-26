@@ -280,7 +280,7 @@ bool String::needs_conversion(size_t arg_length, const CHARSET_INFO *from_cs,
   Checks that the source string can just be copied to the destination string
   without conversion.
   Unlike needs_conversion it will require conversion on incoming binary data
-  to ensure the data are verified for vailidity first.
+  to ensure the data are verified for validity first.
 
   @param arg_length   Length of string to copy.
   @param from_cs      Character set to copy from
@@ -794,7 +794,7 @@ String *copy_if_not_alloced(String *to, String *from, size_t from_length) {
   SYNOPSIS
     well_formed_copy_nchars()
     to			     Store result here
-    to_length                Maxinum length of "to" string
+    to_length                Maximum length of "to" string
     to_cs		     Character set of "to" string
     from		     Copy from here
     from_length		     Length of from string
@@ -802,8 +802,8 @@ String *copy_if_not_alloced(String *to, String *from, size_t from_length) {
     nchars                   Copy not more that nchars characters
     well_formed_error_pos    Return position when "from" is not well formed
                              or NULL otherwise.
-    cannot_convert_error_pos Return position where a not convertable
-                             character met, or NULL otherwise.
+    cannot_convert_error_pos Return position where a not convertible
+                             character was found, or NULL otherwise.
     from_end_pos             Return position where scanning of "from"
                              string stopped.
   NOTES

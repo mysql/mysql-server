@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,8 @@ class Pattern {
   std::vector<std::string> literals;
 
   /**
-    Loads the pattern. The pattern string is deep copied. This is not done in
-    the CTOR becuase of the memory allocation.
+    Loads the pattern. The pattern string is copied in deep-copy way. This is not done in
+    the CTOR because of the memory allocation.
 
     This function does the following:
     - Parse the pattern string.

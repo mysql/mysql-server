@@ -52,7 +52,7 @@ struct SYS_VAR;
   It needs to extract the value supplied from the value API pointer.
   Note that extracting this value can be expensive (e.g. a scalar subquery)
   hence it should be done only once. This is why the result of this should
-  be stored into the save output parameter so that it can be futher reused by
+  be stored into the save output parameter so that it can be further reused by
   update() etc.
   For a multi-variable SET statement the server will first call all of the
   check functions and only if they all return success it will start calling the

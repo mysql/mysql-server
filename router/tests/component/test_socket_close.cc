@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class SocketCloseTest : public RouterComponentTest {
   auto &launch_router(const std::string &metadata_cache_section,
                       const std::string &routing_section,
                       const int expected_exitcode,
-                      std::chrono::milliseconds wait_for_notify_ready = 5s) {
+                      std::chrono::milliseconds wait_for_notify_ready = 30s) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, get_test_temp_dir_name(), router_user,
                  router_password);
@@ -197,7 +197,7 @@ class SocketCloseTest : public RouterComponentTest {
     router =
         &launch_router(metadata_cache_section,
                        routing_rw_section + routing_ro_section, EXIT_SUCCESS,
-                       /*wait_for_notify_ready=*/5s);
+                       /*wait_for_notify_ready=*/30s);
 
     EXPECT_TRUE(
         wait_for_port_ready(read_only ? router_ro_port : router_rw_port));
@@ -764,7 +764,7 @@ TEST_P(FailToOpenSocketStaticRoundRobin, StaticRoundRobin) {
 
   SCOPED_TRACE("// launch the router with static routing configuration");
   launch_router("", routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE("// tcp-port:" + router_rw_port_str + " is used by the router");
   // check with netstat that the port is used by router.
@@ -882,7 +882,7 @@ TEST_P(FailToOpenROSocketAfterStartup, ROportTaken) {
                     "127.0.0.1", {},
                     {"", R"({"tags" : {"_hidden": true} })",
                      R"({"tags" : {"_hidden": true} })"});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_FALSE(is_port_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_available(router_ro_port));
   EXPECT_FALSE(is_port_available(router_rw_x_port));
@@ -896,7 +896,7 @@ TEST_P(FailToOpenROSocketAfterStartup, ROportTaken) {
   set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
                     "127.0.0.1", {},
                     {"", R"({"tags" : {"_hidden": true} })", ""});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
 
@@ -953,7 +953,7 @@ TEST_P(FailToOpenRWSocketAfterStartup, RWportTaken) {
   set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
                     "127.0.0.1", {},
                     {R"({"tags" : {"_hidden": true} })", "", ""});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_available(router_rw_port));
   EXPECT_FALSE(is_port_available(router_ro_port));
   EXPECT_TRUE(wait_for_port_available(router_rw_x_port));
@@ -966,7 +966,7 @@ TEST_P(FailToOpenRWSocketAfterStartup, RWportTaken) {
   SCOPED_TRACE("// Unhide RW node");
   set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
                     "127.0.0.1", {}, {"", "", ""});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
 
@@ -1110,7 +1110,7 @@ TEST_P(RoundRobinFallback, RoundRobinFallbackTest) {
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
@@ -1120,7 +1120,7 @@ TEST_P(RoundRobinFallback, RoundRobinFallbackTest) {
                     "127.0.0.1", {},
                     {"", R"({"tags" : {"_hidden": true} })",
                      R"({"tags" : {"_hidden": true} })"});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
 
   SCOPED_TRACE("// RW and RO sockets are listening");
   EXPECT_FALSE(is_port_available(router_rw_port));
@@ -1142,7 +1142,7 @@ TEST_P(RoundRobinFallback, RoundRobinFallbackTest) {
   set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
                     "127.0.0.1", {},
                     {R"({"tags" : {"_hidden": true} })", "", ""});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_available(router_rw_port));
   EXPECT_FALSE(is_port_available(router_ro_port));
 }
@@ -1175,7 +1175,7 @@ TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
       router_ro_port, "SECONDARY", "first-available", "", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
@@ -1183,7 +1183,7 @@ TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
   SCOPED_TRACE("// Disable both secondary nodes");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, 0, false,
                     "localhost", {}, {});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
 
   SCOPED_TRACE("// RO socket is not used by the router");
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
@@ -1197,28 +1197,28 @@ TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
   SCOPED_TRACE("// Bring back first RO node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[1]}, 0,
                     0, false, "localhost", {}, {});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
 
   SCOPED_TRACE("// Disable first RO node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, 0, false,
                     "localhost", {}, {});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_available(router_ro_port));
 
   SCOPED_TRACE("// Bring back second RO node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
                     0, false, "localhost", {}, {});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
 
   SCOPED_TRACE("// Disable first RO node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, 0, false,
                     "localhost", {}, {});
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_available(router_ro_port));
 
@@ -1279,7 +1279,7 @@ TEST_P(StaticRoutingToNonExistentNodes, StaticRoutingToNonExistentNodesTest) {
 
   SCOPED_TRACE("// launch the router with static routing configuration");
   launch_router("", routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_THROW(try_connection("127.0.0.1", port1, custom_user, custom_password),
                std::runtime_error);
@@ -1333,7 +1333,7 @@ TEST_P(SharedQuarantineSocketClose, cross_plugin_socket_shutdown) {
 
   SCOPED_TRACE("// launch the router with static routing configuration");
   launch_router("", routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE("// both routing plugins are working fine");
   ASSERT_NO_THROW(

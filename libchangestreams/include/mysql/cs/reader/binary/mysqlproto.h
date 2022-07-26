@@ -93,21 +93,21 @@ class Mysql_protocol : public cs::reader::Reader {
   virtual bool close() override;
 
   /**
-   * @brief This member function attachs this connector to the stream.
+   * @brief This member function attaches this connector to the stream.
    *
    * Note that to attach to the stream, this connector needs to be provided a
    * MYSQL connection handle, which is already connected. This object will then
    * use the connection handle to read and update stream metadata.
    *
-   * This member function takes an optional paremeter, the state. If that
+   * This member function takes an optional parameter, the state. If that
    * parameter is provided, the caller is relenquishing the ownership and
    * handing it over to the this object. At deletion time, this object will also
-   * delete the state oject provided.
+   * delete the state object provided.
    *
    * If the state object is not provided, a new one will be created, which will
    * also be deleted when this object is destroyed.
    *
-   * @param state Optional parameter. If provided, it will be used as the intial
+   * @param state Optional parameter. If provided, it will be used as the initial
    * state while attaching to the stream.
    *
    * @returns true if there is a failure, false otherwise.

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,6 @@ set @@persist_only.innodb_api_enable_mdl=0;
 set @@persist_only.innodb_autoinc_lock_mode=1;
 set @@persist_only.innodb_buffer_pool_chunk_size=134217728;
 set @@persist_only.innodb_buffer_pool_instances=1;
-set @@persist_only.innodb_doublewrite=1;
 set @@persist_only.innodb_force_recovery=0;
 set @@persist_only.innodb_ft_cache_size=16777216;
 set @@persist_only.innodb_ft_max_token_size=84;
@@ -41,8 +40,7 @@ set @@persist_only.innodb_ft_min_token_size=4;
 set @@persist_only.innodb_ft_sort_pll_degree=2;
 set @@persist_only.innodb_ft_total_cache_size=640000000;
 set @@persist_only.innodb_log_buffer_size=16777216;
-set @@persist_only.innodb_log_file_size=50331648;
-set @@persist_only.innodb_log_files_in_group=2;
+set @@persist_only.innodb_redo_log_capacity=100663296;
 set @@persist_only.innodb_open_files=100;
 set @@persist_only.innodb_page_cleaners=1;
 set @@persist_only.innodb_purge_threads=4;

@@ -7,7 +7,7 @@
   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
   This file is public domain and comes with NO WARRANTY of any kind
 
-  Modifications Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Modifications Copyright (c) 2017, 2022, Oracle and/or its affiliates.
   All rights reserved.
 */
 #include <windows.h>
@@ -24,8 +24,6 @@ static NTService *pService;
 -------------------------------------------------------------------------- */
 NTService::NTService()
 {
-
-  bOsNT = false;
   //service variables
   ServiceName = NULL;
   hExitEvent = 0;
@@ -63,23 +61,6 @@ NTService::~NTService()
 {
   if (ServiceName != NULL) delete[] ServiceName;
 }
-/* ------------------------------------------------------------------------
-
--------------------------------------------------------------------------- */
-
-BOOL NTService::GetOS()
-{
-  bOsNT = false;
-  memset(&osVer, 0, sizeof(OSVERSIONINFO));
-  osVer.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-  if (GetVersionEx(&osVer))
-  {
-    if (osVer.dwPlatformId == VER_PLATFORM_WIN32_NT)
-      bOsNT = true;
-  }
-  return bOsNT;
-}
-
 
 /**
   Registers the main service thread with the service manager.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,12 +118,12 @@ bool dynstr_trunc(DYNAMIC_STRING *str, size_t n) {
 }
 
 /*
-  Concatenates any number of strings, escapes any quote in the result then
-  surround the whole affair in another set of quotes which is finally appended
+  Concatenates any number of strings, escapes any quote in the result, then
+  surrounds the resulting string in another set of quotes which is finally appended
   to specified DYNAMIC_STRING.  This function is especially useful when
   building strings to be executed with the system() function.
 
-  @param str Dynamic String which will have addtional strings appended.
+  @param str Dynamic String which will have additional strings appended.
   @param append String to be appended.
   @param ... Optional. Additional string(s) to be appended.
 

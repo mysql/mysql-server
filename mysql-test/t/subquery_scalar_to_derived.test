@@ -1,5 +1,11 @@
 # Enable transformations for InnoDB for ease of testing
 SET optimizer_switch='subquery_to_derived=on';
+
+# This performance schema table is queried further down. Clear it now,
+# so that we start with a clean state, regardless of what earlier
+# tests have written to it.
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+
 --echo #
 --echo # Tests for WL#12885 Add ability to transform scalar subqueries to inner
 --echo # derived table

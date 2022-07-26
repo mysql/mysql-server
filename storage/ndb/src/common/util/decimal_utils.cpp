@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,25 +61,31 @@ int decimal_bin2str(const void *bin, int bin_len,
                     int prec, int scale, 
                     char *str, int str_len)
 {
-    int retval;                               /* return from bin2decimal() */
-    decimal_t dec;                            /* intermediate representation */
-    decimal_digit_t digits[9];                /* for dec->buf */
-    int to_len;
-    
-    assert(bin != 0);
-    assert(str != 0);
-    if(prec < 1) return E_DEC_BAD_PREC;
-    if((scale < 0) || (scale > prec)) return E_DEC_BAD_SCALE;
-    
-    dec.len = 9;                              /* big enough for any decimal */
-    dec.buf = digits;
-    
-    // Note: bin_len is unused -- bin2decimal() does not take a length
-    retval = bin2decimal((const uchar *) bin, &dec, prec, scale);
-    if(retval != E_DEC_OK) return retval;
-    
-    to_len = decimal_string_size(&dec);
-    if(to_len > str_len) return E_DEC_OOM;   
-    
-    return decimal2string(&dec, str, &to_len);
+  int retval;                /* return from bin2decimal() */
+  decimal_t dec;             /* intermediate representation */
+  decimal_digit_t digits[9]; /* for dec->buf */
+  int to_len;
+
+  assert(bin != 0);
+  assert(str != 0);
+  if (prec < 1) return E_DEC_BAD_PREC;
+  if ((scale < 0) || (scale > prec)) return E_DEC_BAD_SCALE;
+
+  dec.len = 9; /* big enough for any decimal */
+  dec.buf = digits;
+
+  /*
+   * Check of bin_len should be exact, but ndbjtie have no way to expose the
+   * correct size, and use in MySqlUtilsTest.java depends on having an
+   * oversized buffer.
+   */
+  if (bin_len < decimal_bin_size(prec, scale)) return E_DEC_BAD_NUM;
+
+  retval = bin2decimal((const uchar *)bin, &dec, prec, scale);
+  if (retval != E_DEC_OK) return retval;
+
+  to_len = decimal_string_size(&dec);
+  if (to_len > str_len) return E_DEC_OOM;
+
+  return decimal2string(&dec, str, &to_len);
 }

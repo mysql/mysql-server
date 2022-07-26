@@ -140,7 +140,6 @@ enum enum_vio_io_event {
 #define VIO_LOCALHOST 1            /* a localhost connection */
 #define VIO_BUFFERED_READ 2        /* use buffered read */
 #define VIO_READ_BUFFER_SIZE 16384 /* size of read buffer */
-#define OPENSSL_ERROR_LENGTH 512   /* Openssl error code max length */
 
 MYSQL_VIO vio_new(my_socket sd, enum enum_vio_type type, uint flags);
 MYSQL_VIO mysql_socket_vio_new(MYSQL_SOCKET mysql_socket,
@@ -267,12 +266,6 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const long ssl_ctx_flags, const char *server_host);
 
 long process_tls_version(const char *tls_version);
-
-int set_fips_mode(const uint fips_mode, char *err_string);
-
-uint get_fips_mode();
-
-int test_ssl_fips_mode(char *err_string);
 
 struct st_VioSSLFd *new_VioSSLAcceptorFd(
     const char *key_file, const char *cert_file, const char *ca_file,

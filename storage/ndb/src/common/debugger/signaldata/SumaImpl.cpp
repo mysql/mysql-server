@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,18 @@
 
 #include <signaldata/SumaImpl.hpp>
 
-bool
-printSUB_CREATE_REQ(FILE * output, const Uint32 * theData, 
-		    Uint32 len, Uint16 receiverBlockNo) {
-  const SubCreateReq * const sig = (SubCreateReq *)theData;
+bool printSUB_CREATE_REQ(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubCreateReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubCreateReq *const sig = (const SubCreateReq *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
@@ -37,48 +45,85 @@ printSUB_CREATE_REQ(FILE * output, const Uint32 * theData,
   return false;
 }
 
-bool
-printSUB_CREATE_CONF(FILE * output, const Uint32 * theData, 
-		     Uint32 len, Uint16 receiverBlockNo) {
-  const SubCreateConf * const sig = (SubCreateConf *)theData;
-  fprintf(output, " senderData: %x\n", sig->senderData);
-  return false;
-}
-
-bool
-printSUB_CREATE_REF(FILE * output, const Uint32 * theData, 
-		    Uint32 len, Uint16 receiverBlockNo) {
-  const SubCreateRef * const sig = (SubCreateRef *)theData;
-  fprintf(output, " senderData: %x\n", sig->senderData);
-  return false;
-}
-
-bool
-printSUB_REMOVE_REQ(FILE * output, const Uint32 * theData, 
-		    Uint32 len, Uint16 receiverBlockNo)
+bool printSUB_CREATE_CONF(FILE *output,
+                          const Uint32 *theData,
+                          Uint32 len,
+                          Uint16 /*receiverBlockNo*/)
 {
-  const SubRemoveReq * const sig = (SubRemoveReq *)theData;
+  if (len < SubCreateConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubCreateConf *const sig = (const SubCreateConf *)theData;
+  fprintf(output, " senderData: %x\n", sig->senderData);
+  return false;
+}
+
+bool printSUB_CREATE_REF(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubCreateRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubCreateRef *const sig = (const SubCreateRef *)theData;
+  fprintf(output, " senderData: %x\n", sig->senderData);
+  return false;
+}
+
+bool printSUB_REMOVE_REQ(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubRemoveReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubRemoveReq *const sig = (const SubRemoveReq *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   return false;
 }
 
-bool
-printSUB_REMOVE_CONF(FILE * output, const Uint32 * theData, 
-		     Uint32 len, Uint16 receiverBlockNo)
+bool printSUB_REMOVE_CONF(FILE *output,
+                          const Uint32 *theData,
+                          Uint32 len,
+                          Uint16 /*receiverBlockNo*/)
 {
-  const SubRemoveConf * const sig = (SubRemoveConf *)theData;
+  if (len < SubRemoveConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubRemoveConf *const sig = (const SubRemoveConf *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " senderData: %x\n", sig->senderData);
   return false;
 }
 
-bool
-printSUB_REMOVE_REF(FILE * output, const Uint32 * theData, 
-		    Uint32 len, Uint16 receiverBlockNo)
+bool printSUB_REMOVE_REF(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/)
 {
-  const SubRemoveRef * const sig = (SubRemoveRef *)theData;
+  if (len < SubRemoveRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubRemoveRef *const sig = (const SubRemoveRef *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " senderData: %x\n", sig->senderData);
@@ -86,20 +131,36 @@ printSUB_REMOVE_REF(FILE * output, const Uint32 * theData,
   return false;
 }
 
-bool
-printSUB_START_REQ(FILE * output, const Uint32 * theData, 
-		   Uint32 len, Uint16 receiverBlockNo) {
-  const SubStartReq * const sig = (SubStartReq *)theData;
+bool printSUB_START_REQ(FILE *output,
+                        const Uint32 *theData,
+                        Uint32 len,
+                        Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubStartReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubStartReq *const sig = (const SubStartReq *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " senderData: %x\n", sig->senderData);
   return false;
 }
 
-bool
-printSUB_START_REF(FILE * output, const Uint32 * theData, 
-		   Uint32 len, Uint16 receiverBlockNo) {
-  const SubStartRef * const sig = (SubStartRef *)theData;
+bool printSUB_START_REF(FILE *output,
+                        const Uint32 *theData,
+                        Uint32 len,
+                        Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubStartRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubStartRef *const sig = (const SubStartRef *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " startPart: %x\n", sig->part);
@@ -108,10 +169,18 @@ printSUB_START_REF(FILE * output, const Uint32 * theData,
   return false;
 }
 
-bool
-printSUB_START_CONF(FILE * output, const Uint32 * theData, 
-		    Uint32 len, Uint16 receiverBlockNo) {
-  const SubStartConf * const sig = (SubStartConf *)theData;
+bool printSUB_START_CONF(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubStartConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubStartConf *const sig = (const SubStartConf *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " startPart: %x\n", sig->part);
@@ -119,20 +188,36 @@ printSUB_START_CONF(FILE * output, const Uint32 * theData,
   return false;
 }
 
-bool
-printSUB_STOP_REQ(FILE * output, const Uint32 * theData, 
-		   Uint32 len, Uint16 receiverBlockNo) {
-  const SubStopReq * const sig = (SubStopReq *)theData;
+bool printSUB_STOP_REQ(FILE *output,
+                       const Uint32 *theData,
+                       Uint32 len,
+                       Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubStopReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubStopReq *const sig = (const SubStopReq *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " senderData: %x\n", sig->senderData);
   return false;
 }
 
-bool
-printSUB_STOP_REF(FILE * output, const Uint32 * theData, 
-		   Uint32 len, Uint16 receiverBlockNo) {
-  const SubStopRef * const sig = (SubStopRef *)theData;
+bool printSUB_STOP_REF(FILE *output,
+                       const Uint32 *theData,
+                       Uint32 len,
+                       Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubStopRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubStopRef *const sig = (const SubStopRef *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " senderData: %x\n", sig->senderData);
@@ -140,20 +225,36 @@ printSUB_STOP_REF(FILE * output, const Uint32 * theData,
   return false;
 }
 
-bool
-printSUB_STOP_CONF(FILE * output, const Uint32 * theData, 
-		    Uint32 len, Uint16 receiverBlockNo) {
-  const SubStopConf * const sig = (SubStopConf *)theData;
+bool printSUB_STOP_CONF(FILE *output,
+                        const Uint32 *theData,
+                        Uint32 len,
+                        Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubStopConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubStopConf *const sig = (const SubStopConf *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " senderData: %x\n", sig->senderData);
   return false;
 }
 
-bool
-printSUB_SYNC_REQ(FILE * output, const Uint32 * theData, 
-		  Uint32 len, Uint16 receiverBlockNo) {
-  const SubSyncReq * const sig = (SubSyncReq *)theData;
+bool printSUB_SYNC_REQ(FILE *output,
+                       const Uint32 *theData,
+                       Uint32 len,
+                       Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubSyncReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubSyncReq *const sig = (const SubSyncReq *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " syncPart: %x\n", sig->part);
@@ -164,27 +265,51 @@ printSUB_SYNC_REQ(FILE * output, const Uint32 * theData,
   return false;
 }
 
-bool
-printSUB_SYNC_REF(FILE * output, const Uint32 * theData, 
-		  Uint32 len, Uint16 receiverBlockNo) {
-  const SubSyncRef * const sig = (SubSyncRef *)theData;
+bool printSUB_SYNC_REF(FILE *output,
+                       const Uint32 *theData,
+                       Uint32 len,
+                       Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubSyncRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubSyncRef *const sig = (const SubSyncRef *)theData;
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " errorCode: %x\n", sig->errorCode);
   return false;
 }
 
-bool
-printSUB_SYNC_CONF(FILE * output, const Uint32 * theData, 
-		   Uint32 len, Uint16 receiverBlockNo) {
-  const SubSyncConf * const sig = (SubSyncConf *)theData;
+bool printSUB_SYNC_CONF(FILE *output,
+                        const Uint32 *theData,
+                        Uint32 len,
+                        Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubSyncConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubSyncConf *const sig = (const SubSyncConf *)theData;
   fprintf(output, " senderData: %x\n", sig->senderData);
   return false;
 }
 
-bool
-printSUB_TABLE_DATA(FILE * output, const Uint32 * theData, 
-		    Uint32 len, Uint16 receiverBlockNo) {
-  const SubTableData * const sig = (SubTableData *)theData;
+bool printSUB_TABLE_DATA(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubTableData::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubTableData *const sig = (const SubTableData *)theData;
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " gci_hi: %x\n", sig->gci_hi);
   fprintf(output, " gci_lo: %x\n", sig->gci_lo);
@@ -199,38 +324,69 @@ printSUB_TABLE_DATA(FILE * output, const Uint32 * theData,
   return false;
 }
 
-bool
-printSUB_SYNC_CONTINUE_REQ(FILE * output, const Uint32 * theData, 
-			   Uint32 len, Uint16 receiverBlockNo) {
-  const SubSyncContinueReq * const sig = (SubSyncContinueReq *)theData;
+bool printSUB_SYNC_CONTINUE_REQ(FILE *output,
+                                const Uint32 *theData,
+                                Uint32 len,
+                                Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubSyncContinueReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubSyncContinueReq *const sig = (const SubSyncContinueReq *)theData;
   fprintf(output, " subscriberData: %x\n", sig->subscriberData);
   fprintf(output, " noOfRowsSent: %x\n", sig->noOfRowsSent);
   return false;
 }
 
-bool
-printSUB_SYNC_CONTINUE_REF(FILE * output, const Uint32 * theData, 
-			   Uint32 len, Uint16 receiverBlockNo) {
-  const SubSyncContinueRef * const sig = (SubSyncContinueRef *)theData;
+bool printSUB_SYNC_CONTINUE_REF(FILE *output,
+                                const Uint32 *theData,
+                                Uint32 len,
+                                Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubSyncContinueRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubSyncContinueRef *const sig = (const SubSyncContinueRef *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   return false;
 }
 
-bool
-printSUB_SYNC_CONTINUE_CONF(FILE * output, const Uint32 * theData, 
-			    Uint32 len, Uint16 receiverBlockNo) {
-  const SubSyncContinueConf * const sig = (SubSyncContinueConf *)theData;
+bool printSUB_SYNC_CONTINUE_CONF(FILE *output,
+                                 const Uint32 *theData,
+                                 Uint32 len,
+                                 Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubSyncContinueConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubSyncContinueConf *const sig = (const SubSyncContinueConf *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   return false;
 }
 
-bool
-printSUB_GCP_COMPLETE_REP(FILE * output, const Uint32 * theData, 
-			  Uint32 len, Uint16 receiverBlockNo) {
-  const SubGcpCompleteRep * const sig = (SubGcpCompleteRep *)theData;
+bool printSUB_GCP_COMPLETE_REP(FILE *output,
+                               const Uint32 *theData,
+                               Uint32 len,
+                               Uint16 /*receiverBlockNo*/)
+{
+  if (len < SubGcpCompleteRep::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const SubGcpCompleteRep *const sig = (const SubGcpCompleteRep *)theData;
   fprintf(output, " gci_hi: %x gci_lo: %x\n", sig->gci_hi, sig->gci_lo);
   return false;
 }
-

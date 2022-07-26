@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 /**
   Functor struct which invokes my_free. Declared here as it is used as the
-  defalt value for Stateless_allocator's DEALLOC_FUN template parameter.
+  default value for Stateless_allocator's DEALLOC_FUN template parameter.
 */
 struct My_free_functor {
   void operator()(void *p, size_t) const;

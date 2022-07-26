@@ -1075,7 +1075,11 @@ class BtrContext {
                             mtr);
   }
 
+  /** The btr mtr that is holding the latch on the B-tree index page
+  containing the clustered index record.*/
   mtr_t *m_mtr;
+
+  /** Persistent cursor positioned on the clustered index record.*/
   btr_pcur_t *m_pcur;
   dict_index_t *m_index;
   rec_t *m_rec;
@@ -1373,18 +1377,26 @@ struct Reader {
 /** The context information when the delete operation on LOB is
 taking place. */
 struct DeleteContext : public BtrContext {
-  /** Constructor. */
+  /** Constructor.
+  @param[in]  btr  the B-tree context of the blob operation.
+  @param[in]  field_ref  reference to a blob
+  @param[in]  field_no   field containing the blob.
+  @param[in]  rollback   true if it is rollback, false if it is purge. */
   DeleteContext(const BtrContext &btr, byte *field_ref, ulint field_no,
-                bool rollback)
-      : BtrContext(btr),
-        m_blobref(field_ref),
-        m_field_no(field_no),
-        m_rollback(rollback),
-        m_page_size(table() == nullptr ? get_page_size()
-                                       : dict_table_page_size(table())) {
-    m_blobref.parse(m_blobref_mem);
-  }
+                bool rollback);
 
+  /** Constructor.
+  @param[in]  btr  the B-tree context of the blob operation.
+  @param[in]  rollback   true if it is rollback, false if it is purge. */
+  DeleteContext(const BtrContext &btr, bool rollback);
+
+  /** Update the delete context to point to a different blob.
+  @param[in]  field_ref  blob reference
+  @param[in]  field_no   the field that contains the blob. */
+  void set_blob(byte *field_ref, ulint field_no);
+
+  /** Check if the blob reference is valid.
+  @return true if valid, false otherwise. */
   bool is_ref_valid() const {
     return (m_blobref_mem.m_page_no == m_blobref.page_no());
   }
@@ -1438,22 +1450,79 @@ struct DeleteContext : public BtrContext {
   /** Is this operation part of rollback? */
   bool m_rollback;
 
+  /** The page size of the tablespace.*/
   page_size_t m_page_size;
+
+  /** Add a buffer block that is to be freed.
+  @param[in]  block  buffer block to be freed.*/
+  void add_lob_block(buf_block_t *block);
+
+  /** Free all the stored lob blocks. */
+  void free_lob_blocks();
+
+  /** Destructor. Just add some asserts to ensure that resources are freed. */
+  ~DeleteContext();
 
  private:
   /** Memory copy of the original LOB reference. */
   ref_mem_t m_blobref_mem;
 
+  using Block_vector = std::vector<buf_block_t *, ut::allocator<buf_block_t *>>;
+
+  /** The buffer blocks of lob to be freed. */
+  Block_vector m_lob_blocks;
+
   /** Obtain the page size from the tablespace flags.
   @return the page size. */
-  page_size_t get_page_size() const {
-    bool found;
-    space_id_t space_id = m_blobref.space_id();
-    const page_size_t &tmp = fil_space_get_page_size(space_id, &found);
-    ut_ad(found);
-    return (tmp);
-  }
+  page_size_t get_page_size() const;
 };
+
+inline DeleteContext::DeleteContext(const BtrContext &btr, bool rollback)
+    : DeleteContext(btr, nullptr, 0, rollback) {}
+
+inline DeleteContext::DeleteContext(const BtrContext &btr, byte *field_ref,
+                                    ulint field_no, bool rollback)
+    : BtrContext(btr),
+      m_blobref(field_ref),
+      m_field_no(field_no),
+      m_rollback(rollback),
+      m_page_size(table() == nullptr ? get_page_size()
+                                     : dict_table_page_size(table())) {
+  if (field_ref != nullptr) {
+    m_blobref.parse(m_blobref_mem);
+  }
+}
+
+inline void DeleteContext::set_blob(byte *field_ref, ulint field_no) {
+  m_blobref.set_ref(field_ref);
+  m_field_no = field_no;
+  if (field_ref != nullptr) {
+    m_blobref.parse(m_blobref_mem);
+  }
+}
+
+inline page_size_t DeleteContext::get_page_size() const {
+  bool found;
+  space_id_t space_id = m_blobref.space_id();
+  const page_size_t &tmp = fil_space_get_page_size(space_id, &found);
+  ut_ad(found);
+  return tmp;
+}
+
+inline DeleteContext::~DeleteContext() { ut_ad(m_lob_blocks.empty()); }
+
+inline void DeleteContext::add_lob_block(buf_block_t *block) {
+  ut_ad(mtr_memo_contains_flagged(m_mtr, block, MTR_MEMO_PAGE_X_FIX));
+  m_lob_blocks.push_back(block);
+}
+
+inline void DeleteContext::free_lob_blocks() {
+  for (auto block_ptr : m_lob_blocks) {
+    ut_ad(mtr_memo_contains_flagged(m_mtr, block_ptr, MTR_MEMO_PAGE_X_FIX));
+    btr_page_free_low(m_index, block_ptr, ULINT_UNDEFINED, m_mtr);
+  }
+  m_lob_blocks.clear();
+}
 
 /** Determine if an operation on off-page columns is an update.
 @param[in]      op      type of BLOB operation.
@@ -1554,7 +1623,8 @@ void purge(lob::DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
 /** Update a portion of the given LOB.
 @param[in]      ctx             update operation context information.
-@param[in]      trx             the transaction that is doing the modification.
+@param[in]      trx             the transaction that is doing the
+modification.
 @param[in]      index           the clustered index containing the LOB.
 @param[in]      upd             update vector
 @param[in]      field_no        the LOB field number
@@ -1565,7 +1635,8 @@ dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 
 /** Update a portion of the given LOB.
 @param[in]      ctx             update operation context information.
-@param[in]      trx             the transaction that is doing the modification.
+@param[in]      trx             the transaction that is doing the
+modification.
 @param[in]      index           the clustered index containing the LOB.
 @param[in]      upd             update vector
 @param[in]      field_no        the LOB field number

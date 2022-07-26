@@ -47,7 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
-#include "log0log.h"
+#include "log0chkp.h"
 #include "m_string.h"
 #include "mach0data.h"
 #include "que0que.h"
@@ -517,6 +517,7 @@ static bool row_ins_cascade_ancestor_updates_table(
 
         ufield->field_no =
             dict_table_get_nth_col_pos(table, dict_col_get_no(col));
+        IF_DEBUG(ufield->field_phy_pos = col->get_col_phy_pos());
 
         ufield->orig_len = 0;
         ufield->exp = nullptr;
@@ -845,8 +846,8 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
   mem_heap_t *v_heap = nullptr;
   upd_t *update = cascade->update;
   rec_offs_init(offsets_);
-  const ulint *offsets =
-      rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &update->heap);
+  const ulint *offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                                         UT_LOCATION_HERE, &update->heap);
   ulint n_v_fld = index->table->n_v_def;
   ulint n_diff;
   upd_field_t *upd_field;
@@ -1554,8 +1555,8 @@ dberr_t row_ins_check_foreign_constraint(
       continue;
     }
 
-    offsets =
-        rec_get_offsets(rec, check_index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, check_index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     if (page_rec_is_supremum(rec)) {
       if (skip_gap_lock) {
@@ -1932,8 +1933,8 @@ static bool row_allow_duplicates(que_thr_t *thr) {
       continue;
     }
 
-    offsets =
-        rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &offsets_heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &offsets_heap);
 
     const bool is_supremum = page_rec_is_supremum(rec);
     const bool is_next =
@@ -2097,8 +2098,8 @@ a newer version of entry (the entry should not be inserted)
   const rec_t *rec = btr_cur_get_rec(cursor);
 
   if (cursor->low_match >= n_uniq && !page_rec_is_infimum(rec)) {
-    *offsets =
-        rec_get_offsets(rec, cursor->index, *offsets, ULINT_UNDEFINED, heap);
+    *offsets = rec_get_offsets(rec, cursor->index, *offsets, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, heap);
     err = row_ins_duplicate_online(n_uniq, entry, rec, cursor->index, *offsets);
     if (err != DB_SUCCESS) {
       return (err);
@@ -2108,8 +2109,8 @@ a newer version of entry (the entry should not be inserted)
   rec = page_rec_get_next_const(btr_cur_get_rec(cursor));
 
   if (cursor->up_match >= n_uniq && !page_rec_is_supremum(rec)) {
-    *offsets =
-        rec_get_offsets(rec, cursor->index, *offsets, ULINT_UNDEFINED, heap);
+    *offsets = rec_get_offsets(rec, cursor->index, *offsets, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, heap);
     err = row_ins_duplicate_online(n_uniq, entry, rec, cursor->index, *offsets);
   }
 
@@ -2164,8 +2165,8 @@ a newer version of entry (the entry should not be inserted)
     rec = btr_cur_get_rec(cursor);
 
     if (!page_rec_is_infimum(rec)) {
-      offsets =
-          rec_get_offsets(rec, cursor->index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(rec, cursor->index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
 
       /* We set a lock on the possible duplicate: this
       is needed in logical logging of MySQL to make
@@ -2207,8 +2208,8 @@ a newer version of entry (the entry should not be inserted)
     rec = page_rec_get_next(btr_cur_get_rec(cursor));
 
     if (!page_rec_is_supremum(rec)) {
-      offsets =
-          rec_get_offsets(rec, cursor->index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(rec, cursor->index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
 
       /* If the SQL-query will update or replace
       duplicate key we will take X-lock for
@@ -2300,7 +2301,8 @@ static dberr_t row_ins_index_entry_big_rec_func(
   pcur.open(index, 0, entry, PAGE_CUR_LE, BTR_MODIFY_TREE, &mtr,
             UT_LOCATION_HERE);
   rec = pcur.get_rec();
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, heap);
 
   DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
   error = lob::btr_store_big_rec_extern_fields(
@@ -2993,7 +2995,7 @@ dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
     prefix, we must convert the insert into a modify of an
     existing record */
     offsets = rec_get_offsets(btr_cur_get_rec(&cursor), index, offsets,
-                              ULINT_UNDEFINED, &offsets_heap);
+                              ULINT_UNDEFINED, UT_LOCATION_HERE, &offsets_heap);
 
     err = row_ins_sec_index_entry_by_modify(
         flags, mode, &cursor, &offsets, offsets_heap, heap, entry, thr, &mtr);

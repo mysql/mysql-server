@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -217,23 +217,24 @@ inline bool operator==(const TransactionState &a, const TransactionState &b) {
 /**
  * TransactionCharacteristics changed.
  *
+ * resembles the SQL-text which started the transaction.
+ *
  * see: session_track_transaction_info
  */
 class TransactionCharacteristics {
  public:
-  TransactionCharacteristics(std::string trx_state)
-      : trx_state_{std::move(trx_state)} {}
+  TransactionCharacteristics(std::string characteristics)
+      : characteristics_{std::move(characteristics)} {}
 
-  // encoded VarString of TransactionState
-  std::string trx_state() const { return trx_state_; }
+  std::string characteristics() const { return characteristics_; }
 
  private:
-  std::string trx_state_;
+  std::string characteristics_;
 };
 
 inline bool operator==(const TransactionCharacteristics &a,
                        const TransactionCharacteristics &b) {
-  return (a.trx_state() == b.trx_state());
+  return (a.characteristics() == b.characteristics());
 }
 
 }  // namespace session_track

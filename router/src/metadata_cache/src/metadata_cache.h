@@ -286,8 +286,8 @@ class METADATA_CACHE_EXPORT MetadataCache
   // Update Router last_check_in timestamp in the metadata
   void update_router_last_check_in();
 
-  // Stores the list of cluster's server instances.
-  metadata_cache::ManagedCluster cluster_data_;
+  // Stores the current cluster topology
+  metadata_cache::ClusterTopology cluster_topology_;
 
   // identifies the Cluster we work with
   mysqlrouter::TargetCluster target_cluster_;
@@ -393,17 +393,20 @@ class METADATA_CACHE_EXPORT MetadataCache
   metadata_cache::RouterAttributes router_attributes_;
 };
 
-bool operator==(const metadata_cache::ManagedCluster &cluster_a,
-                const metadata_cache::ManagedCluster &cluster_b);
-
-bool operator!=(const metadata_cache::ManagedCluster &cluster_a,
-                const metadata_cache::ManagedCluster &cluster_b);
-
 std::string to_string(metadata_cache::ServerMode mode);
 
 /** Gets user readable information string about the nodes atributes
  * related to _hidden and _disconnect_existing_sessions_when_hidden tags.
  */
 std::string get_hidden_info(const metadata_cache::ManagedInstance &instance);
+
+namespace metadata_cache {
+
+bool operator==(const metadata_cache::ClusterTopology &a,
+                const metadata_cache::ClusterTopology &b);
+bool operator!=(const metadata_cache::ClusterTopology &a,
+                const metadata_cache::ClusterTopology &b);
+
+}  // namespace metadata_cache
 
 #endif  // METADATA_CACHE_METADATA_CACHE_INCLUDED

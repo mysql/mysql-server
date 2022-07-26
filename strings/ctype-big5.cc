@@ -27,7 +27,7 @@
 
 /*
   Support for Chinese(BIG5) characters.
-  This file is basicly usa7 character sets with some extra functions
+  This file is basically usa7 character sets with some extra functions
   for big5 handling
  */
 
@@ -6506,7 +6506,7 @@ static MY_CHARSET_HANDLER my_charset_big5_handler = {nullptr, /* init */
                                                      ismbchar_big5,
                                                      mbcharlen_big5,
                                                      my_numchars_mb,
-                                                     my_charpos_mb,
+                                                     my_charpos_mb3,
                                                      my_well_formed_len_big5,
                                                      my_lengthsp_8bit,
                                                      my_numcells_8bit,

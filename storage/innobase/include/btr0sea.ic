@@ -35,36 +35,32 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "sync0rw.h"
 
-/** Updates the search info.
-@param[in,out]  info     search info
-@param[in]      cursor cursor which was just positioned */
+/** Updates the search info statistics following a search in B-tree that was
+performed not using or not finding row with the AHI index. It may decide to try
+to update the searched record on which the supplied cursor in positioned at, or
+add the whole page to AHI.
+@param[in,out]  info    search info
+@param[in]      cursor  cursor which was just positioned */
 void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor);
 
-/** Returns search info for an index.
- @return search info; search mutex reserved */
 static inline const btr_search_t *btr_search_get_info(
-    const dict_index_t *index) /*!< in: index */
-{
+    const dict_index_t *index) {
   return (index->search_info);
 }
 
-/** Returns search info for an index.
- @return search info; search mutex reserved */
-static inline btr_search_t *btr_search_get_info(
-    dict_index_t *index) /*!< in: index */
-{
+static inline btr_search_t *btr_search_get_info(dict_index_t *index) {
   return (index->search_info);
 }
 
-/** Updates the search info. */
-static inline void btr_search_info_update(
-    dict_index_t *index, /*!< in: index of the cursor */
-    btr_cur_t *cursor)   /*!< in: cursor which was just positioned */
-{
+static inline void btr_search_info_update(dict_index_t *index,
+                                          btr_cur_t *cursor) {
   ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
   ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
 
   if (dict_index_is_spatial(index) || !btr_search_enabled) {
+    return;
+  }
+  if (cursor->flag == BTR_CUR_HASH_NOT_ATTEMPTED) {
     return;
   }
 
@@ -89,6 +85,11 @@ static inline void btr_search_x_lock(const dict_index_t *index,
   rw_lock_x_lock_gen(btr_get_search_latch(index), 0, location);
 }
 
+static inline bool btr_search_x_lock_nowait(const dict_index_t *index,
+                                            ut::Location location) {
+  return rw_lock_x_lock_nowait(btr_get_search_latch(index), location);
+}
+
 static inline void btr_search_x_unlock(const dict_index_t *index) {
   rw_lock_x_unlock(btr_get_search_latch(index));
 }
@@ -110,6 +111,11 @@ static inline void btr_search_s_lock(const dict_index_t *index,
   rw_lock_s_lock_gen(btr_get_search_latch(index), 0, location);
 }
 
+static inline bool btr_search_s_lock_nowait(const dict_index_t *index,
+                                            ut::Location location) {
+  return rw_lock_s_lock_nowait(btr_get_search_latch(index), location);
+}
+
 static inline void btr_search_s_unlock(const dict_index_t *index) {
   rw_lock_s_unlock(btr_get_search_latch(index));
 }
@@ -127,10 +133,6 @@ static inline void btr_search_s_unlock_all() {
 }
 
 #ifdef UNIV_DEBUG
-/** Check if thread owns all the search latches.
-@param[in]      mode    lock mode check
-@retval true if owns all of them
-@retval false if does not own some of them */
 static inline bool btr_search_own_all(ulint mode) {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
     if (!rw_lock_own(btr_search_latches[i], mode)) {
@@ -140,10 +142,6 @@ static inline bool btr_search_own_all(ulint mode) {
   return (true);
 }
 
-/** Check if thread owns any of the search latches.
-@param[in]      mode    lock mode check
-@retval true if owns any of them
-@retval false if owns no search latch */
 static inline bool btr_search_own_any(ulint mode) {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
     if (rw_lock_own(btr_search_latches[i], mode)) {
@@ -154,27 +152,21 @@ static inline bool btr_search_own_any(ulint mode) {
 }
 #endif /* UNIV_DEBUG */
 
-/** Get the adaptive hash search index latch for a b-tree.
-@param[in]      index   b-tree index
-@return latch */
+static inline size_t btr_get_search_slot(const space_index_t index_id,
+                                         const space_id_t space_id) {
+  return static_cast<size_t>(ut::hash_uint64_pair(index_id, space_id) %
+                             btr_ahi_parts_fast_modulo);
+}
+
 static inline rw_lock_t *btr_get_search_latch(const dict_index_t *index) {
   ut_ad(index != nullptr);
 
-  ulint ifold = ut_fold_ulint_pair(static_cast<ulint>(index->id),
-                                   static_cast<ulint>(index->space));
-
-  return (btr_search_latches[ifold % btr_ahi_parts]);
+  return btr_search_latches[btr_get_search_slot(index->id, index->space)];
 }
 
-/** Get the hash-table based on index attributes.
-A table is selected from an array of tables using pair of index-id, space-id.
-@param[in]      index   index handler
-@return hash table */
 static inline hash_table_t *btr_get_search_table(const dict_index_t *index) {
   ut_ad(index != nullptr);
 
-  ulint ifold = ut_fold_ulint_pair(static_cast<ulint>(index->id),
-                                   static_cast<ulint>(index->space));
-
-  return (btr_search_sys->hash_tables[ifold % btr_ahi_parts]);
+  return btr_search_sys
+      ->hash_tables[btr_get_search_slot(index->id, index->space)];
 }

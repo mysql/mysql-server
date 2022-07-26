@@ -306,7 +306,7 @@ DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::deinit,
   /*
     Even if underlying keyring fails to deinitialize
     actual iterator, we will release the lock.
-    Otherwise, keyring wil remain in locked state
+    Otherwise, keyring will remain in locked state
   */
   bool retval =
       internal_keyring_keys_metadata_iterator->deinit(local_object->iterator_);
@@ -492,7 +492,7 @@ DEFINE_BOOL_METHOD(Keyring_reader_service_impl::deinit,
   /*
     Even if underlying keyring fails to deinitialize
     actual iterator, we will release the lock.
-    Otherwise, keyring wil remain in locked state
+    Otherwise, keyring will remain in locked state
   */
   bool retval = internal_keyring_reader->deinit(local_object->object_);
   local_object->object_ = nullptr;
@@ -785,7 +785,7 @@ void set_srv_keyring_implementation_as_default() {
       2. Move forward if current handle is pointing to
       keyring_reader.mysql_server
       3. If found, acquire all related services (writer, generator, forward
-      interator, status)
+      iterator, status)
       4. Set global handles to point to them
     */
     my_h_service_iterator iterator;
@@ -819,7 +819,7 @@ void set_srv_keyring_implementation_as_default() {
 
           Hence, we need to match service name and component name part.
 
-          This will fall apart if a clever implemention decides to register
+          This will fall apart if a clever implementation decides to register
           keyring_error_state service with name other than
           "keyring_error_state". To resolve that, we need iterator based on
           service type and not service name.
@@ -846,7 +846,7 @@ void set_srv_keyring_implementation_as_default() {
           &keyring_lockable::internal_keyring_writer);
     }
 
-    /* Initiliaze keyring */
+    /* Initialize keyring */
     if (keyring_lockable::internal_keyring_load != nullptr) {
       (void)keyring_lockable::internal_keyring_load->load(opt_plugin_dir,
                                                           mysql_real_data_home);

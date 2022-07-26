@@ -36,7 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "clone0api.h"
 #include "clone0clone.h"
 #include "dict0dict.h"
-#include "log0log.h"
+#include "log0files_io.h"
 #include "sql/handler.h"
 
 int Clone_Snapshot::get_file_from_desc(const Clone_File_Meta *file_meta,
@@ -100,12 +100,13 @@ int Clone_Snapshot::fix_ddl_extension(const char *data_dir,
 
   auto file_meta = file_ctx->get_file_meta();
   bool is_undo_file = fsp_is_undo_tablespace(file_meta->m_space_id);
+  bool is_redo_file = file_meta->m_space_id == dict_sys_t::s_log_space_id;
 
   auto extn = Clone_file_ctx::Extension::NONE;
   const std::string file_path(file_meta->m_file_name);
 
   /* Check if file is already present and extension is needed. */
-  auto err = handle_existing_file(replace_dir, is_undo_file,
+  auto err = handle_existing_file(replace_dir, is_undo_file, is_redo_file,
                                   file_meta->m_file_index, file_path, extn);
   if (err == 0) {
     file_ctx->m_extension = extn;
@@ -213,6 +214,7 @@ int Clone_Snapshot::update_sys_file_name(bool replace,
 }
 
 int Clone_Snapshot::handle_existing_file(bool replace, bool undo_file,
+                                         bool redo_file,
                                          uint32_t data_file_index,
                                          const std::string &data_file,
                                          Clone_file_ctx::Extension &extn) {
@@ -253,7 +255,13 @@ int Clone_Snapshot::handle_existing_file(bool replace, bool undo_file,
   auto type = Fil_path::get_file_type(data_file);
   int err = 0;
 
-  /* Nothing to do if file doesn't exist */
+  /* Consider redo files as existing always if we are cloning to
+  the same directory on which we are working. */
+  if (redo_file && replace && type == OS_FILE_TYPE_MISSING) {
+    type = OS_FILE_TYPE_FILE;
+  }
+
+  /* Nothing to do if file doesn't exist. */
   if (type == OS_FILE_TYPE_MISSING) {
     if (replace) {
       /* Add file to new file list to enable rollback. */
@@ -281,8 +289,16 @@ int Clone_Snapshot::handle_existing_file(bool replace, bool undo_file,
     return ER_FILE_EXISTS_ERROR;
   }
 
-  std::string clone_file(data_file);
-  clone_file.append(CLONE_INNODB_REPLACED_FILE_EXTN);
+  std::string replace_path, clone_file;
+
+  if (redo_file) {
+    const auto [directory, file] = Fil_path::split(data_file);
+    replace_path = directory;
+    clone_file = directory + CLONE_INNODB_REPLACED_FILE_EXTN + file;
+  } else {
+    replace_path = data_file;
+    clone_file = data_file + CLONE_INNODB_REPLACED_FILE_EXTN;
+  }
 
   /* Check that file with clone extension is not present */
   type = Fil_path::get_file_type(clone_file);
@@ -297,7 +313,8 @@ int Clone_Snapshot::handle_existing_file(bool replace, bool undo_file,
   extn = Clone_file_ctx::Extension::REPLACE;
 
   /* Add file name to files to be replaced before recovery. */
-  err = clone_add_to_list_file(CLONE_INNODB_REPLACED_FILES, data_file.c_str());
+  err =
+      clone_add_to_list_file(CLONE_INNODB_REPLACED_FILES, replace_path.c_str());
 
   return err;
 }
@@ -341,27 +358,38 @@ int Clone_Snapshot::build_file_path(const char *data_dir,
   bool undo_file = fsp_is_undo_tablespace(file_meta->m_space_id);
 
   /* Append appropriate data directory path. */
-  if (data_dir != nullptr) {
-    built_path.assign(data_dir);
 
-  } else if (redo_file) {
-    /* Use configured path when cloning into current data directory. */
-    built_path.assign(srv_log_group_home_dir);
-
-  } else if (undo_file) {
-    built_path.assign(srv_undo_dir);
+  /* Use configured path when cloning into current data directory. */
+  if (data_dir == nullptr) {
+    /* Get file path from redo configuration. */
+    if (redo_file) {
+      /* Path returned by log_directory_path() will have the
+      #innodb_redo directory at the end. */
+      built_path = log_directory_path(log_sys->m_files_ctx);
+    } else if (undo_file) {
+      /* Get file path from undo configuration. */
+      built_path = std::string{srv_undo_dir};
+    } else {
+      built_path = std::string{};
+    }
+  } else {
+    built_path = std::string{data_dir};
+    /* Add #innodb_redo directory to the path if this is redo file. */
+    if (redo_file) {
+      /* Add path separator at the end of file path, if not there. */
+      Fil_path::append_separator(built_path);
+      built_path += LOG_DIRECTORY_NAME;
+    }
   }
 
   /* Add path separator if required. */
-  if (!built_path.empty() && built_path.back() != OS_PATH_SEPARATOR) {
-    built_path.append(1, OS_PATH_SEPARATOR); /* purecov: inspected */
-  }
+  Fil_path::append_separator(built_path);
 
   /* Add file name. For redo file use standard name. */
   if (redo_file) {
-    std::ostringstream redo_name;
-    redo_name << built_path << ib_logfile_basename << file_meta->m_file_index;
-    built_path.assign(redo_name.str());
+    /* This is redo file. Use standard name. */
+    built_path += log_file_name(log_sys->m_files_ctx,
+                                Log_file_id{file_meta->m_file_index});
     return 0;
   }
 
@@ -456,9 +484,10 @@ int Clone_Snapshot::create_desc(const char *data_dir,
     /* If data directory is being replaced. */
     bool replace_dir = (data_dir == nullptr);
     bool is_undo_file = fsp_is_undo_tablespace(file_meta->m_space_id);
+    bool is_redo_file = file_meta->m_space_id == dict_sys_t::s_log_space_id;
 
     /* Check if file is already present in recipient. */
-    err = handle_existing_file(replace_dir, is_undo_file,
+    err = handle_existing_file(replace_dir, is_undo_file, is_redo_file,
                                file_meta->m_file_index, file_path, extn);
   }
 
@@ -808,9 +837,11 @@ int Clone_Handle::apply_ddl(const Clone_File_Meta *new_meta,
   if (!new_meta->is_renamed()) {
     std::string update_mesg;
     /* Set new encryption and compression type. */
-    if (old_meta->m_encrypt_type != new_meta->m_encrypt_type) {
-      old_meta->m_encrypt_type = new_meta->m_encrypt_type;
-      if (new_meta->m_encrypt_type == Encryption::NONE) {
+    if (old_meta->m_encryption_metadata.m_type !=
+        new_meta->m_encryption_metadata.m_type) {
+      old_meta->m_encryption_metadata.m_type =
+          new_meta->m_encryption_metadata.m_type;
+      if (!new_meta->can_encrypt()) {
         update_mesg.assign("UNENCRYPTED ");
       } else {
         update_mesg.assign("ENCRYPTED ");
@@ -1008,7 +1039,7 @@ int Clone_Handle::set_compression(Clone_file_ctx *file_ctx) {
 
   /* Old format for compressed and encrypted page is
   dependent on file system block size. */
-  if (file_meta->m_encrypt_type != Encryption::NONE &&
+  if (file_meta->can_encrypt() &&
       file_meta->m_fsblk_size != stat_info.block_size) {
     /* purecov: begin tested */
     auto donor_str = std::to_string(file_meta->m_fsblk_size);
@@ -1056,8 +1087,7 @@ int Clone_Handle::file_create_init(const Clone_file_ctx *file_ctx,
       mesg.append(" WRITE KEY: ");
 
       bool success = Encryption::fill_encryption_info(
-          file_meta->m_encryption_key, file_meta->m_encryption_iv,
-          encryption_info, true);
+          file_meta->m_encryption_metadata, true, encryption_info);
 
       if (!success) {
         db_err = DB_ERROR; /* purecov: inspected */
@@ -1207,26 +1237,6 @@ int Clone_Handle::apply_file_metadata(Clone_Task *task,
 
   snapshot->add_file_from_desc(file_ctx, false);
 
-  /* For redo copy, check and add entry for the second file. */
-  if (err == 0 && file_meta->m_file_index == 0) {
-    ut_ad(file_desc.m_file_meta.m_file_index == 0);
-    file_desc.m_file_meta.m_file_index++;
-
-    const auto file_desc_meta = &file_desc.m_file_meta;
-
-    file_ctx = nullptr;
-    err = snapshot->get_file_from_desc(file_desc_meta, m_clone_dir, true,
-                                       desc_exists, file_ctx);
-
-    if (err == 0 && !desc_exists) {
-      auto file_meta = file_ctx->get_file_meta();
-      file_meta->m_punch_hole = false;
-
-      err = open_file(nullptr, file_ctx, OS_CLONE_LOG_FILE, true, empty_cbk);
-      snapshot->add_file_from_desc(file_ctx, false);
-    }
-  }
-
   mutex_exit(m_clone_task_manager.get_mutex());
   return (err);
 }
@@ -1326,9 +1336,7 @@ int Clone_Handle::modify_and_write(const Clone_Task *task, uint64_t offset,
   auto snapshot = m_clone_task_manager.get_snapshot();
   auto file_meta = snapshot->get_file_by_index(task->m_current_file_index);
 
-  bool encryption = (file_meta->m_encrypt_type != Encryption::NONE);
-
-  if (encryption) {
+  if (file_meta->can_encrypt()) {
     bool success = true;
 
     bool is_page_copy = (snapshot->get_state() == CLONE_SNAPSHOT_PAGE_COPY);
@@ -1483,13 +1491,13 @@ int Clone_Handle::receive_data(Clone_Task *task, uint64_t offset,
   }
 
   /* We need to encrypt the tablespace key by master key. */
-  if (file_meta->m_encrypt_type != Encryption::NONE && (key_page || key_log)) {
+  if (file_meta->can_encrypt() && (key_page || key_log)) {
     modify_buffer = true;
   }
   auto err = file_callback(callback, task, size, modify_buffer, offset
 #ifdef UNIV_PFS_IO
                            ,
-                           __FILE__, __LINE__
+                           UT_LOCATION_HERE
 #endif /* UNIV_PFS_IO */
   );
 
@@ -1662,7 +1670,7 @@ void Clone_Snapshot::update_file_size(uint32_t file_index, uint64_t file_size) {
 }
 
 int Clone_Snapshot::init_apply_state(Clone_Desc_State *state_desc) {
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
 
   set_state_info(state_desc);
   int err = 0;

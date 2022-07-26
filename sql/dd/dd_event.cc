@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ int get_old_status(Event::enum_event_status event_status) {
 
   @param  event_status  Legacy event_status
 
-  @returns dd::Event::enum_event_status value corressponding to
+  @returns dd::Event::enum_event_status value corresponding to
            legacy event_status.
 */
 
@@ -114,7 +114,7 @@ int get_old_on_completion(Event::enum_on_completion on_completion) {
 
   @param  on_completion  Legacy on completion behaviour value
 
-  @returns dd::Event::enum_on_compeltion corressponding to legacy
+  @returns dd::Event::enum_on_compeltion corresponding to legacy
            event on completion value.
 */
 
@@ -192,7 +192,7 @@ interval_type get_old_interval_type(Event::enum_interval_field interval_field) {
 
   @param  interval_type_val  Interval type value.
 
-  @returns dd::Event::enum_interval_field corressponding to legacy
+  @returns dd::Event::enum_interval_field corresponding to legacy
            interval type value.
 */
 

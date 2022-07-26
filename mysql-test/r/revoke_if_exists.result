@@ -1,0 +1,519 @@
+#
+# WL#14690: Support IF EXISTS and IGNORE UNKNOWN USER optional clauses
+#            in REVOKE statement
+#
+CREATE DATABASE wl14690;
+CREATE USER u1,u2,u3,u4;
+CREATE ROLE r1,r2;
+CREATE TABLE wl14690.t(i int, j int);
+CREATE FUNCTION wl14690.fun() RETURNS INT DETERMINISTIC CONTAINS SQL RETURN @var1;
+SET @@global.partial_revokes = OFF;
+# FR1.1.1: REVOKE ... IGNORE UNKNOWN USER where target user/role does not exists
+RESET MASTER;
+REVOKE ALL ON *.* FROM unknown_user;
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
+REVOKE ALL ON *.* FROM unknown_user IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+SELECT COUNT(*) FROM mysql.user where user = 'unknown_user';
+COUNT(*)
+0
+REVOKE SELECT ON *.* FROM unknown_user;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
+REVOKE SELECT ON *.* FROM unknown_user IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+SELECT COUNT(*) FROM mysql.user where user = 'unknown_user';
+COUNT(*)
+0
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM unknown_user;
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM unknown_user IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+SELECT COUNT(*) FROM mysql.user where user = 'unknown_user';
+COUNT(*)
+0
+REVOKE PROXY ON u1 FROM unknown_user;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
+REVOKE PROXY ON u1 FROM unknown_user IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+REVOKE r1 FROM unknown_user;
+ERROR HY000: Unknown authorization ID `unknown_user`@`%`
+REVOKE r1 FROM unknown_user IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+SELECT COUNT(*) FROM mysql.user where user = 'unknown_user';
+COUNT(*)
+0
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE ALL ON *.* FROM unknown_user IGNORE UNKNOWN USER
+binlog.000001	#	Query	#	#	use `test`; REVOKE SELECT ON *.* FROM unknown_user IGNORE UNKNOWN USER
+binlog.000001	#	Query	#	#	use `test`; REVOKE ALL PRIVILEGES, GRANT OPTION FROM unknown_user IGNORE UNKNOWN USER
+binlog.000001	#	Query	#	#	use `test`; REVOKE PROXY ON u1 FROM unknown_user IGNORE UNKNOWN USER
+binlog.000001	#	Query	#	#	use `test`; REVOKE r1 FROM unknown_user IGNORE UNKNOWN USER
+# FR1.1.2: REVOKE ... IGNORE UNKNOWN USER where privilege does not exist
+RESET MASTER;
+REVOKE ALL ON wl14690.* FROM u1;
+ERROR 42000: There is no such grant defined for user 'u1' on host '%'
+REVOKE ALL ON wl14690.* FROM u1 IGNORE UNKNOWN USER;
+ERROR 42000: There is no such grant defined for user 'u1' on host '%'
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+GRANT SELECT, INSERT (i) ON wl14690.t TO u1, u2;
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO u2;
+GRANT CREATE ROUTINE ON wl14690.* TO u1;
+GRANT CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO u2;
+GRANT EXECUTE ON FUNCTION wl14690.fun TO u1,u3;
+# FR1.2.1: REVOKE ... IGNORE UNKNOWN USER where target user/role exists
+#          and privilege being revoked is granted
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT CREATE ROUTINE ON `wl14690`.* TO `u1`@`%`
+GRANT SELECT, INSERT (`i`) ON `wl14690`.`t` TO `u1`@`%`
+GRANT EXECUTE ON FUNCTION `wl14690`.`fun` TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u2`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO `u2`@`%`
+GRANT SELECT, INSERT (`i`) ON `wl14690`.`t` TO `u2`@`%`
+RESET MASTER;
+REVOKE INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER
+# check that INSERT (i) is revoked.
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT CREATE ROUTINE ON `wl14690`.* TO `u1`@`%`
+GRANT SELECT ON `wl14690`.`t` TO `u1`@`%`
+GRANT EXECUTE ON FUNCTION `wl14690`.`fun` TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u2`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO `u2`@`%`
+GRANT SELECT ON `wl14690`.`t` TO `u2`@`%`
+# FR1.2.2: REVOKE ... IGNORE UNKNOWN USER with missing target user/role
+GRANT INSERT (i) ON wl14690.t TO u1, u2;
+GRANT r1 TO u2;
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT CREATE ROUTINE ON `wl14690`.* TO `u1`@`%`
+GRANT SELECT, INSERT (`i`) ON `wl14690`.`t` TO `u1`@`%`
+GRANT EXECUTE ON FUNCTION `wl14690`.`fun` TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u2`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO `u2`@`%`
+GRANT SELECT, INSERT (`i`) ON `wl14690`.`t` TO `u2`@`%`
+GRANT `r1`@`%` TO `u2`@`%`
+RESET MASTER;
+REVOKE SELECT, INSERT (i) ON wl14690.t FROM u1, u2, unknown_user;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%' on table 't'
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM unknown_user, u2;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
+REVOKE r1 FROM unknown_user, u2;
+ERROR HY000: Unknown authorization ID `unknown_user`@`%`
+# check that r1 grant exists for u2
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u2`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO `u2`@`%`
+GRANT SELECT, INSERT (`i`) ON `wl14690`.`t` TO `u2`@`%`
+GRANT `r1`@`%` TO `u2`@`%`
+REVOKE r1 FROM unknown_user, u2 IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+REVOKE SELECT, INSERT (i) ON wl14690.t FROM u1, u2, unknown_user IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM unknown_user, u2 IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE r1 FROM unknown_user, u2 IGNORE UNKNOWN USER
+binlog.000001	#	Query	#	#	use `test`; REVOKE SELECT, INSERT (i) ON wl14690.t FROM u1, u2, unknown_user IGNORE UNKNOWN USER
+binlog.000001	#	Query	#	#	use `test`; REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM unknown_user, u2 IGNORE UNKNOWN USER
+# check that SELECT, INSERT (i) are revoked.
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT CREATE ROUTINE ON `wl14690`.* TO `u1`@`%`
+GRANT EXECUTE ON FUNCTION `wl14690`.`fun` TO `u1`@`%`
+# check that r1 grant is revoked for u2
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u2`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u2`@`%`
+# FR1.2.3: REVOKE ... IGNORE UNKNOWN USER with missing target user/role
+#          and privilege being revoked is not granted
+GRANT INSERT (i) ON wl14690.t TO u1, u2;
+RESET MASTER;
+REVOKE INSERT (i) ON wl14690.t FROM u1, u2, u3, unknown_user IGNORE UNKNOWN USER;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%' on table 't'
+# check that INSERT (i) is not revoked.
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT CREATE ROUTINE ON `wl14690`.* TO `u1`@`%`
+GRANT INSERT (`i`) ON `wl14690`.`t` TO `u1`@`%`
+GRANT EXECUTE ON FUNCTION `wl14690`.`fun` TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u2`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u2`@`%`
+GRANT INSERT (`i`) ON `wl14690`.`t` TO `u2`@`%`
+REVOKE EVENT, TRIGGER ON wl14690.* FROM u2, u3, unknown_user IGNORE UNKNOWN USER;
+ERROR 42000: There is no such grant defined for user 'u2' on host '%'
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+# check that existing privileges are not revoked.
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT CREATE ROUTINE ON `wl14690`.* TO `u1`@`%`
+GRANT INSERT (`i`) ON `wl14690`.`t` TO `u1`@`%`
+GRANT EXECUTE ON FUNCTION `wl14690`.`fun` TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u2`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u2`@`%`
+GRANT INSERT (`i`) ON `wl14690`.`t` TO `u2`@`%`
+# FR1.3.1: REVOKE IF EXISTS where target user/role exists and
+#          privilege being revoked is not granted
+RESET MASTER;
+REVOKE PROXY ON u3 FROM u1;
+ERROR 42000: There is no such grant defined for user 'u1' on host '%'
+REVOKE IF EXISTS PROXY ON u3 FROM unknown_user, u1;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
+# report warning
+REVOKE IF EXISTS PROXY ON u3 FROM u1;
+Warnings:
+Warning	1141	There is no such grant defined for user 'u1' on host '%'
+REVOKE IF EXISTS PROXY ON u3 FROM r1;
+Warnings:
+Warning	1141	There is no such grant defined for user 'r1' on host '%'
+REVOKE ALL ON *.* FROM u1;
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON *.* to u1;
+REVOKE SELECT ON wl14690.* FROM u1;
+ERROR 42000: There is no such grant defined for user 'u1' on host '%'
+# report warning
+REVOKE IF EXISTS SELECT ON wl14690.* FROM u1;
+Warnings:
+Warning	1141	There is no such grant defined for user 'u1' on host '%'
+REVOKE IF EXISTS SELECT ON wl14690.* FROM r1;
+Warnings:
+Warning	1141	There is no such grant defined for user 'r1' on host '%'
+REVOKE IF EXISTS INSERT (i) ON wl14690.t FROM u4;
+Warnings:
+Warning	1147	There is no such grant defined for user 'u4' on host '%' on table 't'
+REVOKE IF EXISTS INSERT (j) ON wl14690.t FROM u4;
+Warnings:
+Warning	1147	There is no such grant defined for user 'u4' on host '%' on table 't'
+REVOKE IF EXISTS ENCRYPTION_KEY_ADMIN, APPLICATION_PASSWORD_ADMIN ON *.* FROM u4;
+REVOKE role1 FROM u1;
+ERROR HY000: Unknown authorization ID `role1`@`%`
+REVOKE IF EXISTS role1 FROM u1;
+Warnings:
+Warning	3523	Unknown authorization ID `role1`@`%`
+GRANT r1 TO u1;
+REVOKE r1, role1 FROM u1;
+ERROR HY000: Unknown authorization ID `role1`@`%`
+# check that r1 grant is not revoked to u1
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON *.* TO `u1`@`%`
+GRANT `r1`@`%` TO `u1`@`%`
+REVOKE IF EXISTS role1, r1 FROM u1;
+Warnings:
+Warning	3523	Unknown authorization ID `role1`@`%`
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS PROXY ON u3 FROM u1
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS PROXY ON u3 FROM r1
+binlog.000001	#	Query	#	#	use `test`; REVOKE ALL ON *.* FROM u1
+binlog.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON *.* TO 'u1'@'%'
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS SELECT ON wl14690.* FROM u1
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS SELECT ON wl14690.* FROM r1
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS INSERT (i) ON wl14690.t FROM u4
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS INSERT (j) ON wl14690.t FROM u4
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS ENCRYPTION_KEY_ADMIN, APPLICATION_PASSWORD_ADMIN ON *.* FROM u4
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS role1 FROM u1
+binlog.000001	#	Query	#	#	use `test`; GRANT r1 TO u1
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS role1, r1 FROM u1
+# check that r1 grant is revoked from u1
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON *.* TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u2`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u2`@`%`
+GRANT INSERT (`i`) ON `wl14690`.`t` TO `u2`@`%`
+# FR1.3.2: REVOKE IF EXISTS with missing target user/role and
+#          privilege being revoked is granted
+RESET MASTER;
+REVOKE SELECT ON *.* FROM unknown_user;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
+REVOKE IF EXISTS SELECT ON *.* FROM unknown_user;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+# FR1.3.3: REVOKE IF EXISTS where target user/role exists and
+#          privilege being revoked is granted
+RESET MASTER;
+REVOKE IF EXISTS SELECT, INSERT, UPDATE ON *.* FROM u1;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS SELECT, INSERT, UPDATE ON *.* FROM u1
+# FR1.4.1: REVOKE IF EXISTS where multiple target users/roles exists and
+#          privilege being revoked is granted
+REVOKE ALL ON *.* FROM u1;
+REVOKE ALL ON *.* FROM u2;
+REVOKE ALL ON *.* FROM u3;
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE on wl14690.* to u1;
+GRANT SELECT ON wl14690.* TO u2;
+GRANT UPDATE, SELECT ON wl14690.* TO u3;
+RESET MASTER;
+REVOKE IF EXISTS SELECT ON wl14690.* FROM u1, u2, u3;
+REVOKE role1 FROM u1, u2;
+ERROR HY000: Unknown authorization ID `role1`@`%`
+REVOKE IF EXISTS role1 FROM u1, u2;
+Warnings:
+Warning	3523	Unknown authorization ID `role1`@`%`
+Warning	3523	Unknown authorization ID `role1`@`%`
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS SELECT ON wl14690.* FROM u1, u2, u3
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS role1 FROM u1, u2
+# SELECT should be revoked for all 3 users
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT INSERT, UPDATE, DELETE, CREATE ON `wl14690`.* TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT USAGE ON *.* TO `u2`@`%`
+SHOW GRANTS FOR u3;
+Grants for u3@%
+GRANT USAGE ON *.* TO `u3`@`%`
+GRANT UPDATE ON `wl14690`.* TO `u3`@`%`
+# FR1.4.2: REVOKE IF EXISTS where multiple target users/roles exists and
+#          privilege being revoked is not granted
+REVOKE ALL ON *.* FROM u1;
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE on *.* to u1;
+GRANT SELECT ON *.* TO u2;
+GRANT SELECT ON wl14690.* TO u3;
+SHOW GRANTS FOR u3;
+Grants for u3@%
+GRANT USAGE ON *.* TO `u3`@`%`
+GRANT SELECT, UPDATE ON `wl14690`.* TO `u3`@`%`
+RESET MASTER;
+REVOKE DELETE, SELECT ON wl14690.* FROM u1, u2, u3;
+ERROR 42000: There is no such grant defined for user 'u1' on host '%'
+REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM unknown_user, u1, u2;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
+REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM u1, u2, u3;
+Warnings:
+Warning	1141	There is no such grant defined for user 'u1' on host '%'
+Warning	1141	There is no such grant defined for user 'u2' on host '%'
+REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM r1;
+Warnings:
+Warning	1141	There is no such grant defined for user 'r1' on host '%'
+# for global level privleges IF EXISTS is implicit, so no warning
+REVOKE IF EXISTS SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN
+ON *.* FROM u1,u2,u3,u4,r1;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM u1, u2, u3
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM r1
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN
+ON *.* FROM u1,u2,u3,u4,r1
+# SELECT should be revoked for u3
+SHOW GRANTS FOR u3;
+Grants for u3@%
+GRANT USAGE ON *.* TO `u3`@`%`
+GRANT UPDATE ON `wl14690`.* TO `u3`@`%`
+# FR1.4.3: REVOKE IF EXISTS where multiple target users/roles missing and
+#          privilege being revoked is granted
+REVOKE ALL ON *.* FROM u1;
+REVOKE ALL ON *.* FROM u2;
+REVOKE ALL ON *.* FROM u3;
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE on *.* to u1;
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO u1;
+GRANT UPDATE, SELECT ON *.* TO u2;
+GRANT SELECT ON wl14690.* TO u3;
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO u3;
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON *.* TO `u1`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT SELECT, UPDATE ON *.* TO `u2`@`%`
+SHOW GRANTS FOR u3;
+Grants for u3@%
+GRANT USAGE ON *.* TO `u3`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u3`@`%`
+GRANT SELECT ON `wl14690`.* TO `u3`@`%`
+RESET MASTER;
+REVOKE IF EXISTS UPDATE, SELECT ON *.* FROM u1, u2, unknown_user;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
+REVOKE IF EXISTS TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* FROM unknown_user, u3, u1;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+# grants should be same
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON *.* TO `u1`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT SELECT, UPDATE ON *.* TO `u2`@`%`
+SHOW GRANTS FOR u3;
+Grants for u3@%
+GRANT USAGE ON *.* TO `u3`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u3`@`%`
+GRANT SELECT ON `wl14690`.* TO `u3`@`%`
+# FR1.5: REVOKE IF EXISTS ... IGNORE UNKNOWN USER with single target user
+#        and privilege which is not granted
+RESET MASTER;
+# missing privileges and target user report warning
+REVOKE IF EXISTS UPDATE, SELECT ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+# missing privileges and target user
+REVOKE IF EXISTS PROXY ON u1 FROM unknown_user IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS UPDATE, SELECT ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS PROXY ON u1 FROM unknown_user IGNORE UNKNOWN USER
+# FR1.6.1: REVOKE IF EXISTS ... IGNORE UNKNOWN USER with multiple target
+#          user (present) and privilege being revoked is granted
+GRANT SELECT, INSERT (i) ON wl14690.t TO u1, u2;
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON *.* TO `u1`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
+GRANT SELECT, INSERT (`i`) ON `wl14690`.`t` TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT SELECT, UPDATE ON *.* TO `u2`@`%`
+GRANT SELECT, INSERT (`i`) ON `wl14690`.`t` TO `u2`@`%`
+RESET MASTER;
+REVOKE IF EXISTS INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER;
+REVOKE IF EXISTS TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* FROM u1, u3
+IGNORE UNKNOWN USER;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* FROM u1, u3
+IGNORE UNKNOWN USER
+# INSERT should be revoked
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON *.* TO `u1`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`%`
+GRANT SELECT ON `wl14690`.`t` TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT SELECT, UPDATE ON *.* TO `u2`@`%`
+GRANT SELECT ON `wl14690`.`t` TO `u2`@`%`
+# FR1.6.2: REVOKE IF EXISTS ... IGNORE UNKNOWN USER with multiple target
+#          user (present) and privilege being revoked is not granted
+RESET MASTER;
+REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM u1, u2, u3
+IGNORE UNKNOWN USER;
+Warnings:
+Warning	1141	There is no such grant defined for user 'u1' on host '%'
+Warning	1141	There is no such grant defined for user 'u2' on host '%'
+REVOKE IF EXISTS SYSTEM_VARIABLES_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN
+ON *.* FROM u1, u2 IGNORE UNKNOWN USER;
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON *.* TO `u1`@`%`
+GRANT SELECT ON `wl14690`.`t` TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT SELECT, UPDATE ON *.* TO `u2`@`%`
+GRANT SELECT ON `wl14690`.`t` TO `u2`@`%`
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM u1, u2, u3
+IGNORE UNKNOWN USER
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS SYSTEM_VARIABLES_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN
+ON *.* FROM u1, u2 IGNORE UNKNOWN USER
+# FR1.6.3: REVOKE IF EXISTS ... IGNORE UNKNOWN USER with multiple target
+#          user (not present) and privilege being revoked is granted
+RESET MASTER;
+REVOKE IF EXISTS SELECT ON wl14690.t FROM u1, unknown_user IGNORE UNKNOWN USER;
+Warnings:
+Warning	3162	Authorization ID unknown_user does not exist.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS SELECT ON wl14690.t FROM u1, unknown_user IGNORE UNKNOWN USER
+#
+# Bug #33899136: WL#14690 Revoking illegal privilege with IF EXISTS
+# doesn't issue warning
+#
+RESET MASTER;
+REVOKE DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM u1;
+ERROR HY000: Illegal privilege level specified for DYNAMIC_PRIV1,DYNAMIC_PRIV2
+# should report warning
+REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM u1;
+Warnings:
+Warning	3619	Illegal privilege level specified for DYNAMIC_PRIV1,DYNAMIC_PRIV2
+Warning	1141	There is no such grant defined for user 'u1' on host '%'
+REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user;
+ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
+REVOKE DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER;
+ERROR HY000: Illegal privilege level specified for DYNAMIC_PRIV1,DYNAMIC_PRIV2
+# should report warnings
+REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER;
+Warnings:
+Warning	3619	Illegal privilege level specified for DYNAMIC_PRIV1,DYNAMIC_PRIV2
+Warning	3162	Authorization ID unknown_user does not exist.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM u1
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER
+#
+# Bug #33899156: WL#14690 Revoking mandatory role with IF EXISTS doesn't
+# issue warning
+#
+SET GLOBAL mandatory_roles=r1;
+RESET MASTER;
+REVOKE r1 FROM u1;
+ERROR HY000: The role `r1`@`%` is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles.
+REVOKE r1 FROM r2;
+ERROR HY000: The role `r1`@`%` is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles.
+REVOKE r1 FROM u1,u2,u3,r2;
+ERROR HY000: The role `r1`@`%` is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles.
+REVOKE IF EXISTS r1 FROM u1;
+Warnings:
+Warning	3628	The role `r1`@`%` is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles.
+REVOKE IF EXISTS r1 FROM r2;
+Warnings:
+Warning	3628	The role `r1`@`%` is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles.
+REVOKE IF EXISTS r1 FROM u1,u2,u3,r2;
+Warnings:
+Warning	3628	The role `r1`@`%` is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS r1 FROM u1
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS r1 FROM r2
+binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS r1 FROM u1,u2,u3,r2
+SET GLOBAL mandatory_roles=default;
+SET GLOBAL partial_revokes=default;
+DROP USER u1,u2,u3,u4;
+DROP ROLE r1,r2;
+DROP DATABASE wl14690;

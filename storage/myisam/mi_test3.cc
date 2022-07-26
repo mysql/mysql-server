@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,7 +135,7 @@ static void get_options(int argc, char **argv) {
       case 't':
         tests = atoi(++pos);
         break;
-      case 'K': /* Use key cacheing */
+      case 'K': /* Use key caching */
         key_cacheing = 1;
         break;
       case 'A': /* All flags */

@@ -122,7 +122,7 @@ void comma_maybe(String *str, bool *comma) {
 }
 
 /**
-  Append a key/value pair to a string, with an optional preceeding comma.
+  Append a key/value pair to a string, with an optional preceding comma.
   For numeric values.
 
   @param[in,out]   str                  The string to append to
@@ -232,7 +232,7 @@ int lex_user_comp(LEX_USER *l1, LEX_USER *l2) {
     return (key > 0 ? 1 : 0);
 }
 /**
-  Util method which does the real rewrite of the SQL statment.
+  Util method which does the real rewrite of the SQL statement.
   If a Rewriter is available for the specified SQL command then
   the rewritten query will be stored in the String rlb; otherwise,
   the string will just be cleared.
@@ -471,7 +471,7 @@ void Rewriter_user::rewrite_in_memory_user_application_user_metadata(
 }
 
 /**
-  Default implementaiton of the the rewriter for user applicatiton
+  Default implementation of the the rewriter for user applicatiton
   user metadata.
   @param [in]       lex    LEX struct to know if the clause was specified
   @param [in, out]  str    The string in which the clause is suffixed
@@ -482,7 +482,7 @@ void Rewriter_create_user::rewrite_user_application_user_metadata(
 }
 
 /**
-  Default implementaiton of the the rewriter for user applicatiton
+  Default implementation of the the rewriter for user applicatiton
   user metadata.
   @param [in]       lex    LEX struct to know if the clause was specified
   @param [in, out]  str    The string in which the clause is suffixed
@@ -1053,7 +1053,7 @@ bool Rewriter_show_create_user::rewrite(String &rlb) const {
 }
 
 /**
-  Overrides implementaiton of the the rewriter for user application
+  Overrides implementation of the the rewriter for user application
   user metadata. This is needed because we have to read the
   ATTRIBUTE data from disk.
   @param [in]       lex    LEX struct to know if the clause was specified
@@ -1410,7 +1410,7 @@ bool Rewriter_grant::rewrite(String &rlb) const {
     AS ... clause is added in following cases
     1. User has explicitly executed GRANT ... AS ...
        In this case we write it as it.
-    2. --partial_revokes is ON and we are rewritting
+    2. --partial_revokes is ON and we are rewriting
        GRANT for binary log.
   */
   if (grant_params != nullptr) {

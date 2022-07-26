@@ -518,6 +518,43 @@ class Instantiator<Function_class, 2, 4> {
 };
 
 /**
+  Instantiates a function class with between two and six arguments.
+
+  @tparam Function_class The class that implements the function. Does not need
+  to inherit Item_func.
+*/
+template <typename Function_class>
+class Instantiator<Function_class, 2, 6> {
+ public:
+  static const uint Min_argcount = 2;
+  static const uint Max_argcount = 6;
+
+  Item *instantiate(THD *thd, PT_item_list *args) {
+    switch (args->elements()) {
+      case 2:
+        return new (thd->mem_root)
+            Function_class(POS(), (*args)[0], (*args)[1]);
+      case 3:
+        return new (thd->mem_root)
+            Function_class(POS(), (*args)[0], (*args)[1], (*args)[2]);
+      case 4:
+        return new (thd->mem_root) Function_class(POS(), (*args)[0], (*args)[1],
+                                                  (*args)[2], (*args)[3]);
+      case 5:
+        return new (thd->mem_root) Function_class(
+            POS(), (*args)[0], (*args)[1], (*args)[2], (*args)[3], (*args)[4]);
+      case 6:
+        return new (thd->mem_root)
+            Function_class(POS(), (*args)[0], (*args)[1], (*args)[2],
+                           (*args)[3], (*args)[4], (*args)[5]);
+      default:
+        assert(false);
+        return nullptr;
+    }
+  }
+};
+
+/**
   Instantiates a function class with two or three arguments.
 
   @tparam Function_class The class that implements the function. Does not need
@@ -1334,8 +1371,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ABS", SQL_FN(Item_func_abs, 1)},
     {"ACOS", SQL_FN(Item_func_acos, 1)},
     {"ADDTIME", SQL_FN(Item_func_add_time, 2)},
-    {"AES_DECRYPT", SQL_FN_V(Item_func_aes_decrypt, 2, 3)},
-    {"AES_ENCRYPT", SQL_FN_V(Item_func_aes_encrypt, 2, 3)},
+    {"AES_DECRYPT", SQL_FN_V(Item_func_aes_decrypt, 2, 6)},
+    {"AES_ENCRYPT", SQL_FN_V(Item_func_aes_encrypt, 2, 6)},
     {"ANY_VALUE", SQL_FN(Item_func_any_value, 1)},
     {"ASIN", SQL_FN(Item_func_asin, 1)},
     {"ATAN", SQL_FN_V(Item_func_atan, 1, 2)},
@@ -1667,7 +1704,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
      SQL_FN_INTERNAL(Item_func_can_access_resource_group, 1)},
     {"CONVERT_CPU_ID_MASK", SQL_FN_INTERNAL(Item_func_convert_cpu_id_mask, 1)},
     {"IS_VISIBLE_DD_OBJECT",
-     SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 2)},
+     SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 3)},
     {"INTERNAL_TABLE_ROWS",
      SQL_FN_LIST_INTERNAL_V(Item_func_internal_table_rows, 8, 9)},
     {"INTERNAL_AVG_ROW_LENGTH",

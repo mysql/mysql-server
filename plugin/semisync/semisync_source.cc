@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -674,7 +674,7 @@ int ReplSemiSyncMaster::commitTrx(const char *trx_wait_binlog_name,
              (int)is_on());
     }
 
-    /* Calcuate the waiting period. */
+    /* Calculate the waiting period. */
     abstime.tv_sec = start_ts.tv_sec + wait_timeout_ / TIME_THOUSAND;
     abstime.tv_nsec =
         start_ts.tv_nsec + (wait_timeout_ % TIME_THOUSAND) * TIME_MILLION;

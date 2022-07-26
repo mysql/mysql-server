@@ -158,7 +158,7 @@ class PFS_instr_name {
   static constexpr uint max_length = PFS_MAX_INFO_NAME_LENGTH - 1;
   /*
     DO NOT ACCESS THE DATA MEMBERS DIRECTLY.  USE THE GETTERS AND
-    SETTTERS INSTEAD.
+    SETTERS INSTEAD.
 
     The data members should really have been private, but having both
     private and public members would make the class a non-POD.  We

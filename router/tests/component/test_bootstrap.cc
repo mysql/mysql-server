@@ -383,7 +383,7 @@ TEST_P(RouterBootstrapErrorBasePortTest, RouterBootstrapErrorBasePort) {
                  param.bs_params.end());
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
-  check_exit_code(router, EXIT_FAILURE, 5s);
+  check_exit_code(router, EXIT_FAILURE);
 
   // let's check if the expected error was reported:
   EXPECT_THAT(router.get_full_output(),
@@ -453,7 +453,7 @@ TEST_P(RouterReBootstrapOkBasePortTest, RouterReBootstrapOkBasePort) {
                           param.first_bs_params.end());
 
   auto &router_bs1 = launch_router_for_bootstrap(cmdline_first_bs);
-  check_exit_code(router_bs1, EXIT_SUCCESS, 5s);
+  check_exit_code(router_bs1, EXIT_SUCCESS);
 
   const std::string conf_file2 =
       mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
@@ -470,7 +470,7 @@ TEST_P(RouterReBootstrapOkBasePortTest, RouterReBootstrapOkBasePort) {
                            param.second_bs_params.begin(),
                            param.second_bs_params.end());
   auto &router_bs2 = launch_router_for_bootstrap(cmdline_second_bs);
-  check_exit_code(router_bs2, EXIT_SUCCESS, 5s);
+  check_exit_code(router_bs2, EXIT_SUCCESS);
 
   const std::string conf_file =
       mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
@@ -1383,7 +1383,7 @@ TEST_F(RouterBootstrapTest,
       bootstrap_directory.name(), "--report-host", "host.foo.bar"};
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
-  check_exit_code(router, EXIT_FAILURE, 5s);
+  check_exit_code(router, EXIT_FAILURE);
   // expect config write error
   EXPECT_THAT(router.get_full_output(),
               ::testing::ContainsRegex("Error: Could not create file "
@@ -2080,7 +2080,7 @@ TEST_F(ConfSetOptionTest, ErrorIfNotBootstrap) {
 
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
-  check_exit_code(router, EXIT_FAILURE, 5s);
+  check_exit_code(router, EXIT_FAILURE);
 
   // let's check if the expected error was reported:
   EXPECT_THAT(
@@ -2205,7 +2205,7 @@ TEST_P(ConfSetOptionErrorTest, ErrorTest) {
   }
 
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
-  check_exit_code(router, EXIT_FAILURE, 5s);
+  check_exit_code(router, EXIT_FAILURE);
 
   // let's check if the expected error was reported:
   EXPECT_THAT(router.get_full_output(),
@@ -2460,6 +2460,78 @@ INSTANTIATE_TEST_SUITE_P(
                                {"name=\"My Router\""}}
 
         ));
+
+/**
+ * @test
+ *       verify that using ssl options during the bootstrap creates the
+ * configuration file that is usable by the Router
+ */
+TEST_F(RouterBootstrapTest, SSLOptions) {
+  TempDirectory bootstrap_directory;
+  const auto server_port = port_pool_.get_next_available();
+  const auto server_port2 = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+
+  // launch mock server that is our metadata server for the bootstrap
+  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
+                                               EXIT_SUCCESS, false, http_port);
+
+  set_mock_bootstrap_data(
+      http_port, "test",
+      {{"localhost", server_port}, {"localhost", server_port2}}, {2, 1, 0},
+      "00000000-0000-0000-0000-0000000000c1");
+
+  const auto base_listening_port = port_pool_.get_next_available();
+  std::vector<std::string> bootsrtap_params{
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "-d",
+      bootstrap_directory.name(),
+      "--conf-base-port=" + std::to_string(base_listening_port),
+      "--ssl-mode=disabled",
+      "--ssl-cipher=some",
+      "--tls-version=TLSv1.2",
+      "--ssl-ca=some",
+      "--ssl-capath=some",
+      "--ssl-crl=some",
+      "--ssl-crlpath=some"};
+
+  // launch the router in bootstrap mode
+  auto &router = launch_router_for_bootstrap(bootsrtap_params);
+
+  check_exit_code(router, EXIT_SUCCESS);
+
+  const std::string conf_file =
+      bootstrap_directory.name() + "/mysqlrouter.conf";
+
+  std::vector<std::string> expected_config_lines{
+      "ssl_mode=disabled", "ssl_cipher=some", "tls_version=TLSv1.2",
+      "ssl_ca=some",       "ssl_capath=some", "ssl_crl=some",
+      "ssl_crlpath=some"};
+
+  // check if valid config options were added to the file
+  auto conf_file_content = get_file_output(conf_file);
+  auto conf_lines = mysql_harness::split_string(conf_file_content, '\n');
+  EXPECT_THAT(conf_lines, ::testing::IsSupersetOf(expected_config_lines));
+  server_mock.send_clean_shutdown_event();
+  EXPECT_NO_THROW(server_mock.wait_for_exit());
+
+  auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
+  ASSERT_TRUE(add_line_to_config_file(conf_file, "DEFAULT", "plugin_folder",
+                                      plugin_dir));
+
+  const std::string runtime_json_stmts =
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
+
+  // launch mock server that is our metadata server
+  launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    {server_port});
+
+  // check that the Router is running fine with this configuration file
+  ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

@@ -9,6 +9,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @save.replica_parallel_workers= @@global.replica_parallel_workers;
 # Test for Single Threaded Slave
 SET GLOBAL replica_parallel_workers= 0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

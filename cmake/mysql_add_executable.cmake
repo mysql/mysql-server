@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,6 +19,48 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+IF(APPLE)
+  SET(DEV_ENTITLEMENT_FILE ${CMAKE_BINARY_DIR}/dev.entitlements)
+
+  # use PlistBuddy to create the dev.entitlements file
+  # if it doesn't exist.
+  #
+  # - get-task-allow allows a debugger to attach to a binary
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${DEV_ENTITLEMENT_FILE}
+    COMMAND /usr/libexec/PlistBuddy
+    -c "Add :com.apple.security.get-task-allow bool true"
+    ${DEV_ENTITLEMENT_FILE}
+    )
+
+  ADD_CUSTOM_TARGET(GenerateDevEntitlements
+    DEPENDS ${DEV_ENTITLEMENT_FILE}
+    )
+ENDIF()
+
+
+# add developer specific entitlements to the target.
+#
+# - allow debugger to attach.
+#
+# @param TGT targetname
+FUNCTION(MACOS_ADD_DEVELOPER_ENTITLEMENTS TGT)
+  # Ensure the dev.entitlement file is created before codesign is called.
+  ADD_DEPENDENCIES(${TGT} GenerateDevEntitlements)
+
+  # Use 'codesign' to add the dev.entitlements to the target
+  ADD_CUSTOM_COMMAND(TARGET ${TGT} POST_BUILD
+    COMMAND codesign
+    ARGS
+      --sign -
+      --preserve-metadata=entitlements
+      --force
+      --entitlements ${DEV_ENTITLEMENT_FILE}
+      $<TARGET_FILE:${TGT}>
+    )
+ENDFUNCTION()
+
 
 # MYSQL_ADD_EXECUTABLE(target sources... options/keywords...)
 #
@@ -115,6 +157,10 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
 
   IF(ARG_COMPILE_OPTIONS)
     TARGET_COMPILE_OPTIONS(${target} PRIVATE ${ARG_COMPILE_OPTIONS})
+  ENDIF()
+
+  IF(APPLE AND WITH_DEVELOPER_ENTITLEMENTS)
+    MACOS_ADD_DEVELOPER_ENTITLEMENTS(${target})
   ENDIF()
 
   IF(WIN32_CLANG AND WITH_ASAN)

@@ -78,7 +78,7 @@ struct counter_indexer_t : public generic_indexer_t<Type, N> {
       /* We may go here if my_timer_cycles() returns 0,
       so we have to have the plan B for the counter. */
 #if !defined(_WIN32)
-      return std::hash<std::thread::id>{}(std::this_thread::get_id());
+      return ut::this_thread_hash;
 #else
       LARGE_INTEGER cnt;
       QueryPerformanceCounter(&cnt);

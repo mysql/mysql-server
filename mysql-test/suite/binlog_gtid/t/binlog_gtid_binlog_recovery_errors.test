@@ -1,0 +1,512 @@
+# ==== Purpose ====
+#
+# The purpose of this test is to check that the binlog recovery identifies
+# and reports malformed binary log files which hold invalid sequence of
+# events.
+#
+# ==== Requirements ====
+#
+# R1. When the sequence of events found in the binary log, at recovery,
+#     isn't the expected one, the server will report the issue through the
+#     error log.
+# R2. Finding an Xid_log_event after a sequence of events that represent a
+#     finished (committed or rolled back) transaction must report an error
+#     to the error log.
+# R3. Finding an XA_prepare_log_event after a sequence of events that
+#     represent a finished (committed or rolled back) transaction must
+#     report an error to the error log.
+# R4. Finding an XA_prepare_log_event holding an XID that was previously
+#     found in the binary log and hasn't been yet used with `XA
+#     COMMIT/ROLLBACK` must report an error to the error log.
+# R5. Finding a Query_log_event containing a `BEGIN/XA START` after a
+#     sequence of events that represent an ongoing transaction must report
+#     an error to the error log.
+# R6. Finding a Query_log_event containing a `COMMIT` after a sequence of
+#     events that represent a finished (committed or rolled back)
+#     transaction must report an error to the error log.
+# R7. Finding a Query_log_event containing a `ROLLBACK` after a sequence of
+#     events that represent a finished (committed or rolled back)
+#     transaction must report an error to the error log.
+# R8. Finding a Query_log_event containing a DDL after a sequence of events
+#     that represent a finished (committed or rolled back) transaction must
+#     report an error to the error log.
+# R9. Finding a Query_log_event containing an `XA COMMIT` after a sequence
+#     of events that represent a finished (committed or rolled back)
+#     transaction must report an error to the error log.
+# R10. Finding a Query_log_event containing an `XA COMMIT` holding an XID
+#      that was previously found in the binary log and hasn't been yet used
+#      with `XA PREPARE` must report an error to the error log.
+# R11. Finding a Query_log_event containing an `XA COMMIT` holding an XID
+#      that doesn't conform with the standard format of an XID, must report
+#      an error to the error log.
+# R12. Finding a Query_log_event containing an `XA ROLLBACK` after a
+#      sequence of events that represent a finished (committed or rolled
+#      back) transaction must report an error to the error log.
+# R13. Finding a Query_log_event containing an `XA ROLLBACK` holding an XID
+#      that was previously found in the binary log and hasn't been yet used
+#      with `XA PREPARE` must report an error to the error log.
+# R14. Finding a Query_log_event containing an `XA ROLLBACK` holding an XID
+#      that doesn't conform with the standard format of an XID, must report
+#      an error to the error log.
+#
+# ==== Implementation ====
+#
+# TC1. Orphan Xid_log_event
+#   1) Insert two records on the table.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the body of the
+#      second insert's transaction was removed.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an out of place
+#      Xid_log_event was found.
+#   6) Clear the table and reset server state.
+#
+# TC2. Duplicate XID in Xid_log_event
+#   1) Insert two records on the table.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the XID in the
+#      Xid_log_event for the second insert transaction as been set to the XID
+#      for the first insert transaction.
+#   4) Start the server
+#   5) Check the error log for a message stating that an invalid XID was
+#      found in an Xid_log_event.
+#   6) Clear the table and reset server state.
+#
+# TC3. Orphan `XA PREPARE`
+#   1) Execute an XA transaction up until the `XA PREPARE`.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the body of the
+#      XA transaction (from `XA START` to `XA END`) was removed.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an out of place
+#      XA_prepare_log_event was found.
+#   6) Clear the table and reset server state.
+#
+# TC4. Duplicate XID in XA_prepare_log_event
+#   1) Execute two XA transactions up until the `XA PREPARE`.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the XID in the
+#      second XA_prepare_log_event has been replace with the XID for the
+#      first XA_prepare_log_event.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an invalid XID was
+#      found in an XA_prepare_log_event.
+#   6) Clear the table and reset server state.
+#
+# TC5. Orphan `BEGIN/XA START`
+#   1) Insert two records on the table within a transaction and execute an
+#      XA transaction up until `XA PREPARE`.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the Xid_log_event
+#      for the first transaction has been removed.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an out of place
+#      `BEGIN/START` has been found.
+#   6) Clear the table and reset server state.
+#
+# TC6. Orphan `COMMIT`
+#   1) Create a table in MyISAM engine.
+#   2) Insert a record on the table, while setting the `binlog_format`
+#      session variable to `STATEMENT`.
+#   3) Kill the server.
+#   4) Replace the binlog file with a tampered file where the body of the
+#      transaction is removed, leaving only the `COMMIT` query.
+#   5) Start the server.
+#   6) Check the error log for a message stating that an out of place
+#      `COMMIT` has been found.
+#   7) Clear the table and reset server state.
+#
+# TC7. Orphan `ROLLBACK`
+#   1) Create a function that creates and deletes a temporary table in the
+#      MyISAM engine.
+#   2) Invoke the function within a transaction and issue a `ROLLBACK`,
+#      while setting the `binlog_format` session variable to `STATEMENT`.
+#   3) Kill the server.
+#   4) Replace the binlog file with a tampered file where the transaction
+#      body has been removed.
+#   5) Start the server.
+#   6) Check the error log for a message stating that an out of place
+#      `ROLLBACK` has been found.
+#   7) Clear the table and reset server state.
+#
+# TC8. DDL in the middle of transaction
+#   1) Insert a records on the table, create a new table and insert a
+#      record in the new table.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the Xid_log_event
+#      for the first insert's transaction has been removed.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an out of place
+#      DDL has been found.
+#   6) Clear the table and reset server state.
+#
+# TC9. DDL holding a duplicate XID
+#   1) Insert a records on the table and create a new table.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the XID held by
+#      the DDL's Query_log_event is equal to the XID for the insert's
+#      transaction.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an invalid XID was
+#      found in a Query_log_event.
+#   6) Clear the table and reset server state.
+#
+# TC10. Orphan `XA COMMIT`
+#   1) Insert two records on the table, one of them using an XA
+#      transaction.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the
+#      XA_prepare_log_event was removed, leading to the sequence
+#      Query_log_event('XA END') > Gtid_log_event > Query_log_event('XA
+#      COMMIT').
+#   4) Start the server.
+#   5) Check the error log for a message stating that an out of place
+#      `XA COMMIT` has been found.
+#   6) Clear the table and reset server state.
+#
+# TC11. `XA COMMIT` holding a malformed XID
+#   1) Insert two records on the table, one of them using an XA
+#      transaction.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the XID held by
+#      the `XA COMMIT` Query_log_event isn't in the correct format.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an invalid XID was
+#      found in a Query_log_event.
+#   6) Clear the table and reset server state.
+#
+# TC12. `XA COMMIT` holding a duplicate XID
+#   1) Insert three records on the table, two using distinct XA transactions
+#      with the same XID.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the body of the
+#      second XA transaction was removed, leaving only the `XA COMMIT`.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an invalid XID was
+#      found in a Query_log_event.
+#   6) Clear the table and reset server state.
+#
+# TC13. Orphan `XA ROLLBACK`
+#   1) Insert two records on the table, one of them using an XA
+#      transaction.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the `XA PREPARE`
+#      portion of the XA transaction was removed.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an out of place
+#      `XA ROLLBACK` has been found.
+#   6) Clear the table and reset server state.
+#
+# TC14. `XA ROLLBACK` holding a malformed XID
+#   1) Insert two records on the table, one of them using an XA
+#      transaction.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the XID held by
+#      the `XA ROLLBACK` Query_log_event isn't in the correct format.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an invalid XID was
+#      found in a Query_log_event.
+#   6) Clear the table and reset server state.
+#
+# TC15. `XA ROLLBACK` holding a duplicate XID
+#   1) Execute three transactions, two of them using XA transactions,
+#      finishing them with `XA ROLLBACK` and using the same XID.
+#   2) Kill the server.
+#   3) Replace the binlog file with a tampered file where the body of the
+#      second XA transaction was removed, leaving only the `XA ROLLBACK`.
+#   4) Start the server.
+#   5) Check the error log for a message stating that an invalid XID was
+#      found in a Query_log_event.
+#   6) Clear the table and reset server state.
+#
+# ==== References ====
+#
+# WL#11300: Crash-safe XA + binary log
+#
+# Related tests;
+#   see extra/xa_crash_safe_tests/setup.inc
+#
+--source include/have_binlog_format_row.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Add suppression for recovery error message
+let $messages = .*Found invalid event sequence while recovering from binary log file.*
+.*Found.*prepared XA transactions.*
+.*Can.t init tc log.*
+.*Aborting.*;
+--source include/suppress_messages.inc
+
+# Create a table and reset server state
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+RESET MASTER;
+
+# Log file to be searched for error messages
+--let $grep_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+
+# TC1. Orphan Xid_log_event
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = orphan_xid
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 430 and 540: Xid_log_event outside the boundary of a sequence of events representing an active transaction.*
+--source include/wait_for_pattern_in_file.inc
+
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC2. Duplicate XID in Xid_log_event
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = duplicate_xid
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 430 and 703: Xid_log_event holds an invalid XID.*
+--source include/wait_for_pattern_in_file.inc
+
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC3. Orphan `XA PREPARE`
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = orphan_xa_prepare
+XA START 'x';
+INSERT INTO t1 VALUES (1);
+XA END 'x';
+XA PREPARE 'x';
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 157 and 273: XA_prepare_log_event outside the boundary of a sequence of events representing an active transaction.*
+--source include/wait_for_pattern_in_file.inc
+
+--let $end_scenario_stmt = XA ROLLBACK 'x'
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC4. Duplicate XID in XA_prepare_log_event
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = duplicate_xid_xa_prepare
+XA START 'x';
+INSERT INTO t1 VALUES (1);
+XA END 'x';
+XA PREPARE 'x';
+
+XA START 'y';
+INSERT INTO t1 VALUES (2);
+XA END 'y';
+XA PREPARE 'y';
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 539 and 921: XA_prepare_log_event holds an invalid XID.*
+--source include/wait_for_pattern_in_file.inc
+
+--let $end_scenario_stmt = XA ROLLBACK 'x'; XA ROLLBACK 'y'
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC5. Orphan `BEGIN/XA START`
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = orphan_begin_start
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+COMMIT;
+
+XA START 'x';
+INSERT INTO t1 VALUES (3);
+XA END 'x';
+XA PREPARE 'x';
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 157 and 656: Query_log_event containing `BEGIN/XA START` inside the boundary of a sequence of events representing an active transaction.*
+--source include/wait_for_pattern_in_file.inc
+
+--let $end_scenario_stmt = XA ROLLBACK 'x'
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC6. Orphan `COMMIT`
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = orphan_commit
+CREATE TABLE tmp1 (i INT) ENGINE=MyISAM;
+
+SET @@SESSION.binlog_format = STATEMENT;
+BEGIN;
+INSERT INTO tmp1 (SELECT c1 FROM t1);
+COMMIT;
+SET @@SESSION.binlog_format = ROW;
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 352 and 514: Query_log_event containing `COMMIT` outside the boundary of a sequence of events representing an active transaction.*
+--source include/wait_for_pattern_in_file.inc
+
+--let $end_scenario_stmt = DROP TABLE tmp1
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC7. Orphan `ROLLBACK`
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = orphan_rollback
+delimiter |;
+CREATE FUNCTION func1 () RETURNS INT
+BEGIN
+  CREATE TEMPORARY TABLE tmp1(i INT) ENGINE=MyISAM;
+  DROP TEMPORARY TABLE IF EXISTS tmp1;
+  RETURN 0;
+END|
+delimiter ;|
+
+SET @@SESSION.binlog_format = STATEMENT;
+BEGIN;
+SELECT func1();
+ROLLBACK;
+SET @@SESSION.binlog_format = ROW;
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 510 and 667: Query_log_event containing `ROLLBACK` outside the boundary of a sequence of events representing an active transaction.*
+--source include/wait_for_pattern_in_file.inc
+
+--let $end_scenario_stmt = DROP FUNCTION func1
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC8. DDL in the middle of transaction
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = ddl_in_transaction
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE tmp1 (i INT);
+INSERT INTO tmp1 (SELECT c1 FROM t1);
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 157 and 589: Query_log event containing a DDL inside the boundary of a sequence of events representing an active transaction.*
+--source include/wait_for_pattern_in_file.inc
+
+--let $end_scenario_stmt = DROP TABLE tmp1
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC9. DDL holding a duplicate XID
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = duplicate_xid_ddl
+INSERT INTO t1 VALUES (1);
+CREATE TABLE tmp1 (i INT);
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 430 and 620: Query_log_event containing a DDL holds an invalid XID.*
+--source include/wait_for_pattern_in_file.inc
+
+--let $end_scenario_stmt = DROP TABLE tmp1
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC10. Orphan `XA COMMIT`
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = orphan_xa_commit
+INSERT INTO t1 VALUES (1);
+
+XA START 'x';
+INSERT INTO t1 VALUES (2);
+XA END 'x';
+XA PREPARE 'x';
+XA COMMIT 'x' ;
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 430 and 943: Query_log_event containing `XA COMMIT` inside the boundary of a sequence of events representing a transaction not yet in prepared state.*
+--source include/wait_for_pattern_in_file.inc
+
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC11. `XA COMMIT` holding a malformed XID
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = malformed_xid_xa_commit
+INSERT INTO t1 VALUES (1);
+
+XA START 'x';
+INSERT INTO t1 VALUES (2);
+XA END 'x';
+XA PREPARE 'x';
+XA COMMIT 'x' ;
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 812 and 980: Query_log_event containing `XA COMMIT` holds an invalid XID.*
+--source include/wait_for_pattern_in_file.inc
+
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC12. `XA COMMIT` holding a duplicate XID
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = duplicate_xid_xa_commit
+INSERT INTO t1 VALUES (1);
+
+XA START 'x';
+INSERT INTO t1 VALUES (2);
+XA END 'x';
+XA PREPARE 'x';
+XA COMMIT 'x' ;
+
+XA START 'x';
+INSERT INTO t1 VALUES (3);
+XA END 'x';
+XA PREPARE 'x';
+XA COMMIT 'x' ;
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 980 and 1148: Query_log_event containing `XA COMMIT` holds an invalid XID.*
+--source include/wait_for_pattern_in_file.inc
+
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC13. Orphan `XA ROLLBACK`
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = orphan_xa_rollback
+INSERT INTO t1 VALUES (1);
+
+XA START 'x';
+INSERT INTO t1 VALUES (2);
+XA END 'x';
+XA PREPARE 'x';
+XA ROLLBACK 'x' ;
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 430 and 945: Query_log_event containing `XA ROLLBACK` inside the boundary of a sequence of events representing a transaction not yet in prepared state.*
+--source include/wait_for_pattern_in_file.inc
+
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC14. `XA ROLLBACK` holding a malformed XID
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = malformed_xid_xa_rollback
+INSERT INTO t1 VALUES (1);
+
+XA START 'x';
+INSERT INTO t1 VALUES (2);
+XA END 'x';
+XA PREPARE 'x';
+XA ROLLBACK 'x' ;
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 812 and 982: Query_log_event containing `XA ROLLBACK` holds an invalid XID.*
+--source include/wait_for_pattern_in_file.inc
+
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+# TC15. `XA ROLLBACK` holding a duplicate XID
+# ----------------------------------------------------------------------------
+--let $recovery_scenario = duplicate_xid_xa_rollback
+INSERT INTO t1 VALUES (1);
+
+XA START 'x';
+INSERT INTO t1 VALUES (2);
+XA END 'x';
+XA PREPARE 'x';
+XA COMMIT 'x' ;
+
+XA START 'x';
+INSERT INTO t1 VALUES (3);
+XA END 'x';
+XA PREPARE 'x';
+XA ROLLBACK 'x' ;
+--source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+
+--let $grep_pattern = .*between positions 980 and 1150: Query_log_event containing `XA ROLLBACK` holds an invalid XID.*
+--source include/wait_for_pattern_in_file.inc
+
+--source extra/binlog_tests/recovery/end_scenario.inc
+
+DROP TABLE t1;

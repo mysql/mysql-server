@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class Abstract_options_provider : public I_options_provider {
    */
   Simple_option *create_new_option(std::string name, std::string description);
   /**
-    Creates and attach new disabled option. This option is to mark existance
+    Creates and attach new disabled option. This option is to mark existence
     of options inavailable due to distribution configuration.
     @param name Name of option. It is used in command-line option name as
       --name.

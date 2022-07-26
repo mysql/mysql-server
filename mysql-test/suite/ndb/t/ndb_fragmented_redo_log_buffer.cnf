@@ -1,0 +1,3 @@
+!include ../my.cnf
+[cluster_config.1]
+RedoBuffer=1M

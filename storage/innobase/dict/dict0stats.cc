@@ -760,7 +760,7 @@ static bool dict_stats_index_long_waiters(
   }
 }
 
-/* @{ Pseudo code about the relation between the following functions
+/** @{ Pseudo code about the relation between the following functions
 
 dict_stats_analyze_index()
   let N = N_SAMPLE_PAGES(index)
@@ -779,7 +779,7 @@ dict_stats_analyze_index_low(N)
       // full scan of the level in one mtr
       dive below some records and analyze the leaf page there:
       dict_stats_analyze_index_below_cur()
-@} */
+@} **/
 
 /** Find the total number and the number of distinct keys on a given level in
  an index. Each of the 1..n_uniq prefixes are looked up and the results are
@@ -829,7 +829,7 @@ static bool dict_stats_analyze_index_level(
   /* Allocate space for the offsets header (the allocation size at
   offsets[0] and the REC_OFFS_HEADER_SIZE bytes), and n_fields + 1,
   so that this will never be less than the size calculated in
-  rec_get_offsets_func(). */
+  rec_get_offsets(). */
   i = (REC_OFFS_HEADER_SIZE + 1 + 1) + index->n_fields;
 
   heap = mem_heap_create((2 * sizeof *rec_offsets) * i, UT_LOCATION_HERE);
@@ -931,8 +931,8 @@ static bool dict_stats_analyze_index_level(
       if (rec_is_last_on_page && !prev_rec_is_copied && prev_rec != nullptr) {
         /* copy prev_rec */
 
-        prev_rec_offsets =
-            rec_get_offsets(prev_rec, index, prev_rec_offsets, n_uniq, &heap);
+        prev_rec_offsets = rec_get_offsets(prev_rec, index, prev_rec_offsets,
+                                           n_uniq, UT_LOCATION_HERE, &heap);
 
         prev_rec = rec_copy_prefix_to_buf(prev_rec, index,
                                           rec_offs_n_fields(prev_rec_offsets),
@@ -943,15 +943,16 @@ static bool dict_stats_analyze_index_level(
 
       continue;
     }
-    rec_offsets = rec_get_offsets(rec, index, rec_offsets, n_uniq, &heap);
+    rec_offsets = rec_get_offsets(rec, index, rec_offsets, n_uniq,
+                                  UT_LOCATION_HERE, &heap);
 
     (*total_recs)++;
 
     if (prev_rec != nullptr) {
       ulint matched_fields;
 
-      prev_rec_offsets =
-          rec_get_offsets(prev_rec, index, prev_rec_offsets, n_uniq, &heap);
+      prev_rec_offsets = rec_get_offsets(prev_rec, index, prev_rec_offsets,
+                                         n_uniq, UT_LOCATION_HERE, &heap);
 
       cmp_rec_rec_with_match(rec, prev_rec, rec_offsets, prev_rec_offsets,
                              index, false, false, &matched_fields);
@@ -1158,8 +1159,8 @@ static inline ulint *dict_stats_scan_page(const rec_t **out_rec,
     return (nullptr);
   }
 
-  offsets_rec =
-      rec_get_offsets(rec, index, offsets_rec, ULINT_UNDEFINED, &heap);
+  offsets_rec = rec_get_offsets(rec, index, offsets_rec, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
 
   if (should_count_external_pages) {
     *n_external_pages +=
@@ -1173,8 +1174,9 @@ static inline ulint *dict_stats_scan_page(const rec_t **out_rec,
   while (!page_rec_is_supremum(next_rec)) {
     ulint matched_fields;
 
-    offsets_next_rec = rec_get_offsets(next_rec, index, offsets_next_rec,
-                                       ULINT_UNDEFINED, &heap);
+    offsets_next_rec =
+        rec_get_offsets(next_rec, index, offsets_next_rec, ULINT_UNDEFINED,
+                        UT_LOCATION_HERE, &heap);
 
     /* check whether rec != next_rec when looking at
     the first n_prefix fields */
@@ -1257,7 +1259,7 @@ static void dict_stats_analyze_index_below_cur(const btr_cur_t *cur,
   Allocate space for the offsets header (the allocation size at
   offsets[0] and the REC_OFFS_HEADER_SIZE bytes), and n_fields + 1,
   so that this will never be less than the size calculated in
-  rec_get_offsets_func(). */
+  rec_get_offsets(). */
   size = (1 + REC_OFFS_HEADER_SIZE) + 1 + dict_index_get_n_fields(index);
 
   heap = mem_heap_create(size * (sizeof *offsets1 + sizeof *offsets2),
@@ -1274,7 +1276,8 @@ static void dict_stats_analyze_index_below_cur(const btr_cur_t *cur,
 
   rec = btr_cur_get_rec(cur);
 
-  offsets_rec = rec_get_offsets(rec, index, offsets1, ULINT_UNDEFINED, &heap);
+  offsets_rec = rec_get_offsets(rec, index, offsets1, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
 
   page_id_t page_id(dict_index_get_space(index),
                     btr_node_ptr_get_child_page_no(rec, offsets_rec));
@@ -1514,13 +1517,9 @@ static bool dict_stats_analyze_index_for_n_prefix(
     ut_a(left <= right);
     ut_a(right <= last_idx_on_level);
 
-    /* we do not pass (left, right) because we do not want to ask
-    ut_rnd_interval() to work with too big numbers since
-    uint64_t could be bigger than ulint */
-    const ulint rnd = ut_rnd_interval(0, static_cast<ulint>(right - left));
+    const uint64_t rnd = ut::random_from_interval(left, right);
 
-    const uint64_t dive_below_idx =
-        boundaries->at(static_cast<unsigned>(left + rnd));
+    const uint64_t dive_below_idx = boundaries->at(rnd);
 
 #if 0
                 DEBUG_PRINTF("    %s(): dive below record with index="

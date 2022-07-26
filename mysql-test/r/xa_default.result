@@ -485,7 +485,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SHOW ERRORS;
 Level	Code	Message
 Error	1205	Lock wait timeout exceeded; try restarting transaction
-Error	1401	XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+Error	3197	The resource manager is not able to commit the transaction branch at this time. Please retry later.
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	5	0	test1

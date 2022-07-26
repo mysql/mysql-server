@@ -497,6 +497,9 @@ struct Clone_File_Meta {
   /** @return true, iff file is deleted. */
   bool is_renamed() const { return m_renamed; }
 
+  /** @return true, iff file is encrypted. */
+  bool can_encrypt() const { return m_encryption_metadata.can_encrypt(); }
+
   /** Reset DDL state of file metadata. */
   void reset_ddl() {
     m_renamed = false;
@@ -517,9 +520,6 @@ struct Clone_File_Meta {
 
   /** File compression type */
   Compression::Type m_compress_type;
-
-  /* File encryption type */
-  Encryption::Type m_encrypt_type;
 
   /** If transparent compression is needed. It is derived information
   and is not transferred. */
@@ -558,11 +558,8 @@ struct Clone_File_Meta {
   /** File name */
   const char *m_file_name;
 
-  /** Encryption Key. */
-  byte m_encryption_key[Encryption::KEY_LEN]{};
-
-  /** Encryption Vector. */
-  byte m_encryption_iv[Encryption::KEY_LEN]{};
+  /** Encryption metadata. */
+  Encryption_metadata m_encryption_metadata;
 };
 
 /** CLONE_DESC_FILE_METADATA: Descriptor for file metadata */

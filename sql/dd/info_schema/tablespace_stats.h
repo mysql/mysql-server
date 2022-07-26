@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,7 +150,7 @@ class Tablespace_statistics {
   }
 
   /**
-    Build a key representating the table for which stats are cached.
+    Build a key representing the table for which stats are cached.
 
     @param tablespace_name          - Tablespace name.
     @param file_name                - File name.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -306,7 +306,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
       declared within the one we're calling. At that point, the
       catcher for our throw would become very hard to predict!)
       One benefit of not simply clearing the DA as we enter a handler
-      (instead of resetting the condition cound further down in this
+      (instead of resetting the condition count further down in this
       exact function as we do now) and forcing the user to utilize
       GET STACKED DIAGNOSTICS is that this way, we can make
       SHOW WARNINGS|ERRORS work.

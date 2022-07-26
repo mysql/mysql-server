@@ -199,8 +199,17 @@
     Added columns EXECUTION_ENGINE, COUNT_SECONDARY
   - Bug #30624990 NO UTF8MB3 IN INFORMATION_SCHEMA.CHARACTER_SETS
     Use 'utf8mb3' rather than 'utf8' alias for for character set names.
+
+  80030:
+
+  performance_schema tables changed in MySQL 8.0.30
+  - WL#12527 added innodb_redo_log_files table (table is created dynamically
+    and based on PFS_engine_table_share_proxy mechanism)
+  - Bug #33787300 Rename utf8_xxx collations to utf8mb3_xxx
+    This patch renames utf8_bin to utf8mb3_bin
+    This patch renames utf8_general_ci
 */
 
-static const uint PFS_DD_VERSION = 80029;
+static const uint PFS_DD_VERSION = 80030;
 
 #endif /* PFS_DD_VERSION_H */

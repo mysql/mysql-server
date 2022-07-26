@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,7 @@ std::unique_ptr<Network_connection> Xcom_network_provider::open_connection(
   char buffer[20];
   sprintf(buffer, "%d", port);
 
-  checked_getaddrinfo(address.c_str(), buffer, 0, &from_ns);
+  checked_getaddrinfo(address.c_str(), buffer, nullptr, &from_ns);
 
   if (from_ns == nullptr) {
     /* purecov: begin inspected */

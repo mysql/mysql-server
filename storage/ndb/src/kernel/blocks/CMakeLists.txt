@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,12 @@ ADD_SUBDIRECTORY(dbdih)
 ADD_SUBDIRECTORY(dblqh)
 ADD_SUBDIRECTORY(dbtup)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm)
+
 
 IF(WIN32)
   SET(EXTRA_SRC ndbfs/Win32AsyncFile.cpp)
@@ -94,7 +99,6 @@ ADD_LIBRARY(ndbblocks STATIC
   dbtux/Dbqtux.cpp
   dbtux/DbqtuxProxy.cpp
   dbtux/DbtuxBuild.cpp
-  dbtux/DbtuxCmp.cpp
   dbtux/DbtuxDebug.cpp
   dbtux/DbtuxGen.cpp
   dbtux/DbtuxMaint.cpp

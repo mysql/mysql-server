@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <bitset>
+#include <cmath>
 #include <cstring>
 #include <functional>
 #include <optional>
@@ -47,6 +48,7 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql-common/json_dom.h"
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/create_field.h"
 #include "sql/current_thd.h"  // current_thd
@@ -62,7 +64,6 @@
 #include "sql/item_func.h"
 #include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
-#include "sql/json_dom.h"
 #include "sql/key_spec.h"
 #include "sql/mysqld.h"
 #include "sql/parse_tree_helpers.h"    // PT_item_list
@@ -520,8 +521,8 @@ bool Item_sum::clean_up_after_removal(uchar *arg [[maybe_unused]]) {
     Don't do anything if
     1) this is an unresolved item (This may happen if an
        expression occurs twice in the same query. In that case, the
-       whole item tree for the second occurence is replaced by the
-       item tree for the first occurence, without calling fix_fields()
+       whole item tree for the second occurrence is replaced by the
+       item tree for the first occurrence, without calling fix_fields()
        on the second tree. Therefore there's nothing to clean up.), or
     If it is a grouped aggregate,
     2) there is no inner_sum_func_list, or
@@ -677,7 +678,7 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table) {
       break;
     case ROW_RESULT:
     default:
-      // This case should never be choosen
+      // This case should never be chosen
       assert(0);
       return nullptr;
   }
@@ -983,7 +984,7 @@ static enum enum_field_types calc_tmp_field_type(
 
 /***************************************************************************/
 
-/* Declarations for auxilary C-callbacks */
+/* Declarations for auxiliary C-callbacks */
 
 static int simple_raw_key_cmp(const void *arg, const void *key1,
                               const void *key2) {
@@ -1002,7 +1003,7 @@ static int item_sum_distinct_walk(void *element, element_count, void *item) {
   @param thd Thread descriptor
   @return status
     @retval false success
-    @retval true  faliure
+    @retval true  failure
 
     Prepares Aggregator_distinct to process the incoming stream.
     Creates the temporary table and the Unique class if needed.
@@ -1734,7 +1735,7 @@ bool Item_sum_hybrid::fix_fields(THD *thd, Item **ref) {
   hybrid_type = item->result_type();
 
   if (setup_hybrid(args[0], nullptr)) return true;
-  /* MIN/MAX can return NULL for empty set indepedent of the used column */
+  /* MIN/MAX can return NULL for empty set independent of the used column */
   set_nullable(true);
   result_field = nullptr;
   null_value = true;
@@ -2401,7 +2402,7 @@ Item *Item_sum_std::copy_or_same(THD *thd) {
 
 /*
   Variance function has two implementations:
-  The first implementation (Algorthm I - see Item_sum_variance) is based
+  The first implementation (Algorithm I - see Item_sum_variance) is based
   on Knuth's _TAoCP_, 3rd ed, volume 2, pg232. This alters the value at
   m, s, and increments count.
   The second implementation (Algorithm II - See Item_sum_variance)
@@ -2415,7 +2416,7 @@ Item *Item_sum_std::copy_or_same(THD *thd) {
   variance_fp_recurrence_next calculates the recurrence values m,s used in
   algorithm I.
   add_sample/remove_sample calculates the recurrence values m,s,s2 used in
-  algorthm II.
+  algorithm II.
 */
 
 /**
@@ -2463,6 +2464,7 @@ static void remove_sample(double *m, double *s, double *s2, ulonglong *count,
 /**
   Calculates the next recurrence value for current sample.
 
+  @param[in]     self  The object on which behalf we are computing
   @param[in,out] m     recurrence value
   @param[in,out] s     recurrence value
   @param[in,out] s2    Square of the recurrence value s
@@ -2475,6 +2477,8 @@ static void remove_sample(double *m, double *s, double *s2, ulonglong *count,
                        to remove value calculated for s,s2 for sample "nr"
                        from the the current value of (s,s2).
 
+  @returns false if success, true if error
+
   Note:
   variance_fp_recurrence_next and variance_fp_recurrence_result are used by
   Item_sum_variance and Item_variance_field classes, which are unrelated,
@@ -2482,12 +2486,25 @@ static void remove_sample(double *m, double *s, double *s2, ulonglong *count,
   classes is that the first is used for a mundane SELECT and when used with
   windowing functions, while the latter is used in a GROUPing SELECT.
 */
-static void variance_fp_recurrence_next(double *m, double *s, double *s2,
-                                        ulonglong *count, double nr,
-                                        bool optimize, bool inverse) {
+static bool variance_fp_recurrence_next(Item_sum_variance *self, double *m,
+                                        double *s, double *s2, ulonglong *count,
+                                        double nr, bool optimize,
+                                        bool inverse) {
+  assert(!std::isnan(*m));
+  assert(!std::isnan(*s));
+  assert(s2 == nullptr || !std::isnan(*s2));
+  assert(!std::isnan(nr));
+
+  assert(!std::isinf(*m));
+  assert(!std::isinf(*s));
+  assert(s2 == nullptr || !std::isinf(*s2));
+  assert(!std::isinf(nr));
+
   if (optimize) {
-    return inverse ? remove_sample(m, s, s2, count, nr)
-                   : add_sample(m, s, s2, count, nr);
+    if (inverse)
+      remove_sample(m, s, s2, count, nr);
+    else
+      add_sample(m, s, s2, count, nr);
   } else {
     *count += 1;
 
@@ -2500,23 +2517,27 @@ static void variance_fp_recurrence_next(double *m, double *s, double *s2,
       *s = *s + (nr - m_kminusone) * (nr - *m);
     }
   }
+  *m = self->check_float_overflow(*m);
+  *s = self->check_float_overflow(*s);
+  if (s2 != nullptr) *s2 = self->check_float_overflow(*s2);
+  return current_thd->is_error();
 }
 
 /**
   Calculates variance using one of the two algorithms
   (See Item_sum_variance) as specified.
 
-  @param[in] s                  recurrence value
+  @param[in] s                  Recurrence value
   @param[in] s2                 Square of the recurrence value. Used
                                 only by Algorithm II
   @param[in] count              Number of rows for which variance needs
                                 to be calculated.
-  @param[in] is_sample_variance true if calculating sample variance and
+  @param[in] is_sample_variance True if calculating sample variance and
                                 false if population variance.
-  @param[in] optimize           true if algorthm II is used to calculate
+  @param[in] optimize           True if algorithm II is used to calculate
                                 variance.
 
-  @retval                       returns calculated variance value
+  @retval                       Returns calculated variance value
 
 */
 static double variance_fp_recurrence_result(double s, double s2,
@@ -2580,7 +2601,7 @@ bool Item_sum_variance::resolve_type(THD *thd) {
   /*
     According to the SQL2003 standard (Part 2, Foundations; sec 10.9,
     aggregate function; paragraph 7h of Syntax Rules), "the declared
-    type of the result is an implementation-defined aproximate numeric
+    type of the result is an implementation-defined approximate numeric
     type.
   */
   set_data_type_double();
@@ -2637,10 +2658,13 @@ bool Item_sum_variance::add() {
     return true;
   }
 
-  if (!args[0]->null_value)
-    variance_fp_recurrence_next(
-        &recurrence_m, &recurrence_s, &recurrence_s2, &count, nr, optimize,
-        m_is_window_function ? m_window->do_inverse() : false);
+  if (!args[0]->null_value) {
+    if (variance_fp_recurrence_next(
+            this, &recurrence_m, &recurrence_s, &recurrence_s2, &count, nr,
+            optimize, m_is_window_function ? m_window->do_inverse() : false))
+      return true;
+  }
+
   null_value = (count <= sample);
   return false;
 }
@@ -2654,7 +2678,7 @@ double Item_sum_variance::val_real() {
     is one or zero.  If it's zero, i.e. a population variance, then we only
     set nullness when the count is zero.
 
-    Another way to read it is that 'sample' is the numerical threshhold, at and
+    Another way to read it is that 'sample' is the numerical threshold, at and
     below which a 'count' number of items is called NULL.
   */
   assert((sample == 0) || (sample == 1));
@@ -2713,8 +2737,10 @@ void Item_sum_variance::update_field() {
   double field_recurrence_s = float8get(res + sizeof(double));
   field_count = sint8korr(res + sizeof(double) * 2);
 
-  variance_fp_recurrence_next(&field_recurrence_m, &field_recurrence_s, nullptr,
-                              &field_count, nr, false, false);
+  if (variance_fp_recurrence_next(this, &field_recurrence_m,
+                                  &field_recurrence_s, nullptr, &field_count,
+                                  nr, false, false))
+    return;
 
   float8store(res, field_recurrence_m);
   float8store(res + sizeof(double), field_recurrence_s);
@@ -4508,7 +4534,7 @@ bool Item_func_group_concat::setup(THD *thd) {
   if (order_or_distinct) {
     /*
       Force the create_tmp_table() to convert BIT columns to INT
-      as we cannot compare two table records containg BIT fields
+      as we cannot compare two table records containing BIT fields
       stored in the the tree used for distinct/order by.
       Moreover we don't even save in the tree record null bits
       where BIT fields store parts of their data.
@@ -5704,7 +5730,9 @@ String *Item_sum_json::val_str(String *str) {
   }
   if (null_value || m_wrapper->empty()) return nullptr;
   str->length(0);
-  if (m_wrapper->to_string(str, true, func_name())) return error_str();
+  if (m_wrapper->to_string(str, true, func_name(),
+                           JsonDocumentDefaultDepthHandler))
+    return error_str();
 
   return str;
 }
@@ -5728,7 +5756,7 @@ bool Item_sum_json::val_json(Json_wrapper *wr) {
     val_* functions are called more than once in aggregates and
     by passing the dom some function will destroy it so a clone is needed.
   */
-  *wr = Json_wrapper(m_wrapper->clone_dom(current_thd));
+  *wr = Json_wrapper(m_wrapper->clone_dom());
   return false;
 }
 
@@ -5919,7 +5947,7 @@ bool Item_sum_json_array::add() {
   try {
     if (m_is_window_function) {
       if (m_window->do_inverse()) {
-        auto arr = down_cast<Json_array *>(m_wrapper->to_dom(thd));
+        auto arr = down_cast<Json_array *>(m_wrapper->to_dom());
         arr->remove(0);  // Remove the first element from the array
         arr->size() == 0 ? null_value = true : null_value = false;
         return false;
@@ -5931,14 +5959,14 @@ bool Item_sum_json_array::add() {
                               &m_conversion_buffer, &value_wrapper))
       return error_json();
 
-    Json_dom_ptr value_dom(value_wrapper.to_dom(thd));
+    Json_dom_ptr value_dom(value_wrapper.to_dom());
     value_wrapper.set_alias();  // release the DOM
 
     /*
       The m_wrapper always points to m_json_array or the result of
       deserializing the result_field in reset/update_field.
     */
-    const auto arr = down_cast<Json_array *>(m_wrapper->to_dom(thd));
+    const auto arr = down_cast<Json_array *>(m_wrapper->to_dom());
     if (arr->append_alias(std::move(value_dom)))
       return error_json(); /* purecov: inspected */
 
@@ -5999,7 +6027,7 @@ bool Item_sum_json_object::add() {
         If the count is 0, remove the key/value pair from the Json_object.
       */
       if (m_window->do_inverse()) {
-        auto object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
+        auto object = down_cast<Json_object *>(m_wrapper->to_dom());
         if (m_optimize)  // Option 1
         {
           if (m_window->is_last_row_in_peerset_within_frame())
@@ -6031,8 +6059,8 @@ bool Item_sum_json_object::add() {
       The m_wrapper always points to m_json_object or the result of
       deserializing the result_field in reset/update_field.
     */
-    Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
-    if (object->add_alias(key, value_wrapper.to_dom(thd)))
+    Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom());
+    if (object->add_alias(key, value_wrapper.to_dom()))
       return error_json(); /* purecov: inspected */
     /*
       If rows in the window are not ordered based on "key", add this key
@@ -6115,7 +6143,7 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
 
   /*
     More than 64 args cannot be supported as the bitmask which is
-    used to represent the result cannot accomodate.
+    used to represent the result cannot accommodate.
   */
   if (arg_count > 64) {
     my_error(ER_INVALID_NO_OF_ARGS, MYF(0), "GROUPING", arg_count, "64");
@@ -6148,7 +6176,7 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
 
   @return
   integer bit mask having 1's for the arguments which have a
-  NULL in their result becuase of ROLLUP operation.
+  NULL in their result because of ROLLUP operation.
 */
 longlong Item_func_grouping::val_int() {
   longlong result = 0;

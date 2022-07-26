@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -344,6 +344,7 @@ public:
     Uint32 get_max_len() const;
     Uint32 get_max_len4() const;
     Uint32 get_var_bytes() const;
+    void* get_full_buf();
     const void* get_full_buf() const;
     Uint32 get_full_len() const;
     Uint32 get_data_len() const;
@@ -362,7 +363,7 @@ public:
     Data(const Data&);
     Data& operator=(const Data&);
     int finalize_impl();
-    int convert_impl(Endian::Value to_endian);
+    int convert_impl();
     const Uint32 m_varBytes;
     Uint8* m_buf;
     Uint32 m_bufMaxLen;
@@ -455,7 +456,7 @@ public:
     ~DataEntry() {}
   private:
     friend class DataArray;
-    Uint8* m_data_ptr;
+    const Uint8* m_data_ptr;
     Uint32 m_data_len;
   };
 
@@ -798,7 +799,7 @@ NdbPack::Data::convert(Endian::Value to_endian)
     to_endian = Endian::get_endian();
   if (m_endian == to_endian)
     return 0;
-  if (convert_impl(to_endian) == 0)
+  if (convert_impl() == 0)
   {
     m_endian = to_endian;
     return 0;
@@ -828,11 +829,9 @@ NdbPack::Data::get_var_bytes() const
   return m_varBytes;
 }
 
-inline const void*
-NdbPack::Data::get_full_buf() const
-{
-  return &m_buf[0];
-}
+inline const void* NdbPack::Data::get_full_buf() const { return m_buf; }
+
+inline void* NdbPack::Data::get_full_buf() { return m_buf; }
 
 inline Uint32
 NdbPack::Data::get_full_len() const

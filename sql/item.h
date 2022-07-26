@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -280,7 +280,7 @@ class Used_tables {
   This class must stay as small as possible as we often
   pass it into functions using call-by-value evaluation.
 
-  Don't add new members or virual methods into this class!
+  Don't add new members or virtual methods into this class!
 */
 class Name_string : public Simple_cstring {
  private:
@@ -378,7 +378,7 @@ class Item_name_string : public Name_string {
 };
 
 /*
-  Instances of Name_resolution_context store the information necesary for
+  Instances of Name_resolution_context store the information necessary for
   name resolution of Items and other context analysis of a query made in
   fix_fields().
 
@@ -492,7 +492,7 @@ struct Check_function_as_value_generator_parameters {
   int err_code;
   /*
     If it is a generated column, default expression or check constraint
-    expresion value generator.
+    expression value generator.
   */
   Value_generator_source source;
   /// the name of the function which is not allowed
@@ -1617,9 +1617,9 @@ class Item : public Parse_tree_node {
 
          x $CMP$ const
 
-      The value of const is supplied implicitly as the value this item's
+      The value of const is supplied implicitly as the value of this item's
       argument, the form of $CMP$ comparison is specified through the
-      function's arguments. The calle returns the result interval
+      function's arguments. The call returns the result interval
 
          F(x) $CMP2$ F(const)
 
@@ -2558,16 +2558,6 @@ class Item : public Parse_tree_node {
   */
   virtual bool mark_field_in_map(uchar *arg [[maybe_unused]]) { return false; }
 
-  /// Traverse the item tree and replace fields that are outside of reach with
-  /// fields that are within reach. This is used by hash join when it detects
-  /// that a join condition refers to a field that is outside of reach, due to
-  /// equality propagation. See
-  /// Item_func::ensure_multi_equality_fields_are_available_walker for more
-  /// details.
-  virtual bool ensure_multi_equality_fields_are_available_walker(uchar *) {
-    return false;
-  }
-
  protected:
   /**
     Helper function for mark_field_in_map(uchar *arg).
@@ -3139,15 +3129,15 @@ class Item : public Parse_tree_node {
   void set_stored_program() { m_accum_properties |= PROP_STORED_PROGRAM; }
 
  public:
-  /// @return true if this item or any of its decendents contains a subquery.
+  /// @return true if this item or any of its descendants contains a subquery.
   bool has_subquery() const { return m_accum_properties & PROP_SUBQUERY; }
 
-  /// @return true if this item or any of its decendents refers a stored func.
+  /// @return true if this item or any of its descendants refers a stored func.
   bool has_stored_program() const {
     return m_accum_properties & PROP_STORED_PROGRAM;
   }
 
-  /// @return true if this item or any of its decendents is an aggregated func.
+  /// @return true if this item or any of its descendants is an aggregated func.
   bool has_aggregation() const { return m_accum_properties & PROP_AGGREGATION; }
 
   /// Set the "has aggregation" property
@@ -3156,14 +3146,14 @@ class Item : public Parse_tree_node {
   /// Reset the "has aggregation" property
   void reset_aggregation() { m_accum_properties &= ~PROP_AGGREGATION; }
 
-  /// @return true if this item or any of its decendents is a window func.
+  /// @return true if this item or any of its descendants is a window func.
   bool has_wf() const { return m_accum_properties & PROP_WINDOW_FUNCTION; }
 
   /// Set the "has window function" property
   void set_wf() { m_accum_properties |= PROP_WINDOW_FUNCTION; }
 
   /**
-    @return true if this item or any of its decendents within the same query
+    @return true if this item or any of its descendants within the same query
     has a reference to a ROLLUP expression
   */
   bool has_rollup_expr() const { return m_accum_properties & PROP_ROLLUP_EXPR; }
@@ -3438,7 +3428,7 @@ class Item : public Parse_tree_node {
   virtual bool returns_array() const { return false; }
 
   /**
-   A helper funciton to ensure proper usage of CAST(.. AS .. ARRAY)
+   A helper function to ensure proper usage of CAST(.. AS .. ARRAY)
   */
   virtual void allow_array_cast() {}
 };
@@ -4376,10 +4366,11 @@ class Item_asterisk : public Item_field {
 // See if the provided item points to a reachable field (one that belongs to a
 // table within 'reachable_tables'). If not, go through the list of 'equal'
 // items in the item and see if we have a field that is reachable. If any such
-// field is found, create a new Item_field that points to this reachable field
-// and return it. If the provided item is already reachable, or if we cannot
-// find a reachable field, return the provided item unchanged. This is used when
-// creating a hash join iterator, where the join condition may point to a
+// field is found,  set "found" to true and create a new Item_field that points
+// to this reachable field and return it if we are asked to "replace". If the
+// provided item is already reachable, or if we cannot find a reachable field,
+// return the provided item unchanged and set "found" to false. This is used
+// when creating a hash join iterator, where the join condition may point to a
 // non-reachable field due to multi-equality propagation during optimization.
 // (Ideally, the optimizer should not set up such condition in the first place.
 // This is difficult, if not impossible, to accomplish, given that the plan
@@ -4387,7 +4378,8 @@ class Item_asterisk : public Item_field {
 // that if the field is not reachable, and we cannot find a reachable field, we
 // provided field is returned unchanged. The effect is that the hash join will
 // degrade into a nested loop.
-Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables);
+Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables,
+                           bool replace, bool *found);
 
 class Item_null : public Item_basic_constant {
   typedef Item_basic_constant super;
@@ -5894,6 +5886,7 @@ class Item_view_ref final : public Item_ref {
   bool collect_item_field_or_view_ref_processor(uchar *arg) override;
   Item *replace_item_view_ref(uchar *arg) override;
   Item *replace_view_refs_with_clone(uchar *arg) override;
+  TABLE_LIST *get_first_inner_table() const { return first_inner_table; }
 
  protected:
   type_conversion_status save_in_field_inner(Field *field,
@@ -6188,14 +6181,19 @@ class Item_cache;
 class Cached_item {
  protected:
   Item *item;  ///< The item whose value to cache.
-  explicit Cached_item(Item *i) : item(i), null_value(false) {}
+  explicit Cached_item(Item *i) : item(i) {}
 
  public:
-  bool null_value;
+  bool null_value{true};
   virtual ~Cached_item() = default;
   /**
-    If cached value is different from item's, returns true and updates
-    cached value with item's.
+    Compare the value associated with the item with the stored value.
+    If they are different, update the stored value with item's value and
+    return true.
+
+    @returns true if item's value and stored value are different.
+             Notice that first call is to establish an initial value and
+             return value should be ignored.
   */
   virtual bool cmp() = 0;
   Item *get_item() { return item; }
@@ -6203,12 +6201,14 @@ class Cached_item {
 };
 
 class Cached_item_str : public Cached_item {
-  String value, tmp_value;
+  // Make sure value.ptr() is never nullptr, as not all collation functions
+  // are prepared for that (even with empty strings).
+  String value{"", 0, &my_charset_bin};
+  String tmp_value;
 
  public:
-  explicit Cached_item_str(Item *arg);
+  explicit Cached_item_str(Item *arg) : Cached_item(arg) {}
   bool cmp() override;
-  ~Cached_item_str() override;  // Deallocate String:s
 };
 
 /// Cached_item subclass for JSON values.
@@ -6221,26 +6221,26 @@ class Cached_item_json : public Cached_item {
 };
 
 class Cached_item_real : public Cached_item {
-  double value;
+  double value{0.0};
 
  public:
-  Cached_item_real(Item *item_par) : Cached_item(item_par), value(0.0) {}
+  explicit Cached_item_real(Item *item_par) : Cached_item(item_par) {}
   bool cmp() override;
 };
 
 class Cached_item_int : public Cached_item {
-  longlong value;
+  longlong value{0};
 
  public:
-  Cached_item_int(Item *item_par) : Cached_item(item_par), value(0) {}
+  explicit Cached_item_int(Item *item_par) : Cached_item(item_par) {}
   bool cmp() override;
 };
 
 class Cached_item_temporal : public Cached_item {
-  longlong value;
+  longlong value{0};
 
  public:
-  Cached_item_temporal(Item *item_par) : Cached_item(item_par), value(0) {}
+  explicit Cached_item_temporal(Item *item_par) : Cached_item(item_par) {}
   bool cmp() override;
 };
 
@@ -6248,7 +6248,7 @@ class Cached_item_decimal : public Cached_item {
   my_decimal value;
 
  public:
-  Cached_item_decimal(Item *item_par);
+  explicit Cached_item_decimal(Item *item_par) : Cached_item(item_par) {}
   bool cmp() override;
 };
 

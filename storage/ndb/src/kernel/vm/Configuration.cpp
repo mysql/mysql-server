@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -465,11 +465,8 @@ Configuration::setupConfiguration(){
   if (auto_thread_config == 0 &&
       thrconfigstring != nullptr && thrconfigstring[0] != 0)
   {
-    int res = m_thr_config.do_parse(thrconfigstring,
-                                    _realtimeScheduler,
-                                    _schedulerSpinTimer,
-                                    globalData.ndbRRGroups,
-                                    false);
+    int res = m_thr_config.do_parse(
+        thrconfigstring, _realtimeScheduler, _schedulerSpinTimer);
     if (res != 0)
     {
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -507,9 +504,7 @@ Configuration::setupConfiguration(){
                                       lqhthreads,
                                       classic,
                                       _realtimeScheduler,
-                                      _schedulerSpinTimer,
-                                      globalData.ndbRRGroups,
-                                      false);
+                                      _schedulerSpinTimer);
       if (res != 0)
       {
         ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,

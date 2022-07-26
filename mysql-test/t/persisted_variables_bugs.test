@@ -331,7 +331,7 @@ disconnect con1;
 --echo #
 
 SELECT @@global.innodb_strict_mode, @@global.innodb_lock_wait_timeout;
-SELECT @@global.myisam_repair_threads, @@global.myisam_sort_buffer_size;
+SELECT @@global.myisam_sort_buffer_size;
 # enum variable type
 SELECT @@global.myisam_stats_method;
 SET PERSIST innodb_strict_mode=0;
@@ -339,8 +339,6 @@ SET GLOBAL innodb_lock_wait_timeout = 150;
 SELECT @@global.innodb_lock_wait_timeout;
 SET PERSIST innodb_lock_wait_timeout = 110;
 SELECT @@global.innodb_lock_wait_timeout;
-SET GLOBAL myisam_repair_threads=27;
-SET PERSIST myisam_repair_threads=12;
 SET GLOBAL myisam_sort_buffer_size=16777216;
 SET PERSIST myisam_sort_buffer_size=default;
 SELECT @@global.innodb_lock_wait_timeout;
@@ -349,12 +347,11 @@ SET PERSIST myisam_stats_method=nulls_equal;
 --source include/restart_mysqld.inc
 SELECT @@global.innodb_strict_mode;
 SELECT @@global.innodb_lock_wait_timeout;
-SELECT @@global.myisam_repair_threads;
 SELECT @@global.myisam_sort_buffer_size;
 SELECT @@global.myisam_stats_method;
 SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
 SET GLOBAL innodb_strict_mode=default, innodb_lock_wait_timeout=default,
-  myisam_repair_threads=default, myisam_stats_method=default;
+  myisam_stats_method=default;
 RESET PERSIST;
 
 --echo #

@@ -73,6 +73,22 @@ void right_trim(std::string &str);
 HARNESS_EXPORT
 void trim(std::string &str);
 
+/**
+ * Returns the input string with number of lines reduced to selected value.
+ *
+ * @param str input string
+ * @param limit maximum number of lines of the returned string
+ * @param replace_with string that should be used in place of the removed lines
+ *
+ * @returns If the input string contains more than 'limit' number of lines, it
+ * removes the lines from the middle leaving only 'limit' number of lines
+ * (limit/2 of the first lines and limit/2 of the last lines). Otherwise it
+ * returns the whole input string.
+ */
+HARNESS_EXPORT
+std::string limit_lines(const std::string &str, const size_t limit,
+                        const std::string &replace_with = "");
+
 }  // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_STRING_UTILS_INCLUDED */

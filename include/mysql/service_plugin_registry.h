@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -51,14 +51,14 @@ extern "C" struct plugin_registry_service_st {
     plugin_registry_service_st::mysql_plugin_registry_release_func()
     See @ref mysql_plugin_registry_acquire() for more details.
 
-    Once you receive the registry pointer you can use it to aquire
+    Once you receive the registry pointer you can use it to acquire
     references to other services your plugin might be interested in.
 
     @note
     This is to be considered an "expensive" operation because it
     requires access to the global structures of the
     @ref PAGE_COMPONENTS_REGISTRY. Avoid using it in situations
-    where fast and scalable execution is requred.
+    where fast and scalable execution is required.
     Since the registry service is very unlikely to change often
     holding on to the reference to it for extended time periods
     is a safe bet.
@@ -70,11 +70,11 @@ extern "C" struct plugin_registry_service_st {
     references:
     - components implementing services to which active references
     are held cannot be unloaded.
-    - code keeping an active refernece to e.g. a default service
+    - code keeping an active reference to e.g. a default service
     implementation will not switch to a possible new default
     service implementation installed by a component loaded in
     the meanwhile, as taking the updated default service implementation
-    would only happen at the time of aquiring a new reference.
+    would only happen at the time of acquiring a new reference.
 
     @return the registry pointer
 

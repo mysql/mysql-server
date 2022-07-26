@@ -383,7 +383,7 @@ static void test_com_query(void *p [[maybe_unused]]) {
     } else {
       WRITE_VAL("server status: %d\n", cbd.server_status);
       WRITE_VAL("warn count: %d\n", cbd.warn_count);
-      //           WRITE_VAL("messsage: %s\n",msg);
+      //           WRITE_VAL("message: %s\n",msg);
     }
   }
 

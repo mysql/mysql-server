@@ -36,11 +36,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <utility>
 
 #include "my_alloc.h"
+#include "sql-common/json_dom.h"
 #include "sql/auth/acl_table_base.h"
 #include "sql/auth/partial_revokes.h"
 #include "sql/auth/sql_mfa.h" /* I_multi_factor_auth */
 #include "sql/auth/user_table.h"
-#include "sql/json_dom.h"
 
 class ACL_USER;
 class RowIterator;
@@ -61,11 +61,11 @@ enum class User_attribute_type {
 
 struct Password_lock {
   /**
-     read from the user config. The number of days to keep the accont locked
+     read from the user config. The number of days to keep the account locked
   */
   int password_lock_time_days;
   /**
-    read from the user config. The number of failed login attemps before the
+    read from the user config. The number of failed login attempts before the
     account is locked
   */
   uint failed_login_attempts;

@@ -342,18 +342,20 @@ struct Gci_op  //A helper
 class Gci_container
 {
 public:
-  Gci_container(NdbEventBuffer* event_buffer)
-  : m_event_buffer(event_buffer),
-    m_state(0),
-    m_gcp_complete_rep_count(0),
-    m_gcp_complete_rep_sub_data_streams(),
-    m_gci(0),
-    m_head(NULL), m_tail(NULL),
-    m_data_hash(event_buffer),
-    m_gci_op_list(NULL),
-    m_gci_op_count(0),
-    m_gci_op_alloc(0)
-  {}
+ Gci_container(NdbEventBuffer *event_buffer = nullptr)
+     : m_event_buffer(event_buffer),
+       m_state(0),
+       m_gcp_complete_rep_count(0),
+       m_gcp_complete_rep_sub_data_streams(),
+       m_gci(0),
+       m_head(NULL),
+       m_tail(NULL),
+       m_data_hash(event_buffer),
+       m_gci_op_list(NULL),
+       m_gci_op_count(0),
+       m_gci_op_alloc(0)
+ {
+ }
 
   void clear()
   {
@@ -410,11 +412,6 @@ public:
   // Create an EpochData containing the Gci_op and event data added above.
   // This effectively 'completes' the epoch represented by this Gci_container
   EpochData* createEpochData(Uint64 gci);
-};
-
-struct Gci_container_pod
-{
-  char data[sizeof(Gci_container)];
 };
 
 
@@ -555,11 +552,11 @@ public:
 class NdbEventOperationImpl : public NdbEventOperation {
 public:
   NdbEventOperationImpl(NdbEventOperation &f,
-			Ndb *theNdb, 
-			const char* eventName);
-  NdbEventOperationImpl(Ndb *theNdb, 
-			NdbEventImpl& evnt);
-  void init(NdbEventImpl& evnt);
+                        Ndb *ndb,
+                        const NdbDictionary::Event* event);
+  NdbEventOperationImpl(Ndb *theNdb,
+                        NdbEventImpl *evnt);
+  void init();
   NdbEventOperationImpl(NdbEventOperationImpl&); //unimplemented
   NdbEventOperationImpl& operator=(const NdbEventOperationImpl&); //unimplemented
   ~NdbEventOperationImpl();
@@ -593,16 +590,17 @@ public:
   NdbDictionary::Event::TableEvent getEventType2();
 
   void print();
-  void printAll();
 
   NdbEventOperation *m_facade;
   Uint32 m_magic_number;
 
   const NdbError & getNdbError() const;
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
-  Ndb *m_ndb;
-  NdbEventImpl *m_eventImpl;
+  Ndb *const m_ndb;
+  // The Event is owned by pointer to NdbEventImpl->m_facade
+  NdbEventImpl *const m_eventImpl;
 
   NdbRecAttr *theFirstPkAttrs[2];
   NdbRecAttr *theCurrentPkAttrs[2];
@@ -618,7 +616,6 @@ public:
   Uint32 mi_type; /* should be == 0 if m_state != EO_EXECUTING
 		   * else same as in EventImpl
 		   */
-  Uint32 m_eventId;
   Uint32 m_oid;
 
   /*
@@ -839,13 +836,13 @@ public:
   Uint16 m_min_gci_index;
   Uint16 m_max_gci_index;
   Vector<Uint64> m_known_gci;
-  Vector<Gci_container_pod> m_active_gci;
+  Vector<Gci_container> m_active_gci;
   static constexpr Uint32 ACTIVE_GCI_DIRECTORY_SIZE = 4;
   static constexpr Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
 
   NdbEventOperation *createEventOperation(const char* eventName,
 					  NdbError &);
-  NdbEventOperationImpl *createEventOperationImpl(NdbEventImpl& evnt,
+  NdbEventOperationImpl *createEventOperationImpl(NdbEventImpl* evnt,
                                                   NdbError &);
   void dropEventOperation(NdbEventOperation *);
   static NdbEventOperationImpl* getEventOperationImpl(NdbEventOperation* tOp);
@@ -932,9 +929,7 @@ public:
   int get_main_data(Gci_container* bucket,
                     EventBufData_hash::Pos& hpos,
                     EventBufData* blob_data);
-  void add_blob_data(Gci_container* bucket,
-                     EventBufDataHead* main_data,
-                     EventBufData* blob_data);
+  void add_blob_data(EventBufDataHead *main_data, EventBufData *blob_data);
 
   void *alloc(Uint32 sz);
   Uint32 get_free_data_sz() const;
@@ -1008,9 +1003,10 @@ public:
   unsigned m_gci_slip_thresh;
   NDB_TICKS m_last_log_time; // Limit frequency of event buffer status reports
 
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
-private:
+ private:
   void insert_event(NdbEventOperationImpl* impl,
                     SubTableData &data,
                     const LinearSectionPtr *ptr,

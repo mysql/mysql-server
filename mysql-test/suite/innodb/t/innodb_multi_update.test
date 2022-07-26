@@ -45,6 +45,12 @@ set bug38999_1.b=bug38999_1.b+2,
 where bug38999_1.b between 3 and 5 and bug38999_1.a=bug38999_2.a+100;
 --sorted_result
 select * from bug38999_1;
+# It is unspecified whether the assignment of bug38999_2.b sees the
+# modification of bug38999_1.b on the same row. The hypergraph optimizer
+# chooses a different plan (not using range scan on bug38999_1.b, as that
+# prevents immediate update) and does the assignments in a different
+# order.
+--skip_if_hypergraph
 --sorted_result
 select * from bug38999_2;
 

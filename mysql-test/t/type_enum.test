@@ -188,11 +188,6 @@ create table t1(russian_deviant enum('E','F','EÿF','F,E') NOT NULL DEFAULT'E');
 show create table t1;
 drop table t1;
 
-# This enum is now valid with the new DD
-create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
- !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'));
-drop table t1;
-
 #
 # Bug #29251: MySQL coerces special 0 enum values to normal '' value
 # when ALTERing the column

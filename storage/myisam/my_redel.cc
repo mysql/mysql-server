@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,10 +50,10 @@
 
 /*
   Rename with copy stat form old file
-  Copy stats from old file to new file, deletes orginal and
+  Copy stats from old file to new file, deletes original and
   changes new file name to old file name
 
-  if MY_REDEL_MAKE_COPY is given, then the orginal file
+  if MY_REDEL_MAKE_COPY is given, then the original file
   is renamed to org_name-'current_time'.BAK
 
   if MY_REDEL_NO_COPY_STAT is given, stats are not copied

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,7 +119,9 @@ enum class FrequencyDistribution {
   LinearDecreasing,
   QuadraticDecreasing,
   ExponentiallyDecreasing,
-  Pseudorandom
+  Pseudorandom,
+  SingleHeavyValue,
+  ExponentialTail,
 };
 
 template <class T>
@@ -158,7 +160,7 @@ void fill_value_map(Value_map<T> *map, int number_of_keys,
     }
     case FrequencyDistribution::LinearModulo100: {
       for (int i = 1; i <= number_of_keys; ++i) {
-        map->add_values(key, i % 100);
+        map->add_values(key, (i % 100) + 1);
         increment(&key);
       }
       break;
@@ -197,6 +199,32 @@ void fill_value_map(Value_map<T> *map, int number_of_keys,
         uint64_t frequency =
             1 + (((39618 + 107019 * x + 78986 * x * x) % p) % max_frequency);
         map->add_values(key, frequency);
+        increment(&key);
+      }
+      break;
+    }
+    case FrequencyDistribution::SingleHeavyValue: {
+      for (int i = 1; i <= number_of_keys; ++i) {
+        if (i == number_of_keys / 2) {
+          map->add_values(key, number_of_keys);
+        } else {
+          map->add_values(key, 1);
+        }
+        increment(&key);
+      }
+      break;
+    }
+    case FrequencyDistribution::ExponentialTail: {
+      // Add an exponentially increasing tail to the otherwise uniform data.
+      for (int i = 1; i <= number_of_keys; ++i) {
+        int remaining_keys = number_of_keys - i + 1;
+        int scale = 1;
+        if (remaining_keys <= 5) {
+          map->add_values(key, scale * number_of_keys);
+          scale = 2 * scale;
+        } else {
+          map->add_values(key, 1);
+        }
         increment(&key);
       }
       break;
@@ -252,6 +280,10 @@ std::string FrequencyDistributionToString(FrequencyDistribution distribution) {
       return "ExponentiallyDecreasing";
     case FrequencyDistribution::Pseudorandom:
       return "Pseudorandom";
+    case FrequencyDistribution::SingleHeavyValue:
+      return "SingleHeavyValue";
+    case FrequencyDistribution::ExponentialTail:
+      return "ExponentialTail";
   }
   return "Error";
 }
@@ -276,10 +308,11 @@ void VerifySelectivityEstimates(MEM_ROOT *mem_root, CHARSET_INFO *charset,
                                 Value_map_type type,
                                 FrequencyDistribution distribution,
                                 size_t number_of_buckets) {
-  const double sampling_rate = 1.0;
+  // The number_of_keys cubed should fit into an int, otherwise the Cubic
+  // distribution will overflow.
   const int number_of_keys = 1000;
 
-  Value_map<T> key_frequencies(charset, type, sampling_rate);
+  Value_map<T> key_frequencies(charset, type);
   fill_value_map<T>(&key_frequencies, number_of_keys, distribution);
   Equi_height<T> *histogram =
       Equi_height<T>::create(mem_root, "db1", "tbl1", "col1", type);
@@ -341,8 +374,10 @@ TEST_F(HistogramSelectivityTest, EquiHeightSelectivity) {
       FrequencyDistribution::LinearDecreasing,
       FrequencyDistribution::QuadraticDecreasing,
       FrequencyDistribution::ExponentiallyDecreasing,
-      FrequencyDistribution::Pseudorandom};
-  std::vector<size_t> numbers_of_buckets = {2, 4, 8, 16, 32, 64, 128, 256};
+      FrequencyDistribution::Pseudorandom,
+      FrequencyDistribution::SingleHeavyValue,
+      FrequencyDistribution::ExponentialTail};
+  std::vector<size_t> numbers_of_buckets = {2, 4, 8, 16, 32, 64, 128, 256, 512};
   for (const auto &histogram_type : histogram_types) {
     for (const auto &distribution : distributions) {
       for (const auto &number_of_buckets : numbers_of_buckets) {

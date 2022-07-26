@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,7 +210,8 @@ static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
     if (!*warnings) /* Neither sets warnings in case of ZERO DATE */
       *warnings |= MYSQL_TIME_WARN_TRUNCATED;
     return true;
-  } else if (ltime->time_type == MYSQL_TIMESTAMP_DATE) {
+  }
+  if (ltime->time_type == MYSQL_TIMESTAMP_DATE) {
     /*
       Generate a warning in case of DATE with fractional part:
         20011231.1234 -> '2001-12-31'
@@ -535,7 +536,8 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
     */
     *warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
     return true;
-  } else if (is_in_dst_time_gap) {
+  }
+  if (is_in_dst_time_gap) {
     /*
       Set MYSQL_TIME_WARN_INVALID_TIMESTAMP warning to indicate
       that date was fine but pointed to winter/summer time switch gap.
@@ -654,7 +656,7 @@ const char *get_date_time_format_str(const Known_date_time_format *format,
    @page DEFAULT_TIME_FUNCS Functions to create default time/date/datetime
    strings
    @note
-    For the moment the Date_time_format argument is ignored becasue
+    For the moment the Date_time_format argument is ignored because
     MySQL doesn't support comparing of date/time/datetime strings that
     are not in arbutary order as dates are compared as strings in some
     context)

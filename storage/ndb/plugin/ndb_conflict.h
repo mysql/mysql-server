@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,8 @@ enum enum_conflict_fn_type {
   CFT_NDB_MAX,
   CFT_NDB_OLD,
   CFT_NDB_MAX_DEL_WIN,
+  CFT_NDB_MAX_INS,
+  CFT_NDB_MAX_DEL_WIN_INS,
   CFT_NDB_EPOCH,
   CFT_NDB_EPOCH_TRANS,
   CFT_NDB_EPOCH2,
@@ -117,10 +119,11 @@ typedef int (*prepare_detect_func)(struct NDB_CONFLICT_FN_SHARE *cfn_share,
  * TODO : Encapsulate all these per-algorithm details inside the algorithm
  */
 enum enum_conflict_fn_flags {
-  CF_TRANSACTIONAL = 0x1,   /* Conflicts are handled per transaction */
-  CF_REFLECT_SEC_OPS = 0x2, /* Secondary operations are reflected back */
-  CF_USE_ROLE_VAR = 0x4,    /* Functionality controlled by role variable */
-  CF_DEL_DEL_CFT = 0x8      /* Delete finding no row is a conflict */
+  CF_TRANSACTIONAL = 0x1,    /* Conflicts are handled per transaction */
+  CF_REFLECT_SEC_OPS = 0x2,  /* Secondary operations are reflected back */
+  CF_USE_ROLE_VAR = 0x4,     /* Functionality controlled by role variable */
+  CF_DEL_DEL_CFT = 0x8,      /* Delete finding no row is a conflict */
+  CF_USE_INTERP_WRITE = 0x10 /* Use interpreted writeTuple() when configured */
 };
 
 struct st_conflict_fn_def {

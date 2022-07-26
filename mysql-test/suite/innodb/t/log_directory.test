@@ -1,0 +1,95 @@
+--source ../include/redo_log_error_patterns.inc
+
+let tmpdir = $MYSQLTEST_VARDIR/tmp;
+let logdir = $tmpdir/logdir;
+let datadir = $tmpdir/datadir;
+
+let SEARCH_FILE = $tmpdir/my_restart.err;
+let $args=--no-defaults --innodb-log-group-home-dir=$logdir --datadir=$datadir --secure-file-priv="" --loose-skip-auto-generate-certs --loose-skip-sha256-password-auto-generate-rsa-keys --loose-console --loose-skip-log-bin --log-error-verbosity=3 > $SEARCH_FILE 2>&1 ;
+
+--echo ############################################################################################
+--echo # Case 1. The redo log directory has ib_logfile0 before initializing new datadir.
+--echo ############################################################################################
+
+--echo # Prepare...
+--mkdir $datadir
+--mkdir $logdir
+write_file $logdir/ib_logfile0;
+EOF
+--echo # Start MySQL...
+--error 1,42
+--exec $MYSQLD $args --initialize-insecure
+
+--echo # Verify...
+
+let SEARCH_PATTERN=--initialize specified but the redo log directory .*logdir.*has redo log files inside\. Aborting;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=data directory .*datadir.*is unusable;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=Bootstrapping complete;
+# Expected: not found
+--source include/search_pattern.inc
+
+--echo # Cleanup...
+--force-rmdir $logdir
+--force-rmdir $datadir
+
+--echo ############################################################################################
+--echo # Case 2. The redo log directory has #innodb_redo/#ib_redo1 before initializing new datadir.
+--echo ############################################################################################
+
+--echo # Prepare...
+--mkdir $datadir
+--mkdir $logdir
+--mkdir $logdir/#innodb_redo
+write_file $logdir/#innodb_redo/#ib_redo1;
+EOF
+--echo # Start MySQL...
+--error 1,42
+--exec $MYSQLD $args --initialize-insecure
+
+--echo # Verify...
+
+let SEARCH_PATTERN=--initialize specified but the redo log directory .*logdir.*has redo log files inside\. Aborting;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=data directory .*datadir.*is unusable;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN=Bootstrapping complete;
+# Expected: not found
+--source include/search_pattern.inc
+
+--echo # Cleanup...
+--force-rmdir $logdir
+--force-rmdir $datadir
+
+--echo ############################################################################################
+--echo # Case 3. The redo log directory has empty #innodb_redo before initializing new datadir.
+--echo ############################################################################################
+
+--echo # Prepare...
+--mkdir $datadir
+--mkdir $logdir
+--mkdir $logdir/#innodb_redo
+
+--echo # Start MySQL...
+--error 0
+--exec $MYSQLD $args --initialize-insecure
+
+--echo # Verify...
+
+let SEARCH_PATTERN=Bootstrapping complete;
+# Expected: found
+--source include/search_pattern.inc
+
+--echo # Cleanup...
+--remove_file $SEARCH_FILE
+--force-rmdir $logdir
+--force-rmdir $datadir

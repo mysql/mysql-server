@@ -54,7 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "fut0fut.h"
 #include "ibuf0ibuf.h"
-#include "log0log.h"
+#include "log0buf.h"
 #include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "clone0api.h"
@@ -928,12 +928,7 @@ bool fsp_header_write_encryption(space_id_t space_id, uint32_t space_flags,
     master_key_id = mach_read_from_4(page + offset + Encryption::MAGIC_SIZE);
     if (srv_is_being_started &&
         master_key_id == Encryption::get_master_key_id()) {
-      ut_ad(memcmp(page + offset, Encryption::KEY_MAGIC_V1,
-                   Encryption::MAGIC_SIZE) == 0 ||
-            memcmp(page + offset, Encryption::KEY_MAGIC_V2,
-                   Encryption::MAGIC_SIZE) == 0 ||
-            memcmp(page + offset, Encryption::KEY_MAGIC_V3,
-                   Encryption::MAGIC_SIZE) == 0);
+      ut_ad(Encryption::is_encrypted(page + offset));
       return (true);
     }
   }
@@ -952,13 +947,13 @@ bool fsp_header_write_encryption(space_id_t space_id, uint32_t space_flags,
 bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
                                   mtr_t *mtr) {
   ut_ad(mtr);
-  ut_ad(space->encryption_type != Encryption::NONE);
+  ut_ad(space->can_encrypt());
 
   DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure", return (false););
 
   /* Fill encryption info. */
-  if (!Encryption::fill_encryption_info(
-          space->encryption_key, space->encryption_iv, encrypt_info, true)) {
+  if (!Encryption::fill_encryption_info(space->m_encryption_metadata, true,
+                                        encrypt_info)) {
     return (false);
   }
 
@@ -1061,7 +1056,6 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr) {
     if (offset == 0) {
       return (false);
     }
-
     bool master_key_encrypt = true;
 
     /* Generate redo log encryption info that cannot be extracted with master
@@ -1072,14 +1066,11 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr) {
     test environment where recipient uses same keyring as donor. */
     DBUG_EXECUTE_IF("log_redo_with_invalid_master_key",
                     master_key_encrypt = false;);
-
-    if (!Encryption::fill_encryption_info(space->encryption_key,
-                                          space->encryption_iv, encryption_info,
-                                          master_key_encrypt)) {
-      space->encryption_type = Encryption::NONE;
-      memset(space->encryption_key, 0, Encryption::KEY_LEN);
-      memset(space->encryption_iv, 0, Encryption::KEY_LEN);
-      return (false);
+    if (!Encryption::fill_encryption_info(space->m_encryption_metadata,
+                                          master_key_encrypt,
+                                          encryption_info)) {
+      space->m_encryption_metadata = {};
+      return false;
     }
 
     mlog_write_string(page + offset, encryption_info, Encryption::INFO_SIZE,
@@ -1089,8 +1080,8 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr) {
     incorrect redo log. */
     DBUG_EXECUTE_IF("log_redo_with_invalid_master_key", {
       ut_ad(!master_key_encrypt);
-      Encryption::fill_encryption_info(
-          space->encryption_key, space->encryption_iv, encryption_info, true);
+      Encryption::fill_encryption_info(space->m_encryption_metadata, true,
+                                       encryption_info);
       memcpy(page + offset, encryption_info, Encryption::INFO_SIZE);
     });
   }
@@ -4199,16 +4190,14 @@ static dberr_t encrypt_begin_persist(fil_space_t *space) {
   dberr_t err = DB_SUCCESS;
 
   /* Fill key, iv and prepare encryption_info to be written in page 0 */
-  byte encryption_info[Encryption::INFO_SIZE];
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
-
-  memset(encryption_info, 0, Encryption::INFO_SIZE);
-  Encryption::random_value(key);
-  Encryption::random_value(iv);
+  Encryption_metadata encryption_metadata;
+  Encryption::set_or_generate(Encryption::AES, nullptr, nullptr,
+                              encryption_metadata);
 
   /* Prepare encrypted encryption information to be written on page 0. */
-  if (!Encryption::fill_encryption_info(key, iv, encryption_info, true)) {
+  byte encryption_info[Encryption::INFO_SIZE];
+  if (!Encryption::fill_encryption_info(encryption_metadata, true,
+                                        encryption_info)) {
     ut_d(ut_error);
     ut_o(return DB_ERROR);
   }
@@ -4233,7 +4222,9 @@ static dberr_t encrypt_begin_persist(fil_space_t *space) {
 
     /* Set encryption for tablespace */
     rw_lock_x_lock(&space->latch, UT_LOCATION_HERE);
-    err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+    err =
+        fil_set_encryption(space->id, encryption_metadata.m_type,
+                           encryption_metadata.m_key, encryption_metadata.m_iv);
     rw_lock_x_unlock(&space->latch);
 
     if (err != DB_SUCCESS) {
@@ -4689,15 +4680,20 @@ static void validate_tablespace_encryption(fil_space_t *space) {
   memset(buf, 0, Encryption::KEY_LEN);
 
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    ut_ad(memcmp(space->encryption_key, buf, Encryption::KEY_LEN) != 0);
-    ut_ad(memcmp(space->encryption_iv, buf, Encryption::KEY_LEN) != 0);
-    ut_ad(space->encryption_klen != 0);
-    ut_ad(space->encryption_type == Encryption::AES);
+    ut_ad(memcmp(space->m_encryption_metadata.m_key, buf,
+                 Encryption::KEY_LEN) != 0);
+    ut_ad(memcmp(space->m_encryption_metadata.m_iv, buf, Encryption::KEY_LEN) !=
+          0);
+    ut_ad(space->m_encryption_metadata.m_key_len != 0);
+    ut_ad(space->m_encryption_metadata.m_type == Encryption::AES);
   } else {
-    ut_ad(memcmp(space->encryption_key, buf, Encryption::KEY_LEN) == 0);
-    ut_ad(memcmp(space->encryption_iv, buf, Encryption::KEY_LEN) == 0);
-    ut_ad(space->encryption_klen == 0);
-    ut_ad(space->encryption_type == Encryption::NONE);
+    ut_ad(memcmp(space->m_encryption_metadata.m_key, buf,
+                 Encryption::KEY_LEN) == 0);
+    ut_ad(memcmp(space->m_encryption_metadata.m_iv, buf, Encryption::KEY_LEN) ==
+          0);
+    ut_ad(space->m_encryption_metadata.m_key_len == 0);
+    ut_ad(space->m_encryption_metadata.m_type == Encryption::NONE);
+    ut_ad(!space->can_encrypt());
   }
   ut_ad(space->encryption_op_in_progress == Encryption::Progress::NONE);
 }
@@ -4786,7 +4782,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
     /* If encryption was going on, make sure encryption information is
     read/loaded from disk. */
     if (it->get_encryption_type() == Encryption::Progress::ENCRYPTION &&
-        space->encryption_type == Encryption::NONE) {
+        !space->can_encrypt()) {
       if (load_encryption_from_header(space)) {
         ib::error() << "Encryption information can't be read for tablesapce "
                     << space->name

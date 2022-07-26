@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,8 +75,8 @@ void list_free(LIST *root, uint free_data) {
 }
 
 LIST *list_cons(void *data, LIST *list) {
-  LIST *new_charset =
-      (LIST *)my_malloc(key_memory_LIST, sizeof(LIST), MYF(MY_FAE));
+  LIST *new_charset = (LIST *)my_malloc(key_memory_LIST, sizeof(LIST),
+                                        MYF(MY_FAE | MY_ZEROFILL));
   if (!new_charset) return nullptr;
   new_charset->data = data;
   return list_add(list, new_charset);

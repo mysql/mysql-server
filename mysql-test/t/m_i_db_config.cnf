@@ -1,2 +1,2 @@
 [mysqld]
-innodb-log-file-size=5242880
+innodb-redo-log-capacity=10M

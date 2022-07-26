@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -343,7 +343,7 @@ static LF_SLIST *linsert(std::atomic<LF_SLIST *> *head, lf_cmp_func *cmp_func,
   lf_unpin(pins, 2);
   /*
     Note that cursor.curr is not pinned here and the pointer is unreliable,
-    the object may dissapear anytime. But if it points to a dummy node, the
+    the object may disappear anytime. But if it points to a dummy node, the
     pointer is safe, because dummy nodes are never freed - initialize_bucket()
     uses this fact.
   */
@@ -465,19 +465,19 @@ static uint cset_hash_sort_adapter(const LF_HASH *hash, const uchar *key,
 /*
   Initializes lf_hash, the arguments are compatible with hash_init
 
-  @note element_size sets both the size of allocated memory block for
-  lf_alloc and a size of memcpy'ed block size in lf_hash_insert. Typically
-  they are the same, indeed. But LF_HASH::element_size can be decreased
+  @note element_size sets both the size of an allocated memory block for
+  lf_alloc and a size of memcpy'ed block size in lf_hash_insert. Typically,
+  however, they are the same. But LF_HASH::element_size can be decreased
   after lf_hash_init, and then lf_alloc will allocate larger block that
-  lf_hash_insert will copy over. It is desireable if part of the element
-  is expensive to initialize - for example if there is a mutex or
-  DYNAMIC_ARRAY. In this case they should be initialize in the
+  lf_hash_insert will copy over. It is desirable if part of the element
+  is expensive to initialize - for example, if there is a mutex or
+  DYNAMIC_ARRAY. In this case, they should be initialized in the
   LF_ALLOCATOR::constructor, and lf_hash_insert should not overwrite them.
   See wt_init() for example.
   As an alternative to using the above trick with decreasing
-  LF_HASH::element_size one can provide an "initialize" hook that will finish
-  initialization of object provided by LF_ALLOCATOR and set element key from
-  object passed as parameter to lf_hash_insert instead of doing simple memcpy.
+  LF_HASH::element_size, one can provide an "initialize" hook that will finish
+  initialization of an object provided by LF_ALLOCATOR and set the element key from
+  the object passed as parameter to lf_hash_insert instead of doing simple memcpy.
 */
 void lf_hash_init_impl(LF_HASH *hash, uint element_size, uint flags,
                        uint key_offset, uint key_length,

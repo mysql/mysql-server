@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -654,7 +654,7 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
     (*) into a usable tree is to call tree_and(something, (*)).
 
     Second look at what tree_and/tree_or function would do when passed a
-    SEL_TREE that has the structure like st1 tree has, and conlcude that
+    SEL_TREE that has the structure like st1 tree has, and conclude that
     tree_and(something, (*)) will not be called.
 
   RETURN

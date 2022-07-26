@@ -1087,12 +1087,12 @@ static void test_wl4435_3() {
 
   WL4435_TEST("INT", "2147483647", MYSQL_TYPE_LONG, MYSQL_TYPE_LONG, int, ,
               ("  - INT / int / MYSQL_TYPE_LONG:\t\t\t %d", pspv),
-              pspv == 2147483647l);
+              pspv == 2147483647L);
 
   WL4435_TEST("BIGINT", "9223372036854775807", MYSQL_TYPE_LONGLONG,
               MYSQL_TYPE_LONGLONG, long long, ,
               ("  - BIGINT / long long / MYSQL_TYPE_LONGLONG:\t\t %lld", pspv),
-              pspv == 9223372036854775807ll);
+              pspv == 9223372036854775807LL);
 
   WL4435_TEST("TIMESTAMP", "'2007-11-18 15:01:02'", MYSQL_TYPE_TIMESTAMP,
               MYSQL_TYPE_TIMESTAMP, MYSQL_TIME, ,
@@ -1475,7 +1475,7 @@ static void test_prepare() {
   mysql_stmt_close(stmt);
 }
 
-/* Test double comparision */
+/* Test double comparison */
 
 static void test_double_compare() {
   MYSQL_STMT *stmt;
@@ -6286,7 +6286,7 @@ static void test_temporal_param() {
   my_bind[0].buffer_type = my_bind[1].buffer_type = my_bind[2].buffer_type =
       MYSQL_TYPE_TIME;
 
-  /* Prepare and bind intput and output parameters */
+  /* Prepare and bind input and output parameters */
   stmt = mysql_simple_prepare(mysql, "SELECT CAST(? AS SIGNED), ?+0e0, ?+0.0");
   check_stmt(stmt);
   verify_param_count(stmt, N_PARAMS);
@@ -10015,7 +10015,7 @@ static void test_bug1664() {
 
   /*
     Now we are sending other long data. It should not be
-    concatened to previous.
+    concatenated to previous.
   */
 
   data = "SomeOtherData";
@@ -11358,8 +11358,8 @@ static void test_bug5194() {
             "(as expected).\n",
             nrows * COLUMN_COUNT);
       break;
-    } else
-      check_execute(stmt, rc);
+    }
+    check_execute(stmt, rc);
 
     if (!opt_silent)
       printf("Insert: query length= %d, row count= %d, param count= %lu\n",
@@ -11751,7 +11751,7 @@ static void test_cursor_for_show() {
 }
 
 /*
-  Altough mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
+  Although mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
   should not crash server and should not hang in case of errors.
 
   Since those functions can't be seen in modern API we use simple_command()
@@ -12168,7 +12168,7 @@ static void test_conversion() {
   myquery(rc);
 }
 
-static void test_rewind(void) {
+static void test_rewind() {
   MYSQL_STMT *stmt;
   MYSQL_BIND my_bind;
   int rc = 0;
@@ -12207,7 +12207,7 @@ static void test_rewind(void) {
   rc = mysql_stmt_bind_result(stmt, &my_bind);
   DIE_UNLESS(rc == 0);
 
-  /* retreive all result sets till we are at the end */
+  /* retrieve all result sets till we are at the end */
   while (!mysql_stmt_fetch(stmt))
     if (!opt_silent) printf("fetched result:%ld\n", Data);
 
@@ -12529,7 +12529,7 @@ static void test_truncation_option() {
 
 /* Bug#6761 - mysql_list_fields doesn't work */
 
-static void test_bug6761(void) {
+static void test_bug6761() {
   const char *stmt_text;
   MYSQL_RES *res;
   int rc;
@@ -12561,7 +12561,7 @@ static void test_bug8330() {
   myheader("test_bug8330");
 
   stmt_text = "drop table if exists t1";
-  /* in case some previos test failed */
+  /* in case some previous test failed */
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text = "create table t1 (a int, b int)";
@@ -12649,7 +12649,7 @@ static void test_bug15518() {
 
   /*
     Use the same stmt and reprepare with another query that
-    suceeds
+    succeeds
   */
   rc = mysql_stmt_prepare(stmt, "SHOW STATUS", 12);
   if (!opt_silent)
@@ -12676,7 +12676,7 @@ static void test_bug15518() {
 
   /*
     Use the same stmt and reprepare with another query that
-    suceeds. The prepare should fail with error 2013 since
+    succeeds. The prepare should fail with error 2013 since
     connection to server has been closed.
   */
   rc = mysql_stmt_prepare(stmt, "SHOW STATUS", 12);
@@ -13220,7 +13220,7 @@ static void test_bug11111() {
 
 /*
   Check that proper cleanups are done for prepared statement when
-  fetching thorugh a cursor.
+  fetching through a cursor.
 */
 
 static void test_bug10729() {
@@ -13679,7 +13679,7 @@ static void test_client_character_set() {
 
   mysql_get_character_set_info(mysql, &cs);
   DIE_UNLESS(!strcmp(cs.csname, "utf8mb3"));
-  DIE_UNLESS(!strcmp(cs.name, "utf8_general_ci"));
+  DIE_UNLESS(!strcmp(cs.name, "utf8mb3_general_ci"));
   /* Restore the default character set */
   rc = mysql_set_character_set(mysql, csdefault);
   myquery(rc);
@@ -14939,7 +14939,7 @@ static void test_bug17667() {
     char line_buffer[MAX_TEST_QUERY_LENGTH * 2];
     /* more than enough room for the query and some marginalia. */
 
-    /* Prepared statments always occurs twice in log */
+    /* Prepared statements always occurs twice in log */
     if (statement_cursor->qt == QT_PREPARED) expected_hits++;
 
     /* Loop until we found expected number of log entries */
@@ -15415,8 +15415,7 @@ static void test_bug21206() {
                                 "INSERT INTO t1 VALUES (1), (2), (3)"};
   const char *query = "SELECT * FROM t1";
 
-  Stmt_fetch *fetch_array =
-      (Stmt_fetch *)calloc(cursor_count, sizeof(Stmt_fetch));
+  auto *fetch_array = (Stmt_fetch *)calloc(cursor_count, sizeof(Stmt_fetch));
 
   Stmt_fetch *fetch;
 
@@ -16371,7 +16370,7 @@ static void test_bug30472() {
   DIE_UNLESS(strcmp(character_set_name_2, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
-  DIE_UNLESS(strcmp(collation_connnection_2, "utf8_general_ci") == 0);
+  DIE_UNLESS(strcmp(collation_connnection_2, "utf8mb3_general_ci") == 0);
 
   DIE_UNLESS(strcmp(character_set_name_1, character_set_name_2) != 0);
   DIE_UNLESS(strcmp(character_set_client_1, character_set_client_2) != 0);
@@ -16419,7 +16418,7 @@ static void test_bug30472() {
   DIE_UNLESS(strcmp(character_set_name_4, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_client_4, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_results_4, "utf8mb3") == 0);
-  DIE_UNLESS(strcmp(collation_connnection_4, "utf8_general_ci") == 0);
+  DIE_UNLESS(strcmp(collation_connnection_4, "utf8mb3_general_ci") == 0);
 
   /* That's it. Cleanup. */
 
@@ -17339,7 +17338,7 @@ static void test_wl4284_1() {
   myquery(rc);
 }
 
-static void test_bug38486(void) {
+static void test_bug38486() {
   MYSQL_STMT *stmt;
   const char *stmt_text;
   unsigned long type = CURSOR_TYPE_READ_ONLY;
@@ -17367,7 +17366,7 @@ static void test_bug38486(void) {
      given an already connected MYSQL handle.
 */
 
-static void test_bug33831(void) {
+static void test_bug33831() {
   MYSQL *l_mysql;
 
   DBUG_TRACE;
@@ -17391,7 +17390,7 @@ static void test_bug33831(void) {
   mysql_close(l_mysql);
 }
 
-static void test_bug40365(void) {
+static void test_bug40365() {
   uint rc, i;
   MYSQL_STMT *stmt = nullptr;
   MYSQL_BIND my_bind[2];
@@ -17479,7 +17478,7 @@ static void test_bug40365(void) {
   the server. Verifies that it is connected to a debug server before proceeding
   with the test.
  */
-static void test_bug43560(void) {
+static void test_bug43560() {
   MYSQL *conn;
   uint rc;
   MYSQL_STMT *stmt = nullptr;
@@ -17612,7 +17611,7 @@ static void test_bug36326() {
              string value.
 */
 
-static void test_bug41078(void) {
+static void test_bug41078() {
   uint rc;
   MYSQL_STMT *stmt = nullptr;
   MYSQL_BIND param, result;
@@ -18307,7 +18306,7 @@ static void test_bug12337762() {
                    "create table charset_tab("
                    "txt1 varchar(32) character set Latin1,"
                    "txt2 varchar(32) character set Latin1 collate latin1_bin,"
-                   "txt3 varchar(32) character set utf8 collate utf8_bin"
+                   "txt3 varchar(32) character set utf8 collate utf8mb3_bin"
                    ")");
 
   DIE_UNLESS(rc == 0);
@@ -20573,7 +20572,7 @@ static void test_bug25701141() {
                    "pretty CHAR(20) DEFAULT NULL,"
                    "CONSTRAINT UNIQUE KEY unique_serial (serial) USING HASH,"
                    "INDEX pretty_index USING HASH (pretty)"
-                   ") ENGINE = InnoDB CHARSET = utf8 COLLATE = utf8_bin");
+                   ") ENGINE = InnoDB CHARSET = utf8 COLLATE = utf8mb3_bin");
   myquery(rc);
 
   my_stpcpy(query, "INSERT IGNORE INTO t1 SET `serial`=?, `pretty`=?");
@@ -21648,12 +21647,12 @@ static void test_wl13168() {
 static void test_wl13510() {
   DBUG_TRACE;
   /*
-    Lambda to tests the following in various combinations of arguments
+    Lambda to test the following in various combinations of arguments
     1. Send a SELECT 'XXXXXXX....<packet_size>'; to server.
-    2. Recieve the response from the server which must be same as sent by the
+    2. Receive the response from the server which must be same as sent by the
        client.
     3. To verify the veracity of the string:
-       (a) Calculate the MD5 digest of the recieved the string
+       (a) Calculate the MD5 digest of the received the string
        (b) Get the digest from the server directly for the similar length string
        (c) Test fails if the digests mismatch
   */
@@ -21695,7 +21694,7 @@ static void test_wl13510() {
 
     mysql_autocommit(mysql_local, true);
 
-    /*  Send and Recieve the packet using nonblocking client APIs */
+    /*  Send and Receive the packet using nonblocking client APIs */
     std::string query("SELECT (\"");
     for (size_t i = 0; i < packet_size; i++) {
       query += "X";
@@ -21725,7 +21724,7 @@ static void test_wl13510() {
 
     DIE_IF(!select_row[0]);
 
-    /* Determine the digest of the string client has receieved. */
+    /* Determine the digest of the string client has received. */
     query.assign("SELECT MD5('");
     query.append(select_row[0]);
     query.append("')");
@@ -23018,6 +23017,74 @@ static void test_wl13075() {
   }
 }
 
+static void finish_with_error(MYSQL *con) {
+  fprintf(stderr, "[%i] %s\n", mysql_errno(con), mysql_error(con));
+  mysql_close(con);
+  exit(1);
+}
+
+static bool send_query(MYSQL *mysql_con, const char *query) {
+  printf("Sending query: %s\n", query);
+
+  int res = mysql_query(mysql_con, query);
+  if (res != 0) {
+    fprintf(stderr, "mysql_query error: %i\n", res);
+    return false;
+  }
+  MYSQL_RES *result = mysql_store_result(mysql_con);
+  if (result == NULL) {
+    printf("No result-set\n");
+  } else {
+    MYSQL_ROW row = mysql_fetch_row(result);
+    printf("Result: %s\n", row[0]);
+    mysql_free_result(result);
+  }
+  printf("\n");
+  return true;
+}
+
+static void test_bug34007830() {
+  myheader("test_bug34007830");
+  MYSQL *lmysql;
+  bool reconnect = 1;
+
+  lmysql = mysql_client_init(nullptr);
+  DIE_UNLESS(lmysql);
+
+  /* enable auto-reconnect */
+  if (mysql_options(lmysql, MYSQL_OPT_RECONNECT, &reconnect)) {
+    fprintf(stderr, "mysql_options failed.");
+  }
+
+  if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, 0)) {
+    fprintf(stderr, "Failed to connect to the database\n");
+    DIE_UNLESS(0);
+  }
+  /* set session wait_timeout */
+  if (!send_query(lmysql, "SET SESSION wait_timeout=5")) {
+    finish_with_error(lmysql);
+  }
+
+  /* send query #1 */
+  if (!send_query(lmysql, "SELECT 1")) {
+    finish_with_error(lmysql);
+  }
+
+  /* wait until connection times-out */
+  printf("Waiting for 10s\n");
+  sleep(10);
+
+  /* send query #2 */
+  if (!send_query(lmysql, "SELECT 2")) {
+    finish_with_error(lmysql);
+  }
+
+  printf("Test successfully completed\n");
+
+  mysql_close(lmysql);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -23328,6 +23395,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug33164347", test_bug33164347},
     {"test_bug32915973", test_bug32915973},
     {"test_wl13075", test_wl13075},
+    {"test_bug34007830", test_bug34007830},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

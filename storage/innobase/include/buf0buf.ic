@@ -824,7 +824,7 @@ static inline buf_pool_t *buf_pool_get(const page_id_t &page_id) {
 
   page_id_t id(page_id.space(), ignored_page_no);
 
-  ulint i = id.fold() % srv_buf_pool_instances;
+  ulint i = id.hash() % srv_buf_pool_instances;
 
   return (&buf_pool_ptr[i]);
 }
@@ -851,13 +851,13 @@ static inline buf_page_t *buf_page_hash_get_low(buf_pool_t *buf_pool,
 #ifdef UNIV_DEBUG
   rw_lock_t *hash_lock;
 
-  hash_lock = hash_get_lock(buf_pool->page_hash, page_id.fold());
+  hash_lock = hash_get_lock(buf_pool->page_hash, page_id.hash());
   ut_ad(rw_lock_own(hash_lock, RW_LOCK_X) || rw_lock_own(hash_lock, RW_LOCK_S));
 #endif /* UNIV_DEBUG */
 
   /* Look for the page in the hash table */
 
-  HASH_SEARCH(hash, buf_pool->page_hash, page_id.fold(), buf_page_t *, bpage,
+  HASH_SEARCH(hash, buf_pool->page_hash, page_id.hash(), buf_page_t *, bpage,
               ut_ad(bpage->in_page_hash && !bpage->in_zip_hash &&
                     buf_page_in_file(bpage)),
               page_id == bpage->id);
@@ -902,7 +902,7 @@ static inline buf_page_t *buf_page_hash_get_locked(buf_pool_t *buf_pool,
     mode = lock_mode;
   }
 
-  hash_lock = hash_get_lock(buf_pool->page_hash, page_id.fold());
+  hash_lock = hash_get_lock(buf_pool->page_hash, page_id.hash());
 
   ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X) &&
         !rw_lock_own(hash_lock, RW_LOCK_S));
@@ -912,12 +912,12 @@ static inline buf_page_t *buf_page_hash_get_locked(buf_pool_t *buf_pool,
 
     /* If not own LRU_list_mutex, page_hash can be changed. */
     hash_lock =
-        hash_lock_s_confirm(hash_lock, buf_pool->page_hash, page_id.fold());
+        hash_lock_s_confirm(hash_lock, buf_pool->page_hash, page_id.hash());
   } else {
     rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
     /* If not own LRU_list_mutex, page_hash can be changed. */
     hash_lock =
-        hash_lock_x_confirm(hash_lock, buf_pool->page_hash, page_id.fold());
+        hash_lock_x_confirm(hash_lock, buf_pool->page_hash, page_id.hash());
   }
 
   bpage = buf_page_hash_get_low(buf_pool, page_id);

@@ -244,9 +244,9 @@ int ndbxfrm_file::create(
     int key_cipher,      // 0 - none, 1 - cbc, 2 - xts (always no padding)
     int key_selection_mode,  // 0 - same, 1 - pair, 2 - mixed
     int key_count,
-    int key_data_unit_size,  //
-    off_t file_block_size,   // typ. 32KiB phys (or logical?)
-    off_t data_size)         // file size excluding file header and trailer
+    size_t key_data_unit_size,  //
+    size_t file_block_size,   // typ. 32KiB phys (or logical?)
+    Uint64 data_size)         // file size excluding file header and trailer
 {
   reset();
 
@@ -263,7 +263,7 @@ int ndbxfrm_file::create(
   m_compressed = compress;
   m_encrypted = (pwd_key != nullptr);
 
-  off_t data_page_size = key_data_unit_size ? file_block_size : 0;
+  size_t data_page_size = key_data_unit_size ? file_block_size : 0;
   if (m_encrypted)
   {
     m_file_format = FF_NDBXFRM1;
@@ -290,9 +290,7 @@ int ndbxfrm_file::create(
                        key_cipher,
                        key_selection_mode,
                        key_count,
-                       key_data_unit_size,
-                       file_block_size,
-                       data_size);
+                       key_data_unit_size);
   if (r != 0) return r;
   m_payload_start = out.begin() - out_begin;
   m_file_buffer.update_write(out);
@@ -314,7 +312,7 @@ int ndbxfrm_file::create(
      * mode.  Since neither compression nor CBC-mode encryption support
      * that file is encrypted using XTS.
      */
-    require(data_page_size == (off_t)m_file_block_size);
+    require(data_page_size == m_file_block_size);
 
     ndbxfrm_input_iterator in = m_file_buffer.get_input_iterator();
     require((off_t)in.size() == m_payload_start);
@@ -380,8 +378,7 @@ int ndbxfrm_file::flush_payload()
   else if (!m_encrypted || !m_decrypted_buffer.last())
   {
     // Mark that there will be no more payload.
-    byte dummy[1];
-    ndbxfrm_input_iterator in(dummy, dummy, true);
+    ndbxfrm_input_iterator in(nullptr, nullptr, true);
     int r = write_forward(&in);
     if (r == -1) return -1;
     require(m_decrypted_buffer.read_size() == 0);
@@ -869,16 +866,14 @@ int ndbxfrm_file::write_transformed_pages(off_t data_pos,
 
 int ndbxfrm_file::write_header(
     ndbxfrm_output_iterator *out,
-    off_t data_page_size,
+    size_t data_page_size,
     const byte *pwd_key,
     size_t pwd_key_len,
     int kdf_iter_count,
     int key_cipher,
     int key_selection_mode,  // 0 - same, 1 - pair, 2 - mixed
     int key_count,
-    int key_data_unit_size,  //
-    off_t file_block_size,   // typ. 32KiB phys (or logical?)
-    off_t data_size)
+    size_t key_data_unit_size)
 {
   bool padding = (data_page_size == 0);
   // Write file header
@@ -1600,9 +1595,9 @@ int main()
   int key_cipher = ndb_ndbxfrm1::cipher_xts;
   int key_selection_mode = ndb_ndbxfrm1::key_selection_mode_mix_pair;
   int key_count = ndb_openssl_evp::MAX_SALT_COUNT;
-  int key_data_unit_size = ndbxfrm_file::BUFFER_SIZE;
-  off_t file_block_size = ndbxfrm_file::BUFFER_SIZE;
-  off_t data_size = ndbxfrm_file::INDEFINITE_SIZE;
+  size_t key_data_unit_size = ndbxfrm_file::BUFFER_SIZE;
+  size_t file_block_size = ndbxfrm_file::BUFFER_SIZE;
+  Uint64 data_size = ndbxfrm_file::INDEFINITE_SIZE;
   byte wr_buf[ndbxfrm_file::BUFFER_SIZE + NDB_O_DIRECT_WRITE_BLOCKSIZE];
   byte rd_buf[ndbxfrm_file::BUFFER_SIZE + NDB_O_DIRECT_WRITE_BLOCKSIZE];
 

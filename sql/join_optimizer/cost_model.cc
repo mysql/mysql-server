@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -235,6 +235,23 @@ void EstimateDeleteRowsCost(AccessPath *path) {
   // (buffered) deletes in the cost estimate.
   const table_map buffered_tables =
       param.tables_to_delete_from & ~param.immediate_tables;
+  path->cost = child->cost + kMaterializeOneRowCost *
+                                 PopulationCount(buffered_tables) *
+                                 child->num_output_rows;
+}
+
+void EstimateUpdateRowsCost(AccessPath *path) {
+  const auto &param = path->update_rows();
+  const AccessPath *child = param.child;
+
+  path->num_output_rows = child->num_output_rows;
+  path->init_once_cost = child->init_once_cost;
+  path->init_cost = child->init_cost;
+
+  // Include the cost of building the temporary tables for the non-immediate
+  // (buffered) updates in the cost estimate.
+  const table_map buffered_tables =
+      param.tables_to_update & ~param.immediate_tables;
   path->cost = child->cost + kMaterializeOneRowCost *
                                  PopulationCount(buffered_tables) *
                                  child->num_output_rows;

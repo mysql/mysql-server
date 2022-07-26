@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
 
 /// @file
 ///
-/// Interface for determining the aproximate distance between two geometries by
+/// Interface for determining the approximate distance between two geometries by
 /// assuming the world is a sphere.
 
 #ifndef SQL_GIS_DISTANCE_SPHERE_H_INCLUDED

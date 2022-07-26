@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@ class Mysql_object_reader_options
 
   uint64 m_row_group_size;
   const Mysql_chain_element_options *m_mysql_chain_element_options;
+  bool m_skip_gipk;
 };
 }  // namespace Dump
 }  // namespace Tools

@@ -40,7 +40,7 @@
 #include "my_table_map.h"  // table_map
 
 constexpr const int MAX_ALIAS_NAME{256};
-constexpr const int MAX_FIELD_NAME{34}; /* Max colum name length +2 */
+constexpr const int MAX_FIELD_NAME{34}; /* Max column name length +2 */
 
 constexpr const unsigned int MAX_KEY{MAX_INDEXES}; /* Max used keys */
 constexpr const unsigned int MAX_REF_PARTS{16};    /* Max parts used as ref */
@@ -261,7 +261,7 @@ constexpr const int MYSQLD_FAILURE_EXIT{2};
 /**
   Exit code used by mysqld_exit, my_thread_exit function which allows
   for external programs like systemd, mysqld_safe to restart mysqld
-  server. The exit code  16 is choosen so it is safe as InnoDB code
+  server. The exit code 16 is chosen so it is safe as InnoDB code
   exit directly with values like 3.
 */
 constexpr const int MYSQLD_RESTART_EXIT{16};

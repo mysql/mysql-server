@@ -433,12 +433,8 @@ SET(SQL_SHARED_SOURCES
   join_optimizer/overflow_bitset.cc
   join_optimizer/print_utils.cc
   join_optimizer/replace_item.cc
-  json_binary.cc
   json_diff.cc
-  json_dom.cc
-  json_path.cc
   json_schema.cc
-  json_syntax_check.cc
   key.cc
   key_spec.cc
   keycaches.cc
@@ -552,6 +548,7 @@ SET(SQL_SHARED_SOURCES
   sql_exception_handler.cc
   sql_executor.cc
   sql_get_diagnostics.cc
+  sql_gipk.cc
   sql_handler.cc
   sql_help.cc
   sql_import.cc
@@ -624,6 +621,16 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   xa.cc
+  xa/recovery.cc
+  xa/sql_xa_second_phase.cc
+  xa/sql_xa_commit.cc
+  xa/sql_xa_end.cc
+  xa/sql_xa_prepare.cc
+  xa/sql_xa_recover.cc
+  xa/sql_xa_rollback.cc
+  xa/sql_xa_start.cc
+  xa/transaction_cache.cc
+  xa/xid_extract.cc
   daemon_proxy_keyring/daemon_proxy_keyring.cc
   )
 
@@ -762,6 +769,11 @@ SET(SQL_SOURCE
   ../sql-common/oci/ssl.cc
   ../sql-common/sql_string.cc
   ../sql-common/bind_params.cc
+  ../sql-common/json_binary.cc
+  ../sql-common/json_dom.cc
+  ../sql-common/json_error_handler.cc
+  ../sql-common/json_path.cc
+  ../sql-common/json_syntax_check.cc
   command_service.cc
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc
@@ -965,6 +977,7 @@ SET(BINLOG_SOURCE
   basic_istream.cc
   basic_ostream.cc
   binlog/global.cc
+  binlog/recovery.cc
   binlog/monitoring/context.cc
   binlog/tools/iterators.cc
   binlog.cc
@@ -1211,7 +1224,7 @@ IF(WITH_VALGRIND)
   SET(LINK_MYSQLD_LDAP_LIBRARY 1)
 ENDIF()
 IF(WITH_SSL STREQUAL "system" AND
-    "${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}" VERSION_LESS "1.1")
+    "${OPENSSL_VERSION_MAJOR}.${OPENSSL_VERSION_MINOR}" VERSION_LESS "1.1")
   SET(LINK_MYSQLD_LDAP_LIBRARY 1)
 ENDIF()
 IF(WITH_AUTHENTICATION_LDAP AND LINK_MYSQLD_LDAP_LIBRARY)

@@ -62,6 +62,7 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/filesort.h"  // Filesort
@@ -80,8 +81,7 @@
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
-#include "sql/json_dom.h"  // Json_wrapper
-#include "sql/key.h"       // key_cmp
+#include "sql/key.h"  // key_cmp
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"  // stage_executing
 #include "sql/nested_join.h"
@@ -103,6 +103,7 @@
 #include "sql/sql_resolver.h"
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table
+#include "sql/sql_update.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Mem_root_vector
 #include "sql/visible_fields.h"
@@ -745,15 +746,15 @@ static bool ContainsAnyMRRPaths(AccessPath *path) {
 Item *CreateConjunction(List<Item> *items) {
   if (items->size() == 0) {
     return nullptr;
-  } else if (items->size() == 1) {
-    return items->head();
-  } else {
-    Item *condition = new Item_cond_and(*items);
-    condition->quick_fix_field();
-    condition->update_used_tables();
-    condition->apply_is_true();
-    return condition;
   }
+  if (items->size() == 1) {
+    return items->head();
+  }
+  Item *condition = new Item_cond_and(*items);
+  condition->quick_fix_field();
+  condition->update_used_tables();
+  condition->apply_is_true();
+  return condition;
 }
 
 /**
@@ -864,9 +865,10 @@ AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
     if (item->type() == Item::FUNC_ITEM || item->type() == Item::COND_ITEM) {
       Item_func *func_item = down_cast<Item_func *>(item);
       if (func_item->functype() == Item_func::EQ_FUNC) {
+        bool found = false;
         down_cast<Item_func_eq *>(func_item)
-            ->ensure_multi_equality_fields_are_available(left_table_map,
-                                                         right_table_map);
+            ->ensure_multi_equality_fields_are_available(
+                left_table_map, right_table_map, /*replace=*/true, &found);
       }
     } else if (item->type() == Item::FIELD_ITEM) {
       bool dummy;
@@ -876,9 +878,9 @@ AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
         // Didn't come from a multi-equality.
         continue;
       }
-
-      item->walk(&Item::ensure_multi_equality_fields_are_available_walker,
-                 enum_walk::POSTFIX, pointer_cast<uchar *>(&left_table_map));
+      bool found = false;
+      find_and_adjust_equal_fields(item, left_table_map, /*replace=*/true,
+                                   &found);
     }
   }
 
@@ -919,13 +921,6 @@ static Item_func_trig_cond *GetTriggerCondOrNull(Item *item) {
   }
 }
 
-enum CallingContext {
-  TOP_LEVEL,
-  DIRECTLY_UNDER_SEMIJOIN,
-  DIRECTLY_UNDER_OUTER_JOIN,
-  DIRECTLY_UNDER_WEEDOUT
-};
-
 /**
   For historical reasons, derived table materialization and temporary
   table materialization didn't specify the fields to materialize in the
@@ -957,21 +952,6 @@ void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
   param->items_to_copy = copy_func;
 }
 
-/**
-  Cache invalidator iterators we need to apply, but cannot yet due to outer
-  joins. As soon as “table_index_to_invalidate” is visible in our current join
-  nest (which means there could no longer be NULL-complemented rows we could
-  forget), we can and must output this invalidator and remove it from the array.
- */
-struct PendingInvalidator {
-  /**
-    The table whose every (post-join) row invalidates one or more derived
-    lateral tables.
-   */
-  QEP_TAB *qep_tab;
-  plan_idx table_index_to_invalidate;
-};
-
 /// @param item The item we want to see if is a join condition.
 /// @param qep_tab The table we are joining in.
 /// @returns true if 'item' is a join condition for a join involving the given
@@ -996,6 +976,62 @@ static Item *GetInnermostCondition(Item *item) {
   }
 
   return item;
+}
+
+// Check if fields for a condition are available when joining the
+// the given set of tables.
+// Calls ensure_multi_equality_fields_are_available() to help.
+static bool CheckIfFieldsAvailableForCond(Item *item, table_map build_tables,
+                                          table_map probe_tables) {
+  if (is_function_of_type(item, Item_func::EQ_FUNC)) {
+    Item_func_eq *eq_func = down_cast<Item_func_eq *>(item);
+    bool found = false;
+    // Tries to find a suitable equal field for fields in the condition within
+    // the available tables.
+    eq_func->ensure_multi_equality_fields_are_available(
+        build_tables, probe_tables, /*replace=*/false, &found);
+    return found;
+  } else if (item->type() == Item::COND_ITEM) {
+    Item_cond *cond = down_cast<Item_cond *>(item);
+    for (Item &cond_item : *cond->argument_list()) {
+      if (!CheckIfFieldsAvailableForCond(&cond_item, build_tables,
+                                         probe_tables))
+        return false;
+    }
+    return true;
+  } else {
+    table_map used_tables = item->used_tables();
+    return (Overlaps(used_tables, build_tables) &&
+            Overlaps(used_tables, probe_tables) &&
+            IsSubset(used_tables, build_tables | probe_tables));
+  }
+}
+
+// Determine if a join condition attached to a table needs to be handled by the
+// hash join iterator created for that table, or if it needs to be moved up to
+// where the semijoin iterator is created (if there is more than one table on
+// the inner side of a semijoin).
+
+// If the fields in the condition are available within the join between the
+// inner tables, we attach the condition to the current table. Otherwise, we
+// attach it to the table where the semijoin iterator will be created.
+static void AttachSemiJoinCondition(Item *join_cond,
+                                    vector<PendingCondition> *join_conditions,
+                                    QEP_TAB *current_table,
+                                    qep_tab_map left_tables,
+                                    plan_idx semi_join_table_idx) {
+  table_map build_table_map = ConvertQepTabMapToTableMap(
+      current_table->join(), current_table->idx_map());
+  table_map probe_table_map =
+      ConvertQepTabMapToTableMap(current_table->join(), left_tables);
+  if (CheckIfFieldsAvailableForCond(join_cond, build_table_map,
+                                    probe_table_map)) {
+    join_conditions->push_back(
+        PendingCondition{join_cond, current_table->idx()});
+  } else {
+    join_conditions->push_back(
+        PendingCondition{join_cond, semi_join_table_idx});
+  }
 }
 
 /*
@@ -1032,6 +1068,24 @@ static Item *GetInnermostCondition(Item *item) {
      the <x> join condition (posted on t3) should be above one join but
      below the other.
 
+Special case:
+    If we are on the inner side of a semijoin with only one table, any
+    condition attached to this table is lifted up to where the semijoin
+    iterator would be created. If we have more than one table on the inner
+    side of a semijoin, and if conditions attached to these tables are
+    lifted up to the semijoin iterator, we do not create good plans.
+    Therefore, for such a case, we take special care to try and attach
+    the condition to the correct hash join iterator. To do the same, we
+    find if the fields in a join condition are available within the join
+    created for the current table. If the fields are available, we attach the
+    condition to the hash join iterator created for the current table.
+    We make use of "semi_join_table_idx" to know where the semijoin iterator
+    would be created and "left_tables" to know the tables that are available
+    for the join that will be created for the current table.
+    Note that, as of now, for mysql, we do not enable join buffering thereby
+    not enabling hash joins when a semijoin has more than one table on
+    its inner side. However, we enable it for secondary engines.
+
   TODO: The optimizer should distinguish between before-join and
   after-join conditions to begin with, instead of us having to untangle
   it here.
@@ -1039,7 +1093,8 @@ static Item *GetInnermostCondition(Item *item) {
 void SplitConditions(Item *condition, QEP_TAB *current_table,
                      vector<Item *> *predicates_below_join,
                      vector<PendingCondition> *predicates_above_join,
-                     vector<PendingCondition> *join_conditions) {
+                     vector<PendingCondition> *join_conditions,
+                     plan_idx semi_join_table_idx, qep_tab_map left_tables) {
   Mem_root_array<Item *> condition_parts(*THR_MALLOC);
   ExtractConditions(condition, &condition_parts);
   for (Item *item : condition_parts) {
@@ -1048,8 +1103,9 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
       Item *inner_cond = trig_cond->arguments()[0];
       if (trig_cond->get_trig_type() == Item_func_trig_cond::FOUND_MATCH) {
         // A WHERE predicate on the table that needs to be pushed up above the
-        // join (case #3 above). Push it up to above the last outer join.
-        predicates_above_join->push_back(PendingCondition{inner_cond, -1});
+        // join (case #3 above).
+        predicates_above_join->push_back(
+            PendingCondition{inner_cond, trig_cond->idx()});
       } else if (trig_cond->get_trig_type() ==
                  Item_func_trig_cond::IS_NOT_NULL_COMPL) {
         // It's a join condition, so it should nominally go directly onto the
@@ -1088,8 +1144,25 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
             // In this case, the condition must be moved up to the outer side
             // where the hash join iterator is created, so it can be attached
             // to the iterator.
-            join_conditions->push_back(
-                PendingCondition{inner_cond, trig_cond->idx()});
+            if (semi_join_table_idx == NO_PLAN_IDX) {
+              join_conditions->push_back(
+                  PendingCondition{inner_cond, trig_cond->idx()});
+            }
+            // Or, we might be on the inner side of a semijoin. In this case,
+            // we move the condition to where the semijoin hash iterator is
+            // created. However if we have more than one table on the inner
+            // side of the semijoin, then we first check if it can be attached
+            // to the hash join iterator of the inner join (provided the fields
+            // in the condition are available within the join). If not, move it
+            // upto where semijoin hash iterator is created.
+            else if (current_table->idx() == semi_join_table_idx) {
+              join_conditions->push_back(
+                  PendingCondition{inner_cond, semi_join_table_idx});
+            } else {
+              AttachSemiJoinCondition(inner_cond, join_conditions,
+                                      current_table, left_tables,
+                                      semi_join_table_idx);
+            }
           } else {
             predicates_below_join->push_back(inner_cond);
           }
@@ -1098,16 +1171,29 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
         predicates_below_join->push_back(item);
       }
     } else {
-      if (current_table->match_tab != NO_PLAN_IDX &&
-          join_conditions != nullptr && IsJoinCondition(item, current_table)) {
-        // We are on the inner side of a semijoin, and the item we are looking
-        // at is a join condition. In addition, the join will be executed using
-        // hash join. Move the join condition up to the table we are semijoining
-        // against (where the join iterator is created), so that it can be
-        // attached to the hash join iterator.
-        join_conditions->push_back(
-            PendingCondition{item, current_table->match_tab});
+      if (join_conditions != nullptr && IsJoinCondition(item, current_table) &&
+          semi_join_table_idx != NO_PLAN_IDX) {
+        // We are on the inner side of a semijoin, and the item we are
+        // looking at is a join condition. In addition, the join will be
+        // executed using hash join. Move the condition up where the hash join
+        // iterator is created.
+        // If we have only one table on the inner side of a semijoin,
+        // we attach the condition to the semijoin iterator.
+        if (current_table->idx() == semi_join_table_idx) {
+          join_conditions->push_back(
+              PendingCondition{item, semi_join_table_idx});
+        } else {
+          // In case we have more than one table on the inner side of a
+          // semijoin, conditions will be attached to the inner hash join
+          // iterator only if the fields present in the condition are
+          // available within the join. Else, condition is moved up to where
+          // the semijoin hash iterator is created.
+          AttachSemiJoinCondition(item, join_conditions, current_table,
+                                  left_tables, semi_join_table_idx);
+        }
       } else {
+        // All other conditions (both join condition and filters) will be looked
+        // at while creating the iterator for this table.
         predicates_below_join->push_back(item);
       }
     }
@@ -1366,28 +1452,18 @@ static Substructure FindSubstructure(
   if (is_semijoin) {
     *substructure_end = semijoin_end;
     return Substructure::SEMIJOIN;
-  } else if (is_outer_join) {
+  }
+  if (is_outer_join) {
     *substructure_end = outer_join_end;
     return Substructure::OUTER_JOIN;
-  } else if (is_weedout) {
+  }
+  if (is_weedout) {
     *substructure_end = weedout_end;
     return Substructure::WEEDOUT;
-  } else {
-    *substructure_end = NO_PLAN_IDX;  // Not used.
-    return Substructure::NONE;
   }
+  *substructure_end = NO_PLAN_IDX;  // Not used.
+  return Substructure::NONE;
 }
-
-/// @cond Doxygen_is_confused
-static AccessPath *ConnectJoins(
-    plan_idx upper_first_idx, plan_idx first_idx, plan_idx last_idx,
-    QEP_TAB *qep_tabs, THD *thd, CallingContext calling_context,
-    vector<PendingCondition> *pending_conditions,
-    vector<PendingInvalidator> *pending_invalidators,
-    vector<PendingCondition> *pending_join_conditions,
-    qep_tab_map *unhandled_duplicates,
-    table_map *conditions_depend_on_outer_tables);
-/// @endcond
 
 static bool IsTableScan(AccessPath *path) {
   if (path->type == AccessPath::FILTER) {
@@ -1415,6 +1491,7 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
       case AccessPath::EQ_REF:
       case AccessPath::ALTERNATIVE:
       case AccessPath::CONST_TABLE:
+      case AccessPath::INDEX_SCAN:
       case AccessPath::INDEX_RANGE_SCAN:
         // We found our real bottom.
         path->materialize().table_path = sub_path;
@@ -1440,6 +1517,9 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
         break;
       case AccessPath::DELETE_ROWS:
         bottom_of_table_path->delete_rows().child = path;
+        break;
+      case AccessPath::UPDATE_ROWS:
+        bottom_of_table_path->update_rows().child = path;
         break;
       case AccessPath::ZERO_ROWS:
         // There's nothing to materialize for ZERO_ROWS, so we can drop the
@@ -1545,7 +1625,8 @@ AccessPath *GetAccessPathForDerivedTable(
     // iterator. This saves both CPU time and memory (for the temporary
     // table).
     //
-    // NOTE: Currently, rematerialize is true only for JSON_TABLE.
+    // NOTE: Currently, rematerialize is true only for JSON_TABLE. (In the
+    // hypergraph optimizer, it is also true for lateral derived tables.)
     // We could extend this to other situations, such as the leftmost
     // table of the join (assuming nested loop only). The test for CTEs is
     // also conservative; if the CTE is defined within this join and used
@@ -1849,9 +1930,10 @@ static AccessPath *CreateHashJoinAccessPath(
         Item_func *func_item = down_cast<Item_func *>(inner_item);
 
         if (func_item->functype() == Item_func::EQ_FUNC) {
+          bool found = false;
           down_cast<Item_func_eq *>(func_item)
-              ->ensure_multi_equality_fields_are_available(left_table_map,
-                                                           right_table_map);
+              ->ensure_multi_equality_fields_are_available(
+                  left_table_map, right_table_map, /*replace=*/true, &found);
         }
 
         if (func_item->contains_only_equi_join_condition() &&
@@ -2217,14 +2299,14 @@ AccessPath *FinishPendingOperations(
     use a hash join, since the returned iterator depends on seeing outer rows
     when evaluating its conditions.
  */
-static AccessPath *ConnectJoins(
-    plan_idx upper_first_idx, plan_idx first_idx, plan_idx last_idx,
-    QEP_TAB *qep_tabs, THD *thd, CallingContext calling_context,
-    vector<PendingCondition> *pending_conditions,
-    vector<PendingInvalidator> *pending_invalidators,
-    vector<PendingCondition> *pending_join_conditions,
-    qep_tab_map *unhandled_duplicates,
-    table_map *conditions_depend_on_outer_tables) {
+AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
+                         plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
+                         CallingContext calling_context,
+                         vector<PendingCondition> *pending_conditions,
+                         vector<PendingInvalidator> *pending_invalidators,
+                         vector<PendingCondition> *pending_join_conditions,
+                         qep_tab_map *unhandled_duplicates,
+                         table_map *conditions_depend_on_outer_tables) {
   assert(last_idx > first_idx);
   AccessPath *path = nullptr;
 
@@ -2284,6 +2366,15 @@ static AccessPath *ConnectJoins(
     Substructure substructure =
         FindSubstructure(qep_tabs, first_idx, i, last_idx, calling_context,
                          &add_limit_1, &substructure_end, unhandled_duplicates);
+
+    // Get the index of the table where semijoin hash iterator would be created.
+    // Used in placing the join conditions attached to the tables that are on
+    // the inner side of a semijoin correctly.
+    plan_idx semi_join_table_idx = NO_PLAN_IDX;
+    if (calling_context == DIRECTLY_UNDER_SEMIJOIN &&
+        qep_tabs[last_idx - 1].firstmatch_return != NO_PLAN_IDX) {
+      semi_join_table_idx = qep_tabs[last_idx - 1].firstmatch_return + 1;
+    }
 
     QEP_TAB *qep_tab = &qep_tabs[i];
     if (substructure == Substructure::OUTER_JOIN ||
@@ -2572,11 +2663,7 @@ static AccessPath *ConnectJoins(
     qep_tab_map left_tables = 0;
 
     // Get the left side tables of this join.
-    if (calling_context == DIRECTLY_UNDER_SEMIJOIN ||
-        InsideOuterOrAntiJoin(qep_tab)) {
-      // Join buffering (hash join, BKA) supports semijoin with only one inner
-      // table (see setup_join_buffering), so the calling context for a
-      // semijoin with join buffering will always be DIRECTLY_UNDER_SEMIJOIN.
+    if (InsideOuterOrAntiJoin(qep_tab)) {
       left_tables |= TablesBetween(upper_first_idx, first_idx);
     } else {
       left_tables |= TablesBetween(first_idx, i);
@@ -2600,7 +2687,8 @@ static AccessPath *ConnectJoins(
     // hash join iterator when we are done handling the inner side.
     SplitConditions(qep_tab->condition(), qep_tab, &predicates_below_join,
                     &predicates_above_join,
-                    replace_with_hash_join ? pending_join_conditions : nullptr);
+                    replace_with_hash_join ? pending_join_conditions : nullptr,
+                    semi_join_table_idx, left_tables);
 
     // We can always do BKA. The setup is very similar to hash join.
     const bool is_bka =
@@ -2724,6 +2812,9 @@ static AccessPath *ConnectJoins(
       } else if (replace_with_hash_join) {
         // The numerically lower QEP_TAB is often (if not always) the smaller
         // input, so use that as the build input.
+        if (pending_join_conditions != nullptr)
+          PickOutConditionsForTableIndex(i, pending_join_conditions,
+                                         &join_conditions);
         path = CreateHashJoinAccessPath(thd, qep_tab, path, left_tables,
                                         table_path, right_tables,
                                         JoinType::INNER, &join_conditions,
@@ -2759,29 +2850,51 @@ static AccessPath *ConnectJoins(
   return path;
 }
 
-static table_map get_delete_target_tables(const JOIN *join) {
-  table_map delete_tables = 0;
+static table_map get_update_or_delete_target_tables(const JOIN *join) {
+  table_map target_tables = 0;
 
   for (const TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
        tr = tr->next_leaf) {
-    if (tr->is_deleted()) {
-      delete_tables |= tr->map();
+    if (tr->updating) {
+      target_tables |= tr->map();
     }
   }
 
-  return delete_tables;
+  return target_tables;
 }
 
-AccessPath *JOIN::attach_access_path_for_delete(AccessPath *path) {
-  // If this is the top-level query block of a multi-table DELETE statement,
-  // wrap the path in a DELETE_ROWS path.
-  if (thd->lex->m_sql_cmd != nullptr &&
-      thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_DELETE_MULTI &&
-      query_block->outer_query_block() == nullptr) {
-    const table_map delete_tables = get_delete_target_tables(this);
+// If this is the top-level query block of a multi-table UPDATE or multi-table
+// DELETE statement, wrap the path in an UPDATE_ROWS or DELETE_ROWS path.
+AccessPath *JOIN::attach_access_path_for_update_or_delete(AccessPath *path) {
+  if (thd->lex->m_sql_cmd == nullptr) {
+    // It is not an UPDATE or DELETE statement.
+    return path;
+  }
+
+  if (query_block->outer_query_block() != nullptr) {
+    // It is not the top-level query block.
+    return path;
+  }
+
+  const enum_sql_command command = thd->lex->m_sql_cmd->sql_command_code();
+
+  // Single-table update or delete does not use access paths and iterators in
+  // the old optimizer. (The hypergraph optimizer uses a unified code path for
+  // single-table and multi-table, and always identifies itself as MULTI, so
+  // these asserts hold for both optimizers.)
+  assert(command != SQLCOM_UPDATE);
+  assert(command != SQLCOM_DELETE);
+
+  if (command == SQLCOM_UPDATE_MULTI) {
+    const table_map target_tables = get_update_or_delete_target_tables(this);
+    path = NewUpdateRowsAccessPath(
+        thd, path, target_tables,
+        GetImmediateUpdateTable(this, IsSingleBitSet(target_tables)));
+  } else if (command == SQLCOM_DELETE_MULTI) {
+    const table_map target_tables = get_update_or_delete_target_tables(this);
     path =
-        NewDeleteRowsAccessPath(thd, path, delete_tables,
-                                GetImmediateDeleteTables(this, delete_tables));
+        NewDeleteRowsAccessPath(thd, path, target_tables,
+                                GetImmediateDeleteTables(this, target_tables));
     EstimateDeleteRowsCost(path);
   }
 
@@ -2793,7 +2906,7 @@ void JOIN::create_access_paths() {
 
   AccessPath *path = create_root_access_path_for_join();
   path = attach_access_paths_for_having_and_limit(path);
-  path = attach_access_path_for_delete(path);
+  path = attach_access_path_for_update_or_delete(path);
 
   m_root_access_path = path;
 }
@@ -3234,12 +3347,9 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
   DBUG_TRACE;
 
   if (sjtbl->is_confluent) {
-    if (sjtbl->have_confluent_row)
-      return 1;
-    else {
-      sjtbl->have_confluent_row = true;
-      return 0;
-    }
+    if (sjtbl->have_confluent_row) return 1;
+    sjtbl->have_confluent_row = true;
+    return 0;
   }
 
   uchar *ptr = sjtbl->tmp_table->visible_field_ptr()[0]->field_ptr();
@@ -3663,7 +3773,8 @@ AccessPath *QEP_TAB::access_path() {
       vector<PendingCondition> predicates_above_join;
       SplitConditions(condition(), this, &predicates_below_join,
                       &predicates_above_join,
-                      /*join_conditions=*/nullptr);
+                      /*join_conditions=*/nullptr,
+                      /*semi_join_table_idx=*/NO_PLAN_IDX, /*left_tables=*/0);
 
       table_map conditions_depend_on_outer_tables = 0;
       path = PossiblyAttachFilter(path, predicates_below_join, join()->thd,
@@ -3942,9 +4053,9 @@ bool make_group_fields(JOIN *main_join, JOIN *curr_join) {
 }
 
 /**
-  Get a list of buffers for saveing last group.
+  Get a list of buffers for saving last group.
 
-  Groups are saved in reverse order for easyer check loop.
+  Groups are saved in reverse order for easier check loop.
 */
 
 static bool alloc_group_fields(JOIN *join, ORDER *group) {

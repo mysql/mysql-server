@@ -1291,3 +1291,18 @@ a	cnt	rn
 2	3.63	2
 1	4.66	1
 DROP TABLE t;
+#
+# Bug#33415082:Hypergraph: Query with window function crashes in do_add()
+#
+CREATE TABLE v0 (v1 INTEGER);
+INSERT INTO v0 VALUES (1);
+SELECT v1, (SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2) FROM v0;
+v1	(SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2)
+1	1
+SELECT v1, (SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2) FROM v0;
+v1	(SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2)
+1	1
+SELECT v1, (SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2) FROM v0;
+v1	(SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2)
+1	1
+DROP TABLE v0;

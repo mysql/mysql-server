@@ -405,8 +405,8 @@ class Clone_Snapshot {
   int iterate_redo_files(File_Cbk_Func &&func);
 
   /** Fill state descriptor from snapshot
-  @param[in]    do_estimate     estimate data bytes to transfer
-  @param[out]   state_desc      snapshot state descriptor */
+  @param[in]  do_estimate   estimate data bytes to transfer
+  @param[out] state_desc    snapshot state descriptor */
   void get_state_info(bool do_estimate, Clone_Desc_State *state_desc);
 
   /** Set state information during apply
@@ -751,6 +751,10 @@ class Clone_Snapshot {
     return (!in_transit_state() && m_num_clones_transit != 0);
   }
 
+  /** Start redo archiving.
+  @return error code */
+  int init_redo_archiving();
+
   /** Initialize snapshot state for file copy
   @param[in]    new_state       state to move for apply
   @return error code */
@@ -759,7 +763,8 @@ class Clone_Snapshot {
   /** Initialize disk byte estimate. */
   void init_disk_estimate() {
     /* Initial size is set to the redo file size on disk. */
-    m_data_bytes_disk = log_get_file_capacity(*log_sys);
+    IB_mutex_guard latch{&(log_sys->limits_mutex), UT_LOCATION_HERE};
+    m_data_bytes_disk = log_sys->m_capacity.current_physical_capacity();
   }
 
   /** Initialize snapshot state for page copy
@@ -901,12 +906,12 @@ class Clone_Snapshot {
                            std::string &file_name);
 
   /** Build file name along with path for cloned data files.
-  @param[in]            data_dir        clone data directory
-  @param[in]            file_meta       file descriptor
-  @param[out]           built_path      file name with path
-  @return error code */
-  int build_file_path(const char *data_dir, const Clone_File_Meta *file_meta,
-                      std::string &built_path);
+  @param[in]    data_dir    clone data directory
+  @param[in]    file_desc   file descriptor
+  @param[out]   file_path   built file path if returned 0
+  @return error code (0 on success) */
+  int build_file_path(const char *data_dir, const Clone_File_Meta *file_desc,
+                      std::string &file_path);
 
   /** Build file context from file path.
   @param[in]    extn            file extension type
@@ -922,11 +927,12 @@ class Clone_Snapshot {
   has the side effect to add undo file indexes.
   @param[in]    replace         if data directory is replaced
   @param[in]    undo_file       if undo tablespace file
+  @param[in]    redo_file       if redo file
   @param[in]    data_file_index index of file
   @param[in]    data_file       data file name
   @param[out]   extn            file extension needs to be used
   @return error code */
-  int handle_existing_file(bool replace, bool undo_file,
+  int handle_existing_file(bool replace, bool undo_file, bool redo_file,
                            uint32_t data_file_index,
                            const std::string &data_file,
                            Clone_file_ctx::Extension &extn);

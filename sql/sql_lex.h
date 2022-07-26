@@ -1210,7 +1210,7 @@ class Query_block {
   */
   bool is_straight_join() {
     bool straight_join = true;
-    /// false for exmaple in t1 STRAIGHT_JOIN t2 JOIN t3.
+    /// false for example in t1 STRAIGHT_JOIN t2 JOIN t3.
     for (TABLE_LIST *tbl = leaf_tables->next_leaf; tbl; tbl = tbl->next_leaf)
       straight_join &= tbl->straight;
     return straight_join || (active_options() & SELECT_STRAIGHT_JOIN);
@@ -2737,6 +2737,15 @@ class Query_tables_list {
     */
     BINLOG_STMT_UNSAFE_ACL_TABLE_READ_IN_DML_DDL,
 
+    /**
+      Generating invisible primary key for a table created using CREATE TABLE...
+      SELECT... is unsafe because order in which rows are retrieved by the
+      SELECT determines which (if any) rows are inserted. This order cannot be
+      predicted and values for generated invisible primary key column may
+      differ on source and replica when @@session.binlog_format=STATEMENT.
+    */
+    BINLOG_STMT_UNSAFE_CREATE_SELECT_WITH_GIPK,
+
     /* the last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };
@@ -3464,7 +3473,7 @@ class Lex_input_stream {
   /** End of the query text in the input stream, in the raw buffer. */
   const char *m_end_of_query;
 
-  /** Begining of the query text in the input stream, in the raw buffer. */
+  /** Beginning of the query text in the input stream, in the raw buffer. */
   const char *m_buf;
 
   /** Length of the raw buffer. */
@@ -3908,6 +3917,19 @@ struct LEX : public Query_tables_list {
   */
   uint8 context_analysis_only;
   bool drop_if_exists;
+  /**
+    refers to optional IF EXISTS clause in REVOKE sql. This flag when set to
+    true will report warnings in case privilege being granted is not granted to
+    given user/role. When set to false error is reported.
+  */
+  bool grant_if_exists;
+  /**
+    refers to optional IGNORE UNKNOWN USER clause in REVOKE sql. This flag when
+    set to true will report warnings in case target user/role for which
+    privilege being granted does not exists. When set to false error is
+    reported.
+  */
+  bool ignore_unknown_user;
   bool drop_temporary;
   bool autocommit;
   bool verbose, no_write_to_binlog;

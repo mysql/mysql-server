@@ -5,7 +5,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set collation_connection=utf8_unicode_ci;
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 select 'a' = 'a', 'a' = 'a ', 'a ' = 'a';
 'a' = 'a'	'a' = 'a '	'a ' = 'a'
 1	1	1
@@ -30,7 +30,7 @@ want0
 create table t1 (c1 char(10) character set utf8 collate utf8_bin);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('A'),('a');
 insert into t1 values ('B'),('b');
 insert into t1 values ('C'),('c');
@@ -5523,7 +5523,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE utf8_general_ci, INDEX (c));
 Warnings:
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B403B11F770308 USING utf8));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -5572,7 +5572,7 @@ Warning	1287	'ucs2' is deprecated and will be removed in a future release. Pleas
 DROP TABLE t1;
 CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE utf8_unicode_ci, INDEX (c));
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B403B11F770308 USING utf8));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -6532,7 +6532,7 @@ offs INT NOT NULL
 );
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES
 (_ucs2 0x066D, 1),(_ucs2 0x064E, 2),(_ucs2 0xFE76, 3),(_ucs2 0xFE77, 4),
 (_ucs2 0x0650, 5),(_ucs2 0xFE7A, 6),(_ucs2 0xFE7B, 7),(_ucs2 0x064F, 8),
@@ -6771,13 +6771,13 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET collation_server= @test_collation;
 Warnings:
-Warning	3778	'utf8_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE DATABASE d1;
 USE d1;
 CREATE TABLE t1 (c CHAR(10), KEY(c));
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-c	char(10)	utf8_swedish_ci	YES	MUL	NULL			
+c	char(10)	utf8mb3_swedish_ci	YES	MUL	NULL			
 INSERT INTO t1 VALUES ('aaa'),('aaaa'),('aaaaa');
 SELECT c as want3results FROM t1 WHERE c LIKE 'aaa%';
 want3results
@@ -6788,7 +6788,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 varchar(15), KEY c1 (c1(2)));
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-c1	varchar(15)	utf8_swedish_ci	YES	MUL	NULL			
+c1	varchar(15)	utf8mb3_swedish_ci	YES	MUL	NULL			
 INSERT INTO t1 VALUES ('location'),('loberge'),('lotre'),('boabab');
 SELECT c1 as want3results from t1 where c1 like 'l%';
 want3results
@@ -6845,9 +6845,9 @@ level smallint unsigned);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `name` varchar(10) COLLATE utf8_swedish_ci DEFAULT NULL,
+  `name` varchar(10) COLLATE utf8mb3_swedish_ci DEFAULT NULL,
   `level` smallint unsigned DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_swedish_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_swedish_ci
 insert into t1 values ('string',1);
 select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
 concat(name,space(level))	concat(name, repeat(' ',level))
@@ -6866,7 +6866,7 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 create table t1 (a varchar(1)) character set utf8 collate utf8_estonian_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('A'),('B'),('C'),('a'),('b'),('c');
 select a, a regexp '[a]' from t1 order by binary a;
 a	a regexp '[a]'
@@ -6881,19 +6881,19 @@ Warning	1287	'BINARY expr' is deprecated and will be removed in a future release
 drop table t1;
 SET collation_connection='utf8_unicode_ci';
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 create table t1 select repeat('a',4000) a;
 delete from t1;
 insert into t1 values ('a'), ('a '), ('a\t');
 select collation(a),hex(a) from t1 order by a;
 collation(a)	hex(a)
-utf8_unicode_ci	6109
-utf8_unicode_ci	61
-utf8_unicode_ci	6120
+utf8mb3_unicode_ci	6109
+utf8mb3_unicode_ci	61
+utf8mb3_unicode_ci	6120
 drop table t1;
 select @@collation_connection;
 @@collation_connection
-utf8_unicode_ci
+utf8mb3_unicode_ci
 create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
 insert into t1 values('abcdef');
 insert into t1 values('_bcdef');
@@ -6914,7 +6914,7 @@ drop table if exists t1;
 create table t1 as select repeat(' ', 64) as s1;
 select collation(s1) from t1;
 collation(s1)
-utf8_unicode_ci
+utf8mb3_unicode_ci
 delete from t1;
 INSERT INTO t1 VALUES ('ud'),('uf');
 INSERT INTO t1 VALUES ('od'),('of');
@@ -7037,7 +7037,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 ALTER TABLE t1 MODIFY a VARCHAR(30) character set utf8 collate utf8_turkish_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT a, length(a) la, @l:=lower(a) l, length(@l) ll, @u:=upper(a) u, length(@u) lu
 FROM t1 ORDER BY id;
 a	la	l	ll	u	lu
@@ -7060,7 +7060,7 @@ key a(a)
 ) character set utf8 collate utf8_danish_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('åaaaa'),('ååaaa'),('aaaaa');
 select a as like_a from t1 where a like 'a%';
 like_a
@@ -7103,7 +7103,7 @@ key(a)
 ) character set utf8 collate utf8_spanish2_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('aaaaa'),('lllll'),('zzzzz');
 select a as like_l from t1 where a like 'l%';
 like_l
@@ -7146,7 +7146,7 @@ key a(a)
 ) character set utf8 collate utf8_czech_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values
 ('b'),('c'),('d'),('e'),('f'),('g'),('h'),('ch'),('i'),('j');
 select * from t1 where a like 'c%';
@@ -7235,10 +7235,10 @@ End of 5.1 tests
 #
 SET collation_connection=utf8_czech_ci;
 Warnings:
-Warning	3778	'utf8_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@collation_connection;
 @@collation_connection
-utf8_czech_ci
+utf8mb3_czech_ci
 #
 # Bug#57737 Character sets: search fails with like, contraction, index
 #
@@ -7264,7 +7264,7 @@ ch
 DROP TABLE t1;
 SELECT @@collation_connection;
 @@collation_connection
-utf8_czech_ci
+utf8mb3_czech_ci
 #
 # Bug#57737 Character sets: search fails with like, contraction, index
 # Part#2 - ignorable characters
@@ -7490,10 +7490,10 @@ hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 0E230E230E2302090209020902090209020902090209020902
 set @@collation_connection=utf8_unicode_ci;
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 select @@collation_connection;
 @@collation_connection
-utf8_unicode_ci
+utf8mb3_unicode_ci
 select hex(weight_string('a'));
 hex(weight_string('a'))
 0E33
@@ -7568,7 +7568,7 @@ hex(weight_string('abc',25, 4, 0xC0))
 0E330E4A0E6002090209020902090209020902090209020902
 select @@collation_connection;
 @@collation_connection
-utf8_unicode_ci
+utf8mb3_unicode_ci
 select hex(weight_string(cast(_latin1 0x80 as char)));
 hex(weight_string(cast(_latin1 0x80 as char)))
 0E23
@@ -7640,13 +7640,13 @@ hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 0E230E230E2302090209020902090209020902090209020902
 set @@collation_connection=utf8_czech_ci;
 Warnings:
-Warning	3778	'utf8_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 select @@collation_connection;
 @@collation_connection
-utf8_czech_ci
+utf8mb3_czech_ci
 select collation(cast(_latin1 0xDF as char));
 collation(cast(_latin1 0xDF as char))
-utf8_czech_ci
+utf8mb3_czech_ci
 select hex(weight_string('s'));
 hex(weight_string('s'))
 0FEA
@@ -7949,7 +7949,7 @@ FFFD
 #
 CREATE TABLE t1 (s1 VARCHAR(10) COLLATE utf8_german2_ci);
 Warnings:
-Warning	3778	'utf8_german2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_german2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES ('a'),('ae'),('af');
 SELECT s1,hex(s1),hex(weight_string(s1)) FROM t1 ORDER BY s1;
 s1	hex(s1)	hex(weight_string(s1))
@@ -7962,13 +7962,13 @@ DROP TABLE t1;
 #
 SET collation_connection=utf8_german2_ci;
 Warnings:
-Warning	3778	'utf8_german2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_german2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 "BEGIN ctype_german.inc"
 drop table if exists t1;
 create table t1 as select repeat(' ', 64) as s1;
 select collation(s1) from t1;
 collation(s1)
-utf8_german2_ci
+utf8mb3_german2_ci
 delete from t1;
 INSERT INTO t1 VALUES ('ud'),('uf');
 INSERT INTO t1 VALUES ('od'),('of');

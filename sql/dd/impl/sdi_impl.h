@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,7 @@ void track_object(Sdi_rcontext *rctx, Index *index_object);
 
 /**
   Return an non-owning raw pointer to the deserialized Index object
-  with ordinal postion index opx (ordinal position opx+1). The unused
+  with ordinal position index opx (ordinal position opx+1). The unused
   const Index* argument is needed for overload resolution.
 
   @param rctx opaque context
@@ -150,7 +150,7 @@ Index *get_by_opx(Sdi_rcontext *rctx, const Index *, uint opx);
 
 /**
   Return an non-owning raw pointer to the deserialized Column object
-  with ordinal postion index opx (ordinal position opx+1). The unused
+  with ordinal position index opx (ordinal position opx+1). The unused
   const Column* argument is needed for overload resolution.
 
   @param rctx opaque context
@@ -228,7 +228,7 @@ typedef dd_vector<char, 32> Byte_buffer;
 
   Defines function templates for writing a "bare" (without the key) json value.
   Each definition is overloaded on the second argument (which isn't a template
-  argument) to handle each builtin type that has a corrsponding rapidjson type.
+  argument) to handle each builtin type that has a corresponding rapidjson type.
   @{
 */
 

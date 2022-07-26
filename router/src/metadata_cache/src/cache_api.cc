@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -154,9 +154,15 @@ void MetadataCacheAPI::cache_start() {
  * Teardown the metadata cache
  */
 void MetadataCacheAPI::cache_stop() noexcept {
-  std::lock_guard<std::mutex> lock(g_metadata_cache_m);
-
-  if (g_metadata_cache)  // might be NULL if cache_init() failed very early
+  // cache_init() and cache_start() SHOULD BE called from the same thread.
+  // That allows for imporant assumptions here:
+  // 1) if g_metadata_cache is not nullptr it is fully constructed and
+  //    initialized
+  // 2) concurrent call to cache_start() is not possible
+  // That allows us not to lock g_metadata_cache_m here, which would not be a
+  // great idea since stop() is pretty heavy, it notifies the refresh thread and
+  // waits for it to finish (plus locks some mutexes internally)
+  if (g_metadata_cache)  // might be nullptr if cache_init() failed very early
     g_metadata_cache->stop();
 }
 

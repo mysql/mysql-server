@@ -29,7 +29,7 @@
   Note that we can't have assertion on file descriptors;  The reason for
   this is that during mysql shutdown, another thread can close a file
   we are working on.  In this case we should just return read errors from
-  the file descriptior.
+  the file descriptor.
 */
 
 #include <errno.h>
@@ -58,7 +58,7 @@
   after the data is compressed right before the data is written to
   the network layer.
 
-  The TLS suppport is announced in
+  The TLS support is announced in
   @ref page_protocol_connection_phase_packets_protocol_handshake sent by the
   server via ::CLIENT_SSL and is enabled if the client returns the same
   capability.
@@ -129,7 +129,11 @@ static void report_errors(SSL *ssl) {
 
   DBUG_TRACE;
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  while ((l = ERR_get_error_all(&file, &line, nullptr, &data, &flags))) {
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   while ((l = ERR_get_error_line_data(&file, &line, &data, &flags))) {
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l, buf),
                          file, line, (flags & ERR_TXT_STRING) ? data : ""));
   }
@@ -262,6 +266,11 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
 
   DBUG_TRACE;
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
+  // TODO: find out which of the openssl 3 functions makes this a requirement
+  ERR_clear_error();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
   while (true) {
     enum enum_vio_io_event event;
 
@@ -303,6 +312,11 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
   unsigned long ssl_errno_not_used;
 
   DBUG_TRACE;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
+  // TODO: find out which of the openssl 3 functions makes this a requirement
+  ERR_clear_error();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   while (true) {
     enum enum_vio_io_event event;
@@ -350,7 +364,7 @@ int vio_ssl_shutdown(Vio *vio) {
     alert on socket shutdown to avoid truncation attacks. However, this can
     cause problems since we often hold a lock during shutdown and this IO can
     take an unbounded amount of time to complete. Since our packets are self
-    describing with length, we aren't vunerable to these attacks. Therefore,
+    describing with length, we aren't vulnerable to these attacks. Therefore,
     we just shutdown by closing the socket (quiet shutdown).
     */
     SSL_set_quiet_shutdown(ssl, 1);
@@ -415,6 +429,11 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
   size_t ret = -1;
 
   vio->ssl_arg = ssl;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
+  // TODO: find out which of the openssl 3 functions makes this a requirement
+  ERR_clear_error();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   /* Initiate the SSL handshake. */
   while (true) {

@@ -171,7 +171,7 @@ bool Event_creation_ctx::create_event_creation_ctx(
 /*************************************************************************/
 
 /*
-  Initiliazes dbname and name of an Event_queue_element_for_exec
+  Initializes dbname and name of an Event_queue_element_for_exec
   object
 
   SYNOPSIS
@@ -1043,10 +1043,15 @@ bool Event_job_data::execute(THD *thd, bool drop) {
     In case the definer user has SYSTEM_USER privilege then make THD
     non-killable through the users who do not have SYSTEM_USER privilege,
     OR vice-versa.
-    Note - Do not forget to reset the flag after the saved security context is
-           restored.
+    Recalculate the connection_admin flag state as well (CONNECTION_ADMIN
+    privilege).
+    Note - Do not forget to reset the flags after the saved security
+    context is restored.
   */
-  if (save_sctx) set_system_user_flag(thd);
+  if (save_sctx) {
+    set_system_user_flag(thd);
+    set_connection_admin_flag(thd);
+  }
 
   if (check_access(thd, EVENT_ACL, m_schema_name.str, nullptr, nullptr, false,
                    false)) {
@@ -1061,8 +1066,6 @@ bool Event_job_data::execute(THD *thd, bool drop) {
     goto end;
   }
 
-  if (construct_sp_sql(thd, &sp_sql)) goto end;
-
   /*
     Set up global thread attributes to reflect the properties of
     this Event. We can simply reset these instead of usual
@@ -1073,6 +1076,33 @@ bool Event_job_data::execute(THD *thd, bool drop) {
 
   thd->variables.sql_mode = m_sql_mode;
   thd->variables.time_zone = m_time_zone;
+
+  if (construct_sp_sql(thd, &sp_sql)) goto end;
+
+  /*
+    If enabled, log the quoted form to performance_schema.error_log.
+    We enclose it in faux guillemets to differentiate the enclosing
+    quotation seen in the log from the SQL-level quotation from
+    construct_sp_sql()'s (which calls append_identifier() in sql_show,
+    and thus ultimately get_quote_char_for_identifier() which evaluates
+    thd->variables.sql_mode & MODE_ANSI_QUOTES).
+
+    We're logging with a priority of SYSTEM_LEVEL so we won't have to
+    worry abot log_error_verbosity. (ERROR_LEVEL would also achieve
+    that, but then mysql-test-run.pl would rightfully complain about
+    the error in the log.)
+  */
+  DBUG_EXECUTE_IF("log_event_query_string", {
+    LEX_STRING sm1;
+    LEX_STRING sm2;
+    sql_mode_string_representation(thd, thd->variables.sql_mode, &sm1);
+    sql_mode_string_representation(thd, m_sql_mode, &sm2);
+    LogEvent()
+        .errcode(ER_CONDITIONAL_DEBUG)
+        .prio(SYSTEM_LEVEL)
+        .message("Query string to be compiled: \"%s\"/\"%s\" >>%s<<\n", sm1.str,
+                 sm2.str, sp_sql.c_ptr_safe());
+  });
 
   thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
 
@@ -1173,8 +1203,9 @@ end:
 
   if (save_sctx) {
     event_sctx.restore_security_context(thd, save_sctx);
-    /* Restore the original value in THD */
+    /* Restore the original values in THD */
     set_system_user_flag(thd);
+    set_connection_admin_flag(thd);
   }
 
   thd->lex->cleanup(thd, true);

@@ -2481,6 +2481,8 @@ DROP TABLE t0;
 
 CREATE TABLE t0(c0 DECIMAL);
 INSERT INTO t0 VALUES(NULL);
+--skip_if_hypergraph  # Does not raise error. (Neither does the old optimizer
+                      # if the query is changed to use multi-table syntax.)
 --error ER_TRUNCATED_WRONG_VALUE
 UPDATE t0 SET c0 = 1 WHERE (t0.c0 IS NULL)>>('' COLLATE 'utf8mb4_0900_ai_ci');
 DROP TABLE t0;

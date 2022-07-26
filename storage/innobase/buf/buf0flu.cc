@@ -52,7 +52,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "fsp0sysspace.h"
 #include "ibuf0ibuf.h"
-#include "log0log.h"
+#include "log0buf.h"
+#include "log0chkp.h"
+#include "log0write.h"
 #include "my_compiler.h"
 #include "os0file.h"
 #include "os0thread-create.h"
@@ -218,7 +220,7 @@ static void buf_flush_sync_datafiles() {
   os_aio_wait_until_no_pending_writes();
 
   /* Now we flush the data to disk (for example, with fsync) */
-  fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+  fil_flush_file_spaces();
 }
 
 /** Thread tasked with flushing dirty pages from the buffer pools.
@@ -526,7 +528,7 @@ void buf_flush_insert_into_flush_list(
     /* This is no-redo dirtied page. Borrow the lsn. */
     lsn = buf_flush_borrow_lsn(buf_pool);
 
-    ut_ad(log_lsn_validate(lsn));
+    ut_ad(log_is_data_lsn(lsn));
 
     /* This page could already be no-redo dirtied before,
     and flushed since then. Also the page from which we
@@ -556,7 +558,7 @@ void buf_flush_insert_into_flush_list(
         std::max(lsn, log_sys->flushed_to_disk_lsn.load()));
   }
 
-  ut_ad(log_lsn_validate(lsn));
+  ut_ad(log_is_data_lsn(lsn));
   ut_ad(!block->page.is_dirty());
   ut_ad(block->page.get_newest_lsn() >= lsn);
 
@@ -938,7 +940,7 @@ void buf_flush_write_complete(buf_page_t *bpage) {
 
   mutex_exit(&buf_pool->flush_state_mutex);
 
-  if (!fsp_is_system_temporary(bpage->id.space()) && dblwr::enabled) {
+  if (!fsp_is_system_temporary(bpage->id.space()) && dblwr::is_enabled()) {
     dblwr::write_complete(bpage, flush_type);
   }
 }
@@ -1371,7 +1373,7 @@ bool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
 
     if (flush_type == BUF_FLUSH_LIST && is_uncompressed &&
         !rw_lock_sx_lock_nowait(rw_lock, BUF_IO_WRITE, UT_LOCATION_HERE)) {
-      if (!fsp_is_system_temporary(bpage->id.space()) && dblwr::enabled) {
+      if (!fsp_is_system_temporary(bpage->id.space()) && dblwr::is_enabled()) {
         dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
       } else {
         buf_flush_sync_datafiles();
@@ -2042,7 +2044,7 @@ static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
   mutex_exit(&buf_pool->flush_state_mutex);
 
   if (!srv_read_only_mode) {
-    if (dblwr::enabled) {
+    if (dblwr::is_enabled()) {
       dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
     } else {
       buf_flush_sync_datafiles();
@@ -2510,19 +2512,24 @@ ulint get_pct_for_dirty() {
  @return percent of io_capacity to flush to manage redo space */
 ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
 {
-  const lsn_t log_capacity = log_get_free_check_capacity(*log_sys);
+  ut_a(log_sys != nullptr);
+  log_t &log = *log_sys;
 
-  lsn_t lsn_age_factor;
-  lsn_t af_lwm = (srv_adaptive_flushing_lwm * log_capacity) / 100;
+  lsn_t limit_for_free_check;
+  lsn_t limit_for_dirty_page_age;
+
+  log_files_capacity_get_limits(log, limit_for_free_check,
+                                limit_for_dirty_page_age);
+
+  double lsn_age_factor;
+  lsn_t af_lwm = (srv_adaptive_flushing_lwm * limit_for_free_check) / 100;
 
   if (age < af_lwm) {
     /* No adaptive flushing. */
     return (0);
   }
 
-  const auto limit_for_age = log_get_max_modified_age_async(*log_sys);
-
-  if (age < limit_for_age && !srv_adaptive_flushing) {
+  if (age < limit_for_dirty_page_age && !srv_adaptive_flushing) {
     /* We have still not reached the max_async point and
     the user has disabled adaptive flushing. */
     return (0);
@@ -2531,13 +2538,13 @@ ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   /* If we are here then we know that either:
   1) User has enabled adaptive flushing
   2) User may have disabled adaptive flushing but we have reached
-  max_async_age. */
-  lsn_age_factor = (age * 100) / limit_for_age;
+  limit_for_dirty_page_age. */
+  lsn_age_factor = (age * 100.0) / limit_for_dirty_page_age;
 
   ut_ad(srv_max_io_capacity >= srv_io_capacity);
 
   return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
-                              (lsn_age_factor * sqrt((double)lsn_age_factor))) /
+                              (lsn_age_factor * sqrt(lsn_age_factor))) /
                              7.5));
 }
 
@@ -3469,7 +3476,7 @@ static void buf_flush_page_coordinator_thread() {
   and the purge threads may be working as well. We start flushing
   the buffer pool but can't be sure that no new pages are being
   dirtied until we enter SRV_SHUTDOWN_FLUSH_PHASE phase which is
-  the last phase (mean while we visit SRV_SHUTDOWN_MASTER_STOP).
+  the last phase (meanwhile we visit SRV_SHUTDOWN_MASTER_STOP).
 
   Note, that if we are handling fatal error, we set the state
   directly to EXIT_THREADS in which case we also might exit the loop
@@ -3555,9 +3562,10 @@ static void buf_flush_page_coordinator_thread() {
 
   /* Mark that it is safe to recover as we have already flushed all dirty
   pages in buffer pools. */
-  if (mtr_t::s_logging.is_disabled()) {
+  if (mtr_t::s_logging.is_disabled() && !srv_read_only_mode) {
     log_persist_crash_safe(*log_sys);
   }
+  log_crash_safe_validate(*log_sys);
 
   /* We have lived our life. Time to die. */
 
@@ -3597,10 +3605,35 @@ static void buf_flush_page_cleaner_thread() {
   }
 }
 
+void buf_flush_fsync() {
+#ifdef _WIN32
+  switch (srv_win_file_flush_method) {
+    case SRV_WIN_IO_UNBUFFERED:
+      break;
+    case SRV_WIN_IO_NORMAL:
+      fil_flush_file_spaces();
+      break;
+  }
+#else  /* !_WIN32 */
+  switch (srv_unix_file_flush_method) {
+    case SRV_UNIX_NOSYNC:
+      break;
+    case SRV_UNIX_O_DSYNC:
+      /* O_SYNC is respected only for redo files and we need to
+      flush data files here. For details look inside os0file.cc. */
+    case SRV_UNIX_FSYNC:
+    case SRV_UNIX_LITTLESYNC:
+    case SRV_UNIX_O_DIRECT:
+    case SRV_UNIX_O_DIRECT_NO_FSYNC:
+      fil_flush_file_spaces();
+  }
+#endif /* _WIN32 */
+}
+
 /** Synchronously flush dirty blocks from the end of the flush list of all
  buffer pool instances. NOTE: The calling thread is not allowed to own any
  latches on pages! */
-void buf_flush_sync_all_buf_pools(void) {
+void buf_flush_sync_all_buf_pools() {
   bool success;
   ulint n_pages;
   do {
@@ -3618,6 +3651,10 @@ void buf_flush_sync_all_buf_pools(void) {
   } while (!success);
 
   ut_a(success);
+
+  /* All pages have been written to disk, but we need to make fsync for files
+  to which the writes have been made. */
+  buf_flush_fsync();
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG

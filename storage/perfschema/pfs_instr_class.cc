@@ -1069,7 +1069,7 @@ static void configure_instr_class(PFS_instr_class *entry) {
     return;
   }
   Pfs_instr_config_array::iterator it = pfs_instr_config_array->begin();
-  for (; it != pfs_instr_config_array->end(); it++) {
+  for (; it != pfs_instr_config_array->end(); ++it) {
     PFS_instr_config *e = *it;
 
     /**

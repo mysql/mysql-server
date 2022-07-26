@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,7 @@
   elapsed_time= (time2 - time1) - overhead
 */
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "my_config.h"
@@ -167,6 +168,12 @@ ulonglong my_timer_cycles(void) {
   {
     ulonglong result;
     __asm __volatile__("mrs %[rt],cntvct_el0" : [ rt ] "=r"(result));
+    return result;
+  }
+#elif defined(__GNUC__) && defined(__s390x__)
+  {
+    uint64_t result;
+    __asm __volatile__("stck %0" : "=Q"(result) : : "cc");
     return result;
   }
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
@@ -497,6 +504,8 @@ void my_timer_init(MY_TIMER_INFO *mti) {
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_GCC_SPARC64;
 #elif defined(__GNUC__) && defined(__aarch64__)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_AARCH64;
+#elif defined(__GNUC__) && defined(__s390x__)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_S390X;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   mti->cycles.routine = MY_TIMER_ROUTINE_GETHRTIME;
 #elif defined(_M_ARM64)
@@ -913,10 +922,10 @@ void my_timer_init(MY_TIMER_INFO *mti) {
    Any clock-based timer can be affected by NPT (ntpd program),
    which means:
    - full-second correction can occur for leap second
-   - tiny corrections can occcur approimately every 11 minutes
-     (but I think they only affect the RTC which isn't the PIT).
+   - tiny corrections can occur approimately every 11 minutes
+     (but they only affect the RTC which isn't the PIT).
 
-   We define "precision" as "frequency" and "high precision" is
+   We define "precision" as "frequency" and "high precision" as
    "frequency better than 1 microsecond". We define "resolution"
    as a synonym for "granularity". We define "accuracy" as
    "closeness to the truth" as established by some authoritative

@@ -144,10 +144,12 @@ class SysTablespace : public Tablespace {
   page_no_t get_increment() const;
 
   /** Open or create the data files
-  @param[in]  is_temp           whether this is a temporary tablespace
-  @param[in]  create_new_db     whether we are creating a new database
-  @param[out] sum_new_sizes     sum of sizes of the new files added
-  @param[out] flush_lsn         FIL_PAGE_FILE_FLUSH_LSN of first file
+  @param[in]  is_temp         whether this is a temporary tablespace
+  @param[in]  create_new_db   whether we are creating a new database
+  @param[out] sum_new_sizes   sum of sizes of the new files added
+  @param[out] flush_lsn       lsn stored at offset FIL_PAGE_FILE_FLUSH_LSN
+                              in the system tablespace header; might be
+                              nullptr if not interested in having that
   @return DB_SUCCESS or error code */
   [[nodiscard]] dberr_t open_or_create(bool is_temp, bool create_new_db,
                                        page_no_t *sum_new_sizes,
@@ -155,7 +157,7 @@ class SysTablespace : public Tablespace {
 
  private:
   /** Check the tablespace header for this tablespace.
-  @param[out]   flushed_lsn     the value of FIL_PAGE_FILE_FLUSH_LSN
+  @param[out]   flushed_lsn     value stored at offset FIL_PAGE_FILE_FLUSH_LSN
   @return DB_SUCCESS or error code */
   dberr_t read_lsn_and_check_flags(lsn_t *flushed_lsn);
 

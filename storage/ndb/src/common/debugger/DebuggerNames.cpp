@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,11 +131,6 @@ getSignalName(unsigned short gsn, const char * defVal){
   if(gsn > 0 && gsn <= MAX_GSN)
     return (localSignalNames[gsn] ? localSignalNames[gsn] : defVal);
   return defVal;
-}
-
-unsigned short
-getGsn(const char * signalName){
-  return 0;
 }
 
 const char * 

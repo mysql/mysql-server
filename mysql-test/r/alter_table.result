@@ -1055,7 +1055,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` text CHARACTER SET utf8mb3 COLLATE utf8_general_ci
+  `a` text CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 drop table t1;
 create table t1 (a mediumtext character set latin1);
@@ -1065,7 +1065,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` longtext CHARACTER SET utf8mb3 COLLATE utf8_general_ci
+  `a` longtext CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 drop table t1;
 End of 5.0 tests

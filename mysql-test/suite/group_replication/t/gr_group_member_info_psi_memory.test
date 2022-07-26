@@ -1,0 +1,87 @@
+###############################################################################
+# This test verifies following for 'group_member_info' event name:
+# - Verify that entries corresponding to the 'group_member_info'
+#   performance schema instrumented memory are in the memory table only during
+#   the execution of the group replication plugin.
+# - Verify that the sum of bytes allocated is greater than zero for a
+#   transaction and zero after transaction is finished.
+#
+# Test:
+# 0. The test requires one Server: M1
+# 1. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables.
+# 2. Verify that the sum of bytes allocated is greater than zero.
+# 3. Stop GR.
+# 4. Verify that the entries corresponding to the instrumented
+#    group_member_info remain in the tables after uninstalling GR.
+# 5. Assert that the number of bytes allocated for
+#    group_member_info event must be 0.
+# 6. Clean up.
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Verify that the entries corresponding to the
+--echo #    instrumented memory are in the setup instruments
+--echo #    table and the memory summary tables.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/group_member_info';
+--let $assert_text= 'There should be 1 entry corresponding to the group_member_info in the setup_instruments table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/group_member_info"
+--source include/assert.inc
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/group_member_info';
+--let $assert_text= 'There should be 1 entry corresponding to the group_member_info in the memory_summary_global_by_event_name table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/group_member_info"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Verify that the sum of bytes allocated is greater than
+--echo #    zero.
+--let $assert_text= 'The sum bytes allocated must be greater than 0'
+--let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/group_member_info"] > 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Stop GR
+--source include/stop_group_replication.inc
+--source include/uninstall_group_replication_plugin.inc
+
+
+--echo
+--echo ##############################################################
+--echo # 4. Verify that the entries corresponding to the instrumented
+--echo #    group_member_info remain in the tables after uninstalling GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/group_member_info';
+--let $assert_text= 'There should be 1 entry corresponding to the group_member_info in the setup_instruments table after uninstalling GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/group_member_info"
+--source include/assert.inc
+
+SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/group_member_info';
+--let $assert_text= 'There should be 1 entry corresponding to the group_member_info in the memory_summary_global_by_event_name table after uninstalling GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/group_member_info"
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 5. Assert that the number of bytes allocated for
+--echo #    group_member_info event must be 0.
+--let $assert_text= 'The sum of bytes allocated must be zero after uninstalling GR'
+--let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/group_member_info"
+--source include/assert.inc
+
+--echo
+--echo #################################################################
+--echo # 6. Clean up.
+--source include/install_group_replication_plugin.inc
+--source include/group_replication_end.inc

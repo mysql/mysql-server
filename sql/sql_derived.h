@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ class Condition_pushdown {
   bool push_past_group_by();
   bool attach_cond_to_derived(Item *derived_cond, Item *cond_to_attach,
                               bool having);
-  void update_between_count(Item *cond);
+  void update_cond_count(Item *cond);
   void check_and_remove_sj_exprs(Item *cond);
   void remove_sj_exprs(Item *cond, NESTED_JOIN *sj_nest);
 

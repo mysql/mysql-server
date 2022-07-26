@@ -138,6 +138,9 @@ class MySQLRoutingConnectionBase {
   std::function<void(MySQLRoutingConnectionBase *)> remove_callback_;
 
   Monitor<Stats> stats_{{}};
+
+  bool disconnect_{false};
+  std::mutex disconnect_mtx_;
 };
 
 class ConnectorBase {

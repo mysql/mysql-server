@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -407,7 +407,7 @@ struct Tup_fixsize_page
     {
       Uint32 sum_small_maps =
         m_change_map[0] + m_change_map[1] + m_change_map[2] + m_change_map[3];
-      assert(sum_small_maps == 0);
+      require(sum_small_maps == 0);
     }
 #endif
     return (map_val != 0);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,7 +208,7 @@ void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
     if (key_part->key_part_flag & HA_BLOB_PART) {
       /*
         This in fact never happens, as we have only partial BLOB
-        keys yet anyway, so it's difficult to find any sence to
+        keys yet anyway, so it's difficult to find any reason to
         restore the part of a record.
         Maybe this branch is to be removed, but now we
         have to ignore GCov compaining.

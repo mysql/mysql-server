@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include <atomic>
 #include <cstring>
 #include <mutex>
+#include <optional>
 #include <thread>
 
 using mysql_harness::Path;
@@ -43,8 +44,7 @@ static constexpr auto kDefaultExpectOutputTimeout =
 
 // wait-timeout should be less than infinite, and long enough that even with
 // valgrind we properly pass the tests
-static constexpr auto kDefaultWaitForExitTimeout =
-    std::chrono::milliseconds(10000);
+static constexpr auto kDefaultWaitForExitTimeout = std::chrono::seconds(30);
 
 static constexpr size_t kReadBufSize = 1024;
 
@@ -97,16 +97,13 @@ class ProcessWrapper {
    * given process is using
    * @param file_path path to the logfile, use "" for default path that the
    * component test is using
+   * @param lines_limit maximum numbers of lines that should be returned; if 0
+   * return all lines; if greater than 0 only return limit/2 beginning lines and
+   * limit/2 ending lines
    */
-  std::string get_full_logfile(const std::string &file_name = "",
-                               const std::string &file_path = "") const {
-    const std::string path = file_path.empty() ? logging_dir_ : file_path;
-    const std::string name = file_name.empty() ? logging_file_ : file_name;
-
-    if (name.empty()) return "";
-
-    return get_file_output(name, path);
-  }
+  std::string get_logfile_content(const std::string &file_name = "",
+                                  const std::string &file_path = "",
+                                  size_t lines_limit = 0) const;
 
   /**
    * get the current output of the process.
@@ -125,19 +122,35 @@ class ProcessWrapper {
    *
    * @returns exit code of the process
    */
-  int exit_code() {
-    if (!exit_code_set_) {
+  mysql_harness::ProcessLauncher::exit_status_type native_exit_code() {
+    if (!exit_status_) {
       throw std::runtime_error(
           "RouterComponentTest::Command_handle: exit_code() called without "
           "wait_for_exit()!");
     }
-    return exit_code_;
+    return *exit_status_;
   }
 
+  int exit_code() {
+    if (!exit_status_) {
+      throw std::runtime_error(
+          "RouterComponentTest::Command_handle: exit_code() called without "
+          "wait_for_exit()!");
+    }
+
+    if (auto code = exit_status_->exited()) {
+      return *code;
+    } else {
+      throw std::runtime_error("signal or so.");
+    }
+  }
+
+  bool has_exit_code() const { return exit_status_.has_value(); }
+
   /** @brief Waits for the process to exit, while reading its output and
-   * autoresponding to prompts
+   * autoresponding to prompts.
    *
-   *  If the process did not finish yet, it waits the given number of
+   * If the process did not finish yet, it waits the given number of
    * milliseconds. If the timeout expired, it throws runtime_error. In case of
    * failure, it throws system_error.
    *
@@ -149,6 +162,9 @@ class ProcessWrapper {
   int wait_for_exit(
       std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout);
 
+  mysql_harness::ProcessLauncher::exit_status_type native_wait_for_exit(
+      std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout);
+
   /** @brief Returns process PID
    *
    * @returns PID of the process
@@ -158,6 +174,8 @@ class ProcessWrapper {
   std::string get_command_line() { return launcher_.get_cmd_line(); }
 
   int kill();
+
+  mysql_harness::ProcessLauncher::exit_status_type native_kill();
 
   std::error_code send_shutdown_event(
       mysql_harness::ProcessLauncher::ShutdownEvent event =
@@ -233,8 +251,7 @@ class ProcessWrapper {
   std::string execute_output_raw_;
   std::string last_line_read_;
   OutputResponder output_responder_;
-  int exit_code_;
-  bool exit_code_set_{false};
+  std::optional<mysql_harness::ProcessLauncher::exit_status_type> exit_status_;
 
   std::string logging_dir_;
   std::string logging_file_;

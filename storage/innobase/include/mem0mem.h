@@ -115,7 +115,6 @@ static inline uint64_t MEM_SPACE_NEEDED(uint64_t N) {
 }
 
 /** Creates a memory heap.
-NOTE: Use the corresponding macros instead of this function.
 A single user buffer of 'size' will fit in the block.
 0 creates a default size block.
 @param[in]      size            Desired start block size.
@@ -123,30 +122,10 @@ A single user buffer of 'size' will fit in the block.
 @param[in]      type            Heap type
 @return own: memory heap, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-static inline mem_heap_t *mem_heap_create_func(ulint size,
-                                               IF_DEBUG(ut::Location loc, )
-                                                   ulint type);
-
-/** Macro for memory heap creation.
-@param[in]      size            Desired start block size.
-@param[in]      loc             Location where called. */
-static inline mem_heap_t *mem_heap_create(ulint size, ut::Location loc) {
-  return mem_heap_create_func(size, IF_DEBUG(loc, ) MEM_HEAP_DYNAMIC);
-}
-
-/** Macro for memory heap creation.
-@param[in]      size            Desired start block size.
-@param[in]      loc             Location where called
-@param[in]      type            Heap type */
-static inline mem_heap_t *mem_heap_create_typed(ulint size,
-                                                ut::Location loc
-                                                [[maybe_unused]],
-                                                ulint type) {
-  return mem_heap_create_func(size, IF_DEBUG(loc, ) type);
-}
+static inline mem_heap_t *mem_heap_create(ulint size, ut::Location loc,
+                                          ulint type = MEM_HEAP_DYNAMIC);
 
 /** Frees the space occupied by a memory heap.
-NOTE: Use the corresponding macro instead of this function.
 @param[in]      heap    Heap to be freed */
 static inline void mem_heap_free(mem_heap_t *heap);
 
@@ -318,11 +297,14 @@ void mem_heap_validate(const mem_heap_t *heap);
 
 /** The info structure stored at the beginning of a heap block */
 struct mem_block_info_t {
-  uint64_t magic_n; /* magic number for debugging */
+  /** magic number for debugging */
+  uint64_t magic_n;
 #ifdef UNIV_DEBUG
-  char file_name[16]; /* file name where the mem heap was created */
-  ulint line;         /*!< line number where the mem heap was created */
-#endif                /* UNIV_DEBUG */
+  /** file name where the mem heap was created */
+  char file_name[16];
+  /** line number where the mem heap was created */
+  ulint line;
+#endif /* UNIV_DEBUG */
   /** This contains pointers to next and prev in the list. The first block
   allocated to the heap is also the first block in this list,
   though it also contains the base node of the list.*/
@@ -330,26 +312,25 @@ struct mem_block_info_t {
   /** In the first block of the list this is the base node of the list of
   blocks; in subsequent blocks this is undefined */
   UT_LIST_BASE_NODE_T_EXTERN(mem_block_t, list) base;
-  ulint len;        /*!< physical length of this block in bytes */
-  ulint total_size; /*!< physical length in bytes of all blocks
-                in the heap. This is defined only in the base
-                node and is set to ULINT_UNDEFINED in others. */
-  ulint type;       /*!< type of heap: MEM_HEAP_DYNAMIC, or
-                    MEM_HEAP_BUF possibly ORed to MEM_HEAP_BTR_SEARCH */
-  ulint free;       /*!< offset in bytes of the first free position for
-                    user data in the block */
-  ulint start;      /*!< the value of the struct field 'free' at the
-                    creation of the block */
-  void *free_block;
-  /* if the MEM_HEAP_BTR_SEARCH bit is set in type,
-  and this is the heap root, this can contain an
-  allocated buffer frame, which can be appended as a
-  free block to the heap, if we need more space;
-  otherwise, this is NULL */
+  /** physical length of this block in bytes */
+  ulint len;
+  /** physical length in bytes of all blocks in the heap. This is defined only
+  in the base node and is set to ULINT_UNDEFINED in others. */
+  ulint total_size;
+  /** type of heap: MEM_HEAP_DYNAMIC, or MEM_HEAP_BUF possibly ORed to
+  MEM_HEAP_BTR_SEARCH */
+  ulint type;
+  /** offset in bytes of the first free position for user data in the block */
+  ulint free;
+  /** the value of the struct field 'free' at the creation of the block */
+  ulint start;
+  /** if the MEM_HEAP_BTR_SEARCH bit is set in type, and this is the heap root,
+  this can contain an allocated buffer frame, which can be appended as a free
+  block to the heap, if we need more space; otherwise, this is NULL */
+  std::atomic<void *> free_block;
+  /** if this block has been allocated from the buffer pool, this contains the
+  buf_block_t handle; otherwise, this is NULL */
   void *buf_block;
-  /* if this block has been allocated from the buffer
-  pool, this contains the buf_block_t handle;
-  otherwise, this is NULL */
 };
 /* We use the UT_LIST_BASE_NODE_T_EXTERN instead of simpler UT_LIST_BASE_NODE_T
 because DevStudio12.6 initializes the pointer-to-member offset to 0 otherwise.*/
@@ -459,8 +440,8 @@ struct Scoped_heap {
   /** Constructs heap with a free space of specified size.
   @param[in] n                  Initial size of the heap to allocate.
   @param[in] location           Location from where called. */
-  Scoped_heap(size_t n IF_DEBUG(, ut::Location location)) noexcept
-      : m_ptr(mem_heap_create_func(n, IF_DEBUG(location, ) MEM_HEAP_DYNAMIC)) {}
+  Scoped_heap(size_t n, ut::Location location) noexcept
+      : m_ptr(mem_heap_create(n, location, MEM_HEAP_DYNAMIC)) {}
 
   /** Destructor. */
   ~Scoped_heap() = default;
@@ -468,9 +449,9 @@ struct Scoped_heap {
   /** Create the heap, it must not already be created.
   @param[in] n                  Initial size of the heap to allocate.
   @param[in] location           Location from where called. */
-  void create(size_t n IF_DEBUG(, ut::Location location)) noexcept {
+  void create(size_t n, ut::Location location) noexcept {
     ut_a(get() == nullptr);
-    auto ptr = mem_heap_create_func(n, IF_DEBUG(location, ) MEM_HEAP_DYNAMIC);
+    auto ptr = mem_heap_create(n, location, MEM_HEAP_DYNAMIC);
     reset(ptr);
   }
 

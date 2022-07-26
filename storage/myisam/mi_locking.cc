@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
 
 /*
   locking of isam-tables.
-  reads info from a isam-table. Must be first request before doing any furter
+  reads info from a isam-table. Must be first request before doing any further
   calls to any isamfunktion.  Is used to allow many process use the same
   isamdatabase.
 */

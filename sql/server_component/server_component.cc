@@ -31,6 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/keyring_metadata_query.h>
 #include <mysql/components/services/keyring_reader_with_status.h>
 #include <mysql/components/services/keyring_writer.h>
+#include <mysql/components/services/mysql_audit_print_service_double_data_source.h>
+#include <mysql/components/services/mysql_audit_print_service_longlong_data_source.h>
 #include <mysql/components/services/mysql_cond_service.h>
 #include <mysql/components/services/mysql_mutex_service.h>
 #include <mysql/components/services/mysql_psi_system_service.h>
@@ -59,6 +61,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_builtins_imp.h"
 #include "log_sink_perfschema_imp.h"
 #include "my_inttypes.h"
+#include "mysql_audit_print_service_double_data_source_imp.h"
+#include "mysql_audit_print_service_longlong_data_source_imp.h"
 #include "mysql_backup_lock_imp.h"
 #include "mysql_clone_protocol_imp.h"
 #include "mysql_connection_attributes_iterator_imp.h"
@@ -429,6 +433,16 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_attributes)
 mysql_thd_attributes_imp::get,
     mysql_thd_attributes_imp::set END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_audit_print_service_longlong_data_source)
+mysql_audit_print_service_longlong_data_source_imp::get
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_audit_print_service_double_data_source)
+mysql_audit_print_service_double_data_source_imp::get
+END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -564,6 +578,10 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, field_varchar_access_v1),
     PROVIDES_SERVICE(mysql_server, field_any_access_v1),
     PROVIDES_SERVICE(mysql_server, mysql_thd_attributes),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_audit_print_service_longlong_data_source),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_audit_print_service_double_data_source),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

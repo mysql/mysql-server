@@ -202,11 +202,15 @@ update performance_schema.pfs_example_employee_name set LAST_NAME="bar56"
   where FIRST_NAME="foo5";
 
 --echo ---------- table I/O stat by table name ----------
+--skip_if_hypergraph  # Different result because of PSI batch mode in the UPDATE
+                      # statement above. The same is seen with the old optimizer
+                      # if the above UPDATE uses multi-table syntax.
 select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
   from performance_schema.table_io_waits_summary_by_table
   where OBJECT_NAME="pfs_example_employee_name";
 
 --echo ---------- table I/O stat by index usage ----------
+--skip_if_hypergraph  # Different result because of PSI batch mode.
 select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
   from performance_schema.table_io_waits_summary_by_index_usage
   where OBJECT_NAME="pfs_example_employee_name";
@@ -216,11 +220,13 @@ delete from performance_schema.pfs_example_employee_name
   where EMPLOYEE_NUMBER=61;
 
 --echo ---------- table I/O stat by table name ----------
+--skip_if_hypergraph  # Different result because of PSI batch mode.
 select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
   from performance_schema.table_io_waits_summary_by_table
   where OBJECT_NAME="pfs_example_employee_name";
 
 --echo ---------- table I/O stat by index usage ----------
+--skip_if_hypergraph  # Different result because of PSI batch mode.
 select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
   from performance_schema.table_io_waits_summary_by_index_usage
   where OBJECT_NAME="pfs_example_employee_name";

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,10 @@ SET(TEST_MODULE router)
 #
 # - their dependencies are properly defined.
 # - fast edit-compile-test cycles for single tests
+
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  test_config_generator.cc
+  )
 
 ADD_HARNESS_TEST_FILE(test_certificate_generator.cc
   MODULE ${TEST_MODULE}

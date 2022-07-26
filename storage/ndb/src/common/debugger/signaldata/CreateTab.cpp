@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
    Use is subject to license terms
 
    This program is free software; you can redistribute it and/or modify
@@ -27,6 +27,12 @@
 bool
 printCREATE_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateTabReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateTabReq* sig = (const CreateTabReq*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -42,6 +48,12 @@ printCREATE_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printCREATE_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateTabConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateTabConf* sig = (const CreateTabConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -52,6 +64,12 @@ printCREATE_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printCREATE_TAB_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateTabRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateTabRef* sig = (const CreateTabRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);

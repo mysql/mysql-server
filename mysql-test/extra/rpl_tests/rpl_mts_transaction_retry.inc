@@ -229,7 +229,9 @@ DELETE FROM db1.t1 WHERE c1 = 50;
 --echo # Cleanup
 --echo #
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+--disable_warnings
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
+--enable_warnings
 SET GLOBAL max_relay_log_size = @saved_max_relay_log_size;
 SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 

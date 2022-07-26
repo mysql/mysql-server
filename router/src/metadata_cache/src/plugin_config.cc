@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,11 +50,27 @@ using StringOption = mysql_harness::StringOption;
 template <typename T>
 using IntOption = mysql_harness::IntOption<T>;
 
-const std::array<const char *, 12> metadata_cache_supported_options{
-    {"user", "ttl", "auth_cache_ttl", "auth_cache_refresh_interval",
-     "metadata_cluster", "connect_timeout", "read_timeout", "router_id",
-     "thread_stack_size", "use_gr_notifications", "cluster_type",
-     "bootstrap_server_addresses"}};
+const std::array<const char *, 19> metadata_cache_supported_options{{
+    "user",
+    "ttl",
+    "auth_cache_ttl",
+    "auth_cache_refresh_interval",
+    "metadata_cluster",
+    "connect_timeout",
+    "read_timeout",
+    "router_id",
+    "thread_stack_size",
+    "use_gr_notifications",
+    "cluster_type",
+    "bootstrap_server_addresses",
+    "ssl_mode",
+    "ssl_cipher",
+    "tls_version",
+    "ssl_ca",
+    "ssl_capath",
+    "ssl_crl",
+    "ssl_crlpath",
+}};
 
 std::string MetadataCachePluginConfig::get_default(
     const std::string &option) const {

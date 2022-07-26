@@ -237,6 +237,13 @@ page_t *trx_undo_set_state_at_finish(
 page_t *trx_undo_set_state_at_prepare(trx_t *trx, trx_undo_t *undo,
                                       bool rollback, mtr_t *mtr);
 
+/** Set the state of the undo log segment as prepared in TC.
+@param[in,out] trx   Transaction
+@param[in,out] undo  Insert_undo or update_undo log
+@param[in,out] mtr   Mini-transaction
+@return undo log segment header page, x-latched */
+page_t *trx_undo_set_prepared_in_tc(trx_t *trx, trx_undo_t *undo, mtr_t *mtr);
+
 /** Adds the update undo log header as the first in the history list, and
  frees the memory object, or puts it to the list of cached update undo log
  segments.
@@ -261,10 +268,11 @@ void trx_undo_insert_cleanup(trx_undo_ptr_t *undo_ptr, bool noredo);
 
 /** At shutdown, frees the undo logs of a transaction which was either
 PREPARED or (ACTIVE and recovered).
-@param[in]  trx                   transation which undo logs are freed
-@param[in]  expected_undo_state   expected state of undo logs */
-void trx_undo_free_trx_with_prepared_or_active_logs(
-    trx_t *trx, ulint expected_undo_state) UNIV_COLD;
+@param[in]     trx       transation which undo logs are freed
+@param[in]     prepared  whether or not the undo segment is in prepared or
+                         prepared in tc states */
+void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
+                                                    bool prepared) UNIV_COLD;
 
 /* Forward declaration. */
 namespace undo {
@@ -314,8 +322,15 @@ constexpr uint32_t TRX_UNDO_TO_FREE = 3;
 /** update undo segment will not be reused: it can be freed in purge when all
  undo data in it is removed */
 constexpr uint32_t TRX_UNDO_TO_PURGE = 4;
+/** contains an undo log of an prepared transaction for a server version older
+ * than 8.0.29 */
+constexpr uint32_t TRX_UNDO_PREPARED_80028 = 5;
 /** contains an undo log of an prepared transaction */
-constexpr uint32_t TRX_UNDO_PREPARED = 5;
+constexpr uint32_t TRX_UNDO_PREPARED = 6;
+/* contains an undo log of a prepared transaction that has been processed by the
+ * transaction coordinator */
+constexpr uint32_t TRX_UNDO_PREPARED_IN_TC = 7;
+
 #ifndef UNIV_HOTBACKUP
 /** Transaction undo log memory object; this is protected by the undo_mutex
 in the corresponding transaction object */
@@ -343,8 +358,17 @@ struct trx_undo_t {
   std::tuple<int, size_t> gtid_get_details(bool is_prepare) const;
 
   /* Set undo segment to prepared state and set XID
-  @param[in]    in_xid  transaction XID. */
-  void set_prepared(const XID *in_xid);
+  @param[in]     in_xid transaction XID. */
+  inline void set_prepared(const XID *in_xid);
+
+  /* Set undo segment to prepared in TC state and set XID */
+  inline void set_prepared_in_tc();
+
+  /* Checks whether or not this undo log segment is in prepared state, meaning,
+  the `state` member variable is either `TRX_UNDO_PREPARED_80028`.
+  `TRX_UNDO_PREPARED` or `TRX_UNDO_PREPARED_IN_TC`.
+  @return true is the undo log segment is in prepared state, false otherwise.*/
+  inline bool is_prepared() const;
 
   /*-----------------------------*/
   ulint id;        /*!< undo log slot number within the

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,8 +68,8 @@ static pax_msg *init_pax_msg(pax_msg *p, int refcnt, synode_no synode,
   init_ballot(&p->proposal, -1, nodeno);
   p->synode = synode;
   p->msg_type = normal;
-  p->receivers = NULL;
-  p->a = NULL;
+  p->receivers = nullptr;
+  p->a = nullptr;
   p->force_delivery = 0;
   p->event_horizon = EVENT_HORIZON_MIN;
   return p;
@@ -84,7 +84,7 @@ pax_msg *pax_msg_new(synode_no synode, site_def const *site) {
 pax_msg *pax_msg_new_0(synode_no synode) {
   pax_msg *p = (pax_msg *)xcom_calloc((size_t)1, sizeof(pax_msg));
   IFDBG(D_NONE, FN; PTREXP(p));
-  return init_pax_msg(p, 0, synode, 0);
+  return init_pax_msg(p, 0, synode, nullptr);
 }
 
 pax_msg *clone_pax_msg_no_app(pax_msg *msg) {
@@ -93,9 +93,9 @@ pax_msg *clone_pax_msg_no_app(pax_msg *msg) {
   *p = *msg;
   p->refcnt = 0;
   p->receivers = clone_bit_set(msg->receivers);
-  p->a = NULL; /* Or copy_app_data will be confused */
-  p->snap = NULL;
-  p->gcs_snap = NULL;
+  p->a = nullptr; /* Or copy_app_data will be confused */
+  p->snap = nullptr;
+  p->gcs_snap = nullptr;
   return p;
 }
 
@@ -131,7 +131,7 @@ int unref_msg(pax_msg **pp) {
     delete_pax_msg(p);
     return 0;
   }
-  *pp = NULL;
+  *pp = nullptr;
   return p->refcnt;
 }
 

@@ -1,0 +1,115 @@
+# ==== Purpose ====
+#
+# This script tests server behavior when a crash occurs during the
+# execution of `XA PREPARE` and just before engines start preparing the
+# transaction.
+#
+# ==== Requirements ====
+#
+# After server restart:
+# R1. The `XA PREPARE` statement shouldn't be logged to the binlog.
+# R2. There shouldn't be any changes to GTID_EXECUTED.
+# R3. There shouldn't be any pending XA transactions visible with `XA
+#     RECOVER`.
+#
+# ==== Implementation ====
+#
+# 1. Setup scenario: create table and insert some records.
+# 2. Start and execute an XA transaction containing an insert until before
+#    `XA PREPARE`.
+# 3. Take the `GTID_EXECUTED` state.
+# 4. Crash the server during `XA PREPARE` execution, just before storage
+#    engines start preparing.
+# 5. Restart server and check:
+#    a. Error log for messages stating that SE recovery process rolled back
+#       a pending transaction.
+#    b. Error log for messages stating that XA recovery process didn't find
+#       any transaction needing recovery.
+#    c. The `XA PREPARE` wasn't logged to the binary log.
+#    f. There aren't any changes to GTID_EXECUTED.
+#    e. There aren't any pending XA transaction listed in the output of `XA
+#       RECOVER`.
+#    f. There aren't changes to the table.
+#
+# ==== References ====
+#
+# WL#11300: Crash-safe XA + binary log
+#
+# Related tests;
+#   see extra/xa_crash_safe_tests/setup.inc
+#
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+# 1. Setup scenario: create table and insert some records.
+#
+--let $xid_data = xid1
+--let $xid = `SELECT CONCAT("X'", LOWER(HEX('$xid_data')), "',X'',1")`
+--source extra/xa_crash_safe_tests/setup.inc
+
+# 2. Start and execute an XA transaction containing an insert until before
+#    `XA PREPARE`.
+#
+--connect(con1, localhost, root,,)
+--connection con1
+--eval XA START $xid
+INSERT INTO t1 VALUES (1);
+--eval XA END $xid
+
+# 3. Take the `GTID_EXECUTED` state.
+#
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+# 4. Crash the server during `XA PREPARE` execution, just before storage
+#    engines start preparing.
+#
+--let $auxiliary_connection = default
+--let $statement_connection = con1
+--let $statement = XA PREPARE $xid
+--let $sync_point = before_prepare_in_engines
+--source include/execute_to_conditional_timestamp_sync_point.inc
+--source include/kill_mysqld.inc
+--source extra/xa_crash_safe_tests/cleanup_connection.inc
+
+# 5. Restart server and check:
+#
+--source include/start_mysqld.inc
+
+# 5.a. Error log for messages stating that SE recovery process rolled back
+#      a pending transaction.
+#
+--let $assert_select = Rolling back trx with id %, 1 rows to undo
+--source extra/xa_crash_safe_tests/assert_se_recovery_message.inc
+
+# 5.b. Error log for messages stating that XA recovery process didn't find
+#       any transaction needing recovery.
+#
+--let $assert_select = in InnoDB engine. No attempts to commit, rollback or prepare any transactions.
+--source extra/xa_crash_safe_tests/assert_recovery_message.inc
+
+# 5.c. The `XA PREPARE` wasn't logged to the binary log.
+#
+--let $event_sequence = $empty_event_sequence
+--source include/assert_binlog_events.inc
+
+# 5.d. There aren't any changes to GTID_EXECUTED.
+#
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_text = GTID_EXECUTED has not been updated
+--let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+--source include/assert.inc
+
+# 5.e. There aren't any pending XA transaction listed in the output of `XA
+#      RECOVER`.
+#
+--let $expected_prepared_xa_count = 0
+--source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+# 5.f. There aren't changes to the table.
+#
+--let $expected_row_count = 1
+--source extra/xa_crash_safe_tests/assert_row_count.inc
+
+DROP TABLE t1;

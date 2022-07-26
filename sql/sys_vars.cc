@@ -141,6 +141,7 @@
 #ifdef _WIN32
 #include "sql/named_pipe.h"
 #endif
+#include "my_openssl_fips.h"
 
 #ifdef WITH_LOCK_ORDER
 #include "sql/debug_lock_order.h"
@@ -1019,7 +1020,7 @@ static Sys_var_charptr Sys_basedir(
     CMD_LINE(REQUIRED_ARG, 'b'), IN_FS_CHARSET, DEFAULT(nullptr));
 
 /*
-  --authentication_policy will take precendence over this variable
+  --authentication_policy will take precedence over this variable
   except in case where plugin name for first factor is not a concrete
   value. Please refer authentication_policy variable.
 */
@@ -1675,6 +1676,16 @@ static bool master_info_repository_check(sys_var *self, THD *thd,
   return repository_check(self, thd, var, SLAVE_THD_IO);
 }
 
+static bool replica_parallel_workers_update(sys_var *, THD *thd,
+                                            enum_var_type) {
+  if (opt_mts_replica_parallel_workers == 0) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX), "0", "1");
+  }
+  return false;
+}
+
 static const char *repository_names[] = {"FILE", "TABLE",
 #ifndef NDEBUG
                                          "DUMMY",
@@ -1899,7 +1910,7 @@ static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_database(
 static bool check_cs_client(sys_var *self, THD *thd, set_var *var) {
   if (check_charset_not_null(self, thd, var)) return true;
 
-  // We don't currently support any variable-width character set with a minumum
+  // We don't currently support any variable-width character set with a minimum
   // length greater than 1. If we ever do, we have to revisit
   // is_supported_parser_charset(). See Item_func_statement_digest::val_str()
   // and Item_func_statement_digest_text::val_str().
@@ -2134,7 +2145,7 @@ static bool event_scheduler_update(sys_var *, THD *, enum_var_type) {
     start/stop, there is a possibility that the server variable
     can become out of sync with the real event scheduler state.
 
-    This can happen with two concurrent statments if the first gets
+    This can happen with two concurrent statements if the first gets
     interrupted after start/stop but before retaking
     LOCK_global_system_variables. However, this problem should be quite
     rare and it's difficult to avoid it without opening up possibilities
@@ -2175,7 +2186,7 @@ static bool check_expire_logs_seconds(sys_var *, THD *, set_var *var) {
   ulonglong expire_logs_seconds_value = var->save_result.ulonglong_value;
 
   if (expire_logs_days && expire_logs_seconds_value) {
-    my_error(ER_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
+    my_error(ER_DA_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
     return true;
   }
   return false;
@@ -2594,37 +2605,56 @@ static bool fix_log_error_services(sys_var *self [[maybe_unused]], THD *thd,
   // syntax is OK and services exist; try to initialize them!
   size_t pos;
 
+  char *pipeline_config =
+      my_strdup(PSI_NOT_INSTRUMENTED, opt_log_error_services, MYF(0));
+
+  if (pipeline_config == nullptr) return true;
+
   /*
-    There is a theoretical race/deadlock here:
+    Temporarily release mutex.
+    This solves two issues:
 
-    SET GLOBAL log_error_services=... first acquires
-    LOCK_global_system_variables (on account of being a system variable),
-    and then will try to obtain THR_LOCK_log_stack (to update the
-    error logging stack).
+    a) Setting up the error-logger may implicitly load external
+       logging components. The init-function of such a component
+       may try to install a system-variable and then ask the system
+       for a (persisted / passed on the command-line / ...) initial
+       value for said variable. The function in the component framework
+       that tries to obtain this value tries to obtain the mutex
+       LOCK_global_system_variables.
 
-    If FLUSH ERROR LOGS is also executed, it will first obtain
-    THR_LOCK_log_stack (as it will call the flush functions in all
-    configured sinks, and cannot allow people to change the config
-    or UNINSTALL COMPONENTs while that happens), and then one of
-    those log-components may try to re-install its pluggable
-    system variables on flush.
+       Note that implicit loading is attempted during the pre-check
+       phase and thus should already have happened at this stage
+       and no longer be a concern.
 
-    Due to the reverse locking order, this may deadlock here.
-    We could temporarily release LOCK_global_system_variables
-    while updating the error-logging stack (after first making
-    a copy of opt_log_error_services), but the better option
-    is to not have log-services' pluggable system variables
-    appear/disappear during FLUSH.
+    b) This function is called with the mutex held.
+       log_builtins_error_stack() will obtain an exclusive lock on
+       THR_LOCK_log_stack while it re-configures the error-logger.
+       A different session might run FLUSH ERROR LOGS at the same time.
+       This obtains THR_LOCK_log_stack first; an individual component's
+       flush function might then try to re-install its system-variables
+       on flush, which would try to obtain LOCK_global_system_variables
+       as per above. I.e. both functions would try to obtain the two
+       locks in a different order.
+
+       Note that components should not behave that way; they should
+       install/uninstall their variables on init/exit, not on open/close.
+
+     Both issues are admittedly unlikely, but guarding against them is cheap.
   */
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
-  if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
-    if (pos < strlen(opt_log_error_services)) /* purecov: begin inspected */
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_CANT_START_ERROR_LOG_SERVICE,
-          ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE), self->name.str,
-          &((char *)opt_log_error_services)[pos]);
+  if (log_builtins_error_stack(pipeline_config, false, &pos) < 0) {
+    if (pos < strlen(pipeline_config)) /* purecov: begin inspected */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_CANT_START_ERROR_LOG_SERVICE,
+                          ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE),
+                          self->name.str, &((char *)pipeline_config)[pos]);
     ret = true; /* purecov: end */
   }
+
+  my_free(pipeline_config);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
 
   return ret;
 }
@@ -2635,7 +2665,16 @@ static Sys_var_charptr Sys_log_error_services(
     PERSIST_AS_READONLY GLOBAL_VAR(opt_log_error_services),
     CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
     DEFAULT(LOG_ERROR_SERVICES_DEFAULT), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_log_error_services), ON_UPDATE(fix_log_error_services));
+    ON_CHECK(check_log_error_services), ON_UPDATE(fix_log_error_services),
+    /*
+      We parse it early so it goes into one logical chunk with log_error
+      and log_timestamps, but we don't activate it immediately. We need
+      to wait until component_infrastructure_init() has run, but want to
+      set up logging services before get_options() is run. That way, any
+      loadable components are ready in case component system variables
+      are set from get_options().
+    */
+    nullptr, sys_var::PARSE_EARLY);
 
 static bool check_log_error_suppression_list(sys_var *self, THD *thd,
                                              set_var *var) {
@@ -4948,9 +4987,15 @@ static Sys_var_ulong Sys_max_execution_time(
 
 static bool update_fips_mode(sys_var *, THD *, enum_var_type) {
   char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-  if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string) != 1) {
+  if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string)) {
     opt_ssl_fips_mode = get_fips_mode();
-    my_error(ER_DA_SSL_FIPS_MODE_ERROR, MYF(0), "Openssl is not fips enabled");
+    std::string err;
+    if (ssl_err_string[0]) {
+      err.append("Openssl is not fips enabled. Error: ");
+      err.append(ssl_err_string);
+    } else
+      err.append("Openssl is not fips enabled");
+    my_error(ER_DA_SSL_FIPS_MODE_ERROR, MYF(0), err.c_str());
     return true;
   } else {
     return false;
@@ -6147,7 +6192,7 @@ static Sys_var_bool Sys_replica_allow_batching(
     "replica_allow_batching",
     "Allow this replica to batch requests when "
     "using the NDB storage engine.",
-    GLOBAL_VAR(opt_replica_allow_batching), CMD_LINE(OPT_ARG), DEFAULT(false));
+    GLOBAL_VAR(opt_replica_allow_batching), CMD_LINE(OPT_ARG), DEFAULT(true));
 
 static Sys_var_deprecated_alias Sys_slave_allow_batching(
     "slave_allow_batching", Sys_replica_allow_batching);
@@ -6348,8 +6393,10 @@ static Sys_var_ulong Sys_replica_parallel_workers(
     "replica_parallel_workers",
     "Number of worker threads for executing events in parallel ",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_mts_replica_parallel_workers),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4),
-    BLOCK_SIZE(1));
+    CMD_LINE(REQUIRED_ARG, OPT_REPLICA_PARALLEL_WORKERS),
+    VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(replica_parallel_workers_update));
 
 static Sys_var_deprecated_alias Sys_slave_parallel_workers(
     "slave_parallel_workers", Sys_replica_parallel_workers);
@@ -6830,7 +6877,7 @@ static bool handle_offline_mode(sys_var *, THD *thd, enum_var_type) {
   DEBUG_SYNC(thd, "after_lock_offline_mode_acquire");
 
   if (mysqld_offline_mode()) {
-    // Unlock the global system varaible lock as kill holds LOCK_thd_data.
+    // Unlock the global system variable lock as kill holds LOCK_thd_data.
     mysql_mutex_unlock(&LOCK_global_system_variables);
     killall_non_super_threads(thd);
     mysql_mutex_lock(&LOCK_global_system_variables);
@@ -7170,6 +7217,23 @@ static Sys_var_bool Sys_sql_require_primary_key{
     NO_MUTEX_GUARD,
     IN_BINLOG,
     ON_CHECK(check_session_admin)};
+
+static Sys_var_bool Sys_sql_generate_invisible_primary_key(
+    "sql_generate_invisible_primary_key",
+    "When set, if a table is created without a primary key then server "
+    "generates invisible auto-increment column as a primary key for the table.",
+    SESSION_VAR(sql_generate_invisible_primary_key), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_session_admin), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_show_gipk_in_create_table_and_information_schema(
+    "show_gipk_in_create_table_and_information_schema",
+    "When set, if a primary key is generated for a table then SHOW commands "
+    "and INFORMATION_SCHEMA tables shows generated invisible primary key "
+    "definition.",
+    SESSION_VAR(show_gipk_in_create_table_and_information_schema),
+    CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
 static Sys_var_charptr Sys_sys_variables_admin_subject(
     PERSIST_ONLY_ADMIN_X509_SUBJECT,

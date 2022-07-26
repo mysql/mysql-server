@@ -78,7 +78,6 @@
 #include "prealloced_array.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h"  // acl_authenticate
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"  // purge_source_logs
 #include "sql/clone_handler.h"
@@ -276,11 +275,8 @@ const std::string &Command_names::str_global(enum_server_command cmd) {
 const std::string Command_names::m_replace_str{"Register Slave"};
 
 bool command_satisfy_acl_cache_requirement(unsigned command) {
-  if ((sql_command_flags[command] & CF_REQUIRE_ACL_CACHE) > 0 &&
-      skip_grant_tables() == true)
-    return false;
-  else
-    return true;
+  return !((sql_command_flags[command] & CF_REQUIRE_ACL_CACHE) > 0 &&
+           skip_grant_tables());
 }
 
 /**
@@ -373,7 +369,7 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables) {
 
 /**
   Returns whether the command in thd->lex->sql_command should cause an
-  implicit commit. An active transaction should be implicitly commited if the
+  implicit commit. An active transaction should be implicitly committed if the
   statement requires so.
 
   @param thd    Thread handle.
@@ -427,7 +423,7 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask) {
 uint sql_command_flags[SQLCOM_END + 1];
 uint server_command_flags[COM_END + 1];
 
-void init_sql_command_flags(void) {
+void init_sql_command_flags() {
   /* Initialize the server command flags array. */
   memset(server_command_flags, 0, sizeof(server_command_flags));
 
@@ -1163,6 +1159,13 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
   */
   thd->get_stmt_da()->reset_diagnostics_area();
 
+  /* For per-query performance counters with log_slow_statement */
+  struct System_status_var query_start_status;
+  thd->clear_copy_status_var();
+  if (opt_log_slow_extra) {
+    thd->copy_status_var(&query_start_status);
+  }
+
   THD_STAGE_INFO(thd, stage_execution_of_init_command);
   save_client_capabilities = protocol->get_client_capabilities();
   protocol->add_client_capability(CLIENT_MULTI_QUERIES);
@@ -1278,9 +1281,16 @@ bool do_command(THD *thd) {
   */
   DEBUG_SYNC(thd, "before_do_command_net_read");
 
-  rc = thd->mem_cnt->reset();
+  /* For per-query performance counters with log_slow_statement */
+  struct System_status_var query_start_status;
+  thd->clear_copy_status_var();
+  if (opt_log_slow_extra) {
+    thd->copy_status_var(&query_start_status);
+  }
+
+  rc = thd->m_mem_cnt.reset();
   if (rc)
-    thd->mem_cnt->set_thd_error_status();
+    thd->m_mem_cnt.set_thd_error_status();
   else {
     /*
       Because of networking layer callbacks in place,
@@ -1555,7 +1565,7 @@ void call_gr_incoming_connection_cb(THD *thd, int fd, SSL *ssl_ctx) {
   copied by and into Item_param. So we don't want to duplicate this.
   @sa @ref Item_param
 
-  @param thd the thread to copy the parmeters to.
+  @param thd the thread to copy the parameters to.
   @param parameters the values to copy
   @param count the number of parameters to copy
 */
@@ -1613,14 +1623,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   DBUG_PRINT("info", ("command: %d", command));
 
   Sql_cmd_clone *clone_cmd = nullptr;
-
-  /* For per-query performance counters with log_slow_statement */
-  struct System_status_var query_start_status;
-  struct System_status_var *query_start_status_ptr = nullptr;
-  if (opt_log_slow_extra) {
-    query_start_status_ptr = &query_start_status;
-    query_start_status = thd->status_var;
-  }
 
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
@@ -1991,11 +1993,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         size_t length =
             static_cast<size_t>(packet_end - beginning_of_next_stmt);
 
-        log_slow_statement(thd, query_start_status_ptr);
-        if (query_start_status_ptr) {
-          /* Reset for values at start of next statement */
-          query_start_status = thd->status_var;
-        }
+        log_slow_statement(thd);
+
+        thd->reset_copy_status_var();
 
         /* Remove garbage at start of query */
         while (length > 0 &&
@@ -2372,11 +2372,11 @@ done:
       cn.c_str(), cn.length());
 
   /* command_end is informational only. The plugin cannot abort
-     execution of the command at thie point. */
+     execution of the command at this point. */
   mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command,
                      cn.c_str());
 
-  log_slow_statement(thd, query_start_status_ptr);
+  log_slow_statement(thd);
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
 
@@ -2592,7 +2592,7 @@ static bool sp_process_definer(THD *thd) {
         case, we should assign CURRENT_USER as definer.
 
       - Our slave received an updated from the master, that does not
-        replicate definer for stored rountines. We should also assign
+        replicate definer for stored routines. We should also assign
         CURRENT_USER as definer here, but also we should mark this routine
         as NON-SUID. This is essential for the sake of backward
         compatibility.
@@ -2713,7 +2713,7 @@ retry:
         if (deadlock_handler.need_reopen()) {
           /*
             Deadlock occurred during upgrade of metadata lock.
-            Let us restart acquring and opening tables for LOCK TABLES.
+            Let us restart acquiring and opening tables for LOCK TABLES.
           */
           thd->pop_internal_handler();
           close_tables_for_reopen(thd, &tables, mdl_savepoint);
@@ -2854,6 +2854,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
          thd->in_active_multi_stmt_transaction());
 
   bool early_error_on_rep_command{false};
+
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_execute_command");
 
   /*
     If there is a CREATE TABLE...START TRANSACTION command which
@@ -3679,7 +3681,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_UNLOCK_TABLES:
       /*
         It is critical for mysqldump --single-transaction --source-data that
-        UNLOCK TABLES does not implicitely commit a connection which has only
+        UNLOCK TABLES does not implicitly commit a connection which has only
         done FLUSH TABLES WITH READ LOCK + BEGIN. If this assumption becomes
         false, mysqldump will not work.
       */
@@ -3983,8 +3985,16 @@ int mysql_execute_command(THD *thd, bool first_level) {
       }
       if (first_table) {
         if (lex->dynamic_privileges.elements > 0) {
-          my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), all_tables->table_name);
-          goto error;
+          if (thd->lex->grant_if_exists) {
+            push_warning_printf(thd, Sql_condition::SL_WARNING,
+                                ER_ILLEGAL_PRIVILEGE_LEVEL,
+                                ER_THD(thd, ER_ILLEGAL_PRIVILEGE_LEVEL),
+                                all_tables->table_name);
+          } else {
+            my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0),
+                     all_tables->table_name);
+            goto error;
+          }
         }
         if (lex->type == TYPE_ENUM_PROCEDURE ||
             lex->type == TYPE_ENUM_FUNCTION) {
@@ -4014,6 +4024,24 @@ int mysql_execute_command(THD *thd, bool first_level) {
           my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
           goto error;
         } else {
+          /* Dynamic privileges are allowed only for global grants */
+          if (query_block->db && lex->dynamic_privileges.elements > 0) {
+            String privs;
+            bool comma = false;
+            for (const LEX_CSTRING &priv : lex->dynamic_privileges) {
+              if (comma) privs.append(",");
+              privs.append(priv.str, priv.length);
+              comma = true;
+            }
+            if (thd->lex->grant_if_exists) {
+              push_warning_printf(
+                  thd, Sql_condition::SL_WARNING, ER_ILLEGAL_PRIVILEGE_LEVEL,
+                  ER_THD(thd, ER_ILLEGAL_PRIVILEGE_LEVEL), privs.c_ptr());
+            } else {
+              my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), privs.c_ptr());
+              goto error;
+            }
+          }
           /* Conditionally writes to binlog */
           res = mysql_grant(
               thd, query_block->db, lex->users_list, lex->grant,
@@ -4246,7 +4274,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
           /*
             We're going to issue an implicit GRANT statement so we close all
             open tables. We have to keep metadata locks as this ensures that
-            this statement is atomic against concurent FLUSH TABLES WITH READ
+            this statement is atomic against concurrent FLUSH TABLES WITH READ
             LOCK. Deadlocks which can arise due to fact that this implicit
             statement takes metadata locks should be detected by a deadlock
             detector in MDL subsystem and reported as errors.
@@ -4399,7 +4427,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       /*
         We're going to issue an implicit REVOKE statement so we close all
         open tables. We have to keep metadata locks as this ensures that
-        this statement is atomic against concurent FLUSH TABLES WITH READ
+        this statement is atomic against concurrent FLUSH TABLES WITH READ
         LOCK. Deadlocks which can arise due to fact that this implicit
         statement takes metadata locks should be detected by a deadlock
         detector in MDL subsystem and reported as errors.
@@ -4734,6 +4762,11 @@ finish:
 
   THD_STAGE_INFO(thd, stage_query_end);
 
+  // Check for receiving a recent kill signal
+  if (thd->killed) {
+    thd->send_kill_message();
+    res = thd->is_error();
+  }
   if (res) {
     if (thd->get_reprepare_observer() != nullptr &&
         thd->get_reprepare_observer()->is_invalidated() &&
@@ -4768,7 +4801,6 @@ finish:
                                    : "MYSQL_AUDIT_QUERY_NESTED_STATUS_END");
 
     /* report error issued during command execution */
-    if (thd->killed) thd->send_kill_message();
     if ((thd->is_error() && !early_error_on_rep_command) ||
         (thd->variables.option_bits & OPTION_MASTER_SQL_ERROR))
       trans_rollback_stmt(thd);
@@ -5463,7 +5495,7 @@ bool Alter_info::add_field(
     }
     /*
       Move column check constraint specifications to table check constraints
-      specfications list.
+      specifications list.
     */
     std::move(col_check_const_spec_list->begin(),
               col_check_const_spec_list->end(),
@@ -5744,9 +5776,9 @@ bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
     } else {
       if (m_postparse.references.push_back(tl))
         return true; /* purecov: inspected */
-      tl->set_common_table_expr(&m_postparse);
       if (m_column_names.size()) tl->set_derived_column_names(&m_column_names);
     }
+    tl->set_common_table_expr(&m_postparse);
   }
   return false;
 }
@@ -6255,7 +6287,7 @@ bool Query_expression::add_fake_query_block(THD *thd) {
 
   @param pc        current parse context
   @param left_op   left  operand of the JOIN
-  @param right_op  rigth operand of the JOIN
+  @param right_op  right operand of the JOIN
 
   @retval
     false  if all is OK
@@ -6409,6 +6441,7 @@ class Kill_non_super_conn : public Do_THD_Impl {
  private:
   /* THD of connected client. */
   THD *m_client_thd;
+  bool m_is_client_regular_user;
 
  public:
   Kill_non_super_conn(THD *thd) : m_client_thd(thd) {
@@ -6416,12 +6449,12 @@ class Kill_non_super_conn : public Do_THD_Impl {
            m_client_thd->security_context()
                ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
                .first);
+    m_is_client_regular_user = !m_client_thd->is_system_user();
   }
 
   void operator()(THD *thd_to_kill) override {
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
-    Security_context *sctx = thd_to_kill->security_context();
     /* Kill only if non-privileged thread and non slave thread.
        If an account has not yet been assigned to the security context of the
        thread we cannot tell if the account is super user or not. In this case
@@ -6429,12 +6462,15 @@ class Kill_non_super_conn : public Do_THD_Impl {
        assigned to this thread and it turns out it is not privileged user
        thread, the authentication for this thread will fail and the thread will
        be terminated.
+       Additionally, client with SYSTEM_VARIABLES_ADMIN but not SYSTEM_USER
+       privilege is not allowed to kill threads having SYSTEM_USER,
+       but not CONNECTION_ADMIN privilege.
     */
-    if (sctx->has_account_assigned() &&
-        !(sctx->check_access(SUPER_ACL) ||
-          sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first) &&
+    const bool has_higher_privilege =
+        m_is_client_regular_user && thd_to_kill->is_system_user();
+    if (!thd_to_kill->is_connection_admin() &&
         thd_to_kill->killed != THD::KILL_CONNECTION &&
-        !thd_to_kill->slave_thread)
+        !thd_to_kill->slave_thread && !has_higher_privilege)
       thd_to_kill->awake(THD::KILL_CONNECTION);
 
     mysql_mutex_unlock(&thd_to_kill->LOCK_thd_data);
@@ -6685,7 +6721,7 @@ LEX_USER *create_default_definer(THD *thd) {
 }
 
 /**
-  Retuns information about user or current user.
+  Returns information about user or current user.
 
   @param[in] thd          thread handler
   @param[in] user         user

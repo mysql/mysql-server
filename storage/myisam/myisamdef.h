@@ -207,7 +207,7 @@ struct MYISAM_SHARE { /* Shared between opens */
   ulong last_process;    /* For table-change-check */
   ulong last_version;    /* Version on start */
   ulong options;         /* Options used */
-  ulong min_pack_length; /* Theese are used by packed data */
+  ulong min_pack_length; /* These are used by packed data */
   ulong max_pack_length;
   ulong state_diff_length;
   uint rec_reflength; /* rec_reflength in use now */
@@ -284,7 +284,7 @@ struct MI_INFO {
   my_off_t last_search_keypage; /* Last keypage when searching */
   my_off_t dupp_key_pos;
   ha_checksum checksum; /* Temp storage for row checksum */
-  /* QQ: the folloing two xxx_length fields should be removed,
+  /* QQ: the following two xxx_length fields should be removed,
      as they are not compatible with parallel repair */
   ulong packed_length, blob_length;    /* Length of found, packed record */
   int dfile;                           /* The datafile */
@@ -304,7 +304,7 @@ struct MI_INFO {
   uint save_update;        /* When using KEY_READ */
   int save_lastinx;
   LIST open_list;
-  IO_CACHE rec_cache;        /* When cacheing records */
+  IO_CACHE rec_cache;        /* When caching records */
   uint preload_buff_size;    /* When preloading indexes */
   myf lock_wait;             /* is 0 or MY_DONT_WAIT */
   bool was_locked;           /* Was locked in panic */
@@ -336,10 +336,9 @@ struct BUFFPEK {
 };
 
 struct MI_SORT_PARAM {
-  my_thread_handle thr;
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
-  MI_BIT_BUFF bit_buff; /* For parallel repair of packrec. */
+  MI_BIT_BUFF bit_buff; /* For sort repair of packrec. */
 
   /*
     The next two are used to collect statistics, see update_key_parts for
@@ -694,7 +693,7 @@ struct MI_BLOCK_INFO { /* Parameter to _mi_get_block_info */
 #define BLOCK_SYNC_ERROR 16  /* Right data at wrong place */
 #define BLOCK_FATAL_ERROR 32 /* hardware-error */
 
-#define NEED_MEM ((uint)10 * 4 * (IO_SIZE + 32) + 32) /* Nead for recursion */
+#define NEED_MEM ((uint)10 * 4 * (IO_SIZE + 32) + 32) /* Needed for recursion */
 #define MAXERR 20
 #define BUFFERS_WHEN_SORTING 16    /* Alloc for sort-key-tree */
 #define MY_HOW_OFTEN_TO_WRITE 1000 /* How often we want info on screen */
@@ -827,8 +826,6 @@ void mi_check_print_info(MI_CHECK *param, const char *fmt, ...)
     MY_ATTRIBUTE((format(printf, 2, 3)));
 int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
-int thr_write_keys(MI_SORT_PARAM *sort_param);
-void *thr_find_all_keys(void *arg);
 int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file);
 
 int sort_write_record(MI_SORT_PARAM *sort_param);
@@ -843,8 +840,7 @@ extern thread_local st_keycache_thread_var *keycache_tls;
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
-extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
-    mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
+extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock;
 
 extern PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock,
     mi_key_rwlock_MYISAM_SHARE_mmap_lock;

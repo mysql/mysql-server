@@ -51,7 +51,7 @@
 #include <Pool.hpp>
 #include <NdbSpin.h>
 
-#include "mt-asm.h"
+#include "portlib/mt-asm.h"
 #include "mt-lock.hpp"
 
 #include "ThreadConfig.hpp"
@@ -6334,7 +6334,6 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
     const Uint32 read_pos = r->m_read_pos;
     const Uint32 write_index = jbb->m_write_index;
     const Uint32 write_buffer_len = jbb->m_current_write_buffer_len;
-    const Uint32 read_end = jbb->m_buffers[read_index]->m_len;
     Uint32 num_words;
     if (write_index == read_index)
     {
@@ -6346,6 +6345,14 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
     }
     else
     {
+      if (write_index != r->m_write_index)
+      {
+        /**
+         * Found new JBB pages. Need to make sure that we do not read-reorder
+         * 'm_write_index' vs 'read_buffer->m_len'.
+         */
+        rmb();
+      }
       if (write_index > read_index)
       {
         num_words = write_index - read_index;
@@ -6360,8 +6367,16 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
     }
     tot_num_words += num_words;
     r->m_write_index = write_index;
-    read_barrier_depends();
-    r->m_read_end = read_end;
+    r->m_read_end = r->m_read_buffer->m_len;
+    /**
+     * Note ^^ that we will need a later rmb() before we can safely read the
+     * m_buffer[] contents upto 'm_read_end': We need to synch on the wmb()
+     * in publish_position(), such that the m_buffer[] contents itself
+     * has been fully written before we can start executing from it.
+     *
+     * To reduce the mem-synch stalls, we do this once for all JBB's, just
+     * before we execute_signals().
+     */
   }
   selfptr->m_cpu_percentage_changed = true;
   /**
@@ -6452,10 +6467,22 @@ bool
 read_jba_state(thr_data *selfptr)
 {
   thr_jb_read_state *r = &(selfptr->m_jba_read_state);
-  const Uint32 read_index = r->m_read_index;
-  r->m_write_index = selfptr->m_jba.m_write_index;
-  read_barrier_depends();
-  r->m_read_end = selfptr->m_jba.m_buffers[read_index]->m_len;
+  const Uint32 new_write_index = selfptr->m_jba.m_write_index;
+  if (r->m_write_index != new_write_index) {
+    /**
+     * There are new JBA pages, we need to make sure that any updates to
+     * 'read_buffer->m_len' are not read-reordered relative to 'write_index'
+     * (Missing the signals appended to m_len before prev block became 'full')
+     */
+    r->m_write_index = new_write_index;
+    rmb();
+  }
+
+  /**
+   * Will need a later rmb()-synch before we can execute_signals() upto
+   * '...buffer->m_len', see comment in read_all_jbb_state().
+   */
+  r->m_read_end = r->m_read_buffer->m_len;
   return r->is_empty();
 }
 
@@ -6599,11 +6626,6 @@ execute_signals(thr_data *selfptr,
         r->m_read_end = read_end;
       }
     }
-#if defined(__aarch64__)
-    // this is to address the missing memory barrier issue on Apple M1 platform
-    // regarding the bug#33650674 the less intrusive place should be found
-    rmb();
-#endif
     /*
      * These pre-fetching were found using OProfile to reduce cache misses.
      * (Though on Intel Core 2, they do not give much speedup, as apparently
@@ -6716,8 +6738,9 @@ run_job_buffers(thr_data *selfptr,
     return 0;
   }
   /*
-   * A load memory barrier to ensure that we see any prio A signal sent later
-   * than loaded prio B signals.
+   * A load memory barrier to ensure that we see the m_buffers[] content,
+   * referred by the jbb_states, before we start executing signals.
+   * See comments in read_all_jbb_state() and read_jba_state as well.
    */
   rmb();
 
@@ -6736,6 +6759,7 @@ run_job_buffers(thr_data *selfptr,
     /* Read the prio A state often, to avoid starvation of prio A. */
     while (!read_jba_state(selfptr))
     {
+      rmb();  // See memory barrier reasoning above
       selfptr->m_sent_local_prioa_signal = false;
       static Uint32 max_prioA = thr_job_queue::SIZE * thr_job_buffer::SIZE;
       Uint32 num_signals = execute_signals(selfptr,

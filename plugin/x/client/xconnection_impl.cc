@@ -36,6 +36,8 @@
 #include <sstream>
 #include <string>
 
+#include "my_openssl_fips.h"
+
 #include "errmsg.h"       // NOLINT(build/include_subdir)
 #include "my_config.h"    // NOLINT(build/include_subdir)
 #include "my_dbug.h"      // NOLINT(build/include_subdir)
@@ -618,46 +620,6 @@ XError Connection_impl::get_ssl_error(const int error_id) {
   return XError(CR_SSL_CONNECTION_ERROR, buffer);
 }
 
-/**
-  Set fips mode in openssl library,
-  When we set fips mode ON/STRICT, it will perform following operations:
-  1. Check integrity of openssl library
-  2. Run fips related tests.
-  3. Disable non fips complaint algorithms
-  4. Should be set par process before openssl library initialization
-  5. When FIPs mode ON(1/2), calling weak algorithms  may results into process
-  abort.
-
-  @param [in]  fips_mode     0 for fips mode off, 1/2 for fips mode ON
-  @param [out] err_string    If fips mode set fails, err_string will have detail
-  failure reason.
-
-  @returns openssl set fips mode errors
-    @retval non 1 for Error
-    @retval 1 Success
-*/
-int set_fips_mode(const uint32_t fips_mode,
-                  char err_string[OPENSSL_ERROR_LENGTH]) {
-  int rc = -1;
-  unsigned int fips_mode_old = -1;
-  unsigned long err_library = 0;
-  if (fips_mode > 2) {
-    goto EXIT;
-  }
-  fips_mode_old = FIPS_mode();
-  if (fips_mode_old == fips_mode) {
-    rc = 1;
-    goto EXIT;
-  }
-  if (!(rc = FIPS_mode_set(fips_mode))) {
-    err_library = ERR_get_error();
-    ERR_error_string_n(err_library, err_string, OPENSSL_ERROR_LENGTH - 1);
-    err_string[OPENSSL_ERROR_LENGTH - 1] = '\0';
-  }
-EXIT:
-  return rc;
-}
-
 XError Connection_impl::activate_tls() {
   if (nullptr == m_vio) return get_socket_error(SOCKET_ECONNRESET);
 
@@ -670,7 +632,7 @@ XError Connection_impl::activate_tls() {
   char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
   if (set_fips_mode(
           static_cast<uint32_t>(m_context->m_ssl_config.m_ssl_fips_mode),
-          err_string) != 1) {
+          err_string)) {
     return XError{CR_SSL_CONNECTION_ERROR, err_string, true};
   }
   auto ssl_ctx_flags = process_tls_version(

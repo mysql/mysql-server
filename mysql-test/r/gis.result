@@ -2379,8 +2379,6 @@ Warnings:
 Warning	1292	Incorrect date value: '\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 SELECT ST_GeomFromText('POINT(0 0)') > (SELECT b FROM t) AS result;
 ERROR HY000: Incorrect arguments to >
-SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t) AS result;
-ERROR HY000: Incorrect DATE value: ''
 DROP TABLE t;
 CREATE TABLE t1(a BLOB NOT NULL, b INT NOT NULL) ENGINE=Innodb;
 SELECT NOT EXISTS
@@ -2718,9 +2716,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `b` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM t1;
-b
-                       
+SELECT HEX(b) FROM t1;
+HEX(b)
+00000000010100000000000000000000000000000000000000
 NULL
 DROP TABLE t1;
 # Convert a POINT column without rows to POLYGON

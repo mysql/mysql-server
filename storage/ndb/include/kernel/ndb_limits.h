@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -403,16 +403,16 @@
 
 // Maximum handling of DROP_TRIG_REQs in parallel by LocalProxy
 #define NDB_MAX_PROXY_DROP_TRIG_IMPL_REQ 21
-/* Maximum number of DROP_TRIGGER_REQs SUMA can send parallely after the
+/* Maximum number of DROP_TRIGGER_REQs SUMA can send in parallel after the
  * execution of SUB_STOP_REQ.
  *
  * We do not anticipate multiple parallel sub stop reqs from multiple APIs.
  * So, it should be fair to restrict the number of API nodes sending
- * sub stop requests parallely to 2. Any further sub stop requests from any
+ * sub stop requests in parallel to 2. Any further sub stop requests from any
  * other API nodes will be delayed. We delay the sub stop requests execution
  * based on outstanding trigger drop requests. Each sub stop request can
  * send a maximum of 3 drop trigger requests. So now a maximum of 6 is
- * allowed to execute parallely from all api nodes.*/
+ * allowed to execute in parallel from all api nodes.*/
 #define NDB_MAX_SUMA_DROP_TRIG_REQ_SUBSTOP 2 * 3
 /* Max DROP_TRIG_REQ allowed from api_fail_subscriber_list
  * This is greater than the maximum requests allowed from SUB_STOP_REQ
@@ -434,7 +434,7 @@ static_assert(MAX_NDB_NODES == MAX_NDB_DATA_NODES + 1);
 // Default partitioning is 1 partition per LDM
 static_assert(MAX_NDB_DATA_NODES * NDB_MAX_LOG_PARTS <= MAX_NDB_PARTITIONS);
 
-// The default hashmap should atleast support the maximum default partitioning
+// The default hashmap should at least support the maximum default partitioning
 static_assert(MAX_NDB_DATA_NODES * NDB_MAX_LOG_PARTS <= NDB_MAX_HASHMAP_BUCKETS);
 
 #endif

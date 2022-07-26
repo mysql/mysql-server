@@ -88,7 +88,7 @@ ENDFUNCTION()
 #
 # add a test for mysqlrouter project
 #
-# - adds dependency to the mysqlrouter_all target (except 'integration' tests)
+# - adds dependency to the mysqlrouter_all target
 # - adjusts runtime library search path for the build
 # - adds ASAN/LSAN suppressions
 #
@@ -120,10 +120,7 @@ FUNCTION(_ADD_TEST_FILE FILE)
     ${FILE} ${TEST_EXTRA_SOURCES}
     ADD_TEST ${test_name})
 
-  # don't add integration tests dependency on mysqld to 'mysqlrouter_all'
-  IF (NOT (TEST_MODULE STREQUAL "integration"))
-    ADD_DEPENDENCIES(mysqlrouter_all ${test_target})
-  ENDIF()
+  ADD_DEPENDENCIES(mysqlrouter_all ${test_target})
 
   FOREACH(libtarget ${TEST_LIB_DEPENDS})
     #add_dependencies(${test_target} ${libtarget})

@@ -77,6 +77,7 @@
 #include "mysql/service_thd_wait.h"
 #include "mysql/status_var.h"
 #include "prealloced_array.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_password_strength
 #include "sql/auth/sql_security_ctx.h"
@@ -100,7 +101,6 @@
 #include "sql/item_json_func.h"  // get_json_wrapper
 #include "sql/item_strfunc.h"    // Item_func_concat_ws
 #include "sql/item_subselect.h"  // Item_subselect
-#include "sql/json_dom.h"        // Json_wrapper
 #include "sql/key.h"
 #include "sql/log_event.h"  // server_version
 #include "sql/mdl.h"
@@ -894,7 +894,7 @@ const Item_field *Item_func::contributes_to_filter(
   assert(functype() != MULT_EQUAL_FUNC);
 
   /*
-    To contribute to filering effect, the condition must refer to
+    To contribute to filtering effect, the condition must refer to
     exactly one unread table: the table filtering is currently
     calculated for.
   */
@@ -1239,7 +1239,7 @@ static void gc_subst_overlaps_contains(Item **func, Item **vals,
         found = nullptr;
         break;
       }
-      coerced_keys->append_clone(res.to_dom(thd));
+      coerced_keys->append_clone(res.to_dom());
     }
     if (can_use_index) break;
   }
@@ -1282,10 +1282,23 @@ static void gc_subst_overlaps_contains(Item **func, Item **vals,
 
   After transformation comparators are updated to take into account the new
   field.
+
+  Note: Range optimizer is used with multi-value indexes and it prefers
+  constants. Outer references are not considered as constants in JSON functions.
+  However, range optimizer supports dynamic ranges, where ranges are
+  re-optimized for each row. But the range optimizer is currently not able to
+  handle multi-valued indexes with dynamic ranges, hence we use only constants
+  in these cases.
+
 */
 
 Item *Item_func::gc_subst_transformer(uchar *arg) {
   List<Field> *gc_fields = pointer_cast<List<Field> *>(arg);
+
+  auto is_const_or_outer_reference = [](const Item *item) {
+    return ((item->used_tables() & ~(OUTER_REF_TABLE_BIT | INNER_TABLE_BIT)) ==
+            0);
+  };
 
   switch (functype()) {
     case EQ_FUNC:
@@ -1300,11 +1313,11 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       // predicate must be on the form <expr> OP <constant> or
       // <constant> OP <expr>.
       if (args[0]->can_be_substituted_for_gc() &&
-          args[1]->const_for_execution()) {
+          is_const_or_outer_reference(args[1])) {
         func = args;
         val = args[1];
       } else if (args[1]->can_be_substituted_for_gc() &&
-                 args[0]->const_for_execution()) {
+                 is_const_or_outer_reference(args[0])) {
         func = args + 1;
         val = args[0];
       } else {
@@ -1323,11 +1336,12 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       // Can only substitute if all the operands on the right-hand
       // side are constants of the same type.
       Item_result type = args[1]->result_type();
-      if (!std::all_of(args + 1, args + arg_count,
-                       [type](const Item *item_arg) {
-                         return item_arg->const_for_execution() &&
-                                item_arg->result_type() == type;
-                       })) {
+      if (!std::all_of(
+              args + 1, args + arg_count,
+              [type, is_const_or_outer_reference](const Item *item_arg) {
+                return is_const_or_outer_reference(item_arg) &&
+                       item_arg->result_type() == type;
+              })) {
         break;
       }
       if (substitute_gc_expression(args, nullptr, gc_fields, type, this))
@@ -1442,8 +1456,12 @@ bool Item_func_connection_id::resolve_type(THD *thd) {
 bool Item_func_connection_id::fix_fields(THD *thd, Item **ref) {
   if (Item_int_func::fix_fields(thd, ref)) return true;
   thd->thread_specific_used = true;
-  value = thd->variables.pseudo_thread_id;
   return false;
+}
+
+longlong Item_func_connection_id::val_int() {
+  assert(fixed);
+  return current_thd->variables.pseudo_thread_id;
 }
 
 /**
@@ -2052,7 +2070,8 @@ longlong Item_func_plus::int_op() {
   if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
   if (current_thd->is_error()) return error_int();
-  longlong res = val0 + val1;
+  longlong res = static_cast<unsigned long long>(val0) +
+                 static_cast<unsigned long long>(val1);
   bool res_unsigned = false;
 
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0;
@@ -2163,7 +2182,8 @@ longlong Item_func_minus::int_op() {
   if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
   if (current_thd->is_error()) return error_int();
-  longlong res = val0 - val1;
+  longlong res = static_cast<unsigned long long>(val0) -
+                 static_cast<unsigned long long>(val1);
   bool res_unsigned = false;
 
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0;
@@ -5043,22 +5063,29 @@ bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res) {
 */
 longlong Item_wait_for_executed_gtid_set::val_int() {
   DBUG_TRACE;
-  assert(fixed == 1);
+  assert(fixed);
   THD *thd = current_thd;
-  String *gtid_text = args[0]->val_str(&value);
 
   null_value = false;
 
+  String *gtid_text = args[0]->val_str(&value);
   if (gtid_text == nullptr) {
-    my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
-    return 0;
+    /*
+      Usually, an argument that is NULL causes an SQL function to return NULL,
+      however since this is a function with side-effects, a NULL value is
+      treated as an error.
+    */
+    if (!thd->is_error()) {
+      my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
+    }
+    return error_int();
   }
 
   // Waiting for a GTID in a slave thread could cause the slave to
   // hang/deadlock.
+  // @todo: Return error instead of NULL
   if (thd->slave_thread) {
-    null_value = true;
-    return 0;
+    return error_int();
   }
 
   Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
@@ -5067,15 +5094,14 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
     global_sid_lock->unlock();
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
-    null_value = true;
-    return 0;
+    return error_int();
   }
 
   if (wait_for_gtid_set.add_gtid_text(gtid_text->c_ptr_safe()) !=
       RETURN_STATUS_OK) {
     global_sid_lock->unlock();
     // Error has already been generated.
-    return 1;
+    return error_int();
   }
 
   // Cannot wait for a GTID that the thread owns since that would
@@ -5087,7 +5113,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     global_sid_lock->unlock();
     my_error(ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID, MYF(0),
              buf);
-    return 0;
+    return error_int();
   }
 
   gtid_state->begin_gtid_wait();
@@ -5100,11 +5126,10 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                           ER_THD(thd, ER_WRONG_ARGUMENTS),
                           "WAIT_FOR_EXECUTED_GTID_SET.");
-      null_value = true;
     }
     gtid_state->end_gtid_wait();
     global_sid_lock->unlock();
-    return 0;
+    return error_int();
   }
 
   bool result = gtid_state->wait_for_gtid_set(thd, &wait_for_gtid_set, timeout);
@@ -5143,13 +5168,17 @@ bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res) {
 }
 
 longlong Item_master_gtid_set_wait::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   DBUG_TRACE;
   int event_count = 0;
 
   null_value = false;
 
   String *gtid = args[0]->val_str(&value);
+  if (gtid == nullptr) {
+    return error_int();
+  }
+
   THD *thd = current_thd;
   Master_info *mi = nullptr;
   double timeout = (arg_count >= 2) ? args[1]->val_real() : 0;
@@ -5161,14 +5190,12 @@ longlong Item_master_gtid_set_wait::val_int() {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                           ER_THD(thd, ER_WRONG_ARGUMENTS),
                           "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
-      null_value = true;
     }
-    return 0;
+    return error_int();
   }
 
-  if (thd->slave_thread || !gtid) {
-    null_value = true;
-    return 0;
+  if (thd->slave_thread) {
+    return error_int();
   }
 
   channel_map.rdlock();
@@ -5178,8 +5205,7 @@ longlong Item_master_gtid_set_wait::val_int() {
     String *channel_str;
     if (!(channel_str = args[2]->val_str(&value))) {
       channel_map.unlock();
-      null_value = true;
-      return 0;
+      return error_int();
     }
     mi = channel_map.get_mi(channel_str->ptr());
   } else {
@@ -5187,7 +5213,7 @@ longlong Item_master_gtid_set_wait::val_int() {
       channel_map.unlock();
       mi = nullptr;
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
-      return 0;
+      return error_int();
     } else
       mi = channel_map.get_default_channel_mi();
   }
@@ -5198,36 +5224,36 @@ longlong Item_master_gtid_set_wait::val_int() {
     my_error(ER_CANT_SET_ANONYMOUS_TO_GTID_AND_WAIT_UNTIL_SQL_THD_AFTER_GTIDS,
              MYF(0));
     channel_map.unlock();
-    return 0;
+    return error_int();
   }
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
-    null_value = true;
     channel_map.unlock();
-    return 0;
+    return error_int();
   }
   gtid_state->begin_gtid_wait();
 
-  if (mi) mi->inc_reference();
+  if (mi != nullptr) mi->inc_reference();
 
   channel_map.unlock();
 
-  if (mi && mi->rli) {
+  bool null_result = false;
+
+  if (mi != nullptr && mi->rli != nullptr) {
     event_count = mi->rli->wait_for_gtid_set(thd, gtid, timeout);
     if (event_count == -2) {
-      null_value = true;
-      event_count = 0;
+      null_result = true;
     }
-  } else
+  } else {
     /*
       Replication has not been set up, we should return NULL;
      */
-    null_value = true;
-
+    null_result = true;
+  }
   if (mi != nullptr) mi->dec_reference();
 
   gtid_state->end_gtid_wait();
 
-  return event_count;
+  return null_result ? error_int() : event_count;
 }
 
 /**
@@ -5237,26 +5263,35 @@ longlong Item_master_gtid_set_wait::val_int() {
 */
 longlong Item_func_gtid_subset::val_int() {
   DBUG_TRACE;
-  if (args[0]->null_value || args[1]->null_value) {
-    null_value = true;
-    return 0;
+
+  assert(fixed);
+
+  null_value = false;
+
+  // Evaluate strings without lock
+  String *string1 = args[0]->val_str(&buf1);
+  if (string1 == nullptr) {
+    return error_int();
   }
-  String *string1, *string2;
-  const char *charp1, *charp2;
+  String *string2 = args[1]->val_str(&buf2);
+  if (string2 == nullptr) {
+    return error_int();
+  }
+
+  const char *charp1 = string1->c_ptr_safe();
+  assert(charp1 != nullptr);
+  const char *charp2 = string2->c_ptr_safe();
+  assert(charp2 != nullptr);
   int ret = 1;
   enum_return_status status;
-  // get strings without lock
-  if ((string1 = args[0]->val_str(&buf1)) != nullptr &&
-      (charp1 = string1->c_ptr_safe()) != nullptr &&
-      (string2 = args[1]->val_str(&buf2)) != nullptr &&
-      (charp2 = string2->c_ptr_safe()) != nullptr) {
-    Sid_map sid_map(nullptr /*no rwlock*/);
-    // compute sets while holding locks
-    const Gtid_set sub_set(&sid_map, charp1, &status);
+
+  Sid_map sid_map(nullptr /*no rwlock*/);
+  // compute sets while holding locks
+  const Gtid_set sub_set(&sid_map, charp1, &status);
+  if (status == RETURN_STATUS_OK) {
+    const Gtid_set super_set(&sid_map, charp2, &status);
     if (status == RETURN_STATUS_OK) {
-      const Gtid_set super_set(&sid_map, charp2, &status);
-      if (status == RETURN_STATUS_OK)
-        ret = sub_set.is_subset(&super_set) ? 1 : 0;
+      ret = sub_set.is_subset(&super_set) ? 1 : 0;
     }
   }
   return ret;
@@ -6233,7 +6268,7 @@ bool Item_func_set_user_var::update_hash(const void *ptr, uint length,
   }
 
   /*
-    If we set a variable explicitely to NULL then keep the old
+    If we set a variable explicitly to NULL then keep the old
     result type of the variable
   */
   if (null_value && null_item) res_type = entry->type();
@@ -7754,7 +7789,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
       for (uint i = 0; i < arg_count; i++)
         update_table_read_set(((Item_field *)args[i])->field);
       /*
-        Prevent index only accces by non-FTS index if table does not have
+        Prevent index only access by non-FTS index if table does not have
         FTS_DOC_ID column, find_relevance does not work properly without
         FTS_DOC_ID value. Decision for FTS index about index only access
         is made later by JOIN::fts_index_access() function.
@@ -7951,7 +7986,7 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
   /* skip hints setting if there are aggregates(except of FT_NO_RANKING) */
   if (join->implicit_grouping || !join->group_list.empty() ||
       join->select_distinct) {
-    /* 'No ranking' is possibe even if aggregates are present */
+    /* 'No ranking' is possible even if aggregates are present */
     if ((ft_flag & FT_NO_RANKING)) hints->set_hint_flag(FT_NO_RANKING);
     return;
   }
@@ -8281,7 +8316,7 @@ bool Item_func_sp::val_json(Json_wrapper *result) {
 
 /**
   @brief Execute function & store value in field.
-         Will set null_value properly only for a successfull execution.
+         Will set null_value properly only for a successful execution.
   @return Function returns error status.
   @retval false on success.
   @retval true if an error occurred.
@@ -8320,7 +8355,7 @@ bool Item_func_sp::execute() {
 
 /**
    @brief Execute function and store the return value in the field.
-          Will set null_value properly only for a successfull execution.
+          Will set null_value properly only for a successful execution.
 
    @note This function was intended to be the concrete implementation of
     the interface function execute. This was never realized.
@@ -8501,7 +8536,7 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
     /*
       Here we check privileges of the stored routine only during view
       creation, in order to validate the view.  A runtime check is
-      perfomed in Item_func_sp::execute(), and this method is not
+      performed in Item_func_sp::execute(), and this method is not
       called during context analysis.  Notice, that during view
       creation we do not infer into stored routine bodies and do not
       check privileges of its statements, which would probably be a
@@ -8658,6 +8693,9 @@ longlong Item_func_can_access_database::val_int() {
 
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr())) return 1;
+
+  // Skip PERFORMANCE_SCHEMA database
+  if (is_perfschema_db(schema_name_ptr->ptr())) return 1;
 
   if (lower_case_table_names == 2) {
     /*
@@ -9235,11 +9273,17 @@ longlong Item_func_can_access_view::val_int() {
 }
 
 /**
-  Skip hidden tables, columns, indexes and index elements.
-  Do not skip them, when SHOW EXTENDED command are run.
+  Skip hidden tables, columns, indexes and index elements. Additionally,
+  skip generated invisible primary key(GIPK) and key column when system
+  variable show_gipk_in_create_table_and_information_schema is set to
+  OFF.
+  Do *not* skip hidden tables, columns, indexes and index elements,
+  when SHOW EXTENDED command are run. GIPK and key column are skipped
+  even for SHOW EXTENED command.
 
   Syntax:
-    longlong  IS_VISIBLE_DD_OBJECT(table_type, is_object_hidden);
+    longlong IS_VISIBLE_DD_OBJECT(type_of_hidden_table [, is_object_hidden
+                                  [, object_options]])
 
   @returns,
     1 - If dd object is visible
@@ -9248,10 +9292,10 @@ longlong Item_func_can_access_view::val_int() {
 longlong Item_func_is_visible_dd_object::val_int() {
   DBUG_TRACE;
 
-  assert(arg_count == 1 || arg_count == 2);
+  assert(arg_count > 0 && arg_count <= 3);
   assert(args[0]->null_value == false);
 
-  if (args[0]->null_value || (arg_count == 2 && args[1]->null_value)) {
+  if (args[0]->null_value || (arg_count >= 2 && args[1]->null_value)) {
     null_value = true;
     return false;
   }
@@ -9273,6 +9317,36 @@ longlong Item_func_is_visible_dd_object::val_int() {
         show_table || (table_type == dd::Abstract_table::HT_HIDDEN_DDL);
 
   if (arg_count == 1 || show_table == false) return (show_table ? 1 : 0);
+
+  // Skip generated invisible primary key and key columns.
+  if (arg_count == 3 && !args[2]->is_null() &&
+      !thd->variables.show_gipk_in_create_table_and_information_schema) {
+    String options;
+    String *options_ptr = args[2]->val_str(&options);
+
+    if (options_ptr != nullptr) {
+      // Read options from properties
+      std::unique_ptr<dd::Properties> p(
+          dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+      if (p.get()) {
+        if (p->exists("gipk")) {
+          bool gipk_value = false;
+          p->get("gipk", &gipk_value);
+          if (gipk_value) return 0;
+        }
+      } else {
+        // Warn if the property string is corrupt.
+        LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+               options_ptr->c_ptr_safe());
+        assert(false);
+      }
+    }
+    /*
+      Even if object is not a GIPK column/key we still need to check if it is
+      marked as hidden.
+    */
+  }
 
   bool show_non_table_objects;
   if (thd->lex->m_extended_show)
@@ -10053,15 +10127,4 @@ longlong Item_func_internal_is_enabled_role::val_int() {
   }
 
   return 0;
-}
-
-bool Item_func::ensure_multi_equality_fields_are_available_walker(uchar *arg) {
-  const table_map reachable_tables = *pointer_cast<table_map *>(arg);
-  for (uint i = 0; i < arg_count; ++i) {
-    if (args[i]->type() == FIELD_ITEM) {
-      args[i] =
-          FindEqualField(down_cast<Item_field *>(args[i]), reachable_tables);
-    }
-  }
-  return false;
 }

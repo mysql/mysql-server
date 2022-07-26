@@ -1,0 +1,40 @@
+# Example configuration file for cpubinding of the ndbcrunch suite
+# It can be appended to configuraton like this:
+# $> mtr --defaults-extra-file=suite/ndbcrunch/cpubind.cnf
+#
+[cluster_config.ndbd.1.crunch]
+cpubind=0-15,128-143
+
+[cluster_config.ndbd.2.crunch]
+cpubind=64-79,192-207
+
+[mysqld.1.crunch]
+cpubind=16-63,144-191
+
+[mysqld.2.crunch]
+cpubind=80-127,208-255
+
+# Sections below can be activated when running with more than two mysqlds
+#[mysqld.3.crunch]
+#cpubind=16-63,144-191
+
+#[mysqld.4.crunch]
+#cpubind=80-127,208-255
+
+#[mysqld.5.crunch]
+#cpubind=16-63,144-191
+
+#[mysqld.6.crunch]
+#cpubind=80-127,208-255
+
+#[mysqld.7.crunch]
+#cpubind=16-63,144-191
+
+#[mysqld.8.crunch]
+#cpubind=80-127,208-255
+
+#[mysqld.9.crunch]
+#cpubind=16-63,144-191
+
+[mysqltest]
+cpubind=16-63,144-191,80-127,208-255

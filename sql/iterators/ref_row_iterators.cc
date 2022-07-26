@@ -206,7 +206,7 @@ int EQRefIterator::Read() {
       Perform "Late NULLs Filtering" (see internals manual for explanations)
 
       As EQRefIterator effectively implements a one row cache of last
-      fetched row, the NULLs filtering cant be done until after the cache
+      fetched row, the NULLs filtering can't be done until after the cache
       key has been checked and updated, and row locks maintained.
     */
     if (m_ref->impossible_null_ref()) {

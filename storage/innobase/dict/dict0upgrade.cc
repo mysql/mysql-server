@@ -40,6 +40,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0load.h"
 #include "ha_innodb.h"
 #include "ha_innopart.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "row0sel.h"
 #include "srv0start.h"
 

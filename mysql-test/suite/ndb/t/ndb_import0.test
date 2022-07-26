@@ -741,11 +741,105 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
  --csvopt=cqn
  test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
 
+# Verify that different ways of specify an empty or null column in a csv file
+# for a single column table works.
+
+create table t11 (
+  a varchar(16) null
+) engine=ndb CHARACTER SET latin1;
+
+--write_file $MYSQLTEST_VARDIR/tmp/t11.csv
+
+,
+""
+"",
+\N
+\N,
+EOF
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq
+ test $MYSQLTEST_VARDIR/tmp/t11.csv --table=t11 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+# 6 total 2 null and 4 empty
+SELECT COUNT(*), SUM(a IS NULL), SUM(a = '') FROM t11 ORDER BY a;
+
+delete from t11;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq
+ test $MYSQLTEST_VARDIR/tmp/t11.csv -t t11 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+create table t11ver like t11;
+
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t11.csv'
+into table t11ver
+fields terminated by ',' enclosed by '"'
+lines terminated by $lt_unix;
+--enable_query_log
+
+# 6 total 2 null and 4 empty
+SELECT COUNT(*), SUM(a IS NULL), SUM(a = '') FROM t11ver ORDER BY a;
+
+# 20 total 2x2 null and 4x4 empty
+select count(*) from t11 x, t11ver y
+where ifnull(x.a,'NULL') = ifnull(y.a,'NULL');
+
+delete from t11;
+
+# Verify that the t11.csv produce the same result if one add a auto_increment
+# primary key column that both ndb_import and load data will generate values
+# for.
+
+create table t12 (
+  a int auto_increment primary key,
+  b varchar(16) null
+) engine=ndb CHARACTER SET latin1;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq --missing-ai-column
+ test $MYSQLTEST_VARDIR/tmp/t11.csv --table=t12 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+# 6 total 2 null and 4 empty
+SELECT COUNT(*), SUM(b IS NULL), SUM(b = '') FROM t12 ORDER BY b;
+
+delete from t12;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq --missing-ai-column
+ test $MYSQLTEST_VARDIR/tmp/t11.csv -t t12 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+create table t12ver like t12;
+
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t11.csv'
+into table t12ver
+fields terminated by ',' enclosed by '"'
+lines terminated by $lt_unix (b);
+--enable_query_log
+
+# 6 total 2 null and 4 empty
+SELECT COUNT(*), SUM(b IS NULL), SUM(b = '') FROM t12ver ORDER BY b;
+
+# 20 total 2x2 null and 4x4 empty
+select count(*) from t12 x, t12ver y
+where ifnull(x.b,'NULL') = ifnull(y.b,'NULL');
+
+delete from t12;
+
+# 20 total 2x2 null and 4x4 empty
+select count(*) from t11ver x, t12ver y
+where ifnull(x.a,'NULL') = ifnull(y.b,'NULL');
+
+# END t11
 
 drop table tpersons;
 
 drop table t1, t1ver, t2, t2ver, t4, t5a, t5b, t5c,
-           t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver;
+           t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver,
+           t11, t11ver, t12, t12ver;
+
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.csv

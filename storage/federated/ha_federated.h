@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@
 #define FEDERATED_MAX_KEY_LENGTH 3500  // Same as innodb
 
 /*
-  FEDERATED_SHARE is a structure that will be shared amoung all open handlers
+  FEDERATED_SHARE is a structure that will be shared among all open handlers
   The example implements the minimum of what you will probably need.
 */
 struct FEDERATED_SHARE {
@@ -200,14 +200,14 @@ class ha_federated : public handler {
   */
   double read_time(uint, uint, ha_rows rows) override {
     /*
-      Per Brian, this number is bugus, but this method must be implemented,
+      Per Brian, this number is bogus, but this method must be implemented,
       and at a later date, he intends to document this issue for handler code
     */
     return (double)rows / 20.0 + 1;
   }
 
   /*
-    Everything below are methods that we implment in ha_federated.cc.
+    Everything below are methods that we implement in ha_federated.cc.
 
     Most of these methods are not obligatory, skip them and
     MySQL will treat them as not implemented

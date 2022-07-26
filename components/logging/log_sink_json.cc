@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -459,7 +459,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::get_log_name,
   Open a new instance.
 
   @retval  <0        a new instance could not be created
-  @retval  =0        success, returned hande is valid
+  @retval  =0        success, returned handle is valid
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,
               (log_line * ll [[maybe_unused]], void **instance)) {

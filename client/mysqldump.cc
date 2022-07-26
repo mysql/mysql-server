@@ -94,6 +94,9 @@
 /* Maximum number of fields per table */
 #define MAX_FIELDS 4000
 
+/* One year in seconds */
+#define LONG_TIMEOUT (3600UL * 24UL * 365UL)
+
 using std::string;
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
@@ -153,6 +156,8 @@ static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = false;
 static uint opt_mysql_port = 0, opt_master_data;
 static uint opt_slave_data;
+static ulong opt_long_query_time = 0;
+static bool long_query_time_opt_provided = false;
 static uint my_end_arg;
 static char *opt_mysql_unix_port = nullptr;
 static char *opt_bind_addr = nullptr;
@@ -181,6 +186,7 @@ static char *shared_memory_base_name = 0;
 #endif
 static uint opt_protocol = 0;
 static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
+static bool opt_skip_gipk = false;
 
 Prealloced_array<uint, 12> ignore_error(PSI_NOT_INSTRUMENTED);
 static int parse_ignore_error();
@@ -444,6 +450,11 @@ static struct my_option my_long_options[] = {
      "Append warnings and errors to given file.", &log_error_file,
      &log_error_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+    {"mysqld-long-query-time", OPT_LONG_QUERY_TIME,
+     "Set long_query_time for the session of this dump. Ommitting flag means "
+     "using the server value.",
+     &opt_long_query_time, &opt_long_query_time, 0, GET_ULONG, REQUIRED_ARG, 0,
+     0, LONG_TIMEOUT, nullptr, 0, nullptr},
     {"source-data", OPT_SOURCE_DATA,
      "This causes the binary log position and filename to be appended to the "
      "output. If equal to 1, will print it as a CHANGE MASTER command; if equal"
@@ -643,6 +654,11 @@ static struct my_option my_long_options[] = {
      "inclusive. Default is 3.",
      &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
      REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
+    {"skip-generated-invisible-primary-key", 0,
+     "Controls whether generated invisible primary key and key column should "
+     "be dumped or not.",
+     &opt_skip_gipk, &opt_skip_gipk, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -981,6 +997,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
     case (int)OPT_MYSQLDUMP_IGNORE_ERROR:
       /* Store the supplied list of errors into an array. */
       if (parse_ignore_error()) exit(EX_EOM);
+      break;
+    case (int)OPT_LONG_QUERY_TIME:
+      long_query_time_opt_provided = true;
       break;
   }
   return false;
@@ -1660,12 +1679,26 @@ static int connect_to_db(char *host, char *user) {
   /*
     set network read/write timeout value to a larger value to allow tables with
     large data to be sent on network without causing connection lost error due
-    to timeout
+    to timeout.
+    Additionally set long_query_time value for mysqldump session in the same
+    query to possibly reduce one RTT.
   */
-  if (opt_network_timeout) {
-    snprintf(buff, sizeof(buff),
-             "SET SESSION NET_READ_TIMEOUT= 86400, "
-             "SESSION NET_WRITE_TIMEOUT= 86400 ");  // 1 day in seconds
+  if (opt_network_timeout || long_query_time_opt_provided) {
+    size_t len = snprintf(buff, sizeof(buff), "SET ");
+    if (opt_network_timeout) {
+      len += snprintf(buff + len, sizeof(buff) - len,
+                      "SESSION NET_READ_TIMEOUT= 86400, "
+                      "SESSION NET_WRITE_TIMEOUT= 86400");  // 1 day in seconds
+      if (long_query_time_opt_provided) {
+        // delimiter needed for appending next variable
+        len += snprintf(buff + len, sizeof(buff) - len, ", ");
+      }
+    }
+    if (long_query_time_opt_provided) {
+      // add snprintf result to len if new option gets added in the same request
+      snprintf(buff + len, sizeof(buff) - len, "SESSION long_query_time=%lu",
+               opt_long_query_time);
+    }
     if (mysql_query_with_error_report(mysql, nullptr, buff)) return 1;
   }
 
@@ -1673,6 +1706,13 @@ static int connect_to_db(char *host, char *user) {
       mysql_query_with_error_report(
           mysql, nullptr,
           "/*!80018 SET SESSION show_create_table_skip_secondary_engine=1 */"))
+    return 1;
+
+  if (opt_skip_gipk &&
+      mysql_query_with_error_report(
+          mysql, nullptr,
+          "/*!80030 SET SESSION "
+          "show_gipk_in_create_table_and_information_schema = OFF */"))
     return 1;
 
   return 0;

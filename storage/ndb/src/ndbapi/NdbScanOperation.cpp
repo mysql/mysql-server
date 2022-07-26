@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1061,7 +1061,7 @@ NdbIndexScanOperation::setBound(const NdbRecord *key_record,
      * To encode this, we'll request all rows where the first
      * key column value is >= NULL
      */
-    insert_open_bound(key_record, firstRangeWord);
+    insert_open_bound(firstRangeWord);
   }
 
   /* Set the length of this range
@@ -2052,20 +2052,15 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
   return 0;
 }
 
-int 
-NdbScanOperation::prepareSend(Uint32  TC_ConnectPtr,
-                              Uint64  TransactionId,
-                              NdbOperation::AbortOption)
+int NdbScanOperation::prepareSend(Uint32 /*TC_ConnectPtr*/,
+                                  Uint64 /*TransactionId*/,
+                                  NdbOperation::AbortOption)
 {
   abort();
   return 0;
 }
 
-int 
-NdbScanOperation::doSend(int ProcessorId)
-{
-  return 0;
-}
+int NdbScanOperation::doSend(int /*ProcessorId*/) { return 0; }
 
 void NdbScanOperation::close(bool forceSend, bool releaseOp)
 {
@@ -2117,7 +2112,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   {
     NdbIndexScanOperation* tOp = (NdbIndexScanOperation*)this;
 
-    bool ret = true;
+    bool ret [[maybe_unused]];
     if (theStatus != WaitResponse)
     {
       /**
@@ -2328,9 +2323,9 @@ Parameters:     aTC_ConnectPtr: the Connect pointer to TC.
 Remark:         Puts the the final data into ATTRINFO signal(s)  after this 
                 we know the how many signal to send and their sizes
 ***************************************************************************/
-int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
-                                      Uint64 aTransactionId,
-                                      const Uint32 * readMask)
+int NdbScanOperation::prepareSendScan(Uint32 /*aTC_ConnectPtr*/,
+                                      Uint64 /*aTransactionId*/,
+                                      const Uint32* readMask)
 {
   if (theInterpretIndicator != 1 ||
       (theOperationType != OpenScanRequest &&
@@ -3127,16 +3122,10 @@ NdbIndexScanOperation::getValue_impl(const NdbColumnImpl* attrInfo,
  * Key bound information is stored in the operation for later
  * processing using the normal NdbRecord setBound interface.
  */
-int
-NdbIndexScanOperation::setBoundHelperOldApi(OldApiBoundInfo& boundInfo,
-                                            Uint32 maxKeyRecordBytes,
-                                            Uint32 index_attrId,
-                                            Uint32 valueLen,
-                                            bool inclusive,
-                                            Uint32 byteOffset,
-                                            Uint32 nullbit_byte_offset,
-                                            Uint32 nullbit_bit_in_byte,
-                                            const void *aValue)
+int NdbIndexScanOperation::setBoundHelperOldApi(
+    OldApiBoundInfo& boundInfo, Uint32 maxKeyRecordBytes [[maybe_unused]],
+    Uint32 index_attrId, Uint32 valueLen, bool inclusive, Uint32 byteOffset,
+    Uint32 nullbit_byte_offset, Uint32 nullbit_bit_in_byte, const void* aValue)
 {
   Uint32 presentBitMask= (1 << (index_attrId & 0x1f));
 
@@ -3514,9 +3503,7 @@ NdbIndexScanOperation::ndbrecord_insert_bound(const NdbRecord *key_record,
   return 0;
 }
 
-int
-NdbIndexScanOperation::insert_open_bound(const NdbRecord *key_record,
-                                         Uint32*& firstWordOfBound)
+int NdbIndexScanOperation::insert_open_bound(Uint32*& firstWordOfBound)
 {
   /* We want to insert an open bound into a scan
    * This is done by requesting all rows with first key column
@@ -3541,10 +3528,9 @@ NdbIndexScanOperation::insert_open_bound(const NdbRecord *key_record,
   /* Grab ptr to first word of this bound if caller wants it */
   if (firstWordOfBound == NULL)
     firstWordOfBound= theKEYINFOptr - 1;
-  
+
   /*
-   * bug#57396 wrong attr id inserted.
-   * First index attr id is 0, key_record not used.
+   * First index attr id is 0.
    * Create NULL attribute header.
    */
   AttributeHeader ah(0, 0);
@@ -4101,8 +4087,8 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
   return 0;
 }
 
-void
-NdbScanOperation::reset_receivers(Uint32 parallell, Uint32 ordered){
+void NdbScanOperation::reset_receivers(Uint32 parallell, Uint32 /*ordered*/)
+{
   for(Uint32 i = 0; i<parallell; i++){
     m_receivers[i]->m_list_index = i;
     m_prepared_receivers[i] = m_receivers[i]->getId();

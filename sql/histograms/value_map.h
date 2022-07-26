@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_VALUE_MAP_INCLUDED
 #define HISTOGRAMS_VALUE_MAP_INCLUDED
 
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,8 +177,7 @@ class Value_map_base {
   MEM_ROOT m_mem_root;
 
  public:
-  Value_map_base(const CHARSET_INFO *charset, double sampling_rate,
-                 Value_map_type data_type);
+  Value_map_base(const CHARSET_INFO *charset, Value_map_type data_type);
 
   virtual ~Value_map_base() = default;
 
@@ -257,7 +256,7 @@ class Value_map_base {
   Value_map class.
 
   This class works as a map. It is a collection of [key, count], where "count"
-  is the number of occurances of "key". The class abstracts away things like
+  is the number of occurrences of "key". The class abstracts away things like
   duplicate checking and the underlying container.
 */
 template <class T>
@@ -270,9 +269,8 @@ class Value_map final : public Value_map_base {
   value_map_type m_value_map;
 
  public:
-  Value_map(const CHARSET_INFO *charset, Value_map_type data_type,
-            double sampling_rate = 0.0)
-      : Value_map_base(charset, sampling_rate, data_type),
+  Value_map(const CHARSET_INFO *charset, Value_map_type data_type)
+      : Value_map_base(charset, data_type),
         m_value_map(typename value_map_type::allocator_type(&m_mem_root)) {}
 
   size_t size() const override { return m_value_map.size(); }

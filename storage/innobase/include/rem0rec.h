@@ -210,14 +210,6 @@ physical record are stored externally.
 [[nodiscard]] ulint rec_get_n_extern_new(const rec_t *rec,
                                          const dict_index_t *index, ulint n);
 
-#ifdef UNIV_DEBUG
-#define rec_get_offsets(rec, index, offsets, n, heap) \
-  rec_get_offsets_func(rec, index, offsets, n, UT_LOCATION_HERE, heap)
-#else /* UNIV_DEBUG */
-#define rec_get_offsets(rec, index, offsets, n, heap) \
-  rec_get_offsets_func(rec, index, offsets, n, heap)
-#endif /* UNIV_DEBUG */
-
 /** Gets the value of the specified field in the record in old style.
 This is only used for record from instant index, which is clustered
 index and has some instantly added columns.
@@ -316,14 +308,16 @@ class Rec_offsets : private ut::Non_copyable {
   instance. You can use its value as long as this object does not go out of
   scope (which can free the buffer), and you don't call compute() again (which
   can overwrite the offsets).
-  @param[in]  rec   The record for which you want to compute the offsets
-  @param[in]  index The index which contains the record
+  @param[in]  rec      The record for which you want to compute the offsets
+  @param[in]  index    The index which contains the record
+  @param[in]  n_fields Number of columns to scan
   @return A pointer to offsets array owned by this instance. Valid till next
   call to compute() or end of this instance lifetime.
   */
-  const ulint *compute(const rec_t *rec, const dict_index_t *index) {
-    m_offsets =
-        rec_get_offsets(rec, index, m_offsets, ULINT_UNDEFINED, &m_heap);
+  const ulint *compute(const rec_t *rec, const dict_index_t *index,
+                       const ulint n_fields = ULINT_UNDEFINED) {
+    m_offsets = rec_get_offsets(rec, index, m_offsets, n_fields,
+                                UT_LOCATION_HERE, &m_heap);
     return m_offsets;
   }
   /** Deallocated dynamically allocated memory, if any. */
@@ -452,15 +446,16 @@ rec_t *rec_copy_prefix_to_buf(const rec_t *rec, const dict_index_t *index,
 /** Compute a hash value of a prefix of a leaf page record.
 @param[in]      rec             leaf page record
 @param[in]      offsets         rec_get_offsets(rec)
-@param[in]      n_fields        number of complete fields to fold
-@param[in]      n_bytes         number of bytes to fold in the last field
-@param[in]      fold            fold value of the index identifier
+@param[in]      n_fields        number of complete fields to hash
+@param[in]      n_bytes         number of bytes to hash in the last field
+@param[in]      hashed_value    hash value of the index identifier
 @param[in]      index           index where the record resides
-@return the folded value */
-[[nodiscard]] static inline ulint rec_fold(const rec_t *rec,
-                                           const ulint *offsets, ulint n_fields,
-                                           ulint n_bytes, ulint fold,
-                                           const dict_index_t *index);
+@return the hashed value */
+[[nodiscard]] static inline uint64_t rec_hash(const rec_t *rec,
+                                              const ulint *offsets,
+                                              ulint n_fields, ulint n_bytes,
+                                              uint64_t hashed_value,
+                                              const dict_index_t *index);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Builds a physical record out of a data tuple and stores it into the given

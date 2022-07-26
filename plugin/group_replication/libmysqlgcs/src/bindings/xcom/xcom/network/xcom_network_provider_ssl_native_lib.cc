@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,8 @@
 #include <openssl/dh.h>
 #include <openssl/opensslv.h>
 #include <openssl/x509v3.h>
+
+#include <my_openssl_fips.h>
 
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
@@ -90,6 +92,7 @@ static const char *tls_cipher_blocked =
     "!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:"
     "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 /*
   Diffie-Hellman key.
   Generated using: >openssl dhparam -5 -C 2048
@@ -132,16 +135,16 @@ static unsigned char dh2048_g[] = {0x05};
 static DH *get_dh2048(void) {
   DH *dh;
   if ((dh = DH_new())) {
-    BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
-    BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
+    BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), nullptr);
+    BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), nullptr);
     if (!p || !g
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
-        || !DH_set0_pqg(dh, p, NULL, g)
+        || !DH_set0_pqg(dh, p, nullptr, g)
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
     ) {
       /* DH_free() will free 'p' and 'g' at once. */
       DH_free(dh);
-      return NULL;
+      return nullptr;
     }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     dh->p = p;
@@ -150,12 +153,13 @@ static DH *get_dh2048(void) {
   }
   return (dh);
 }
+#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
 
-static char *ssl_pw = NULL;
+static char *ssl_pw = nullptr;
 static int ssl_init_done = 0;
 
-SSL_CTX *server_ctx = NULL;
-SSL_CTX *client_ctx = NULL;
+SSL_CTX *server_ctx = nullptr;
+SSL_CTX *client_ctx = nullptr;
 
 /*
   Note that the functions, i.e. strtok and strcasecmp, are not
@@ -164,7 +168,7 @@ SSL_CTX *client_ctx = NULL;
 */
 static long process_tls_version(const char *tls_version) {
   const char *separator = ", ";
-  char *token = NULL;
+  char *token = nullptr;
 #ifdef HAVE_TLSv13
   const char *tls_version_name_list[] = {"TLSv1.2", "TLSv1.3"};
 #else
@@ -188,7 +192,7 @@ static long process_tls_version(const char *tls_version) {
   unsigned int index = 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
   int tls_found = 0;
-  char *saved_ctx = NULL;
+  char *saved_ctx = nullptr;
 
   if (!tls_version || !xcom_strcasecmp(tls_version, ctx_flag_default)) return 0;
 
@@ -204,7 +208,7 @@ static long process_tls_version(const char *tls_version) {
         break;
       }
     }
-    token = xcom_strtok(NULL, separator, &saved_ctx);
+    token = xcom_strtok(nullptr, separator, &saved_ctx);
   }
 
   if (!tls_found)
@@ -226,7 +230,6 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
                                     const char *tls_version,
                                     const char *tls_ciphersuites
                                     [[maybe_unused]]) {
-  DH *dh = NULL;
   long ssl_ctx_options =
       SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
   char cipher_list[SSL_CIPHER_LIST_SIZE] = {0};
@@ -241,7 +244,7 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
   ssl_ctx_flags = process_tls_version(tls_version);
   if (ssl_ctx_flags < 0) {
     G_ERROR("TLS version is invalid: %s", tls_version);
-    goto error;
+    return 1;
   }
 
 #ifdef HAVE_TLSv13
@@ -263,7 +266,7 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
        If the ciphersuites are unspecified, i.e. tls_ciphersuites == NULL, then
        we use whatever OpenSSL uses by default. Note that an empty list is
        permissible; it disallows all ciphersuites. */
-    if (tls_ciphersuites != NULL) {
+    if (tls_ciphersuites != nullptr) {
       /*
         Note: if TLSv1.3 is enabled but TLSv1.3 ciphersuite list is empty
         (that's permissible and mentioned in the documentation),
@@ -274,14 +277,14 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
             "Failed to set the list of ciphersuites. Check if the values "
             "configured for ciphersuites are correct and valid and if the list "
             "is not empty");
-        goto error;
+        return 1;
       }
     }
   } else {
     /* Disable OpenSSL TLS v1.3 ciphersuites. */
     if (SSL_CTX_set_ciphersuites(ssl_ctx, "") == 0) {
       G_DEBUG("Failed to set empty ciphersuites with TLS v1.3 disabled.");
-      goto error;
+      return 1;
     }
   }
 #endif /* HAVE_TLSv13 */
@@ -299,44 +302,35 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
 
   if (SSL_CTX_set_cipher_list(ssl_ctx, cipher_list) == 0) {
     G_ERROR("Failed to set the list of chipers.");
-    goto error;
+    return 1;
   }
 
-  dh = get_dh2048();
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (SSL_CTX_set_dh_auto(ssl_ctx, 1) != 1) return true;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  DH *dh = get_dh2048();
   if (SSL_CTX_set_tmp_dh(ssl_ctx, dh) == 0) {
     G_ERROR("Error setting up Diffie-Hellman key exchange");
-    goto error;
+    DH_free(dh);
+    return 1;
   }
   DH_free(dh);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   return 0;
-
-error:
-  if (dh) DH_free(dh);
-  return 1;
 }
 
-#define OPENSSL_ERROR_LENGTH 512
-static int configure_ssl_fips_mode(const int fips_mode) {
-  int rc = -1;
-  int fips_mode_old = -1;
+/**
+  @retval true     for error
+  @retval false    for success
+*/
+static bool configure_ssl_fips_mode(const int fips_mode) {
+  bool rc = false;
   char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-  unsigned long err_library = 0;
-  if (fips_mode > 2) {
-    goto EXIT;
-  }
-  fips_mode_old = FIPS_mode();
-  if (fips_mode_old == fips_mode) {
-    rc = 1;
-    goto EXIT;
-  }
-  if (!(rc = FIPS_mode_set(fips_mode))) {
-    err_library = ERR_get_error();
-    ERR_error_string_n(err_library, err_string, sizeof(err_string) - 1);
-    err_string[sizeof(err_string) - 1] = '\0';
+  if (set_fips_mode(fips_mode, err_string)) {
     G_ERROR("openssl fips mode set failed: %s", err_string);
+    rc = true;
   }
-EXIT:
   return rc;
 }
 
@@ -403,7 +397,7 @@ static int configure_ssl_keys(SSL_CTX *ssl_ctx, const char *key_file,
   }
 
   if (cert_file &&
-      SSL_CTX_use_certificate_file(ssl_ctx, cert_file, SSL_FILETYPE_PEM) <= 0) {
+      SSL_CTX_use_certificate_chain_file(ssl_ctx, cert_file) <= 0) {
     G_ERROR("Error loading certification file %s", cert_file);
     goto error;
   }
@@ -479,8 +473,7 @@ int Xcom_network_provider_ssl_library::xcom_init_ssl(
   int verify_client = SSL_VERIFY_NONE;
 
   if (configure_ssl_fips_mode(
-          Network_provider_manager::getInstance().xcom_get_ssl_fips_mode()) !=
-      1) {
+          Network_provider_manager::getInstance().xcom_get_ssl_fips_mode())) {
     G_ERROR("Error setting the ssl fips mode");
     goto error;
   }
@@ -516,7 +509,7 @@ int Xcom_network_provider_ssl_library::xcom_init_ssl(
   if (Network_provider_manager::getInstance().xcom_get_ssl_mode() !=
       SSL_REQUIRED)
     verify_server = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
-  SSL_CTX_set_verify(server_ctx, verify_server, NULL);
+  SSL_CTX_set_verify(server_ctx, verify_server, nullptr);
 
   G_DEBUG("Configuring SSL for the client")
 #ifdef HAVE_TLSv13
@@ -536,7 +529,7 @@ int Xcom_network_provider_ssl_library::xcom_init_ssl(
       SSL_REQUIRED) {
     verify_client = SSL_VERIFY_PEER;
   }
-  SSL_CTX_set_verify(client_ctx, verify_client, NULL);
+  SSL_CTX_set_verify(client_ctx, verify_client, nullptr);
 
   ssl_init_done = 1;
 
@@ -583,7 +576,7 @@ void Xcom_network_provider_ssl_library::xcom_destroy_ssl() {
 
 int Xcom_network_provider_ssl_library::ssl_verify_server_cert(
     SSL *ssl, const char *server_hostname) {
-  X509 *server_cert = NULL;
+  X509 *server_cert = nullptr;
   int ret_validation = 1;
 
 #if !(OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL))
@@ -626,7 +619,7 @@ int Xcom_network_provider_ssl_library::ssl_verify_server_cert(
   */
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
   if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
-                       0) != 1) &&
+                       nullptr) != 1) &&
       (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
     G_ERROR(
         "Failed to verify the server certificate via X509 certificate "

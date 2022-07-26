@@ -66,8 +66,9 @@ Table_partitions::Table_partitions() {
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
                              String_type(name_collation()->m_coll_name));
-  m_target_def.add_field(FIELD_ENGINE, "FIELD_ENGINE",
-                         "engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+  m_target_def.add_field(
+      FIELD_ENGINE, "FIELD_ENGINE",
+      "engine VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci");
   m_target_def.add_field(FIELD_DESCRIPTION_UTF8, "FIELD_DESCRIPTION_UTF8",
                          "description_utf8 TEXT");
   m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",

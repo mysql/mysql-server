@@ -282,7 +282,8 @@ static ib_err_t ib_read_tuple(
 
   rec_offs_init(offsets_);
 
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &tuple->heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &tuple->heap);
 
   rec_meta_data = rec_get_info_bits(rec, page_format);
   dtuple_set_info_bits(dtuple, rec_meta_data);
@@ -1562,10 +1563,11 @@ ib_err_t ib_cursor_delete_row(
 
       rec = pcur->get_rec();
 
-      /* Since mtr will be commited, the rec
+      /* Since mtr will be committed, the rec
       will not be protected. Make a copy of
       the rec. */
-      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
       ut_ad(rec_offs_size(offsets) < UNIV_PAGE_SIZE_MAX);
       copy = rec_copy(ptr, rec, offsets);
     }

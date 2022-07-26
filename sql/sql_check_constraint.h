@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ class Sql_check_constraint_spec {
   Class to represent check constraint in the TABLE_SHARE.
 
   The instance of Sql_check_constraint_share contains information as name,
-  state and expression in string form. These informations are filled from
+  state and expression in string form. This information is obtained from
   the data-dictionary. The check expression is not in itemized (materialized)
   form here.
 */

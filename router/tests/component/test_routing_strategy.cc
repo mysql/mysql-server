@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1088,12 +1088,14 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
                                     "' is available, remove it from quarantine",
                                 5s));
 
-  SCOPED_TRACE("// Go through all RO nodes just to wrap around");
-  make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[2]);
-  make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[3]);
+  // check that restored (first) RO node got back to the round-robin rotation
+  std::vector<uint16_t> ports_used;
+  for (size_t i = 0; i < 3; i++) {
+    ports_used.push_back(make_new_connection_ok(classic_RO_bind_port));
+  }
 
-  SCOPED_TRACE("// first RO node is no longer quarantined");
-  make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[1]);
+  EXPECT_THAT(ports_used,
+              ::testing::Contains(::testing::Eq(cluster_nodes_ports[1])));
 
   ASSERT_THAT(router.kill(), testing::Eq(0));
 }
@@ -1293,8 +1295,14 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   set_mock_metadata(http_port, "", cluster_nodes_ports);
   wait_for_transaction_count_increase(http_port, 2);
 
-  make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[3]);
-  make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[1]);
+  // check that restored RO node got back to the round-robin rotation
+  std::vector<uint16_t> ports_used;
+  for (size_t i = 0; i < 3; i++) {
+    ports_used.push_back(make_new_connection_ok(classic_RO_bind_port));
+  }
+
+  EXPECT_THAT(ports_used,
+              ::testing::Contains(::testing::Eq(cluster_nodes_ports[1])));
 
   ASSERT_THAT(router.kill(), testing::Eq(0));
 }
@@ -1384,7 +1392,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
   // even though the first RO node is no longer in the metadata it should not be
   // removed from the quarantine queue because other plugin still references it
   EXPECT_THAT(
-      router.get_full_logfile(),
+      router.get_logfile_content(),
       ::testing::Not(::testing::ContainsRegex(
           "Remove '.*" + std::to_string(cluster_nodes_ports[1]) +
           "' from quarantine, no plugin is using this destination candidate")));

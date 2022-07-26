@@ -498,7 +498,7 @@ static void report_memory_accounting_error(const char *api_name,
   The instrumentation interface consist of two layers:
   - a raw ABI (Application Binary Interface) layer, that exposes the primitive
   instrumentation functions exported by the performance schema instrumentation
-  - an API (Application Programing Interface) layer,
+  - an API (Application Programming Interface) layer,
   that provides many helpers for a developer instrumenting some code,
   to make the instrumentation as easy as possible.
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,6 +261,7 @@ bool channel_is_active(const char *channel, enum_channel_thread_types type);
   @param[in]  channel      The channel name
   @param[in]  thread_type  The thread type (receiver or applier)
   @param[out] thread_id    The array of id(s)
+  @param[in]  need_lock    Is channel_map read lock needed?
 
   @return the number of returned ids
     @retval -1  the channel does no exists, or the thread is not present
@@ -268,7 +269,7 @@ bool channel_is_active(const char *channel, enum_channel_thread_types type);
 */
 int channel_get_thread_id(const char *channel,
                           enum_channel_thread_types thread_type,
-                          unsigned long **thread_id);
+                          unsigned long **thread_id, bool need_lock = true);
 
 /**
   Returns last GNO from applier from a given UUID.
@@ -433,7 +434,7 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel);
 
   @param[in]        thread_mask       type of slave thread- IO/SQL or any
 
-  @retval          true               atleast one channel threads are running.
+  @retval          true               at least one channel thread is running.
   @retval          false              none of the the channels are running.
 */
 bool is_any_slave_channel_running(int thread_mask);
@@ -455,7 +456,7 @@ bool is_any_slave_channel_running_with_failover_enabled(int thread_mask);
 
   @param[in]        group_name        the group name
 
-  @retval          true               atleast one channel has the same uuid
+  @retval          true               at least one channel has the same uuid
   @retval          false              none of the the channels have the same
   uuid
 */

@@ -4893,7 +4893,7 @@ Suma::reformat(Signal* signal,
   {
     jam();
     const Uint32 secnum = (i == 0 ? 0 : 2);
-    Uint32* p = lsptr[secnum].p;
+    const Uint32* p = lsptr[secnum].p;
     Uint32 sz = lsptr[secnum].sz;
     while (sz > 0)
     {

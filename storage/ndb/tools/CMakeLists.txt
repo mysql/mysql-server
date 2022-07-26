@@ -25,9 +25,10 @@ INCLUDE(ndb_downgrade_warnings)
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
 FOREACH(warning
-    # Downgrade -Werror=implicit-fallthrough to warning for
-    # NdbImportCsvGram.cpp
-    "error=implicit-fallthrough"
+    "cast-qual"
+    "maybe-uninitialized"
+    "unused-but-set-variable"
+    "unused-parameter"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
@@ -36,14 +37,15 @@ FOREACH(warning
   ENDIF()
 ENDFOREACH()
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
 # Check BISON_VERSION and set BISON_FLAGS_WARNINGS
 FIND_PACKAGE(BISON REQUIRED)
 
 INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
+  ${CMAKE_SOURCE_DIR}/storage/ndb/test/include
   ${CMAKE_BINARY_DIR}/storage/ndb/tools)
 
 ADD_LIBRARY(ndbtools STATIC
@@ -55,8 +57,9 @@ ADD_LIBRARY(ndbtools STATIC
 
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   # Suppress warnings for undefined identifiers in bison output
+  # For implicit-fallthrough - see Bug#34098818
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
-    COMPILE_FLAGS "-Wno-undef")
+    COMPILE_FLAGS "-Wno-undef -Wno-implicit-fallthrough")
 ENDIF()
 
 IF(MSVC)
@@ -139,7 +142,7 @@ NDB_ADD_EXECUTABLE(ndb_select_count
 NDB_ADD_EXECUTABLE(ndb_perror
   ndb_perror.cpp
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi/mgmapi_error.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error/ndbd_exit_codes.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi/ndbd_exit_codes.cpp
   COMPONENT ClusterTools
   ${LINK_NDBCLIENT}
   ENABLE_EXPORTS
@@ -161,7 +164,7 @@ NDB_ADD_EXECUTABLE(ndb_import
   ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
-  LINK_LIBRARIES ndbtools
+  LINK_LIBRARIES ndbtools ndbgeneral
   )
 
 NDB_ADD_TEST(NdbImportUtil-t NdbImportUtil.cpp
@@ -208,7 +211,7 @@ NDB_ADD_EXECUTABLE(ndbxfrm
   ndbxfrm.cpp
   COMPONENT ClusterTools
   ENABLE_EXPORTS
-  LINK_LIBRARIES ndbgeneral ndbportlib
+  LINK_LIBRARIES ndbmgmapi ndbgeneral ndbportlib
   )
 
 IF(NOT WIN32 AND NOT SOLARIS)

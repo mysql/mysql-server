@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,9 @@
 
 // codecs for classic_protocol::session_track:: messages
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/classic_protocol_codec_base.h"
+#include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_codec_wire.h"
 #include "mysqlrouter/classic_protocol_session_track.h"
 #include "mysqlrouter/classic_protocol_wire.h"
@@ -44,7 +46,9 @@ class Codec<session_track::TransactionState>
     : public impl::EncodeBase<Codec<session_track::TransactionState>> {
   template <class Accumulator>
   constexpr auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::FixedInt<1>(v_.trx_type()))
+    return accu
+        .step(wire::FixedInt<1>(0x08))  // length
+        .step(wire::FixedInt<1>(v_.trx_type()))
         .step(wire::FixedInt<1>(v_.read_unsafe()))
         .step(wire::FixedInt<1>(v_.read_trx()))
         .step(wire::FixedInt<1>(v_.write_unsafe()))
@@ -64,6 +68,8 @@ class Codec<session_track::TransactionState>
   constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
+  constexpr static uint8_t type_byte() { return 0x05; }
+
   /**
    * decode a session_track::TransactionState from a buffer-sequence.
    *
@@ -81,6 +87,14 @@ class Codec<session_track::TransactionState>
     static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
                   "buffers MUST be a const buffer sequence");
     impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    const auto payload_length_res = accu.template step<wire::VarInt>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (payload_length_res->value() != 0x08) {
+      // length of the payload that follows.
+      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+    }
 
     const auto trx_type_res = accu.template step<wire::FixedInt<1>>();
     const auto read_unsafe_res = accu.template step<wire::FixedInt<1>>();
@@ -116,7 +130,7 @@ class Codec<session_track::TransactionCharacteristics>
           Codec<session_track::TransactionCharacteristics>> {
   template <class Accumulator>
   auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::VarString(v_.trx_state())).result();
+    return accu.step(wire::VarString(v_.characteristics())).result();
   }
 
  public:
@@ -127,6 +141,8 @@ class Codec<session_track::TransactionCharacteristics>
 
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t type_byte() { return 0x04; }
 
   /**
    * decode a session_track::TransactionCharacteristics from a buffer-sequence.
@@ -180,6 +196,8 @@ class Codec<session_track::State>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
+  constexpr static uint8_t type_byte() { return 0x02; }
+
   /**
    * decode a session_track::State from a buffer-sequence.
    *
@@ -229,6 +247,8 @@ class Codec<session_track::Schema>
 
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t type_byte() { return 0x01; }
 
   /**
    * decode a session_track::Schema from a buffer-sequence.
@@ -283,6 +303,8 @@ class Codec<session_track::SystemVariable>
 
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t type_byte() { return 0x00; }
 
   /**
    * decode a session_track::SystemVariable from a buffer-sequence.
@@ -347,6 +369,8 @@ class Codec<session_track::Gtid>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
+  constexpr static uint8_t type_byte() { return 0x03; }
+
   /**
    * decode a session_track::Gtid from a buffer-sequence.
    *
@@ -390,8 +414,8 @@ class Codec<session_track::Gtid>
  * - 0x01 session_track::Schema
  * - 0x02 session_track::StateChanged
  * - 0x03 session_track::Gtid
- * - 0x04 session_track::TransactionState
- * - 0x05 session_track::TransactionCharacteristics
+ * - 0x04 session_track::TransactionCharacteristics
+ * - 0x05 session_track::TransactionState
  */
 template <>
 class Codec<session_track::Field>

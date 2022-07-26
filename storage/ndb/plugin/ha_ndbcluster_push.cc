@@ -2115,9 +2115,11 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
                         get_referred_field_name(&substitute_field)));
 
             referred_table_no = substitute_table_no;
-            key_refs[key_part_no] = join_item = &substitute_field;
+            key_refs[key_part_no] = &substitute_field;
             break;
-          } else if (ancestors.contain(substitute_table_no)) {
+          }
+
+          if (ancestors.contain(substitute_table_no)) {
             assert(substitute_table_no <= parent_no);
 
             //////////////////////////////////////////////////////////////////////

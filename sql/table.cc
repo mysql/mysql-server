@@ -64,6 +64,8 @@
 #include "mysql_com.h"
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
+#include "sql-common/json_path.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // acl_getroot
 #include "sql/auth/sql_security_ctx.h"
@@ -85,9 +87,7 @@
 #include "sql/item_json_func.h"  // Item_func_array_cast
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/json_diff.h"  // Json_diff_vector
-#include "sql/json_dom.h"   // Json_wrapper
-#include "sql/json_path.h"
-#include "sql/key.h"  // find_ref_key
+#include "sql/key.h"        // find_ref_key
 #include "sql/log.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // reg_ext key_file_frm ...
@@ -286,8 +286,8 @@ GRANT_INFO::GRANT_INFO() {
 
   @todo
     It is a good idea to get rid of this function modifying the code
-    to garantee that the functions presently calling fn_rext() always
-    get arguments in the same format: either with '.frm' or without '.frm'.
+    to guarantee that the functions presently calling fn_rext() always
+    gets arguments in the same format: either with '.frm' or without '.frm'.
 
   @return
     Pointer to the '.frm' extension. If there is no extension,
@@ -1036,7 +1036,7 @@ static uint find_field(Field **fields, uchar *record, uint start, uint length) {
 
 /**
   fix a str_type to a array type
-  typeparts separated with some char. differents types are separated
+  typeparts separated with some char. different types are separated
   with a '\0'
 
   @note This function is added to read .frm file in upgrade scenario. It
@@ -2043,7 +2043,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 
           /*
             If the key column is of NOT NULL BLOB type, then it
-            will definitly have key prefix. And if key part prefix size
+            will definitely have key prefix. And if key part prefix size
             is equal to the BLOB column max size, then we can promote
             it to primary key.
           */
@@ -2255,7 +2255,7 @@ err:
   @param source       Source of value generator(a generated column, a regular
                       column with generated default value or
                       a check constraint).
-  @param source_name  Name of the source (generated column, a reguler column
+  @param source_name  Name of the source (generated column, a regular column
                       with generated default value or a check constraint).
   @param column_index The column order.
 
@@ -2351,13 +2351,13 @@ static bool validate_value_generator_expr(Item *expr,
   @param source          Source of value generator(a generated column, a regular
                          column with generated default value or
                          a check constraint).
-  @param source_name     Name of the source (generated column, a reguler column
+  @param source_name     Name of the source (generated column, a regular column
                          with generated default value or a check constraint).
   @param field           Field to which the val_generator is attached to for
                          generated columns and default expression.
 
   @retval true An error occurred, something was wrong with the function.
-  @retval false Ok, generated expression is fixed sucessfully
+  @retval false Ok, generated expression is fixed successfully
  */
 static bool fix_value_generator_fields(THD *thd, TABLE *table,
                                        Value_generator *val_generator,
@@ -2438,9 +2438,6 @@ static bool fix_value_generator_fields(THD *thd, TABLE *table,
   // Fix the fields for the value generator expression
   Item *new_func = val_generator_expr;
   int fix_fields_error = val_generator_expr->fix_fields(thd, &new_func);
-
-  // Virtual columns expressions that substitute themselves are invalid
-  assert(new_func == val_generator_expr);
 
   // Restore the current connection character set and collation.
   if (charset_switched)
@@ -3332,7 +3329,7 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size) {
   }
 }
 
-/* error message when opening a table defintion */
+/* error message when opening a table definition */
 
 static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
                              int db_errno) {
@@ -3623,7 +3620,7 @@ Ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
                                        greater than 64 characters
                                        (ER_TOO_LONG_IDENT)
 
-  @note Reporting error to the user is the responsiblity of the caller.
+  @note Reporting error to the user is the responsibility of the caller.
 */
 
 Ident_name_check check_table_name(const char *name, size_t length) {
@@ -4528,7 +4525,7 @@ bool TABLE_LIST::create_field_translation(THD *thd) {
       If the view is used on the inner side of an outer join, these
       objects will reflect the correct nullability of the selected
       expressions.
-      The name is either explicitely specified in a list of column
+      The name is either explicitly specified in a list of column
       names, or is derived from the name of the expression in the SELECT
       list.
     */
@@ -4920,7 +4917,7 @@ Security_context *TABLE_LIST::find_view_security_context(THD *thd) {
 }
 
 /**
-  Prepare security context and load underlying tables priveleges for view
+  Prepare security context and load underlying tables privileges for view
 
   @param thd                  thread handler
 
@@ -5125,11 +5122,11 @@ void Field_iterator_table_ref::set_field_iterator() {
     If the table reference we are iterating over is a natural join, or it is
     an operand of a natural join, and TABLE_LIST::join_columns contains all
     the columns of the join operand, then we pick the columns from
-    TABLE_LIST::join_columns, instead of the  orginial container of the
+    TABLE_LIST::join_columns, instead of the original container of the
     columns of the join operator.
   */
   if (table_ref->is_join_columns_complete) {
-    /* Necesary, but insufficient conditions. */
+    /* Necessary, but insufficient conditions. */
     assert(
         table_ref->is_natural_join || table_ref->nested_join ||
         (table_ref->join_columns &&
@@ -5232,7 +5229,7 @@ GRANT_INFO *Field_iterator_table_ref::grant() {
     created natural join column. The former happens for base tables or
     views, and the latter for natural/using joins. If a new field is
     created, then the field is added to 'parent_table_ref' if it is
-    given, or to the original table referene of the field if
+    given, or to the original table reference of the field if
     parent_table_ref == NULL.
 
   @note
@@ -5529,7 +5526,7 @@ void TABLE::mark_auto_increment_column() {
 /*
   Mark columns needed for doing an delete of a row
 
-  DESCRIPTON
+  DESCRIPTION
     Some table engines don't have a cursor on the retrieve rows
     so they need either to use the primary key or all columns to
     be able to delete a row.
@@ -5559,13 +5556,13 @@ void TABLE::mark_columns_needed_for_delete(THD *thd) {
   }
   if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) {
     /*
-      If the handler has no cursor capabilites we have to read
+      If the handler has no cursor capabilities we have to read
       either the primary key, the hidden primary key or all columns to
       be able to do an delete
     */
     if (s->primary_key == MAX_KEY) {
       /*
-        If in RBR, we have alreay marked the full before image
+        If in RBR, we have already marked the full before image
         in mark_columns_per_binlog_row_image, if not, then use
         the hidden primary key
       */
@@ -5597,7 +5594,7 @@ void TABLE::mark_columns_needed_for_delete(THD *thd) {
     updated columns to be read.
 
     If this is not the case, we do like in the delete case and mark
-    if neeed, either the primary key column or all columns to be read.
+    if needed, either the primary key column or all columns to be read.
     (see mark_columns_needed_for_delete() for details)
 
     If the engine has HA_REQUIRES_KEY_COLUMNS_FOR_DELETE, we will
@@ -5628,7 +5625,7 @@ void TABLE::mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns) {
     /* Mark all used key columns for read */
     Field **reg_field;
     for (reg_field = field; *reg_field; reg_field++) {
-      /* Merge keys is all keys that had a column refered to in the query */
+      /* Merge keys is all keys that had a column referred to in the query */
       if (merge_keys.is_overlapping((*reg_field)->part_of_key))
         bitmap_set_bit(read_set, (*reg_field)->field_index());
     }
@@ -5637,13 +5634,13 @@ void TABLE::mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns) {
 
   if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) {
     /*
-      If the handler has no cursor capabilites we have to read either
+      If the handler has no cursor capabilities we have to read either
       the primary key, the hidden primary key or all columns to be
       able to do an update
     */
     if (s->primary_key == MAX_KEY) {
       /*
-        If in RBR, we have alreay marked the full before image
+        If in RBR, we have already marked the full before image
         in mark_columns_per_binlog_row_image, if not, then use
         the hidden primary key
       */
@@ -7653,7 +7650,7 @@ void TABLE::add_logical_diff(const Field_json *field,
   if (new_value == nullptr)
     diffs->add_diff(path, operation);
   else
-    diffs->add_diff(path, operation, new_value->clone_dom(current_thd));
+    diffs->add_diff(path, operation, new_value->clone_dom());
 
 #ifndef NDEBUG
   StringBuffer<STRING_BUFFER_USUAL_SIZE> path_str;
@@ -7663,7 +7660,8 @@ void TABLE::add_logical_diff(const Field_json *field,
   if (new_value == nullptr || new_value->type() == enum_json_type::J_ERROR)
     value_str.set_ascii("<none>", 6);
   else {
-    if (new_value->to_string(&value_str, false, "add_logical_diff"))
+    if (new_value->to_string(&value_str, false, "add_logical_diff",
+                             JsonDocumentDefaultDepthHandler))
       value_str.length(0); /* purecov: inspected */
   }
   DBUG_PRINT("info", ("add_logical_diff(operation=%d, path=%.*s, value=%.*s)",

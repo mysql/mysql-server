@@ -196,10 +196,16 @@ INSERT INTO global_suppressions VALUES
  ("skip-name-resolve mode"),
  ("slave SQL thread aborted"),
  ("Slave: .*Duplicate entry"),
+ /* In certain cases, due to unlucky scheduling, we might receive a temporary
+ warning about running out of space in the redo log. In such case, it might
+ result in temporary stall and suggestion to increase space in the redo log
+ by increasing the innodb_redo_log_capacity. */
+ ("Consider increasing innodb_redo_log_capacity."),
+ ("Redo log reclaimed some free space"),
 
  /*
     innodb_dedicated_server warning which raised if innodb_buffer_pool_size,
-    innodb_log_file_size or innodb_flush_method is specified.
+    innodb_redo_log_capacity or innodb_flush_method is specified.
  */
  ("InnoDB: Option innodb_dedicated_server is ignored"),
 

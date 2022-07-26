@@ -6808,3 +6808,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `foo`,`test`.`t1`.`col_int_key` AS `bar` from `test`.`t1`
 DROP TABLE t1;
+# Bug#34239456: Assertion '!thd->is_error()' failed in MySQL 8.0.29
+CREATE TABLE t0 (c0 INTEGER, c1 INTEGER);
+CREATE VIEW v0 AS
+SELECT c0
+FROM t0
+WHERE c1 = (SELECT 1
+UNION
+SELECT c0 FROM t0
+ORDER BY c1
+);
+SELECT * FROM v0;
+ERROR 42000: Table 't0' from one of the SELECTs cannot be used in global ORDER clause
+DROP VIEW v0;
+DROP TABLE t0;

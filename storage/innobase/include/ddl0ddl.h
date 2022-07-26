@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -196,7 +196,8 @@ class Unique_os_file_descriptor : private ut::Non_copyable {
     locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(&state, m_fd,
                                                               PSI_FILE_CLOSE);
     if (locker != nullptr) {
-      PSI_FILE_CALL(start_file_wait)(locker, 0, __FILE__, __LINE__);
+      PSI_FILE_CALL(start_file_wait)
+      (locker, 0, __FILE__, __LINE__);
     }
 #endif /* UNIV_PFS_IO */
     if (m_fd != OS_FD_CLOSED) {

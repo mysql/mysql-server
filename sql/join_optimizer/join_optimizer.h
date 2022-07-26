@@ -58,7 +58,6 @@ class Query_block;
 class THD;
 struct AccessPath;
 struct JoinHypergraph;
-struct TABLE;
 
 /**
   The main entry point for the hypergraph join optimizer; takes in a query

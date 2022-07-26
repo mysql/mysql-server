@@ -48,15 +48,15 @@ class MysqlError {
   std::string sql_state_;
 };
 
-static MysqlError make_mysql_error_code(unsigned int e) {
+static inline MysqlError make_mysql_error_code(unsigned int e) {
   return {e, ER_CLIENT(e), "HY000"};
 }
 
-static MysqlError make_mysql_error_code(MYSQL *m) {
+static inline MysqlError make_mysql_error_code(MYSQL *m) {
   return {mysql_errno(m), mysql_error(m), mysql_sqlstate(m)};
 }
 
-static MysqlError make_mysql_error_code(MYSQL_STMT *st) {
+static inline MysqlError make_mysql_error_code(MYSQL_STMT *st) {
   return {mysql_stmt_errno(st), mysql_stmt_error(st), mysql_stmt_sqlstate(st)};
 }
 

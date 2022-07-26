@@ -29,6 +29,7 @@
 #include "Dblqh.hpp"
 #include <ndb_limits.h>
 #include "DblqhCommon.hpp"
+#include "debugger/EventLogger.hpp"
 
 #define JAM_FILE_ID 452
 
@@ -248,7 +249,8 @@ void Dblqh::initData()
   m_restart_local_latest_lcp_id = 0;
 }//Dblqh::initData()
 
-void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg) 
+void Dblqh::initRecords(const ndb_mgm_configuration_iterator* mgm_cfg,
+                        Uint64 logPageFileSize)
 {
 #if defined(USE_INIT_GLOBAL_VARIABLES)
   {
@@ -302,19 +304,51 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
 		  sizeof(LogFileOperationRecord),
 		  clfoFileSize);
 
+    if (clogPartFileSize == 0)
+    {
+      /*
+       * If the number of fragment log parts are fewer than number of LDMs,
+       * some LDM will not own any log part.
+       */
+      ndbrequire(logPageFileSize == 0);
+      ndbrequire(clogFileFileSize == 0);
+    }
+    else
+    {
+      ndbrequire(logPageFileSize % clogPartFileSize == 0);
+    }
+    const Uint32 target_pages_per_logpart =
+        clogPartFileSize > 0 ? logPageFileSize / clogPartFileSize : 0;
+    Uint32 total_logpart_pages = 0;
     LogPartRecordPtr logPartPtr;
     for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
     {
       ptrAss(logPartPtr, logPartRecord);
       new (logPartPtr.p) LogPartRecord();
       AllocChunk chunks[16];
-      const Uint32 chunkcnt = allocChunks(chunks, 16, RG_FILE_BUFFERS,
-                                          clogPageFileSize / clogPartFileSize,
+      const Uint32 chunkcnt = allocChunks(chunks,
+                                          16,
+                                          RG_FILE_BUFFERS,
+                                          target_pages_per_logpart,
                                           CFG_DB_REDO_BUFFER);
+      require(chunkcnt > 0);
+      const Uint32 endPageI =
+          chunks[chunkcnt - 1].ptrI + chunks[chunkcnt - 1].cnt;
+      if (chunkcnt > 1)
+      {
+        g_eventLogger->info(
+            "Redo log part buffer memory %u was split over %u chunks.",
+            logPartPtr.i,
+            chunkcnt);
+      }
       Ptr<GlobalPage> pagePtr;
       ndbrequire(m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI));
       logPartPtr.p->logPageRecord = (LogPageRecord*)pagePtr.p;
-      logPartPtr.p->logPageFileSize = clogPageFileSize / clogPartFileSize;
+      /*
+       * Since there can be gaps in page number range, logPageFileSize can be
+       * bigger than the number of pages.
+       */
+      logPartPtr.p->logPageFileSize = endPageI - chunks[0].ptrI;
       logPartPtr.p->firstFreeLogPage = RNIL;
       logPartPtr.p->logPageCount = 0;
       for (Int32 i = chunkcnt - 1; i >= 0; i--)
@@ -348,9 +382,13 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
        * they can be accessed from multiple threads in parallel.
        */
       logPartPtr.p->noOfFreeLogPages = logPartPtr.p->logPageCount;
+      /*
+       * Wrap log part pages in ArrayPool for getPtr. May not use seize since
+       * there may be holes in array.
+       */
       logPartPtr.p->m_redo_page_cache.m_pool.set(
-        (RedoCacheLogPageRecord*)&logPartPtr.p->logPageRecord[0],
-        clogPageFileSize/clogPartFileSize);
+          (RedoCacheLogPageRecord*)&logPartPtr.p->logPageRecord[0],
+          logPartPtr.p->logPageFileSize);
       logPartPtr.p->m_redo_page_cache.m_hash.setSize(1023);
       logPartPtr.p->m_redo_page_cache.m_first_page = 0;
 
@@ -359,7 +397,16 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
         (RedoCacheLogPageRecord*)logPartPtr.p->logPageRecord;
       ndbrequire(&base[ZPOS_PAGE_NO] == &tmp1->m_page_no);
       ndbrequire(&base[ZPOS_PAGE_FILE_NO] == &tmp1->m_file_no);
+      total_logpart_pages += logPartPtr.p->logPageCount;
     }
+    if (total_logpart_pages < logPageFileSize)
+    {
+      g_eventLogger->warning(
+          "Not all redo log buffer memory was allocated, got %u pages of %ju.",
+          total_logpart_pages,
+          uintmax_t{logPageFileSize});
+    }
+
     m_redo_open_file_cache.m_pool.set(logFileRecord, clogFileFileSize);
 
     pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
@@ -389,7 +436,6 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
     logFileRecord = 0;
     logFileOperationRecord = 0;
     clogFileFileSize = 0;
-    clogPageFileSize = 0;
     clfoFileSize = 0;
   }
   Pool_context pc;

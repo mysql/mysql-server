@@ -8,14 +8,14 @@ WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema, table_name, index_name, seq_in_index, column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION
 def	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	columns_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	columns_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE			YES	NULL
+def	mysql	columns_priv	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE			YES	NULL
+def	mysql	columns_priv	0	mysql	PRIMARY	3	Db	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	columns_priv	0	mysql	PRIMARY	4	Table_name	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	columns_priv	0	mysql	PRIMARY	5	Column_name	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	component	0	mysql	PRIMARY	1	component_id	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	db	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	db	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	db	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE			YES	NULL
+def	mysql	db	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE			YES	NULL
+def	mysql	db	0	mysql	PRIMARY	3	Db	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	db	1	mysql	User	1	User	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	default_roles	0	mysql	PRIMARY	1	HOST	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	default_roles	0	mysql	PRIMARY	2	USER	A	#CARD#	NULL	NULL		BTREE			YES	NULL
@@ -50,8 +50,8 @@ def	mysql	password_history	0	mysql	PRIMARY	3	Password_timestamp	D	#CARD#	NULL	NU
 def	mysql	plugin	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	procs_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	procs_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	procs_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	procs_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE			YES	NULL
+def	mysql	procs_priv	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE			YES	NULL
+def	mysql	procs_priv	0	mysql	PRIMARY	3	Db	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	procs_priv	0	mysql	PRIMARY	4	Routine_name	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	procs_priv	0	mysql	PRIMARY	5	Routine_type	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	proxies_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE			YES	NULL
@@ -84,8 +84,8 @@ def	mysql	slave_worker_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		B
 def	mysql	slave_worker_info	0	mysql	PRIMARY	2	Id	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	tables_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	tables_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	tables_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	tables_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE			YES	NULL
+def	mysql	tables_priv	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE			YES	NULL
+def	mysql	tables_priv	0	mysql	PRIMARY	3	Db	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	tables_priv	0	mysql	PRIMARY	4	Table_name	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	time_zone	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	time_zone_leap_second	0	mysql	PRIMARY	1	Transition_time	A	#CARD#	NULL	NULL		BTREE			YES	NULL

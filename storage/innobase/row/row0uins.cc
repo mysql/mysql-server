@@ -38,7 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "ibuf0ibuf.h"
-#include "log0log.h"
+#include "log0chkp.h"
 #include "mach0data.h"
 #include "que0que.h"
 #include "row0log.h"
@@ -109,8 +109,8 @@ introduced where a call to log_free_check() is bypassed. */
   if (online && dict_index_is_online_ddl(index)) {
     const rec_t *rec = btr_cur_get_rec(btr_cur);
     mem_heap_t *heap = nullptr;
-    const ulint *offsets =
-        rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+    const ulint *offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                                           UT_LOCATION_HERE, &heap);
     row_log_table_delete(rec, node->row, index, offsets, nullptr);
     mem_heap_free(heap);
   }

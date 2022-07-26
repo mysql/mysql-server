@@ -247,9 +247,9 @@ ENDIF()
 
 IF(MY_HOST_SYSTEM_NAME MATCHES "Linux")
   # Trust 'rpm -qf /' rather than 'uname -s'
-  STRING(REGEX MATCH "\\.el([678])\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
+  STRING(REGEX MATCH "\\.el([6789])\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
 
-  # Set LINUX_RHEL6 or LINUX_RHEL7 or LINUX_RHEL8
+  # Set LINUX_RHEL6, LINUX_RHEL7, LINUX_RHEL8 or LINUX_RHEL9
   IF(CMAKE_MATCH_1)
     SET(LINUX_RHEL 1)
     SET(LINUX_RHEL${CMAKE_MATCH_1} 1)
@@ -296,6 +296,17 @@ IF(LINUX_SUSE)
   ENDIF()
 ENDIF()
 
+# In case we pick up values form the CACHE or from the command line.
+# See invokation of ADD_LINUX_RPM_FLAGS below.
+SET(INITIAL_CMAKE_C_FLAGS)
+SET(INITIAL_CMAKE_CXX_FLAGS)
+IF(DEFINED CMAKE_C_FLAGS)
+  SET(INITIAL_CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+ENDIF()
+IF(DEFINED CMAKE_CXX_FLAGS)
+  SET(INITIAL_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+ENDIF()
+
 IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     AND NOT CMAKE_C_COMPILER AND NOT CMAKE_CXX_COMPILER)
   # Cannot INCLUDE(CMakeDetermineSystem) prior to PROJECT initialization below.
@@ -304,6 +315,8 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
   IF (ENV_CC STREQUAL "" AND ENV_CXX STREQUAL "")
     IF(LINUX_RHEL)
       MESSAGE(STATUS "This is ${MATCH_FSYS} as found from 'rpm -qf /'")
+    ENDIF()
+    IF(LINUX_RHEL AND NOT LINUX_RHEL9)
       MESSAGE(STATUS "Looking for a devtoolset compiler")
       IF(LINUX_RHEL6)
         SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-8")
@@ -719,7 +732,7 @@ ENDIF()
 # in environment or on command line.
 # And only for gcc (not clang).
 IF(MY_COMPILER_IS_GNU AND WITH_PACKAGE_FLAGS AND
-    NOT CMAKE_C_FLAGS AND NOT CMAKE_CXX_FLAGS)
+    NOT INITIAL_CMAKE_C_FLAGS AND NOT INITIAL_CMAKE_CXX_FLAGS)
   IF(LINUX_RPM_PLATFORM)
     IF(MY_RPM)
       ADD_LINUX_RPM_FLAGS()
@@ -963,17 +976,33 @@ ENDMACRO()
 #       Visual Studio has a few /W options, but are totally different.
 # Hence we check for gcc/clang only.
 # No return value for functions in cmake, so we use an output argument.
+#
+# To only avoid failing on warning when compiled with -Werror and still show
+# the warnings use SHOW_SUPPRESSED_COMPILER_WARNINGS=ON.
+OPTION(SHOW_SUPPRESSED_COMPILER_WARNINGS
+  "Show suppressed compiler warnings, without failing with -Werror" OFF)
+MARK_AS_ADVANCED(SHOW_SUPPRESSED_COMPILER_WARNINGS)
+
 FUNCTION(MY_CHECK_CXX_COMPILER_WARNING WARNING_OPTION RETURN_VALUE)
   # Strip off possible leading -Wno- or -W
   STRING(REGEX REPLACE "^-Wno-" "" WARNING_OPTION ${WARNING_OPTION})
   STRING(REGEX REPLACE "^-W" "" WARNING_OPTION ${WARNING_OPTION})
+  STRING(REGEX MATCH "^error=" ERROR_PREFIX ${WARNING_OPTION})
   # Use HAVE_CXX_W_warning_option as cache variable.
   STRING(REPLACE "-" "_" VAR_NAME ${WARNING_OPTION})
   STRING(REPLACE "=" "_" VAR_NAME ${VAR_NAME})
   STRING(REPLACE "c++" "cpp" VAR_NAME ${VAR_NAME})
   SET(VAR_NAME "HAVE_CXX_W_${VAR_NAME}")
   IF(MY_COMPILER_IS_GNU_OR_CLANG)
-    MY_CHECK_CXX_COMPILER_FLAG("-W${WARNING_OPTION}" ${VAR_NAME})
+    IF(SHOW_SUPPRESSED_COMPILER_WARNINGS AND NOT ERROR_PREFIX)
+      MY_CHECK_CXX_COMPILER_FLAG("-Werror=${WARNING_OPTION}" ${VAR_NAME})
+      IF(${VAR_NAME})
+        SET(WARNING_OPTION "error=${WARNING_OPTION}")
+      ENDIF()
+    ENDIF()
+    IF(NOT ${VAR_NAME})
+      MY_CHECK_CXX_COMPILER_FLAG("-W${WARNING_OPTION}" ${VAR_NAME})
+    ENDIF()
   ELSE()
     SET(${VAR_NAME} 0 CACHE INTERNAL "-W${WARNING_OPTION} not supported")
   ENDIF()
@@ -994,6 +1023,13 @@ MACRO(DISABLE_MISSING_PROFILE_WARNING)
       STRING_APPEND(CMAKE_C_FLAGS   " ${HAS_WARN_FLAG}")
       STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
     ENDIF()
+  ENDIF()
+ENDMACRO()
+
+# Disable -Werror=maybe-uninitialized for googlemock matchers.
+MACRO(DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING)
+  IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+    ADD_COMPILE_FLAGS(${ARGN} COMPILE_FLAGS "-Wno-maybe-uninitialized")
   ENDIF()
 ENDMACRO()
 
@@ -1244,6 +1280,48 @@ IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG)
   ENDIF()
 ENDIF()
 
+# Enable "-Og -fno-inline" for ordinary Debug builds.
+# Note that this may optimize away local stack variables.
+# Do not enable it for WITH_NDBCLUSTER, several build breaks at
+# this optimization level.
+IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG AND NOT WITH_NDBCLUSTER
+    AND NOT CMAKE_COMPILER_FLAG_WITH_SANITIZE AND NOT WITH_VALGRIND)
+  # ON by default in pushbuild, to save time running Debug test suites.
+  # man clang:
+  # -Og Like -O1. In future versions, this option might disable different
+  # optimizations in order to improve debuggability.
+  # man gcc:
+  # -Og Optimize debugging experience. -Og should be the
+  #  optimization level of choice for the standard edit-compile-
+  #  debug cycle, offering a reasonable level of optimization while
+  #  maintaining fast compilation and a good debugging experience.
+  #  It is a better choice than -O0 for producing debuggable code
+  #  because some compiler passes that collect debug information are
+  #  disabled at -O0.
+  #
+  # OFF by default if CFLAGS or CXXFLAGS are defined in the environment.
+  # CFLAGS/CXXFLAGS will be set e.g. for LINUX_DEB_PLATFORM,
+  # and may contain other optimization flags, interfering with ours.
+  IF((NOT DEFINED ENV{CFLAGS} AND NOT DEFINED ENV{CXXFLAGS}
+        AND DEFINED ENV{PB2WORKDIR})
+      OR
+      (DEFINED ENV{OPTIMIZE_DEBUG_BUILDS} AND "$ENV{OPTIMIZE_DEBUG_BUILDS}"
+        AND NOT DEFINED(OPTIMIZE_DEBUG_BUILDS)))
+    SET(OPTIMIZE_DEBUG_BUILDS_DEFAULT ON)
+  ELSE()
+    SET(OPTIMIZE_DEBUG_BUILDS_DEFAULT OFF)
+  ENDIF()
+  OPTION(OPTIMIZE_DEBUG_BUILDS
+    "Add -Og -fno-inline to CMAKE_<lang>_FLAGS_DEBUG"
+    ${OPTIMIZE_DEBUG_BUILDS_DEFAULT}
+    )
+  # Use STRING_PREPEND here, so command-line input can override our defaults.
+  IF(OPTIMIZE_DEBUG_BUILDS)
+    STRING_PREPEND(CMAKE_C_FLAGS_DEBUG   " -Og -fno-inline ")
+    STRING_PREPEND(CMAKE_CXX_FLAGS_DEBUG " -Og -fno-inline ")
+  ENDIF()
+ENDIF()
+
 # For aarch64 some sub-architectures support LSE atomics and some don't. Thus,
 # compiling for the common denominator (-march=armv8-a) means LSE is not used.
 # The -moutline-atomics switch enables run-time detection of LSE support.
@@ -1284,10 +1362,8 @@ IF (USE_LD_GOLD AND NOT (C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT))
   CMAKE_POP_CHECK_STATE()
 ENDIF()
 
-# Linker/binutils bug in Fedora 28, undefined reference to symbol '__bss_start'
-# Similar bug on 32bit Ubuntu.
-# Fedora 34: undefined reference to symbol 'crc32_z@@ZLIB_1.2.9'
-IF(LINUX_FEDORA_28 OR LINUX_FEDORA_34 OR LINUX_UBUNTU_16_04)
+# Fedora 34, RHEL9: undefined reference to symbol 'crc32_z@@ZLIB_1.2.9'
+IF(LINUX_FEDORA_34 OR LINUX_RHEL9)
   IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" AND
       NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold")
     STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
@@ -1578,6 +1654,10 @@ IF(WITH_LTO)
   ENDIF()
 ENDIF(WITH_LTO)
 
+IF(APPLE)
+  OPTION(WITH_DEVELOPER_ENTILEMENTS "Add developer entitlements" OFF)
+ENDIF()
+
 # Explicit list of all -DWITH_XXX=system possibilities
 # *except* boost, which requires one specific version to be downloaded.
 # RapidJSON is also excluded, since the latest released version does not
@@ -1598,7 +1678,7 @@ SET(SYSTEM_LIBRARIES
   LZ4       # Homebrew  lz4
   PROTOBUF  # Homebrew  protobuf
   SSL       # Homebrew  openssl@1.1
-  ZLIB      # Xcode
+# ZLIB      # Xcode                  Min required version is now 1.2.12
   ZSTD      # Homebrew  zstd
   FIDO      # Homebrew  libfido2
   )
@@ -1687,6 +1767,18 @@ ENDIF()
 # Add system/custom openssl.
 MYSQL_CHECK_SSL()
 MYSQL_CHECK_SSL_DLLS()
+
+# Other system libs which use OpenSSL must be disabled.
+# This includes: kerberos sasl ldap curl.
+IF(ALTERNATIVE_SYSTEM_SSL)
+  SET(WITH_AUTHENTICATION_LDAP OFF)
+  SET(WITH_AUTHENTICATION_LDAP OFF CACHE INTERNAL "" FORCE)
+  SET(WITH_AUTHENTICATION_CLIENT_PLUGINS OFF)
+  SET(WITH_AUTHENTICATION_CLIENT_PLUGINS OFF CACHE INTERNAL "" FORCE)
+  SET(WITH_CURL "bundled")
+  SET(WITH_CURL "bundled" CACHE INTERNAL "" FORCE)
+  MESSAGE(STATUS "Disabling all authentication plugins.")
+ENDIF()
 
 # Add Kerberos library
 MYSQL_CHECK_KERBEROS()
@@ -1778,8 +1870,26 @@ ENDIF()
 
 # Add system/bundled editline.
 MYSQL_CHECK_EDITLINE()
+SET(EDITLINE_WARN_GIVEN)
+WARN_MISSING_SYSTEM_EDITLINE(EDITLINE_WARN_GIVEN)
+IF(EDITLINE_WARN_GIVEN)
+  MESSAGE(FATAL_ERROR
+    "-DWITH_EDITLINE=system, but missing system libraries.\n"
+    "You can use -DWITH_EDITLINE=bundled instead."
+    )
+ENDIF()
+
 # Add libevent
 MYSQL_CHECK_LIBEVENT()
+SET(LIBEVENT_WARN_GIVEN)
+WARN_MISSING_SYSTEM_LIBEVENT(LIBEVENT_WARN_GIVEN)
+IF(LIBEVENT_WARN_GIVEN)
+  MESSAGE(FATAL_ERROR
+    "-DWITH_LIBEVENT=system, but missing system libraries.\n"
+    "You can use -DWITH_LIBEVENT=bundled instead."
+    )
+ENDIF()
+
 # Add lz4 library
 MYSQL_CHECK_LZ4()
 # Add icu library
@@ -1818,23 +1928,24 @@ MYSQL_CHECK_FIDO()
 MYSQL_CHECK_FIDO_DLLS()
 
 IF(APPLE)
-  IF(EXISTS ${HOMEBREW_HOME}/boost)
+  GET_FILENAME_COMPONENT(HOMEBREW_BASE ${HOMEBREW_HOME} DIRECTORY)
+  IF(EXISTS ${HOMEBREW_BASE}/include/boost)
     FOREACH(SYSTEM_LIB ICU LIBEVENT LZ4 PROTOBUF ZSTD FIDO)
       IF(WITH_${SYSTEM_LIB} STREQUAL "system")
         MESSAGE(FATAL_ERROR
           "WITH_${SYSTEM_LIB}=system is not compatible with Homebrew boost\n"
           "MySQL depends on ${BOOST_PACKAGE_NAME} with a set of patches.\n"
-          "Including system headers from ${HOMEBREW_HOME} will break the build.\n"
+          "Including headers from ${HOMEBREW_BASE}/include "
+          "will break the build.\n"
           "Please use WITH_${SYSTEM_LIB}=bundled\n"
-          "or do 'brew uninstall boost'"
+          "or do 'brew uninstall boost' or 'brew unlink boost'"
           )
       ENDIF()
     ENDFOREACH()
   ENDIF()
-  # Ensure that we look in /usr/local/include or /opt/homebre/include
+  # Ensure that we look in /usr/local/include or /opt/homebrew/include
   FOREACH(SYSTEM_LIB ICU LIBEVENT LZ4 PROTOBUF ZSTD FIDO)
     IF(WITH_${SYSTEM_LIB} STREQUAL "system")
-      GET_FILENAME_COMPONENT(HOMEBREW_BASE ${HOMEBREW_HOME} DIRECTORY)
       INCLUDE_DIRECTORIES(SYSTEM ${HOMEBREW_BASE}/include)
       BREAK()
     ENDIF()
@@ -2094,6 +2205,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
       sql_main
       ${MYSQLD_STATIC_PLUGIN_LIBS}
       minchassis
+      ${ICU_LIBRARIES}
       # Import some core symbols. Other symbols needed by the unit test
       # executables are pulled in transitively by symbol dependencies.
       #
@@ -2128,6 +2240,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
     TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
     TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
     TARGET_LINK_LIBRARIES(server_unittest_library minchassis)
+    TARGET_LINK_LIBRARIES(server_unittest_library ${ICU_LIBRARIES})
   ENDIF()
 ENDIF()
 

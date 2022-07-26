@@ -44,10 +44,10 @@ class Close_connection_all_transactions_that_begin : public Do_THD_Impl {
     /**
       Super user connection is also disconnected.
       1. If THD killed flag is already set, do not over-ride it because query
-         was supposed to be rollbacked, we will end up overiding the decision
+         was supposed to be rolled back, we will end up overriding the decision
          resulting in closing the connection.
       2. If THD life cycle has finished do not kill the transaction.
-      3. If THD has error, do not kill the transaction, it will be rolledback.
+      3. If THD has error, do not kill the transaction, it will be rolled back.
       4. REPLICA thread should not be running but yet check it. Do not kill
          REPLICA transactions.
       5. Transaction should not be binloggable, so check we are >

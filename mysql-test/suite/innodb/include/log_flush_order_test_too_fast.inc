@@ -86,7 +86,7 @@ if ($debug_test) {
 --source include/assert.inc
 
 --echo #
---echo # 4. Execute mini transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
+--echo # 4. Execute mini-transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
 --echo #
 --echo #    When bug was present, such mtr inserted pages with too big lsn using
 --echo #    current lsn, which does not fit space in log.recent_closed, bypassing

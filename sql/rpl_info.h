@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,12 +148,12 @@ class Rpl_info : public Slave_reporting_capability {
   Rpl_info_handler *handler;
 
   /**
-    Uniquely and internaly identifies an info entry (.e.g. a row or
+    Uniquely and internally identifies an info entry (.e.g. a row or
     file). This information is completely transparent to users and
     is used only during startup to retrieve information from the
     repositories.
 
-    @todo, This is not anymore required for Master_info and
+    @todo, This is not required any longer for Master_info and
            Relay_log_info, since Channel can be used to uniquely
            identify this. To preserve backward compatibility,
            we keep this for Master_info and Relay_log_info.

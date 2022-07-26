@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,10 @@ STATICLIB_FROM_TARGET(metadata_cache_export_all metadata_cache)
 TARGET_COMPILE_DEFINITIONS(metadata_cache_export_all
   PUBLIC METADATA_CACHE_STATIC_DEFINE=1)
 
+
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  test_metadata.cc
+  )
 
 SET(TEST_MODULE metadata_cache)
 FOREACH(test_file

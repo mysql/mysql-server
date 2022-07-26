@@ -1,4 +1,4 @@
-// Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,71 @@ namespace bg = boost::geometry;
 
 namespace gis {
 
+template <typename CartesianGeometry, typename GeographicGeometry,
+          typename InputGeometry>
+auto transform_helper(
+    const InputGeometry &g, const Coordinate_system &m_output_cs,
+    const boost::geometry::srs::transformation<> &m_transformation) {
+  switch (m_output_cs) {
+    case Coordinate_system::kCartesian: {
+      // Workaround for limitation in Developer Studio 12.5 on Solaris that
+      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
+      CartesianGeometry *pt_result = new CartesianGeometry();
+      std::unique_ptr<Geometry> result(pt_result);
+      m_transformation.forward(g, *pt_result);
+      return result;
+    }
+    case Coordinate_system::kGeographic: {
+      // Workaround for limitation in Developer Studio 12.5 on Solaris that
+      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
+      GeographicGeometry *pt_result = new GeographicGeometry();
+      std::unique_ptr<Geometry> result(pt_result);
+      m_transformation.forward(g, *pt_result);
+      return result;
+    }
+  }
+  /* purceov: begin deadcode */
+  assert(false);
+  throw std::exception();
+  /* purceov: end */
+}
+
+template <typename InputGeometryCollection>
+auto transform_gc_helper(const InputGeometryCollection &g,
+                         const Coordinate_system &m_output_cs,
+                         const Transform &transform) {
+  switch (m_output_cs) {
+    case Coordinate_system::kCartesian: {
+      // Workaround for limitation in Developer Studio 12.5 on Solaris that
+      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
+      Cartesian_geometrycollection *gc_result =
+          new Cartesian_geometrycollection();
+      std::unique_ptr<Geometry> result(gc_result);
+      for (std::size_t i = 0; i < g.size(); i++) {
+        std::unique_ptr<Geometry> geom_res(transform(g[i]));
+        gc_result->push_back(*geom_res);
+      }
+      return result;
+    }
+    case Coordinate_system::kGeographic: {
+      // Workaround for limitation in Developer Studio 12.5 on Solaris that
+      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
+      Geographic_geometrycollection *gc_result =
+          new Geographic_geometrycollection();
+      std::unique_ptr<Geometry> result(gc_result);
+      for (std::size_t i = 0; i < g.size(); i++) {
+        std::unique_ptr<Geometry> geom_res(transform(g[i]));
+        gc_result->push_back(*geom_res);
+      }
+      return result;
+    }
+  }
+  /* purceov: begin deadcode */
+  assert(false);
+  throw std::exception();
+  /* purceov: end */
+}
+
 Transform::Transform(const std::string &old_srs_params,
                      const std::string &new_srs_params,
                      Coordinate_system output_cs)
@@ -69,160 +134,82 @@ std::unique_ptr<Geometry> Transform::eval(const Geometry &g) const {
   /* purecov: end */
 }
 
+std::unique_ptr<Geometry> Transform::eval(const Cartesian_point &g) const {
+  return transform_helper<Cartesian_point, Geographic_point>(g, m_output_cs,
+                                                             m_transformation);
+}
+
 std::unique_ptr<Geometry> Transform::eval(const Geographic_point &g) const {
-  switch (m_output_cs) {
-    case Coordinate_system::kCartesian:
-      // We currently support only transformations between two geographic
-      // systems.
-      break;
-    case Coordinate_system::kGeographic: {
-      // Workaround for limitation in Developer Studio 12.5 on Solaris that
-      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
-      Geographic_point *pt_result = new Geographic_point();
-      std::unique_ptr<Geometry> result(pt_result);
-      m_transformation.forward(g, *pt_result);
-      return result;
-    }
-  }
-  /* purceov: begin deadcode */
-  assert(false);
-  throw std::exception();
-  /* purceov: end */
+  return transform_helper<Cartesian_point, Geographic_point>(g, m_output_cs,
+                                                             m_transformation);
+}
+
+std::unique_ptr<Geometry> Transform::eval(const Cartesian_linestring &g) const {
+  return transform_helper<Cartesian_linestring, Geographic_linestring>(
+      g, m_output_cs, m_transformation);
 }
 
 std::unique_ptr<Geometry> Transform::eval(
     const Geographic_linestring &g) const {
-  switch (m_output_cs) {
-    case Coordinate_system::kCartesian:
-      // We currently support only transformations between two geographic
-      // systems.
-      break;
-    case Coordinate_system::kGeographic: {
-      // Workaround for limitation in Developer Studio 12.5 on Solaris that
-      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
-      Geographic_linestring *ls_result = new Geographic_linestring();
-      std::unique_ptr<Geometry> result(ls_result);
-      m_transformation.forward(g, *ls_result);
-      return result;
-    }
-  }
-  /* purceov: begin deadcode */
-  assert(false);
-  throw std::exception();
-  /* purceov: end */
+  return transform_helper<Cartesian_linestring, Geographic_linestring>(
+      g, m_output_cs, m_transformation);
+}
+
+std::unique_ptr<Geometry> Transform::eval(const Cartesian_polygon &g) const {
+  return transform_helper<Cartesian_polygon, Geographic_polygon>(
+      g, m_output_cs, m_transformation);
 }
 
 std::unique_ptr<Geometry> Transform::eval(const Geographic_polygon &g) const {
-  switch (m_output_cs) {
-    case Coordinate_system::kCartesian:
-      // We currently support only transformations between two geographic
-      // systems.
-      break;
-    case Coordinate_system::kGeographic: {
-      // Workaround for limitation in Developer Studio 12.5 on Solaris that
-      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
-      Geographic_polygon *py_result = new Geographic_polygon();
-      std::unique_ptr<Geometry> result(py_result);
-      m_transformation.forward(g, *py_result);
-      return result;
-    }
-  }
-  /* purceov: begin deadcode */
-  assert(false);
-  throw std::exception();
-  /* purceov: end */
+  return transform_helper<Cartesian_polygon, Geographic_polygon>(
+      g, m_output_cs, m_transformation);
+}
+
+std::unique_ptr<Geometry> Transform::eval(
+    const Cartesian_geometrycollection &g) const {
+  return transform_gc_helper(g, m_output_cs, *this);
 }
 
 std::unique_ptr<Geometry> Transform::eval(
     const Geographic_geometrycollection &g) const {
-  switch (m_output_cs) {
-    case Coordinate_system::kCartesian:
-      // We currently support only transformations between two geographic
-      // systems.
-      break;
-    case Coordinate_system::kGeographic: {
-      // Workaround for limitation in Developer Studio 12.5 on Solaris that
-      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
-      Geographic_geometrycollection *gc_result =
-          new Geographic_geometrycollection();
-      std::unique_ptr<Geometry> result(gc_result);
-      for (std::size_t i = 0; i < g.size(); i++) {
-        std::unique_ptr<Geometry> geom_res(apply(*this, g[i]));
-        gc_result->push_back(*geom_res);
-      }
-      return result;
-    }
-  }
-  /* purceov: begin deadcode */
-  assert(false);
-  throw std::exception();
-  /* purceov: end */
+  return transform_gc_helper(g, m_output_cs, *this);
+}
+
+std::unique_ptr<Geometry> Transform::eval(const Cartesian_multipoint &g) const {
+  return transform_helper<Cartesian_multipoint, Geographic_multipoint>(
+      g, m_output_cs, m_transformation);
 }
 
 std::unique_ptr<Geometry> Transform::eval(
     const Geographic_multipoint &g) const {
-  switch (m_output_cs) {
-    case Coordinate_system::kCartesian:
-      // We currently support only transformations between two geographic
-      // systems.
-      break;
-    case Coordinate_system::kGeographic: {
-      // Workaround for limitation in Developer Studio 12.5 on Solaris that
-      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
-      Geographic_multipoint *mpt_result = new Geographic_multipoint();
-      std::unique_ptr<Geometry> result(mpt_result);
-      m_transformation.forward(g, *mpt_result);
-      return result;
-    }
-  }
-  /* purceov: begin deadcode */
-  assert(false);
-  throw std::exception();
-  /* purceov: end */
+  return transform_helper<Cartesian_multipoint, Geographic_multipoint>(
+      g, m_output_cs, m_transformation);
+}
+
+std::unique_ptr<Geometry> Transform::eval(
+    const Cartesian_multilinestring &g) const {
+  return transform_helper<Cartesian_multilinestring,
+                          Geographic_multilinestring>(g, m_output_cs,
+                                                      m_transformation);
 }
 
 std::unique_ptr<Geometry> Transform::eval(
     const Geographic_multilinestring &g) const {
-  switch (m_output_cs) {
-    case Coordinate_system::kCartesian:
-      // We currently support only transformations between two geographic
-      // systems.
-      break;
-    case Coordinate_system::kGeographic: {
-      // Workaround for limitation in Developer Studio 12.5 on Solaris that
-      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
-      Geographic_multilinestring *mls_result = new Geographic_multilinestring();
-      std::unique_ptr<Geometry> result(mls_result);
-      m_transformation.forward(g, *mls_result);
-      return result;
-    }
-  }
-  /* purceov: begin deadcode */
-  assert(false);
-  throw std::exception();
-  /* purceov: end */
+  return transform_helper<Cartesian_multilinestring,
+                          Geographic_multilinestring>(g, m_output_cs,
+                                                      m_transformation);
+}
+
+std::unique_ptr<Geometry> Transform::eval(
+    const Cartesian_multipolygon &g) const {
+  return transform_helper<Cartesian_multipolygon, Geographic_multipolygon>(
+      g, m_output_cs, m_transformation);
 }
 
 std::unique_ptr<Geometry> Transform::eval(
     const Geographic_multipolygon &g) const {
-  switch (m_output_cs) {
-    case Coordinate_system::kCartesian:
-      // We currently support only transformations between two geographic
-      // systems.
-      break;
-    case Coordinate_system::kGeographic: {
-      // Workaround for limitation in Developer Studio 12.5 on Solaris that
-      // doesn't allow returning std::unique_ptr<subtype of Geometry>.
-      Geographic_multipolygon *mpy_result = new Geographic_multipolygon();
-      std::unique_ptr<Geometry> result(mpy_result);
-      m_transformation.forward(g, *mpy_result);
-      return result;
-    }
-  }
-  /* purceov: begin deadcode */
-  assert(false);
-  throw std::exception();
-  /* purceov: end */
+  return transform_helper<Cartesian_multipolygon, Geographic_multipolygon>(
+      g, m_output_cs, m_transformation);
 }
 
 bool transform(const dd::Spatial_reference_system *source_srs,

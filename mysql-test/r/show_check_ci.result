@@ -1310,7 +1310,7 @@ LOCK TABLE t1 WRITE;
 # Connection default
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci	#
 # Connection con1
 UNLOCK TABLES;
 # Test 2: ALTER TABLE with SHOW CREATE TRIGGER in transaction
@@ -1318,7 +1318,7 @@ UNLOCK TABLES;
 START TRANSACTION;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci	#
 # Connection con1
 ALTER TABLE t1 CHARACTER SET = utf8;
 Warnings:
@@ -1393,7 +1393,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` char(3) DEFAULT NULL,
-  `n` char(20) CHARACTER SET utf8mb3 COLLATE utf8_general_ci GENERATED ALWAYS AS (md5(`i`)) VIRTUAL
+  `n` char(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci GENERATED ALWAYS AS (md5(`i`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE `t1` (
@@ -1531,15 +1531,15 @@ f2 CHAR(1) COLLATE UTF8_BIN,
 f3 CHAR(1) CHARSET UTF8MB3,
 f4 CHAR(1) CHARSET UTF8MB4);
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # The SHOW command should show the utf8mb4 charset for f4 after ALTER.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` char(1) DEFAULT NULL,
-  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8_bin DEFAULT NULL,
-  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD COLUMN f5 CHAR(1);
@@ -1549,8 +1549,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` char(1) DEFAULT NULL,
-  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8_bin DEFAULT NULL,
-  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `f5` char(1) DEFAULT NULL,
   `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
@@ -1561,8 +1561,8 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `f1` char(1) DEFAULT NULL,
-  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8_bin DEFAULT NULL,
-  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `f5` char(1) DEFAULT NULL,
   `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
@@ -1573,8 +1573,8 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `f1` char(1) DEFAULT NULL,
-  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8_bin DEFAULT NULL,
-  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `f5` char(1) DEFAULT NULL,
   `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL

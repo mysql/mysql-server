@@ -1,0 +1,46 @@
+--copy_file $MYSQLTEST_VARDIR/std_data/wl14965_dump.zip $MYSQL_TMP_DIR/wl14965_dump.zip
+--file_exists $MYSQL_TMP_DIR/wl14965_dump.zip
+--exec unzip -qo $MYSQL_TMP_DIR/wl14965_dump.zip -d $MYSQL_TMP_DIR
+
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
+
+--echo # restore mysql tables from 8.0.27
+--exec $MYSQL test < $MYSQL_TMP_DIR/wl14965.dump
+
+SHOW KEYS FROM mysql.db;
+SHOW KEYS FROM mysql.tables_priv;
+SHOW KEYS FROM mysql.columns_priv;
+SHOW KEYS FROM mysql.procs_priv;
+
+--echo # Restart server without upgrade option
+--source include/restart_mysqld.inc
+
+--echo # Restart server with upgrade option
+--let $restart_parameters=restart:--upgrade=force
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+
+SHOW KEYS FROM mysql.db;
+SHOW KEYS FROM mysql.tables_priv;
+SHOW KEYS FROM mysql.columns_priv;
+SHOW KEYS FROM mysql.procs_priv;
+
+CREATE USER wl14965_u2;
+GRANT ALL ON test.* to wl14965_u2;
+SHOW GRANTS FOR wl14965_u2;
+DROP USER wl14965_u2;
+
+--echo # ensure that key_len is 351 which includes length of host(255) + user(96)
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM mysql.db WHERE host='' AND user='';
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM mysql.tables_priv WHERE host='' AND user='';
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM mysql.columns_priv WHERE host='' AND user='';
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM mysql.procs_priv WHERE host='' AND user='';
+
+#cleanup
+DROP DATABASE wl14965;
+--remove_file $MYSQL_TMP_DIR/wl14965_dump.zip
+--remove_file $MYSQL_TMP_DIR/wl14965.dump

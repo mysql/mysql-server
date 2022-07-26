@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,7 +180,7 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
                                             &eq_items);
 
           table_map included_tables = 0;
-          Item *base_item = nullptr;
+          Item_field *base_item = nullptr;
           for (Item_field &field : equal->get_fields()) {
             assert(IsSingleBitSet(field.used_tables()));
             if (!IsSubset(field.used_tables(), tables_in_subtree) ||
@@ -862,15 +862,13 @@ bool IsCandidateForCycle(RelationalExpression *expr, Item *cond,
 }
 
 bool ComesFromMultipleEquality(Item *item, Item_equal *equal) {
-  return item->type() == Item::FUNC_ITEM &&
-         down_cast<Item_func *>(item)->functype() == Item_func::EQ_FUNC &&
+  return is_function_of_type(item, Item_func::EQ_FUNC) &&
          down_cast<Item_func_eq *>(item)->source_multiple_equality == equal;
 }
 
 int FindSourceMultipleEquality(Item *item,
                                const Mem_root_array<Item_equal *> &equals) {
-  if (item->type() != Item::FUNC_ITEM ||
-      down_cast<Item_func *>(item)->functype() != Item_func::EQ_FUNC) {
+  if (!is_function_of_type(item, Item_func::EQ_FUNC)) {
     return -1;
   }
   Item_func_eq *eq = down_cast<Item_func_eq *>(item);
@@ -902,11 +900,31 @@ bool MultipleEqualityAlreadyExistsOnJoin(Item_equal *equal,
 bool AlreadyExistsOnJoin(Item *cond, const RelationalExpression &expr) {
   assert(expr.equijoin_conditions
              .empty());  // MakeHashJoinConditions() has not run yet.
+  constexpr bool binary_cmp = true;
   for (Item *item : expr.join_conditions) {
-    if (cond->eq(item, /*binary_cmp=*/true)) {
+    if (cond->eq(item, binary_cmp)) {
       return true;
     }
   }
+
+  // If "cond" is an equality created from a multiple equality, it's a bit
+  // arbitrary if it ends up as a=b or b=a. If we didn't find an exact match,
+  // see if we find one with the operands swapped.
+  Item_func_eq *cond_eq = is_function_of_type(cond, Item_func::EQ_FUNC)
+                              ? down_cast<Item_func_eq *>(cond)
+                              : nullptr;
+  if (cond_eq != nullptr && cond_eq->source_multiple_equality != nullptr) {
+    for (Item *item : expr.join_conditions) {
+      if (ComesFromMultipleEquality(item, cond_eq->source_multiple_equality)) {
+        Item_func_eq *item_eq = down_cast<Item_func_eq *>(item);
+        if (cond_eq->get_arg(0)->eq(item_eq->get_arg(1), binary_cmp) &&
+            cond_eq->get_arg(1)->eq(item_eq->get_arg(0), binary_cmp)) {
+          return true;
+        }
+      }
+    }
+  }
+
   return false;
 }
 
@@ -1071,12 +1089,7 @@ Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
   assert(left != nullptr);
   assert(right != nullptr);
 
-  Item_func_eq *eq_item = new Item_func_eq(left, right);
-  eq_item->set_cmp_func();
-  eq_item->update_used_tables();
-  eq_item->quick_fix_field();
-  eq_item->source_multiple_equality = cond;
-  return eq_item;
+  return MakeEqItem(left, right, cond);
 }
 
 /**
@@ -1104,12 +1117,7 @@ static void FullyConcretizeMultipleEquals(Item_equal *cond,
       continue;
     }
     if (last_field != nullptr) {
-      Item_func_eq *eq_item = new Item_func_eq(last_field, &field);
-      eq_item->set_cmp_func();
-      eq_item->update_used_tables();
-      eq_item->quick_fix_field();
-      eq_item->source_multiple_equality = cond;
-      result->push_back(eq_item);
+      result->push_back(MakeEqItem(last_field, &field, cond));
     }
     last_field = &field;
     seen_tables |= field.used_tables();
@@ -2101,6 +2109,14 @@ void MakeHashJoinConditions(THD *thd, RelationalExpression *expr) {
       extra_conditions.push_back(item);
     }
 
+    // Put potentially expensive functions last: First everything normal,
+    // then subqueries (which can be expensive), then stored procedures
+    // (which are unknown, so potentially _very_ expensive).
+    std::stable_partition(extra_conditions.begin(), extra_conditions.end(),
+                          [](Item *item) { return !item->has_subquery(); });
+    std::stable_partition(extra_conditions.begin(), extra_conditions.end(),
+                          [](Item *item) { return !item->is_expensive(); });
+
     expr->join_conditions = std::move(extra_conditions);
   }
   MakeHashJoinConditions(thd, expr->left);
@@ -2139,8 +2155,6 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
 
 /**
   Do some constant conversion/folding work needed for correctness.
-  We also move more expensive functions last in the conjunction,
-  as a heuristic so that they are less likely to be evaluated.
  */
 bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
   CSEConditions(thd, conditions);
@@ -2160,14 +2174,6 @@ bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
       ++it;
     }
   }
-
-  // Put potentially expensive functions last: First everything normal,
-  // then subqueries (which can be expensive), then stored procedures
-  // (which are unknown, so potentially _very_ expensive).
-  std::stable_partition(conditions->begin(), conditions->end(),
-                        [](Item *item) { return !item->has_subquery(); });
-  std::stable_partition(conditions->begin(), conditions->end(),
-                        [](Item *item) { return !item->is_expensive(); });
 
   return false;
 }
@@ -2617,6 +2623,31 @@ size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
 }
 
 /**
+  Sorts the given range of predicates so that the most selective and least
+  expensive predicates come first, and the less selective and more expensive
+  ones come last.
+ */
+void SortPredicates(Predicate *begin, Predicate *end) {
+  // Move the most selective predicates first.
+  std::stable_sort(begin, end, [](const Predicate &p1, const Predicate &p2) {
+    return p1.selectivity < p2.selectivity;
+  });
+
+  // If the predicates contain subqueries, move them towards the end, regardless
+  // of their selectivity, since they could be expensive to evaluate. We could
+  // refine this by looking at the estimated cost of the contained subqueries.
+  std::stable_partition(begin, end, [](const Predicate &pred) {
+    return !pred.condition->has_subquery();
+  });
+
+  // UDFs and stored procedures have unknown and potentially very high cost.
+  // Move them last.
+  std::stable_partition(begin, end, [](const Predicate &pred) {
+    return !pred.condition->is_expensive();
+  });
+}
+
+/**
   Add the given predicate to the list of WHERE predicates, doing some
   bookkeeping that such predicates need.
  */
@@ -2890,6 +2921,8 @@ void PromoteCycleJoinPredicates(
                    root, graph, trace);
     }
     expr->join_predicate_last = graph->predicates.size();
+    SortPredicates(graph->predicates.begin() + expr->join_predicate_first,
+                   graph->predicates.begin() + expr->join_predicate_last);
   }
 }
 
@@ -2998,28 +3031,6 @@ NodeMap GetNodeMapFromTableMap(
 
 namespace {
 
-// See if there is already a connection between the given nodes, potentially
-// through a larger hyperedge.
-bool ExistsEdgeBetween(const JoinHypergraph *graph, int left_node_idx,
-                       int right_node_idx, int *out_edge_idx) {
-  if (IsBitSet(right_node_idx,
-               graph->graph.nodes[left_node_idx].simple_neighborhood)) {
-    for (int edge_idx : graph->graph.nodes[left_node_idx].simple_edges) {
-      if (graph->graph.edges[edge_idx].right == TableBitmap(right_node_idx)) {
-        *out_edge_idx = edge_idx / 2;
-        return true;
-      }
-    }
-  }
-  for (int edge_idx : graph->graph.nodes[left_node_idx].complex_edges) {
-    if (IsBitSet(right_node_idx, graph->graph.edges[edge_idx].right)) {
-      *out_edge_idx = edge_idx / 2;
-      return true;
-    }
-  }
-  return false;
-}
-
 void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
                                   Item_field *left_field, int left_table_idx,
                                   Item_field *right_field, int right_table_idx,
@@ -3027,18 +3038,26 @@ void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
   const int left_node_idx = graph->table_num_to_node_num[left_table_idx];
   const int right_node_idx = graph->table_num_to_node_num[right_table_idx];
 
-  // See if there is already an edge between these two tables.
-  // Even though the tables are in the same companion set
-  // (i.e., no outerjoins), they may be connected through complex edges
-  // due to hyperpredicates.
+  // See if there is already an edge between these two tables. Since the tables
+  // are in the same companion set, they are not outerjoined to each other, so
+  // it's enough to check the simple neighborhood. They could already be
+  // connected through complex edges due to hyperpredicates, but in this case we
+  // still want to add a simple edge, as it could in some cases be advantageous
+  // to join along the simple edge before applying the hyperpredicate.
   RelationalExpression *expr = nullptr;
-  int edge_idx;
-  if (ExistsEdgeBetween(graph, left_node_idx, right_node_idx, &edge_idx)) {
-    expr = graph->edges[edge_idx].expr;
-    if (MultipleEqualityAlreadyExistsOnJoin(item_equal, *expr)) {
-      return;
+  if (IsSubset(TableBitmap(right_node_idx),
+               graph->graph.nodes[left_node_idx].simple_neighborhood)) {
+    for (int edge_idx : graph->graph.nodes[left_node_idx].simple_edges) {
+      if (graph->graph.edges[edge_idx].right == TableBitmap(right_node_idx)) {
+        expr = graph->edges[edge_idx / 2].expr;
+        if (MultipleEqualityAlreadyExistsOnJoin(item_equal, *expr)) {
+          return;
+        }
+        graph->edges[edge_idx / 2].selectivity *= selectivity;
+        break;
+      }
     }
-    graph->edges[edge_idx].selectivity *= selectivity;
+    assert(expr != nullptr);
   } else {
     // There was none, so create a new one.
     graph->graph.AddEdge(TableBitmap(left_node_idx),
@@ -3063,11 +3082,7 @@ void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
                                          /*functional_dependencies_idx=*/{}});
   }
 
-  Item_func_eq *eq_item = new Item_func_eq(left_field, right_field);
-  eq_item->source_multiple_equality = item_equal;
-  eq_item->set_cmp_func();
-  eq_item->update_used_tables();
-  eq_item->quick_fix_field();
+  Item_func_eq *eq_item = MakeEqItem(left_field, right_field, item_equal);
   expr->equijoin_conditions.push_back(
       eq_item);  // NOTE: We run after MakeHashJoinConditions().
 
@@ -3090,10 +3105,6 @@ void CompleteFullMeshForMultipleEqualities(
     THD *thd, const Mem_root_array<Item_equal *> &multiple_equalities,
     JoinHypergraph *graph, string *trace) {
   for (Item_equal *item_equal : multiple_equalities) {
-    if (item_equal->get_fields().size() <= 2) {
-      continue;
-    }
-
     double selectivity = EstimateSelectivity(thd, item_equal, trace);
     for (Item_field &left_field : item_equal->get_fields()) {
       const int left_table_idx =
@@ -3327,6 +3338,10 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
 
 #endif
 
+  // The predicates added so far are join conditions that have been promoted to
+  // WHERE predicates by PromoteCycleJoinPredicates().
+  const size_t num_cycle_predicates = graph->predicates.size();
+
   // Find TES and selectivity for each WHERE predicate that was not pushed
   // down earlier.
   for (Item *condition : where_conditions) {
@@ -3356,6 +3371,15 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
       return true;
     }
   }
+
+  // Sort the predicates so that filters created from them later automatically
+  // evaluate the most selective and least expensive predicates first. Don't
+  // touch the join (cycle) predicates at the beginning, as they are already
+  // sorted, and reordering them would make the join_predicate_first and
+  // join_predicate_last pointers in the corresponding RelationalExpression
+  // incorrect.
+  SortPredicates(graph->predicates.begin() + num_cycle_predicates,
+                 graph->predicates.end());
 
   graph->num_where_predicates = graph->predicates.size();
 

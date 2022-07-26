@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -292,7 +292,7 @@ class PT_common_table_expr : public Parse_tree_node {
   uint m_subq_text_offset;
   /// Parsed version of subq_text
   PT_subquery *const m_subq_node;
-  /// List of explicitely specified column names; if empty, no list.
+  /// List of explicitly specified column names; if empty, no list.
   const Create_col_name_list m_column_names;
   /**
     A TABLE_LIST representing a CTE needs access to the WITH list
@@ -495,7 +495,7 @@ class PT_derived_table : public PT_table_reference {
   bool m_lateral;
   PT_subquery *m_subquery;
   const char *const m_table_alias;
-  /// List of explicitely specified column names; if empty, no list.
+  /// List of explicitly specified column names; if empty, no list.
   const Create_col_name_list column_names;
 };
 
@@ -1275,7 +1275,7 @@ class PT_border : public Parse_tree_node {
 
   /**
     @returns Addition operator for computation of frames, nullptr if error.
-    @param  order_expr  Expression to add/substract to
+    @param  order_expr  Expression to add to/subtract from
     @param  prec    true if PRECEDING
     @param  asc     true if ASC
     @param  window  only used for error generation
@@ -2657,7 +2657,7 @@ class PT_create_stats_stable_pages : public PT_create_table_option {
   /**
     Constructor for implicit number of pages
 
-    @param value       Nunber of pages, 1@<=N@<=65535.
+    @param value       Number of pages, 1@<=N@<=65535.
   */
   explicit PT_create_stats_stable_pages(value_t value) : value(value) {
     assert(value != 0 && value <= 0xFFFF);

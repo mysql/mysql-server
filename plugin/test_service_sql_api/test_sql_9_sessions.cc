@@ -431,7 +431,7 @@ static void handle_error() {
     WRITE_VAL("affected rows: %d\n", sql_affected_rows);
     WRITE_VAL("server status: %d\n", sql_server_status);
     WRITE_VAL("warn count: %d\n", sql_warn_count);
-    //           WRITE_VAL("messsage: %s\n",msg);
+    //           WRITE_VAL("message: %s\n",msg);
   }
 }
 

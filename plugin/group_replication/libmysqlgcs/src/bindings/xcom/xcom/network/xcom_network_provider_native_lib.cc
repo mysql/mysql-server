@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights
 reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -76,7 +76,7 @@ int set_xcom_socket_accept_cb(xcom_socket_accept_cb x) {
 void Xcom_network_provider_library::init_server_addr(
     struct sockaddr **sock_addr, socklen_t *sock_len, xcom_port port,
     int family) {
-  struct addrinfo *address_info = NULL, hints, *address_info_loop;
+  struct addrinfo *address_info = nullptr, hints, *address_info_loop;
   memset(&hints, 0, sizeof(hints));
 
   hints.ai_flags = AI_PASSIVE;

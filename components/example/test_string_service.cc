@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -73,14 +73,14 @@ mysql_service_status_t test_string_service_init() {
             strlen(test_text), "utf8")) {
       WRITE_LOG("Buffer=NULL in convert from buffer: passed.\n");
     };
-    // Lenght is too high for buffer in convert from buffer
+    // Length is too high for buffer in convert from buffer
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             test_text,  // its a input buffer
             strlen(test_text) + 10, "utf8")) {
       WRITE_LOG("Length too high for buffer in convert from buffer: passed.\n");
     }
-    // Lenght is zero for buffer in convert from buffer
+    // Length is zero for buffer in convert from buffer
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             test_text,  // its a input buffer
@@ -89,7 +89,7 @@ mysql_service_status_t test_string_service_init() {
     } else {
       WRITE_LOG("Length is zero for buffer in convert from buffer: passed.\n");
     }
-    // Lenght is negative for buffer in convert from buffer
+    // Length is negative for buffer in convert from buffer
     // Crash as real_alloc (this=0x7f1ddc29a528, length=18446744073709551615)
     /*      if
        (mysql_service_mysql_string_converter->convert_from_buffer(&out_string,

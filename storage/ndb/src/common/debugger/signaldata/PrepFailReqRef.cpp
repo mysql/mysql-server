@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,18 +22,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <kernel_types.h>
 #include <BlockNumbers.h>
 #include <signaldata/PrepFailReqRef.hpp>
 
-bool
-printPREPFAILREQREF(FILE * output, 
-		    const Uint32 * theData, 
-		    Uint32 len, 
-		    Uint16 receiverBlockNo){
-  
-  PrepFailReqRef * cc = (PrepFailReqRef*)theData;
+bool printPREPFAILREQREF(FILE* output,
+                         const Uint32* theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/)
+{
+  const PrepFailReqRef* cc = (const PrepFailReqRef*)theData;
 
   fprintf(output, " xxxBlockRef = (%d, %d) failNo = %d noOfNodes = %d\n",
 	  refToBlock(cc->xxxBlockRef), refToNode(cc->xxxBlockRef),
@@ -62,5 +60,3 @@ printPREPFAILREQREF(FILE * output,
   }
   return true;
 }
-
-

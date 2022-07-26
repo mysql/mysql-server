@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,10 @@
 
 #include "sql/item.h"
 #include "sql/join_optimizer/interesting_orders.h"
+#include "sql/key_spec.h"
+#include "sql/sql_array.h"
+#include "sql/thd_raii.h"
+#include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/test_utils.h"
 
@@ -1276,3 +1280,125 @@ TEST_F(InterestingOrderingTableTest, GroupReordering) {
   EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, b_idx));
   EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, bc_idx));
 }
+
+// Measures the time to build the interesting orders for this query:
+//
+//     SELECT col1, col2, ... , colN, COUNT(*)
+//     FROM t1 JOIN t2 USING (col1, col2, ... , colN)
+//     GROUP BY col1, col2, ... , colN
+//     ORDER BY col1, col2, ... , colN
+//
+// It used to spend a lot of time in LogicalOrderings::PruneNFSM() when N was
+// high and the generated NFSM was large. The number of NFSM states generated
+// for this query is 2^(N+2)-3. Let's consider the case when N=2:
+//
+// There is one state for the empty ordering. There is one interesting order
+// given by the ORDER BY clause (col1, col2), but due to the functional
+// dependencies given by the join predicate, colN could expand to either t1.colN
+// or t2.colN, so we get four states (t1.col1, t1.col2), (t1.col1, t2.col2),
+// (t2.col1, t1.col2), (t2.col1, t2.col2). Additionally, each of these states
+// have decay edges to shorter orderings by removing columns at the end, so we
+// have states for (t1.col1) and (t2.col1). Giving a total of 6 non-empty
+// orderings. And each of those orderings will also have a decay edge to a
+// grouping on the same columns, thanks to the GROUP BY clause, adding another 6
+// states for the groupings. So in total 1 + 6 + 6 = 13 states.
+//
+// There is a cut-off at 200 states when building the NFSM, but this is not a
+// hard limit, and the NFSM could grow considerably bigger. At the time of
+// adding this benchmark, the test case for N=32 builds an NFSM with 5017
+// states. Which is much smaller than the 17 179 869 181 states it would have
+// had without the cut-off, but still much bigger than the 200 states it was
+// supposed to stop at.
+template <size_t N>
+static void BM_BuildInterestingOrders(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  THD *thd = initializer.thd();
+
+  Fake_TABLE table1(N, /*cols_nullable=*/true);
+  Fake_TABLE table2(N, /*cols_nullable=*/true);
+
+  array<Item_field *, N * 2> items;
+  for (size_t i = 0; i < N; ++i) {
+    items[i] = new Item_field(table1.field[i]);
+    items[i + N] = new Item_field(table2.field[i]);
+  }
+
+  array<ItemHandle, items.size()> handles;
+  array<OrderElement, N> ordering;
+  array<OrderElement, N> grouping;
+
+  MEM_ROOT mem_root;
+  Swap_mem_root_guard mem_root_guard(thd, &mem_root);
+
+  StartBenchmarkTiming();
+
+  for (size_t iteration = 0; iteration < num_iterations; ++iteration) {
+    mem_root.ClearForReuse();
+
+    LogicalOrderings orderings(thd);
+
+    // Create handles for all items involved.
+    for (size_t i = 0; i < handles.size(); ++i) {
+      handles[i] = orderings.GetHandle(items[i]);
+    }
+
+    // ORDER BY col1, col2, ...
+    for (size_t i = 0; i < ordering.size(); ++i) {
+      ordering[i] = OrderElement{handles[i], ORDER_ASC};
+    }
+    AddOrdering(thd, ordering, /*interesting=*/true, &orderings);
+
+    // GROUP BY col1, col2, ...
+    for (size_t i = 0; i < grouping.size(); ++i) {
+      grouping[i] = OrderElement{handles[i], ORDER_NOT_RELEVANT};
+    }
+    AddOrdering(thd, grouping, /*interesting=*/true, &orderings);
+
+    // Functional dependencies from USING (col1, col2, ...).
+    for (size_t i = 0; i < N; ++i) {
+      FunctionalDependency fd_equiv;
+      fd_equiv.type = FunctionalDependency::EQUIVALENCE;
+      fd_equiv.head = make_array(&handles[i], 1);
+      fd_equiv.tail = handles[i + N];
+      orderings.AddFunctionalDependency(thd, fd_equiv);
+    }
+
+    // Build the state machines.
+    orderings.Build(thd, /*trace=*/nullptr);
+  }
+
+  StopBenchmarkTiming();
+}
+
+static void BM_BuildInterestingOrders1(size_t num_iterations) {
+  BM_BuildInterestingOrders<1>(num_iterations);
+}
+BENCHMARK(BM_BuildInterestingOrders1)
+
+static void BM_BuildInterestingOrders2(size_t num_iterations) {
+  BM_BuildInterestingOrders<2>(num_iterations);
+}
+BENCHMARK(BM_BuildInterestingOrders2)
+
+static void BM_BuildInterestingOrders4(size_t num_iterations) {
+  BM_BuildInterestingOrders<4>(num_iterations);
+}
+BENCHMARK(BM_BuildInterestingOrders4)
+
+static void BM_BuildInterestingOrders8(size_t num_iterations) {
+  BM_BuildInterestingOrders<8>(num_iterations);
+}
+BENCHMARK(BM_BuildInterestingOrders8)
+
+static void BM_BuildInterestingOrders16(size_t num_iterations) {
+  BM_BuildInterestingOrders<16>(num_iterations);
+}
+BENCHMARK(BM_BuildInterestingOrders16)
+
+static void BM_BuildInterestingOrders32(size_t num_iterations) {
+  BM_BuildInterestingOrders<32>(num_iterations);
+}
+BENCHMARK(BM_BuildInterestingOrders32)

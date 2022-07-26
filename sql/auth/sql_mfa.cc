@@ -356,8 +356,8 @@ error:
 }
 
 /**
-  Helper method to sort nth factor methods in Multi factor authentication
-  interface such that 2nd factor method always preceeds 3rd factor method.
+  Helper method to sort nth factor methods in multi-factor authentication
+  interface such that 2nd factor method always precedes 3rd factor method.
 */
 void Multi_factor_auth_list::sort_mfa() {
   assert(m_factor.size() == 2);
@@ -812,10 +812,10 @@ bool Multi_factor_auth_info::deserialize(uint nth_factor, Json_dom *mfa_dom) {
     @retval true  Failure
 */
 bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
-  /* check if we are registerting correct Multi factor authentication method */
+  /* check if we are registerting correct multi-factor authentication method */
   if (get_nth_factor() != nth_factor) return false;
   /*
-    incase init registration is done, then server challenge will be
+    in case init registration is done, then server challenge will be
     in auth string
   */
   if (get_auth_str_len()) return false;

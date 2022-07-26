@@ -1452,8 +1452,8 @@ int main(int argc, char *argv[]) {
 void mysql_end(int sig) {
 #ifndef _WIN32
   /*
-    Ingnoring SIGQUIT, SIGINT and SIGHUP signals when cleanup process starts.
-    This will help in resolving the double free issues, which occures in case
+    Ignoring SIGQUIT, SIGINT and SIGHUP signals when cleanup process starts.
+    This will help in resolving the double free issues, which occurs in case
     the signal handler function is started in between the clean up function.
   */
   signal(SIGQUIT, SIG_IGN);
@@ -3026,7 +3026,7 @@ static int reconnect(void) {
   if (opt_reconnect) {
     put_info("No connection. Trying to reconnect...", INFO_INFO);
     (void)com_connect((String *)nullptr, nullptr);
-    if (opt_rehash) com_rehash(nullptr, nullptr);
+    if (opt_rehash && connected) com_rehash(nullptr, nullptr);
   }
   if (!connected) return put_info("Can't connect to the server\n", INFO_ERROR);
   /* purecov: end */
@@ -4350,7 +4350,7 @@ static int com_use(String *buffer [[maybe_unused]], char *line) {
 static int normalize_dbname(const char *line, char *buff, uint buff_size) {
   MYSQL_RES *res = nullptr;
 
-  /* Send the "USE db" commmand to the server. */
+  /* Send the "USE db" command to the server. */
   if (mysql_query(&mysql, line)) return 1;
 
   /*
@@ -4638,7 +4638,7 @@ static int sql_real_connect(char *host, char *database, char *user, char *,
     /*
       Don't convert trailing '\n' character - it was appended during
       last batch_readline_command() call.
-      Oherwise we'll get an extra line, which makes some tests fail.
+      Otherwise we'll get an extra line, which makes some tests fail.
     */
     if (status.line_buff->buffer[len - 1] == '\n') len--;
     if (tmp.copy(status.line_buff->buffer, len, &my_charset_utf8mb4_bin,
@@ -4813,7 +4813,7 @@ static int com_status(String *buffer [[maybe_unused]],
   tee_fprintf(stdout, "\nConnection id:\t\t%lu\n", mysql_thread_id(&mysql));
   /*
     Don't remove "limit 1",
-    it is protection againts SQL_SELECT_LIMIT=0
+    it is protection against SQL_SELECT_LIMIT=0
   */
   if (!mysql_store_result_for_lazy(&result)) {
     MYSQL_ROW cur = mysql_fetch_row(result);

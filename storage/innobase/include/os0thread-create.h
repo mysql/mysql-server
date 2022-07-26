@@ -85,7 +85,8 @@ class MySQL_thread {
  protected:
   /** Register the thread with the server */
   void preamble() {
-    my_thread_init();
+    const bool ret = my_thread_init();
+    ut_a(!ret);
 
 #if defined(UNIV_PFS_THREAD) && !defined(UNIV_HOTBACKUP)
     if (m_pfs_key.m_value != PFS_NOT_INSTRUMENTED.m_value) {

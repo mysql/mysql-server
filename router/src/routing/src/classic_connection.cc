@@ -1149,6 +1149,9 @@ void MysqlRoutingClassicConnection::finish() {
       // if the server is waiting on something, as client is already gone.
       (void)server_socket.cancel();
     }
+  } else if (!server_socket.is_open() && client_socket.is_open()) {
+    // if the client is waiting on something, as server is already gone.
+    (void)client_socket.cancel();
   }
 
   if (active_work_ == 0) {
@@ -1568,8 +1571,14 @@ void MysqlRoutingClassicConnection::connect() {
   if (!connect_res) {
     const auto ec = connect_res.error();
 
-    if (ec == make_error_condition(std::errc::operation_in_progress) ||
-        ec == make_error_condition(std::errc::operation_would_block)) {
+    // We need to keep the disconnect_mtx_ while the async handlers are being
+    // set up in order not to miss the disconnect request. Otherwise we could
+    // end up blocking for the whole 'destination_connect_timeout' duration
+    // before giving up the connection.
+    std::lock_guard<std::mutex> lk(disconnect_mtx_);
+    if ((!disconnect_) &&
+        (ec == make_error_condition(std::errc::operation_in_progress) ||
+         ec == make_error_condition(std::errc::operation_would_block))) {
       auto &t = connector.timer();
 
       t.expires_after(context().get_destination_connect_timeout());
@@ -1620,6 +1629,10 @@ void MysqlRoutingClassicConnection::connect() {
 
     log_fatal_error_code("connecting to backend failed", ec);
 
+    // don't increment the max-connect-error
+    // counter is it is the server that failed to connect().
+    client_greeting_sent_ = true;
+
     auto *socket_splicer = this->socket_splicer();
     auto dst_channel = socket_splicer->client_channel();
     auto dst_protocol = client_protocol();
@@ -1655,6 +1668,10 @@ void MysqlRoutingClassicConnection::connect() {
 
     this->socket_splicer()->server_channel()->recv_buffer().reserve(
         context().get_net_buffer_length());
+
+    // the server side is already authenticated. Avoid sending the fake
+    // handshake.
+    client_greeting_sent_ = true;
 
     return server_send_change_user();
   } else {

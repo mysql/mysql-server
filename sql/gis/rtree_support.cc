@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -496,8 +496,9 @@ double rtree_area_overlapping(const dd::Spatial_reference_system *srs,
       gis::Cartesian_box b_box(gis::Cartesian_point(b_xmin, b_ymin),
                                gis::Cartesian_point(b_xmax, b_ymax));
       gis::Cartesian_box overlapping_box;
-      bg::intersection(a_box, b_box, overlapping_box);
-      area = bg::area(overlapping_box);
+      if (bg::intersection(a_box, b_box, overlapping_box)) {
+        area = bg::area(overlapping_box);
+      }
     } else {
       assert(srs->is_geographic());
       gis::Geographic_box a_box(gis::Geographic_point(srs->to_radians(a_xmin),
@@ -511,8 +512,9 @@ double rtree_area_overlapping(const dd::Spatial_reference_system *srs,
       gis::Geographic_box overlapping_box;
       bg::strategies::geographic<> strategies(bg::srs::spheroid<double>(
           srs->semi_major_axis(), srs->semi_minor_axis()));
-      bg::intersection(a_box, b_box, overlapping_box, strategies);
-      area = bg::area(overlapping_box, strategies);
+      if (bg::intersection(a_box, b_box, overlapping_box, strategies)) {
+        area = bg::area(overlapping_box, strategies);
+      }
     }
   } catch (...) {
     assert(false); /* purecov: inspected */

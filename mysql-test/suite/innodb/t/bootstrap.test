@@ -1,3 +1,5 @@
+--source include/have_64bit.inc
+
 --echo # Testcase for the following bugs
 --echo # Bug#16691130 - ASSERT WHEN INNODB_LOG_GROUP_HOME_DIR DOES NOT EXIST
 --echo # Bug#16418661 - CHANGING NAME IN FOR INNODB_DATA_FILE_PATH SHOULD NOT SUCCEED WITH LOG FILES
@@ -17,8 +19,7 @@ secure_file_priv=""
 innodb_fast_shutdown=0
 innodb_data_file_path = ibdata1:16M;ibdata2:16M
 innodb_rollback_segments = 20
-innodb_log_files_in_group = 3
-innodb_log_file_size=20M
+innodb_redo_log_capacity = 60M
 loose-skip-log-bin
 EOF
 
@@ -55,7 +56,7 @@ let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS erro
 --echo # 1. Start mysqld with non existent innodb_log_group_home_dir
 --error 1,3,42
 --exec $MYSQLD $args --innodb_log_group_home_dir=/path/to/non-existent/ --innodb-unknown-parameter-1
-let SEARCH_PATTERN=\[ERROR\] .* Cannot create .path.to.non-existent.ib_logfile101;
+let SEARCH_PATTERN=\[ERROR\] .* Failed to list redo log files in the redo log directory .path.to.non-existent;
 --source include/search_pattern.inc
 let SEARCH_PATTERN=\[ERROR\] .* Aborting;
 --source include/search_pattern.inc
@@ -87,9 +88,9 @@ let SEARCH_PATTERN=\[ERROR\] .* File .*ibdata1: 'open' returned OS error 71. Can
 --source include/search_pattern.inc
 --source ../include/bootstrap_cleanup.inc
 
---echo # 5. Start mysqld without ibdata*, ib_logfile* and undo_00*
+--echo # 5. Start mysqld without ibdata*, #ib_redo* and undo_00*
 --remove_files_wildcard $bugdir/data ibdata*
---remove_files_wildcard $bugdir/data ib_logfile*
+--remove_files_wildcard $bugdir/data/#innodb_redo #ib_redo*
 --remove_files_wildcard $bugdir/data undo_00*
 --error 1,3,42
 --exec $MYSQLD $args --innodb-unknown-parameter-5
@@ -116,42 +117,66 @@ let SEARCH_PATTERN=\[Note\] .* Creating UNDO Tablespace .*undo_002;
 --source include/search_pattern.inc
 --source ../include/bootstrap_cleanup.inc
 
---echo # 8. Start mysqld without ib_logfile0
---remove_file $bugdir/data/ib_logfile0
---error 1,3,42
+--echo # 8. Start mysqld without #ib_redo*
+--remove_files_wildcard $bugdir/data/#innodb_redo #ib_redo*
+--error 1
 --exec $MYSQLD $args --innodb-unknown-parameter-8
-let SEARCH_PATTERN=\[ERROR\] .* Cannot create log files because data files are corrupt or the database was not shut down cleanly after creating the data files;
---source ../include/bootstrap_cleanup.inc
-
---echo # 9. Start mysqld without ib_logfile1
---remove_file $bugdir/data/ib_logfile1
---error 1,3,42
---exec $MYSQLD $args --innodb-unknown-parameter-9
-let SEARCH_PATTERN=\[ERROR\] .* Only one log file found;
---source include/search_pattern.inc
-let SEARCH_PATTERN=\[ERROR\] .* Aborting;
+let SEARCH_PATTERN=\[Note\] .* Apply batch completed;
 --source include/search_pattern.inc
 --source ../include/bootstrap_cleanup.inc
 
---echo # 10. Start mysqld without ib_logfile2
---remove_file $bugdir/data/ib_logfile2
+--echo # 9. Add new datafile at the end
 --error 1,3,42
---exec $MYSQLD $args --innodb-unknown-parameter-10
-let SEARCH_PATTERN=\[Note\] .* Resizing redo log from \d+\*\d+ to \d+\*\d+ bytes, LSN=\d+;
---source include/search_pattern.inc
---source ../include/bootstrap_cleanup.inc
-
---echo # 11. Add new datafile at the end
---error 1,3,42
---exec $MYSQLD $args --innodb-data_file_path="ibdata1:16M;ibdata2:16M;ibdata3:20M:autoextend" --innodb-unknown-parameter-11
+--exec $MYSQLD $args --innodb-data_file_path="ibdata1:16M;ibdata2:16M;ibdata3:20M:autoextend" --innodb-unknown-parameter-9
 let SEARCH_PATTERN=\[Note\] .* File.*ibdata3. size is now 20 MB;
 --source include/search_pattern.inc
 
---echo # 12. Show that --innodb-undo-directory cannot be an ancestor of the datadir
+--echo # 10. Show that --innodb-undo-directory cannot be an ancestor of the datadir
 --error 1,3,42
---exec $MYSQLD $args --innodb-undo-directory=.. --innodb-unknown-parameter-12
+--exec $MYSQLD $args --innodb-undo-directory=.. --innodb-unknown-parameter-10
 let SEARCH_PATTERN=\[ERROR\] .* The innodb_undo_directory is not allowed to be an ancestor of the datadir;
 --source include/search_pattern.inc
+
+--echo # 11. Try to initialize InnoDB in directory which has log files
+--mkdir $bugdir/step11
+--mkdir $bugdir/step11-log
+--mkdir $bugdir/step11-log/#innodb_redo
+--write_file $bugdir/step11-log/#innodb_redo/#ib_redo42
+I love MySQL.
+EOF
+--error 1,42
+--exec $MYSQLD $args --initialize-insecure --innodb_log_group_home_dir=$bugdir/step11-log/ --innodb_data_home_dir=$bugdir/step11/ --datadir=$bugdir/step11 --innodb-unknown-parameter-11
+let SEARCH_PATTERN=--initialize specified but the redo log directory .* has redo log files inside;
+--source include/search_pattern.inc
+--force-rmdir $bugdir/step11-log
+--force-rmdir $bugdir/step11
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 12. Rename log file after shutdown and start MySQL (should succeed)
+let MYSQLD_DATADIR= $bugdir/data;
+perl;
+  require 'include/ib_redo_log_files.inc';
+  use File::Copy qw(move);
+  my $files = [];
+  foreach (log_get_non_tmp_files()) {
+    if ($_ =~ /#ib_redo(\d+)$/) {
+      push @{$files}, {id=>$1,name=>$_};
+    }
+  }
+  @$files_ordered_by_id_desc = (sort {$b->{id} <=> $a->{id}} @{$files});
+  foreach $file (@{$files_ordered_by_id_desc}) {
+    my $old_file_no = $file->{id};
+    my $old_file_name = $file->{name};
+    my $new_file_no = $file->{id} + 1;
+    (my $new_file_name = $file->{name}) =~ s/^(.*#ib_redo)(\d+)$/$1$new_file_no/;
+    move $old_file_name, $new_file_name;
+  }
+EOF
+--error 1,42
+--exec $MYSQLD $args --skip-networking --socket=./mysqld.sock --innodb-unknown-parameter-12
+let SEARCH_PATTERN=[ERROR].*innodb-unknown-parameter-12.*;
+--source include/search_pattern.inc
+--source ../include/bootstrap_cleanup.inc
 
 --echo # Cleanup
 --force-rmdir $bugdir

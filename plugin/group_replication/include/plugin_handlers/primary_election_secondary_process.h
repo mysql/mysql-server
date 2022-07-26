@@ -59,7 +59,7 @@ class Primary_election_secondary_process : public Group_event_observer {
   */
   int launch_secondary_election_process(
       enum_primary_election_mode election_mode, std::string &primary_to_elect,
-      std::vector<Group_member_info *> *group_members_info);
+      Group_member_info_list *group_members_info);
 
   /**
     Is the election process running?

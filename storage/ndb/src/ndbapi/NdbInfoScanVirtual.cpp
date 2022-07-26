@@ -914,7 +914,7 @@ public:
 };
 
 #include "mgmapi/mgmapi_config_parameters.h"
-#include "../mgmsrv/ConfigInfo.hpp"
+#include "mgmcommon/ConfigInfo.hpp"
 class ConfigParamsTable : public VirtualTable
 {
   ConfigInfo m_config_info;
@@ -1187,13 +1187,13 @@ class BackupIdTable : public VirtualTable
       return false;
     }
 
-    NdbRecAttr* nextid;
-    NdbRecAttr *frag;
-    NdbRecAttr *row;
+    NdbRecAttr *nextid = op->getValue("NEXTID");
+    NdbRecAttr *frag = op->getValue(NdbDictionary::Column::FRAGMENT);
+    NdbRecAttr *row = op->getValue(NdbDictionary::Column::ROWID);
+
     // Specify columns to reads, the backup id and two pseudo columns
-    if ((nextid = op->getValue("NEXTID")) == nullptr ||
-        (frag = op->getValue(NdbDictionary::Column::FRAGMENT)) == nullptr ||
-        (row = op->getValue(NdbDictionary::Column::ROWID)) == nullptr) {
+    if ((nextid == nullptr) || (frag == nullptr) || (row == nullptr))
+    {
       assert(false);
       return false;
     }
@@ -1318,7 +1318,7 @@ public:
 
   int read_row(VirtualScanContext *ctx, VirtualTable::Row &w,
                Uint32) const override {
-    IndexStatRow *row_data;
+    const IndexStatRow *row_data;
     const int scan_next_result =
         ctx->getScanOp()->nextResult((const char **)&row_data, true, false);
     if (scan_next_result == 0) {
@@ -1596,7 +1596,7 @@ class EventsTable : public VirtualTable {
       const override {
 
     const DictionaryList::Element * elem;
-    std::unique_ptr<const NdbDictionary::Event> event;
+    NdbDictionary::Event_ptr event;
 
     do {
       elem = ctx->nextInList(row);

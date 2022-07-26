@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@
 #include <event2/http.h>
 #include <event2/http_struct.h>
 #include <event2/keyvalq_struct.h>
+#include <event2/listener.h>
 #include <event2/thread.h>
 #include <event2/util.h>
 
@@ -219,7 +220,17 @@ EventBuffer::~EventBuffer() {}
 // wrap for evhttp
 
 struct EventHttp::impl {
-  std::unique_ptr<evhttp, decltype(&evhttp_free)> base;
+  class EvHttpDeleter {
+   public:
+    void operator()(evhttp *http) { evhttp_free(http); }
+  };
+
+  impl(evhttp *http, event_base *ev_base)
+      : base{std::move(http)}, ev_base_{ev_base} {}
+
+  std::unique_ptr<evhttp, EvHttpDeleter> base;
+
+  event_base *ev_base_;
 
   CallbackBuffer bufferCallback_ = nullptr;
   void *bufferArgument_ = nullptr;
@@ -228,14 +239,14 @@ struct EventHttp::impl {
 };
 
 EventHttp::EventHttp(EventBase *base)
-    : pImpl_{
-          new impl{{evhttp_new(impl_get_base(base->pImpl_)), &evhttp_free}}} {}
+    : pImpl_{std::make_unique<impl>(evhttp_new(impl_get_base(base->pImpl_)),
+                                    impl_get_base(base->pImpl_))} {}
 
 EventHttp::EventHttp(EventHttp &&http) : pImpl_(std::move(http.pImpl_)) {}
 
 // Needed because of pimpl
 // Destructor must be placed in the compilation unit
-EventHttp::~EventHttp() {}
+EventHttp::~EventHttp() = default;
 
 void EventHttp::set_allowed_http_methods(const HttpMethod::Bitset methods) {
   evhttp_set_allowed_methods(impl_get_base(pImpl_), methods.to_ullong());
@@ -243,8 +254,23 @@ void EventHttp::set_allowed_http_methods(const HttpMethod::Bitset methods) {
 
 EventHttpBoundSocket EventHttp::accept_socket_with_handle(
     const SocketHandle fd) {
-  return {evhttp_accept_socket_with_handle(impl_get_base(pImpl_),
-                                           static_cast<evutil_socket_t>(fd))};
+  auto http = impl_get_base(pImpl_);
+
+  // same as evhttp_accept_socket_with_handle(), except it doesn't take
+  // ownership via LEV_OPT_CLOSE_ON_FREE
+  const int flags = LEV_OPT_REUSEABLE | LEV_OPT_CLOSE_ON_EXEC;
+
+  struct evconnlistener *listener =
+      evconnlistener_new(pImpl_->ev_base_, nullptr, nullptr, flags, 0, fd);
+  if (listener == nullptr) return nullptr;
+
+  struct evhttp_bound_socket *bound = evhttp_bind_listener(http, listener);
+  if (bound == nullptr) {
+    evconnlistener_free(listener);
+    return nullptr;
+  }
+
+  return bound;
 }
 
 void EventHttp::set_gencb(CallbackRequest cb, void *cbarg) {

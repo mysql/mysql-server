@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,8 @@ void print_usage() {
 }
 
 int main(int argc, char **argv) {
-  char *key = 0;
-  char *cert = 0;
+  char *key = nullptr;
+  char *cert = nullptr;
 
   if (argc < 3) {
     print_usage();
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
                        ((unsigned long)ip[2] << 8L) | ((unsigned long)ip[3]);
   int fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (fd < 0) fatal_error("socket");
-  struct sockaddr_in sa;
+  struct sockaddr_in sa {};
   sa.sin_family = AF_INET;
   sa.sin_port = htons(4433);
   sa.sin_addr.s_addr = htonl(addr);

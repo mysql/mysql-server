@@ -46,22 +46,25 @@ using Log_Arch_Cbk = int(char *file_name, uint64_t file_size,
 /** Redo Log archiver client context */
 class Log_Arch_Client_Ctx {
  public:
-  /** Constructor: Initialize elements */
+  /** Constructor: Initialize elementsf */
   Log_Arch_Client_Ctx()
       : m_state(ARCH_CLIENT_STATE_INIT),
         m_group(nullptr),
         m_begin_lsn(LSN_MAX),
         m_end_lsn(LSN_MAX) {}
 
-  /** Get redo file, header and trailer size
-  @param[out]   file_sz         redo file size
+  /** Get redo file size for archived log file
+  @return size of file in bytes */
+  os_offset_t get_archived_file_size() const;
+
+  /** Get redo header and trailer size
   @param[out]   header_sz       redo header size
   @param[out]   trailer_sz      redo trailer size */
-  void get_header_size(uint64_t &file_sz, uint &header_sz, uint &trailer_sz);
+  void get_header_size(uint &header_sz, uint &trailer_sz) const;
 
   /** Start redo log archiving
-  @param[out]   header  redo header. Caller must allocate buffer.
-  @param[in]    len     buffer length
+  @param[out]  header     buffer for redo header (caller must allocate)
+  @param[in]   len        buffer length
   @return error code */
   int start(byte *header, uint len);
 

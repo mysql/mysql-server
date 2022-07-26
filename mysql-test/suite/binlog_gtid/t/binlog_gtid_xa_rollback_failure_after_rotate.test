@@ -1,0 +1,140 @@
+# ==== Purpose ====
+#
+# This script tests server behavior when a crash occurs during the
+# execution of `XA ROLLBACK`, after binary log has been rotated (`XA
+# PREPARED` is no longer in the latest binary log file).
+#
+# ==== Requirements ====
+#
+# After server restart:
+# R1. The `XA PREPARE` statement shouldn't be found in the binlog.
+# R2. The `XA ROLLBACK` statement shouldn't be found in the binlog.
+# R3. There shouldn't be any changes to GTID_EXECUTED.
+# R4. There should be one pending XA transactions visible with `XA
+#     RECOVER`.
+# R5. There should still be one pending XA transaction visible with `XA
+#     RECOVER` if server is restarted after the crash-recovery.
+#
+# ==== Implementation ====
+#
+# 1. Setup scenario: create table and insert some records.
+# 2. Start and execute an XA transaction containing an insert until before
+#    `XA ROLLBACK`.
+# 3. Take the `GTID_EXECUTED` state.
+# 4. Rotate and purge binary logs.
+# 5. Crash the server during `XA ROLLBACK` execution, before rolling back
+#    in the TC.
+# 6. Restart server and check:
+#    a. Error log for messages stating that recovery process found one
+#       transaction needing recovery.
+#    b. The `XA PREPARE` and `XA ROLLBACK` aren't found in the binary log.
+#    c. The GTID_EXECUTED variable wasn't updated.
+#    d. There is one pending XA transaction listed in the output of `XA
+#       RECOVER`.
+#    e. There aren't changes to the table.
+# 7. Restart the server and check that the transaction is still in preared
+#    state, meaning, the recovery process moved the transaction to
+#    `PERSISTED_IN_TC` and that state was persisted.
+# 8. Rollback the transaction.
+# 9. Check the table hasn't changed.
+#
+# ==== References ====
+#
+# WL#11300: Crash-safe XA + binary log
+#
+# Related tests;
+#   see extra/xa_crash_safe_tests/setup.inc
+#
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+# 1. Setup scenario: create table and insert some records.
+#
+--let $xid_data = xid1
+--let $xid = `SELECT CONCAT("X'", LOWER(HEX('$xid_data')), "',X'',1")`
+--source extra/xa_crash_safe_tests/setup.inc
+
+# 2. Start and execute an XA transaction containing an insert until before
+#    `XA ROLLBACK`.
+#
+--connect(con1, localhost, root,,)
+--connection con1
+--eval XA START $xid
+INSERT INTO t1 VALUES (1);
+--eval XA END $xid
+--eval XA PREPARE $xid
+
+# 3. Take the `GTID_EXECUTED` state.
+#
+--connection default
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+# 4. Rotate and purge binary logs.
+#
+FLUSH LOGS;
+--replace_result $binlog_file BINLOG_FILE
+--eval PURGE BINARY LOGS TO '$binlog_file'
+--source include/save_binlog_position.inc
+
+# 5. Crash the server during `XA ROLLBACK` execution, before rolling back
+#    in the TC.
+#
+--let $auxiliary_connection = default
+--let $statement_connection = con1
+--let $statement = XA ROLLBACK $xid
+--let $sync_point = before_rollback_xa_trx
+--source include/execute_to_conditional_timestamp_sync_point.inc
+--source include/kill_mysqld.inc
+--source extra/xa_crash_safe_tests/cleanup_connection.inc
+
+# 6. Restart server and check:
+--source include/start_mysqld.inc
+
+# 6.a. Error log for messages stating that recovery process found one
+#      transaction needing recovery.
+--let $assert_select = Successfully prepared 1 XA transaction
+--source extra/xa_crash_safe_tests/assert_recovery_message.inc
+
+# 6.b. The `XA PREPARE` and `XA ROLLBACK` aren't found in the binary log.
+#
+--let $event_sequence = $empty_event_sequence
+--source include/assert_binlog_events.inc
+
+# 6.c. The GTID_EXECUTED variable wasn't updated.
+#
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_text = GTID_EXECUTED has not been updated
+--let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+--source include/assert.inc
+
+# 6.d. There is one pending XA transaction listed in the output of `XA
+#      RECOVER`.
+#
+--let $expected_prepared_xa_count = 1
+--source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+# 6.e. There aren't changes to the table.
+#
+--let $expected_row_count = 1
+--source extra/xa_crash_safe_tests/assert_row_count.inc
+
+# 7. Restart the server and check that the transaction is still in preared
+#    state, meaning, the recovery process moved the transaction to
+#    `PERSISTED_IN_TC` and that state was persisted.
+#
+--source include/restart_mysqld.inc
+--let $expected_prepared_xa_count = 1
+--source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+# 8. Rollback the transaction.
+#
+--eval XA ROLLBACK $xid
+
+# 9. Check the table hasn't changed.
+#
+--let $expected_row_count = 1
+--source extra/xa_crash_safe_tests/assert_row_count.inc
+
+DROP TABLE t1;

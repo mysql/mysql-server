@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -169,7 +169,7 @@ TEST(NetTS_io_context, run_one_until_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -215,7 +215,7 @@ TEST(NetTS_io_context, run_one_for_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -261,7 +261,7 @@ TEST(NetTS_io_context, run_until_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -308,7 +308,7 @@ TEST(NetTS_io_context, run_for_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {

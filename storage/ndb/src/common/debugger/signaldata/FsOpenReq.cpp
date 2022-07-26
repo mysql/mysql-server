@@ -23,11 +23,18 @@
 
 #include <signaldata/FsOpenReq.hpp>
 
-bool 
-printFSOPENREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
-  
-  const FsOpenReq * const sig = (FsOpenReq *) theData;
-  
+bool printFSOPENREQ(FILE *output,
+                    const Uint32 *theData,
+                    Uint32 len,
+                    Uint16 /*receiverBlockNo*/)
+{
+  if (len < FsOpenReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const FsOpenReq *const sig = (const FsOpenReq *)theData;
 
   fprintf(output, " UserReference: H\'%.8x, userPointer: H\'%.8x\n", 
 	  sig->userReference, sig->userPointer);

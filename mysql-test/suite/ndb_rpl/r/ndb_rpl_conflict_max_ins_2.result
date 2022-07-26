@@ -1,0 +1,1032 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+*** Test 1 ********************************************************
+* test native NDB$MAX_INS() conflict resolution
+* test with both allowed "conflict column" types, uint32 and uint64
+*******************************************************************
+set @save_luaw = @@global.ndb_log_update_as_write;
+set @save_luo = @@global.ndb_log_updated_only;
+set global ndb_log_update_as_write=0;
+set global ndb_log_updated_only=0;
+insert into mysql.ndb_replication values ("test", "t1", 0, 0, "NDB$MAX_INS(X)");
+create table t1 (a int, b varchar(32), X int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+create table t2 (a int, b varchar(32), c int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+************************************************
+* some basic positive testing, i.e. no conflicts
+************************************************
+*** insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=1", 1, '1');
+insert into t1 values (2, "Master t1 a=2 at X=1", 1, '12');
+insert into t1 values (3, "Master t1 a=3 at X=1", 1, '123');
+insert into t2 values (1, "Master t2 a=1 at c=1", 1, '1');
+insert into t2 values (2, "Master t2 a=2 at c=1", 1, '12');
+insert into t2 values (3, "Master t2 a=3 at c=1", 1, '123');
+commit;
+*** master - update all
+begin;
+update t1 set b="Master t1 X=2", X=X+1;
+update t2 set b="Master t2 c=2", c=c+1;
+commit;
+*** slave - check update all
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 X=2	2	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 c=2	2	123
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** master - update 2 rows in different tables
+update t1 set b="Master t1 a=2 at X=3", X=X+1 where a=2;
+update t2 set b="Master t2 a=3 at c=3", c=c+1 where a=3;
+*** slave - check update 2 rows in different tables
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 a=2 at X=3	3	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 a=3 at c=3	3	123
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** master - delete all
+delete from t1;
+delete from t2;
+*** slave - check delete all
+select * from t1 order by a, d;
+a	b	X	d
+select * from t2 order by a, d;
+a	b	c	d
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+************************
+* start conflict testing
+************************
+*** master - insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10, '111');
+insert into t1 values (2, "Master t1 a=2 at X=10", 10, '111222');
+insert into t1 values (3, "Master t1 a=3 at X=10", 10, '111222333');
+insert into t1 values (4, "Master t1 a=4 at X=10", 10, '111222333');
+insert into t2 values (1, "Master t2 a=1 at c=10", 10, '111');
+insert into t2 values (2, "Master t2 a=2 at c=10", 10, '111222');
+insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
+insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
+commit;
+*** slave - check conflict info, no conflicts yet
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** slave - check insert some data
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+*** slave - Insert some data to cause conflicts
+begin;
+insert into t1 values (5, "Slave t1 a=5 at X=12", 12, '111');
+insert into t1 values (6, "Slave t1 a=6 at X=12", 12, '111222');
+insert into t1 values (7, "Slave t1 a=7 at X=12", 12, '111222333');
+insert into t1 values (8, "Slave t1 a=8 at X=12", 12, '111222333');
+insert into t2 values (5, "Slave t2 a=5 at c=12", 12, '111');
+insert into t2 values (6, "Slave t2 a=6 at c=12", 12, '111222');
+insert into t2 values (7, "Slave t2 a=7 at c=12", 12, '111222333');
+insert into t2 values (8, "Slave t2 a=8 at c=12", 12, '111222333');
+commit;
+*** master - Insert some data to cause conflicts
+begin;
+insert into t1 values (5, "Master t1 a=5 at X=11", 11, '111');
+insert into t1 values (6, "Master t1 a=6 at X=11", 11, '111222');
+insert into t2 values (5, "Master t2 a=5 at c=11", 11, '111');
+insert into t2 values (6, "Master t2 a=6 at c=11", 11, '111222');
+commit;
+*** slave - check conflict info, there should be some
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_ins
+2
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	5	111
+2	1	#	#	6	111222
+*** slave - check insert some data that causes conflicts
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+5	Slave t1 a=5 at X=12	12	111
+6	Slave t1 a=6 at X=12	12	111222
+7	Slave t1 a=7 at X=12	12	111222333
+8	Slave t1 a=8 at X=12	12	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+5	Master t2 a=5 at c=11	11	111
+6	Master t2 a=6 at c=11	11	111222
+7	Slave t2 a=7 at c=12	12	111222333
+8	Slave t2 a=8 at c=12	12	111222333
+*** master - insert some data, use higher timestamp
+begin;
+insert into t1 values (7, "Master t1 a=7 at X=13", 13, '111222333');
+insert into t1 values (8, "Master t1 a=8 at X=13", 13, '111222333');
+insert into t2 values (7, "Master t2 a=7 at c=13", 13, '111222333');
+insert into t2 values (8, "Master t2 a=8 at c=13", 13, '111222333');
+commit;
+*** slave - check conflict info, change depends on calling test
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_ins
+2
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	5	111
+2	1	#	#	6	111222
+*** slave - check higer timestamp
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+5	Slave t1 a=5 at X=12	12	111
+6	Slave t1 a=6 at X=12	12	111222
+7	Master t1 a=7 at X=13	13	111222333
+8	Master t1 a=8 at X=13	13	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+5	Master t2 a=5 at c=11	11	111
+6	Master t2 a=6 at c=11	11	111222
+7	Master t2 a=7 at c=13	13	111222333
+8	Master t2 a=8 at c=13	13	111222333
+drop table t1, t2;
+*** Test 2 ********************************************************
+* test native NDB$MAX_INS() conflict resolution
+* test with both allowed "conflict column" types, uint32 and uint64
+*******************************************************************
+create table t1 (a int, b varchar(32), X bigint unsigned, d varchar(9), primary key (a, d)) engine ndb;
+create table t2 (a int, b varchar(32), c int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+************************************************
+* some basic positive testing, i.e. no conflicts
+************************************************
+*** insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=1", 1, '1');
+insert into t1 values (2, "Master t1 a=2 at X=1", 1, '12');
+insert into t1 values (3, "Master t1 a=3 at X=1", 1, '123');
+insert into t2 values (1, "Master t2 a=1 at c=1", 1, '1');
+insert into t2 values (2, "Master t2 a=2 at c=1", 1, '12');
+insert into t2 values (3, "Master t2 a=3 at c=1", 1, '123');
+commit;
+*** master - update all
+begin;
+update t1 set b="Master t1 X=2", X=X+1;
+update t2 set b="Master t2 c=2", c=c+1;
+commit;
+*** slave - check update all
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 X=2	2	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 c=2	2	123
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** master - update 2 rows in different tables
+update t1 set b="Master t1 a=2 at X=3", X=X+1 where a=2;
+update t2 set b="Master t2 a=3 at c=3", c=c+1 where a=3;
+*** slave - check update 2 rows in different tables
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 a=2 at X=3	3	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 a=3 at c=3	3	123
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** master - delete all
+delete from t1;
+delete from t2;
+*** slave - check delete all
+select * from t1 order by a, d;
+a	b	X	d
+select * from t2 order by a, d;
+a	b	c	d
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+************************
+* start conflict testing
+************************
+*** master - insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10, '111');
+insert into t1 values (2, "Master t1 a=2 at X=10", 10, '111222');
+insert into t1 values (3, "Master t1 a=3 at X=10", 10, '111222333');
+insert into t1 values (4, "Master t1 a=4 at X=10", 10, '111222333');
+insert into t2 values (1, "Master t2 a=1 at c=10", 10, '111');
+insert into t2 values (2, "Master t2 a=2 at c=10", 10, '111222');
+insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
+insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
+commit;
+*** slave - check conflict info, no conflicts yet
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** slave - check insert some data
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+*** slave - Insert some data to cause conflicts
+begin;
+insert into t1 values (5, "Slave t1 a=5 at X=12", 12, '111');
+insert into t1 values (6, "Slave t1 a=6 at X=12", 12, '111222');
+insert into t1 values (7, "Slave t1 a=7 at X=12", 12, '111222333');
+insert into t1 values (8, "Slave t1 a=8 at X=12", 12, '111222333');
+insert into t2 values (5, "Slave t2 a=5 at c=12", 12, '111');
+insert into t2 values (6, "Slave t2 a=6 at c=12", 12, '111222');
+insert into t2 values (7, "Slave t2 a=7 at c=12", 12, '111222333');
+insert into t2 values (8, "Slave t2 a=8 at c=12", 12, '111222333');
+commit;
+*** master - Insert some data to cause conflicts
+begin;
+insert into t1 values (5, "Master t1 a=5 at X=11", 11, '111');
+insert into t1 values (6, "Master t1 a=6 at X=11", 11, '111222');
+insert into t2 values (5, "Master t2 a=5 at c=11", 11, '111');
+insert into t2 values (6, "Master t2 a=6 at c=11", 11, '111222');
+commit;
+*** slave - check conflict info, there should be some
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_ins
+2
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	5	111
+2	1	#	#	6	111222
+*** slave - check insert some data that causes conflicts
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+5	Slave t1 a=5 at X=12	12	111
+6	Slave t1 a=6 at X=12	12	111222
+7	Slave t1 a=7 at X=12	12	111222333
+8	Slave t1 a=8 at X=12	12	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+5	Master t2 a=5 at c=11	11	111
+6	Master t2 a=6 at c=11	11	111222
+7	Slave t2 a=7 at c=12	12	111222333
+8	Slave t2 a=8 at c=12	12	111222333
+*** master - insert some data, use higher timestamp
+begin;
+insert into t1 values (7, "Master t1 a=7 at X=13", 13, '111222333');
+insert into t1 values (8, "Master t1 a=8 at X=13", 13, '111222333');
+insert into t2 values (7, "Master t2 a=7 at c=13", 13, '111222333');
+insert into t2 values (8, "Master t2 a=8 at c=13", 13, '111222333');
+commit;
+*** slave - check conflict info, change depends on calling test
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_ins
+2
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	5	111
+2	1	#	#	6	111222
+*** slave - check higer timestamp
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+5	Slave t1 a=5 at X=12	12	111
+6	Slave t1 a=6 at X=12	12	111222
+7	Master t1 a=7 at X=13	13	111222333
+8	Master t1 a=8 at X=13	13	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+5	Master t2 a=5 at c=11	11	111
+6	Master t2 a=6 at c=11	11	111222
+7	Master t2 a=7 at c=13	13	111222333
+8	Master t2 a=8 at c=13	13	111222333
+drop table t1, t2;
+*** Test 3 ********************************************************
+* test native NDB$MAX_INS() conflict resolution
+* test that setting binlog update option via table works equally well
+*******************************************************************
+set global ndb_log_update_as_write=1;
+set global ndb_log_updated_only=1;
+update mysql.ndb_replication set binlog_type=7;
+create table t1 (a int, b varchar(32), X bigint unsigned, d varchar(9), primary key (a, d)) engine ndb;
+create table t2 (a int, b varchar(32), c int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+************************************************
+* some basic positive testing, i.e. no conflicts
+************************************************
+*** insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=1", 1, '1');
+insert into t1 values (2, "Master t1 a=2 at X=1", 1, '12');
+insert into t1 values (3, "Master t1 a=3 at X=1", 1, '123');
+insert into t2 values (1, "Master t2 a=1 at c=1", 1, '1');
+insert into t2 values (2, "Master t2 a=2 at c=1", 1, '12');
+insert into t2 values (3, "Master t2 a=3 at c=1", 1, '123');
+commit;
+*** master - update all
+begin;
+update t1 set b="Master t1 X=2", X=X+1;
+update t2 set b="Master t2 c=2", c=c+1;
+commit;
+*** slave - check update all
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 X=2	2	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 c=2	2	123
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** master - update 2 rows in different tables
+update t1 set b="Master t1 a=2 at X=3", X=X+1 where a=2;
+update t2 set b="Master t2 a=3 at c=3", c=c+1 where a=3;
+*** slave - check update 2 rows in different tables
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 a=2 at X=3	3	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 a=3 at c=3	3	123
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** master - delete all
+delete from t1;
+delete from t2;
+*** slave - check delete all
+select * from t1 order by a, d;
+a	b	X	d
+select * from t2 order by a, d;
+a	b	c	d
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+************************
+* start conflict testing
+************************
+*** master - insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10, '111');
+insert into t1 values (2, "Master t1 a=2 at X=10", 10, '111222');
+insert into t1 values (3, "Master t1 a=3 at X=10", 10, '111222333');
+insert into t1 values (4, "Master t1 a=4 at X=10", 10, '111222333');
+insert into t2 values (1, "Master t2 a=1 at c=10", 10, '111');
+insert into t2 values (2, "Master t2 a=2 at c=10", 10, '111222');
+insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
+insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
+commit;
+*** slave - check conflict info, no conflicts yet
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** slave - check insert some data
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+*** slave - Insert some data to cause conflicts
+begin;
+insert into t1 values (5, "Slave t1 a=5 at X=12", 12, '111');
+insert into t1 values (6, "Slave t1 a=6 at X=12", 12, '111222');
+insert into t1 values (7, "Slave t1 a=7 at X=12", 12, '111222333');
+insert into t1 values (8, "Slave t1 a=8 at X=12", 12, '111222333');
+insert into t2 values (5, "Slave t2 a=5 at c=12", 12, '111');
+insert into t2 values (6, "Slave t2 a=6 at c=12", 12, '111222');
+insert into t2 values (7, "Slave t2 a=7 at c=12", 12, '111222333');
+insert into t2 values (8, "Slave t2 a=8 at c=12", 12, '111222333');
+commit;
+*** master - Insert some data to cause conflicts
+begin;
+insert into t1 values (5, "Master t1 a=5 at X=11", 11, '111');
+insert into t1 values (6, "Master t1 a=6 at X=11", 11, '111222');
+insert into t2 values (5, "Master t2 a=5 at c=11", 11, '111');
+insert into t2 values (6, "Master t2 a=6 at c=11", 11, '111222');
+commit;
+*** slave - check conflict info, there should be some
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_ins
+2
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	5	111
+2	1	#	#	6	111222
+*** slave - check insert some data that causes conflicts
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+5	Slave t1 a=5 at X=12	12	111
+6	Slave t1 a=6 at X=12	12	111222
+7	Slave t1 a=7 at X=12	12	111222333
+8	Slave t1 a=8 at X=12	12	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+5	Master t2 a=5 at c=11	11	111
+6	Master t2 a=6 at c=11	11	111222
+7	Slave t2 a=7 at c=12	12	111222333
+8	Slave t2 a=8 at c=12	12	111222333
+*** master - insert some data, use higher timestamp
+begin;
+insert into t1 values (7, "Master t1 a=7 at X=13", 13, '111222333');
+insert into t1 values (8, "Master t1 a=8 at X=13", 13, '111222333');
+insert into t2 values (7, "Master t2 a=7 at c=13", 13, '111222333');
+insert into t2 values (8, "Master t2 a=8 at c=13", 13, '111222333');
+commit;
+*** slave - check conflict info, change depends on calling test
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_ins
+2
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	5	111
+2	1	#	#	6	111222
+*** slave - check higer timestamp
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+5	Slave t1 a=5 at X=12	12	111
+6	Slave t1 a=6 at X=12	12	111222
+7	Master t1 a=7 at X=13	13	111222333
+8	Master t1 a=8 at X=13	13	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+5	Master t2 a=5 at c=11	11	111
+6	Master t2 a=6 at c=11	11	111222
+7	Master t2 a=7 at c=13	13	111222333
+8	Master t2 a=8 at c=13	13	111222333
+drop table t1, t2;
+*** Test 4 ***********************************************************
+* test behaviour with updates logged as writes, but all columns present
+* Should succeed since the NDB$MAX_INS() supports conflict detection
+* and resolution for INSERTS.
+* ********************************************************************
+update mysql.ndb_replication set binlog_type=3;
+create table t1 (a int, b varchar(32), X int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+create table t2 (a int, b varchar(32), c int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+************************************************
+* some basic positive testing, i.e. no conflicts
+************************************************
+*** insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=1", 1, '1');
+insert into t1 values (2, "Master t1 a=2 at X=1", 1, '12');
+insert into t1 values (3, "Master t1 a=3 at X=1", 1, '123');
+insert into t2 values (1, "Master t2 a=1 at c=1", 1, '1');
+insert into t2 values (2, "Master t2 a=2 at c=1", 1, '12');
+insert into t2 values (3, "Master t2 a=3 at c=1", 1, '123');
+commit;
+*** master - update all
+begin;
+update t1 set b="Master t1 X=2", X=X+1;
+update t2 set b="Master t2 c=2", c=c+1;
+commit;
+*** slave - check update all
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 X=2	2	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 c=2	2	123
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** master - update 2 rows in different tables
+update t1 set b="Master t1 a=2 at X=3", X=X+1 where a=2;
+update t2 set b="Master t2 a=3 at c=3", c=c+1 where a=3;
+*** slave - check update 2 rows in different tables
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 a=2 at X=3	3	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 a=3 at c=3	3	123
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** master - delete all
+delete from t1;
+delete from t2;
+*** slave - check delete all
+select * from t1 order by a, d;
+a	b	X	d
+select * from t2 order by a, d;
+a	b	c	d
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+************************
+* start conflict testing
+************************
+*** master - insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10, '111');
+insert into t1 values (2, "Master t1 a=2 at X=10", 10, '111222');
+insert into t1 values (3, "Master t1 a=3 at X=10", 10, '111222333');
+insert into t1 values (4, "Master t1 a=4 at X=10", 10, '111222333');
+insert into t2 values (1, "Master t2 a=1 at c=10", 10, '111');
+insert into t2 values (2, "Master t2 a=2 at c=10", 10, '111222');
+insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
+insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
+commit;
+*** slave - check conflict info, no conflicts yet
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** slave - check insert some data
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+*** slave - Insert some data to cause conflicts
+begin;
+insert into t1 values (5, "Slave t1 a=5 at X=12", 12, '111');
+insert into t1 values (6, "Slave t1 a=6 at X=12", 12, '111222');
+insert into t1 values (7, "Slave t1 a=7 at X=12", 12, '111222333');
+insert into t1 values (8, "Slave t1 a=8 at X=12", 12, '111222333');
+insert into t2 values (5, "Slave t2 a=5 at c=12", 12, '111');
+insert into t2 values (6, "Slave t2 a=6 at c=12", 12, '111222');
+insert into t2 values (7, "Slave t2 a=7 at c=12", 12, '111222333');
+insert into t2 values (8, "Slave t2 a=8 at c=12", 12, '111222333');
+commit;
+*** master - Insert some data to cause conflicts
+begin;
+insert into t1 values (5, "Master t1 a=5 at X=11", 11, '111');
+insert into t1 values (6, "Master t1 a=6 at X=11", 11, '111222');
+insert into t2 values (5, "Master t2 a=5 at c=11", 11, '111');
+insert into t2 values (6, "Master t2 a=6 at c=11", 11, '111222');
+commit;
+*** slave - check conflict info, there should be some
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_ins
+2
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	5	111
+2	1	#	#	6	111222
+*** slave - check insert some data that causes conflicts
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+5	Slave t1 a=5 at X=12	12	111
+6	Slave t1 a=6 at X=12	12	111222
+7	Slave t1 a=7 at X=12	12	111222333
+8	Slave t1 a=8 at X=12	12	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+5	Master t2 a=5 at c=11	11	111
+6	Master t2 a=6 at c=11	11	111222
+7	Slave t2 a=7 at c=12	12	111222333
+8	Slave t2 a=8 at c=12	12	111222333
+*** master - insert some data, use higher timestamp
+begin;
+insert into t1 values (7, "Master t1 a=7 at X=13", 13, '111222333');
+insert into t1 values (8, "Master t1 a=8 at X=13", 13, '111222333');
+insert into t2 values (7, "Master t2 a=7 at c=13", 13, '111222333');
+insert into t2 values (8, "Master t2 a=8 at c=13", 13, '111222333');
+commit;
+*** slave - check conflict info, change depends on calling test
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_ins
+2
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	5	111
+2	1	#	#	6	111222
+*** slave - check higer timestamp
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+5	Slave t1 a=5 at X=12	12	111
+6	Slave t1 a=6 at X=12	12	111222
+7	Master t1 a=7 at X=13	13	111222333
+8	Master t1 a=8 at X=13	13	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+5	Master t2 a=5 at c=11	11	111
+6	Master t2 a=6 at c=11	11	111222
+7	Master t2 a=7 at c=13	13	111222333
+8	Master t2 a=8 at c=13	13	111222333
+drop table t1, t2;
+set @save_lum = @@global.ndb_log_update_minimal;
+*** Test 5 ****************************************************************************
+* Test with ndb_log_update_minimal binlogging option and NBT_UPDATED_FULLY_MINIMAL type
+***************************************************************************************
+set global ndb_log_update_minimal=1;
+update mysql.ndb_replication set binlog_type=9;
+create table t1 (a int, b varchar(32), X int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+create table t2 (a int, b varchar(32), c int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+************************************************
+* some basic positive testing, i.e. no conflicts
+************************************************
+*** insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=1", 1, '1');
+insert into t1 values (2, "Master t1 a=2 at X=1", 1, '12');
+insert into t1 values (3, "Master t1 a=3 at X=1", 1, '123');
+insert into t2 values (1, "Master t2 a=1 at c=1", 1, '1');
+insert into t2 values (2, "Master t2 a=2 at c=1", 1, '12');
+insert into t2 values (3, "Master t2 a=3 at c=1", 1, '123');
+commit;
+*** master - update all
+begin;
+update t1 set b="Master t1 X=2", X=X+1;
+update t2 set b="Master t2 c=2", c=c+1;
+commit;
+*** slave - check update all
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 X=2	2	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 c=2	2	123
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** master - update 2 rows in different tables
+update t1 set b="Master t1 a=2 at X=3", X=X+1 where a=2;
+update t2 set b="Master t2 a=3 at c=3", c=c+1 where a=3;
+*** slave - check update 2 rows in different tables
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 a=2 at X=3	3	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 a=3 at c=3	3	123
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** master - delete all
+delete from t1;
+delete from t2;
+*** slave - check delete all
+select * from t1 order by a, d;
+a	b	X	d
+select * from t2 order by a, d;
+a	b	c	d
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+************************
+* start conflict testing
+************************
+*** master - insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10, '111');
+insert into t1 values (2, "Master t1 a=2 at X=10", 10, '111222');
+insert into t1 values (3, "Master t1 a=3 at X=10", 10, '111222333');
+insert into t1 values (4, "Master t1 a=4 at X=10", 10, '111222333');
+insert into t2 values (1, "Master t2 a=1 at c=10", 10, '111');
+insert into t2 values (2, "Master t2 a=2 at c=10", 10, '111222');
+insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
+insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
+commit;
+*** slave - check conflict info, no conflicts yet
+Conflict algorithm counter diff :
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+*** slave - check insert some data
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+*** slave - Insert some data to cause conflicts
+begin;
+insert into t1 values (5, "Slave t1 a=5 at X=12", 12, '111');
+insert into t1 values (6, "Slave t1 a=6 at X=12", 12, '111222');
+insert into t1 values (7, "Slave t1 a=7 at X=12", 12, '111222333');
+insert into t1 values (8, "Slave t1 a=8 at X=12", 12, '111222333');
+insert into t2 values (5, "Slave t2 a=5 at c=12", 12, '111');
+insert into t2 values (6, "Slave t2 a=6 at c=12", 12, '111222');
+insert into t2 values (7, "Slave t2 a=7 at c=12", 12, '111222333');
+insert into t2 values (8, "Slave t2 a=8 at c=12", 12, '111222333');
+commit;
+*** master - Insert some data to cause conflicts
+begin;
+insert into t1 values (5, "Master t1 a=5 at X=11", 11, '111');
+insert into t1 values (6, "Master t1 a=6 at X=11", 11, '111222');
+insert into t2 values (5, "Master t2 a=5 at c=11", 11, '111');
+insert into t2 values (6, "Master t2 a=6 at c=11", 11, '111222');
+commit;
+*** slave - check conflict info, there should be some
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_ins
+2
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	5	111
+2	1	#	#	6	111222
+*** slave - check insert some data that causes conflicts
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+5	Slave t1 a=5 at X=12	12	111
+6	Slave t1 a=6 at X=12	12	111222
+7	Slave t1 a=7 at X=12	12	111222333
+8	Slave t1 a=8 at X=12	12	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+5	Master t2 a=5 at c=11	11	111
+6	Master t2 a=6 at c=11	11	111222
+7	Slave t2 a=7 at c=12	12	111222333
+8	Slave t2 a=8 at c=12	12	111222333
+*** master - insert some data, use higher timestamp
+begin;
+insert into t1 values (7, "Master t1 a=7 at X=13", 13, '111222333');
+insert into t1 values (8, "Master t1 a=8 at X=13", 13, '111222333');
+insert into t2 values (7, "Master t2 a=7 at c=13", 13, '111222333');
+insert into t2 values (8, "Master t2 a=8 at c=13", 13, '111222333');
+commit;
+*** slave - check conflict info, change depends on calling test
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_ins
+2
+Exception table contents
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	5	111
+2	1	#	#	6	111222
+*** slave - check higer timestamp
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+5	Slave t1 a=5 at X=12	12	111
+6	Slave t1 a=6 at X=12	12	111222
+7	Master t1 a=7 at X=13	13	111222333
+8	Master t1 a=8 at X=13	13	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+5	Master t2 a=5 at c=11	11	111
+6	Master t2 a=6 at c=11	11	111222
+7	Master t2 a=7 at c=13	13	111222333
+8	Master t2 a=8 at c=13	13	111222333
+drop table t1, t2;
+set global ndb_log_update_minimal = @save_lum;
+*** test cleanup
+set global ndb_log_update_as_write= @save_luaw;
+set global ndb_log_updated_only = @save_luo;
+include/rpl_end.inc

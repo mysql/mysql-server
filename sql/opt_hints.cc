@@ -51,7 +51,7 @@
 struct MEM_ROOT;
 
 /**
-  Information about hints. Sould be
+  Information about hints. Should be
   synchronized with opt_hints_enum enum.
 
   Note: Hint name depends on hint state. 'NO_' prefix is added
@@ -353,13 +353,12 @@ static table_map get_other_dep(opt_hints_enum type, table_map hint_tab_map,
     case JOIN_PREFIX_HINT_ENUM:
       if (hint_tab_map & table_map)  // Hint table: No additional dependencies
         return 0;
-      else  // Other tables: depend on all hint tables
-        return hint_tab_map;
+      // Other tables: depend on all hint tables
+      return hint_tab_map;
     case JOIN_SUFFIX_HINT_ENUM:
       if (hint_tab_map & table_map)  // Hint table: depends on all other tables
         return ~hint_tab_map;
-      else
-        return 0;
+      return 0;
     case JOIN_ORDER_HINT_ENUM:
       return 0;  // No additional dependencies
     default:
@@ -370,7 +369,7 @@ static table_map get_other_dep(opt_hints_enum type, table_map hint_tab_map,
 }
 
 /**
-  Auxiluary class is used to save/restore table dependencies.
+  Auxiliary class is used to save/restore table dependencies.
 */
 
 class Join_order_hint_handler {
@@ -447,7 +446,7 @@ static void update_nested_join_deps(JOIN *join, const JOIN_TAB *hint_tab,
 /**
   Function resolves hint tables, checks and sets table dependencies
   according to the hint. If the hint is ignored due to circular table
-  dependencies, orginal dependencies are restored.
+  dependencies, original dependencies are restored.
 
   @param join             pointer to JOIN object
   @param hint_table_list  hint table list
@@ -487,7 +486,7 @@ static bool set_join_hint_deps(JOIN *join,
         if (join->const_table_map & table->map()) break;
 
         JOIN_TAB *tab = &join->join_tab[i];
-        // Hint tables are always dependent on preceeding tables
+        // Hint tables are always dependent on preceding tables
         tab->dependent |= hint_tab_map;
         update_nested_join_deps(join, tab, hint_tab_map);
         hint_tab_map |= tab->table_ref->map();
@@ -535,7 +534,7 @@ void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr) {
   }
 
   /*
-    Make sure that adjustement is done only once.
+    Make sure that adjustment is done only once.
     Table has already been processed if keyinfo_array is not empty.
   */
   if (keyinfo_array.size()) return;
@@ -816,7 +815,7 @@ void Sys_var_hint::restore_vars(THD *thd) {
     Hint_set_var *hint_var = var_list[i];
     set_var *var = hint_var->var;
     if (hint_var->save_value) {
-      /* Restore original vaule for update */
+      /* Restore original value for update */
       std::swap(var->value, hint_var->save_value);
       /*
         There should be no error since original value is restored.
@@ -828,7 +827,7 @@ void Sys_var_hint::restore_vars(THD *thd) {
       (void)var->check(thd);
       (void)var->update(thd);
 #endif
-      /* Restore hint vaule for further executions */
+      /* Restore hint value for further executions */
       std::swap(var->value, hint_var->save_value);
     }
   }
@@ -844,7 +843,7 @@ void Sys_var_hint::print(const THD *thd, String *str) {
 
 /**
   Function returns hint value depending on
-  the specfied hint level. If hint is specified
+  the specified hint level. If hint is specified
   on current level, current level hint value is
   returned, otherwise parent level hint is checked.
 
@@ -866,8 +865,9 @@ static bool get_hint_state(Opt_hints *hint, Opt_hints *parent_hint,
     if (hint && hint->is_specified(type_arg)) {
       *ret_val = hint->get_switch(type_arg);
       return true;
-    } else if (opt_hint_info[type_arg].check_upper_lvl &&
-               parent_hint->is_specified(type_arg)) {
+    }
+    if (opt_hint_info[type_arg].check_upper_lvl &&
+        parent_hint->is_specified(type_arg)) {
       *ret_val = parent_hint->get_switch(type_arg);
       return true;
     }

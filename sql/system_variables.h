@@ -183,7 +183,7 @@ struct System_variables {
     They both should have the same 'version' and 'size'.
     When attempting to access a dynamic variable, if the session version
     is out of date, then the session version is updated and realloced if
-    neccessary and bytes copied from global to make up for missing data.
+    necessary and bytes copied from global to make up for missing data.
   */
   ulong dynamic_variables_version;
   char *dynamic_variables_ptr;
@@ -375,6 +375,16 @@ struct System_variables {
   bool sql_require_primary_key;
 
   /**
+    @sa Sys_sql_generate_invisible_primary_key
+  */
+  bool sql_generate_invisible_primary_key;
+
+  /**
+    @sa Sys_show_gipk_in_create_table_and_information_schema
+  */
+  bool show_gipk_in_create_table_and_information_schema;
+
+  /**
     Used in replication to determine the server version of the original server
     where the transaction was executed.
   */
@@ -423,10 +433,12 @@ struct System_variables {
     @sa Sys_select_disk_sync_delay
   */
   uint select_into_disk_sync_delay;
+
   /**
     @sa Sys_terminology_use_previous
   */
   ulong terminology_use_previous;
+
   /**
     @sa Sys_connection_memory_limit
   */
@@ -445,7 +457,7 @@ struct System_variables {
     (made accessible to other connections for commit/rollback)
     as part of XA PREPARE (true), or at session disconnect (false, default).
     An important side effect of setting this to true is that temporary tables
-    are disallowed in XA transactions. This is necessary beacuse temporary
+    are disallowed in XA transactions. This is necessary because temporary
     tables and their contents (and thus changes to them) is bound to
     specific connections, so they don't make sense if XA transaction is
     committed or rolled back from another connection.

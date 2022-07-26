@@ -49,6 +49,7 @@
 #include "sql/range_optimizer/reverse_index_range_scan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_update.h"
 #include "sql/table.h"
 
 #include <vector>
@@ -91,6 +92,18 @@ AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
   path->delete_rows().child = child;
   path->delete_rows().tables_to_delete_from = delete_tables;
   path->delete_rows().immediate_tables = immediate_tables;
+  return path;
+}
+
+AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
+                                    table_map update_tables,
+                                    table_map immediate_tables) {
+  assert(IsSubset(immediate_tables, update_tables));
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::UPDATE_ROWS;
+  path->update_rows().child = child;
+  path->update_rows().tables_to_update = update_tables;
+  path->update_rows().immediate_tables = immediate_tables;
   return path;
 }
 
@@ -840,9 +853,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
 
-        iterator = NewIterator<TemptableAggregateIterator>(
-            thd, mem_root, move(job.children[0]), param.temp_table_param,
-            param.table, move(job.children[1]), join, param.ref_slice);
+        iterator = unique_ptr_destroy_only<RowIterator>(
+            temptable_aggregate_iterator::CreateIterator(
+                thd, move(job.children[0]), param.temp_table_param, param.table,
+                move(job.children[1]), join, param.ref_slice));
+
         break;
       }
       case AccessPath::LIMIT_OFFSET: {
@@ -885,6 +900,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             path->materialize().table_path->type == AccessPath::EQ_REF ||
             path->materialize().table_path->type == AccessPath::ALTERNATIVE ||
             path->materialize().table_path->type == AccessPath::CONST_TABLE ||
+            path->materialize().table_path->type == AccessPath::INDEX_SCAN ||
             path->materialize().table_path->type ==
                 AccessPath::INDEX_RANGE_SCAN);
 
@@ -910,12 +926,12 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         unique_ptr_destroy_only<RowIterator> table_iterator =
             move(job.children[0]);
-        Mem_root_array<MaterializeIterator::QueryBlock> query_blocks(
+        Mem_root_array<materialize_iterator::QueryBlock> query_blocks(
             thd->mem_root, param->query_blocks.size());
         for (size_t i = 0; i < param->query_blocks.size(); ++i) {
           const MaterializePathParameters::QueryBlock &from =
               param->query_blocks[i];
-          MaterializeIterator::QueryBlock &to = query_blocks[i];
+          materialize_iterator::QueryBlock &to = query_blocks[i];
           to.subquery_iterator = move(job.children[i + 1]);
           to.select_number = from.select_number;
           to.join = from.join;
@@ -942,24 +958,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           }
         }
         JOIN *subjoin = param->ref_slice == -1 ? nullptr : query_blocks[0].join;
-        iterator = NewIterator<MaterializeIterator>(
-            thd, mem_root, std::move(query_blocks), param->table,
-            move(table_iterator), param->cte, param->unit, subjoin,
-            param->ref_slice, param->rematerialize, param->limit_rows,
-            param->reject_multiple_rows);
 
-        if (param->invalidators != nullptr) {
-          MaterializeIterator *materialize =
-              down_cast<MaterializeIterator *>(iterator->real_iterator());
-          for (const AccessPath *invalidator_path : *param->invalidators) {
-            // We create iterators left-to-right, so we should have created the
-            // invalidators before this.
-            assert(invalidator_path->iterator != nullptr);
-
-            materialize->AddInvalidator(down_cast<CacheInvalidatorIterator *>(
-                invalidator_path->iterator->real_iterator()));
-          }
-        }
+        iterator = unique_ptr_destroy_only<RowIterator>(
+            materialize_iterator::CreateIterator(thd, std::move(query_blocks),
+                                                 param, move(table_iterator),
+                                                 subjoin));
 
         break;
       }
@@ -1104,6 +1107,22 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         iterator = NewIterator<DeleteRowsIterator>(
             thd, mem_root, move(job.children[0]), join,
             param.tables_to_delete_from, param.immediate_tables);
+        break;
+      }
+      case AccessPath::UPDATE_ROWS: {
+        const auto &param = path->update_rows();
+        if (job.children.is_null()) {
+          // Do the final setup for UPDATE before the child iterators are
+          // created.
+          if (FinalizeOptimizationForUpdate(join)) {
+            return nullptr;
+          }
+          SetupJobsForChildren(mem_root, param.child, join,
+                               eligible_for_batch_mode, &job, &todo);
+          continue;
+        }
+        iterator = CreateUpdateRowsIterator(thd, mem_root, join,
+                                            std::move(job.children[0]));
         break;
       }
     }
@@ -1315,16 +1334,16 @@ void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg, const JOIN *join,
                   });
 }
 
-table_map GetTablesWithRowIDsInHashJoin(AccessPath *path) {
+table_map GetHashJoinTables(AccessPath *path) {
   table_map tables = 0;
-  WalkAccessPaths(path, /*join=*/nullptr,
-                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
-                  [&tables](AccessPath *subpath, const JOIN *) {
-                    if (subpath->type == AccessPath::HASH_JOIN &&
-                        subpath->hash_join().store_rowids) {
-                      tables |= subpath->hash_join().tables_to_get_rowid_for;
-                    }
-                    return false;
-                  });
+  WalkAccessPaths(
+      path, /*join=*/nullptr, WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+      [&tables](AccessPath *subpath, const JOIN *) {
+        if (subpath->type == AccessPath::HASH_JOIN) {
+          tables |= GetUsedTableMap(subpath, /*include_pruned_tables=*/true);
+          return true;
+        }
+        return false;
+      });
   return tables;
 }

@@ -183,8 +183,8 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
 }
 
 /**
-  Boostrap the dynamic privilege service by seeding it with server
-  implementation specific data.
+  Bootstrap the dynamic privilege service by seeding it with server
+  implementation-specific data.
 */
 
 bool dynamic_privilege_init(void) {

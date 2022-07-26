@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -288,14 +288,14 @@
    flag set to start the processing of the next resultset.
 
    The client has to announce that it wants multi-resultsets by either setting
-   the ::CLIENT_MULTI_RESULTS or ::CLIENT_PS_MULTI_RESULTS capabilitiy flags.
+   the ::CLIENT_MULTI_RESULTS or ::CLIENT_PS_MULTI_RESULTS capability flags.
 
    @subsection sect_protocol_command_phase_sp_multi_resultset_out_params OUT Parameter Set
 
    Starting with MySQL 5.5.3, prepared statements can bind OUT parameters of
    stored procedures. They are returned as an extra resultset in the
    multi-resultset response. The client announces it can handle OUT parameters
-   by settting the ::CLIENT_PS_MULTI_RESULTS capability.
+   by setting the ::CLIENT_PS_MULTI_RESULTS capability.
 
    To distinguish a normal resultset from an OUT parameter set, the
    @ref page_protocol_basic_eof_packet or (if ::CLIENT_DEPRECATE_EOF capability
@@ -405,7 +405,7 @@
   Number |  Hex  | Character Set Name
   -------|-------|-------------------
        8 |  0x08 | @ref my_charset_latin1 "latin1_swedish_ci"
-      33 |  0x21 | @ref my_charset_utf8_general_ci "utf8_general_ci"
+      33 |  0x21 | @ref my_charset_utf8_general_ci "utf8mb3_general_ci"
       63 |  0x3f | @ref my_charset_bin "binary"
 
 
@@ -550,7 +550,7 @@ bool Protocol_classic::net_store_data_with_conversion(
     const uchar *from, size_t length, const CHARSET_INFO *from_cs,
     const CHARSET_INFO *to_cs) {
   uint dummy_errors;
-  /* Calculate maxumum possible result length */
+  /* Calculate maximum possible result length */
   size_t conv_length = to_cs->mbmaxlen * length / from_cs->mbminlen;
   if (conv_length > 250) {
     /*
@@ -1248,7 +1248,7 @@ static bool net_send_error_packet(NET *net, uint sql_errno, const char *err,
   We keep a separate version for that range because it's widely used in
   libmysql.
 
-  uint is used as agrument type because of MySQL type conventions:
+  uint is used as argument type because of MySQL type conventions:
     - uint for 0..65536
     - ulong for 0..4294967296
     - ulonglong for bigger numbers.
@@ -2157,8 +2157,8 @@ int Protocol_classic::read_packet() {
     - the type as in @ref enum_field_types
     - a flag byte which has the highest bit set if the type is unsigned [80]
 
-  The `num_params` used for this packet reffers to `num_params` of the
-  @ref sect_protocol_com_stmt_prepare_response_ok of the corresponsing prepared
+  The `num_params` used for this packet refers to `num_params` of the
+  @ref sect_protocol_com_stmt_prepare_response_ok of the corresponding prepared
   statement.
 
   The server will use the first num_params (from prepare) parameter values to
@@ -3215,7 +3215,7 @@ bool Protocol_classic::end_result_metadata() {
       <td>name</td>
       <td>Column name</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
-      <td>lenth of type field</td>
+      <td>length of type field</td>
       <td>[01]</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>type</td>
@@ -3652,7 +3652,7 @@ bool Protocol_text::store_time(const MYSQL_TIME &tm, uint decimals) {
 
   @param parameters       List of PS/SP parameters (both input and output).
   @param is_sql_prepare  If it's an sql prepare then
-                         text protocol wil be used.
+                         text protocol will be used.
 
   @return Error status.
     @retval false Success.
@@ -4053,7 +4053,7 @@ static ulong get_param_length(uchar *packet, ulong packet_left_len,
    @param[in]  type            parameter data type
    @param[in]  packet          network buffer
    @param[in]  packet_left_len number of bytes left in packet
-   @param[out] header_len      the size of the header(bytes to be skiped)
+   @param[out] header_len      the size of the header(bytes to be skipped)
    @param[out] err             boolean to store if an error occurred
 */
 static ulong get_ps_param_len(enum enum_field_types type, uchar *packet,

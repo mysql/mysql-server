@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -319,7 +319,7 @@ class MySQL_check {
   }
 
   /**
-    Returns true if something went wrong while retreving the table list or
+    Returns true if something went wrong while retrieving the table list or
     executing CHECK TABLE statements.
   */
   bool check_tables(THD *thd, const char *schema) {
@@ -842,7 +842,6 @@ bool upgrade_system_schemas(THD *thd) {
 
   LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
          MYSQL_VERSION_ID, "started");
-  log_sink_buffer_check_timeout();
   sysd::notify("STATUS=Server upgrade in progress\n");
 
   bootstrap_error_handler.set_log_error(false);
@@ -870,7 +869,6 @@ bool upgrade_system_schemas(THD *thd) {
   if (!err)
     LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
            MYSQL_VERSION_ID, "completed");
-  log_sink_buffer_check_timeout();
   sysd::notify("STATUS=Server upgrade complete\n");
 
   /*

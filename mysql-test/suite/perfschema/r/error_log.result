@@ -88,7 +88,9 @@ AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
 "MY-011952", "MY-011323", "MY-010902", "MY-000000",
 "MY-012937", "MY-012366", "MY-000067", "MY-010159",
 "MY-013602", "MY-010069", "MY-013595", "MY-010108",
-"MY-012363", "MY-011953", "MY-013711")
+"MY-012363", "MY-011953", "MY-013623", "MY-013711",
+"MY-013880", "MY-013881", "MY-013882", "MY-013883",
+"MY-013884", "MY-013908", "MY-013930")
 ORDER BY logged, error_code;
 prio	error_code	subsystem
 System	MY-010116	Server
@@ -132,6 +134,8 @@ Note	MY-012357	InnoDB
 Note	MY-012356	InnoDB
 Note	MY-010006	Server
 Note	MY-011332	Server
+Note	MY-013911	Server
+Note	MY-013911	Server
 Note	MY-012487	InnoDB
 Note	MY-012488	InnoDB
 Note	MY-010303	Server
@@ -152,7 +156,8 @@ AND prio!="Note"
    AND error_code NOT IN("MY-011323", "MY-010075", "MY-010068", "MY-010069",
 "MY-010931", "MY-010116", "MY-011810", "MY-000000",
 "MY-000067", "MY-010159", "MY-013595", "MY-013602",
-"MY-010108", "MY-012363", "MY-013711")
+"MY-010108", "MY-012363", "MY-013711", "MY-013908",
+"MY-013930" )
 ORDER BY logged;
 prio	error_code	subsystem	data
 System	MY-013576	InnoDB	InnoDB initialization has started.
@@ -186,7 +191,6 @@ LEFT(logged,19)	error_code	subsystem	data
 ########################################################################
 # Restart with JSON logging ...
 
-INSTALL COMPONENT "file://component_log_sink_json";
 # restart: --log-error-services=log_filter_internal;log_sink_json --log-error=LOG_FILE_JSON --log-error-verbosity=3
 #
 # PART II - JSON error log
@@ -244,7 +248,8 @@ logged>"2020-02-24 12:34:56.123456"	prio	error_code	subsystem	data
 
 # Cleanup.
 SET GLOBAL log_error_services= DEFAULT;
-UNINSTALL COMPONENT "file://component_log_sink_json";
+DELETE FROM mysql.component
+WHERE component_urn="file://component_log_sink_json";
 #
 # Various tests to help QA WL#13681 - performance_schema.error_log
 #
@@ -352,23 +357,39 @@ error_code
 
 # Likewise, show that log_filter_dragnet affects the table.
 INSTALL COMPONENT "file://component_log_filter_dragnet";
-SET PERSIST dragnet.log_error_filter_rules='IF ERROR_CODE == "MY-011300" THEN drop.';
-# restart: --log-error-services=log_filter_dragnet;log_sink_internal --log-error=LOG_FILE_D --log-error-verbosity=3
+SET PERSIST dragnet.log_error_filter_rules='IF ERR_CODE == ER_SERVER_STARTUP_MSG THEN drop.';
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+# restart: --log-error-services=log_filter_dragnet;log_sink_internal --log-error=LOG_FILE_D
+# Show that the variable is there, implying the component was loaded,
+# and that it's value is as expected.
+SELECT @@global.dragnet.log_error_filter_rules;
+@@global.dragnet.log_error_filter_rules
+IF ERR_CODE == ER_SERVER_STARTUP_MSG THEN drop.
+# get start-up timestamp from ER_STARTING_AS
+SELECT COUNT(logged)
+FROM performance_schema.error_log
+WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
+COUNT(logged)
+1
 SELECT logged INTO @startup
 FROM performance_schema.error_log
 WHERE error_code="MY-010116"
  ORDER BY logged DESC LIMIT 1;
-SELECT COUNT(*)=0
+# show that we filtered out ER_SERVER_STARTUP_MSG
+SELECT IF(COUNT(*)<>0, "failed: not filtered", "success: filtered")
 FROM performance_schema.error_log
-WHERE logged>=@startup AND ERROR_CODE = "MY-011300";
-COUNT(*)=0
-1
+WHERE logged>=@startup AND ERROR_CODE = "MY-010931";
+IF(COUNT(*)<>0, "failed: not filtered", "success: filtered")
+success: filtered
+SELECT *
+FROM performance_schema.error_log
+WHERE logged>=@startup AND ERROR_CODE = "MY-010931";
+LOGGED	THREAD_ID	PRIO	ERROR_CODE	SUBSYSTEM	DATA
 RESET PERSIST `dragnet.log_error_filter_rules`;
 SET @@global.log_error_services=DEFAULT;
-UNINSTALL COMPONENT "file://component_log_filter_dragnet";
 
 # PERSIST + JSON
-INSTALL COMPONENT 'file://component_log_sink_json';
 SET PERSIST log_error_verbosity=1;
 SET PERSIST log_error_suppression_list="MY-013595,MY-010069,MY-011810,MY-010116";
 SET PERSIST log_error_services="log_filter_internal; log_sink_json";
@@ -402,7 +423,6 @@ RESET PERSIST log_error_verbosity;
 RESET PERSIST log_error_suppression_list;
 RESET PERSIST log_error_services;
 SET @@global.log_error_services=DEFAULT;
-UNINSTALL COMPONENT 'file://component_log_sink_json';
 
 # RENAME & DROP Error Expected
 RENAME TABLE performance_schema.error_log to performance_schema.error_log_new;

@@ -72,7 +72,7 @@ while ($i < $connections) {
 --connection default
 echo Waiting for checkpoint age to be big enough to force a checkpoint even during recovery;
 SET GLOBAL innodb_checkpoint_disabled = 1;
-# The value of 6945280 is log.max_checkpoint_age_async and 1200796 is margin = log_free_check_margin(log);
+# The value of 6945280 is log.aggressive_checkpoint_min_age and 1200796 is margin = log_free_check_margin(log);
 # observed in log_should_checkpoint() function during recovery.
 # We want this function to return true, so we need large checkpoint age.
 # The 32000 is just some value I found sufficient to give ourselves some time to request crash but not enough to

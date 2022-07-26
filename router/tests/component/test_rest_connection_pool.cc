@@ -220,8 +220,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/connection_pool/main/status",
      "/connection_pool/main/status",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -288,13 +287,12 @@ TEST_F(RestConnectionPoolApiTest, section_has_key) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(
       router_output,
       ::testing::HasSubstr(
           "  init 'rest_connection_pool' failed: [rest_connection_pool] "
-          "section does not expect a key, found 'A'"))
-      << router_output;
+          "section does not expect a key, found 'A'"));
 }
 
 /**
@@ -314,7 +312,7 @@ TEST_F(RestConnectionPoolApiTest, no_auth) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(router_output,
               ::testing::HasSubstr(
                   "  init 'rest_connection_pool' failed: option "
@@ -339,7 +337,7 @@ TEST_F(RestConnectionPoolApiTest, invalid_realm) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(
       router_output,
       ::testing::HasSubstr(

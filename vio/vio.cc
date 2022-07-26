@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
   Note that we can't have assertion on file descriptors;  The reason for
   this is that during mysql shutdown, another thread can close a file
   we are working on.  In this case we should just return read errors from
-  the file descriptior.
+  the file descriptor.
 */
 
 #include <sys/types.h>
@@ -549,7 +549,7 @@ void vio_delete(Vio *vio) { internal_vio_delete(vio); }
   components below it when application finish
 
 */
-void vio_end(void) { vio_ssl_end(); }
+void vio_end() { vio_ssl_end(); }
 
 struct vio_string {
   const char *m_str;
@@ -581,5 +581,4 @@ void get_vio_type_name(enum enum_vio_type vio_type, const char **str,
   }
   *str = vio_type_names[index].m_str;
   *len = vio_type_names[index].m_len;
-  return;
 }

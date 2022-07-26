@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,7 @@
 #include "my_compiler.h"  // MY_ATTRIBUTE
 #include "my_config.h"
 #include "my_dbug.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
@@ -80,7 +81,6 @@
 #include "sql/gis/wkb.h"
 #include "sql/gstream.h"  // Gis_read_stream
 #include "sql/item_geofunc_internal.h"
-#include "sql/json_dom.h"  // Json_wrapper
 #include "sql/options_parser.h"
 #include "sql/parse_tree_node_base.h"  // Parse_context
 #include "sql/psi_memory_key.h"
@@ -937,8 +937,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
     return error_str();
   }
-  const Json_object *root_obj =
-      down_cast<const Json_object *>(wr.to_dom(current_thd));
+  const Json_object *root_obj = down_cast<const Json_object *>(wr.to_dom());
 
   /*
     Set the default SRID to 4326. This will be overwritten if a valid CRS is
@@ -1771,7 +1770,7 @@ bool Item_func_geomfromgeojson::parse_crs_object(
   @param member_name Name of the member we are validating, so that the error
          returned to the user is more informative.
   @param expected_type Expected type of the member.
-  @param allow_null If we shold allow the member to have JSON null value.
+  @param allow_null If we should allow the member to have JSON null value.
   @param[out] was_null This will be set to true if the provided member had a
               JSON null value. Is only affected if allow_null is set to true.
 
@@ -2334,7 +2333,7 @@ bool geometry_to_json(Json_wrapper *wr, String *swkb,
   }
 
   /*
-    append_geometry() will go through the WKB and call itself recursivly if
+    append_geometry() will go through the WKB and call itself recursively if
     geometry collections are encountered. For each recursive call, a new MBR
     is created. The function will fail if it encounters invalid data in the
     WKB input.
@@ -2567,7 +2566,7 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg) {
   We also do type checking on the geometry object, as well as out-of-range
   check for both longitude, latitude and geohash length.
 
-  If an expection is raised, null_value will not be set. If a null argument
+  If an exception is raised, null_value will not be set. If a null argument
   was detected, null_value will be set to true.
 
   @return false if class variables was populated, or true if the function
@@ -2831,7 +2830,7 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref) {
   @param target_value Latitude or longitude value supplied as argument
   by the user.
   @param char_value The character we want to set the bit on.
-  @param bit_number Wich bit number in char_value to set.
+  @param bit_number Which bit number in char_value to set.
 */
 void Item_func_geohash::encode_bit(double *upper_value, double *lower_value,
                                    double target_value, char *char_value,
@@ -3026,7 +3025,7 @@ bool Item_func_latlongfromgeohash::decode_geohash(
                          longitude_value + longitude_accuracy);
 
   /*
-    Ensure that the rounded results are not ouside of the valid range. As
+    Ensure that the rounded results are not outside of the valid range. As
     written in the specification:
 
       Final rounding should be done carefully in a way that
@@ -3765,7 +3764,7 @@ class Geometry_grouper : public WKB_scanner_event_handler {
 };
 
 /*
-  Compute a geometry collection's centroid in demension decreasing order:
+  Compute a geometry collection's centroid in dimension decreasing order:
   If it has polygons, make them a multipolygon and compute its centroid as the
   result; otherwise compose a multilinestring and compute its centroid as the
   result; otherwise compose a multipoint and compute its centroid as the result.
@@ -4262,7 +4261,7 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref) {
     Check for valid type in SRID argument.
 
     We will allow all integer types, and strings since some connectors will
-    covert integers to strings. Binary data is not allowed.
+    convert integers to strings. Binary data is not allowed.
 
     PARAM_ITEM and INT_ITEM checks are to allow prepared statements and usage of
     user-defined variables respectively.
@@ -5794,7 +5793,7 @@ double Item_func_st_distance_sphere::val_real() {
     double a = srs1->semi_major_axis();
     double b = srs1->semi_minor_axis();
     if (a == b)
-      // Avoid possible loss of precission.
+      // Avoid possible loss of precision.
       sphere_radius = a;
     else
       // Mean radius, as defined by the IUGG

@@ -1,0 +1,40 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @saved_session_sql_generate_invisible_primary_key = @@session.sql_generate_invisible_primary_key;
+SET SESSION sql_generate_invisible_primary_key = ON;
+CREATE TABLE t1(f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 10);
+SET @saved_session_show_gipk_in_create_table_and_information_schema =
+@@session.show_gipk_in_create_table_and_information_schema;
+# CREATE TABLE ... SELECT with show_gipk_in_create_table_and_information_schema = ON.
+SET show_gipk_in_create_table_and_information_schema = ON;
+CREATE TABLE t2 AS SELECT * FROM t1;
+# CREATE TABLE ... SELECT with show_gipk_in_create_table_and_information_schema = OFF.
+SET show_gipk_in_create_table_and_information_schema = OFF;
+CREATE TABLE t3 AS SELECT * FROM t1;
+SET SESSION show_gipk_in_create_table_and_information_schema =
+@saved_session_show_gipk_in_create_table_and_information_schema;
+# Check that t1 exists and has generated invisible primary key definition
+# in source and replica.
+include/rpl_diff.inc
+# Check if t1 has same column values in source and replica.
+include/rpl_diff.inc
+# Check that t2 exists and has generated invisible primary key definition
+# in source and replica.
+include/rpl_diff.inc
+# Check if t2 has same column values in source and replica.
+include/rpl_diff.inc
+# Check that t3 exists and has generated invisible primary key definition
+# in source and replica. show_gipk_in_create_table_and_information_schema=OFF
+# should not effect generating query string to binlog.
+include/rpl_diff.inc
+# Check if t3 has same column values in source and replica.
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t1, t2, t3;
+SET SESSION sql_generate_invisible_primary_key =
+@saved_session_sql_generate_invisible_primary_key;
+include/rpl_end.inc

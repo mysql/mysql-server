@@ -2041,7 +2041,7 @@ c0000 text
 WITH cte1 AS
 (SELECT(replace(md5(0x9025c5c7),
 convert((1) using utf8),
-(!(cast((connection_id()) AS char(20)))))) AS a1 FROM t0022)
+(!(cast((555) AS char(20)))))) AS a1 FROM t0022)
 SELECT cte1.a1
 FROM cte1 WHERE cte1.a1 = from_unixtime(1537000917);
 ERROR HY000: Incorrect DATETIME value: 'f4a4727407f28927f036a0bf46ed03f7'

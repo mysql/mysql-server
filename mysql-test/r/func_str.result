@@ -4822,6 +4822,7 @@ from_base64(aes_encrypt(right(cast((0x5d44f4d736397d92c8267c12)as decimal),1),
 rand(to_days('2028-12-04 15:50:01.284969'))));
 Warnings:
 Warning	1292	Truncated incorrect BINARY value: 'x'5d44f4d736397d92c8267c12''
+Warning	3237	AES key size should be 16 bytes length or secure KDF methods hkdf or pbkdf2_hmac should be used, please provide exact AES key size or use KDF methods for better security.
 do from_base64(cast(right(11,1)as binary(24)));
 do convert(inet_aton(cast(left(-1,1)as binary(30))) using utf8);
 Warnings:
@@ -4856,7 +4857,7 @@ DROP TABLE t;
 #              CONSIDERING INDEXES
 CREATE TABLE dd_table (name VARCHAR(64) COLLATE utf8_tolower_ci, UNIQUE KEY(name));
 Warnings:
-Warning	3778	'utf8_tolower_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_tolower_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO dd_table VALUES('t1'), ('t2');
 CREATE VIEW view1 AS SELECT name AS table_name FROM dd_table;
 CREATE VIEW view2 AS SELECT name COLLATE utf8_tolower_ci AS table_name FROM dd_table;

@@ -54,7 +54,7 @@ while ($1)
 }
 enable_query_log;
 select count(*) from t1;
-insert into t1 values(concat('a',char(1)),concat('a',char(1)),concat('a',char(1)));
+insert into t1 values(concat('a','!'),concat('a','!'),concat('a','!'));
 select count(*) from t1 where v='a';
 select count(*) from t1 where c='a';
 select count(*) from t1 where t='a';

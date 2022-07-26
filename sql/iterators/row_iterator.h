@@ -1,7 +1,7 @@
 #ifndef SQL_ITERATORS_ROW_ITERATOR_H_
 #define SQL_ITERATORS_ROW_ITERATOR_H_
 
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,33 @@
 
 #include <assert.h>
 #include <string>
-#include <vector>
 
 class Item;
 class JOIN;
 class THD;
 struct TABLE;
+
+/**
+   Profiling data for an iterator, needed by 'EXPLAIN ANALYZE'.
+   Note that an iterator may be iterated over multiple times, e.g. if it is
+   the inner operand of a neste loop join. This is denoted 'loops'
+   below, and the metrics in this class are aggregated values for all loops.
+*/
+class IteratorProfiler {
+ public:
+  /** Time (in ms) spent fetching the first row. (Sum for all loops.)*/
+  virtual double GetFirstRowMs() const = 0;
+
+  /** Time (in ms) spent fetching the remaining rows. (Sum for all loops.)*/
+  virtual double GetLastRowMs() const = 0;
+
+  /** The number of loops (i.e number of iterator->Init() calls.*/
+  virtual uint64_t GetNumInitCalls() const = 0;
+
+  /** The number of rows fetched. (Sum for all loops.)*/
+  virtual uint64_t GetNumRows() const = 0;
+  virtual ~IteratorProfiler() = default;
+};
 
 /**
   A context for reading through a single table using a chosen access method:
@@ -130,10 +151,21 @@ class RowIterator {
   // or just ignore it. The right behavior depends on the iterator.
   virtual void UnlockRow() = 0;
 
-  virtual std::string TimingString() const {
+  /** Get profiling data for this iterator (for 'EXPLAIN ANALYZE').*/
+  virtual const IteratorProfiler *GetProfiler() const {
+    /**
+        Valid for TimingIterator, MaterializeIterator and
+        TemptableAggregateIterator only.
+    */
+    assert(false);
+    return nullptr;
+  }
+
+  /** @see TimingIterator .*/
+  virtual void SetOverrideProfiler([
+      [maybe_unused]] const IteratorProfiler *profiler) {
     // Valid for TimingIterator only.
     assert(false);
-    return "";
   }
 
   /**

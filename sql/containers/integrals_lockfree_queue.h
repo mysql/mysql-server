@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,20 +55,20 @@ namespace container {
   to push an element to, if any.
 
   Template parameters are as follows:
-  - `T`: the integral type for the queue elements.
-  - `Null`: value of type `T`, that will be used to mark a queue position
+  - `T`: The integral type for the queue elements.
+  - `Null`: Value of type `T`, that will be used to mark a queue position
             as empty.
-  - `Erased`: value of type `T`, that will be used to mark an queue
+  - `Erased`: Value of type `T`, that will be used to mark an queue
               position as erased.
-  - `I`: type of indexing to be used by the underlying array in the form of
+  - `I`: Type of indexing to be used by the underlying array in the form of
          a class. Available classes are `container::Padded_indexing` and
          `container::Interleaved_indexing`, check the classes documentation
          for further details. The parameter defaults to
          `container::Padded_indexing`.
-  - `A`: type of memory allocator to be used, in the form of a class
+  - `A`: Type of memory allocator to be used, in the form of a class
          (defaults to no allocator).
 
-  All the availabe operations are thread-safe, in the strict sense of no
+  All the available operations are thread-safe, in the strict sense of no
   memory problems rise from multiple threads trying to perform operations
   concurrently.
 
@@ -150,10 +150,10 @@ class Integrals_lockfree_queue {
   static constexpr index_type clear_bit = set_bit - 1;
 
   enum class enum_queue_state : short {
-    SUCCESS = 0,             // Last operation was successfull
-    NO_MORE_ELEMENTS = -1,   // Last operation was unsuccessfull because there
+    SUCCESS = 0,             // Last operation was successful
+    NO_MORE_ELEMENTS = -1,   // Last operation was unsuccessful because there
                              // are no elements in the queue
-    NO_SPACE_AVAILABLE = -2  // Last operation was unsuccessfull because there
+    NO_SPACE_AVAILABLE = -2  // Last operation was unsuccessful because there
                              // is no space available
   };
 
@@ -240,7 +240,7 @@ class Integrals_lockfree_queue {
   };
 
   /**
-    Constructor allowing a specific memory allocator and a specfic queue
+    Constructor allowing a specific memory allocator and a specific queue
     capacity.
 
     The queue allocated memory may differ from `capacity() * sizeof(T)`
@@ -255,7 +255,7 @@ class Integrals_lockfree_queue {
       std::enable_if_t<!std::is_same<B, std::nullptr_t>::value> * = nullptr>
   Integrals_lockfree_queue(A &alloc, size_t size);
   /**
-    Constructor allowing specfic queue capacity.
+    Constructor allowing specific queue capacity.
 
     The queue allocated memory may differ from `capacity() * sizeof(T)`
     since additional space may be required to prevent false sharing between
@@ -416,7 +416,7 @@ class Integrals_lockfree_queue {
     value returned by `get_state()` is `NO_MORE_ELEMENTS`.
 
     @return The value retrieved from the queue or `Null` if no element is
-            available for poping
+            available for popping
    */
   value_type pop();
   /**
@@ -779,7 +779,7 @@ T container::Integrals_lockfree_queue<T, Null, Erased, I, A>::pop() {
                 value, Null,  // It may have been set to `Erased` concurrently
                 std::memory_order_release)) {
           new_head &= clear_bit;  // Unset the occupied bit, signaling that
-                                  // finished poping
+                                  // finished popping
           this->m_head->store(new_head, std::memory_order_seq_cst);
           if (value == Erased) {  // If the element was `Erased`, try to
                                   // pop again

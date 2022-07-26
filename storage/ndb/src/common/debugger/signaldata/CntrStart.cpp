@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,29 +24,49 @@
 
 #include <signaldata/CntrStart.hpp>
 
-bool
-printCNTR_START_REQ(FILE * output, const Uint32 * theData, 
-		    Uint32 len, Uint16 receiverBlockNo) {
-  const CntrStartReq * const sig = (CntrStartReq *)theData;
+bool printCNTR_START_REQ(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/
+)
+{
+  // Using old signal length, since lastLcpId is not written out
+  if (len < CntrStartReq::OldSignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const CntrStartReq *const sig = (const CntrStartReq *)theData;
   fprintf(output, " nodeId: %x\n", sig->nodeId);
   fprintf(output, " startType: %x\n", sig->startType);
   fprintf(output, " lastGci: %x\n", sig->lastGci);
   return true;
 }
 
-bool
-printCNTR_START_REF(FILE * output, const Uint32 * theData, 
-		    Uint32 len, Uint16 receiverBlockNo) {
-  const CntrStartRef * const sig = (CntrStartRef *)theData;
+bool printCNTR_START_REF(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/)
+{
+  if (len < CntrStartRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const CntrStartRef *const sig = (const CntrStartRef *)theData;
   fprintf(output, " errorCode: %x\n", sig->errorCode);
   fprintf(output, " masterNodeId: %x\n", sig->masterNodeId);
   return true;
 }
 
-bool
-printCNTR_START_CONF(FILE * output, const Uint32 * theData, 
-		     Uint32 len, Uint16 receiverBlockNo) {
-  const CntrStartConf * const sig = (CntrStartConf *)theData;
+bool printCNTR_START_CONF(FILE *output,
+                          const Uint32 *theData,
+                          Uint32 len,
+                          Uint16 /*receiverBlockNo*/)
+{
+  const CntrStartConf *const sig = (const CntrStartConf *)theData;
   fprintf(output, " startType: %x\n", sig->startType);
   fprintf(output, " startGci: %x\n", sig->startGci);
   fprintf(output, " masterNodeId: %x\n", sig->masterNodeId);

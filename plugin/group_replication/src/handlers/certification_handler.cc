@@ -149,7 +149,20 @@ int Certification_handler::set_transaction_context(Pipeline_event *pevent) {
     return 1;
     /* purecov: end */
   }
-  transaction_context_packet = new Data_packet(packet->payload, packet->len);
+  transaction_context_packet =
+      new Data_packet(packet->payload, packet->len, key_certification_data);
+
+  DBUG_EXECUTE_IF(
+      "group_replication_certification_handler_set_transaction_context", {
+        const char act[] =
+            "now signal "
+            "signal.group_replication_certification_handler_set_transaction_"
+            "context_reached "
+            "wait_for "
+            "signal.group_replication_certification_handler_set_transaction_"
+            "context_continue";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
 
   return error;
 }
@@ -202,6 +215,17 @@ void Certification_handler::reset_transaction_context() {
   */
   delete transaction_context_pevent;
   transaction_context_pevent = nullptr;
+  DBUG_EXECUTE_IF(
+      "group_replication_certification_handler_reset_transaction_context", {
+        const char act[] =
+            "now signal "
+            "signal.group_replication_certification_handler_reset_transaction_"
+            "context_reached "
+            "wait_for "
+            "signal.group_replication_certification_handler_reset_transaction_"
+            "context_continue";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
 }
 
 int Certification_handler::handle_transaction_context(Pipeline_event *pevent,
@@ -227,8 +251,7 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
   Transaction_context_log_event *tcle = nullptr;
   Log_event *event = nullptr;
   Gtid_log_event *gle = nullptr;
-  std::list<Gcs_member_identifier> *online_members =
-      pevent->get_online_members();
+  Members_list *online_members = pevent->get_online_members();
 
   /*
     Get transaction context.

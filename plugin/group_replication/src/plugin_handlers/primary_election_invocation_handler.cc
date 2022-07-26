@@ -95,7 +95,7 @@ int Primary_election_handler::execute_primary_election(
   bool has_primary_changed;
   bool in_primary_mode;
   Group_member_info *primary_member_info = nullptr;
-  std::vector<Group_member_info *> *all_members_info =
+  Group_member_info_list *all_members_info =
       group_member_mgr->get_all_members();
 
   bool appointed_uuid = !primary_uuid.empty();
@@ -209,7 +209,7 @@ int Primary_election_handler::execute_primary_election(
 
 end:
   // clean the members
-  std::vector<Group_member_info *>::iterator it;
+  Group_member_info_list_iterator it;
   for (it = all_members_info->begin(); it != all_members_info->end(); it++) {
     delete (*it);
   }
@@ -260,8 +260,7 @@ int Primary_election_handler::internal_primary_election(
     primary_election_handler
         .wait_on_election_process_termination(); /* purecov: inspected */
 
-  std::vector<Group_member_info *> *members_info =
-      group_member_mgr->get_all_members();
+  Group_member_info_list *members_info = group_member_mgr->get_all_members();
 
   /* Declare at this point that all members are in primary mode for switch
    * cases*/
@@ -335,8 +334,7 @@ int Primary_election_handler::legacy_primary_election(
 }
 
 bool Primary_election_handler::pick_primary_member(
-    std::string &primary_uuid,
-    std::vector<Group_member_info *> *all_members_info) {
+    std::string &primary_uuid, Group_member_info_list *all_members_info) {
   DBUG_TRACE;
 
   bool am_i_leaving = true;
@@ -345,8 +343,8 @@ bool Primary_election_handler::pick_primary_member(
 #endif
   Group_member_info *the_primary = nullptr;
 
-  std::vector<Group_member_info *>::iterator it;
-  std::vector<Group_member_info *>::iterator lowest_version_end;
+  Group_member_info_list_iterator it;
+  Group_member_info_list_iterator lowest_version_end;
 
   /* sort members based on member_version and get first iterator position
      where member version differs
@@ -418,10 +416,9 @@ bool Primary_election_handler::pick_primary_member(
   return false;
 }
 
-std::vector<Group_member_info *>::iterator
-sort_and_get_lowest_version_member_position(
-    std::vector<Group_member_info *> *all_members_info) {
-  std::vector<Group_member_info *>::iterator it;
+Group_member_info_list_iterator sort_and_get_lowest_version_member_position(
+    Group_member_info_list *all_members_info) {
+  Group_member_info_list_iterator it;
 
   // sort in ascending order of lower member version
   std::sort(all_members_info->begin(), all_members_info->end(),
@@ -430,8 +427,7 @@ sort_and_get_lowest_version_member_position(
   /* if vector contains only single version then leader should be picked from
      all members
    */
-  std::vector<Group_member_info *>::iterator lowest_version_end =
-      all_members_info->end();
+  Group_member_info_list_iterator lowest_version_end = all_members_info->end();
 
   /* first member will have lowest version as members are already
      sorted above using member_version.
@@ -486,8 +482,8 @@ sort_and_get_lowest_version_member_position(
 }
 
 void sort_members_for_election(
-    std::vector<Group_member_info *> *all_members_info,
-    std::vector<Group_member_info *>::iterator lowest_version_end) {
+    Group_member_info_list *all_members_info,
+    Group_member_info_list_iterator lowest_version_end) {
   Group_member_info *first_member = *(all_members_info->begin());
   Member_version lowest_version = first_member->get_member_version();
 

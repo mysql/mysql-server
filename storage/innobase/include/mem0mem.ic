@@ -44,11 +44,6 @@ mem_block_t *mem_heap_create_block(mem_heap_t *heap, ulint n,
                                    IF_DEBUG(const char *file_name, ulint line, )
                                        ulint type);
 
-static inline mem_heap_t *mem_heap_create_at(
-    ulint N IF_DEBUG(, ut::Location loc)) {
-  return mem_heap_create_func(N, IF_DEBUG(loc, ) MEM_HEAP_DYNAMIC);
-}
-
 /** Frees a block from a memory heap. */
 void mem_heap_block_free(mem_heap_t *heap,    /*!< in: heap */
                          mem_block_t *block); /*!< in: block to free */
@@ -279,9 +274,7 @@ static inline void mem_heap_empty(mem_heap_t *heap) {
   mem_heap_free_heap_top(heap, (byte *)heap + mem_block_get_start(heap));
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
-  if (heap->free_block) {
-    mem_heap_free_block_free(heap);
-  }
+  mem_heap_free_block_free(heap);
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 }
@@ -421,9 +414,9 @@ static inline void mem_heap_free_top(
   }
 }
 
-static inline mem_heap_t *mem_heap_create_func(ulint size,
-                                               IF_DEBUG(ut::Location loc, )
-                                                   ulint type) {
+static inline mem_heap_t *mem_heap_create(ulint size,
+                                          ut::Location loc [[maybe_unused]],
+                                          ulint type) {
   mem_block_t *block;
 
   if (!size) {
@@ -437,13 +430,6 @@ static inline mem_heap_t *mem_heap_create_func(ulint size,
     return (nullptr);
   }
 
-#ifndef UNIV_HOTBACKUP
-#ifndef UNIV_LIBRARY
-  /* The first block should not be in buffer pool,
-  because it might be relocated to resize buffer pool. */
-  ut_ad(block->buf_block == nullptr);
-#endif /* !UNIV_LIBRARY */
-#endif /* UNIV_HOTBACKUP */
   UT_LIST_INIT(block->base);
 
   /* Add the created block itself as the first block in the list */
@@ -465,9 +451,7 @@ static inline void mem_heap_free(mem_heap_t *heap) {
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
-  if (heap->free_block) {
-    mem_heap_free_block_free(heap);
-  }
+  mem_heap_free_block_free(heap);
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -493,7 +477,7 @@ static inline ulint mem_heap_get_size(mem_heap_t *heap) /*!< in: heap */
   size = heap->total_size;
 
 #ifndef UNIV_LIBRARY
-  if (heap->free_block) {
+  if (heap->free_block.load()) {
     size += UNIV_PAGE_SIZE;
   }
 #endif /* !UNIV_LIBRARY */

@@ -409,7 +409,9 @@ if (`select $exec_pos_1 - $exec_pos_0 <= 0`)
 }
 
 # UNTIL SQL_AFTER_MTS_GAPS cleanup
+--disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 source include/start_slave.inc;
 --connection master
 drop database d1;

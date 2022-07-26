@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -478,8 +478,9 @@ bool Parallel_reader::Scan_ctx::check_visibility(const rec_t *&rec,
 }
 
 void Parallel_reader::Scan_ctx::copy_row(const rec_t *rec, Iter *iter) const {
-  iter->m_offsets = rec_get_offsets(rec, m_config.m_index, nullptr,
-                                    ULINT_UNDEFINED, &iter->m_heap);
+  iter->m_offsets =
+      rec_get_offsets(rec, m_config.m_index, nullptr, ULINT_UNDEFINED,
+                      UT_LOCATION_HERE, &iter->m_heap);
 
   /* Copy the row from the page to the scan iterator. The copy should use
   memory from the iterator heap because the scan iterator owns the copy. */
@@ -674,7 +675,8 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
     rec_offs_init(offsets_);
 
     const rec_t *rec = page_cur_get_rec(cur);
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     if (end_tuple != nullptr) {
       ut_ad(rec != nullptr);
@@ -914,7 +916,8 @@ page_no_t Parallel_reader::Scan_ctx::search(const buf_block_t *block,
 
   rec_offs_init(offsets_);
 
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   auto page_no = btr_node_ptr_get_child_page_no(rec, offsets);
 
@@ -1052,7 +1055,8 @@ dberr_t Parallel_reader::Scan_ctx::create_ranges(const Scan_range &scan_range,
       heap = mem_heap_create(srv_page_size / 4, UT_LOCATION_HERE);
     }
 
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     const auto end = scan_range.m_end;
 

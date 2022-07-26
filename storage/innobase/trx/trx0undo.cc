@@ -45,6 +45,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "current_thd.h"
 #include "dict0dd.h"
 #include "fil0fil.h"
+#include "log0chkp.h"
+#include "log0write.h"
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "srv0mon.h"
@@ -606,7 +608,6 @@ dberr_t trx_undo_gtid_add_update_undo(trx_t *trx, bool prepare, bool rollback) {
   dberr_t db_err = DB_SUCCESS;
 
   if (undo_ptr->is_insert_only() || gtid_explicit) {
-    ut_ad(!rollback);
     mutex_enter(&trx->undo_mutex);
     db_err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_UPDATE);
     mutex_exit(&trx->undo_mutex);
@@ -672,7 +673,9 @@ void trx_undo_gtid_read_and_persist(trx_ulogf_t *undo_header) {
   /* Get GTID persister */
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
 
-  /* Extract and add XA prepare GTID, if there. */
+  /* Extract and add XA prepare GTID, if there and if and only if the
+     transaction is in PREPARED_IN_TC state, otherwise, there is no assurance
+     that the transaction will be kept in prepared state. */
   if ((flag & TRX_UNDO_FLAG_XA_PREPARE_GTID) != 0) {
     /* Get GTID format version. */
     gtid_desc.m_version = static_cast<uint32_t>(
@@ -1382,7 +1385,7 @@ add_to_list:
       UT_LIST_ADD_LAST(rseg->update_undo_list, undo);
       /* For XA prepared transaction and XA rolled back transaction, we
       could have GTID to be persisted. */
-      if (state == TRX_UNDO_PREPARED || state == TRX_UNDO_ACTIVE) {
+      if (undo->is_prepared() || state == TRX_UNDO_ACTIVE) {
         trx_undo_gtid_read_and_persist(undo_header);
       }
     } else {
@@ -1851,11 +1854,12 @@ page_t *trx_undo_set_state_at_prepare(trx_t *trx, trx_undo_t *undo,
   offset = mach_read_from_2(seg_hdr + TRX_UNDO_LAST_LOG);
   undo_header = undo_page + offset;
 
-  /* Write GTID information if there. */
-  trx_undo_gtid_write(trx, undo_header, undo, mtr, !rollback);
-
   if (rollback) {
-    ut_ad(undo->state == TRX_UNDO_PREPARED);
+    ut_ad(undo->is_prepared());
+
+    /* Write GTID information if there. */
+    trx_undo_gtid_write(trx, undo_header, undo, mtr, !rollback);
+
     mlog_write_ulint(seg_hdr + TRX_UNDO_STATE, TRX_UNDO_ACTIVE, MLOG_2BYTES,
                      mtr);
     return (undo_page);
@@ -1869,6 +1873,37 @@ page_t *trx_undo_set_state_at_prepare(trx_t *trx, trx_undo_t *undo,
   mlog_write_ulint(undo_header + TRX_UNDO_FLAGS, undo->flag, MLOG_1BYTE, mtr);
 
   trx_undo_write_xid(undo_header, &undo->xid, mtr);
+
+  return (undo_page);
+}
+
+page_t *trx_undo_set_prepared_in_tc(trx_t *trx, trx_undo_t *undo, mtr_t *mtr) {
+  trx_usegf_t *seg_hdr;
+  trx_ulogf_t *undo_header;
+  page_t *undo_page;
+  ulint offset;
+
+  ut_ad(trx && undo && mtr);
+
+  ut_a(undo->id < TRX_RSEG_N_SLOTS);
+
+  undo_page = trx_undo_page_get(page_id_t(undo->space, undo->hdr_page_no),
+                                undo->page_size, mtr);
+
+  seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
+
+  offset = mach_read_from_2(seg_hdr + TRX_UNDO_LAST_LOG);
+  undo_header = undo_page + offset;
+
+  ut_ad(undo->state == TRX_UNDO_PREPARED_80028 ||
+        undo->state == TRX_UNDO_PREPARED);
+
+  /* Write GTID information if there. */
+  trx_undo_gtid_write(trx, undo_header, undo, mtr, true);
+
+  undo->set_prepared_in_tc();
+
+  mlog_write_ulint(seg_hdr + TRX_UNDO_STATE, undo->state, MLOG_2BYTES, mtr);
 
   return (undo_page);
 }
@@ -1956,15 +1991,12 @@ void trx_undo_insert_cleanup(trx_undo_ptr_t *undo_ptr, bool noredo) {
   rseg->unlatch();
 }
 
-void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
-                                                    ulint expected_undo_state) {
-  ut_a(expected_undo_state == TRX_UNDO_ACTIVE ||
-       expected_undo_state == TRX_UNDO_PREPARED);
-
+void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx, bool prepared) {
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
 
   if (trx->rsegs.m_redo.update_undo) {
-    ut_a(trx->rsegs.m_redo.update_undo->state == expected_undo_state);
+    ut_a(trx->rsegs.m_redo.update_undo->is_prepared() == prepared);
+
     UT_LIST_REMOVE(trx->rsegs.m_redo.rseg->update_undo_list,
                    trx->rsegs.m_redo.update_undo);
     trx_undo_mem_free(trx->rsegs.m_redo.update_undo);
@@ -1973,7 +2005,8 @@ void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
   }
 
   if (trx->rsegs.m_redo.insert_undo) {
-    ut_a(trx->rsegs.m_redo.insert_undo->state == expected_undo_state);
+    ut_a(trx->rsegs.m_redo.insert_undo->is_prepared() == prepared);
+
     UT_LIST_REMOVE(trx->rsegs.m_redo.rseg->insert_undo_list,
                    trx->rsegs.m_redo.insert_undo);
     trx_undo_mem_free(trx->rsegs.m_redo.insert_undo);
@@ -1982,7 +2015,7 @@ void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
   }
 
   if (trx->rsegs.m_noredo.update_undo) {
-    ut_a(trx->rsegs.m_noredo.update_undo->state == expected_undo_state);
+    ut_a(trx->rsegs.m_noredo.update_undo->is_prepared() == prepared);
 
     UT_LIST_REMOVE(trx->rsegs.m_noredo.rseg->update_undo_list,
                    trx->rsegs.m_noredo.update_undo);
@@ -1991,7 +2024,7 @@ void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
     trx->rsegs.m_noredo.update_undo = nullptr;
   }
   if (trx->rsegs.m_noredo.insert_undo) {
-    ut_a(trx->rsegs.m_noredo.insert_undo->state == expected_undo_state);
+    ut_a(trx->rsegs.m_noredo.insert_undo->is_prepared() == prepared);
 
     UT_LIST_REMOVE(trx->rsegs.m_noredo.rseg->insert_undo_list,
                    trx->rsegs.m_noredo.insert_undo);

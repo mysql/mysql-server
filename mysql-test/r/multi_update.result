@@ -705,9 +705,6 @@ INSERT INTO t3 VALUES (1), (2);
 UPDATE IGNORE
 ( SELECT ( SELECT COUNT(*) FROM t1 GROUP BY a, @v ) a FROM t2 ) x, t3
 SET t3.a = 0;
-Warnings:
-Warning	1242	Subquery returns more than 1 row
-Warning	1242	Subquery returns more than 1 row
 DROP TABLE t1, t2, t3;
 SET SESSION sql_safe_updates = DEFAULT;
 set @@optimizer_switch=@optimizer_switch_saved;

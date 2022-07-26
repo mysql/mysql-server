@@ -35,7 +35,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "os0event.h"
 #include "sync0rw.h"
+#include "ut0byte.h"
 #include "ut0mutex.h"
+#include "ut0rnd.h"
 #include "ut0ut.h"
 
 /** Magic value to use instead of checksums when they are disabled */
@@ -204,9 +206,11 @@ class page_id_t {
   @return page number */
   inline page_no_t page_no() const { return (m_page_no); }
 
-  /** Retrieve the fold value.
-  @return fold value */
-  inline uint32_t fold() const { return (m_space << 20) + m_space + m_page_no; }
+  /** Retrieve the hash value.
+  @return hashed value */
+  inline uint64_t hash() const {
+    return ut::hash_uint64_pair(m_space, m_page_no);
+  }
 
   /** Reset the values from a (space, page_no).
   @param[in]    space   tablespace id

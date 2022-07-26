@@ -32,7 +32,7 @@
 #include <mysql/psi/psi_tls_channel.h>
 #include "mysql/components/services/bits/mysql_rwlock_bits.h"
 
-/* A convinience wrapper */
+/* A convenience wrapper */
 using tls_channels = std::vector<TLS_channel_property_iterator *>;
 
 /**

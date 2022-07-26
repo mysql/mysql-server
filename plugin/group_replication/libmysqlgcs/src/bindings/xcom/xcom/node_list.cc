@@ -75,7 +75,7 @@ int match_node(node_address const *n1, node_address const *n2, u_int with_uid) {
   int error_ipandport1, error_ipandport2;
   int retval;
 
-  if (n1 == 0 || n2 == 0) return 0;
+  if (n1 == nullptr || n2 == nullptr) return 0;
 
   error_ipandport1 = get_ip_and_port(n1->address, n1_ip, &n1_port);
   error_ipandport2 = get_ip_and_port(n2->address, n2_ip, &n2_port);
@@ -140,7 +140,7 @@ blob clone_blob(blob const b) {
     retval.data.data_val = (char *)calloc((size_t)1, (size_t)b.data.data_len);
     memcpy(retval.data.data_val, b.data.data_val, (size_t)retval.data.data_len);
   } else {
-    retval.data.data_val = 0;
+    retval.data.data_val = nullptr;
   }
   return retval;
 }
@@ -168,7 +168,7 @@ void add_node_list(u_int n, node_address *names, node_list *nodes) {
     u_int added = added_nodes(n, names, nodes);
 
     if (added) {
-      node_address *np = 0;
+      node_address *np = nullptr;
       u_int i;
 
       /* Expand node list and add new nodes */
@@ -199,7 +199,7 @@ void add_node_list(u_int n, node_address *names, node_list *nodes) {
 
 /* Remove nodes from node list, ignore missing nodes */
 void remove_node_list(u_int n, node_address *names, node_list *nodes) {
-  node_address *np = 0;
+  node_address *np = nullptr;
   u_int i;
   u_int new_len = nodes->node_list_len;
 
@@ -207,9 +207,9 @@ void remove_node_list(u_int n, node_address *names, node_list *nodes) {
   for (i = 0; i < nodes->node_list_len; i++) {
     if (match_node_list(&nodes->node_list_val[i], names, n, FALSE)) {
       free(nodes->node_list_val[i].address);
-      nodes->node_list_val[i].address = 0;
+      nodes->node_list_val[i].address = nullptr;
       free(nodes->node_list_val[i].uuid.data.data_val);
-      nodes->node_list_val[i].uuid.data.data_val = 0;
+      nodes->node_list_val[i].uuid.data.data_val = nullptr;
       new_len--;
       ADD_DBG(
           D_BASE, add_event(EVENT_DUMP_PAD, string_arg("removing node"));
@@ -230,7 +230,7 @@ void remove_node_list(u_int n, node_address *names, node_list *nodes) {
 
 void init_node_list(u_int n, node_address *names, node_list *nodes) {
   nodes->node_list_len = 0;
-  nodes->node_list_val = 0;
+  nodes->node_list_val = nullptr;
   add_node_list(n, names, nodes);
 }
 
@@ -287,12 +287,12 @@ void delete_node_address(u_int n, node_address *na) {
   u_int i;
   for (i = 0; i < n; i++) {
     free(na[i].address);
-    na[i].address = 0;
+    na[i].address = nullptr;
     free(na[i].uuid.data.data_val);
-    na[i].uuid.data.data_val = 0;
+    na[i].uuid.data.data_val = nullptr;
   }
   free(na);
-  na = 0;
+  na = nullptr;
 }
 
 /* Fowler-Noll-Vo type multiplicative hash */

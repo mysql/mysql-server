@@ -86,7 +86,9 @@ DROP TABLE child, parent;
 
 --source include/rpl_connection_slave.inc
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
+--disable_warnings
 SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
+--enable_warnings
 SET @@GLOBAL.replica_transaction_retries= @save_replica_transaction_retries;
 SET @@GLOBAL.innodb_lock_wait_timeout= @save_innodb_lock_wait_timeout;
 --source include/start_slave_sql.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,7 @@ struct table_list_equal {
 
 /**
   Check if connection owns SNRW metadata lock on table or view.
-  Report apropriate error if not.
+  Report appropriate error if not.
 
   @note Unlike find_table_for_mdl_upgrade() this call can handle views.
 */

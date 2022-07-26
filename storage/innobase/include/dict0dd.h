@@ -515,13 +515,37 @@ inline bool dd_table_has_row_versions(const dd::Table &table) {
     return false;
   }
 
+  bool has_row_version = false;
   for (const auto column : table.columns()) {
-    if (dd_column_is_dropped(column) || dd_column_is_added(column)) {
-      return true;
+    if (column->is_virtual()) {
+      continue;
     }
+
+    /* Phy_pos metadata is populated for columns which belongs to table having
+    row versions. Check if non virtual column has it. */
+    if (column->se_private_data().exists(
+            dd_column_key_strings[DD_INSTANT_PHYSICAL_POS])) {
+      has_row_version = true;
+    }
+
+    /* Checking only for one column is enough. */
+    break;
   }
 
-  return false;
+#ifdef UNIV_DEBUG
+  if (has_row_version) {
+    bool found_inst_add_or_drop_col = false;
+    for (const auto column : table.columns()) {
+      if (dd_column_is_dropped(column) || dd_column_is_added(column)) {
+        found_inst_add_or_drop_col = true;
+        break;
+      }
+    }
+    ut_ad(found_inst_add_or_drop_col);
+  }
+#endif
+
+  return has_row_version;
 }
 
 /** Determine if a dd::Table has any INSTANTly ADDed/DROPped column
@@ -773,8 +797,9 @@ void dd_add_instant_columns(const dd::Table *old_dd_table,
 
 /** Clear the instant ADD COLUMN information of a table
 @param[in,out]  dd_table        dd::Table
-@param[in]      clear_version   true if version metadata is to be cleared */
-void dd_clear_instant_table(dd::Table &dd_table, bool clear_version);
+@param[in]      clear_version   true if version metadata is to be cleared
+@return DB_SUCCESS or error code */
+dberr_t dd_clear_instant_table(dd::Table &dd_table, bool clear_version);
 
 /** Clear the instant ADD COLUMN information of a partition, to make it
 as a normal partition

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -761,7 +761,7 @@ static void setup_key_functions(MI_KEYDEF *keyinfo) {
         _mi_prefix_search() compares end-space against ASCII blank (' ').
         It cannot be used for character sets, that do not encode the
         blank character like ASCII does. UCS2 is an example. All
-        character sets with a fixed width > 1 or a mimimum width > 1
+        character sets with a fixed width > 1 or a minimum width > 1
         cannot represent blank like ASCII does. In these cases we have
         to use _mi_seq_search() for the search.
       */

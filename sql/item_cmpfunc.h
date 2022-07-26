@@ -264,7 +264,7 @@ class Arg_comparator {
   /// @param item_arg the item to retrieve the value from
   /// @param cache_arg a pointer to an Item where we can cache the value
   ///   from "item_arg". Can be nullptr
-  /// @param warn_item if rasing an conversion warning, the warning gets the
+  /// @param warn_item if raising an conversion warning, the warning gets the
   ///   data type and item name from this item
   /// @param is_null whether or not "item_arg" returned SQL NULL
   ///
@@ -391,6 +391,7 @@ class Item_func_false : public Item_func_bool_const {
   void print(const THD *, String *str, enum_query_type) const override {
     str->append("false");
   }
+  enum Functype functype() const override { return FALSE_FUNC; }
 };
 
 /**
@@ -889,6 +890,11 @@ class Item_func_trig_cond final : public Item_bool_func {
     Item_bool_func::update_used_tables();
     add_trig_func_tables();
   }
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override {
+    Item_bool_func::fix_after_pullout(parent_query_block, removed_query_block);
+    add_trig_func_tables();
+  }
   const JOIN *get_join() const { return m_join; }
   enum enum_trig_type get_trig_type() const { return trig_type; }
   bool *get_trig_var() { return trig_var; }
@@ -993,7 +999,7 @@ class Item_func_eq : public Item_func_comparison {
   ///
   /// @param thd the thread handler
   /// @param tables a bitmap that marks the tables that are involved in the join
-  /// @param join_condition an isntance containing the join condition together
+  /// @param join_condition an instance containing the join condition together
   ///   with some pre-calculated values
   /// @param[out] join_key_buffer a buffer where the value from the join
   ///   condition will be appended
@@ -1053,8 +1059,12 @@ class Item_func_eq : public Item_func_comparison {
   /// To overcome this, we must reverse the changes done by the equality
   /// propagation. It is possible to do so because during equality propagation,
   /// we save a list of all of the fields that were considered equal.
+  /// If we are asked to replace ("replace" set to true), arguments of this
+  /// function are replaced with an equal field. If we are not replacing, we
+  /// set "found" to "true" if an equal field is found, "false" otherwise.
   void ensure_multi_equality_fields_are_available(table_map left_side_tables,
-                                                  table_map right_side_tables);
+                                                  table_map right_side_tables,
+                                                  bool replace, bool *found);
 
   // If this equality originally came from a multi-equality, this documents
   // which one it came from (otherwise nullptr). It is used during planning:
@@ -1164,7 +1174,7 @@ class Item_func_le final : public Item_func_comparison {
 };
 
 /**
-  Internal function used by subquery to derived tranformation to check
+  Internal function used by subquery to derived transformation to check
   if a subquery is scalar. We model it to check if the count is greater than
   1 using Item_func_gt.
 */
@@ -1779,7 +1789,7 @@ class cmp_item {
     @return
       New cmp_item_xxx object.
   */
-  static cmp_item *get_comparator(Item_result result_type, const Item *item,
+  static cmp_item *get_comparator(Item_result result_type, Item *item,
                                   const CHARSET_INFO *cs);
   virtual cmp_item *make_same() = 0;
   virtual void store_value_by_template(cmp_item *, Item *item) {
@@ -2130,8 +2140,12 @@ class cmp_item_row : public cmp_item {
   cmp_item **comparators;
   uint n;
 
- public:
+  // Only used for Mem_root_array::resize()
   cmp_item_row() : comparators(nullptr), n(0) {}
+
+  friend class Mem_root_array_YY<cmp_item_row>;
+
+ public:
   cmp_item_row(THD *thd, Item *item) : comparators(nullptr), n(item->cols()) {
     alloc_comparators(thd, item);
   }
@@ -2148,9 +2162,6 @@ class cmp_item_row : public cmp_item {
   int compare(const cmp_item *arg) const override;
   cmp_item *make_same() override;
   void store_value_by_template(cmp_item *tmpl, Item *) override;
-  void set_comparator(uint col, cmp_item *comparator) {
-    comparators[col] = comparator;
-  }
 
  private:
   bool alloc_comparators(THD *thd, Item *item);
@@ -2167,9 +2178,7 @@ class in_row final : public in_vector {
   bool is_row_result() const override { return true; }
   bool find_item(Item *item) override;
   bool compare_elems(uint pos1, uint pos2) const override;
-  void set_comparator(uint col, cmp_item *comparator) {
-    tmp->set_comparator(col, comparator);
-  }
+
   Item_basic_constant *create_item(MEM_ROOT *) const override {
     assert(false);
     return nullptr;
@@ -2304,7 +2313,8 @@ class Item_func_like final : public Item_bool_func2 {
   longlong val_int() override;
   enum Functype functype() const override { return LIKE_FUNC; }
   optimize_type select_optimize(const THD *thd) override;
-  cond_result eq_cmp_result() const override { return COND_TRUE; }
+  /// Result may be not equal with equal inputs if ESCAPE character is present
+  cond_result eq_cmp_result() const override { return COND_OK; }
   const char *func_name() const override { return "like"; }
   bool fix_fields(THD *thd, Item **ref) override;
   bool resolve_type(THD *) override;
@@ -2346,7 +2356,7 @@ class Item_func_like final : public Item_bool_func2 {
 
     @param thd Pointer to THD object.
 
-    @retval true if error happens during wild string prefix claculation,
+    @retval true if error happens during wild string prefix calculation,
             false otherwise.
   */
   bool check_covering_prefix_keys(THD *thd);
@@ -2578,7 +2588,6 @@ class Item_equal final : public Item_bool_func {
     List_STL_Iterator<const Item_field> cend() const {
       return m_fields->cend();
     }
-    size_t size() const { return m_fields->size(); }
 
    private:
     List<Item_field> *m_fields;
@@ -2720,6 +2729,14 @@ bool get_mysql_time_from_str_no_warn(THD *thd, String *str, MYSQL_TIME *l_time,
 bool get_mysql_time_from_str(THD *thd, String *str,
                              enum_mysql_timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time);
+
+// Helper function to ensure_multi_equality_fields_are_available().
+// Finds and adjusts (if "replace" is set to true) an "Item_field" in a
+// function with an equal field in the available tables. For more
+// details look at FindEqualField().
+void find_and_adjust_equal_fields(Item *item, table_map available_tables,
+                                  bool replace, bool *found);
+
 /*
   These need definitions from this file but the variables are defined
   in mysqld.h. The variables really belong in this component, but for

@@ -158,7 +158,7 @@ extern CHARSET_INFO *character_set_filesystem;
 enum enum_server_operational_state {
   SERVER_BOOTING,      /* Server is not operational. It is starting */
   SERVER_OPERATING,    /* Server is fully initialized and operating */
-  SERVER_SHUTTING_DOWN /* erver is shutting down */
+  SERVER_SHUTTING_DOWN /* Server is shutting down */
 };
 enum_server_operational_state get_server_state();
 

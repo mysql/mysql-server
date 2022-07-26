@@ -1470,6 +1470,20 @@ SET GLOBAL expire_logs_days = @old_eld;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL binlog_expire_logs_seconds= @old_seconds;
+SET @@global.binlog_expire_logs_seconds=0;
+SET @@global.expire_logs_days = 1;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+SET @@global.binlog_expire_logs_seconds=5;
+ERROR HY000: The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds. To set one, first unset the other by setting it to 0.
+SET @@global.expire_logs_days=0;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+SET @@global.binlog_expire_logs_seconds=5;
+SET @@global.binlog_expire_logs_seconds=@old_seconds;
+SET @@global.expire_logs_days=@old_eld;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL auto_increment_offset=-1;
 Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '-1'

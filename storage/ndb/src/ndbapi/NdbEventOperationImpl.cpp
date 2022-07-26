@@ -92,53 +92,40 @@ print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 // todo free allocated data when closing NdbEventBuffer
 
 NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f,
-					     Ndb *theNdb, 
-					     const char* eventName) :
+                                             Ndb *ndb,
+                                             const NdbDictionary::Event *event) :
   NdbEventOperation(*this),
   m_facade(&f),
-  m_ndb(theNdb),
+  m_ndb(ndb),
+  m_eventImpl(&event->m_impl),
   m_state(EO_ERROR),
   m_oid(~(Uint32)0),
   m_stop_gci(),
   m_allow_empty_update(false)
 {
-  DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl");
-
-  assert(m_ndb != NULL);
-  NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
-  assert(myDict != NULL);
-
-  const NdbDictionary::Event *myEvnt = myDict->getEvent(eventName);
-  if (!myEvnt)
-  {
-    m_error.code= myDict->getNdbError().code;
-    DBUG_VOID_RETURN;
-  }
-
-  init(myEvnt->m_impl);
-  DBUG_VOID_RETURN;
+  DBUG_TRACE;
+  init();
 }
 
 NdbEventOperationImpl::NdbEventOperationImpl(Ndb *theNdb,
-                                             NdbEventImpl& evnt) :
+                                             NdbEventImpl* evnt) :
   NdbEventOperation(*this),
   m_facade(this),
   m_ndb(theNdb),
+  m_eventImpl(evnt),
   m_state(EO_ERROR),
   m_oid(~(Uint32)0),
   m_stop_gci(),
   m_allow_empty_update(false)
 {
-  DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl [evnt]");
-  init(evnt);
-  DBUG_VOID_RETURN;
+  DBUG_TRACE;
+  init();
 }
 
 void
-NdbEventOperationImpl::init(NdbEventImpl& evnt)
+NdbEventOperationImpl::init()
 {
-  DBUG_ENTER("NdbEventOperationImpl::init");
-
+  DBUG_TRACE;
   m_magic_number = 0;
   mi_type = 0;
   m_change_mask = 0;
@@ -149,7 +136,6 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
   m_next = 0;
   m_prev = 0;
 
-  m_eventId = 0;
   theFirstPkAttrs[0] = NULL;
   theCurrentPkAttrs[0] = NULL;
   theFirstPkAttrs[1] = NULL;
@@ -165,17 +151,12 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
   theBlobVersion = 0;
 
   m_data_item= NULL;
-  m_eventImpl = NULL;
 
   m_custom_data= 0;
   m_has_error= 1;
 
   // we should lookup id in Dictionary, TODO
   // also make sure we only have one listener on each event
-
-  m_eventImpl = &evnt;
-
-  m_eventId = m_eventImpl->m_eventId;
 
   m_oid= m_ndb->theImpl->mapRecipient(this);
 
@@ -192,16 +173,15 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
   m_has_error= 0;
 
   DBUG_PRINT("exit",("this: %p  oid: %u", this, m_oid));
-  DBUG_VOID_RETURN;
 }
 
 NdbEventOperationImpl::~NdbEventOperationImpl()
 {
-  DBUG_ENTER("NdbEventOperationImpl::~NdbEventOperationImpl");
+  DBUG_TRACE;
   m_magic_number= 0;
 
   if (m_oid == ~(Uint32)0)
-    DBUG_VOID_RETURN;
+    return;
 
   stop();
 
@@ -226,11 +206,9 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
 
   if (m_eventImpl)
   {
+    // NOTE! Destroys the Event which is owned by the NdbEventImpl pointer
     delete m_eventImpl->m_facade;
-    m_eventImpl= 0;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 NdbEventOperation::State
@@ -423,7 +401,7 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
 
       // create blob event operation
       tBlobOp =
-        m_ndb->theEventBuffer->createEventOperationImpl(*blobEvnt, m_error);
+        m_ndb->theEventBuffer->createEventOperationImpl(blobEvnt, m_error);
       if (tBlobOp == NULL)
         DBUG_RETURN(NULL);
 
@@ -1071,12 +1049,14 @@ NdbEventOperationImpl::receive_event()
 
   int is_insert= operation == NdbDictionary::Event::_TE_INSERT;
 
-  Uint32 *aAttrPtr = m_data_item->ptr[0].p;
-  Uint32 *aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
-  Uint32 *aDataPtr = m_data_item->ptr[1].p;
+  const Uint32* aAttrPtr = m_data_item->ptr[0].p;
+  const Uint32* aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
+  const Uint32* aDataPtr = m_data_item->ptr[1].p;
 
-  DBUG_DUMP_EVENT("after",(char*)m_data_item->ptr[1].p, m_data_item->ptr[1].sz*4);
-  DBUG_DUMP_EVENT("before",(char*)m_data_item->ptr[2].p, m_data_item->ptr[2].sz*4);
+  DBUG_DUMP_EVENT(
+      "after", (const char*)m_data_item->ptr[1].p, m_data_item->ptr[1].sz * 4);
+  DBUG_DUMP_EVENT(
+      "before", (const char*)m_data_item->ptr[2].p, m_data_item->ptr[2].sz * 4);
 
   // copy data into the RecAttr's
   // we assume that the respective attribute lists are sorted
@@ -1150,7 +1130,7 @@ NdbEventOperationImpl::receive_event()
   
   tWorkingRecAttr = theFirstDataAttrs[1];
   aDataPtr = m_data_item->ptr[2].p;
-  Uint32 *aDataEndPtr = aDataPtr + m_data_item->ptr[2].sz;
+  const Uint32* aDataEndPtr = aDataPtr + m_data_item->ptr[2].sz;
   while ((aDataPtr < aDataEndPtr) && (tWorkingRecAttr != NULL)) {
     tRecAttrId = tWorkingRecAttr->attrId();
     tAttrId = AttributeHeader(*aDataPtr).getAttributeId();
@@ -1195,12 +1175,11 @@ NdbEventOperationImpl::getEventType2()
 }
 
 
-
 void
 NdbEventOperationImpl::print()
 {
   int i;
-  ndbout << "EventId " << m_eventId << "\n";
+  ndbout << "EventId " << m_eventImpl->m_eventId << "\n";
 
   for (i = 0; i < 2; i++) {
     NdbRecAttr *p = theFirstPkAttrs[i];
@@ -1219,26 +1198,6 @@ NdbEventOperationImpl::print()
       p = p->next();
     }
     ndbout << "\n";
-  }
-}
-
-void
-NdbEventOperationImpl::printAll()
-{
-  Uint32 *aAttrPtr = m_data_item->ptr[0].p;
-  Uint32 *aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
-  Uint32 *aDataPtr = m_data_item->ptr[1].p;
-
-  //tRecAttr->setup(tAttrInfo, aValue)) {
-
-  Uint32 tAttrId;
-  Uint32 tDataSz;
-  for (; aAttrPtr < aAttrEndPtr; ) {
-    tAttrId = AttributeHeader(*aAttrPtr).getAttributeId();
-    tDataSz = AttributeHeader(*aAttrPtr).getDataSize();
-
-    aAttrPtr++;
-    aDataPtr += tDataSz;
   }
 }
 
@@ -1577,8 +1536,7 @@ NdbEventBuffer::remove_op()
 void
 NdbEventBuffer::init_gci_containers()
 {
-  Gci_container_pod empty_gci_container;
-  new(&empty_gci_container) Gci_container(this);
+  Gci_container empty_gci_container(this);
 
   m_startup_hack = true;
   m_active_gci.clear();
@@ -2036,15 +1994,6 @@ operator<<(NdbOut& out, const Gci_container& bucket)
       << "]";
   return out;
 }
-
-static
-NdbOut&
-operator<<(NdbOut& out, const Gci_container_pod& gci)
-{
-  Gci_container* ptr = (Gci_container*)&gci;
-  out << *ptr;
-  return out;
-}
 #endif
 
 void
@@ -2104,7 +2053,7 @@ NdbEventBuffer::resize_known_gci()
   Uint64 gci = array[minpos];
   for (Uint32 i = minpos + 1; i<maxpos; i++)
   {
-    assert(array[i] > gci);
+    require(array[i] > gci);
     gci = array[i];
   }
 #endif
@@ -2214,7 +2163,7 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
 
   Uint32 pos = Uint32(gci & ACTIVE_GCI_MASK);
   Uint32 size = m_active_gci.size();
-  Gci_container *buckets = (Gci_container*)(m_active_gci.getBase());
+  Gci_container* buckets = m_active_gci.getBase();
   while (pos < size)
   {
     Uint64 cmp = (buckets + pos)->m_gci;
@@ -2261,10 +2210,11 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
    */
   if (0) g_eventLogger->info("new (with expand) ");
 
-  Gci_container_pod empty_gci_container;
-  new(&empty_gci_container) Gci_container(this);
-  m_active_gci.fill(pos + 1, empty_gci_container);
-  buckets = (Gci_container*)(m_active_gci.getBase());
+  {
+    Gci_container empty_gci_container(this);
+    m_active_gci.fill(pos + 1, empty_gci_container);
+  }
+  buckets = m_active_gci.getBase();
 
 newbucket:
   Gci_container* bucket = buckets + pos;
@@ -3294,7 +3244,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     Gci_container* bucket= find_bucket(gci);
     
     DBUG_PRINT_EVENT("info", ("data insertion in eventId %d 0x%x %s",
-                              op->m_eventId, m_ndb->getReference(),
+                              op->m_eventImpl->m_eventId, m_ndb->getReference(),
                               m_ndb->getNdbObjectName()));
     DBUG_PRINT_EVENT("info", ("gci=%d tab=%d op=%d node=%d",
                               sdata->gci, sdata->tableId, 
@@ -3370,7 +3320,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
           }
         }
         // link blob event under main event
-        add_blob_data(bucket, main_data, data);
+        add_blob_data(main_data, data);
       }
       if (use_hash)
       {
@@ -3417,7 +3367,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
   if ((Uint32)op->m_eventImpl->mi_type & (1U << operation))
   {
     DBUG_PRINT_EVENT("info",("Data arrived before ready eventId %d 0x%x %s",
-                             op->m_eventId, m_ndb->getReference(),
+                             op->m_eventImpl->m_eventId, m_ndb->getReference(),
                              m_ndb->getNdbObjectName()));
     DBUG_RETURN_EVENT(0);
   }
@@ -3737,7 +3687,9 @@ NdbEventBuffer::copy_data(const SubTableData * const sdata, Uint32 len,
 
   for (int i = 0; i <= 2; i++) {
     if (ptr[i].sz > 0) {
-      memcpy(data->ptr[i].p, ptr[i].p, ptr[i].sz << 2);
+      // Ok to cast const away, memory allocated in alloc_mem call above.
+      Uint32* p = const_cast<Uint32*>(data->ptr[i].p);
+      memcpy(p, ptr[i].p, ptr[i].sz << 2);
     }
   }
 
@@ -3904,8 +3856,12 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
       Uint32 j2 = 0;
       while (i < nkey)
       {
-        ah = copy_head(i, ptr[0].p, i2, ptr2[0].p, loop);
-        copy_attr(ah, j, ptr[1].p, j2, ptr2[1].p, loop);
+        /*
+         * Ok to cast const away, memory allocated in alloc_mem call above.
+         * And in first loop pointers are not used for any writing.
+         */
+        ah = copy_head(i, const_cast<Uint32*>(ptr[0].p), i2, ptr2[0].p, loop);
+        copy_attr(ah, j, const_cast<Uint32*>(ptr[1].p), j2, ptr2[1].p, loop);
       }
       ptr[0].sz = i;
       ptr[1].sz = j;
@@ -3945,13 +3901,21 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
         }
         if (b1)
         {
-          ah = copy_head(i, ptr[0].p, i1, ptr1[0].p, loop);
-          copy_attr(ah, j, ptr[1].p, j1, ptr1[1].p, loop);
+          /*
+           * Ok to cast const away, memory allocated in alloc_mem call above.
+           * And in first loop pointers are not used for any writing.
+           */
+          ah = copy_head(i, const_cast<Uint32*>(ptr[0].p), i1, ptr1[0].p, loop);
+          copy_attr(ah, j, const_cast<Uint32*>(ptr[1].p), j1, ptr1[1].p, loop);
         }
         else if (b2)
         {
-          ah = copy_head(i, ptr[0].p, i2, ptr2[0].p, loop);
-          copy_attr(ah, j, ptr[1].p, j2, ptr2[1].p, loop);
+          /*
+           * Ok to cast const away, memory allocated in alloc_mem call above.
+           * And in first loop pointers are not used for any writing.
+           */
+          ah = copy_head(i, const_cast<Uint32*>(ptr[0].p), i2, ptr2[0].p, loop);
+          copy_attr(ah, j, const_cast<Uint32*>(ptr[1].p), j2, ptr2[1].p, loop);
         }
         else
           break;
@@ -3988,12 +3952,22 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
         if (b1)
         {
           ah = AttributeHeader(ptr1[2].p[k1]);
-          copy_attr(ah, k, ptr[2].p, k1, ptr1[2].p, loop | 2);
+          /*
+           * Ok to cast const away, memory allocated in alloc_mem call above.
+           * And in first loop pointers are not used for any writing.
+           */
+          copy_attr(
+              ah, k, const_cast<Uint32*>(ptr[2].p), k1, ptr1[2].p, loop | 2);
         }
         else if (b2)
         {
           ah = AttributeHeader(ptr2[2].p[k2]);
-          copy_attr(ah, k, ptr[2].p, k2, ptr2[2].p, loop | 2);
+          /*
+           * Ok to cast const away, memory allocated in alloc_mem call above.
+           * And in first loop pointers are not used for any writing.
+           */
+          copy_attr(
+              ah, k, const_cast<Uint32*>(ptr[2].p), k2, ptr2[2].p, loop | 2);
         }
         else
           break;
@@ -4030,7 +4004,7 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
   LinearSectionPtr ptr[3];
 
   Uint32 pk_ah[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
-  Uint32* pk_data = blob_data->ptr[1].p;
+  const Uint32* pk_data = blob_data->ptr[1].p;
   Uint32 pk_size = 0;
 
   if (unlikely(blobVersion == 1)) {
@@ -4123,10 +4097,8 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
   DBUG_RETURN_EVENT(1);
 }
 
-void
-NdbEventBuffer::add_blob_data(Gci_container* bucket,
-                              EventBufDataHead* main_data,
-                              EventBufData* blob_data)
+void NdbEventBuffer::add_blob_data(EventBufDataHead* main_data,
+                                   EventBufData* blob_data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::add_blob_data");
   DBUG_PRINT_EVENT("info", ("main_data=%p blob_data=%p 0x%x %s",
@@ -4281,7 +4253,7 @@ NdbEventOperation*
 NdbEventBuffer::createEventOperation(const char* eventName,
 				     NdbError &theError)
 {
-  DBUG_ENTER("NdbEventBuffer::createEventOperation");
+  DBUG_TRACE;
 
   if (m_ndb->theImpl->m_ev_op == NULL)
   {
@@ -4290,16 +4262,24 @@ NdbEventBuffer::createEventOperation(const char* eventName,
     assert(m_event_queue.is_empty());
   }
 
-  NdbEventOperation* tOp= new NdbEventOperation(m_ndb, eventName);
+  NdbDictionary::Dictionary *dict = m_ndb->getDictionary();
+  NdbDictionary::Event_ptr event(dict->getEvent(eventName));
+  if (!event)
+  {
+    theError.code= dict->getNdbError().code;
+    return nullptr;
+  }
+
+  NdbEventOperation* tOp= new NdbEventOperation(m_ndb, event.release());
   if (tOp == 0)
   {
     theError.code= 4000;
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
   if (tOp->getState() != NdbEventOperation::EO_CREATED) {
     theError.code= tOp->getNdbError().code;
     delete tOp;
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
   // add user reference
   // removed in dropEventOperation
@@ -4308,26 +4288,26 @@ NdbEventBuffer::createEventOperation(const char* eventName,
                       getEventOperationImpl(tOp)->m_ref_count,
                       getEventOperationImpl(tOp), m_ndb->getReference(),
                       m_ndb->getNdbObjectName()));
-  DBUG_RETURN(tOp);
+  return tOp;
 }
 
 NdbEventOperationImpl*
-NdbEventBuffer::createEventOperationImpl(NdbEventImpl& evnt,
+NdbEventBuffer::createEventOperationImpl(NdbEventImpl* event,
                                          NdbError &theError)
 {
-  DBUG_ENTER("NdbEventBuffer::createEventOperationImpl");
-  NdbEventOperationImpl* tOp= new NdbEventOperationImpl(m_ndb, evnt);
+  DBUG_TRACE;
+  NdbEventOperationImpl* tOp= new NdbEventOperationImpl(m_ndb, event);
   if (tOp == 0)
   {
     theError.code= 4000;
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
   if (tOp->getState() != NdbEventOperation::EO_CREATED) {
     theError.code= tOp->getNdbError().code;
     delete tOp;
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
-  DBUG_RETURN(tOp);
+  return tOp;
 }
 
 void
@@ -4633,8 +4613,9 @@ EventBufAllocator<T>::allocate(std::size_t n) {
 
 // We do not deallocate in the EventBuffer, it is eventually garbage collected
 template <class T>
-void
-EventBufAllocator<T>::deallocate(T* p, std::size_t n) noexcept {}
+void EventBufAllocator<T>::deallocate(T* /*p*/, std::size_t /*n*/) noexcept
+{
+}
 
 //////////////////
 
@@ -4714,7 +4695,7 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
   Uint32 nkey = tab->m_noOfKeys;
   assert(nkey != 0 && nkey <= ptr[0].sz);
   const Uint32* hptr = ptr[0].p;
-  const uchar* dptr = (uchar*)ptr[1].p;
+  const uchar* dptr = (const uchar*)ptr[1].p;
 
   // hash registers
   uint64 nr1 = 0;
@@ -4723,7 +4704,7 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
   {
     AttributeHeader ah(*hptr++);
     Uint32 bytesize = ah.getByteSize();
-    assert(dptr + bytesize <= (uchar*)(ptr[1].p + ptr[1].sz));
+    assert(dptr + bytesize <= (const uchar*)(ptr[1].p + ptr[1].sz));
 
     Uint32 i = ah.getAttributeId();
     const NdbColumnImpl* col = tab->getColumn(i);
@@ -4754,10 +4735,10 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
                               const LinearSectionPtr ptr2[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::getpkequal");
-  DBUG_DUMP_EVENT("ah1", (char*)ptr1[0].p, ptr1[0].sz << 2);
-  DBUG_DUMP_EVENT("pk1", (char*)ptr1[1].p, ptr1[1].sz << 2);
-  DBUG_DUMP_EVENT("ah2", (char*)ptr2[0].p, ptr2[0].sz << 2);
-  DBUG_DUMP_EVENT("pk2", (char*)ptr2[1].p, ptr2[1].sz << 2);
+  DBUG_DUMP_EVENT("ah1", (const char*)ptr1[0].p, ptr1[0].sz << 2);
+  DBUG_DUMP_EVENT("pk1", (const char*)ptr1[1].p, ptr1[1].sz << 2);
+  DBUG_DUMP_EVENT("ah2", (const char*)ptr2[0].p, ptr2[0].sz << 2);
+  DBUG_DUMP_EVENT("pk2", (const char*)ptr2[1].p, ptr2[1].sz << 2);
 
   const NdbTableImpl* tab = op->m_eventImpl->m_tableImpl;
 
@@ -4765,8 +4746,8 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
   assert(nkey != 0 && nkey <= ptr1[0].sz && nkey <= ptr2[0].sz);
   const Uint32* hptr1 = ptr1[0].p;
   const Uint32* hptr2 = ptr2[0].p;
-  const uchar* dptr1 = (uchar*)ptr1[1].p;
-  const uchar* dptr2 = (uchar*)ptr2[1].p;
+  const uchar* dptr1 = (const uchar*)ptr1[1].p;
+  const uchar* dptr2 = (const uchar*)ptr2[1].p;
 
   bool equal = true;
 
@@ -4777,8 +4758,8 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
     // sizes can differ on update of varchar endspace
     Uint32 bytesize1 = ah1.getByteSize();
     Uint32 bytesize2 = ah2.getByteSize();
-    assert(dptr1 + bytesize1 <= (uchar*)(ptr1[1].p + ptr1[1].sz));
-    assert(dptr2 + bytesize2 <= (uchar*)(ptr2[1].p + ptr2[1].sz));
+    assert(dptr1 + bytesize1 <= (const uchar*)(ptr1[1].p + ptr1[1].sz));
+    assert(dptr2 + bytesize2 <= (const uchar*)(ptr2[1].p + ptr2[1].sz));
 
     assert(ah1.getAttributeId() == ah2.getAttributeId());
     Uint32 i = ah1.getAttributeId();
@@ -4836,5 +4817,4 @@ EventBufData_hash::search(Pos& hpos,
   DBUG_RETURN_EVENT(nullptr);
 }
 
-
-template class Vector<Gci_container_pod>;
+template class Vector<Gci_container>;

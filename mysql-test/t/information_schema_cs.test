@@ -89,7 +89,7 @@ analyze table t2, t3, t5;
 show table status;
 show full columns from t3 like "a%";
 show full columns from mysql.db like "Insert%";
---replace_result utf8_tolower_ci utf8_bin
+--replace_result utf8mb3_tolower_ci utf8_bin
 show full columns from v1;
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a" order by table_name;
@@ -2641,3 +2641,18 @@ WHERE CHARACTER_SET_NAME LIKE 'utf8%'
 ORDER BY character_set_name;
 
 SHOW CHARACTER SET LIKE 'utf8%';
+
+--echo
+--echo Bug #33787300 Rename utf8_xxx collations to utf8mb3_xxx
+--echo
+
+SELECT * FROM information_schema.COLLATIONS
+WHERE COLLATION_NAME LIKE "utf8\_%"
+ORDER BY collation_name;
+
+SELECT * FROM information_schema.COLLATIONS
+WHERE COLLATION_NAME LIKE "utf8mb3\_%"
+ORDER BY collation_name;
+
+SHOW COLLATION LIKE 'utf8\_%';
+SHOW COLLATION LIKE 'utf8mb3\_%';

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "dbPopulate.h"
 #include <NdbOut.hpp>
 #include <random.h>
+#include "util/require.h"
 
 /***************************************************************
 * L O C A L   C O N S T A N T S                                *
@@ -102,41 +103,54 @@ static void populate(const char *title,
    ndbout_c("done");
 }
 
+/*
+ * nextDecimal takes a number as a string of decimal digits and increment the
+ * number with one. All 9's will become all 0's and returning true to indicate
+ * that number wrapped to zero, else false is returned.
+ */
+static bool nextDecimal(char decimal[], size_t len)
+{
+  if (len == 0) return true;
+  require(len <= INT_MAX);
+  for (int i = len - 1; i >= 0; i--)
+  {
+    require('0' <= decimal[i] && decimal[i] <= '9');
+    if (decimal[i] < '9') { decimal[i]++; return false; }
+    decimal[i] = '0';
+  }
+  return true;
+}
+
 static void populateServers(UserHandle *uh, int count)
 {
-   int  i, j;
-   int len;
-   char tmp[80];
-   int suffix_length = 1;
-   ServerName serverName;
-   SubscriberSuffix suffix;
+  int commitCount = 0;
 
-   int commitCount = 0;
+  for (int i = 0; i < count; i++)
+  {
+    ServerName serverName;
+    char tmp[80];
+    int len = sprintf(tmp, "-Server %d-", i);
+    require(len >= 0);
+    for (int j = 0; j < SERVER_NAME_LENGTH; j++)
+    {
+      serverName[j] = tmp[j % len];
+    }
 
-   for(i = 0; i < SUBSCRIBER_NUMBER_SUFFIX_LENGTH; i++)
-     suffix_length *= 10;
+    SubscriberSuffix suffix;
+    memset(suffix, '0', SUBSCRIBER_NUMBER_SUFFIX_LENGTH);
+    for (;;)
+    {
+      userDbInsertServer(uh, i, suffix, serverName);
+      commitCount ++;
+      if ((commitCount % OP_PER_TRANS) == 0)
+        userDbCommit(uh);
 
-   for(i = 0; i < count; i++) {
-      sprintf(tmp, "-Server %d-", i);
-
-      len = (int)strlen(tmp);
-      for(j = 0; j < SERVER_NAME_LENGTH; j++){
-         serverName[j] = tmp[j % len];
-      }
-      /* serverName[j] = 0;	not null-terminated */
-
-      for(j = 0; j < suffix_length; j++){
-	 char sbuf[SUBSCRIBER_NUMBER_SUFFIX_LENGTH + 2];
-         sprintf(sbuf, "%.*d", SUBSCRIBER_NUMBER_SUFFIX_LENGTH, j);
-	 memcpy(suffix, sbuf, SUBSCRIBER_NUMBER_SUFFIX_LENGTH);
-         userDbInsertServer(uh, i, suffix, serverName);
-	 commitCount ++;
-	 if((commitCount % OP_PER_TRANS) == 0)
-	   userDbCommit(uh);
-      }
-   }
-   if((commitCount % OP_PER_TRANS) != 0)
-     userDbCommit(uh);
+      bool wrapped = nextDecimal(suffix, SUBSCRIBER_NUMBER_SUFFIX_LENGTH);
+      if (wrapped) break;
+    }
+  }
+  if ((commitCount % OP_PER_TRANS) != 0)
+    userDbCommit(uh);
 }
 
 static void populateSubscribers(UserHandle *uh, int count)

@@ -921,10 +921,9 @@ DeleteRowsIterator::DeleteRowsIterator(
       m_tables_to_delete_from(tables_to_delete_from),
       m_immediate_tables(immediate_tables),
       // The old optimizer does not use hash join in DELETE statements.
-      m_tables_with_rowid_in_hash_join_buffer(
-          thd->lex->using_hypergraph_optimizer
-              ? GetTablesWithRowIDsInHashJoin(join->root_access_path())
-              : 0),
+      m_hash_join_tables(thd->lex->using_hypergraph_optimizer
+                             ? GetHashJoinTables(join->root_access_path())
+                             : 0),
       m_tempfiles(thd->mem_root),
       m_delayed_tables(thd->mem_root) {
   for (const TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
@@ -963,12 +962,7 @@ void SetUpTablesForDelete(THD *thd, JOIN *join) {
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
 }
 
-/// Performs some extra checks if the sql_safe_updates option is enabled, and
-/// raises an error (and returns true) if the statement is likely to delete a
-/// large number of rows. Specifically, it raises an error if there is a full
-/// table scan or full index scan of one of the tables deleted from, and there
-/// is no LIMIT clause.
-static bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
+bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
   if (!Overlaps(thd->variables.option_bits, OPTION_SAFE_UPDATES)) {
     return false;
   }
@@ -1049,9 +1043,9 @@ bool DeleteRowsIterator::Init() {
 bool DeleteRowsIterator::DoImmediateDeletesAndBufferRowIds() {
   DBUG_TRACE;
 
-  // For now, don't actually delete anything in EXPLAIN ANALYZE. (Maybe we
-  // should have done the deletions. If so, INSERT and UPDATE should also be
-  // changed to have side effects when running under EXPLAIN ANALYZE.)
+  // For now, don't actually delete anything in EXPLAIN ANALYZE. (If we enable
+  // it, INSERT and UPDATE should also be changed to have side effects when
+  // running under EXPLAIN ANALYZE.)
   if (thd()->lex->is_explain_analyze) {
     return false;
   }
@@ -1081,7 +1075,10 @@ bool DeleteRowsIterator::DoImmediateDeletesAndBufferRowIds() {
     // Check if using outer join and no row found, or row is already deleted
     if (table->has_null_row() || table->has_deleted_row()) continue;
 
-    if (!Overlaps(map, m_tables_with_rowid_in_hash_join_buffer)) {
+    // Hash joins have already copied the row ID from the join buffer into
+    // table->file->ref. Nested loop joins have not, so we call position() to
+    // get the row ID from the handler.
+    if (!Overlaps(map, m_hash_join_tables)) {
       table->file->position(table->record[0]);
     }
 

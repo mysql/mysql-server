@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
    Use is subject to license terms
 
    This program is free software; you can redistribute it and/or modify
@@ -24,9 +24,17 @@
 #include <signaldata/DropTable.hpp>
 #include <SignalLoggerManager.hpp>
 
-bool
-printDROP_TABLE_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printDROP_TABLE_REQ(FILE* output,
+                         const Uint32* theData,
+                         Uint32 len,
+                         Uint16 /*rbn*/)
 {
+  if (len < DropTableReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropTableReq* sig = (const DropTableReq*)theData;
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " clientData: %u", sig->clientData);
@@ -39,9 +47,17 @@ printDROP_TABLE_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
   return true;
 }
 
-bool
-printDROP_TABLE_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printDROP_TABLE_CONF(FILE* output,
+                          const Uint32* theData,
+                          Uint32 len,
+                          Uint16 /*rbn*/)
 {
+  if (len < DropTableConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropTableConf* sig = (const DropTableConf*)theData;
   fprintf(output, " senderRef: 0%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
@@ -53,9 +69,17 @@ printDROP_TABLE_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn
   return true;
 }
 
-bool
-printDROP_TABLE_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printDROP_TABLE_REF(FILE* output,
+                         const Uint32* theData,
+                         Uint32 len,
+                         Uint16 /*rbn*/)
 {
+  if (len < DropTableRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropTableRef* sig = (const DropTableRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);

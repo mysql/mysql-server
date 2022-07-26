@@ -1,0 +1,307 @@
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart
+SHOW VARIABLES LIKE 'innodb_doublewrite';
+Variable_name	Value
+innodb_doublewrite	ON
+SHOW VARIABLES LIKE 'innodb_fil_make_page_dirty_debug';
+Variable_name	Value
+innodb_fil_make_page_dirty_debug	4294967295
+SHOW VARIABLES LIKE 'innodb_saved_page_number_debug';
+Variable_name	Value
+innodb_saved_page_number_debug	0
+create table t1 (f1 int primary key, f2 blob) engine=innodb;
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if first page of user
+# tablespace is full of zeroes.
+# Wait for purge to complete
+# Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACEs
+WHERE name = 'test/t1' INTO @space_id;
+SET GLOBAL innodb_checkpoint_disabled=1;
+SET GLOBAL innodb_doublewrite=DETECT_ONLY;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+DETECT_ONLY
+INSERT INTO t1 VALUES(7, repeat('.',12));
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+DETECT_ONLY
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+ON
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 12));
+SET GLOBAL innodb_checkpoint_disabled = 1;
+# Make the first page dirty for table t1
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+ERROR HY000: Lost connection to MySQL server during query
+# Make the first page (page_no=0) of the user tablespace
+# full of zeroes.
+# restart: --innodb_doublewrite=detect_only
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+7	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if first page of user
+# tablespace is corrupted.
+SELECT space from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' INTO @space_id;
+# Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+SET GLOBAL innodb_checkpoint_disabled=1;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+DETECT_ONLY
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+ON
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 12));
+SET GLOBAL innodb_checkpoint_disabled = 1;
+# Make the first page dirty for table t1
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+ERROR HY000: Lost connection to MySQL server during query
+# Corrupt the first page (page_no=0) of the user tablespace.
+# restart: --innodb_doublewrite=detect_only
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+7	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if 2nd page of user
+# tablespace is full of zeroes.
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' INTO @space_id;
+# Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+SET GLOBAL innodb_checkpoint_disabled=1;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+DETECT_ONLY
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+ON
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
+# Make the 2nd page dirty for table t1
+SET GLOBAL innodb_saved_page_number_debug = 1;
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+ERROR HY000: Lost connection to MySQL server during query
+# Make the 2nd page (page_no=1) of the tablespace all zeroes.
+# restart: --innodb_doublewrite=detect_only
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+7	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if 2nd page of user
+# tablespace is corrupted.
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' into @space_id;
+# Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+SET GLOBAL innodb_checkpoint_disabled=1;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+DETECT_ONLY
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+ON
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
+# Make the 2nd page dirty for table t1
+SET GLOBAL innodb_saved_page_number_debug = 1;
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+ERROR HY000: Lost connection to MySQL server during query
+# Corrupt the 2nd page (page_no=1) of the user tablespace.
+# restart: --innodb_doublewrite=detect_only
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+7	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if first page of
+# system tablespace is full of zeroes.
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+DETECT_ONLY
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+ON
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
+# Make the first page dirty for system tablespace
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+ERROR HY000: Lost connection to MySQL server during query
+# Make the first page (page_no=0) of the system tablespace
+# all zeroes.
+# restart: --innodb_doublewrite=detect_only
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+7	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if first page of
+# system tablespace is corrupted.
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+DETECT_ONLY
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+ON
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
+# Make the first page dirty for system tablespace
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+ERROR HY000: Lost connection to MySQL server during query
+# Corrupt the first page (page_no=0) of the system tablespace.
+# restart: --innodb_doublewrite=detect_only
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+7	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if 2nd page of
+# system tablespace is full of zeroes.
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+DETECT_ONLY
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+ON
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
+# Make the second page dirty for system tablespace
+SET GLOBAL innodb_saved_page_number_debug = 1;
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+ERROR HY000: Lost connection to MySQL server during query
+# Make the 2nd page (page_no=1) of the system tablespace
+# all zeroes.
+# restart: --innodb_doublewrite=detect_only
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+7	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if 2nd page of
+# system tablespace is corrupted.
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+DETECT_ONLY
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+@@innodb_doublewrite
+ON
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
+# Make the second page dirty for system tablespace
+SET GLOBAL innodb_saved_page_number_debug = 1;
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+ERROR HY000: Lost connection to MySQL server during query
+# Make the 2nd page (page_no=1) of the system tablespace
+# all zeroes.
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+7	............
+# Test End
+# ---------------------------------------------------------------
+DROP TABLE t1;

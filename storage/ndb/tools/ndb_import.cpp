@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -319,6 +319,10 @@ my_long_options[] =
     "Error insert delay in milliseconds (random variation added)",
     &g_opt.m_errins_delay, &g_opt.m_errins_delay, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_errins_delay, 0, 0, 0, 0, 0 },
+  { "missing-ai-column", 'm',
+    "Missing auto-increment column",
+    &g_opt.m_missing_ai_col, &g_opt.m_missing_ai_col, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0,
     0,
     0, 0, 0,

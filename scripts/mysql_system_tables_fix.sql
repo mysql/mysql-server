@@ -1467,7 +1467,6 @@ INSERT INTO global_grants SELECT user, host, 'FLUSH_TABLES', IF(grant_priv = 'Y'
 FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushTablesPriv = 0;
 COMMIT;
 
-SET @@session.sql_mode = @old_sql_mode;
 
 -- Fixes to inconsistent system table upgrades.
 ALTER TABLE func
@@ -1530,6 +1529,19 @@ INSERT INTO mysql.global_grants
   SELECT user, host, 'AUDIT_ABORT_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
    FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadAuditAbortExempt = 0;
 
+-- grant FIREWALL_EXEMPT to all current holders of SYSTEM_USER
+SET @hadFirewallExempt = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FIREWALL_EXEMPT');
+INSERT INTO mysql.global_grants
+  SELECT user, host, 'FIREWALL_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
+   FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadFirewallExempt = 0;
+
+-- Add the privilege SENSITIVE_VARIABLES_OBSERVER for every user who has the SYSTEM_VARIABLES_ADMIN privilege
+-- provided that there isn't a user who already has the privilege SENSITIVE_VARIABLES_OBSERVER.
+SET @hadSensitiveVariablesAdmin = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SENSITIVE_VARIABLES_OBSERVER');
+INSERT INTO mysql.global_grants
+  SELECT user, host, 'SENSITIVE_VARIABLES_OBSERVER', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
+   FROM mysql.global_grants WHERE priv = 'SYSTEM_VARIABLES_ADMIN' AND @hadSensitiveVariablesAdmin = 0 AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');
+COMMIT;
 
 -- add the PK for mysql.firewall_membership, if missing and if the table is present
 SET @had_firewall_membership =
@@ -1547,3 +1559,17 @@ SET @str = IF(@had_firewall_membership_pk = 0 AND @had_firewall_membership,
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+ALTER TABLE mysql.db DROP PRIMARY KEY,
+                     ADD PRIMARY KEY (`Host`,`User`,`Db`);
+
+ALTER TABLE mysql.tables_priv DROP PRIMARY KEY,
+                              ADD PRIMARY KEY (`Host`,`User`,`Db`,`Table_name`);
+
+ALTER TABLE mysql.columns_priv DROP PRIMARY KEY,
+                               ADD PRIMARY KEY (`Host`,`User`,`Db`,`Table_name`,`Column_name`);
+
+ALTER TABLE mysql.procs_priv DROP PRIMARY KEY,
+                             ADD PRIMARY KEY (`Host`,`User`,`Db`,`Routine_name`,`Routine_type`);
+
+SET @@session.sql_mode = @old_sql_mode;

@@ -297,7 +297,7 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
   LEX_USER user_info;
   bool dummy_is_sp_created = false;
 
-  // Fetch SP/SF name, datbase name, definer and type.
+  // Fetch SP/SF name, database name, definer and type.
   if ((sp_db = get_field(thd->mem_root,
                          proc_table->field[MYSQL_PROC_FIELD_DB])) == nullptr)
     return true;

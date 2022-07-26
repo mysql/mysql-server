@@ -9,12 +9,16 @@ include/sync_slave_sql_with_master.inc
 SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 include/stop_slave.inc
 SET @@GLOBAL.replica_parallel_workers = 0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 include/start_slave.inc
 [connection master]
 INSERT INTO t1 VALUES (1);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET @@GLOBAL.replica_parallel_workers = 0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 include/start_slave.inc
 include/assert.inc [The GTID information about the last applied transaction was preserved after the slave was stopped]
 include/assert.inc [The OCT information about the last applied transaction was preserved after the slave was stopped]
@@ -63,6 +67,8 @@ INSERT INTO t1 VALUES (4);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET @@GLOBAL.replica_parallel_workers = 0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 include/start_slave.inc
 include/assert.inc [The GTID information about the last applied transaction was preserved after the slave was stopped]
 include/assert.inc [The OCT information about the last applied transaction was preserved after the slave was stopped]

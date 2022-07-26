@@ -325,7 +325,7 @@ let $MYSQLD_LOG = $MYSQLTEST_VARDIR/log/innodb_read_only_$VERSION.log;
 exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb-read-only=1 --log-error=$MYSQLD_LOG --secure-file-priv="";
 
 let SEARCH_FILE = $MYSQLD_LOG;
-let SEARCH_PATTERN = Cannot resize log files in read-only mode;
+let SEARCH_PATTERN = Cannot upgrade format \(v3\) of redo log files in read-only mode;
 source include/search_pattern.inc;
 
 force-rmdir $MYSQL_TMP_DIR/data_$VERSION;

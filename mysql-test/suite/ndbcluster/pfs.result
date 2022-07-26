@@ -54,3 +54,10 @@ ON PFS_MEM.THREAD_ID = PFS_THR.THREAD_ID
 WHERE PFS_THR.name LIKE '%ndb_binlog%' AND EVENT_NAME LIKE '%THD::main_mem_root%';
 has_alloc_mem
 true
+# The instrumented memory roots can be queried
+SELECT EVENT_NAME
+FROM performance_schema.memory_summary_by_thread_by_event_name
+WHERE THREAD_ID = PS_CURRENT_THREAD_ID() AND
+EVENT_NAME LIKE 'memory/ndbcluster/%';
+EVENT_NAME
+memory/ndbcluster/Thd_ndb::batch_mem_root

@@ -1,7 +1,7 @@
 #ifndef SQL_ITERATORS_WINDOW_ITERATORS_H_
 #define SQL_ITERATORS_WINDOW_ITERATORS_H_
 
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ class Window;
   we must materialize/evaluate exactly the aggregates that belong to that
   window, and no others (earlier ones are just copied from the temporary table
   fields, later ones are ignored). Thus, create_tmp_table() has special logic
-  when materializing a temporary table for a window functon; if the
+  when materializing a temporary table for a window function; if the
   Temp_table_param has m_window set (non-nullptr), we ignore all aggregates that
   don't belong to that window. E.g., assume we have foo() OVER w1, bar() OVER
   w2, baz() OVER w2, quux() OVER w3, the temporary tables and field lists will

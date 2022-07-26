@@ -138,22 +138,24 @@ UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
 SET @@session.max_error_count = DEFAULT;
 SELECT COUNT(*) FROM t1 WHERE a<>'';
 #
-# Display all characters that have upper or lower case mapping.
+# Display hex value of all characters that have upper or lower case mapping.
 #
-SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a) FROM t1 WHERE hex(a)<>hex(upper(a)) OR hex(a)<>hex(lower(a));
+SELECT code, hex(a), hex(upper(a)), hex(lower(a))
+FROM t1
+WHERE hex(a)<>hex(upper(a)) OR hex(a)<>hex(lower(a));
 #
 # Make sure all possible conversion happened
 #
 # Expect U+2160 to U+2169 ROMAN NUMERAL ONE to ROMAN NUMERAL TEN
 #
-SELECT * FROM t1
+SELECT code, HEX(a) FROM t1
 WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
       HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
 #
 # Expect U+0430 to U+0433 CYRILLIC SMALL LETTER A, BE, VE, GHE
 # Expect U+043D to U+0442 CYRILLIC SMALL LETTER EN, O, PE, ER, ES, TE
 #
-SELECT * FROM t1
+SELECT code, HEX(a) FROM t1
 WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
       HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
 DROP TABLE t1;

@@ -87,8 +87,9 @@ Indexes::Indexes() {
                          "se_private_data MEDIUMTEXT");
   m_target_def.add_field(FIELD_TABLESPACE_ID, "FIELD_TABLESPACE_ID",
                          "tablespace_id BIGINT UNSIGNED");
-  m_target_def.add_field(FIELD_ENGINE, "FIELD_ENGINE",
-                         "engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+  m_target_def.add_field(
+      FIELD_ENGINE, "FIELD_ENGINE",
+      "engine VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci");
   m_target_def.add_field(FIELD_ENGINE_ATTRIBUTE, "FIELD_ENGINE_ATTRIBUTE",
                          "engine_attribute JSON");
   m_target_def.add_field(FIELD_SECONDARY_ENGINE_ATTRIBUTE,

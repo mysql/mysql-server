@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -813,7 +813,7 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
   assert(spname);
 
   /*
-    Updates to view metatdata for DDL on stored routines does not include
+    Updates to view metadata for DDL on stored routines does not include
     any changes to non-atomic SE. Hence transaction is not committed in
     the update_view_metadata().
   */

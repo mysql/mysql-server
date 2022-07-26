@@ -196,7 +196,7 @@ const char *info_slave_worker_fields[] = {
 
     /*
       These positions identify what a worker knew about the coordinator at
-      the time a job was assigned. Notice that they are redudant and are
+      the time a job was assigned. Notice that they are redundant and are
       kept to ease debugging.
     */
     "checkpoint_relay_log_name", "checkpoint_relay_log_pos",
@@ -399,7 +399,7 @@ int Slave_worker::init_worker(Relay_log_info *rli, ulong i) {
           to collect gaps that is not executed transactions (groups).
           Such recovery Slave_worker instance is destroyed at the end of
           @c mts_recovery_groups().
-          Whet it's @c false Slave_worker is initialized for the run time
+          When it's @c false Slave_worker is initialized for the run time
           and should not read the last session time stale info.
           Its info will be ultimately reset once all gaps are executed
           to finish off recovery.
@@ -547,7 +547,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
 /*
   This function is used to make a copy of the worker object before we
   destroy it while STOP SLAVE. This new object is then used to report the
-  worker status until next START SLAVE following which the new worker objetcs
+  worker status until next START SLAVE following which the new worker objects
   will be used.
 */
 void Slave_worker::copy_values_for_PFS(ulong worker_id,
@@ -638,7 +638,7 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
     group_master_log_name. The latter can be passed to Worker
     at rare event of master binlog rotation.
     This initialization is needed to provide to Worker info
-    on physical coordiates during execution of the very first group
+    on physical coordinates during execution of the very first group
     after a rotation.
   */
   if (ptr_g->group_master_log_name != nullptr) {
@@ -883,10 +883,10 @@ static void move_temp_tables_to_entry(THD *thd, db_worker_hash_entry *entry) {
 
    @param  dbname      pointer to c-string containing database name
                        It can be empty string to indicate specific locking
-                       to faciliate sequential applying.
+                       to facilitate sequential applying.
    @param  rli         pointer to Coordinators relay-log-info instance
    @param  ptr_entry   reference to a pointer to the resulted entry in
-                       the Assigne Partition Hash where
+                       the Assigned Partition Hash where
                        the entry's pointer is stored at return.
    @param  need_temp_tables
                        if false migration of temporary tables not needed

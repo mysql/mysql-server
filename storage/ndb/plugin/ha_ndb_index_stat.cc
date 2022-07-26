@@ -144,13 +144,13 @@ struct Ndb_index_stat {
 };
 
 struct Ndb_index_stat_list {
-  const char *const name;                    /* name of list */
-  const Ndb_index_stat::List_type list_type; /* type of list */
+  const char *const name; /* name of list */
   struct Ndb_index_stat *head{nullptr};
   struct Ndb_index_stat *tail{nullptr};
+  const Ndb_index_stat::List_type list_type; /* type of list */
   uint count{0}; /* number of entries in list, i.e between "head" and "tail" */
-  Ndb_index_stat_list(Ndb_index_stat::List_type the_list_type,
-                      const char *the_name);
+  Ndb_index_stat_list(Ndb_index_stat::List_type _list_type, const char *_name)
+      : name(_name), list_type(_list_type) {}
 };
 
 extern Ndb_index_stat_list ndb_index_stat_list[];
@@ -745,10 +745,6 @@ static void ndb_index_stat_clear_error(Ndb_index_stat *st) {
 }
 
 /* Lists across shares */
-
-Ndb_index_stat_list::Ndb_index_stat_list(
-    Ndb_index_stat::List_type the_list_type, const char *the_name)
-    : name(the_name), list_type(the_list_type) {}
 
 Ndb_index_stat_list ndb_index_stat_list[Ndb_index_stat::LT_Count] = {
     Ndb_index_stat_list(Ndb_index_stat::LT_Undef, nullptr),

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ int my_delete(const char *name, myf MyFlags) {
 
   The function deletes the file with its preliminary renaming. This is
   because when not-closed share-delete file is deleted it still lives on
-  a disk until it will not be closed everwhere. This may conflict with an
+  a disk until it will not be closed everywhere. This may conflict with an
   attempt to create a new file with the same name. The deleted file is
   renamed to <name>.<num>.deleted where <name> - the initial name of the
   file, <num> - a hexadecimal number chosen to make the temporal name to

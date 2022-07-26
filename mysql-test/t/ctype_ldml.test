@@ -175,7 +175,6 @@ show collation like '%test%';
 # Test that two-byte collation ID is correctly transfered to the client side.
 show collation like 'ucs2_vn_ci';
 create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
-insert into t1 values (0x0061);
 --enable_metadata
 set @@character_set_results=NULL;
 select * from t1;

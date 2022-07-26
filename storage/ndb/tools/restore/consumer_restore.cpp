@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1445,14 +1445,34 @@ BackupRestore::object(Uint32 type, const void * ptr)
       NdbDictionary::LogfileGroup * lg = m_logfilegroups[old.getDefaultLogfileGroupId()];
       old.setDefaultLogfileGroup(* lg);
       restoreLogger.log_info("Creating tablespace: %s...", old.getName());
-      int ret = dict->createTablespace(old);
-      if (ret)
-      {
-	NdbError errobj= dict->getNdbError();
-	restoreLogger.log_info("FAILED");
-        restoreLogger.log_error("Create tablespace failed: %s: %u: %s",
-            old.getName(), errobj.code, errobj.message);
-	return false;
+
+      int retries;
+      for (retries = 0; retries < MAX_RETRIES; retries++) {
+        if (dict->createTablespace(old) != 0) {
+          const NdbError &error = dict->getNdbError();
+          if (error.status != NdbError::TemporaryError) {
+            restoreLogger.log_error("Create tablespace failed: %s: %u: %s",
+                                    old.getName(), error.code, error.message);
+            return false;
+          }
+          restoreLogger.log_error(
+              "Temporary: Failed to create tablespace %s: %u: %s",
+              old.getName(), error.code, error.message);
+          int delay = 100 + retries * 300;
+          restoreLogger.log_info("Sleeping %u ms", delay);
+          NdbSleep_MilliSleep(delay);
+          continue;
+        }
+        restoreLogger.log_info("Successfully created tablespace %s",
+                               old.getName());
+        break;
+      }
+      if (retries == MAX_RETRIES) {
+        restoreLogger.log_error(
+            "Create tablespace %s failed "
+            ": too many temporary errors: %u",
+            old.getName(), MAX_RETRIES);
+        return false;
       }
       restoreLogger.log_info("done");
     }
@@ -1486,14 +1506,33 @@ BackupRestore::object(Uint32 type, const void * ptr)
     if (!m_no_restore_disk)
     {
       restoreLogger.log_info("Creating logfile group: %s...", old.getName());
-      int ret = dict->createLogfileGroup(old);
-      if (ret)
-      {
-	NdbError errobj= dict->getNdbError();
-	restoreLogger.log_info("FAILED");
-        restoreLogger.log_error("Create logfile group failed: %s: %u: %s",
-            old.getName(), errobj.code, errobj.message);
-	return false;
+      int retries;
+      for (retries = 0; retries < MAX_RETRIES; retries++) {
+        if (dict->createLogfileGroup(old) != 0) {
+          const NdbError &error = dict->getNdbError();
+          if (error.status != NdbError::TemporaryError) {
+            restoreLogger.log_error("Create logfile group failed: %s: %u: %s",
+                                    old.getName(), error.code, error.message);
+            return false;
+          }
+          restoreLogger.log_error(
+              "Temporary: Failed to create logfile group %s: %u: %s",
+              old.getName(), error.code, error.message);
+          int delay = 100 + retries * 300;
+          restoreLogger.log_info("Sleeping %u ms", delay);
+          NdbSleep_MilliSleep(delay);
+          continue;
+        }
+        restoreLogger.log_info("Successfully created logfile group %s",
+                               old.getName());
+        break;
+      }
+      if (retries == MAX_RETRIES) {
+        restoreLogger.log_error(
+            "Create logfile group %s failed "
+            ": too many temporary errors: %u",
+            old.getName(), MAX_RETRIES);
+        return false;
       }
       restoreLogger.log_info("done");
     }
@@ -1533,14 +1572,36 @@ BackupRestore::object(Uint32 type, const void * ptr)
                               ts->getObjectId());
       old.setTablespace(* ts);
       restoreLogger.log_info("Creating datafile \"%s\"...", old.getPath());
-      if (dict->createDatafile(old))
-      {
-	NdbError errobj= dict->getNdbError();
-	restoreLogger.log_info("FAILED");
-        restoreLogger.log_error("Create datafile failed: %s: %u: %s",
-            old.getPath(), errobj.code, errobj.message);
-	return false;
+
+      int retries;
+      for (retries = 0; retries < MAX_RETRIES; retries++) {
+        if (dict->createDatafile(old) != 0) {
+          const NdbError &error = dict->getNdbError();
+          if (error.status != NdbError::TemporaryError) {
+            restoreLogger.log_error("Create datafile failed: %s: %u: %s",
+                                    old.getPath(), error.code, error.message);
+            return false;
+          }
+          restoreLogger.log_error(
+              "Temporary: Failed to create datafile %s: %u: %s", old.getPath(),
+              error.code, error.message);
+          int delay = 100 + retries * 300;
+          restoreLogger.log_info("Sleeping %u ms", delay);
+          NdbSleep_MilliSleep(delay);
+          continue;
+        }
+        restoreLogger.log_info("Successfully created datafile %s",
+                               old.getPath());
+        break;
       }
+      if (retries == MAX_RETRIES) {
+        restoreLogger.log_error(
+            "Create datafile %s failed "
+            ": too many temporary errors: %u",
+            old.getPath(), MAX_RETRIES);
+        return false;
+      }
+
       restoreLogger.log_info("done");
       m_n_datafile++;
     }
@@ -1560,14 +1621,36 @@ BackupRestore::object(Uint32 type, const void * ptr)
           lg->getObjectId(), (void*)lg);
       old.setLogfileGroup(* lg);
       restoreLogger.log_info("Creating undofile \"%s\"...", old.getPath());
-      if (dict->createUndofile(old))
-      {
-	NdbError errobj= dict->getNdbError();
-	restoreLogger.log_info("FAILED");
-        restoreLogger.log_error("Create undofile failed: %s: %u: %s",
-            old.getPath(), errobj.code, errobj.message);
-	return false;
+
+      int retries;
+      for (retries = 0; retries < MAX_RETRIES; retries++) {
+        if (dict->createUndofile(old) != 0) {
+          const NdbError &error = dict->getNdbError();
+          if (error.status != NdbError::TemporaryError) {
+            restoreLogger.log_error("Create tablespace failed: %s: %u: %s",
+                                    old.getPath(), error.code, error.message);
+            return false;
+          }
+          restoreLogger.log_error(
+              "Temporary: Failed to create tablespace %s: %u: %s",
+              old.getPath(), error.code, error.message);
+          int delay = 100 + retries * 300;
+          restoreLogger.log_info("Sleeping %u ms", delay);
+          NdbSleep_MilliSleep(delay);
+          continue;
+        }
+        restoreLogger.log_info("Successfully created tablespace %s",
+                               old.getPath());
+        break;
       }
+      if (retries == MAX_RETRIES) {
+        restoreLogger.log_error(
+            "Create tablespace %s failed "
+            ": too many temporary errors: %u",
+            old.getPath(), MAX_RETRIES);
+        return false;
+      }
+
       restoreLogger.log_info("done");
       m_n_undofile++;
     }
@@ -1582,21 +1665,36 @@ BackupRestore::object(Uint32 type, const void * ptr)
 
     if (m_restore_meta)
     {
-      int ret = dict->createHashMap(old);
-      if (ret == 0)
-      {
-        restoreLogger.log_info("Created hashmap: %s", old.getName());
-      }
-      else
-      {
-        NdbError errobj = dict->getNdbError();
-        // We ignore schema already exists, this is fine
-        if (errobj.code != 721)
-        {
-          restoreLogger.log_error("Could not create hashmap \"%s\": %u: %s",
-              old.getName(), errobj.code, errobj.message);
-          return false;
+      int retries;
+      for (retries = 0; retries < MAX_RETRIES; retries++) {
+        if (dict->createHashMap(old) != 0) {
+          const NdbError &error = dict->getNdbError();
+
+          if (error.code == 721) break;  // Ignore schema already exists.
+
+          if (error.status != NdbError::TemporaryError) {
+            restoreLogger.log_error("Create hashmap failed: %s: %u: %s",
+                                    old.getName(), error.code, error.message);
+            return false;
+          }
+          restoreLogger.log_error(
+              "Temporary: Failed to create hashmap %s: %u: %s", old.getName(),
+              error.code, error.message);
+          int delay = 100 + retries * 300;
+          restoreLogger.log_info("Sleeping %u ms", delay);
+          NdbSleep_MilliSleep(delay);
+          continue;
         }
+        restoreLogger.log_info("Successfully created hashmap %s",
+                               old.getName());
+        break;
+      }
+      if (retries == MAX_RETRIES) {
+        restoreLogger.log_error(
+            "Create hashmap %s failed "
+            ": too many temporary errors: %u",
+            old.getName(), MAX_RETRIES);
+        return false;
       }
     }
 
@@ -3104,20 +3202,43 @@ BackupRestore::table(const TableS & table){
       }
     }
 
-    if (dict->createTable(copy) == -1) 
-    {
-      restoreLogger.log_error("Create table `%s` failed: %u: %s",
-          table.getTableName(), dict->getNdbError().code, dict->getNdbError().message);
-      if (dict->getNdbError().code == 771)
-      {
-        /*
-          The user on the cluster where the backup was created had specified
-          specific node groups for partitions. Some of these node groups
-          didn't exist on this cluster.
-        */
-        restoreLogger.log_error("The node groups defined in the table didn't exist in this"
-            " cluster.");
+    int retries;
+    for (retries = 0; retries < MAX_RETRIES; retries++) {
+      if (dict->createTable(copy) == -1) {
+        const NdbError &error = dict->getNdbError();
+        if (error.status != NdbError::TemporaryError) {
+          restoreLogger.log_error("Create table `%s` failed: %u: %s",
+                                  table.getTableName(), error.code,
+                                  error.message);
+          if (dict->getNdbError().code == 771) {
+            /*
+              The user on the cluster where the backup was created had specified
+              specific node groups for partitions. Some of these node groups
+              didn't exist on this cluster.
+            */
+            restoreLogger.log_error(
+                "The node groups defined in the table didn't exist in this"
+                " cluster.");
+          }
+          return false;
+        }
+        restoreLogger.log_error("Temporary: Failed to create table %s: %u: %s",
+                                table.getTableName(), error.code,
+                                error.message);
+        int delay = 100 + retries * 300;
+        restoreLogger.log_info("Sleeping %u ms", delay);
+        NdbSleep_MilliSleep(delay);
+        continue;
       }
+      restoreLogger.log_info("Successfully created table %s",
+                             table.getTableName());
+      break;
+    }
+    if (retries == MAX_RETRIES) {
+      restoreLogger.log_error(
+          "Create table %s failed "
+          ": too many temporary errors: %u",
+          table.getTableName(), MAX_RETRIES);
       return false;
     }
     info.setLevel(254);
@@ -3272,11 +3393,34 @@ BackupRestore::fk(Uint32 type, const void * ptr)
         if (dict->getForeignKey(fk, fullname) == 0)
         {
           restoreLogger.log_info("Dropping Foreign key %s", fkname);
-          if (dict->dropForeignKey(fk) != 0)
-          {
-            restoreLogger.log_error("Failed to drop fk '%s' : %u %s",
-                                    fk_ptr->getName(), dict->getNdbError().code,
-                                    dict->getNdbError().message);
+          int retries;
+          for (retries = 0; retries < MAX_RETRIES; retries++) {
+            if (dict->dropForeignKey(fk) != 0) {
+              const NdbError &error = dict->getNdbError();
+
+              if (error.status != NdbError::TemporaryError) {
+                restoreLogger.log_error(
+                    "Error: Failed to drop foreign key %s: %u: %s", fkname,
+                    error.code, error.message);
+                return false;
+              }
+              restoreLogger.log_error(
+                  "Temporary: Failed to drop foreign key %s: %u: %s", fkname,
+                  error.code, error.message);
+              int delay = 100 + retries * 300;
+              restoreLogger.log_info("Sleeping %u ms", delay);
+              NdbSleep_MilliSleep(delay);
+              continue;
+            }
+            restoreLogger.log_info("Successfully dropped foreign key %s",
+                                   fkname);
+            break;
+          }
+          if (retries == MAX_RETRIES) {
+            restoreLogger.log_error(
+                "Drop foreign key %s failed "
+                ": too many temporary errors: %u",
+                fkname, MAX_RETRIES);
             return false;
           }
         }
@@ -3379,17 +3523,37 @@ BackupRestore::endOfTables(){
       // Drop indexes if they exist
       if(dict->getIndex(idx->getName(), prim->getName()))
       {
-        if (dict->dropIndex(idx->getName(), prim->getName()) == 0)
-        {
+        restoreLogger.log_info("Dropping Index %s", split_idx[3].c_str());
+        int retries;
+        for (retries = 0; retries < MAX_RETRIES; retries++) {
+          if (dict-> dropIndex(idx->getName(), prim->getName())!= 0) {
+            const NdbError &error = dict->getNdbError();
+
+            if (error.status != NdbError::TemporaryError) {
+              restoreLogger.log_info("Failed to drop index `%s` on `%s`: %u %s",
+                                     split_idx[3].c_str(), table_name.c_str(),
+                                     dict->getNdbError().code,
+                                     dict->getNdbError().message);
+              return false;
+            }
+            restoreLogger.log_error(
+                "Temporary: Failed to drop index `%s` on `%s`: %u: %s",
+                split_idx[3].c_str(), table_name.c_str(), error.code,
+                error.message);
+            int delay = 100 + retries * 300;
+            restoreLogger.log_info("Sleeping %u ms", delay);
+            NdbSleep_MilliSleep(delay);
+            continue;
+          }
           restoreLogger.log_info("Dropped index `%s` on `%s`",
-            split_idx[3].c_str(), table_name.c_str());
+                                 split_idx[3].c_str(), table_name.c_str());
+          break;
         }
-        else
-        {
-          restoreLogger.log_info("Failed to drop index `%s` on `%s`: %u %s",
-                                 split_idx[3].c_str(), table_name.c_str(),
-                                 dict->getNdbError().code,
-                                 dict->getNdbError().message);
+        if (retries == MAX_RETRIES) {
+          restoreLogger.log_error(
+              "Drop index `%s` on `%s` failed "
+              ": too many temporary errors: %u",
+              split_idx[3].c_str(), table_name.c_str(), MAX_RETRIES);
           return false;
         }
       }
@@ -3555,18 +3719,38 @@ BackupRestore::endOfTablesFK()
     }
     fk.setOnUpdateAction(fkinfo.getOnUpdateAction());
     fk.setOnDeleteAction(fkinfo.getOnDeleteAction());
+    int retries;
+    for (retries = 0; retries < MAX_RETRIES; retries++) {
+      if (dict->createForeignKey(fk) != 0) {
+        const NdbError &error = dict->getNdbError();
 
-    // create
-    if (dict->createForeignKey(fk) != 0)
-    {
-      restoreLogger.log_error("Failed to create foreign key %s"
-          " parent %s child %s : %u: %s",
-          fkname, pInfo, cInfo, dict->getNdbError().code, dict->getNdbError().message);
-      return false;
-    }
-    restoreLogger.log_info("Successfully created foreign key %s"
+        if (error.status != NdbError::TemporaryError) {
+          restoreLogger.log_error(
+              "Error: Failed to create foreign key %s: %u: %s", fkname,
+              error.code, error.message);
+          return false;
+        }
+        restoreLogger.log_error(
+            "Temporary: Failed to create foreign key %s: %u: %s", fkname,
+            error.code, error.message);
+        int delay = 100 + retries * 300;
+        restoreLogger.log_info("Sleeping %u ms", delay);
+        NdbSleep_MilliSleep(delay);
+        continue;
+      }
+      restoreLogger.log_info(
+          "Successfully created foreign key %s"
           " parent %s child %s",
           fkname, pInfo, cInfo);
+      break;
+    }
+    if (retries == MAX_RETRIES) {
+      restoreLogger.log_error(
+          "Create foreign key %s failed "
+          ": too many temporary errors: %u",
+          fkname, MAX_RETRIES);
+      return false;
+    }
   }
   restoreLogger.log_info("Create foreign keys done");
   return true;

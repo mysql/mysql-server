@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,12 +115,12 @@ inline unsigned long long int my_getsystime() {
 
 /**
    The maximum timespec value used to represent "inifinity" (as when
-   requesting an "inifinite" timeout.
+   requesting an "infinite" timeout.
  */
 constexpr const timespec TIMESPEC_POSINF = {
     std::numeric_limits<decltype(timespec::tv_sec)>::max(), 999999999};
 
-/** Type alias to reduce chance of coversion errors on timeout values. */
+/** Type alias to reduce chance of conversion errors on timeout values. */
 using Timeout_type = std::uint64_t;
 
 /** Value representing "infinite" timeout. */

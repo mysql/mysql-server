@@ -1,0 +1,77 @@
+--echo # Bug#33962357: Improve federated tables code
+
+# Preventively fixes the code to make federated data code return errors (either 1432 or 1146)
+# instead of crashing, if the server_cache pointer is NULL.
+# Additional check added to test that the server does not crash if server_name parameter is NULL.
+
+--source include/have_debug.inc
+source suite/federated/include/federated.inc;
+
+# connect to remote.
+connection slave;
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+CREATE TABLE federated.t1 (
+  a int
+  );
+INSERT INTO federated.t1 (a) VALUES (42);
+
+# connect to local.
+connection master;
+
+# TEST #1: force pointer server_cache to be NULL in tested function
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,bug33962357_simulate_null_cache';
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE SERVER fedlink
+FOREIGN DATA WRAPPER mysql
+OPTIONS (
+  HOST '127.0.0.1',
+  PORT $SLAVE_MYPORT,
+  USER 'root',
+  PASSWORD '',
+  DATABASE 'federated');
+
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+# only connecting through predefined server triggers get_server_by_name test function
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--error 1432
+eval CREATE TABLE federated.t1 (
+    a int
+    ) ENGINE="FEDERATED"
+    CONNECTION='fedlink/t1';
+
+# test
+--error 1146
+SELECT * FROM federated.t1;
+
+# cleanup test #1
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+# TEST #2: force server_name parameter to be NULL in tested function
+SET @@GLOBAL.DEBUG='+d,bug33962357_simulate_null_server';
+
+# only connecting through predefined server triggers get_server_by_name test function
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--error 1432
+eval CREATE TABLE federated.t1 (
+    a int
+    ) ENGINE="FEDERATED"
+    CONNECTION='fedlink/t1';
+
+# test
+--error 1146
+SELECT * FROM federated.t1;
+
+# cleanup
+SET GLOBAL DEBUG= @debug_save;
+DROP SERVER fedlink;
+source suite/federated/include/federated_cleanup.inc;

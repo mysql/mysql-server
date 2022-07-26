@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -253,6 +253,7 @@ struct AccessPath {
 
     // Access paths that modify tables.
     DELETE_ROWS,
+    UPDATE_ROWS,
   } type;
 
   /// A general enum to describe the safety of a given operation.
@@ -829,6 +830,14 @@ struct AccessPath {
     assert(type == DELETE_ROWS);
     return u.delete_rows;
   }
+  auto &update_rows() {
+    assert(type == UPDATE_ROWS);
+    return u.update_rows;
+  }
+  const auto &update_rows() const {
+    assert(type == UPDATE_ROWS);
+    return u.update_rows;
+  }
 
  private:
   // We'd prefer if this could be an std::variant, but we don't have C++17 yet.
@@ -1184,6 +1193,11 @@ struct AccessPath {
       table_map tables_to_delete_from;
       table_map immediate_tables;
     } delete_rows;
+    struct {
+      AccessPath *child;
+      table_map tables_to_update;
+      table_map immediate_tables;
+    } update_rows;
   } u;
 };
 static_assert(std::is_trivially_destructible<AccessPath>::value,
@@ -1615,6 +1629,8 @@ inline AccessPath *NewWindowAccessPath(THD *thd, AccessPath *child,
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::WINDOW;
   path->window().child = child;
+  path->window().window = nullptr;
+  path->window().temp_table = nullptr;
   path->window().temp_table_param = temp_table_param;
   path->window().ref_slice = ref_slice;
   path->window().needs_buffering = needs_buffering;
@@ -1679,6 +1695,10 @@ AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
                                     table_map delete_tables,
                                     table_map immediate_tables);
 
+AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
+                                    table_map delete_tables,
+                                    table_map immediate_tables);
+
 /**
   Modifies "path" and the paths below it so that they provide row IDs for
   all tables.
@@ -1724,7 +1744,7 @@ TABLE *GetBasicTable(const AccessPath *path);
 
 /**
   Returns a map of all tables read when `path` or any of its children are
-  exectued. Only iterators that are part of the same query block as `path`
+  executed. Only iterators that are part of the same query block as `path`
   are considered.
 
   If a table is read that doesn't have a map, specifically the temporary
@@ -1767,7 +1787,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
                                   const Mem_root_array<Predicate> &predicates,
                                   unsigned num_where_predicates);
 
-/// Returns the tables that have stored row IDs in the hash join result.
-table_map GetTablesWithRowIDsInHashJoin(AccessPath *path);
+/// Returns the tables that are part of a hash join.
+table_map GetHashJoinTables(AccessPath *path);
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H

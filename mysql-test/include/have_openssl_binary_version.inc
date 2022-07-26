@@ -8,7 +8,6 @@
 # --let $openssl_binary_version = 1.1.*
 # --source include/have_openssl_binary_version.inc
 
-source include/have_openssl_binary.inc;
 --disable_query_log
 --disable_result_log
 
@@ -22,7 +21,7 @@ let OPENSSL_SEARCH_PATTERN=$openssl_binary_version;
 --remove_file $OPENSSL_CONFIG_INC
 
 --error 0,1, 127
---exec openssl version > $OPENSSL_VERSION_INFO
+--exec $OPENSSL_EXECUTABLE version > $OPENSSL_VERSION_INFO
 
 perl;
  use strict;

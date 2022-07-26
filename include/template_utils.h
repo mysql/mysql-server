@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ struct ReturnValueOrError {
   /** Value returned from function in the normal case. */
   VALUE_TYPE value;
 
-  /** True if an error occured. */
+  /** True if an error occurred. */
   bool error;
 };
 
@@ -196,7 +196,7 @@ inline void Split(InputIt first, InputIt last, Pred &&pred, Action &&action) {
 }
 
 /**
-  Search backwards for the first occurence of an element which does not satisfy
+  Search backwards for the first occurrence of an element which does not satisfy
   the trimming predicate, and return an InputIt to the element after it.
 
   @param first Beginning of the range to search.

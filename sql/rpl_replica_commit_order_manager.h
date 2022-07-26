@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ class Commit_order_lock_graph;
 
 /**
   On a replica and only on a replica, this class is responsible for
-  commiting the applyed transactions in the same order as was observed on
+  committing the applied transactions in the same order as was observed on
   the source.
 
   The key components of the commit order management are:
@@ -48,7 +48,7 @@ class Commit_order_lock_graph;
     to progress.
   - A commit order queue of type `cs::apply::Commit_order_queue` that holds
     the sequence by which worker threads should commit and the committing
-    order state for each of the schduled workers.
+    order state for each of the scheduled workers.
   - The MDL infra-structure which allows for: one worker to wait for
     another to finish when transactions need to be committed in order;
     detect deadlocks involving workers waiting on each other for their turn
@@ -61,9 +61,9 @@ class Commit_order_lock_graph;
     by the coordinator and is allowed to start applying the transaction.
   - FINISHED APPLYING: the worker thread just finished applying the
     transaction and checks if it needs to wait for a preceding worker to
-    finish commiting.
+    finish committing.
   - REQUESTED GRANT: the worker thread waits on the MDL graph for the
-    preceding worker to finish commiting.
+    preceding worker to finish committing.
   - WAITED: the worker thread finished waiting (either is the first in the
     commit order queue or has just been grantted permission to continue).
   - RELEASE NEXT: the worker thread removes itself from the commit order
@@ -160,7 +160,7 @@ class Commit_order_lock_graph;
                v                                  v
      next_worker.release()                   queue.pop()
 
-  The commit order queue includes mechanisms that block the poping until
+  The commit order queue includes mechanisms that block the popping until
   the preceding worker finishes the releasing operation. This wait will
   only be active for the amount of time that takes for W1 to change the
   values of the MDL graph structures needed to release W2, which is a very
@@ -432,8 +432,8 @@ class Commit_order_manager {
 
 /**
   MDL subgraph inspector class to be used as a ticket to wait on by worker
-  threads. Each worker will create it's own instance of this class and will use
-  it's own THD MDL_context to search for deadlocks.
+  threads. Each worker will create its own instance of this class and will use
+  its own THD MDL_context to search for deadlocks.
  */
 class Commit_order_lock_graph : public MDL_wait_for_subgraph {
  public:
@@ -443,7 +443,7 @@ class Commit_order_lock_graph : public MDL_wait_for_subgraph {
     @param ctx The worker THD MDL context object.
     @param mngr The Commit_order_manager instance associated with the current
                 channel's Relay_log_info object.
-    @param worker_id The identifier of the worker targetted by this object.
+    @param worker_id The identifier of the worker targeted by this object.
 
    */
   Commit_order_lock_graph(MDL_context &ctx, Commit_order_manager &mngr,
@@ -507,8 +507,8 @@ class Commit_order_lock_graph : public MDL_wait_for_subgraph {
 
   @param[in] thd  The THD object of current thread.
 
-  @retval false  Commit_order_manager object is not intialized
-  @retval true   Commit_order_manager object is intialized
+  @retval false  Commit_order_manager object is not initialized
+  @retval true   Commit_order_manager object is initialized
 */
 bool has_commit_order_manager(THD *thd);
 

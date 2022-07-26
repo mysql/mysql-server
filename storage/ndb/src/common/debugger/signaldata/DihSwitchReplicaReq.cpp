@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <signaldata/DihSwitchReplicaReq.hpp>
 
 bool
@@ -31,9 +30,8 @@ printDIH_SWITCH_REPLICA_REQ(FILE * output,
 			    const Uint32 * theData, 
 			    Uint32 len, 
 			    Uint16 recBlockNo){
-  
-  DihSwitchReplicaReq * req = (DihSwitchReplicaReq *)&theData[0];
-  
+  const DihSwitchReplicaReq *req = (const DihSwitchReplicaReq *)&theData[0];
+
   const Uint32 requestInfo = req->requestInfo;
 
   switch(DihSwitchReplicaReq::getRequestType(requestInfo)){

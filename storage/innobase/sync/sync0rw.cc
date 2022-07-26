@@ -187,11 +187,9 @@ static rw_lock_debug_t *rw_lock_debug_create(void) {
 static void rw_lock_debug_free(rw_lock_debug_t *info) { ut::free(info); }
 #endif /* UNIV_DEBUG */
 
-void rw_lock_create_func(rw_lock_t *lock,
-                         IF_DEBUG(latch_level_t level,
-                                  const char *cmutex_name, )
-                             const char *cfile_name,
-                         ulint cline) {
+void rw_lock_create_func(rw_lock_t *lock, IF_DEBUG(latch_level_t level,
+                                                   const char *cmutex_name, )
+                                              ut::Location clocation) {
 #if !defined(UNIV_PFS_RWLOCK)
   /* It should have been created in pfs_rw_lock_create_func() */
   new (lock) rw_lock_t();
@@ -221,13 +219,13 @@ void rw_lock_create_func(rw_lock_t *lock,
   lock->level = level;
 #endif /* UNIV_DEBUG */
 
-  lock->cfile_name = cfile_name;
+  lock->clocation = clocation;
 
   /* This should hold in practice. If it doesn't then we need to
   split the source file anyway. Or create the locks on lines
   less than 65536. cline is uint16_t. */
-  ut_ad(cline <= std::numeric_limits<decltype(lock->cline)>::max());
-  lock->cline = cline;
+  ut_ad(clocation.line <=
+        std::numeric_limits<decltype(lock->clocation.line)>::max());
 
   lock->count_os_wait = 0;
   lock->last_s_file_name = "not yet reserved";
@@ -288,7 +286,7 @@ lock_loop:
   os_rmb;
   while (i < srv_n_spin_wait_rounds && lock->lock_word <= 0) {
     if (srv_spin_wait_delay) {
-      ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+      ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
     }
 
     i++;
@@ -384,7 +382,7 @@ static inline void rw_lock_x_lock_wait_func(rw_lock_t *lock,
 
   while (lock->lock_word < threshold) {
     if (srv_spin_wait_delay) {
-      ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+      ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
     }
 
     if (i < srv_n_spin_wait_rounds) {
@@ -600,7 +598,7 @@ lock_loop:
     os_rmb;
     while (i < srv_n_spin_wait_rounds && lock->lock_word <= X_LOCK_HALF_DECR) {
       if (srv_spin_wait_delay) {
-        ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+        ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
       }
 
       i++;
@@ -668,7 +666,7 @@ lock_loop:
     os_rmb;
     while (i < srv_n_spin_wait_rounds && lock->lock_word <= X_LOCK_HALF_DECR) {
       if (srv_spin_wait_delay) {
-        ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+        ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
       }
 
       i++;
@@ -759,9 +757,8 @@ void rw_lock_add_debug_info(rw_lock_t *lock, ulint pass, ulint lock_type,
   rw_lock_debug_mutex_enter();
 
   info->pass = pass;
-  info->line = location.line;
   info->lock_type = lock_type;
-  info->file_name = location.filename;
+  info->location = location;
   info->thread_id = std::this_thread::get_id();
 
   UT_LIST_ADD_FIRST(lock->debug_list, info);
@@ -939,9 +936,9 @@ void rw_lock_list_print_info(FILE *file) /*!< in: file where to print */
 void rw_lock_debug_print(FILE *f, const rw_lock_debug_t *info) {
   ulint rwt = info->lock_type;
 
-  fprintf(f, "Locked: thread %s file %s line " ULINTPF "  ",
-          to_string(info->thread_id).c_str(), sync_basename(info->file_name),
-          info->line);
+  fprintf(f, "Locked: thread %s file %s line %zu  ",
+          to_string(info->thread_id).c_str(),
+          sync_basename(info->location.filename), info->location.line);
 
   switch (rwt) {
     case RW_LOCK_S:
@@ -987,7 +984,7 @@ std::string rw_lock_t::locked_from() const {
       msg << ", ";
     }
 
-    msg << info->file_name << ":" << info->line;
+    msg << info->location.filename << ":" << info->location.line;
   }
 
   return (msg.str());

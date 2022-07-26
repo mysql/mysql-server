@@ -32,10 +32,12 @@
 #include <gtest/gtest.h>
 
 #include "clone0api.h" /* clone_init(), clone_free() */
-#include "dict0dict.h" /* dict_sys_t::s_log_space_first_id */
 #include "fil0fil.h"
-#include "log0log.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "log0recv.h"
+#include "log0test.h"
+#include "log0write.h"
 #include "srv0srv.h"
 #include "srv0start.h" /* srv_is_being_started */
 #include "ut0byte.h"
@@ -119,6 +121,8 @@ extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
 extern ulong srv_log_checkpoint_every;
 extern ulong srv_log_wait_for_flush_timeout;
 
+char log_group_home_dir[1] = {'\0'};
+
 static bool log_test_general_init() {
   ut_new_boot_safe();
 
@@ -141,14 +145,13 @@ static bool log_test_general_init() {
   srv_log_spin_cpu_abs_lwm = 0;
   srv_log_spin_cpu_pct_hwm = 100;
   srv_log_wait_for_flush_spin_hwm = 1000;
+  srv_log_group_home_dir = log_group_home_dir;
   srv_max_n_threads = 1000;
-  srv_n_log_files = 2;
-  srv_log_file_size = 1024 * 1024;
+  srv_redo_log_capacity = srv_redo_log_capacity_used = 8 * 1024 * 1024;
   srv_log_buffer_size = 256 * 1024;
   srv_log_write_ahead_size = 4096;
-  srv_log_group_home_dir = strdup(".");
   srv_buf_pool_instances = 0;
-  log_checksum_algorithm_ptr = log_block_calc_checksum_none;
+  log_checksum_algorithm_ptr.store(log_block_calc_checksum_none);
   srv_n_read_io_threads = 1;
   srv_n_write_io_threads = 1;
 
@@ -162,7 +165,7 @@ static bool log_test_general_init() {
 
   if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads)) {
     std::cerr << "Cannot initialize aio system" << std::endl;
-    return (false);
+    return false;
   }
 
   const size_t max_n_open_files = 1000;
@@ -172,97 +175,40 @@ static bool log_test_general_init() {
   minimal_chassis_init(&srv_registry, nullptr);
   fil_init(max_n_open_files);
 
-  log_space = fil_space_create(
-      "innodb_redo_log", dict_sys_t::s_log_space_first_id,
-      fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG);
-
-  if (log_space == nullptr) {
-    std::cerr << "Cannot initialize log_space" << std::endl;
-    return (false);
-  }
-
-  ut_ad(fil_validate());
-  return (true);
+  return true;
 }
 
 static bool log_test_init() {
   if (!log_test_general_init()) {
-    return (false);
+    return false;
   }
+
+  Log_files_context log_files_ctx{srv_log_group_home_dir,
+                                  Log_files_ruleset::CURRENT};
+
+  const auto remove_ret = log_remove_files(log_files_ctx);
+
+  const auto remove_unused_ret = log_remove_unused_files(log_files_ctx);
 
   srv_is_being_started = true;
 
-  const ulonglong file_pages = srv_log_file_size / UNIV_PAGE_SIZE;
+  lsn_t flushed_lsn = LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
 
-  static pfs_os_file_t files[1000];
-
-  for (unsigned i = 0; i < srv_n_log_files; i++) {
-    char filename[256];
-
-    sprintf(filename, "ib_logfile%d", i);
-
-#ifdef _WIN32
-    DeleteFile((LPCTSTR)filename);
-#else
-    unlink(filename);
-#endif /* _WIN32 */
-    bool ret;
-
-    files[i] =
-        os_file_create(innodb_log_file_key, filename,
-                       OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
-                       OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
-
-    if (!ret) {
-      std::cerr << "Cannot create " << filename << std::endl;
-      return (false);
-    }
-
-    ret = os_file_set_size(filename, files[i], 0,
-                           (os_offset_t)srv_log_file_size, false);
-    if (!ret) {
-      std::cerr << "Cannot set log file " << filename << " to size "
-                << (srv_log_file_size >> 20) << " MB" << std::endl;
-      return (false);
-    }
-
-    ret = os_file_close(files[i]);
-    ut_a(ret);
-
-    if (!fil_node_create(filename, static_cast<page_no_t>(file_pages),
-                         log_space, false, false)) {
-      std::cerr << "Cannot create file node for log file " << filename
-                << std::endl;
-      return (false);
-    }
-  }
-
-  if (!log_sys_init(srv_n_log_files, srv_log_file_size,
-                    dict_sys_t::s_log_space_first_id)) {
-    std::cerr << "Cannot initialize redo log" << std::endl;
-    return (false);
-  }
+  dberr_t err = log_sys_init(true, flushed_lsn, flushed_lsn);
+  ut_a(err == DB_SUCCESS);
 
   ut_a(log_sys != nullptr);
-
   log_t &log = *log_sys;
 
-  fil_open_log_and_system_tablespace_files();
+  fil_open_system_tablespace_files();
 
-  /* Create the first checkpoint and flush headers of the first log
-  file (the flushed headers store information about the checkpoint,
-  format of redo log and that it is not created by mysqlbackup). */
-  const lsn_t lsn = LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
-  log_create_first_checkpoint(log, lsn);
-
-  fil_flush(dict_sys_t::s_log_space_first_id);
-
-  log_start(log, 1, lsn, lsn);
+  err = log_start(log, flushed_lsn, flushed_lsn, nullptr);
+  ut_a(err == DB_SUCCESS);
 
   log_start_background_threads(log);
 
   srv_is_being_started = false;
-  return (true);
+  return true;
 }
 
 static bool log_test_recovery() {
@@ -272,14 +218,18 @@ static bool log_test_recovery() {
   /** DBLWR directory is the current directory. */
   recv_sys_init();
 
-  const bool result = log_sys_init(srv_n_log_files, srv_log_file_size,
-                                   dict_sys_t::s_log_space_first_id);
-  EXPECT_TRUE(result);
+  lsn_t flushed_lsn = LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
+  lsn_t new_files_lsn;
+
+  dberr_t err = log_sys_init(false, flushed_lsn, new_files_lsn);
+  ut_a(err == DB_SUCCESS);
+
+  EXPECT_EQ(0, new_files_lsn);
 
   ut_a(log_sys != nullptr);
   log_t &log = *log_sys;
 
-  dberr_t err = recv_recovery_from_checkpoint_start(log, LOG_START_LSN);
+  err = recv_recovery_from_checkpoint_start(log, LOG_START_LSN);
 
   srv_is_being_started = false;
 
@@ -298,11 +248,9 @@ static bool log_test_recovery() {
 
   recv_sys_close();
 
-  fil_flush(log.files_space_id);
+  fil_flush_file_spaces();
 
-  fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
-
-  return (err == DB_SUCCESS);
+  return err == DB_SUCCESS;
 }
 
 template <typename TFunctor>
@@ -374,7 +322,7 @@ static lsn_t write_single_mlog_test(Log_test::Key key) {
 
   log_buffer_close(log, handle);
 
-  return (end_lsn);
+  return end_lsn;
 }
 
 static lsn_t write_multi_mlog_tests(Log_test::Key key, size_t n) {
@@ -395,7 +343,7 @@ static lsn_t write_multi_mlog_tests(Log_test::Key key, size_t n) {
       value = 0;
       value_left = MLOG_TEST_VALUE;
     } else if (i > 1) {
-      value = ut_rnd_interval(1, 100);
+      value = ut::random_from_interval(1, 100);
       ut_a(value < value_left);
       value_left -= value;
     } else {
@@ -479,11 +427,11 @@ static lsn_t write_multi_mlog_tests(Log_test::Key key, size_t n) {
 
   log_buffer_close(log, handle);
 
-  return (group_end_lsn);
+  return group_end_lsn;
 }
 
 static void log_test_run() {
-  const uint64_t max_dirty_page_age = 10 * 1024;
+  const lsn_t max_dirty_page_age = 10 * 1024;
 
   run_threads(
       [max_dirty_page_age](size_t thread_no) {
@@ -492,12 +440,11 @@ static void log_test_run() {
 
         for (int j = 0; j < LOG_TEST_N_STEPS; ++j) {
           int64_t value;
-          ulint ppb;
           lsn_t end_lsn;
 
           value = int64_t{j} * LOG_TEST_N_THREADS + thread_no;
 
-          ppb = ut_rnd_interval(0, 100);
+          const auto ppb = ut::random_from_interval(0, 100);
 
           if (ppb <= 50) {
             /* Single MLOG_TEST */
@@ -511,7 +458,7 @@ static void log_test_run() {
             /* Random number of more than 2 MLOG_TEST */
             size_t n;
 
-            n = ut_rnd_interval(3, MLOG_TEST_GROUP_MAX_REC_N);
+            n = ut::random_from_interval(3, MLOG_TEST_GROUP_MAX_REC_N);
 
             end_lsn = write_multi_mlog_tests(value, n);
           }
@@ -546,13 +493,12 @@ static void log_test_general_close() {
   os_event_global_destroy();
 
   srv_shutdown_state = SRV_SHUTDOWN_NONE;
-
-  free(srv_log_group_home_dir);
-  srv_log_group_home_dir = nullptr;
 }
 
 static void log_test_close() {
   log_t &log = *log_sys;
+
+  srv_shutdown_state = SRV_SHUTDOWN_FLUSH_PHASE;
 
   log_stop_background_threads(log);
 
@@ -564,6 +510,11 @@ static void log_test_close() {
   }
 
   log_sys_close();
+
+  fil_close_all_files();
+  fil_close();
+  const size_t max_n_open_files = 1000;
+  fil_init(max_n_open_files);
 
   log_test_recovery();
 
@@ -637,8 +588,8 @@ for context switch. However that's good enough for now. */
       if (m_max_us == 0) {
         std::this_thread::yield();
       } else {
-        std::this_thread::sleep_for(
-            std::chrono::microseconds(ut_rnd_interval(m_min_us, m_max_us)));
+        std::this_thread::sleep_for(std::chrono::microseconds(
+            ut::random_from_interval(m_min_us, m_max_us)));
       }
     }
 
@@ -719,7 +670,7 @@ void Log_background_disturber::run() {
   while (m_is_active) {
     m_disturber->disturb();
 
-    const auto sleep_time = ut_rnd_interval(0, 300 * 1000);
+    const auto sleep_time = ut::random_from_interval(0, 300 * 1000);
 
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
   }
@@ -731,7 +682,7 @@ class Log_buf_resizer : public Log_test_disturber {
       : m_min_size(min_size), m_max_size(max_size) {}
 
   void disturb() override {
-    size_t new_size = ut_rnd_interval(m_min_size, m_max_size);
+    size_t new_size = ut::random_from_interval(m_min_size, m_max_size);
 
     new_size = ut_uint64_align_down(new_size, OS_FILE_LOG_BLOCK_SIZE);
 
@@ -748,7 +699,7 @@ class Log_write_ahead_resizer : public Log_test_disturber {
       : m_min_k(min_k), m_max_k(max_k) {}
 
   void disturb() override {
-    const auto new_size = 1 << ut_rnd_interval(m_min_k, m_max_k);
+    const auto new_size = 1 << ut::random_from_interval(m_min_k, m_max_k);
 
     log_write_ahead_resize(*log_sys, new_size);
   }
@@ -774,7 +725,8 @@ TEST(log0log, log_random_disturb) {
   disturber.reset(new Log_buf_resizer{256 * 1024, 1024 * 1024});
   execute_disturbed_test(std::move(disturber));
 
-  disturber.reset(new Log_write_ahead_resizer{9, 14});
+  disturber.reset(new Log_write_ahead_resizer{
+      9, ut_2_log(INNODB_LOG_WRITE_AHEAD_SIZE_MAX)});
   execute_disturbed_test(std::move(disturber));
 }
 

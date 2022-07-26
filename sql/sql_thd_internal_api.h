@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 
 /*
   This file defines THD-related API calls that are meant for internal
-  usage (e.g. InnoDB, Thread Pool) only. There are therefore no stabilty
+  usage (e.g. InnoDB, Thread Pool) only. There are therefore no stability
   guarantees.
 */
 
@@ -43,6 +43,15 @@ class partition_info;
 
 THD *create_internal_thd();
 void destroy_internal_thd(THD *thd);
+
+/**
+  Set up various THD data for a new connection.
+  @note PFS instrumentation is not set by this function.
+
+  @param thd            THD object
+  @param stack_start    Start of stack for connection
+*/
+void thd_init(THD *thd, char *stack_start);
 
 /**
   Set up various THD data for a new connection
@@ -79,7 +88,16 @@ THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
   Cleanup the THD object, remove it from the global list of THDs
   and delete it.
 
-  @param    thd   pointer to THD object.
+  @param    thd               Pointer to THD object.
+  @param    clear_pfs_instr   If true, then clear thread PFS instrumentations.
+*/
+void destroy_thd(THD *thd, bool clear_pfs_instr);
+
+/**
+  Cleanup the THD object, remove it from the global list of THDs
+  and delete it.
+
+  @param    thd   Pointer to THD object.
 */
 void destroy_thd(THD *thd);
 

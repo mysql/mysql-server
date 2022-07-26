@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_identifier.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_psi.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 #define WIRE_PAYLOAD_LEN_SIZE 8
@@ -259,6 +260,23 @@ class Gcs_message_data {
     when deleted.
   */
   bool m_owner;
+
+  /**
+    On memory allocation this function is called, so that memory
+    consumption can be tracked.
+
+    @param[in] size    memory size to be allocated
+
+    @return true on error, false otherwise.
+  */
+  bool report_allocate_memory(size_t size);
+
+  /**
+    On memory free this function is called to reduce count of allocated memory.
+
+    @param[in] size    memory size to be allocated
+  */
+  void report_deallocate_memory(size_t size);
 
   /*
     Disabling the copy constructor and assignment operator.

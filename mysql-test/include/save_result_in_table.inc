@@ -41,9 +41,9 @@
 #     The result set will be written to a temporary file, as
 #     tab-separated values.  Then, the file is then processed by these
 #     scripts, if they are defined.  Finally, the processed file is
-#     loaded into the table.  $script and $pre_script are a perl
-#     scripts, $select_columns is a comma-separated list of columns;
-#     see filter_table.inc for details.
+#     loaded into the table.  $script and $pre_script are perl
+#     scripts, $select_columns is a comma-separated list of columns.
+#     See filter_file.inc for details.
 #
 #  $dont_print_statement
 #     Do not echo $statement to the result log.

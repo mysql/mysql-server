@@ -147,14 +147,14 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue);
     1   s > t
 */
 
-int sortcmp_lex_string(LEX_CSTRING s, LEX_CSTRING t, CHARSET_INFO *cs) {
+int sortcmp_lex_string(LEX_CSTRING s, LEX_CSTRING t, const CHARSET_INFO *cs) {
   return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(s.str), s.length,
                                pointer_cast<const uchar *>(t.str), t.length);
 }
 
 /*
   Reconstructs interval expression from interval type and expression
-  value that is in form of a value of the smalles entity:
+  value that is in form of a value of the smallest entity:
   For
     YEAR_MONTH - expression is in months
     DAY_MINUTE - expression is in minutes
@@ -724,7 +724,7 @@ bool Events::lock_schema_events(THD *thd, const dd::Schema &schema) {
   /*
     Ensure that we don't hold memory used by MDL_requests after locks have
     been acquired. This reduces memory usage in cases when we have DROP
-    DATABASE tha needs to drop lots of different objects.
+    DATABASE that needs to drop lots of different objects.
   */
   MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
 

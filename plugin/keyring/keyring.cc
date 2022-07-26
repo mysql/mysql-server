@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,9 +111,11 @@ static int keyring_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
 
   try {
     SSL_library_init();  // always returns 1
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
     ERR_load_BIO_strings();
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
+#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
 
 #ifdef HAVE_PSI_INTERFACE
     keyring_init_psi_keys();

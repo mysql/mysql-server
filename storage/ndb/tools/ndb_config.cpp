@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,8 +75,8 @@
 #include <mgmapi.h>
 #include "storage/ndb/include/mgmcommon/NdbMgm.hpp"
 #include "../src/mgmapi/mgmapi_configuration.hpp"
-#include "../src/mgmsrv/ConfigInfo.hpp"
-#include "../src/mgmsrv/InitConfigFileParser.hpp"
+#include "mgmcommon/ConfigInfo.hpp"
+#include "mgmcommon/InitConfigFileParser.hpp"
 #include <NdbAutoPtr.hpp>
 #include <NdbTCP.h>
 #include <inttypes.h>
@@ -109,37 +109,37 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_config"),
   { "nodes", NDB_OPT_NOSHORT, "Print nodes",
-    (uchar**) &g_nodes, (uchar**) &g_nodes,
+    &g_nodes, &g_nodes,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "connections", NDB_OPT_NOSHORT, "Print connections",
-    (uchar**) &g_connections, (uchar**) &g_connections,
+    &g_connections, &g_connections,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "system", NDB_OPT_NOSHORT, "Print system",
-    (uchar**) &g_system, (uchar**) &g_system,
+    &g_system, &g_system,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "query", 'q', "Query option(s)",
-    (uchar**) &g_query, (uchar**) &g_query,
+    &g_query, &g_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "host", NDB_OPT_NOSHORT, "Host",
-    (uchar**) &g_host, (uchar**) &g_host,
+    &g_host, &g_host,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "type", NDB_OPT_NOSHORT, "Type of node/connection",
-    (uchar**) &g_type, (uchar**) &g_type,
+    &g_type, &g_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "nodeid", NDB_OPT_NOSHORT, "Nodeid",
-    (uchar**) &g_nodeid, (uchar**) &g_nodeid,
+    &g_nodeid, &g_nodeid,
     0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "fields", 'f', "Field separator",
-    (uchar**) &g_field_delimiter, (uchar**) &g_field_delimiter,
+    &g_field_delimiter, &g_field_delimiter,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "rows", 'r', "Row separator",
-    (uchar**) &g_row_delimiter, (uchar**) &g_row_delimiter,
+    &g_row_delimiter, &g_row_delimiter,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "config-file", NDB_OPT_NOSHORT, "Path to config.ini",
-    (uchar**) &g_config_file, (uchar**) &g_config_file,
+    &g_config_file, &g_config_file,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "mycnf", NDB_OPT_NOSHORT, "Read config from my.cnf",
-    (uchar**) &g_mycnf, (uchar**) &g_mycnf,
+    &g_mycnf, &g_mycnf,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "cluster-config-suffix", NDB_OPT_NOSHORT,
     "Override defaults-group-suffix when reading cluster configuration in "
@@ -147,19 +147,19 @@ static struct my_option my_long_options[] =
     &g_cluster_config_suffix, &g_cluster_config_suffix,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "configinfo", NDB_OPT_NOSHORT, "Print configinfo",
-    (uchar**) &g_configinfo, (uchar**) &g_configinfo,
+    &g_configinfo, &g_configinfo,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "xml", NDB_OPT_NOSHORT, "Print configinfo in xml format",
-    (uchar**) &g_xml, (uchar**) &g_xml,
+    &g_xml, &g_xml,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "config_from_node", NDB_OPT_NOSHORT, "Use current config from node with given nodeid",
-    (uchar**) &g_config_from_node, (uchar**) &g_config_from_node,
+    &g_config_from_node, &g_config_from_node,
     0, GET_INT, REQUIRED_ARG, INT_MIN, INT_MIN, 0, 0, 0, 0},
   { "query_all", 'a', "Query all the options",
-    (uchar**)&g_query_all, (uchar**)&g_query_all,
+    &g_query_all, &g_query_all,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "diff_default", NDB_OPT_NOSHORT, "print parameters that are different from default",
-    (uchar**)&g_diff_default, (uchar**)&g_diff_default,
+    &g_diff_default, &g_diff_default,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -854,7 +854,7 @@ noconnect:
   return conf;
 }
 
-#include "../src/mgmsrv/Config.hpp"
+#include "mgmcommon/Config.hpp"
 #include <EventLogger.hpp>
 
 

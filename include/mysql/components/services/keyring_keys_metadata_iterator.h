@@ -150,7 +150,7 @@ DECLARE_BOOL_METHOD(get_length,
 /**
   Fetch metadata for current key pointed by iterator
 
-  Out buffers should be big enough to accomodate data + null terminating
+  Out buffers should be big enough to accommodate data + null terminating
   character
 
   @param [in]  forward_iterator forward_iterator metadata iterator

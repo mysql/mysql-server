@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -68,7 +68,6 @@ static inline dict_table_t *dict_table_check_if_in_cache_low(
     const char *table_name) /*!< in: table name */
 {
   dict_table_t *table;
-  ulint table_fold;
 
   DBUG_TRACE;
   DBUG_PRINT("dict_table_check_if_in_cache_low", ("table: '%s'", table_name));
@@ -77,10 +76,10 @@ static inline dict_table_t *dict_table_check_if_in_cache_low(
   ut_ad(dict_sys_mutex_own());
 
   /* Look for the table name in the hash table */
-  table_fold = ut_fold_string(table_name);
+  const auto table_name_hash_value = ut::hash_string(table_name);
 
-  HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold, dict_table_t *,
-              table, ut_ad(table->cached),
+  HASH_SEARCH(name_hash, dict_sys->table_hash, table_name_hash_value,
+              dict_table_t *, table, ut_ad(table->cached),
               !strcmp(table->name.m_name, table_name));
   return table;
 }

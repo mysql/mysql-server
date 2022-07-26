@@ -1,0 +1,12 @@
+# Initialize new data directory...
+# restart: --datadir=DATADIR --log-error=ERROR_LOG --innodb-redo-log-capacity=8388608 --innodb_page_size=INNODB_PAGE_SIZE
+# Prepare schema used in the tests.
+# Disable checkpointing.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# Create connection which generates spam to the redo log.
+CALL log_spammer();
+CALL log_spammer();
+There are >= 2 non-temporary redo log files.
+# Kill the server
+Pattern "The redo log file .* has start_lsn REDO_FILE_NEW_START_LSN but expected REDO_FILE_OLD_START_LSN \(end_lsn of the previous redo log file\)" found
+# restart: --innodb_page_size=INNODB_PAGE_SIZE

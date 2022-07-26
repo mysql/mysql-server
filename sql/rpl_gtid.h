@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ typedef int64 rpl_binlog_pos;
 /**
   Generic return type for many functions that can succeed or fail.
 
-  This is used in conjuction with the macros below for functions where
+  This is used in conjunction with the macros below for functions where
   the return status either indicates "success" or "failure".  It
   provides the following features:
 
@@ -2449,7 +2449,7 @@ class Owned_gtids {
   */
   void remove_gtid(const Gtid &gtid, const my_thread_id owner);
   /**
-    Ensures that this Owned_gtids object can accomodate SIDNOs up to
+    Ensures that this Owned_gtids object can accommodate SIDNOs up to
     the given SIDNO.
 
     If this Owned_gtids object needs to be resized, then the lock
@@ -3054,8 +3054,8 @@ class Gtid_state {
     OFF_PERMISSIVE) for the THD, and acquires ownership.
 
     @param thd The thread.
-    @param specified_sidno Externaly generated sidno.
-    @param specified_gno   Externaly generated gno.
+    @param specified_sidno Externally generated sidno.
+    @param specified_gno   Externally generated gno.
     @param[in,out] locked_sidno This parameter should be used when there is
                                 a need of generating many GTIDs without having
                                 to acquire/release a sidno_lock many times.
@@ -3167,7 +3167,7 @@ class Gtid_state {
   /**
     Adds the given Gtid_set to lost_gtids and executed_gtids.
     lost_gtids must be a subset of executed_gtids.
-    purged_gtid and executed_gtid sets are appened with the argument set
+    purged_gtid and executed_gtid sets are appended with the argument set
     provided the latter is disjoint with gtid_executed owned_gtids.
 
     Requires that the caller holds global_sid_lock.wrlock.

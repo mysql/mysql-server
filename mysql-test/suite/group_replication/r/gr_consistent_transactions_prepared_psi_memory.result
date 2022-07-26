@@ -1,0 +1,165 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables for the event
+#    consistent_transactions_prepared.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_prepared';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_prepared	YES	NULL	global_statistics	0	Memory used to hold list of transaction info which are prepared for the Group Replication Transaction Consistency Guarantees.
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_prepared in the setup_instruments table after starting GR']
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions_prepared';
+EVENT_NAME
+memory/group_rpl/consistent_transactions_prepared
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_prepared in the memory_summary_global_by_event_name table after starting GR']
+
+############################################################
+# 2. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables for the event
+#    consistent_transactions_waiting.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_waiting';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_waiting	YES	NULL	global_statistics	0	Memory used to hold list of transaction info if there are precedent prepared transactions with consistency AFTER and BEFORE_AND_AFTER to hold the transaction until the prepared are committed.
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_waiting in the setup_instruments table after starting GR']
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions_waiting';
+EVENT_NAME
+memory/group_rpl/consistent_transactions_waiting
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_waiting in the memory_summary_global_by_event_name table after starting GR']
+
+############################################################
+# 3. Create two tables on the group.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+include/rpl_sync.inc
+
+############################################################
+# 4. Lock table t1 on server2 to block a future update.
+[connection server_2]
+LOCK table t1 READ;
+
+############################################################
+# 5. Execute transaction T1, the transaction will block on
+#    server2 due to the table lock.
+[connection server1]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+COMMIT;
+
+############################################################
+# 6. Wait until T1 is delivered to server2.
+[connection server2]
+
+############################################################
+# 7. Execute a write transaction T2 on server2 with
+#    group_replication_consistency= 'BEFORE_AND_AFTER' , it
+#    will wait for T1 commit and will make new transactions
+#    wait for T2.
+[connection server_2_1]
+SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
+UPDATE t2 SET c1=99 WHERE c1=1;
+[connection server2]
+
+############################################################
+# 8. Force server1 to block between T2 prepare and commit.
+[connection server_1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_after_applier_prepare';
+
+############################################################
+# 9. Unblock T1 on server2.
+[connection server_2]
+UNLOCK TABLES;
+[connection server_2_1]
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+############################################################
+# 10. Wait until T2 reaches prepare on server1 and then
+#     verify that the number of bytes allocated for
+#     consistent_members_that_prepare_transaction
+#     event is greater than 0.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_applier_prepare_waiting";
+include/assert.inc ['The sum of bytes allocated must be greater than 0']
+
+############################################################
+# 11. Now that T2 is prepared on server1 but it is not yet
+#     committed, new transactions (T3) are hold on server1.
+#     Also it verifies that the number of bytes allocated
+#     for consistent_transactions_waiting event is
+#     greater than 0.
+[connection server_1_1]
+SELECT COUNT(*) AS count FROM t2 WHERE c1=99;
+[connection server1]
+include/assert.inc ['The sum of bytes allocated must be greater than 0']
+
+############################################################
+# 12. Unblock T2 prepare on server1.
+[connection server_1]
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
+SET DEBUG_SYNC= 'now SIGNAL signal.after_applier_prepare_continue';
+[connection server_1_1]
+count
+1
+
+############################################################
+# 13. Validate data.
+[connection server1]
+include/assert.inc ['There is 1 value in table t1']
+include/assert.inc ['There is 1 value in table t2']
+[connection server2]
+include/assert.inc ['There is 1 value in table t1']
+include/assert.inc ['There is 1 value in table t2']
+include/diff_tables.inc [server1:t1, server2:t1]
+include/diff_tables.inc [server1:t2, server2:t2]
+
+############################################################
+# 14. Clean up and stop GR on server 1.
+[connection server1]
+DROP TABLE t1;
+DROP TABLE t2;
+include/stop_group_replication.inc
+include/uninstall_group_replication_plugin.inc
+
+##############################################################
+# 15. Verify that the entries corresponding to the instrumented
+#     consistent_transactions_prepared remain in the
+#     tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_prepared';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_prepared	YES	NULL	global_statistics	0	Memory used to hold list of transaction info which are prepared for the Group Replication Transaction Consistency Guarantees.
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_prepared in the setup_instruments table after stopping GR']
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_prepared in the memory_summary_global_by_event_name table after stopping GR']
+
+##############################################################
+# 16. Verify that the entries corresponding to the instrumented
+#     consistent_transactions_waiting remain in the
+#     tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_waiting';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_waiting	YES	NULL	global_statistics	0	Memory used to hold list of transaction info if there are precedent prepared transactions with consistency AFTER and BEFORE_AND_AFTER to hold the transaction until the prepared are committed.
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_waiting in the setup_instruments table after stopping GR']
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_waiting in the memory_summary_global_by_event_name table after stopping GR']
+
+#################################################################
+# 17. Verify that the number of bytes allocated for
+#     consistent_transactions_prepared
+#     event must be 0.
+include/assert.inc ['The sum of bytes allocated must be zero after stopping GR']
+
+#################################################################
+# 18. Verify that the number of bytes allocated for
+#     consistent_transactions_waiting
+#     event must be 0.
+include/assert.inc ['The sum of bytes allocated must be zero after stopping GR']
+
+############################################################
+# 19. Clean up.
+include/install_group_replication_plugin.inc
+include/group_replication_end.inc

@@ -122,8 +122,6 @@ enum fil_type_t : uint8_t {
   FIL_TYPE_IMPORT = 2,
   /** persistent tablespace (for system, undo log or tables) */
   FIL_TYPE_TABLESPACE = 4,
-  /** redo log covering changes to files of FIL_TYPE_TABLESPACE */
-  FIL_TYPE_LOG = 8
 };
 
 /** Result of comparing a path. */
@@ -144,16 +142,6 @@ enum class Fil_state {
   this case. */
   RENAMED
 };
-
-/** Check if fil_type is any of FIL_TYPE_TEMPORARY, FIL_TYPE_IMPORT
-or FIL_TYPE_TABLESPACE.
-@param[in]      type    variable of type fil_type_t
-@return true if any of FIL_TYPE_TEMPORARY, FIL_TYPE_IMPORT
-or FIL_TYPE_TABLESPACE */
-inline bool fil_type_is_data(fil_type_t type) {
-  return (type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_IMPORT ||
-          type == FIL_TYPE_TABLESPACE);
-}
 
 struct fil_space_t;
 
@@ -505,17 +493,8 @@ struct fil_space_t {
   /** Compression algorithm */
   Compression::Type compression_type;
 
-  /** Encryption algorithm */
-  Encryption::Type encryption_type;
-
-  /** Encrypt key */
-  byte encryption_key[Encryption::KEY_LEN];
-
-  /** Encrypt key length*/
-  ulint encryption_klen{};
-
-  /** Encrypt initial vector */
-  byte encryption_iv[Encryption::KEY_LEN];
+  /** Encryption metadata */
+  Encryption_metadata m_encryption_metadata;
 
   /** Encryption is in progress */
   Encryption::Progress encryption_op_in_progress{Encryption::Progress::NONE};
@@ -528,9 +507,6 @@ struct fil_space_t {
 
   /** System tablespace */
   static fil_space_t *s_sys_space;
-
-  /** Redo log tablespace */
-  static fil_space_t *s_redo_space;
 
   /** Check if the tablespace is compressed.
   @return true if compressed, false otherwise. */
@@ -548,17 +524,17 @@ struct fil_space_t {
   other details, that are needed to carry out encryption are available.
   @return true if encryption can be done, false otherwise. */
   [[nodiscard]] bool can_encrypt() const noexcept {
-    return encryption_type != Encryption::Type::NONE;
+    return m_encryption_metadata.m_type != Encryption::Type::NONE;
   }
 
   /** Copy the encryption info from this object to the provided
   Encryption object.
   @param[in]    en   Encryption object to which info is copied. */
   void get_encryption_info(Encryption &en) noexcept {
-    en.set_type(encryption_type);
-    en.set_key(encryption_key);
-    en.set_key_length(encryption_klen);
-    en.set_initial_vector(encryption_iv);
+    en.set_type(m_encryption_metadata.m_type);
+    en.set_key(m_encryption_metadata.m_key);
+    en.set_key_length(m_encryption_metadata.m_key_len);
+    en.set_initial_vector(m_encryption_metadata.m_iv);
   }
 
  public:
@@ -586,7 +562,8 @@ enum ib_file_suffix {
   CFP = 3,
   IBT = 4,
   IBU = 5,
-  DWR = 6
+  DWR = 6,
+  BWR = 7
 };
 
 extern const char *dot_ext[];
@@ -717,6 +694,12 @@ class Fil_path {
 
     return (first_abs == second_abs);
   }
+
+  /** Splits the path into directory and file name parts.
+  @param[in]  path  path to split
+  @return [directory, file] for the path */
+  [[nodiscard]] static std::pair<std::string, std::string> split(
+      const std::string &path);
 
   /** Check if m_path is the parent of the other path.
   @param[in]  other  path to compare to
@@ -1322,11 +1305,6 @@ inline bool fil_page_index_page_check(const byte *page) {
 
 /** @} */
 
-/** The number of fsyncs done to the log */
-extern ulint fil_n_log_flushes;
-
-/** Number of pending redo log flushes */
-extern ulint fil_n_pending_log_flushes;
 /** Number of pending tablespace flushes */
 extern ulint fil_n_pending_tablespace_flushes;
 
@@ -1479,36 +1457,29 @@ at a server startup after the space objects for the log and the system
 tablespace have been created. The purpose of this operation is to make
 sure we never run out of file descriptors if we need to read from the
 insert buffer or to write to the log. */
-void fil_open_log_and_system_tablespace_files();
+void fil_open_system_tablespace_files();
 
 /** Closes all open files. There must not be any pending i/o's or not flushed
 modifications in the files. */
 void fil_close_all_files();
-
-/** Closes the redo log files. There must not be any pending i/o's or not
-flushed modifications in the files.
-@param[in]      free_all        Whether to free the instances. */
-void fil_close_log_files(bool free_all);
 
 /** Iterate over the files in all the tablespaces. */
 class Fil_iterator {
  public:
   using Function = std::function<dberr_t(fil_node_t *)>;
 
-  /** For each data file, exclude redo log files.
-  @param[in]    include_log     include files, if true
+  /** For each data file.
   @param[in]    f               Callback */
   template <typename F>
-  static dberr_t for_each_file(bool include_log, F &&f) {
-    return (iterate(include_log, [=](fil_node_t *file) { return (f(file)); }));
+  static dberr_t for_each_file(F &&f) {
+    return iterate([=](fil_node_t *file) { return (f(file)); });
   }
 
   /** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
-  returning the nodes via callback function cbk.
-  @param[in]    include_log     include log files, if true
+  returning the nodes via callback function f.
   @param[in]    f               Callback
   @return any error returned by the callback function. */
-  static dberr_t iterate(bool include_log, Function &&f);
+  static dberr_t iterate(Function &&f);
 };
 
 /** Sets the max tablespace id counter if the given number is bigger than the
@@ -1745,22 +1716,6 @@ number should be zero.
 @return the number of reserved extents */
 [[nodiscard]] ulint fil_space_get_n_reserved_extents(space_id_t space_id);
 
-#ifndef UNIV_HOTBACKUP
-/** Read or write redo log data (synchronous buffered IO).
-@param[in]      type            IO context
-@param[in]      page_id         where to read or write
-@param[in]      page_size       page size
-@param[in]      byte_offset     remainder of offset in bytes
-@param[in]      len             this must not cross a file boundary;
-@param[in,out]  buf             buffer where to store read data or from where
-                                to write
-@retval DB_SUCCESS if all OK */
-[[nodiscard]] dberr_t fil_redo_io(const IORequest &type,
-                                  const page_id_t &page_id,
-                                  const page_size_t &page_size,
-                                  ulint byte_offset, ulint len, void *buf);
-#endif
-
 /** Read or write data from a file.
 @param[in]      type            IO context
 @param[in]      sync            If true then do synchronous IO
@@ -1793,19 +1748,12 @@ void fil_aio_wait(ulint segment);
 
 /** Flushes to disk possible writes cached by the OS. If the space does
 not exist or is being dropped, does not do anything.
-@param[in]      space_id        Tablespace ID (this can be a group of log files
-                                or a tablespace of the database) */
+@param[in]      space_id        Tablespace ID */
 void fil_flush(space_id_t space_id);
 
-/** Flush to disk the writes in file spaces of the given type
-possibly cached by the OS. */
-void fil_flush_file_redo();
-
-/** Flush to disk the writes in file spaces of the given type
-possibly cached by the OS.
-@param[in]      purpose         FIL_TYPE_TABLESPACE or FIL_TYPE_LOG, can be
-ORred. */
-void fil_flush_file_spaces(uint8_t purpose);
+/** Flush to disk the writes in file spaces possibly cached by the OS
+(note: spaces of type FIL_TYPE_TEMPORARY are skipped) */
+void fil_flush_file_spaces();
 
 #ifdef UNIV_DEBUG
 /** Checks the consistency of the tablespace cache.
@@ -2227,9 +2175,9 @@ dberr_t fil_scan_for_tablespaces();
 
 /** Open the tablespace and also get the tablespace filenames, space_id must
 already be known.
-@param[in]      space_id        Tablespace ID to lookup
-@return true if open was successful */
-[[nodiscard]] bool fil_tablespace_open_for_recovery(space_id_t space_id);
+@param[in]  space_id  Tablespace ID to lookup
+@return DB_SUCCESS if open was successful */
+[[nodiscard]] dberr_t fil_tablespace_open_for_recovery(space_id_t space_id);
 
 /** Replay a file rename operation for ddl replay.
 @param[in]      page_id         Space ID and first page number in the file

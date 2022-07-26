@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,6 +129,7 @@ Signing_Key::Signing_Key(ssl::Key_Content key_content) {
  */
 Signing_Key::Signing_Key() {
   // Generate a new RSA private key to be used for request signing.
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
   std::unique_ptr<RSA, decltype(&::RSA_free)> rsa(RSA_new(), ::RSA_free);
   std::unique_ptr<BIGNUM, decltype(&::BN_free)> bn(BN_new(), ::BN_free);
 
@@ -149,6 +150,16 @@ Signing_Key::Signing_Key() {
       }
     }
   }
+#else  /* OPENSSL_VERSION_NUMBER */
+  m_private_key = ssl::EVP_PKEY_ptr{EVP_RSA_gen(2048)};
+  oci::ssl::BIO_ptr bio{BIO_new(BIO_s_mem())};
+  if (PEM_write_bio_PUBKEY(bio.get(), m_private_key.get())) {
+    size_t len = BIO_pending(bio.get());
+    std::vector<char> read_buffer(len + 1, '\0');
+    BIO_read(bio.get(), read_buffer.data(), len);
+    m_public_key = read_buffer.data();
+  }
+#endif /* OPENSSL_VERSION_NUMBER */
 }
 
 }  // namespace oci

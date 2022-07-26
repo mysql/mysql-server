@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -202,11 +202,11 @@ struct Allocation_scheme {
 /* Concrete implementation of Block_source_policy, a type which controls where
  * TempTable allocator is going to be allocating next Block of memory from.
  *
- * In particular, this policy will make TempTable allocator to:
+ * In particular, this policy will make TempTable allocator:
  *  1. Use RAM as long as temptable_max_ram threshold is not reached.
  *  2. Start using MMAP when temptable_max_ram threshold is reached.
  *  3. Go back using RAM as soon as RAM consumption drops below the
- *     temptable_max_ram threshold and there is enough space to accomodate the
+ *     temptable_max_ram threshold and there is enough space to accommodate the
  *     new block given the size.
  *  4. Not take into account per-table memory limits defined through
  *     tmp_table_size SYSVAR.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,7 +202,7 @@ int Handshake_client::write_packet(Blob &data) {
   an empty blob is returned and @c error() gives non-zero error code.
 
   When invoked for the first time (in the first round of the handshake)
-  there is no data from the server (data blob is null) and the intial
+  there is no data from the server (data blob is null) and the initial
   packet is generated without an input.
 
   @return Data to be sent to the server next or null blob if no more data
@@ -336,7 +336,7 @@ Blob Handshake_client::process_data(const Blob &data) {
   [InitializeSecurityContextW](http://msdn.microsoft.com/en-us/library/windows/desktop/aa375509(v=VS.85).aspx)
   and [AcceptSecurityContext](http://msdn.microsoft.com/en-us/library/aa374703.aspx)
   </li>
-  <li>A open source implemenation of NTML, SPNEGO and Kerberos5 are provided by
+  <li>A open source implementation of NTML, SPNEGO and Kerberos5 are provided by
   [Heimdal](http://www.h5l.org/)
   </li>
   <li>Java6 added SPNEGO support to
@@ -373,7 +373,7 @@ Blob Handshake_client::process_data(const Blob &data) {
          Section 3.1: Mechanism-independent Token Format
       </li><li>
          [RFC4178](http://tools.ietf.org/html/rfc4178.html#page-7)
-         Section 4: Token Defintions
+         Section 4: Token Definitions
       </li><li>
          [X.680](http://www.itu.int/ITU-T/studygroups/com17/languages/X.680-0207.pdf)
          ASN.1

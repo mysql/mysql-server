@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       common_header_len = LOG_EVENT_HEADER_LEN;
       number_of_event_types = LOG_EVENT_TYPES;
       /**
-        This will be used to initialze the post_header_len,
+        This will be used to initialize the post_header_len,
         for binlog version 4.
       */
       static uint8_t server_event_header_length[] = {
@@ -346,6 +346,12 @@ XA_prepare_event::XA_prepare_event(const char *buf,
 
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;
+}
+
+bool XA_prepare_event::is_one_phase() const { return this->one_phase; }
+
+XA_prepare_event::MY_XID const &XA_prepare_event::get_xid() const {
+  return this->my_xid;
 }
 
 Transaction_payload_event::Transaction_payload_event(const char *payload,

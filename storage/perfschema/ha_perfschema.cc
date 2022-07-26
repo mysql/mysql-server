@@ -1388,6 +1388,48 @@ static bool pfs_dict_init(dict_init_mode_t dict_init_mode,
   return false;
 }
 
+static bool pfs_sdi_set_ignored(handlerton *, const dd::Tablespace &,
+                                const dd::Table *, const sdi_key_t *,
+                                const void *, uint64) {
+  return false;
+}
+
+static bool pfs_sdi_delete_ignored(const dd::Tablespace &, const dd::Table *,
+                                   const sdi_key_t *) {
+  return false;
+}
+
+static bool pfs_sdi_get_ignored(const dd::Tablespace &, const sdi_key_t *,
+                                void *, uint64 *) {
+  return false;
+}
+
+static bool pfs_sdi_create_ignored(dd::Tablespace *) { return false; }
+
+static bool pfs_sdi_drop_ignored(dd::Tablespace *) { return false; }
+
+static bool pfs_sdi_get_keys_ignored(const dd::Tablespace &, sdi_vector_t &) {
+  return false;
+}
+
+void pfs_sdi_disable() {
+  pfs_hton->sdi_set = pfs_sdi_set_ignored;
+  pfs_hton->sdi_delete = pfs_sdi_delete_ignored;
+  pfs_hton->sdi_get = pfs_sdi_get_ignored;
+  pfs_hton->sdi_create = pfs_sdi_create_ignored;
+  pfs_hton->sdi_drop = pfs_sdi_drop_ignored;
+  pfs_hton->sdi_get_keys = pfs_sdi_get_keys_ignored;
+}
+
+void pfs_sdi_enable() {
+  pfs_hton->sdi_set = nullptr;
+  pfs_hton->sdi_delete = nullptr;
+  pfs_hton->sdi_get = nullptr;
+  pfs_hton->sdi_create = nullptr;
+  pfs_hton->sdi_drop = nullptr;
+  pfs_hton->sdi_get_keys = nullptr;
+}
+
 static int pfs_init_func(void *p) {
   DBUG_TRACE;
 

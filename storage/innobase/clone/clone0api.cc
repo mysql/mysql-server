@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "dict0dd.h"
 #include "ha_innodb.h"
+#include "log0files_io.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dictionary.h"
 #include "sql/dd/impl/dictionary_impl.h"  // dd::dd_tablespace_id()
@@ -76,7 +77,8 @@ static bool file_exists(const std::string &file_name) {
 when the files belong to same directory.
 @param[in]      from_file       name of current file
 @param[in]      to_file         name of new file */
-static void rename_file(std::string &from_file, std::string &to_file) {
+static void rename_file(const std::string &from_file,
+                        const std::string &to_file) {
   auto ret = std::rename(from_file.c_str(), to_file.c_str());
 
   if (ret != 0) {
@@ -99,20 +101,44 @@ static void create_file(std::string &file_name) {
       << "Error creating file : " << file_name.c_str();
 }
 
-/** Delete clone status file.
+/** Delete clone status file or directory.
 @param[in]      file    name of file */
 static void remove_file(const std::string &file) {
-  /* Allow non existent file, as the server could have crashed or returned with
-  error before creating the file. This is needed during error cleanup. */
-  if (!file_exists(file)) {
+  os_file_type_t file_type;
+
+  if (!os_file_status(file.c_str(), nullptr, &file_type)) {
+    ib::error(ER_IB_CLONE_STATUS_FILE)
+        << "Error checking a file to remove : " << file.c_str();
     return;
   }
 
-  auto ret = std::remove(file.c_str());
+  /* In C++17 there will be std::filesystem::remove_all and the
+  code below will no longer be required. */
+  if (file_type == OS_FILE_TYPE_DIR) {
+    auto scan_cbk = [](const char *path, const char *file_name) {
+      if (strcmp(file_name, ".") == 0 || strcmp(file_name, "..") == 0) {
+        return;
+      }
+      const auto to_remove = std::string{path} + OS_PATH_SEPARATOR + file_name;
+      remove_file(to_remove);
+    };
+    if (!os_file_scan_directory(file.c_str(), scan_cbk, true)) {
+      ib::error(ER_IB_CLONE_STATUS_FILE)
+          << "Error removing directory : " << file.c_str();
+    }
+  } else {
+    /* Allow non existent file, as the server could have crashed or returned
+    with error before creating the file. This is needed during error cleanup. */
+    if (!file_exists(file)) {
+      return;
+    }
 
-  if (ret != 0) {
-    ib::error(ER_IB_CLONE_STATUS_FILE)
-        << "Error removing file : " << file.c_str();
+    auto ret = std::remove(file.c_str());
+
+    if (ret != 0) {
+      ib::error(ER_IB_CLONE_STATUS_FILE)
+          << "Error removing file : " << file.c_str();
+    }
   }
 }
 
@@ -226,21 +252,16 @@ int clone_add_to_list_file(const char *list_file_name, const char *file_name) {
   return (ER_ERROR_ON_WRITE);
 }
 
-/** Add all existing redo files to old file list. */
+/** Add redo log directory to the old file list. */
 static void track_redo_files() {
-  std::string log_file;
-  for (uint32_t index = 0; index < srv_n_log_files; ++index) {
-    /* Build redo log file name. */
-    char file_name[MAX_LOG_FILE_NAME + 1];
-    snprintf(file_name, MAX_LOG_FILE_NAME, "%s%u", ib_logfile_basename, index);
+  const auto path = log_directory_path(log_sys->m_files_ctx);
 
-    log_file.assign(srv_log_group_home_dir);
-    if (!log_file.empty() && log_file.back() != OS_PATH_SEPARATOR) {
-      log_file.append(OS_PATH_SEPARATOR_STR);
-    }
-    log_file.append(file_name);
-    clone_add_to_list_file(CLONE_INNODB_OLD_FILES, log_file.c_str());
-  }
+  /* Skip the path separator which is at the end. */
+  ut_ad(!path.empty());
+  ut_ad(path.back() == OS_PATH_SEPARATOR);
+  const auto str = path.substr(0, path.size() - 1);
+
+  clone_add_to_list_file(CLONE_INNODB_OLD_FILES, str.c_str());
 }
 
 /** Execute sql statement.
@@ -381,7 +402,7 @@ int innodb_clone_begin(handlerton *, THD *thd, const byte *&loc, uint &loc_len,
 
   /* Acquire clone system mutex which would automatically get released
   when we return from the function [RAII]. */
-  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex(), UT_LOCATION_HERE);
 
   /* Check if concurrent ddl has marked abort. */
   int err = clone_begin_check(thd);
@@ -615,7 +636,7 @@ int innodb_clone_end(handlerton *, THD *thd, const byte *loc, uint loc_len,
                      uint task_id, int in_err) {
   /* Acquire clone system mutex which would automatically get released
   when we return from the function [RAII]. */
-  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex(), UT_LOCATION_HERE);
 
   /* Get clone handle by locator index. */
   auto clone_hdl = clone_sys->get_clone_by_index(loc, loc_len);
@@ -770,7 +791,7 @@ int innodb_clone_apply_begin(handlerton *, THD *thd, const byte *&loc,
 
   /* Acquire clone system mutex which would automatically get released
   when we return from the function [RAII]. */
-  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex(), UT_LOCATION_HERE);
 
   /* Check if clone is already in progress for the reference locator. */
   auto clone_hdl = clone_sys->find_clone(loc, loc_len, CLONE_HDL_APPLY);
@@ -1005,10 +1026,10 @@ const int FILE_STATE_REPLACED = FILE_SAVED + FILE_DATA;
 /** Get current state of a clone file.
 @param[in]      data_file       data file name
 @return current file state. */
-static int get_file_state(std::string data_file) {
+static int get_file_state(const std::string &data_file) {
   int state = 0;
   /* Check if data file is there. */
-  if (file_exists(data_file)) {
+  if (os_file_exists(data_file.c_str())) {
     state += FILE_DATA;
   }
 
@@ -1016,7 +1037,7 @@ static int get_file_state(std::string data_file) {
   saved_file.append(CLONE_INNODB_SAVED_FILE_EXTN);
 
   /* Check if saved old file is there. */
-  if (file_exists(saved_file)) {
+  if (os_file_exists(saved_file.c_str())) {
     state += FILE_SAVED;
   }
 
@@ -1024,7 +1045,7 @@ static int get_file_state(std::string data_file) {
   cloned_file.append(CLONE_INNODB_REPLACED_FILE_EXTN);
 
   /* Check if cloned file is there. */
-  if (file_exists(cloned_file)) {
+  if (os_file_exists(cloned_file.c_str())) {
     state += FILE_CLONED;
   }
   return (state);
@@ -1034,7 +1055,7 @@ static int get_file_state(std::string data_file) {
 @param[in]      data_file       data file name
 @param[in]      final_state     data file state to forward to
 @return previous file state before roll forward. */
-static int file_roll_forward(std::string &data_file, int final_state) {
+static int file_roll_forward(const std::string &data_file, int final_state) {
   auto cur_state = get_file_state(data_file);
 
   switch (cur_state) {
@@ -1093,7 +1114,7 @@ static int file_roll_forward(std::string &data_file, int final_state) {
 
 /** Roll back clone file state to normal state.
 @param[in]      data_file       data file name */
-static void file_rollback(std::string &data_file) {
+static void file_rollback(const std::string &data_file) {
   auto cur_state = get_file_state(data_file);
 
   switch (cur_state) {
@@ -1160,7 +1181,8 @@ undo tablespace could be expensive as we need to wait for purge to finish.
 /** Roll forward old data file state till final state.
 @param[in]      data_file       data file name
 @param[in]      final_state     data file state to forward to */
-static void old_file_roll_forward(std::string &data_file, int final_state) {
+static void old_file_roll_forward(const std::string &data_file,
+                                  int final_state) {
   auto cur_state = get_file_state(data_file);
 
   switch (cur_state) {
@@ -1214,7 +1236,7 @@ static void old_file_roll_forward(std::string &data_file, int final_state) {
 
 /** Roll back old data file state to normal state.
 @param[in]      data_file       data file name */
-static void old_file_rollback(std::string &data_file) {
+static void old_file_rollback(const std::string &data_file) {
   auto cur_state = get_file_state(data_file);
 
   switch (cur_state) {
@@ -1433,24 +1455,38 @@ void clone_update_gtid_status(std::string &gtids) {
   remove_file(replace_files);
 }
 
-/** Callback to process entries before removing status file. */
-using Remove_cbk = std::function<void(std::string &)>;
+/** Type of function which is supposed to handle a single file during
+Clone operations, accepting the file's name (string).
+@see clone_files_for_each_file */
+typedef std::function<void(const std::string &)> Clone_file_handler;
+
+/** Processes each file name listed in the given status file, executing a given
+function for each of them.
+@param[in]  status_file_name    status file name
+@param[in]  process             the given function, accepting file name string
+@return true iff status file was successfully opened */
+static bool clone_files_for_each_file(const char *status_file_name,
+                                      const Clone_file_handler &process) {
+  std::ifstream files;
+  files.open(status_file_name);
+  if (!files.is_open()) {
+    return false;
+  }
+  std::string data_file;
+  /* Extract and process all files listed in file with name=status_file_name */
+  while (std::getline(files, data_file)) {
+    process(data_file);
+  }
+  files.close();
+  return true;
+}
 
 /** Process all entries and remove status file.
 @param[in]      file_name       status file name
 @param[in]      process         callback to process entries */
-static void process_remove_file(const char *file_name, Remove_cbk &process) {
-  std::ifstream files;
-  std::string data_file;
-
-  /* Open file to get all file entries. */
-  files.open(file_name);
-  if (files.is_open()) {
-    /* Extract and process all files. */
-    while (std::getline(files, data_file)) {
-      process(data_file);
-    }
-    files.close();
+static void process_remove_file(const char *file_name,
+                                const Clone_file_handler &process) {
+  if (clone_files_for_each_file(file_name, process)) {
     std::string file_str(file_name);
     remove_file(file_str);
   }
@@ -1470,7 +1506,7 @@ void clone_files_error() {
   }
 
   /* Process all old files to be moved. */
-  Remove_cbk cbk = old_file_rollback;
+  Clone_file_handler cbk = old_file_rollback;
   process_remove_file(CLONE_INNODB_OLD_FILES, cbk);
 
   /* Process all files to be replaced. */
@@ -1527,22 +1563,18 @@ void clone_files_recovery(bool finished) {
     }
   }
 
-  std::ifstream files;
-
   /* Open files to get all old files to be saved or removed. Must handle
   the old files before cloned files. This is because during old file
   processing we need to skip the common files based on cloned state. If
   the cloned state is reset then these files would be considered as old
   files and removed. */
   int end_state = finished ? FILE_STATE_NONE : FILE_STATE_SAVED;
-  files.open(CLONE_INNODB_OLD_FILES);
-  if (files.is_open()) {
-    /* Extract and process all files to be saved or removed */
-    while (std::getline(files, file_name)) {
-      old_file_roll_forward(file_name, end_state);
-    }
-    files.close();
 
+  auto old_file_handler = [end_state](const std::string &fname) {
+    old_file_roll_forward(fname, end_state);
+  };
+
+  if (clone_files_for_each_file(CLONE_INNODB_OLD_FILES, old_file_handler)) {
     /* Remove clone file after successful recovery. */
     if (finished) {
       std::string old_files(CLONE_INNODB_OLD_FILES);
@@ -1552,6 +1584,9 @@ void clone_files_recovery(bool finished) {
 
   /* Open file to get all files to be replaced. */
   end_state = finished ? FILE_STATE_NORMAL : FILE_STATE_REPLACED;
+
+  std::ifstream files;
+
   files.open(CLONE_INNODB_REPLACED_FILES);
 
   if (files.is_open()) {
@@ -2468,7 +2503,7 @@ Clone_notify::Clone_notify(Clone_notify::Type type, space_id_t space,
   }
 
   std::string ntfn_mesg;
-  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex(), UT_LOCATION_HERE);
 
   bool clone_active = false;
   Clone_Handle *clone_donor = nullptr;
@@ -2557,7 +2592,7 @@ Clone_notify::Clone_notify(Clone_notify::Type type, space_id_t space,
 }
 
 Clone_notify::~Clone_notify() {
-  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex(), UT_LOCATION_HERE);
 
   switch (m_wait) {
     case Wait_at::ENTER:
@@ -2727,7 +2762,7 @@ static int clone_init_tablespaces(THD *thd) {
 
     /* Acquire dict mutex to prevent race against concurrent DML trying to
     load the space. */
-    IB_mutex_guard sys_mutex(&dict_sys->mutex);
+    IB_mutex_guard sys_mutex(&dict_sys->mutex, UT_LOCATION_HERE);
 
     /* Re-check if space exists after acquiring dict sys mutex. Concurrent
     DML could have already loaded the space. Space name is already adjusted

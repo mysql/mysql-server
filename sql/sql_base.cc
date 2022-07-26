@@ -282,7 +282,7 @@ mysql_mutex_t LOCK_open;
 
   1) If the share is gone, the thread will continue to allocate
      and open the table definition. This happens, e.g., if the
-     first thread failed when opening the table defintion and
+     first thread failed when opening the table definition and
      had to destroy the share.
   2) If the share is still in the cache, and m_open_in_progress
      is still true, the thread will wait for the condition again.
@@ -450,7 +450,7 @@ size_t get_table_def_key(const TABLE_LIST *table_list, const char **key) {
 }
 
 /*****************************************************************************
-  Functions to handle table definition cach (TABLE_SHARE)
+  Functions to handle table definition cache (TABLE_SHARE)
 *****************************************************************************/
 
 void Table_share_deleter::operator()(TABLE_SHARE *share) const {
@@ -1660,7 +1660,7 @@ void close_thread_tables(THD *thd) {
 
       Note that even if we are in LTM_LOCK_TABLES mode and statement
       requires prelocking (e.g. when we are closing tables after
-      failing ot "open" all tables required for statement execution)
+      failing to "open" all tables required for statement execution)
       we will exit this function a few lines below.
     */
     if (!thd->lex->requires_prelocking()) return;
@@ -2390,7 +2390,7 @@ void close_temporary_table(THD *thd, TABLE *table, bool free_share,
   Close and delete a temporary table
 
   NOTE
-    This dosn't unlink table from thd->temporary
+    This doesn't unlink table from thd->temporary
     If this is needed, use close_temporary_table()
 */
 
@@ -3040,7 +3040,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx) {
             slightly increases probability of deadlock.
             This problem will be solved once Alik pushes his
             temporary table refactoring patch and we can start
-            pre-acquiring metadata locks at the beggining of
+            pre-acquiring metadata locks at the beginning of
             open_tables() call.
     */
     if (table_list->mdl_request.is_write_lock_request() &&
@@ -3856,7 +3856,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
 }
 
 /**
-   Auxiliary routine which is used for performing automatical table repair.
+   Auxiliary routine which is used for performing automatic table repair.
 */
 
 static bool auto_repair_table(THD *thd, TABLE_LIST *table_list) {
@@ -3921,7 +3921,7 @@ end_unlock:
 }
 
 /**
-  Error handler class for supressing HA_ERR_ROW_FORMAT_CHANGED errors from SE.
+  Error handler class for suppressing HA_ERR_ROW_FORMAT_CHANGED errors from SE.
 */
 
 class Fix_row_type_error_handler : public Internal_error_handler {
@@ -5876,7 +5876,7 @@ restart:
 
           /*
             Here we rely on the fact that 'tables' still points to the valid
-            TABLE_LIST element. Altough currently this assumption is valid
+            TABLE_LIST element. Although currently this assumption is valid
             it may change in future.
           */
           if (ot_ctx.recover_from_failed_open()) goto err;
@@ -6121,7 +6121,7 @@ bool DML_prelocking_strategy::handle_routine(THD *thd,
   /*
     We assume that for any "CALL proc(...)" statement sroutines_list will
     have 'proc' as first element (it may have several, consider e.g.
-    "proc(sp_func(...)))". This property is currently guaranted by the
+    "proc(sp_func(...)))". This property is currently guaranteed by the
     parser.
   */
 
@@ -6576,7 +6576,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
     in the assert table.
     Callers in the read-write case must make sure no side effect to
     the global transaction state is inflicted when the attachable one
-    will commmit.
+    will commit.
   */
   assert(!thd->is_attachable_ro_transaction_active() &&
          (!thd->is_attachable_rw_transaction_active() ||
@@ -7118,7 +7118,7 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 /**
   Open a single table without table caching and don't add it to
   THD::open_tables. Depending on the 'add_to_temporary_tables_list' value,
-  the opened TABLE instance will be addded to THD::temporary_tables list.
+  the opened TABLE instance will be added to THD::temporary_tables list.
 
   @param thd                          Thread context.
   @param path                         Path (without .frm)
@@ -7894,7 +7894,7 @@ Field *find_field_in_table_sef(TABLE *table, const char *name) {
 
   RETURN VALUES
     0			If error: the found field is not unique, or there are
-                        no sufficient access priviliges for the found field,
+                        no sufficient access privileges for the found field,
                         or the field is qualified with non-existing table.
     not_found_field	The function was called with report_error ==
                         (IGNORE_ERRORS || IGNORE_EXCEPT_NON_UNIQUE) and a
@@ -7983,10 +7983,10 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
       We can't do this in Item_field as this would change the
       'name' of the item which may be used in the select list
 
-      The 'information_schema' name is treated as case-insenstive
+      The 'information_schema' name is treated as case-insensitive
       identifier when specified in FROM clause even in
       lower_case_table_names=0. We lowercase the 'information_schema' name
-      below to treat it as case-insensitive even when it is refered in WHERE
+      below to treat it as case-insensitive even when it is referred in WHERE
       or SELECT clause.
     */
     strmake(name_buff, db, sizeof(name_buff) - 1);
@@ -8845,7 +8845,7 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
 
   DESCRIPTION
     Apply the procedure 'store_top_level_join_columns' to each of the
-    top-level table referencs of the FROM clause. Adjust the list of tables
+    top-level table references of the FROM clause. Adjust the list of tables
     for name resolution - context->first_name_resolution_table to the
     top-most, lef-most NATURAL/USING join.
 
@@ -9042,7 +9042,7 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
       return true; /* purecov: inspected */
     }
 
-    // Check that we don't have a field that is hidden sytem field. This should
+    // Check that we don't have a field that is hidden system field. This should
     // be caught in Item_field::fix_fields.
     assert(
         item->type() != Item::FIELD_ITEM ||
@@ -10122,7 +10122,7 @@ bool mysql_rm_tmp_tables(void) {
     for (idx = 0; idx < dirp->number_off_files; idx++) {
       file = dirp->dir_entry + idx;
 
-      /* skiping . and .. */
+      /* skipping . and .. */
       if (file->name[0] == '.' &&
           (!file->name[1] || (file->name[1] == '.' && !file->name[2])))
         continue;
@@ -10146,7 +10146,7 @@ bool mysql_rm_tmp_tables(void) {
 
   /*
     Ask SEs to delete temporary tables.
-    Pass list of SQLxxx files as a refence.
+    Pass list of SQLxxx files as a reference.
   */
   result = ha_rm_tmp_tables(thd, &files);
 

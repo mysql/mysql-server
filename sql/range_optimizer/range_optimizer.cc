@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1350,7 +1350,7 @@ static void debug_print_tree(SEL_ROOT *origin) {
 #endif  // !defined(NDEBUG)
 
 /**
-  Find the next different key value by skiping all the rows with the same key
+  Find the next different key value by skipping all the rows with the same key
   value.
 
   Implements a specialized loose index access method for queries
@@ -1358,7 +1358,7 @@ static void debug_print_tree(SEL_ROOT *origin) {
     SELECT [SUM|COUNT|AVG](DISTINCT a,...) FROM t
   This method comes to replace the index scan + Unique class
   (distinct selection) for loose index scan that visits all the rows of a
-  covering index instead of jumping in the begining of each group.
+  covering index instead of jumping in the beginning of each group.
   TODO: Placeholder function. To be replaced by a handler API call
 
   @param is_index_scan     hint to use index scan instead of random index read

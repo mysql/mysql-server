@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -294,11 +294,9 @@ struct Tab {
   const Col* col;
   const NdbDictionary::Table* tab;
   char evtname[20];
-  const NdbDictionary::Event* evt;
-  Tab(uint idx) :
+  explicit Tab(uint idx) :
     col(g_col),
-    tab(0),
-    evt(0)
+    tab(nullptr)
   {
     sprintf(tabname, "tem%d", idx);
     sprintf(evtname, "tem%dev", idx);
@@ -426,7 +424,6 @@ static int
 createevent(Tab& t)
 {
   ll2("createevent: " << t.evtname);
-  t.evt = 0;
   g_dic = g_ndb->getDictionary();
   NdbDictionary::Event evt(t.evtname);
   require(t.tab != 0);
@@ -446,7 +443,8 @@ createevent(Tab& t)
   (void)g_dic->dropEvent(t.evtname);
   chkdb(g_dic->createEvent(evt) == 0);
 #endif
-  chkdb((t.evt = g_dic->getEvent(t.evtname)) != 0);
+  NdbDictionary::Event_ptr ev(g_dic->getEvent(t.evtname));
+  chkdb(ev != nullptr);
   g_dic = 0;
   return 0;
 }
@@ -466,7 +464,6 @@ dropevent(Tab& t, bool force = false)
   ll2("dropevent: " << t.evtname);
   g_dic = g_ndb->getDictionary();
   chkdb(g_dic->dropEvent(t.evtname) == 0 || force);
-  t.evt = 0;
   g_dic = 0;
   return 0;
 }
@@ -2251,60 +2248,60 @@ my_long_options[] =
 {
   NDB_STD_OPTS("test_event_merge"),
   { "abort-on-error", NDB_OPT_NOSHORT, "Do abort() on any error",
-    (uchar **)&g_opts.abort_on_error, (uchar **)&g_opts.abort_on_error, 0,
+    &g_opts.abort_on_error, &g_opts.abort_on_error, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "loglevel", NDB_OPT_NOSHORT, "Logging level in this program 0-3 (default 0)",
-    (uchar **)&g_opts.loglevel, (uchar **)&g_opts.loglevel, 0,
+    &g_opts.loglevel, &g_opts.loglevel, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "loop", NDB_OPT_NOSHORT, "Number of test loops (default 5, 0=forever)",
-    (uchar **)&g_opts.loop, (uchar **)&g_opts.loop, 0,
+    &g_opts.loop, &g_opts.loop, 0,
     GET_INT, REQUIRED_ARG, 5, 0, 0, 0, 0, 0 },
   { "maxops", NDB_OPT_NOSHORT, "Approx number of PK operations per table (default 1000)",
-    (uchar **)&g_opts.maxops, (uchar **)&g_opts.maxops, 0,
+    &g_opts.maxops, &g_opts.maxops, 0,
     GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0 },
   { "maxpk", NDB_OPT_NOSHORT, "Number of different PK values (default 10, max 1000)",
-    (uchar **)&g_opts.maxpk, (uchar **)&g_opts.maxpk, 0,
+    &g_opts.maxpk, &g_opts.maxpk, 0,
     GET_UINT, REQUIRED_ARG, 10, 0, 0, 0, 0, 0 },
   { "maxtab", NDB_OPT_NOSHORT, "Number of tables (default 10, max 100)",
-    (uchar **)&g_opts.maxtab, (uchar **)&g_opts.maxtab, 0,
+    &g_opts.maxtab, &g_opts.maxtab, 0,
     GET_INT, REQUIRED_ARG, 10, 0, 0, 0, 0, 0 },
   { "no-blobs", NDB_OPT_NOSHORT, "Omit blob attributes (5.0: true)",
-    (uchar **)&g_opts.no_blobs, (uchar **)&g_opts.no_blobs, 0,
+    &g_opts.no_blobs, &g_opts.no_blobs, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-implicit-nulls", NDB_OPT_NOSHORT, "Insert must include all attrs"
                                " i.e. no implicit NULLs",
-    (uchar **)&g_opts.no_implicit_nulls, (uchar **)&g_opts.no_implicit_nulls, 0,
+    &g_opts.no_implicit_nulls, &g_opts.no_implicit_nulls, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-missing-update", NDB_OPT_NOSHORT, "Update must include all non-PK attrs",
-    (uchar **)&g_opts.no_missing_update, (uchar **)&g_opts.no_missing_update, 0,
+    &g_opts.no_missing_update, &g_opts.no_missing_update, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-multiops", NDB_OPT_NOSHORT, "Allow only 1 operation per commit",
-    (uchar **)&g_opts.no_multiops, (uchar **)&g_opts.no_multiops, 0,
+    &g_opts.no_multiops, &g_opts.no_multiops, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-nulls", NDB_OPT_NOSHORT, "Create no NULL values",
-    (uchar **)&g_opts.no_nulls, (uchar **)&g_opts.no_nulls, 0,
+    &g_opts.no_nulls, &g_opts.no_nulls, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "one-blob", NDB_OPT_NOSHORT, "Only one blob attribute (default 2)",
-    (uchar **)&g_opts.one_blob, (uchar **)&g_opts.one_blob, 0,
+    &g_opts.one_blob, &g_opts.one_blob, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "opstring", NDB_OPT_NOSHORT, "Operations to run e.g. idiucdc (c is commit) or"
                       " iuuc:uudc (the : separates loops)",
-    (uchar **)&g_opts.opstring, (uchar **)&g_opts.opstring, 0,
+    &g_opts.opstring, &g_opts.opstring, 0,
     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "seed", NDB_OPT_NOSHORT, "Random seed (0=loop number, default -1=random)",
-    (uchar **)&g_opts.seed, (uchar **)&g_opts.seed, 0,
+    &g_opts.seed, &g_opts.seed, 0,
     GET_INT, REQUIRED_ARG, -1, 0, 0, 0, 0, 0 },
   { "separate-events", NDB_OPT_NOSHORT, "Do not combine events per GCI (5.0: true)",
-    (uchar **)&g_opts.separate_events, (uchar **)&g_opts.separate_events, 0,
+    &g_opts.separate_events, &g_opts.separate_events, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "tweak", NDB_OPT_NOSHORT, "Whatever the source says",
-    (uchar **)&g_opts.tweak, (uchar **)&g_opts.tweak, 0,
+    &g_opts.tweak, &g_opts.tweak, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "use-table", NDB_OPT_NOSHORT, "Use existing tables",
-    (uchar **)&g_opts.use_table, (uchar **)&g_opts.use_table, 0,
+    &g_opts.use_table, &g_opts.use_table, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "blob-version", NDB_OPT_NOSHORT, "Blob version 1 or 2 (default 2)",
-    (uchar**)&g_opts.blob_version, (uchar**)&g_opts.blob_version, 0,
+    &g_opts.blob_version, &g_opts.blob_version, 0,
     GET_INT, REQUIRED_ARG, 2, 0, 0, 0, 0, 0 },
   { 0, 0, 0,
     0, 0, 0,

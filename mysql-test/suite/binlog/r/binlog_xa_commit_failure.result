@@ -30,7 +30,6 @@ ERROR HY000: Error on observer while running replication hook 'before_commit'.
 SHOW ERRORS;
 Level	Code	Message
 Error	3100	Error on observer while running replication hook 'before_commit'.
-Error	1401	XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################

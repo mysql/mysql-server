@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -322,7 +322,10 @@ public:
   Uint32 getNodeSequence(NodeId nodeId) const;
   Uint32 getNodeNdbVersion(NodeId nodeId) const;
   Uint32 getMinDbNodeVersion() const;
-  bool check_send_size(Uint32 node_id, Uint32 send_size) const { return true;}
+  bool check_send_size(Uint32 /*node_id*/, Uint32 /*send_size*/) const
+  {
+    return true;
+  }
 
   int sendSignal(NdbApiSignal*, Uint32 nodeId);
   int sendSignal(NdbApiSignal*, Uint32 nodeId,

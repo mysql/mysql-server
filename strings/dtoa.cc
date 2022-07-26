@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -328,7 +328,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
 
   /*
     Number of digits in the exponent from the 'e' conversion.
-     The sign of the exponent is taken into account separetely, we don't need
+     The sign of the exponent is taken into account separately, we don't need
      to count it here.
    */
   exp_len = 1 + (decpt >= 101 || decpt <= -99) + (decpt >= 11 || decpt <= -9);
@@ -355,7 +355,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
     Assume that we don't have enough space to place all significant digits in
     the 'f' format. We have to choose between the 'e' format and the 'f' one
     to keep as many significant digits as possible.
-    Let E and F be the lengths of decimal representaion in the 'e' and 'f'
+    Let E and F be the lengths of decimal representation in the 'e' and 'f'
     formats, respectively. We want to use the 'f' format if, and only if F <= E.
     Consider the following cases:
     1. decpt <= 0.

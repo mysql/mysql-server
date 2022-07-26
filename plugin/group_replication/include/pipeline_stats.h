@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -286,6 +286,11 @@ class Pipeline_stats_member_collector {
     Decrement transactions waiting apply counter value.
   */
   void decrement_transactions_waiting_apply();
+
+  /**
+    Set transactions waiting apply counter to 0.
+  */
+  void clear_transactions_waiting_apply();
 
   /**
     Increment transactions certified counter value.

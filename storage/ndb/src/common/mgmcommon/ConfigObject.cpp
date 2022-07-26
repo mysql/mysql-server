@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -554,7 +554,6 @@ ConfigObject::unpack_v1(const Uint32 *src, Uint32 len)
   while(end - data > 4)
   {
     Uint32 tmp = ntohl(* (const Uint32 *)data);
-    Uint32 len = 4;
     data += 4;
     entry.m_key = get_old_key(tmp);
     entry.m_type = get_old_type(tmp);
@@ -589,26 +588,24 @@ ConfigObject::unpack_v1(const Uint32 *src, Uint32 len)
         data += 4;
         entry.m_int64 = (hi << 32) | lo;
         DEB_UNPACK_V1(("Int64Type: %llu", entry.m_int64));
-        len = 8;
         break;
       }
       case ConfigSection::StringTypeId:
       {
         Uint32 s_len = ntohl(* (const Uint32 *)data);
         data += 4;
-        Uint32 s_len2 = strlen((const char*)data);
+        Uint32 s_len2 = strlen(data);
         if (unlikely(s_len2 + 1 != s_len))
         {
           m_error_code = WRONG_STRING_LENGTH;
 	  return false;
         }
-        entry.m_string = (const char*)data;
+        entry.m_string = data;
         DEB_UNPACK_V1(("StringType(%p): %s, strlen: %u",
                        entry.m_string,
                        entry.m_string,
                        s_len2));
         data += ConfigSection::loc_mod4_v1(s_len);
-        len = s_len;
         break;
       }
       default:

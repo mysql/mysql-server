@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -569,7 +569,6 @@ bool add_sdi_info(THD *thd) {
     return true;
 
   LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_DD_POPULATED);
-  log_sink_buffer_check_timeout();
   sysd::notify("STATUS=Data Dictionary upgrade from MySQL 5.7 complete\n");
 
   return false;
@@ -891,11 +890,10 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
     if (upgrade_status.create()) return true;
 
     /*
-      If mysql.idb does not exist and updgrade stage tracking file
+      If mysql.idb does not exist and upgrade stage tracking file
       does not exist, we are in upgrade mode.
     */
     LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_START);
-    log_sink_buffer_check_timeout();
     sysd::notify("STATUS=Data Dictionary upgrade from MySQL 5.7 in progress\n");
   }
 
@@ -1252,8 +1250,6 @@ bool fill_dd_and_finalize(THD *thd) {
   */
   if (Upgrade_status().update(Upgrade_status::enum_stage::USER_TABLE_UPGRADED))
     return true;
-
-  log_sink_buffer_check_timeout();
 
   // Add SDI information to all tablespaces
   if (add_sdi_info(thd))

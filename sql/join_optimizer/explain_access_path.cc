@@ -89,7 +89,7 @@ struct ExplainData {
   vector<Child> children;
 };
 
-static string JoinTypeToString(JoinType join_type) {
+string JoinTypeToString(JoinType join_type) {
   switch (join_type) {
     case JoinType::INNER:
       return "inner join";
@@ -105,7 +105,7 @@ static string JoinTypeToString(JoinType join_type) {
   }
 }
 
-static string HashJoinTypeToString(RelationalExpression::Type join_type) {
+string HashJoinTypeToString(RelationalExpression::Type join_type) {
   switch (join_type) {
     case RelationalExpression::INNER_JOIN:
     case RelationalExpression::STRAIGHT_INNER_JOIN:
@@ -211,28 +211,60 @@ static void AddTableIteratorDescription(const AccessPath *path, JOIN *join,
 
 static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
                                          vector<string> *description,
-                                         vector<ExplainData::Child> *children) {
+                                         vector<ExplainData::Child> *children,
+                                         bool explain_analyze) {
   MaterializePathParameters *param = path->materialize().param;
 
   AddTableIteratorDescription(path->materialize().table_path, join,
                               description);
 
+  /*
+    There may be multiple references to a CTE, but we should only print the
+    plan once.
+  */
+  const bool explain_cte_now = param->cte != nullptr && [&]() {
+    if (explain_analyze) {
+      /*
+        Find the temporary table for which the CTE was materialized, if there
+        is one.
+      */
+      if (path->iterator == nullptr ||
+          path->iterator->GetProfiler()->GetNumInitCalls() == 0) {
+        // If the CTE was never materialized, print it at the first reference.
+        return param->table == param->cte->tmp_tables[0]->table &&
+               std::none_of(param->cte->tmp_tables.cbegin(),
+                            param->cte->tmp_tables.cend(),
+                            [](const TABLE_LIST *tab) {
+                              return tab->table->materialized;
+                            });
+      } else {
+        // The CTE was materialized here, print it now with cost data.
+        return true;
+      }
+    } else {
+      // If we do not want cost data, print the plan at the first reference.
+      return param->table == param->cte->tmp_tables[0]->table;
+    }
+  }();
+
   const bool is_union = param->query_blocks.size() > 1;
   string str;
 
-  if (param->cte != nullptr && param->cte->recursive) {
-    str = "Materialize recursive CTE " + to_string(param->cte->name);
-  } else if (param->cte != nullptr) {
-    if (is_union) {
-      str = "Materialize union CTE " + to_string(param->cte->name);
+  if (param->cte != nullptr) {
+    if (param->cte->recursive) {
+      str = "Materialize recursive CTE " + to_string(param->cte->name);
     } else {
-      str = "Materialize CTE " + to_string(param->cte->name);
-    }
-    if (param->cte->tmp_tables.size() > 1) {
-      str += " if needed";
-      if (param->cte->tmp_tables[0]->table != param->table) {
-        // See children().
-        str += " (query plan printed elsewhere)";
+      if (is_union) {
+        str = "Materialize union CTE " + to_string(param->cte->name);
+      } else {
+        str = "Materialize CTE " + to_string(param->cte->name);
+      }
+      if (param->cte->tmp_tables.size() > 1) {
+        str += " if needed";
+        if (!explain_cte_now) {
+          // See children().
+          str += " (query plan printed elsewhere)";
+        }
       }
     }
   } else if (is_union) {
@@ -270,8 +302,7 @@ static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
   //
   // TODO(sgunders): Consider printing CTE query plans on the top level of the
   // query block instead?
-  if (param->cte != nullptr &&
-      param->cte->tmp_tables[0]->table != param->table) {
+  if (param->cte != nullptr && !explain_cte_now) {
     return;
   }
 
@@ -432,7 +463,7 @@ static void AddChildrenFromPushedCondition(
     A table access path is normally a leaf node in the set of paths.
     The exception is if a subquery was included as part of an
     'engine_condition_pushdown'. In such cases the subquery has
-    been evaluated prior to acessing this table, and the result(s)
+    been evaluated prior to accessing this table, and the result(s)
     from the subquery materialized into the pushed condition.
     Report such subqueries as children of this table.
   */
@@ -893,7 +924,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       children.push_back({path->stream().child});
       break;
     case AccessPath::MATERIALIZE:
-      ExplainMaterializeAccessPath(path, join, &description, &children);
+      ExplainMaterializeAccessPath(
+          path, join, &description, &children,
+          include_costs && current_thd->lex->is_explain_analyze);
       break;
     case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
       AddTableIteratorDescription(
@@ -1041,6 +1074,26 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       children.push_back({path->delete_rows().child});
       break;
     }
+    case AccessPath::UPDATE_ROWS: {
+      string tables;
+      for (TABLE_LIST *t = join->query_block->leaf_tables; t != nullptr;
+           t = t->next_leaf) {
+        if (Overlaps(t->map(), path->update_rows().tables_to_update)) {
+          if (!tables.empty()) {
+            tables.append(", ");
+          }
+          tables.append(t->alias);
+          if (Overlaps(t->map(), path->update_rows().immediate_tables)) {
+            tables.append(" (immediate)");
+          } else {
+            tables.append(" (buffered)");
+          }
+        }
+      }
+      description.push_back(string("Update ") + tables);
+      children.push_back({path->update_rows().child});
+      break;
+    }
   }
   if (include_costs && path->num_output_rows >= 0.0) {
     double first_row_cost;
@@ -1082,14 +1135,32 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
     }
     description.back() += str;
   }
-  if (include_costs && current_thd->lex->is_explain_analyze &&
-      path->iterator != nullptr) {
-    if (path->num_output_rows < 0.0) {
-      // We always want a double space between the iterator name and the costs.
+  if (include_costs && current_thd->lex->is_explain_analyze) {
+    if (path->iterator == nullptr) {
+      description.back() += " (never executed)";
+    } else {
+      if (path->num_output_rows < 0.0) {
+        // We always want a double space between the iterator name and the
+        // costs.
+        description.back().push_back(' ');
+      }
       description.back().push_back(' ');
+      const IteratorProfiler *const profiler = path->iterator->GetProfiler();
+      if (profiler->GetNumInitCalls() == 0) {
+        description.back() += "(never executed)";
+      } else {
+        char buf[1024];
+        snprintf(buf, sizeof(buf),
+                 "(actual time=%.3f..%.3f rows=%lld loops=%" PRIu64 ")",
+                 profiler->GetFirstRowMs() / profiler->GetNumInitCalls(),
+                 profiler->GetLastRowMs() / profiler->GetNumInitCalls(),
+                 llrintf(static_cast<double>(profiler->GetNumRows()) /
+                         profiler->GetNumInitCalls()),
+                 profiler->GetNumInitCalls());
+
+        description.back() += buf;
+      }
     }
-    description.back().push_back(' ');
-    description.back() += path->iterator->TimingString();
   }
   return {description, children};
 }

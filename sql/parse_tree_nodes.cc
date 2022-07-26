@@ -208,7 +208,7 @@ bool PT_option_value_no_option_type_names::contextualize(Parse_context *pc) {
   else
     error(pc, pos);
 
-  return true;  // alwais fails with an error
+  return true;  // always fails with an error
 }
 
 bool PT_set_names::contextualize(Parse_context *pc) {
@@ -2046,7 +2046,7 @@ bool PT_show_table_base::make_table_base_cmd(THD *thd, bool *temporary) {
 
   lex->sql_command = m_sql_command;
 
-  // Create empty query block and add user specfied table.
+  // Create empty query block and add user specified table.
   TABLE_LIST **query_tables_last = lex->query_tables_last;
   Query_block *schema_query_block = lex->new_empty_query_block();
   if (schema_query_block == nullptr) return true;
@@ -4176,7 +4176,7 @@ Sql_cmd *PT_restart_server::make_cmd(THD *thd) {
 
 /**
    Generic attribute node that can be used with different base types
-   and corrsponding parse contexts. CFP (Contextualizer Function
+   and corresponding parse contexts. CFP (Contextualizer Function
    Pointer) argument implements a suitable contextualize action in the
    given context. Value is typically a decayed captureless lambda.
  */

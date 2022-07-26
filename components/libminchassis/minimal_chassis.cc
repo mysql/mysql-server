@@ -265,7 +265,7 @@ bool minimal_chassis_deinit(SERVICE_TYPE_NO_CONST(registry) * registry,
   service implementations else they are loaded with the default service
   implementations
 
-  @param use_related Used to decide which service implementaion to load
+  @param use_related Used to decide which service implementation to load
          for globals.
 */
 void minimal_chassis_services_refresh(bool use_related) {

@@ -100,7 +100,7 @@ PFS_engine_table *table_status_by_thread::create(PFS_engine_table_share *) {
 }
 
 int table_status_by_thread::delete_all_rows(void) {
-  /* Lock required to aggregate to global_status_vars. */
+  /* Lock required to aggregate to global_status_var. */
   mysql_mutex_lock(&LOCK_status);
 
   reset_status_by_thread();

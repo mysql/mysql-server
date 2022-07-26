@@ -445,7 +445,7 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     log_dbg("sasl_authenticate authentication successful");
     /**
       Kerberos authentication is concluded by the LDAP/SASL server,
-      From client side, authentication is succeded and we need to send data to
+      From client side, authentication has succeeded and we need to send data to
       server side to conclude the authentication. Other SASL authentication are
       conculded in the client side.
     */

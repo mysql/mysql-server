@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
   m_column = anAttrInfo;
 
   theAttrId = anAttrInfo->m_attrId;
-  m_size_in_bytes = tAttrByteSize;
+  m_size_in_bytes = -1; // UNDEFINED
 
   return setup(tAttrByteSize, aValue);
 }
@@ -102,19 +102,6 @@ NdbRecAttr::setup(Uint32 byteSize, char* aValue)
   return -1;
 }
 
-
-void
-NdbRecAttr::copyout()
-{
-  char* tRef = (char*)theRef;
-  char* tValue = theValue;
-  if (tRef != tValue && tRef != NULL && tValue != NULL) {
-    Uint32 n = m_size_in_bytes;
-    while (n-- > 0) {
-      *tValue++ = *tRef++;
-    }
-  }
-}
 
 NdbRecAttr *
 NdbRecAttr::clone() const {

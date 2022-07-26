@@ -52,3 +52,4 @@ MYSQL_ADD_PLUGIN(
   CLIENT_ONLY
   MODULE_ONLY MODULE_OUTPUT_NAME "authentication_oci_client"
 )
+

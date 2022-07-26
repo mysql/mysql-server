@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,10 +89,8 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count) {
 }
 
 bool vio_is_connected_pipe(Vio *vio) {
-  if (PeekNamedPipe(vio->hPipe, NULL, 0, NULL, NULL, NULL))
-    return true;
-  else
-    return (GetLastError() != ERROR_BROKEN_PIPE);
+  if (PeekNamedPipe(vio->hPipe, NULL, 0, NULL, NULL, NULL)) return true;
+  return (GetLastError() != ERROR_BROKEN_PIPE);
 }
 
 int vio_shutdown_pipe(Vio *vio) {

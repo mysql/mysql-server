@@ -1,7 +1,7 @@
 #ifndef MY_BYTEORDER_INCLUDED
 #define MY_BYTEORDER_INCLUDED
 
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,7 @@ static inline ulonglong uint6korr(const uchar *A) {
 /**
   int3store
 
-  Stores an unsinged integer in a platform independent way
+  Stores an unsigned integer in a platform independent way
 
   @param T  The destination buffer. Must be at least 3 bytes long
   @param A  The integer to store.

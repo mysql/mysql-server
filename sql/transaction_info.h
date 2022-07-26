@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include "sql/xa.h"                             // XID_STATE
 
 class Ha_trx_info;
+class Ha_trx_info_list;
 class THD;
 struct handlerton;
 
@@ -182,13 +183,13 @@ class Transaction_ctx {
     ready_preempt in MYSQL_BIN_LOG::ordered_commit.
   */
   struct {
-    bool enabled;      // see ha_enable_transaction()
-    bool xid_written;  // The session wrote an XID
-    bool real_commit;  // Is this a "real" commit?
-    bool commit_low;   // see MYSQL_BIN_LOG::ordered_commit
-    bool run_hooks;    // Call the after_commit hook
+    bool enabled{false};      // see ha_enable_transaction()
+    bool xid_written{false};  // The session wrote an XID
+    bool real_commit{false};  // Is this a "real" commit?
+    bool commit_low{false};   // see MYSQL_BIN_LOG::ordered_commit
+    bool run_hooks{false};    // Call the after_commit hook
 #ifndef NDEBUG
-    bool ready_preempt;  // internal in MYSQL_BIN_LOG::ordered_commit
+    bool ready_preempt{false};  // internal in MYSQL_BIN_LOG::ordered_commit
 #endif
   } m_flags;
   /* Binlog-specific logical timestamps. */
@@ -268,13 +269,7 @@ class Transaction_ctx {
 
   void add_changed_table(const char *key, uint32 key_length);
 
-  Ha_trx_info *ha_trx_info(enum_trx_scope scope) {
-    return m_scope_info[scope].m_ha_list;
-  }
-
-  const Ha_trx_info *ha_trx_info(enum_trx_scope scope) const {
-    return m_scope_info[scope].m_ha_list;
-  }
+  Ha_trx_info_list ha_trx_info(enum_trx_scope scope);
 
   void set_ha_trx_info(enum_trx_scope scope, Ha_trx_info *trx_info) {
     DBUG_TRACE;
@@ -405,10 +400,11 @@ class Transaction_ctx {
 
 class Ha_trx_info {
  public:
+  friend class Ha_trx_info_list;
+
   /**
     Register this storage engine in the given transaction context.
   */
-
   void register_ha(Transaction_ctx::THD_TRANS *trans, handlerton *ht_arg) {
     DBUG_TRACE;
     assert(m_flags == 0);
@@ -457,18 +453,17 @@ class Ha_trx_info {
   */
 
   void coalesce_trx_with(const Ha_trx_info *stmt_trx) {
+    this->coalesce_trx_with(*stmt_trx);
+  }
+
+  void coalesce_trx_with(const Ha_trx_info &stmt_trx) {
     /*
       Must be called only after the transaction has been started.
       Can be called many times, e.g. when we have many
       read-write statements in a transaction.
     */
     assert(is_started());
-    if (stmt_trx->is_trx_read_write()) set_trx_read_write();
-  }
-
-  Ha_trx_info *next() const {
-    assert(is_started());
-    return m_next;
+    if (stmt_trx.is_trx_read_write()) set_trx_read_write();
   }
 
   handlerton *ht() const {
@@ -496,6 +491,250 @@ class Ha_trx_info {
     May assume a combination of enum values above.
   */
   uchar m_flags;
+};
+
+/**
+  @class Ha_trx_info_list
+
+  Container to hold and allow iteration over a set of Ha_trx_info objects.
+ */
+class Ha_trx_info_list {
+ public:
+  /**
+   @class Iterator
+
+   Implements a forward iterator for `Ha_trx_info_list`. The
+   `Ha_trx_info_list` methods `begin` and `end` complete the requirements
+   for algorithms usage.
+
+   Since the container this iterator targets is a linked-list where the
+   list and the list elements are the same, the invalidation rules are not
+   the ones usually encontered in iterator classes. Invoking
+   `Ha_trx_info::reset()`, which clears the pointer to next element in the
+   list, doesn't invalidate the iterator, instead the pointer reference is
+   kept by the iterator in order to allow the requirements for forward
+   iterating to be valid. Therefore, although `Ha_trx_info::reset()`
+   removes the element from the list, the iterator is no invalidated and
+   iteration over the rest of the element is kept.
+ */
+  class Iterator {
+   public:
+    using difference_type = std::ptrdiff_t;
+    using pointer = Ha_trx_info *;
+    using reference = Ha_trx_info &;
+    using iterator_category = std::forward_iterator_tag;
+
+    Iterator(Ha_trx_info *parent);
+    Iterator(std::nullptr_t);
+    Iterator(Iterator const &rhs);
+    virtual ~Iterator() = default;
+
+    // BASIC ITERATOR METHODS //
+    Iterator &operator=(const Iterator &rhs);
+    Iterator &operator++();
+    reference operator*() const;
+    // END / BASIC ITERATOR METHODS //
+
+    // INPUT ITERATOR METHODS //
+    Iterator operator++(int);
+    pointer operator->() const;
+    bool operator==(Iterator const &rhs) const;
+    bool operator==(Ha_trx_info const *rhs) const;
+    bool operator==(Ha_trx_info const &rhs) const;
+    bool operator!=(Iterator const &rhs) const;
+    bool operator!=(Ha_trx_info const *rhs) const;
+    bool operator!=(Ha_trx_info const &rhs) const;
+    // END / INPUT ITERATOR METHODS //
+
+    // OUTPUT ITERATOR METHODS //
+    // reference operator*() const; <- already defined
+    // iterator operator++(int); <- already defined
+    // END / OUTPUT ITERATOR METHODS //
+
+    // FORWARD ITERATOR METHODS //
+    // Enable support for both input and output iterator
+    // END / FORWARD ITERATOR METHODS //
+
+   private:
+    /** Item this iterator is currently pointing to  */
+    Ha_trx_info *m_current{nullptr};
+    /** Next item in the list  */
+    Ha_trx_info *m_next{nullptr};
+
+    Iterator &set_next();
+  };
+
+  /**
+    Default constructor.
+   */
+  Ha_trx_info_list() = default;
+  /**
+    Class constructor that instantiates the underlying head of the list
+    with the parameter.
+
+    @param rhs The pointer to initialize the underlying list head with.
+   */
+  Ha_trx_info_list(Ha_trx_info *rhs);
+  /**
+    Copy constructor.
+
+    @param rhs The object instance to copy content from.
+   */
+  Ha_trx_info_list(Ha_trx_info_list const &rhs);
+  /**
+    Move constructor.
+
+    @param rhs The object instance to move content from.
+   */
+  Ha_trx_info_list(Ha_trx_info_list &&rhs);
+  virtual ~Ha_trx_info_list() = default;
+
+  /**
+    Copy operator.
+
+    @param rhs The object instance to copy content from.
+
+    @return this object reference, for chaining puposes.
+   */
+  Ha_trx_info_list &operator=(Ha_trx_info_list const &rhs);
+  /**
+    Move operator.
+
+    @param rhs The object instance to move content from.
+
+    @return this object reference, for chaining puposes.
+   */
+  Ha_trx_info_list &operator=(Ha_trx_info_list &&rhs);
+  /**
+    Retrieves the reference to the undelying head of the list.
+
+    @return The reference to the undelying head of the list.
+   */
+  Ha_trx_info &operator*();
+  /**
+    Retrieves the reference to the undelying head of the list.
+
+    @return The reference to the undelying head of the list.
+   */
+  Ha_trx_info const &operator*() const;
+  /**
+    Retrieves the pointer to the undelying head of the list.
+
+    @return The pointer to the undelying head of the list.
+   */
+  Ha_trx_info *operator->();
+  /**
+    Retrieves the pointer to the undelying head of the list.
+
+    @return The pointer to the undelying head of the list.
+   */
+  Ha_trx_info const *operator->() const;
+  /**
+    Equality operator that compares with another instance of this class. It
+    evalutes to true if both object's underlying head point to the same
+    address.
+
+    @param rhs The object to compare this object to.
+
+    @return true if both object's underlying head point to the same
+            address, false otherwise.
+   */
+  bool operator==(Ha_trx_info_list const &rhs) const;
+  /**
+    Equality operator that compares with an instance of Ha_trx_info
+    class. It evalutes to true if this object's underlying head point to
+    the same address of the parameter object.
+
+    @param rhs The object to compare this object to.
+
+    @return true if this object's underlying head point to the same address
+            as the parameter object, false otherwise.
+   */
+  bool operator==(Ha_trx_info const *rhs) const;
+  /**
+    Equality operator that compares with null. It evalutes to true if this
+    object's underlying head points to null.
+
+    @param rhs The `nullptr` value
+
+    @return true if this object's underlying head point to null, false
+            otherwise.
+   */
+  bool operator==(std::nullptr_t rhs) const;
+  /**
+    Inequality operator that compares with another instance of this
+    class. It evalutes to true if both object's underlying head point to
+    the different addresses.
+
+    @param rhs The object to compare this object to.
+
+    @return true if both object's underlying head point to different
+            addresses, false otherwise.
+   */
+  bool operator!=(Ha_trx_info_list const &rhs) const;
+  /**
+    Inequality operator that compares with an instance of Ha_trx_info
+    class. It evalutes to true if this object's underlying head point to
+    a difference address of the parameter object.
+
+    @param rhs The object to compare this object to.
+
+    @return true if this object's underlying head point to different
+            address as the parameter object, false otherwise.
+   */
+  bool operator!=(Ha_trx_info const *rhs) const;
+  /**
+    Inequality operator that compares with null. It evalutes to true if
+    this object's underlying head points to a non-null value.
+
+    @param rhs The `nullptr` value
+
+    @return true if this object's underlying head point to a non-null
+            value, false otherwise.
+   */
+  bool operator!=(std::nullptr_t rhs) const;
+  /**
+    Cast operator to `bool`. It returns true if the this object underlying
+    list head doesn't point to null, false otherwise.
+
+    @return true if the this object underlying list head doesn't point to
+            null, false otherwise.
+   */
+  operator bool() const;
+  /**
+    Retrieves the pointer to the underlying list head.
+
+    @return The underlying list head.
+   */
+  Ha_trx_info *head();
+  /**
+    Retrieves an iterator pointing to the underlying list head.
+
+    @return An iterator pointing to the underlying list head.
+   */
+  Iterator begin();
+  /**
+    Retrieves an iterator pointing to the underlying list head.
+
+    @return An iterator pointing to the underlying list head.
+   */
+  const Iterator begin() const;
+  /**
+    Retrieves an iterator pointing to null.
+
+    @return An iterator pointing null.
+   */
+  Iterator end();
+  /**
+    Retrieves an iterator pointing to null.
+
+    @return An iterator pointing null.
+   */
+  const Iterator end() const;
+
+ private:
+  /** The head of the list */
+  Ha_trx_info *m_underlying{nullptr};
 };
 
 #endif

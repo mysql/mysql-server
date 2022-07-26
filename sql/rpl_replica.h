@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -421,7 +421,7 @@ int init_recovery(Master_info *mi);
   (thread_mask&SLAVE_SQL)!=0, then mi->rli->init_info is called.
 
   @param force_load repositories will only read information if they
-  are not yet intialized. When true this flag forces the repositories
+  are not yet initialized. When true this flag forces the repositories
   to load information from table or file.
 
   @param skip_received_gtid_set_recovery When true, skips the received GTID
@@ -474,10 +474,10 @@ bool reset_info(Master_info *mi);
   @param flush_relay_log should the method also flush the relay log file
 
   @param skip_repo_persistence if this method shall skip the repository flush
-                               This wont skip the relay log flush if
+                               This won't skip the relay log flush if
                                flush_relay_log = true
 
-  @returns 0 if no error ocurred, !=0 if an error ocurred
+  @returns 0 if no error occurred, !=0 if an error occurred
 */
 int flush_master_info(Master_info *mi, bool force, bool need_lock = true,
                       bool flush_relay_log = true,
@@ -574,7 +574,7 @@ extern "C" void *handle_slave_sql(void *arg);
     @param[in] reconnect  If its need to reconnect to existing source.
     @param[in] host       The Host name or ip address of the source to which
                           connection need to be made.
-    @param[in] port       The Port fo the source to which connection need to
+    @param[in] port       The Port of the source to which connection need to
                           be made.
     @param[in] is_io_thread  To determine if its IO or Monitor IO thread.
 

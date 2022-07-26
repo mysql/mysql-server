@@ -98,6 +98,42 @@
 
 --exec $MYSQLD --no-defaults --help --verbose --secure-file-priv="./some_dir" > $LOG_FILE 2>&1
 
+###########################################################################
+# 5. Run --help --verbose and check some plugin options.
+###########################################################################
+
+SELECT PLUGIN_NAME, PLUGIN_STATUS, LOAD_OPTION FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME IN ('ARCHIVE', 'BLACKHOLE', 'FEDERATED')
+  ORDER BY PLUGIN_NAME;
+
+--exec $MYSQLD --no-defaults --help --verbose > $LOG_FILE 2>&1
+
+--echo # archive and blackhole should be on, federated off
+
+--let SEARCH_FILE=    $LOG_FILE
+--let SEARCH_PATTERN= ^(?i)ARCHIVE\s+ON
+--source include/search_pattern.inc
+
+--let SEARCH_FILE=    $LOG_FILE
+--let SEARCH_PATTERN= ^(?i)BLACKHOLE\s+ON
+--source include/search_pattern.inc
+
+--let SEARCH_FILE=    $LOG_FILE
+--let SEARCH_PATTERN= ^(?i)FEDERATED\s+OFF
+--source include/search_pattern.inc
+
+--exec $MYSQLD --no-defaults --skip-archive --federated --help --verbose > $LOG_FILE 2>&1
+
+--echo # archive should be off, federated on
+
+--let SEARCH_FILE=    $LOG_FILE
+--let SEARCH_PATTERN= ^(?i)ARCHIVE\s+OFF
+--source include/search_pattern.inc
+
+--let SEARCH_FILE=    $LOG_FILE
+--let SEARCH_PATTERN= ^(?i)FEDERATED\s+ON
+--source include/search_pattern.inc
+
 # Cleanup
 --remove_files_wildcard $BUGDIR *
 --rmdir $TEST_DATADIR

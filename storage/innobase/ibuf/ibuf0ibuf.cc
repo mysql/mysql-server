@@ -63,6 +63,8 @@ constexpr uint32_t IBUF_BITMAP = PAGE_DATA;
 #include "fsp0sysspace.h"
 #include "fut0lst.h"
 #include "lock0lock.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "log0recv.h"
 #include "que0que.h"
 #include "rem0cmp.h"
@@ -771,9 +773,6 @@ void ibuf_set_free_bits_func(
                                          UT_LOCATION_HERE, &mtr);
 
   switch (space->purpose) {
-    case FIL_TYPE_LOG:
-      ut_d(ut_error);
-      ut_o(break);
     case FIL_TYPE_TABLESPACE:
       break;
     case FIL_TYPE_TEMPORARY:
@@ -2481,15 +2480,14 @@ static bool ibuf_get_volume_buffered_hash(
     ulint size)        /*!< in: number of elements in hash array */
 {
   ulint len;
-  ulint fold;
   ulint bitmask;
 
   len = ibuf_rec_get_size(
       rec, types, rec_get_n_fields_old_raw(rec) - IBUF_REC_FIELD_USER, comp);
-  fold = ut_fold_binary(data, len);
+  const auto hash_value = ut::hash_binary(data, len);
 
-  hash += (fold / (CHAR_BIT * sizeof *hash)) % size;
-  bitmask = static_cast<ulint>(1) << (fold % (CHAR_BIT * sizeof(*hash)));
+  hash += (hash_value / (CHAR_BIT * sizeof *hash)) % size;
+  bitmask = static_cast<ulint>(1) << (hash_value % (CHAR_BIT * sizeof(*hash)));
 
   if (*hash & bitmask) {
     return false;
@@ -3557,7 +3555,8 @@ static void ibuf_insert_to_index_page(
     row_ins_sec_index_entry_by_modify(BTR_MODIFY_LEAF). */
     ut_ad(rec_get_deleted_flag(rec, page_is_comp(page)));
 
-    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     update = row_upd_build_sec_rec_difference_binary(rec, index, offsets, entry,
                                                      heap);
 
@@ -3609,17 +3608,17 @@ static void ibuf_insert_to_index_page(
     /* A collation may identify values that differ in
     storage length.
     Some examples (1 or 2 bytes):
-    utf8_turkish_ci: I = U+0131 LATIN SMALL LETTER DOTLESS I
-    utf8_general_ci: S = U+00DF LATIN SMALL LETTER SHARP S
-    utf8_general_ci: A = U+00E4 LATIN SMALL LETTER A WITH DIAERESIS
+    utf8mb3_turkish_ci: I = U+0131 LATIN SMALL LETTER DOTLESS I
+    utf8mb3_general_ci: S = U+00DF LATIN SMALL LETTER SHARP S
+    utf8mb3_general_ci: A = U+00E4 LATIN SMALL LETTER A WITH DIAERESIS
 
     latin1_german2_ci: SS = U+00DF LATIN SMALL LETTER SHARP S
 
     Examples of a character (3-byte UTF-8 sequence)
     identified with 2 or 4 characters (1-byte UTF-8 sequences):
 
-    utf8_unicode_ci: 'II' = U+2171 SMALL ROMAN NUMERAL TWO
-    utf8_unicode_ci: '(10)' = U+247D PARENTHESIZED NUMBER TEN
+    utf8mb3_unicode_ci: 'II' = U+2171 SMALL ROMAN NUMERAL TWO
+    utf8mb3_unicode_ci: '(10)' = U+247D PARENTHESIZED NUMBER TEN
     */
 
     /* Delete the different-length record, and insert the
@@ -3728,7 +3727,8 @@ static void ibuf_delete(const dtuple_t *entry, /*!< in: entry */
 
     rec_offs_init(offsets_);
 
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     if (page_get_n_recs(page) <= 1 ||
         !(REC_INFO_DELETED_FLAG & rec_get_info_bits(rec, page_is_comp(page)))) {

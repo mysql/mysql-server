@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -316,7 +316,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
     if (!is_cmdline_arg && (my_getopt_is_args_separator(cur_arg))) {
       is_cmdline_arg = true;
 
-      /* save the separator too if skip unkown options  */
+      /* save the separator too if skip unknown options  */
       if (my_getopt_skip_unknown)
         (*argv)[argvpos++] = cur_arg;
       else
@@ -1242,7 +1242,7 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
 }
 
 /*
-  Get double value withing ranges
+  Get double value within ranges
 
   Evaluates and returns the value that user gave as an argument to a variable.
 
@@ -1250,7 +1250,7 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
     decimal value of arg
 
     In case of an error, prints an error message and sets *err to
-    EXIT_ARGUMENT_INVALID.  Otherwise err is not touched
+    EXIT_ARGUMENT_INVALID.  Otherwise err is not touched.
 */
 
 static double getopt_double(const char *arg, const struct my_option *optp,

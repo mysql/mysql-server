@@ -68,6 +68,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "scope_guard.h"
+#include "sql-common/json_dom.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -75,7 +76,6 @@
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
 #include "sql/item.h"
-#include "sql/json_dom.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/server_component/mysql_server_keyring_lockable_imp.h"
@@ -775,12 +775,13 @@ bool Persisted_variables_cache::write_persist_file_v2(String &dest,
   Json_wrapper json_wrapper(&main_json_object);
   json_wrapper.set_alias();
   String str;
-  json_wrapper.to_string(&str, true, String().ptr());
+  json_wrapper.to_string(&str, true, String().ptr(),
+                         JsonDocumentDefaultDepthHandler);
   dest.append(str);
 
   if (encryption_success == return_status::SUCCESS) {
     /*
-      If we succeded in writing sensitive variables in blob, clear them
+      If we succeeded in writing sensitive variables in blob, clear them
       before next write operation
     */
     clean_up = true;
@@ -812,7 +813,7 @@ bool Persisted_variables_cache::flush_to_file() {
     return ret;
   }
   /*
-    Always write to backup file. Once write is successfull, rename backup
+    Always write to backup file. Once write is successful, rename backup
     file to original file.
   */
   if (open_persist_backup_file(O_CREAT | O_WRONLY)) {
@@ -823,8 +824,11 @@ bool Persisted_variables_cache::flush_to_file() {
     if (mysql_file_fputs(dest.c_ptr(), m_fd) < 0) {
       ret = true;
     }
+    DBUG_EXECUTE_IF("crash_after_write_persist_file", DBUG_SUICIDE(););
+    /* flush contents to disk immediately */
+    if (mysql_file_fflush(m_fd) != 0) ret = true;
+    if (my_sync(my_fileno(m_fd->m_file), MYF(MY_WME)) == -1) ret = true;
   }
-  DBUG_EXECUTE_IF("crash_after_write_persist_file", DBUG_SUICIDE(););
   close_persist_file();
   if (!ret) {
     DBUG_EXECUTE_IF("crash_after_close_persist_file", DBUG_SUICIDE(););
@@ -921,7 +925,10 @@ void Persisted_variables_cache::set_parse_early_sources() {
   set_persisted_options() will set the options read from persisted config file
 
   This function does nothing when --no-defaults is set or if
-  persisted_globals_load is set to false
+  persisted_globals_load is set to false.
+  Initial call to set_persisted_options(false) is needed to initialize
+  m_persisted_dynamic_plugin_variables set, so that next subsequent
+  set_persisted_options(true) calls will work with correct state.
 
    @param [in] plugin_options      Flag which tells what options are being set.
                                    If set to false non dynamically-registered
@@ -1816,8 +1823,6 @@ int Persisted_variables_cache::read_persist_file() {
   auto read_file = [&]() -> bool {
     string parsed_value;
     char buff[4096] = {0};
-    size_t offset = 0;
-    const char *error = nullptr;
     do {
       /* Read the persisted config file into a string buffer */
       parsed_value.append(buff);
@@ -1825,8 +1830,9 @@ int Persisted_variables_cache::read_persist_file() {
     } while (mysql_file_fgets(buff, sizeof(buff) - 1, m_fd));
     close_persist_file();
     /* parse the file contents to check if it is in json format or not */
-    json = Json_dom::parse(parsed_value.c_str(), parsed_value.length(), &error,
-                           &offset);
+    json = Json_dom::parse(
+        parsed_value.c_str(), parsed_value.length(),
+        [](const char *, size_t) {}, JsonDocumentDefaultDepthHandler);
     if (!json.get()) return true;
     return false;
   };
@@ -1842,8 +1848,11 @@ int Persisted_variables_cache::read_persist_file() {
       LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
       return 1;
     }
+  } else {
+    /* backup file was read successfully, thus rename it to original. */
+    my_rename(m_persist_backup_filename.c_str(), m_persist_filename.c_str(),
+              MYF(MY_WME));
   }
-
   Json_object *json_obj = down_cast<Json_object *>(json.get());
   /* Check file version */
   Json_dom *version_dom = json_obj->get("Version");
@@ -1962,7 +1971,7 @@ err:
   @param [in] argv                      Pointer to argv of original program
   @param [in] arg_separator_added       This flag tells whether arg separator
                                         has already been added or not
-  @param [in] plugin_options            This flag tells wether options are
+  @param [in] plugin_options            This flag tells whether options are
                                         handled during plugin install.
                                         If set to true options are handled
                                         as part of
@@ -2298,7 +2307,7 @@ bool Persisted_variables_cache::get_file_encryption_key(
     return retval;
   }
 
-  /* First retrieve mater key or create one if it's not available */
+  /* First retrieve master key or create one if it's not available */
   unsigned char *secret = nullptr;
   size_t secret_length = 0;
   char *secret_type = nullptr;
@@ -2421,7 +2430,7 @@ Persisted_variables_cache::encrypt_sensitive_variables() {
 
   return_status retval = return_status::ERROR;
   /*
-    Presense of blob/iv indicates that they could not be parsed at the
+    Presence of blob/iv indicates that they could not be parsed at the
     beginning.
   */
   if (m_sensitive_variables_blob.length() != 0 || m_iv.length() != 0)
@@ -2446,7 +2455,8 @@ Persisted_variables_cache::encrypt_sensitive_variables() {
   Json_wrapper json_wrapper(&sensitive_variables_object);
   json_wrapper.set_alias();
   String str;
-  json_wrapper.to_string(&str, true, String().ptr());
+  json_wrapper.to_string(&str, true, String().ptr(),
+                         JsonDocumentDefaultDepthHandler);
 
   /* Encrypt sensitive variables */
   unsigned char iv[16];
@@ -2518,11 +2528,9 @@ Persisted_variables_cache::decrypt_sensitive_variables() {
   }
 
   /* Parse the decrypted blob */
-  const char *errormsg = nullptr;
-  size_t offset = 0;
-  std::unique_ptr<Json_dom> json(
-      Json_dom::parse(reinterpret_cast<char *>(decrypted_data.get()), error,
-                      &errormsg, &offset));
+  std::unique_ptr<Json_dom> json(Json_dom::parse(
+      reinterpret_cast<char *>(decrypted_data.get()), error,
+      [](const char *, size_t) {}, JsonDocumentDefaultDepthHandler));
   if (!json.get()) return retval;
 
   if (json.get()->json_type() != enum_json_type::J_OBJECT) return retval;
@@ -2546,7 +2554,7 @@ Persisted_variables_cache::decrypt_sensitive_variables() {
 
 /**
   We cache keyring support status just after reading manifest file.
-  This is required because in the absense of a keyring component,
+  This is required because in the absence of a keyring component,
   keyring plugin may provide some of the services through
   daemon proxy keyring.
 

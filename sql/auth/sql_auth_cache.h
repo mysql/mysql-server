@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -166,7 +166,7 @@ class ACL_ACCESS {
 /**
   @class ACL_compare
 
-  Class that compares ACL_ACCESS objects. Used in std::sort funciton.
+  Class that compares ACL_ACCESS objects. Used in std::sort functions.
 */
 class ACL_compare {
  public:
@@ -323,16 +323,16 @@ class ACL_USER : public ACL_ACCESS {
 
    protected:
     /**
-      read from the user config. The number of days to keep the accont locked
+      read from the user config. The number of days to keep the account locked
     */
     int m_password_lock_time_days;
     /**
-      read from the user config. The number of failed login attemps before the
+      read from the user config. The number of failed login attempts before the
       account is locked
     */
     uint m_failed_login_attempts;
     /**
-      The remaining login tries, valid ony if @ref m_failed_login_attempts and
+      The remaining login tries, valid only if @ref m_failed_login_attempts and
       @ref m_password_lock_time_days are non-zero
     */
     uint m_remaining_login_attempts;

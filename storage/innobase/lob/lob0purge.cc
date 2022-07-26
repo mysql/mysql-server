@@ -24,11 +24,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include <scope_guard.h>
 #include "lob0del.h"
 #include "lob0first.h"
 #include "lob0index.h"
 #include "lob0inf.h"
 #include "lob0lob.h"
+#include "log0buf.h"
 #include "row0purge.h"
 #include "row0upd.h"
 #include "trx0purge.h"
@@ -416,6 +418,17 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
   ref_t &ref = ctx->m_blobref;
   mtr_t *mtr = ctx->get_mtr();
+
+#ifdef UNIV_DEBUG
+  {
+    /* Ensure that the btr_mtr is not restarted. */
+    const auto restart_count = mtr->m_restart_count;
+    auto guard = create_scope_guard([mtr, restart_count]() {
+      ut_ad(restart_count == mtr->m_restart_count);
+    });
+  }
+#endif /* UNIV_DEBUG */
+
   const mtr_log_t log_mode = mtr->get_log_mode();
   const bool is_rollback = ctx->m_rollback;
 
@@ -510,7 +523,12 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
       row_log_table_blob_free(index, ref.page_no());
     }
     if (purge_node == nullptr) {
-      btr_first.destroy();
+      /* During rollback, when a record has multiple blobs, freeing the first
+      page of one blob in btr_mtr and then attempting to free the next blob
+      in a local_mtr will cause mtr conflict between btr_mtr and local_mtr.
+      To avoid this problem, free the first page of blobs later.  */
+      btr_first.make_empty();
+      ctx->add_lob_block(btr_first.get_block());
     } else {
       /* In this case, the LOB is left with only the first page.  Subsequently
       the LOB first page number in the LOB reference is set to FIL_NULL.

@@ -1176,6 +1176,9 @@ void ha_innopart::clear_ins_upd_nodes() {
       /* Free memory from update nodes. */
       if (part.m_upd_node != nullptr) {
         upd_node_t *upd = part.m_upd_node;
+        if (upd->update) {
+          upd->update->free_per_stmt_heap();
+        }
         if (upd->cascade_heap) {
           mem_heap_free(upd->cascade_heap);
           upd->cascade_heap = nullptr;
@@ -3039,7 +3042,9 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
       }
     }
 
-    dd_clear_instant_table(*table_def, true);
+    if (dd_clear_instant_table(*table_def, true) != DB_SUCCESS) {
+      error = HA_ERR_GENERIC;
+    }
   }
 
   return error;
@@ -3142,7 +3147,9 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
     } else {
       if (is_instant && !dd_table_part_has_instant_cols(*dd_table)) {
         /* Not all partition truncate. Don't clear the versioned metadata. */
-        dd_clear_instant_table(*dd_table, false);
+        if (dd_clear_instant_table(*dd_table, false) != DB_SUCCESS) {
+          error = HA_ERR_GENERIC;
+        }
       }
     }
   }

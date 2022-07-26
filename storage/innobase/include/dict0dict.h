@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0types.h"
 #include "row0types.h"
 #include "sql/dd/object_id.h"
+#include "srv0mon.h" /* for dict0dict.ic */
 #include "sync0rw.h"
 #include "trx0types.h"
 #include "univ.i"
@@ -1050,7 +1051,7 @@ struct dict_sys_t {
     const auto n_cells = hash->get_n_cells();
     for (ulint i = 0; i < n_cells; i++) {
       for (dict_table_t *table =
-               static_cast<dict_table_t *>(HASH_GET_FIRST(hash, i));
+               static_cast<dict_table_t *>(hash_get_first(hash, i));
            table;
            table = static_cast<dict_table_t *>(HASH_GET_NEXT(id_hash, table))) {
         functor(table);
@@ -1081,7 +1082,7 @@ struct dict_sys_t {
   }
 
   /** The first ID of the redo log pseudo-tablespace */
-  static constexpr space_id_t s_log_space_first_id = 0xFFFFFFF0UL;
+  static constexpr space_id_t s_log_space_id = 0xFFFFFFF0UL;
 
   /** Use maximum UINT value to indicate invalid space ID. */
   static constexpr space_id_t s_invalid_space_id = 0xFFFFFFFF;
@@ -1097,10 +1098,10 @@ struct dict_sys_t {
 
   /** The lowest undo tablespace ID. */
   static constexpr space_id_t s_min_undo_space_id =
-      s_log_space_first_id - (FSP_MAX_UNDO_TABLESPACES * s_undo_space_id_range);
+      s_log_space_id - (FSP_MAX_UNDO_TABLESPACES * s_undo_space_id_range);
 
   /** The highest undo tablespace ID. */
-  static constexpr space_id_t s_max_undo_space_id = s_log_space_first_id - 1;
+  static constexpr space_id_t s_max_undo_space_id = s_log_space_id - 1;
 
   /** Start space_ids for temporary tablespaces. */
   static constexpr space_id_t s_max_temp_space_id = s_min_undo_space_id - 1;

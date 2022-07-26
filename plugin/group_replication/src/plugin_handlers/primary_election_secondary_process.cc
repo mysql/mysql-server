@@ -59,7 +59,7 @@ void Primary_election_secondary_process::set_stop_wait_timeout(ulong timeout) {
 
 int Primary_election_secondary_process::launch_secondary_election_process(
     enum_primary_election_mode mode, std::string &primary_to_elect,
-    std::vector<Group_member_info *> *group_members_info) {
+    Group_member_info_list *group_members_info) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&election_lock);

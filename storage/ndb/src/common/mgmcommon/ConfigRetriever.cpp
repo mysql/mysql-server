@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -384,13 +384,12 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
     Uint32 type = CONNECTION_TYPE_TCP + 1;
     if(iter.get(CFG_TYPE_OF_SECTION, &type)) continue;
     if(type != CONNECTION_TYPE_TCP) continue;
-    
-    Uint32 nodeId1, nodeId2, remoteNodeId;
+
+    Uint32 nodeId1, nodeId2;
     if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;
     if(iter.get(CFG_CONNECTION_NODE_2, &nodeId2)) continue;
     
     if(nodeId1 != nodeid && nodeId2 != nodeid) continue;
-    remoteNodeId = (nodeid == nodeId1 ? nodeId2 : nodeId1);
 
     Uint32 allow_unresolved = false;
     iter.get(CFG_CONNECTION_UNRES_HOSTS, & allow_unresolved);

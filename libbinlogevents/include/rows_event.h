@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -418,7 +418,7 @@ namespace binary_log {
   </tr>
   <tr>
     <td>SIGNEDNESS</td>
-    <td>signedness of numeric colums. This is included for all values of
+    <td>signedness of numeric columns. This is included for all values of
     binlog_row_metadata.</td>
     <td>For each numeric column, a bit indicates whether the numeric
     colunm has unsigned flag. 1 means it is unsigned. The number of

@@ -1,0 +1,118 @@
+########################################################################
+# This test verifies following for 'message_service_queue' event name:
+# - Verify that entries corresponding to the 'message_service_queue'
+#   performance schema instrumented memory are in the memory table only during
+#   the execution of the group replication plugin.
+# - Verify that the sum of bytes allocated is greater than zero for a
+#   transmitted tag and message over GR send service and zero after its
+#   finished.
+#
+# Test:
+#   0. This test requires one server with GR
+#   1. Verify that the entries corresponding to the
+#      instrumented memory are in the setup instruments
+#      table and the memory summary tables.
+#   2. Load plugin replication observers example on server1
+#   3. Verify that the sum of bytes allocated is greater than
+#      zero for the transmitted tag and message over GR send
+#      service.
+#   4. Assert server1 received messages transmitted by GR message
+#      delivery
+#   5. Verify that the entries corresponding to the instrumented
+#      message_service_queue remain in the tables after stopping GR.
+#   6. Assert that the number of bytes allocated for
+#      message_service_queue event must be 0.
+#   7. Cleanup
+########################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_replication_observers_example_plugin.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Verify that the entries corresponding to the
+--echo #    instrumented memory are in the setup instruments
+--echo #    table and the memory summary tables.
+SET @@GLOBAL.DEBUG= '+d,group_replication_message_service_dispatcher_before_pop';
+--source include/start_and_bootstrap_group_replication.inc
+
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/message_service_queue';
+--let $assert_text= 'There should be 1 entry corresponding to the message_service_queue in the setup_instruments table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/message_service_queue"
+--source include/assert.inc
+
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/message_service_queue';
+--let $assert_text= 'There should be 1 entry corresponding to the message_service_queue in the memory_summary_global_by_event_name table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/message_service_queue"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Load plugin replication observers example on server1
+--source include/install_replication_observers_example.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Verify that the sum of bytes allocated is greater than
+--echo #    zero for the transmitted tag and message over GR send
+--echo #    service.
+--let $tag= `SELECT UUID()`
+--replace_result $tag TAG
+--eval SELECT group_replication_service_message_send("$tag", repeat('a',1024*1024))
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_message_service_dispatcher_before_pop_reached";
+
+--let $assert_text= 'The sum bytes allocated must be greater than 0'
+--let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/message_service_queue"] > 0
+--source include/assert.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_message_service_dispatcher_before_pop';
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_message_service_dispatcher_before_pop_continue";
+
+
+--echo
+--echo ############################################################
+--echo # 4. Assert server1 received messages transmitted by GR message
+--echo #    delivery
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-011071' AND data LIKE '%Service message recv TAG: "$tag"%'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ##############################################################
+--echo # 5. Verify that the entries corresponding to the instrumented
+--echo #    message_service_queue remain in the tables after stopping GR.
+--source include/stop_group_replication.inc
+
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/message_service_queue';
+--let $assert_text= 'There should be 1 entry corresponding to the message_service_queue in the setup_instruments table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/message_service_queue"
+--source include/assert.inc
+
+SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/message_service_queue';
+--let $assert_text= 'There should be 1 entry corresponding to the message_service_queue in the memory_summary_global_by_event_name table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/message_service_queue"
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 6. Assert that the number of bytes allocated for
+--echo #    message_service_queue event must be 0.
+--let $assert_text= 'The sum of bytes allocated must be zero after stopping GR'
+--let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/message_service_queue"
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 7. Cleanup
+--source include/uninstall_replication_observers_example.inc
+--source include/group_replication_end.inc
