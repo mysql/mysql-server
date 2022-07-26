@@ -846,7 +846,7 @@ static trx_t *trx_resurrect_insert(
   start time here.*/
   if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE ||
       trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED) {
-    trx->start_time.store(std::chrono::system_clock::now(),
+    trx->start_time.store(std::chrono::system_clock::from_time_t(time(nullptr)),
                           std::memory_order_relaxed);
   }
 
@@ -947,7 +947,7 @@ static void trx_resurrect_update(
   start time here.*/
   if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE ||
       trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED) {
-    trx->start_time.store(std::chrono::system_clock::now(),
+    trx->start_time.store(std::chrono::system_clock::from_time_t(time(nullptr)),
                           std::memory_order_relaxed);
   }
 
@@ -1306,7 +1306,7 @@ static void trx_start_low(
       trx->ddl_operation = thd_is_dd_update_stmt(trx->mysql_thd);
     }
   } else {
-    trx->start_time.store(std::chrono::system_clock::now(),
+    trx->start_time.store(std::chrono::system_clock::from_time_t(time(nullptr)),
                           std::memory_order_relaxed);
   }
 
@@ -1753,7 +1753,7 @@ static void trx_update_mod_tables_timestamp(trx_t *trx) /*!< in: transaction */
 
   /* consider using trx->start_time if calling time() is too
   expensive here */
-  const auto now = std::chrono::system_clock::now();
+  const auto now = std::chrono::system_clock::from_time_t(time(nullptr));
 
   trx_mod_tables_t::const_iterator end = trx->mod_tables.end();
 

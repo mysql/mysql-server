@@ -1438,8 +1438,11 @@ void lock_wait_timeout_thread() {
   /** The last time we've checked for timeouts. */
   auto last_checked_for_timeouts_at = std::chrono::steady_clock::now();
   do {
-    auto current_time = std::chrono::steady_clock::now();
-    if (std::chrono::milliseconds(500) <
+    auto current_time = std::chrono::steady_clock::now(); /* Calling this more
+    often than once a second isn't needed, as lock timeouts are specified with
+    one second resolution, so probably nobody cares if we wake up after T or
+    T+0.99, when T itself can't be precise. */
+    if (std::chrono::seconds(1) <=
         current_time - last_checked_for_timeouts_at) {
       last_checked_for_timeouts_at = current_time;
       lock_wait_check_slots_for_timeouts();
