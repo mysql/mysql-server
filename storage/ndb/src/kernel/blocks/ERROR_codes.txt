@@ -25,7 +25,7 @@ Next NDBCNTR 1023
 Next NDBFS 2002
 Next DBACC 3006
 Next DBTUP 4039
-Next DBLQH 5098
+Next DBLQH 5109
 Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8120
@@ -352,7 +352,8 @@ Error insertions used to test ACCKEYCONF/ABORT interleaving
 5096: Cause ABORT messages to be indefinitely stalled
       ACCKEYCONF signal clears ERROR Insertion
 5097: ndbabort()
-
+5107: Cause SimulatedBlock::allocChunks() to return chunks with gaps
+5108: Cause request to fail with error 1218 SendBuffer overload (temp error)
 
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC

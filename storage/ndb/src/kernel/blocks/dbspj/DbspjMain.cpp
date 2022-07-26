@@ -1231,6 +1231,7 @@ Dbspj::handle_early_lqhkey_ref(Signal* signal,
     ref->errorCode = err;
     ref->transId1 = transid[0];
     ref->transId2 = transid[1];
+    ref->flags = 0;
     sendSignal(returnref, GSN_LQHKEYREF, signal,
                LqhKeyRef::SignalLength, JBB);
   }

@@ -4205,6 +4205,206 @@ runCheckLCPStats(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+int testAbortIgnoreError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Testing of correct behaviour when a batch of operations
+   * affecting the same row are executed with AO_IgnoreError,
+   * and some non-terminal operation fails on the backup replica.
+   * This is interesting at the primary replica as there can
+   * be operations prepared on top of the failing operation,
+   * which are then invalidated and must be rolled back.
+   *
+   * An error insert causes the first two operations to fail,
+   * at primary or backup replica, and the following ops to
+   * succeed (if allowed by other constraints).
+   *
+   * Scenario variants :
+   *  - Row Exists : Partial updates, each affecting a disjoint 
+   *    set of columns.
+   *    If the transaction is not rolled back, then we may
+   *    see different effects on different replicas as they
+   *    retain different ops, affecting different columns.
+   *
+   *  - Row Exists : Update, Delete, Insert *
+   *    Testing 'late discovered' abort of op which later ops
+   *    depend on for semantics.
+   *  
+   *  - Exists : Delete, Insert, Update *
+   *    Testing 'late discovered' abort of op which later ops
+   *    depend on for semantics
+   *
+   *  - !Exists : Insert, Update, Delete *
+   *    Testing 'late discovered' abort of op which later ops
+   *    depend on for semantics
+   *
+   * Commit/Rollback is chosen pseudo randomly
+   * 
+   * The table is then checked for :
+   *    - Hugo record level consistency : A scan shows that all
+   *      records are self-consistent wrt rowId + update value
+   *    - Index and Replica consistency : Indexes are checked 
+   *      relative to the table, and Replicas are checked relative
+   *      to each other.
+   */
+
+  int result = NDBT_OK;
+  const NdbDictionary::Table *table= ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+
+  const int numOps = 4;
+  int numSetableCols = 0;
+  for (int col=0; col < table->getNoOfColumns(); col++)
+  {
+    if (!table->getColumn(col)->getPrimaryKey())
+    {
+      numSetableCols++;
+    }
+  }
+
+  if (numSetableCols < numOps)
+  {
+    ndbout_c("Table %s has too few columns for this test (need %d)",
+             table->getName(),
+             numOps);
+    return NDBT_OK;
+  }
+
+  /* Not too many rows for test duration */
+  const Uint32 numRows = MIN(ctx->getNumRecords(), 20);
+
+  do
+  {
+    HugoOperations hugoOps(*table);
+    for (Uint32 rowId=0; rowId < numRows; rowId ++)
+    {
+      CHECK(hugoOps.startTransaction(pNdb) == 0);
+      NdbTransaction* trans = hugoOps.getTransaction();
+      
+      const Uint32 scenario = rand() % 4;
+      switch (scenario)
+      {
+      case 0:
+      {
+        ndbout_c("RowId %u : Partial updates", rowId);
+        for (int opNum=0; opNum<numOps; opNum++)
+        {
+          NdbOperation* uOp = trans->getNdbOperation(table);
+          CHECK3(uOp != NULL);
+          CHECK3(uOp->updateTuple() == 0);
+          CHECK3(hugoOps.equalForRow(uOp, rowId) == 0);
+          int idx = 0;
+          for (int col=0; col < table->getNoOfColumns(); col++)
+          {
+            if (!table->getColumn(col)->getPrimaryKey())
+            {
+              if (idx == opNum)
+              {
+                CHECK3(hugoOps.setValueForAttr(uOp, col, rowId, opNum) == 0);
+                break;
+              }
+              idx++;
+            }
+          }
+        }
+        break;
+      }
+      case 1:
+      {
+        ndbout_c("RowId %u : Update, Delete, Insert*", rowId);
+        for (Uint32 i=0; i < 6; i++)
+        {
+          CHECK3(hugoOps.pkUpdateRecord(pNdb, rowId, 1, 2*i + 1) == 0);
+          CHECK3(hugoOps.pkDeleteRecord(pNdb, rowId, 1) == 0);
+          CHECK3(hugoOps.pkInsertRecord(pNdb, rowId, 1, 2*i + 2) == 0);
+        }
+        break;
+      }
+      case 2:
+      {
+        ndbout_c("RowId %u : Delete, Insert, Update*", rowId);
+        for (Uint32 i=0; i < 6; i++)
+        {
+          CHECK3(hugoOps.pkDeleteRecord(pNdb, rowId, 1) == 0);
+          CHECK3(hugoOps.pkInsertRecord(pNdb, rowId, 1, 2*i + 1) == 0);
+          CHECK3(hugoOps.pkUpdateRecord(pNdb, rowId, 1, 2*i + 2) == 0);
+        }
+        break;
+      }
+      case 3:
+      {
+        /* !Exists case, using offsets beyond the defined records */
+        const Uint32 offset = ctx->getNumRecords();
+        ndbout_c("RowId %u (%u): Insert, Update, Delete*", rowId, offset + rowId);
+        for (Uint32 i=0; i < 6; i++)
+        {          
+          CHECK3(hugoOps.pkInsertRecord(pNdb, offset + rowId, 1, 2*i + 1) == 0);
+          CHECK3(hugoOps.pkUpdateRecord(pNdb, offset + rowId, 1, 2*i + 2) == 0);
+          CHECK3(hugoOps.pkDeleteRecord(pNdb, offset + rowId, 1) == 0);
+        }
+        break;
+      }
+      default:
+        abort();
+      }
+
+      /* Insert error */
+      restarter.insertErrorInAllNodes(5108);
+
+      int rc = hugoOps.execute_NoCommit(pNdb, AO_IgnoreError);
+
+      /* Check error(s) */
+      ndbout_c("ExecuteNoCommit rc : %d", rc);
+
+      const NdbOperation* op = NULL;
+
+      while((op = trans->getNextCompletedOperation(op)) != NULL)
+      {
+        ndbout_c("Operation %p error %u %s", op, op->getNdbError().code, op->getNdbError().message);
+      }
+      
+      restarter.insertErrorInAllNodes(0);
+
+      switch (rand() % 2)
+      {
+      case 0:
+        /* Commit */
+        rc = hugoOps.execute_Commit(pNdb);
+        ndbout_c("Commit rc %u", rc);
+        break;
+      case 1:
+        /* Rollback */
+        rc = hugoOps.execute_Rollback(pNdb);
+        ndbout_c("Rollback rc %u", rc);
+        break;
+      default:
+        abort();
+      }
+
+      rc = hugoOps.closeTransaction(pNdb);
+    }
+
+    ndbout_c("Checking the table");
+
+    HugoTransactions hugoTrans(*table);
+    ndbout_c("Checking data validity");
+    CHECK2(hugoTrans.scanReadRecords(pNdb,
+                                     ctx->getNumRecords()) == 0);
+
+    hugoTrans.setVerbosity(1);
+    ndbout_c("Checking data consistency");
+    CHECK2(hugoTrans.verifyTableAndAllIndexes(pNdb) == 0);
+  } while (0);
+
+  restarter.insertErrorInAllNodes(0);
+
+  return result;
+}
+
+
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -4647,6 +4847,14 @@ TESTCASE("ParallelReadUpdate",
   STEP(runPkDirtyReadUntilStopped);
   STEP(runPkDirtyReadUntilStopped);
   STEP(runTimer);
+  FINALIZER(runClearTable);
+}
+TESTCASE("AbortIgnoreError",
+         "Cause an operation in a multi-operation transaction "
+         "to rollback from a replica")
+{
+  INITIALIZER(runLoadTable);
+  STEP(testAbortIgnoreError);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testBasic)
