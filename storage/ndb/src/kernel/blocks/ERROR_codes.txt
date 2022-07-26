@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@ Next NDBCNTR 1023
 Next NDBFS 2003
 Next DBACC 3005
 Next DBTUP 4039
-Next DBLQH 5098
+Next DBLQH 5109
 Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8115
@@ -352,6 +352,9 @@ Error insertions used to test ACCKEYCONF/ABORT interleaving
       ACCKEYCONF signal clears ERROR Insertion
 5097: ndbrequire(false)
 
+5107: Cause SimulatedBlock::allocChunks() to return chunks with gaps
+5108: Cause request to fail with error 1218 SendBuffer overload (temp error)
+ 
 
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC

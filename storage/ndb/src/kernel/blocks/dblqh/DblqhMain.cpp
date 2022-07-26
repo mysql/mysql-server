@@ -3320,6 +3320,7 @@ void Dblqh::earlyKeyReqAbort(Signal* signal,
     ref->errorCode = errCode;
     ref->transId1 = transid1;
     ref->transId2 = transid2;
+    ref->flags = 0;
     sendSignal(signal->senderBlockRef(), GSN_LQHKEYREF, signal, 
 	       LqhKeyRef::SignalLength, JBB);
   }//if
@@ -3497,7 +3498,10 @@ void Dblqh::execLQHKEYREF(Signal* signal)
       warningReport(signal, 15);
       return;
     }//if
-    abortErrorLab(signal);
+    /* Mark abort due to replica issue */
+    regTcPtr->abortState = TcConnectionrec::ABORT_FROM_LQH_REPLICA;
+    regTcPtr->errorCode = terrorCode;
+    abortCommonLab(signal);
     return;
     break;
   case TcConnectionrec::LOG_CONNECTED:
@@ -4965,6 +4969,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   if (ERROR_INSERTED_CLEAR(5047) ||
+      ERROR_INSERTED_CLEAR(5108) ||
       ERROR_INSERTED(5079) ||
      (ERROR_INSERTED(5102) &&
       LqhKeyReq::getNoTriggersFlag(Treqinfo)) ||
@@ -10262,7 +10267,9 @@ void Dblqh::continueAfterLogAbortWriteLab(Signal* signal)
     cleanUp(signal);
     return;
   }//if
-  if (regTcPtr->abortState == TcConnectionrec::ABORT_FROM_LQH) {
+  if ((regTcPtr->abortState == TcConnectionrec::ABORT_FROM_LQH) ||
+      (regTcPtr->abortState == TcConnectionrec::ABORT_FROM_LQH_REPLICA))
+  {
     LqhKeyRef * const lqhKeyRef = (LqhKeyRef *)signal->getDataPtrSend();
 
     jam();
@@ -10271,6 +10278,12 @@ void Dblqh::continueAfterLogAbortWriteLab(Signal* signal)
     lqhKeyRef->errorCode = regTcPtr->errorCode;
     lqhKeyRef->transId1 = regTcPtr->transid[0];
     lqhKeyRef->transId2 = regTcPtr->transid[1];
+    lqhKeyRef->flags = 0;
+    if (regTcPtr->abortState == TcConnectionrec::ABORT_FROM_LQH_REPLICA)
+    {
+      jam();
+      LqhKeyRef::setReplicaErrorFlag(lqhKeyRef->flags, 1);
+    }
     sendSignal(regTcPtr->clientBlockref, GSN_LQHKEYREF, signal, 
                LqhKeyRef::SignalLength, JBB);
   } else if (regTcPtr->abortState == TcConnectionrec::ABORT_FROM_TC) {

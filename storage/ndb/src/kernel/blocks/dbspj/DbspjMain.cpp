@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1108,6 +1108,7 @@ Dbspj::handle_early_lqhkey_ref(Signal* signal,
     ref->errorCode = err;
     ref->transId1 = transid[0];
     ref->transId2 = transid[1];
+    ref->flags = 0;
     sendSignal(returnref, GSN_LQHKEYREF, signal,
                LqhKeyRef::SignalLength, JBB);
   }
