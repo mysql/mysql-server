@@ -515,8 +515,8 @@ TEST_F(RouterEventlogTest, wrapper_running_as_unknown) {
   // Error message will be different depending on whether MySQLRouter service
   // is registered on this machine or not.
   constexpr char expected_message_registered[] =
-      "Starting service failed (are you trying to run Router "
-      "as a service from command-line?): The service process "
+      "Starting service failed (are you trying to run a service from "
+      "command-line?): The service process "
       "could not connect to the service controller.";
   constexpr char expected_message_not_registered[] =
       "Could not find service 'MySQLRouter'!\nUse --install-service or "

@@ -201,7 +201,7 @@ class OverwriteLogLevelTest
  * overwrite works as expected */
 TEST_P(OverwriteLogLevelTest, OverwriteLogLevel) {
   const std::string debug_level_log_entry =
-      ".* main DEBUG .* Ready, signaling notify socket";
+      ".* main DEBUG .* Starting: keepalive.";
 
   const std::string keepalive_section = get_keepalive_section();
   const std::string conf_file =
