@@ -2201,8 +2201,7 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
   /* MySQL's timestamp is 4 byte, so we use
   pars_info_add_int4_literal() which takes a lint arg, so "now" is
   lint */
-  auto now = static_cast<uint32_t>(
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
+  auto now = static_cast<uint32_t>(time(nullptr));
 
   pinfo = pars_info_create();
 

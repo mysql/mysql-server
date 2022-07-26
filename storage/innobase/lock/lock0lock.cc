@@ -1484,7 +1484,8 @@ void RecLock::set_wait_state(lock_t *lock) {
   ut_ad(trx_mutex_own(m_trx));
   ut_ad(lock_get_wait(lock));
 
-  m_trx->lock.wait_started = std::chrono::system_clock::now();
+  m_trx->lock.wait_started =
+      std::chrono::system_clock::from_time_t(time(nullptr));
 
   m_trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
@@ -3633,7 +3634,8 @@ static dberr_t lock_table_enqueue_waiting(ulint mode, dict_table_t *table,
 
   trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
-  trx->lock.wait_started = std::chrono::system_clock::now();
+  trx->lock.wait_started =
+      std::chrono::system_clock::from_time_t(time(nullptr));
   trx->lock.was_chosen_as_deadlock_victim = false;
 
   auto stopped = que_thr_stop(thr);

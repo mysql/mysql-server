@@ -158,7 +158,7 @@ inline static Wait_stats wait_for(uint64_t spins_limit,
 #else
   constexpr uint64_t base_level = 4;
 #endif
-  uint64_t next_level = 64;
+  uint64_t next_level = base_level;
 
   while (!condition(spins == spins_limit)) {
     if (spins == spins_limit) {

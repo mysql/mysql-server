@@ -1836,7 +1836,7 @@ extern "C" time_t thd_start_time(const THD *thd);
 std::chrono::system_clock::time_point thd_start_time(THD *) {
   // FIXME: This function should be added to the server code.
   // return(thd_start_time(thd));
-  return std::chrono::system_clock::now();
+  return std::chrono::system_clock::from_time_t(time(nullptr));
 }
 
 /** Enter InnoDB engine after checking the max number of user threads
