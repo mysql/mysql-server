@@ -220,7 +220,7 @@ static void clear_cs_info(CHARSET_INFO *cs) {
   cs->sort_order = nullptr;
 }
 
-static int add_collation(CHARSET_INFO *cs) {
+int MY_CHARSET_LOADER::add_collation(CHARSET_INFO *cs) {
   if (cs->m_coll_name &&
       (cs->number ||
        (cs->number = get_collation_number_internal(cs->m_coll_name))) &&
@@ -332,37 +332,27 @@ static void default_reporter(enum loglevel level [[maybe_unused]],
                              uint ecode [[maybe_unused]], ...) {}
 my_error_reporter my_charset_error_reporter = default_reporter;
 
-/**
-  Wrappers for memory functions my_malloc (and friends)
-  with C-compatbile API without extra "myf" argument.
-*/
-static void *my_once_alloc_c(size_t size) {
-  return my_once_alloc(size, MYF(MY_WME));
+void *MY_CHARSET_LOADER::once_alloc(size_t sz) {
+  return my_once_alloc(sz, MYF(MY_WME));
 }
 
-static void *my_malloc_c(size_t size) {
-  return my_malloc(key_memory_charset_loader, size, MYF(MY_WME));
+void *MY_CHARSET_LOADER::mem_malloc(size_t sz) {
+  return my_malloc(key_memory_charset_loader, sz, MYF(MY_WME));
 }
 
-static void *my_realloc_c(void *old, size_t size) {
-  return my_realloc(key_memory_charset_loader, old, size, MYF(MY_WME));
+void *MY_CHARSET_LOADER::mem_realloc(void *p, size_t sz) {
+  return my_realloc(key_memory_charset_loader, p, sz, MYF(MY_WME));
 }
 
-static void my_free_c(void *ptr) { my_free(ptr); }
+void MY_CHARSET_LOADER::mem_free(void *p) { my_free(p); }
 
-/**
-  Initialize character set loader to use mysys memory management functions.
-  @param loader  Loader to initialize
-*/
-void my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader) {
-  loader->errcode = 0;
-  loader->errarg[0] = '\0';
-  loader->once_alloc = my_once_alloc_c;
-  loader->mem_malloc = my_malloc_c;
-  loader->mem_realloc = my_realloc_c;
-  loader->mem_free = my_free_c;
-  loader->reporter = my_charset_error_reporter;
-  loader->add_collation = add_collation;
+void MY_CHARSET_LOADER::reporter(enum loglevel ll, uint ecode,
+                                 const char *arg) {
+  my_charset_error_reporter(ll, ecode, arg);
+}
+void MY_CHARSET_LOADER::reporter(enum loglevel ll, uint ecode, int len,
+                                 const char *arg) {
+  my_charset_error_reporter(ll, ecode, len, arg);
 }
 
 #define MY_MAX_ALLOWED_BUF 1024 * 1024
@@ -450,7 +440,6 @@ static void init_available_charsets(void) {
 
   /* Copy compiled charsets */
 
-  my_charset_loader_init_mysys(&loader);
   my_stpcpy(get_charsets_dir(fname), MY_CHARSET_INDEX);
   my_read_charset_file(&loader, fname, MYF(0));
 }
@@ -563,7 +552,6 @@ static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader_arg,
     {
       MY_CHARSET_LOADER loader;
       strxmov(get_charsets_dir(buf), cs->csname, ".xml", NullS);
-      my_charset_loader_init_mysys(&loader);
       my_read_charset_file(&loader, buf, flags);
     }
 
@@ -593,7 +581,6 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags) {
 
   if (cs_number >= array_elements(all_charsets)) return nullptr;
 
-  my_charset_loader_init_mysys(&loader);
   cs = get_internal_charset(&loader, cs_number, flags);
 
   if (!cs && (flags & MY_WME)) {
@@ -622,7 +609,6 @@ CHARSET_INFO *my_collation_get_by_name(MY_CHARSET_LOADER *loader,
   std::call_once(charsets_initialized, init_available_charsets);
 
   cs_number = get_collation_number(name);
-  my_charset_loader_init_mysys(loader);
   cs = cs_number ? get_internal_charset(loader, cs_number, flags) : nullptr;
 
   if (!cs && (flags & MY_WME)) {
@@ -635,7 +621,6 @@ CHARSET_INFO *my_collation_get_by_name(MY_CHARSET_LOADER *loader,
 
 CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags) {
   MY_CHARSET_LOADER loader;
-  my_charset_loader_init_mysys(&loader);
   return my_collation_get_by_name(&loader, cs_name, flags);
 }
 
@@ -673,7 +658,6 @@ CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
 CHARSET_INFO *get_charset_by_csname(const char *cs_name, uint cs_flags,
                                     myf flags) {
   MY_CHARSET_LOADER loader;
-  my_charset_loader_init_mysys(&loader);
   return my_charset_get_by_name(&loader, cs_name, cs_flags, flags);
 }
 

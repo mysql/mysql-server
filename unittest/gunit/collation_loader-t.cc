@@ -45,13 +45,11 @@ namespace {
 
 CHARSET_INFO *lookup_collation(const char *name) {
   MY_CHARSET_LOADER loader;
-  my_charset_loader_init_mysys(&loader);
   return my_collation_get_by_name(&loader, name, MYF(0));
 }
 
 CHARSET_INFO *lookup_charset(const char *name, int flag) {
   MY_CHARSET_LOADER loader;
-  my_charset_loader_init_mysys(&loader);
   return my_charset_get_by_name(&loader, name, flag, MYF(0));
 }
 

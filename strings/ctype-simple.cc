@@ -1069,8 +1069,8 @@ static bool create_fromuni(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader) {
     if (!idx[i].nchars) break;
 
     numchars = idx[i].uidx.to - idx[i].uidx.from + 1;
-    if (!(idx[i].uidx.tab = tab = (uchar *)(loader->once_alloc)(
-              numchars * sizeof(*idx[i].uidx.tab))))
+    if (!(idx[i].uidx.tab = tab =
+              (uchar *)loader->once_alloc(numchars * sizeof(*idx[i].uidx.tab))))
       return true;
 
     memset(tab, 0, numchars * sizeof(*idx[i].uidx.tab));
@@ -1093,7 +1093,7 @@ static bool create_fromuni(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader) {
   /* Allocate and fill reverse table for each plane */
   n = i;
   if (!(cs->tab_from_uni = tab_from_uni =
-            (MY_UNI_IDX *)(loader->once_alloc)(sizeof(MY_UNI_IDX) * (n + 1))))
+            (MY_UNI_IDX *)loader->once_alloc(sizeof(MY_UNI_IDX) * (n + 1))))
     return true;
 
   for (i = 0; i < n; i++) tab_from_uni[i] = idx[i].uidx;
