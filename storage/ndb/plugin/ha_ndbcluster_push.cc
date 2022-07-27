@@ -1654,7 +1654,7 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
  *
  * All other pushed tables are checked for dependencies on the table
  * being removed, and possible cascade-removed if they can no longer
- * be part of the pushed join without the romoved table(s).
+ * be part of the pushed join without the removed table(s).
  **********************************************************************/
 void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
   DBUG_TRACE;
@@ -1665,8 +1665,9 @@ void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
 
   // Cascade remove of tables depending on 'me'
   for (uint tab_no = me + 1; tab_no < m_plan.get_access_count(); tab_no++) {
+    table = m_plan.get_table_access(tab_no);
+
     if (m_join_scope.contain(tab_no)) {
-      table = m_plan.get_table_access(tab_no);
       ndb_table_access_map *key_parents = m_tables[tab_no].m_key_parents;
 
       for (uint i = 0; i < table->get_no_of_key_fields(); i++) {
@@ -1680,6 +1681,21 @@ void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
             m_join_scope.clear_bit(tab_no);  // Cascade remove of this table
             break;
           }
+        }
+      }
+    }
+
+    if (m_join_scope.contain(tab_no)) {
+      // Check if parents referred from pushed condition are still pushed.
+      ha_ndbcluster *handler =
+          down_cast<ha_ndbcluster *>(table->get_table()->file);
+      if (handler->m_cond.m_pushed_cond != nullptr) {
+        table_map used_tables(handler->m_cond.m_pushed_cond->used_tables());
+        ndb_table_access_map parents_of_condition = get_table_map(used_tables);
+        parents_of_condition.subtract(m_const_scope);
+        if (!m_join_scope.contain(parents_of_condition)) {
+          // Some tables referred from pushed condition removed from join_scope
+          m_join_scope.clear_bit(tab_no);  // Cascade remove of this table
         }
       }
     }
@@ -2473,6 +2489,7 @@ int ndb_pushed_builder_ctx::build_query() {
         const Item_field *item_field =
             handler->m_cond.get_param_item(ndb_param);
         const uint referred_table_no = get_table_no(item_field);
+        assert(m_join_scope.contain(referred_table_no));
         const NdbQueryOperationDef *const ancestor_op =
             m_tables[referred_table_no].m_op;
 

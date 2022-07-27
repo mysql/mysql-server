@@ -3081,6 +3081,45 @@ eval explain format=tree $query;
 eval $query;
 
 
+--echo ##################
+--echo #
+--echo # Bug#34379950 Pushed join execution fails with:
+--echo #      error 4800 'Required argument is NULL'
+--echo #
+--echo ##################
+
+################
+# Generated query plan is: t1, t3s, t2s, t1s
+# Initially find that  t1, t3s, t2s can be pushed
+#
+#  t1s not pushed due to:
+#    'col_varchar_256_unique' does not have same datatype as ref'ed column 'table3s.col_char_16_key'
+#
+#  t3s later fails the final 'validate_join_nest-check' and is removed.
+#   : Can't push semi joined table 'table3s' as child of 'table1',
+#     some tables in embedding join-nest(s) are not part of pushed join
+#
+#  t2s had the pushed condition 'table2s.pk = table3s.col_int_key' (t3s referred as a parameter)
+#  Thus the t2s pushed condition can't be pushed either as it referred t3s.
+
+let $query=
+SELECT
+  table1.pk
+FROM v AS table1
+WHERE table1.col_int_unique IN (
+  SELECT table3s.col_int_key
+  FROM q AS table1s
+    RIGHT JOIN d AS table2s
+      RIGHT JOIN w AS table3s ON table2s.pk = table3s.col_int_key
+    ON table1s.col_varchar_256_unique = table3s.col_char_16_key
+);
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
 ######################################################
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 
