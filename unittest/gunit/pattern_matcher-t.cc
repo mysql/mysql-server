@@ -35,7 +35,6 @@ class PatternMatcherTest : public ::testing::Test {
  protected:
   void SetUp() override {
     MY_CHARSET_LOADER loader;
-    my_charset_loader_init_mysys(&loader);
     cs_info = my_collation_get_by_name(&loader, "utf8mb4_0900_ai_ci", MYF(0));
   }
 };

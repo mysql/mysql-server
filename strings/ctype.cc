@@ -463,8 +463,7 @@ static int cs_leave(MY_XML_PARSER *st, const char *attr, size_t len) {
   switch (state) {
     case _CS_COLLATION:
       if (i->tailoring_length) i->cs.tailoring = i->tailoring;
-      rc = i->loader->add_collation ? i->loader->add_collation(&i->cs)
-                                    : MY_XML_OK;
+      rc = i->loader->add_collation(&i->cs);
       break;
 
     /* Rules: Logical Reset Positions */

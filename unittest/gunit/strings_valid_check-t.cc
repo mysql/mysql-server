@@ -41,7 +41,6 @@ static void BM_UTF8_Valid_Check(size_t num_iterations) {
       "の方々から大変な好評を博しています。";
   const int len = strlen(content);
   MY_CHARSET_LOADER loader;
-  my_charset_loader_init_mysys(&loader);
   const CHARSET_INFO *cs =
       my_collation_get_by_name(&loader, "utf8mb4_0900_ai_ci", MYF(0));
   int error = 0;

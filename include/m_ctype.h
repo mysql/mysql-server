@@ -168,16 +168,27 @@ typedef struct {
 struct CHARSET_INFO;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
-typedef struct MY_CHARSET_LOADER {
-  uint errcode;
-  char errarg[192];
-  void *(*once_alloc)(size_t);
-  void *(*mem_malloc)(size_t);
-  void *(*mem_realloc)(void *, size_t);
-  void (*mem_free)(void *);
-  void (*reporter)(enum loglevel, uint errcode, ...);
-  int (*add_collation)(CHARSET_INFO *cs);
-} MY_CHARSET_LOADER;
+struct MY_CHARSET_LOADER {
+  uint errcode{0};
+  char errarg[192]{};
+
+  virtual ~MY_CHARSET_LOADER() = default;
+
+  // Memory management. By default we use mysys allocation functions.
+  virtual void *once_alloc(size_t);
+  virtual void *mem_malloc(size_t);
+  virtual void *mem_realloc(void *, size_t);
+  virtual void mem_free(void *);
+
+  // Error reporting. By default all warnings/errors are ignored.
+  // Set the global pointer my_charset_error_reporter to override this
+  // behaviour.
+  void reporter(enum loglevel, uint, const char *);
+  void reporter(enum loglevel, uint, int, const char *);
+
+  // Inserts a new charset/collation into the global all_charsets array.
+  virtual int add_collation(CHARSET_INFO *);
+};
 
 extern int (*my_string_stack_guard)(int);
 

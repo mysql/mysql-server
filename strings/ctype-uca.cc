@@ -3725,7 +3725,7 @@ static bool my_uca_copy_page(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                              const MY_UCA_INFO *src, MY_UCA_INFO *dst,
                              size_t page) {
   const uint dst_size = 256 * dst->lengths[page] * sizeof(uint16);
-  if (!(dst->weights[page] = (uint16 *)(loader->once_alloc)(dst_size)))
+  if (!(dst->weights[page] = (uint16 *)loader->once_alloc(dst_size)))
     return true;
 
   assert(src->lengths[page] <= dst->lengths[page]);
@@ -4217,16 +4217,16 @@ static bool init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
 
   /* Allocate memory for pages and their lengths */
   if (lengths_are_temporary) {
-    if (!(dst->lengths = (uchar *)(loader->mem_malloc)(npages))) return true;
+    if (!(dst->lengths = (uchar *)loader->mem_malloc(npages))) return true;
     if (!(dst->weights =
-              (uint16 **)(loader->once_alloc)(npages * sizeof(uint16 *)))) {
-      (loader->mem_free)(dst->lengths);
+              (uint16 **)loader->once_alloc(npages * sizeof(uint16 *)))) {
+      loader->mem_free(dst->lengths);
       return true;
     }
   } else {
-    if (!(dst->lengths = (uchar *)(loader->once_alloc)(npages)) ||
+    if (!(dst->lengths = (uchar *)loader->once_alloc(npages)) ||
         !(dst->weights =
-              (uint16 **)(loader->once_alloc)(npages * sizeof(uint16 *))))
+              (uint16 **)loader->once_alloc(npages * sizeof(uint16 *))))
       return true;
   }
 
@@ -4269,7 +4269,7 @@ static bool init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
     dst->have_contractions = true;
     dst->contraction_nodes = new std::vector<MY_CONTRACTION>(0);
     if (!(dst->contraction_flags =
-              (char *)(loader->once_alloc)(MY_UCA_CNT_FLAG_SIZE)))
+              (char *)loader->once_alloc(MY_UCA_CNT_FLAG_SIZE)))
       return true;
     memset(dst->contraction_flags, 0, MY_UCA_CNT_FLAG_SIZE);
   }
@@ -4790,7 +4790,7 @@ static bool create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader) {
 
   npages = (src->maxchar + 1) / 256;
   if (rules.uca->version == UCA_V900) {
-    if (!(src->lengths = (uchar *)(loader->mem_malloc)(npages))) goto ex;
+    if (!(src->lengths = (uchar *)loader->mem_malloc(npages))) goto ex;
     synthesize_lengths_900(src->lengths, src->weights, npages);
   }
 
@@ -4800,14 +4800,14 @@ static bool create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader) {
     goto ex;
 
   if (lengths_are_temporary) {
-    (loader->mem_free)(src->lengths);
-    (loader->mem_free)(dst->lengths);
+    loader->mem_free(src->lengths);
+    loader->mem_free(dst->lengths);
     src->lengths = nullptr;
     dst->lengths = nullptr;
   }
 
   new_uca.version = src_uca->version;
-  if (!(cs->uca = (MY_UCA_INFO *)(loader->once_alloc)(sizeof(MY_UCA_INFO)))) {
+  if (!(cs->uca = (MY_UCA_INFO *)loader->once_alloc(sizeof(MY_UCA_INFO)))) {
     rc = 1;
     goto ex;
   }
@@ -4815,7 +4815,7 @@ static bool create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader) {
   cs->uca[0] = new_uca;
 
 ex:
-  (loader->mem_free)(rules.rule);
+  loader->mem_free(rules.rule);
   if (rc != 0 && loader->errcode) {
     if (new_uca.contraction_nodes) delete new_uca.contraction_nodes;
     loader->reporter(ERROR_LEVEL, loader->errcode, loader->errarg);

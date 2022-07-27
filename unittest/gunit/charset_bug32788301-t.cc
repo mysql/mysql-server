@@ -29,7 +29,6 @@ namespace charset_bug32788301_unittest {
 
 CHARSET_INFO *init_collation(const char *name) {
   MY_CHARSET_LOADER loader;
-  my_charset_loader_init_mysys(&loader);
   return my_collation_get_by_name(&loader, name, MYF(0));
 }
 

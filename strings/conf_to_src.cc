@@ -101,9 +101,15 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
   to->number = from->number ? from->number : to->number;
   to->state |= from->state;
 
-  if (from->csname) to->csname = strdup(from->csname);
+  if (from->csname) {
+    free(const_cast<char *>(to->csname));
+    to->csname = strdup(from->csname);
+  }
 
-  if (from->m_coll_name) to->m_coll_name = strdup(from->m_coll_name);
+  if (from->m_coll_name) {
+    free(const_cast<char *>(to->m_coll_name));
+    to->m_coll_name = strdup(from->m_coll_name);
+  }
   if (from->comment) to->comment = strdup(from->comment);
 
   if (from->ctype) to->ctype = mdup(from->ctype, MY_CS_CTYPE_TABLE_SIZE);
@@ -150,27 +156,21 @@ static int add_collation(CHARSET_INFO *cs) {
   return MY_XML_OK;
 }
 
-static void default_reporter(enum loglevel level [[maybe_unused]],
-                             uint ecode [[maybe_unused]], ...) {}
+class LOCAL_CHARSET_LOADER final : public MY_CHARSET_LOADER {
+  void *once_alloc(size_t sz) override { return malloc(sz); }
+  void *mem_malloc(size_t sz) override { return malloc(sz); }
+  void *mem_realloc(void *p, size_t sz) override { return realloc(p, sz); }
+  void mem_free(void *p) override { free(p); }
 
-static void my_charset_loader_init(MY_CHARSET_LOADER *loader) {
-  loader->errcode = 0;
-  loader->errarg[0] = '\0';
-  loader->once_alloc = malloc;
-  loader->mem_malloc = malloc;
-  loader->mem_realloc = realloc;
-  loader->mem_free = free;
-  loader->reporter = default_reporter;
-  loader->add_collation = add_collation;
-}
+  int add_collation(CHARSET_INFO *cs) override { return ::add_collation(cs); }
+};
 
 static int my_read_charset_file(const char *filename) {
   char buf[MAX_BUF];
   int fd;
   uint len;
-  MY_CHARSET_LOADER loader;
+  LOCAL_CHARSET_LOADER loader;
 
-  my_charset_loader_init(&loader);
   if ((fd = open(filename, O_RDONLY)) < 0) {
     fprintf(stderr, "Can't open '%s'\n", filename);
     return 1;

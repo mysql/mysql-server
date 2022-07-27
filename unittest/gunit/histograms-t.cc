@@ -2150,7 +2150,6 @@ TEST_F(HistogramsTest, MultiByteStrings) {
     character.
   */
   MY_CHARSET_LOADER loader;
-  my_charset_loader_init_mysys(&loader);
   CHARSET_INFO *cs =
       my_collation_get_by_name(&loader, "ucs2_general_ci", MYF(0));
 
