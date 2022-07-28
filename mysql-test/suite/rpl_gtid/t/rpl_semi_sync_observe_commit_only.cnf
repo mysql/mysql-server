@@ -1,0 +1,9 @@
+!include ../my.cnf
+
+[mysqld.1]
+log-replica-updates
+server_id=1
+
+[mysqld.2]
+log-replica-updates
+server_id=2
