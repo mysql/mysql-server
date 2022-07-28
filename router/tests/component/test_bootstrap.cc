@@ -2493,12 +2493,22 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
       {{"localhost", server_port}, {"localhost", server_port2}}, {2, 1, 0},
       "00000000-0000-0000-0000-0000000000c1");
 
-  const auto base_listening_port = port_pool_.get_next_available();
+  const auto router_port_rw = port_pool_.get_next_available();
+  const auto router_port_ro = port_pool_.get_next_available();
+  const auto router_port_x_rw = port_pool_.get_next_available();
+  const auto router_port_x_ro = port_pool_.get_next_available();
   std::vector<std::string> bootsrtap_params{
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
       "-d",
       bootstrap_directory.name(),
-      "--conf-base-port=" + std::to_string(base_listening_port),
+      "--conf-set-option=routing:bootstrap_rw.bind_port=" +
+          std::to_string(router_port_rw),
+      "--conf-set-option=routing:bootstrap_ro.bind_port=" +
+          std::to_string(router_port_ro),
+      "--conf-set-option=routing:bootstrap_x_rw.bind_port=" +
+          std::to_string(router_port_x_rw),
+      "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
+          std::to_string(router_port_x_ro),
       "--ssl-mode=disabled",
       "--ssl-cipher=some",
       "--tls-version=TLSv1.2",
