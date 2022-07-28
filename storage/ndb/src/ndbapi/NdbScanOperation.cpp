@@ -69,6 +69,16 @@ NdbScanOperation::~NdbScanOperation()
   assert(m_scan_buffer==nullptr);
 }
 
+/*****************************************************************************
+ * setErrorCode(int aErrorCode)
+ *
+ * Use setErrorCode() with errors so that they are mapped to an operation,
+ * and propogated to the 'transConnection' as well, unless they are
+ * encountered in the asynchronous signal handling part of the scan
+ * processing code, in which case the error should be set on
+ * 'theError' member variable only.
+ *
+ *****************************************************************************/
 void
 NdbScanOperation::setErrorCode(int aErrorCode) const
 {
@@ -1886,12 +1896,10 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
      * after getting return value 1 (meaning end of scan) or
      * -1 (for error).
      *
-     * Or there seems to be a bug in ndbapi that put operation
-     * in error between calls.
+     * Or an SCAN_TABREF-error have been received into the operation
+     * (asynchronously) between calls.
      *
-     * Or an error have been received.
-     *
-     * In any case, keep and propagate error and fail.
+     * In any case, keep and propagate as NdbTransaction error and fail.
      */
     if (theError.code != Err_scanAlreadyComplete)
       setErrorCode(theError.code);
@@ -3861,7 +3869,11 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
 
   PollGuard poll_guard(* impl);
   if(theError.code)
+  {
+    if (theError.code != Err_scanAlreadyComplete)
+      setErrorCode(theError.code);
     return -1;
+  }
 
   Uint32 seq= theNdbCon->theNodeSequence;
   Uint32 nodeId= theNdbCon->theDBnode;
