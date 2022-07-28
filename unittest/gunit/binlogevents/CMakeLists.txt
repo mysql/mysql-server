@@ -45,3 +45,18 @@ FOREACH(test ${TESTS})
     COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}")
 ENDFOREACH()
 
+SET(SERVER_TEST_LIBS
+  binlogstandalone_static
+  gunit_large
+  server_unittest_library
+)
+
+IF(WIN32)
+  LIST(APPEND SERVER_TEST_LIBS my_nt_servc)
+ENDIF()
+
+MYSQL_ADD_EXECUTABLE(log_event_status_size-t log_event_status_size-t.cc
+  ADD_TEST log_event_status_size
+  LINK_LIBRARIES ${SERVER_TEST_LIBS}
+  COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
+)

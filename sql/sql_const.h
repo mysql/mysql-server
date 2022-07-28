@@ -157,12 +157,6 @@ constexpr const int MAX_DOUBLE_STR_LENGTH{DBL_DIG + 7};
 
 constexpr const unsigned long LONG_TIMEOUT{3600 * 24 * 365};
 
-/**
-  Maximum length of time zone name that we support (Time zone name is
-  char(64) in db). mysqlbinlog needs it.
-*/
-#define MAX_TIME_ZONE_NAME_LENGTH (NAME_LEN + 1)
-
 /*
   Flags below are set when we perform
   context analysis of the statement and make
