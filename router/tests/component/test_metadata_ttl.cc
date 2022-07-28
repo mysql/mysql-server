@@ -833,7 +833,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                     /*wait_for_notify_ready=*/30s);
-  EXPECT_TRUE(wait_for_port_not_available(router_port));
+  EXPECT_TRUE(wait_for_port_used(router_port));
 
   SCOPED_TRACE("// let us make some user connection via the router port");
   auto client = make_new_connection_ok(router_port, md_server_port);
@@ -1103,10 +1103,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
 
   SCOPED_TRACE("// check if both RO and RW ports are used");
   try {
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -1124,10 +1124,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
 
   SCOPED_TRACE("// RW and RO ports should be used by the router");
   try {
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -1139,10 +1139,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
 
   SCOPED_TRACE("// RO ports should not be used by the router");
   try {
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-    EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -1153,10 +1153,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
 
   SCOPED_TRACE("// RO ports should be used by the router");
   try {
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -1168,10 +1168,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
 
   SCOPED_TRACE("// RO ports should not be used by the router");
   try {
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-    EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -1183,10 +1183,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
 
   SCOPED_TRACE("// RO ports should be used by the router");
   try {
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -1199,10 +1199,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
 
   SCOPED_TRACE("// RO ports should be used by the router");
   try {
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -1217,10 +1217,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
 
   SCOPED_TRACE("// RW port should be open");
   try {
-    EXPECT_TRUE(wait_for_port_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_available(router_rw_x_port));
-    EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+    EXPECT_TRUE(wait_for_port_unused(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -1238,10 +1238,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
 
   SCOPED_TRACE("// RW port should be again used by the Router");
   try {
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -1258,10 +1258,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
       set_nodes_attributes({R"({"tags" : {"_hidden": true} })", "", ""}));
 
   try {
-    EXPECT_TRUE(wait_for_port_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_available(router_rw_x_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_unused(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -1279,10 +1279,10 @@ TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
 
   SCOPED_TRACE("// RW port should be again used by the Router");
   try {
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-    EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
     SCOPED_TRACE("// Making new connection should be possible again");
     make_new_connection_ok(router_rw_port, node_ports[0]);
   } catch (const std::exception &e) {
@@ -1297,24 +1297,24 @@ TEST_P(ClusterNodeHiddenTest, RWNodeHidden) {
   setup_router(GetParam().cluster_type, GetParam().ttl);
 
   SCOPED_TRACE("// RW socket is listening");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
 
   SCOPED_TRACE("// Hide RW node");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })"});
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
 
   SCOPED_TRACE("// Unhide RW node");
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })"});
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1594,35 +1594,35 @@ TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
 
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Configure primary node to be hidden");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })", "", ""});
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Bring down secondary nodes, primary is hidden");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, 0, false,
                     node_hostname, {}, {R"({"tags" : {"_hidden": true} })"});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Bring up second secondary node, primary is hidden");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
                     0, false, node_hostname, {},
                     {R"({"tags" : {"_hidden": true} })", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide primary node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
                     0, false, node_hostname, {}, {"", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 }
 
 TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
@@ -1640,29 +1640,29 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
 
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Configure second secondary node to be hidden");
   set_nodes_attributes({"", "", R"({"tags" : {"_hidden": true} })"});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Bring down first primary node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
                     0, false, node_hostname, {},
                     {"", R"({"tags" : {"_hidden": true} })"});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide second secondary node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
                     0, false, node_hostname, {}, {"", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1696,16 +1696,16 @@ TEST_P(OneNodeClusterHiddenTest, OneRWNodeClusterHidden) {
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   setup_router(GetParam().cluster_type, GetParam().ttl);
 
-  SCOPED_TRACE("// RW port shoudld be used, RO is unused");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  SCOPED_TRACE("// RW port should be used, RO is unused");
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Hide the single node that we have");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })"});
 
   SCOPED_TRACE("// RW and RO ports are open");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   verify_new_connection_fails(router_rw_port);
 
@@ -1719,8 +1719,8 @@ TEST_P(OneNodeClusterHiddenTest, OneRWNodeClusterHidden) {
   setup_cluster(1, GetParam().tracefile, {R"({"tags" : {"_hidden": true} })"});
 
   SCOPED_TRACE("// RW and RO ports are open");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// We still should not be able to connect");
   verify_new_connection_fails(router_rw_port);
@@ -1728,9 +1728,9 @@ TEST_P(OneNodeClusterHiddenTest, OneRWNodeClusterHidden) {
   SCOPED_TRACE("// Un-hide the node");
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })"});
 
-  SCOPED_TRACE("// RW port shoudld be used, RO is unused");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  SCOPED_TRACE("// RW port should be used, RO is unused");
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Now we should be able to connect");
   make_new_connection_ok(router_rw_port, node_ports[0]);
@@ -1748,17 +1748,17 @@ TEST_P(OneNodeClusterHiddenTest, OneRONodeClusterHidden) {
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   setup_router(GetParam().cluster_type, GetParam().ttl, true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Hide the single node that we have");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })"},
                        /*no_primary*/ true);
 
   SCOPED_TRACE("// RW and RO ports are open");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   verify_new_connection_fails(router_rw_port);
 
@@ -1773,8 +1773,8 @@ TEST_P(OneNodeClusterHiddenTest, OneRONodeClusterHidden) {
                 /*no_primary*/ true);
 
   SCOPED_TRACE("// RW and RO ports are open");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// We still should not be able to connect");
   verify_new_connection_fails(router_rw_port);
@@ -1783,9 +1783,9 @@ TEST_P(OneNodeClusterHiddenTest, OneRONodeClusterHidden) {
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })"},
                        /*no_primary*/ true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Now we should be able to connect");
   make_new_connection_ok(router_ro_port, node_ports[0]);
@@ -1820,17 +1820,17 @@ TEST_P(TwoNodesClusterHidden, TwoRONodesClusterHidden) {
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   setup_router(GetParam().cluster_type, GetParam().ttl, true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Hide one node");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })", ""},
                        /*no_primary*/ true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Hide the second node as well");
   set_nodes_attributes(
@@ -1838,8 +1838,8 @@ TEST_P(TwoNodesClusterHidden, TwoRONodesClusterHidden) {
       /*no_primary*/ true);
 
   SCOPED_TRACE("// RO and RW ports are unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   verify_new_connection_fails(router_rw_port);
 
@@ -1847,16 +1847,16 @@ TEST_P(TwoNodesClusterHidden, TwoRONodesClusterHidden) {
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })", ""},
                        /*no_primary*/ true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Un-hide second node");
   set_nodes_attributes({"", ""}, /*no_primary*/ true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 }
 
 INSTANTIATE_TEST_SUITE_P(

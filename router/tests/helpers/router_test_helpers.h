@@ -136,9 +136,17 @@ void init_windows_sockets();
  *
  * @param port TCP port that will be checked
  *
- * @returns true if the selected port is available, false otherwise
+ * @returns true if the selected port is not used, false otherwise
  */
-[[nodiscard]] bool is_port_available(const uint16_t port);
+[[nodiscard]] bool is_port_unused(const uint16_t port);
+
+/** @brief Check if a given port can be bind to.
+ *
+ * @param port TCP port that will be checked
+ *
+ * @returns true if the selected port can be bind to, false otherwise
+ */
+[[nodiscard]] bool is_port_bindable(const uint16_t port);
 
 /**
  * Wait until the port is not available (is used by any application).
@@ -149,7 +157,7 @@ void init_windows_sockets();
  * @return false if the port is still available after the timeout expiry,
  *         true otherwise.
  */
-[[nodiscard]] bool wait_for_port_not_available(
+[[nodiscard]] bool wait_for_port_used(
     const uint16_t port,
     std::chrono::milliseconds timeout = std::chrono::seconds(10));
 
@@ -162,7 +170,7 @@ void init_windows_sockets();
  * @return false if the port is still not available after the timeout expiry,
  *         true otherwise.
  */
-[[nodiscard]] bool wait_for_port_available(
+[[nodiscard]] bool wait_for_port_unused(
     const uint16_t port,
     std::chrono::milliseconds timeout = std::chrono::seconds(10));
 
