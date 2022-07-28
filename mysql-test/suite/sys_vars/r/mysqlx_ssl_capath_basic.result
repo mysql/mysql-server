@@ -32,6 +32,6 @@ SELECT COUNT(@@GLOBAL.mysqlx_ssl_capath);
 COUNT(@@GLOBAL.mysqlx_ssl_capath)
 0
 0 Expected
-SELECT mysqlx_ssl_capath = @@SESSION.mysqlx_ssl_capath;
+SELECT mysqlx_ssl_capath;
 ERROR 42S22: Unknown column 'mysqlx_ssl_capath' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

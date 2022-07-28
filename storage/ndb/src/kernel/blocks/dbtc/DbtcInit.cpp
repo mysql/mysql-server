@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #define DBTC_C
+#include "util/require.h"
 #include "Dbtc.hpp"
 #include "ndb_global.h"
 #include <pc.hpp>
@@ -710,7 +711,7 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
     &scanRecordPool;
   c_transient_pools[DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX] =
     &m_commitAckMarkerPool;
-  NDB_STATIC_ASSERT(c_transient_pool_count == 13);
+  static_assert(c_transient_pool_count == 13);
   c_transient_pools_shrinking.clear();
 }//Dbtc::Dbtc()
 

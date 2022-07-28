@@ -38,7 +38,9 @@ START SLAVE;
 
 #Cleanup
 STOP SLAVE;
+--disable_warnings
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 START SLAVE;
 
 --let $rpl_skip_sync= 1

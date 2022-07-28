@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include <LocalConfig.hpp>
 
@@ -45,6 +46,7 @@
 #include <ndb_base64.h>
 #include <ndb_limits.h>
 #include <EventLogger.hpp>
+#include <memory>
 
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
@@ -512,7 +514,13 @@ ndb_mgm_call(NdbMgmHandle handle,
       Uint64 val_64;
       BaseString val_s;
 
-      cmd_args->getTypeOf(name, &t);
+      if (!cmd_args->getTypeOf(name, &t))
+      {
+        BaseString errStr = "Failed to get type of argument: ";
+        errStr.append(name);
+        SET_ERROR(handle, NDB_MGM_USAGE_ERROR, errStr.c_str());
+        DBUG_RETURN(NULL);
+      }
       switch(t) {
       case PropertiesType_Uint32:
 	cmd_args->get(name, &val_i);
@@ -817,6 +825,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   Uint32 i = Uint32(~0);
   while (!ndb_socket_valid(sockfd))
   {
+    Uint32 invalid_Address = 0;
     // do all the mgmt servers
     for (i = 0; i < cfg.ids.size(); i++)
     {
@@ -881,6 +890,27 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
           DBUG_RETURN(-1);
         }
       }
+
+      // return immediately when all the hostnames are invalid.
+      struct in6_addr addr;
+      if (Ndb_getInAddr6(&addr, cfg.ids[i].name.c_str()) != 0) {
+        invalid_Address++;
+        if (cfg.ids.size() - invalid_Address == 0) {
+          fprintf(handle->errstream,
+                  "Unable to resolve any of the address"
+                  " in connect string: %s\n",
+                  cfg.makeConnectString(buf, sizeof(buf)));
+
+          setError(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, __LINE__,
+                   "Unable to resolve any of the address"
+                   " in connect string: %s\n",
+                   cfg.makeConnectString(buf, sizeof(buf)));
+          DBUG_RETURN(-1);
+        } else {
+          continue;
+        }
+      }
+
       sockfd = s.connect(cfg.ids[i].name.c_str(), cfg.ids[i].port);
       if (ndb_socket_valid(sockfd))
 	break;
@@ -1134,6 +1164,7 @@ status_ackumulate(struct ndb_mgm_node_state * state,
     // Do nothing
   } else {
     g_eventLogger->info("Unknown field: %s", field);
+    return -1;
   }
   return 0;
 }
@@ -1166,6 +1197,7 @@ status_ackumulate2(struct ndb_mgm_node_state2 * state,
     state->connect_address[sizeof(state->connect_address)-1]= 0;
   } else {
     g_eventLogger->info("Unknown field: %s", field);
+    return -1;
   }
   return 0;
 }
@@ -1177,10 +1209,10 @@ status_ackumulate2(struct ndb_mgm_node_state2 * state,
 static int
 cmp_state(const void *_a, const void *_b) 
 {
-  struct ndb_mgm_node_state *a, *b;
+  const struct ndb_mgm_node_state *a, *b;
 
-  a = (struct ndb_mgm_node_state *)_a;
-  b = (struct ndb_mgm_node_state *)_b;
+  a = (const struct ndb_mgm_node_state *)_a;
+  b = (const struct ndb_mgm_node_state *)_b;
 
   if (a->node_id > b->node_id)
     return 1;
@@ -1308,14 +1340,14 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   }
 
   state->no_of_nodes= noOfNodes;
-  ndb_mgm_node_state * ptr = &state->node_states[0];
-  int nodeId = 0;
-  int i;
-  for (i= 0; i < noOfNodes; i++) {
+  for (int i = 0; i < noOfNodes; i++) {
     state->node_states[i].connect_address[0]= 0;
   }
-  i = -1; ptr--;
-  for(; i<noOfNodes; ){
+  ndb_mgm_node_state *const base_ptr = &state->node_states[0];
+  ndb_mgm_node_state * curr_ptr = nullptr;
+  int nodeId = 0; // Invalid id
+  int found_nodes = 0;
+  while (found_nodes <= noOfNodes) {
     if(!in.gets(buf, sizeof(buf)))
     {
       free(state);
@@ -1329,31 +1361,54 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     }
     tmp.assign(buf);
 
-    if(tmp.trim() == ""){
+    if (tmp.trim(" \t\n") == "") {
       break;
     }
-    
+
+    /**
+     * Expected reply format:
+     * "node.<node_id>.<field_name>: <value>\n"
+     * E.g node.1.type: NDB
+     * ...
+     */
     Vector<BaseString> split2;
     tmp.split(split2, ":.", 4);
-    if(split2.size() != 4)
-      break;
+    if (split2.size() != 4) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+      ndbout_c("tmp = %s of length %u", tmp.trim().c_str(), tmp.trim().length());
+      DBUG_RETURN(NULL);
+    }
     
     const int id = atoi(split2[1].c_str());
-    if(id != nodeId){
-      ptr++;
-      i++;
+    if (id == 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Illegal node id");
+      DBUG_RETURN(NULL);
+    }
+    if (id != nodeId) {
+      // Next series of values corresponding to a different node id found
       nodeId = id;
-      ptr->node_id = id;
+      found_nodes++;
+      if (curr_ptr == nullptr) {
+        curr_ptr = base_ptr;
+      } else {
+        curr_ptr++;
+      }
+      curr_ptr->node_id = id;
     }
 
     split2[3].trim(" \t\n");
 
-    if(status_ackumulate(ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
-      break;
+    assert(curr_ptr != nullptr);
+    if(status_ackumulate(curr_ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Unknown field");
+      DBUG_RETURN(NULL);
     }
   }
 
-  if(i+1 != noOfNodes){
+  if (found_nodes != noOfNodes) {
     free(state);
     CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Node count mismatch");
@@ -1528,15 +1583,15 @@ ndb_mgm_get_status3(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   }
 
   state->no_of_nodes= noOfNodes;
-  ndb_mgm_node_state2 * ptr = &state->node_states[0];
-  int nodeId = 0;
-  int i;
-  for (i= 0; i < noOfNodes; i++) {
+  for (int i = 0; i < noOfNodes; i++) {
     state->node_states[i].connect_address[0]= 0;
     state->node_states[i].is_single_user = 0;
   }
-  i = -1; ptr--;
-  for(; i<noOfNodes; ){
+  ndb_mgm_node_state2 *const base_ptr = &state->node_states[0];
+  ndb_mgm_node_state2 * curr_ptr = nullptr;
+  int nodeId = 0; // Invalid id
+  int found_nodes = 0;
+  while (found_nodes <= noOfNodes) {
     if(!in.gets(buf, sizeof(buf)))
     {
       free(state);
@@ -1550,31 +1605,53 @@ ndb_mgm_get_status3(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     }
     tmp.assign(buf);
 
-    if(tmp.trim() == ""){
+    if (tmp.trim(" \t\n") == "") {
       break;
     }
 
+    /**
+     * Expected reply format:
+     * "node.<node_id>.<field_name>: <value>\n"
+     * E.g node.1.type: NDB
+     * ...
+     */
     Vector<BaseString> split2;
     tmp.split(split2, ":.", 4);
-    if(split2.size() != 4)
-      break;
+    if (split2.size() != 4) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+      DBUG_RETURN(NULL);
+    }
 
     const int id = atoi(split2[1].c_str());
-    if(id != nodeId){
-      ptr++;
-      i++;
+    if (id == 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Illegal node id");
+      DBUG_RETURN(NULL);
+    }
+    if (id != nodeId) {
+      // Next series of values corresponding to a different node id found
       nodeId = id;
-      ptr->node_id = id;
+      found_nodes++;
+      if (curr_ptr == nullptr) {
+        curr_ptr = base_ptr;
+      } else {
+        curr_ptr++;
+      }
+      curr_ptr->node_id = id;
     }
 
     split2[3].trim(" \t\n");
 
-    if(status_ackumulate2(ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
-      break;
+    assert(curr_ptr != nullptr);
+    if(status_ackumulate2(curr_ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Unknown field");
+      DBUG_RETURN(NULL);
     }
   }
 
-  if(i+1 != noOfNodes){
+  if (found_nodes != noOfNodes) {
     free(state);
     CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Node count mismatch");
@@ -1590,7 +1667,7 @@ extern "C"
 int 
 ndb_mgm_enter_single_user(NdbMgmHandle handle,
 			  unsigned int nodeId,
-			  struct ndb_mgm_reply* /*reply*/) 
+                          struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_enter_single_user");
   CHECK_HANDLE(handle, -1);
@@ -1624,7 +1701,7 @@ ndb_mgm_enter_single_user(NdbMgmHandle handle,
 
 extern "C"
 int 
-ndb_mgm_exit_single_user(NdbMgmHandle handle, struct ndb_mgm_reply* /*reply*/) 
+ndb_mgm_exit_single_user(NdbMgmHandle handle, struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_exit_single_user");
   CHECK_HANDLE(handle, -1);
@@ -2081,7 +2158,7 @@ int
 ndb_mgm_set_clusterlog_severity_filter(NdbMgmHandle handle, 
 				       enum ndb_mgm_event_severity severity,
 				       int enable,
-				       struct ndb_mgm_reply* /*reply*/) 
+                                       struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_set_clusterlog_severity_filter");
   CHECK_HANDLE(handle, -1);
@@ -2251,7 +2328,7 @@ int
 ndb_mgm_set_clusterlog_loglevel(NdbMgmHandle handle, int nodeId,
 				enum ndb_mgm_event_category cat,
 				int level,
-				struct ndb_mgm_reply* /*reply*/) 
+                                struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_set_clusterlog_loglevel");
   CHECK_HANDLE(handle, -1);
@@ -2292,7 +2369,7 @@ int
 ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 			  enum ndb_mgm_event_category category,
 			  int level,
-			  struct ndb_mgm_reply* /*reply*/) 
+                          struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_set_loglevel_node");
   CHECK_HANDLE(handle, -1);
@@ -2480,7 +2557,7 @@ ndb_mgm_get_configuration_from_node(NdbMgmHandle handle,
 extern "C"
 int 
 ndb_mgm_start_signallog(NdbMgmHandle handle, int nodeId, 
-			struct ndb_mgm_reply* reply) 
+                        struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_start_signallog");
   CHECK_HANDLE(handle, -1);
@@ -2521,7 +2598,7 @@ ndb_mgm_start_signallog(NdbMgmHandle handle, int nodeId,
 extern "C"
 int 
 ndb_mgm_stop_signallog(NdbMgmHandle handle, int nodeId,
-		       struct ndb_mgm_reply* reply) 
+                       struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_stop_signallog");
   CHECK_HANDLE(handle, -1);
@@ -2567,7 +2644,7 @@ int
 ndb_mgm_log_signals(NdbMgmHandle handle, int nodeId, 
 		    enum ndb_mgm_signal_log_mode mode, 
 		    const char* blockNames,
-		    struct ndb_mgm_reply* reply) 
+                    struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_log_signals");
   CHECK_HANDLE(handle, -1);
@@ -2625,7 +2702,7 @@ ndb_mgm_log_signals(NdbMgmHandle handle, int nodeId,
 extern "C"
 int 
 ndb_mgm_set_trace(NdbMgmHandle handle, int nodeId, int traceNumber,
-		  struct ndb_mgm_reply* reply) 
+                  struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_set_trace");
   CHECK_HANDLE(handle, -1);
@@ -2665,7 +2742,7 @@ int
 ndb_mgm_insert_error_impl(NdbMgmHandle handle, int nodeId,
                           int errorCode,
                           int * extra,
-                          struct ndb_mgm_reply* reply)
+                          struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_insert_error");
 
@@ -2837,7 +2914,7 @@ ndb_mgm_start_backup4(NdbMgmHandle handle, int wait_completed,
           DBUG_RETURN(-1);
         }
       }
-      args.put("encryption_password", encryption_password);
+      args.put("encryption_password", {encryption_password, password_length});
       args.put("password_length", password_length);
     }
     else
@@ -2907,7 +2984,7 @@ ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
 extern "C"
 int
 ndb_mgm_abort_backup(NdbMgmHandle handle, unsigned int backupId,
-		     struct ndb_mgm_reply* /*reply*/) 
+                     struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_abort_backup");
   CHECK_HANDLE(handle, -1);
@@ -3436,8 +3513,8 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
 				     int node2,
 				     int param,
-				     int value,
-				     struct ndb_mgm_reply* mgmreply){
+                                     int value)
+{
   DBUG_ENTER("ndb_mgm_set_connection_int_parameter");
   CHECK_HANDLE(handle, -1);
   CHECK_CONNECTED(handle, -1);
@@ -3479,8 +3556,8 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
 				     int node2,
 				     int param,
-				     int *value,
-				     struct ndb_mgm_reply* mgmreply){
+                                     int *value)
+{
   DBUG_ENTER("ndb_mgm_get_connection_int_parameter");
   CHECK_HANDLE(handle, -1);
   CHECK_CONNECTED(handle, -1);
@@ -3819,16 +3896,25 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
     DBUG_RETURN(-1);
   }
 
-  BaseString encoded;
-  /*
-    The base64 encoded data of BaseString can be of max length (1024*1024)/3*4
-    hence using int to store the length.
-  */
-  encoded.assfmt("%*s", (int)base64_needed_encoded_length(buf.length()), "Z");
-  (void) base64_encode(buf.get_data(), buf.length(), (char*)encoded.c_str());
+  const uint64 encoded_length = base64_needed_encoded_length(buf.length());
+  require(encoded_length > 0);  // Always need room for null termination
+  if (encoded_length > UINT32_MAX)
+  {
+    SET_ERROR(h, NDB_MGM_CONFIG_CHANGE_FAILED, "Too big configuration");
+    DBUG_RETURN(-1);
+  }
+  std::unique_ptr<char[]> encoded(new (std::nothrow) char[encoded_length]);
+  if (!encoded)
+  {
+    SET_ERROR(h, NDB_MGM_OUT_OF_MEMORY, "Too big configuration");
+    DBUG_RETURN(-1);
+  }
+  (void)base64_encode(buf.get_data(), buf.length(), encoded.get());
+
+  assert(strlen(encoded.get()) == encoded_length - 1);
 
   Properties args;
-  args.put("Content-Length", (Uint32)strlen(encoded.c_str()));
+  args.put("Content-Length", (Uint32)(encoded_length - 1));
   args.put("Content-Type",  "ndbconfig/octet-stream");
   args.put("Content-Transfer-Encoding", "base64");
 
@@ -3840,8 +3926,7 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
 
   const Properties *reply;
   const char *cmd_str = v2 ? "set config_v2" : "set config";
-  reply= ndb_mgm_call(h, set_config_reply, cmd_str, &args,
-                      encoded.c_str());
+  reply = ndb_mgm_call(h, set_config_reply, cmd_str, &args, encoded.get());
   CHECK_REPLY(h, reply, -1);
 
   BaseString result;
@@ -3862,7 +3947,7 @@ extern "C"
 int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
                              int *nodes,
                              int *ng,
-                             struct ndb_mgm_reply* mgmreply)
+                             struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_create_nodegroup");
   CHECK_HANDLE(handle, -1);
@@ -3915,7 +4000,7 @@ int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
 extern "C"
 int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
                            int ng,
-                           struct ndb_mgm_reply* mgmreply)
+                           struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_drop_nodegroup");
   CHECK_HANDLE(handle, -1);
@@ -4218,13 +4303,11 @@ ndb_mgm_set_dynamic_ports(NdbMgmHandle handle, int nodeid,
   // Report the ports one at a time
   for (unsigned i = 0; i < num_ports; i++)
   {
-    struct ndb_mgm_reply mgm_reply;
     const int err = ndb_mgm_set_connection_int_parameter(handle,
                                                          nodeid,
                                                          ports[i].nodeid,
                                                          CFG_CONNECTION_SERVER_PORT,
-                                                         ports[i].port,
-                                                         &mgm_reply);
+                                                         ports[i].port);
     if (err < 0)
     {
       setError(handle, handle->last_error, __LINE__,

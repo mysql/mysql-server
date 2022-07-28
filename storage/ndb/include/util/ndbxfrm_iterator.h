@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,18 @@
 #ifndef UTIL_NDBXFRM_ITERATOR
 #define UTIL_NDBXFRM_ITERATOR
 
+#include "util/require.h"
 #include <assert.h> // assert()
 #include <stdlib.h> // abort()
+#include <string.h> // memcpy()
 
 #include "ndb_global.h" // require()
+
+enum ndbxfrm_progress : int
+{
+  need_more_input = 1,
+  have_more_output = 2
+};
 
 class ndbxfrm_input_iterator
 {
@@ -82,6 +90,7 @@ public:
   void set_last() { m_last = true; }
   void advance(size_t n) { require(n <= size()); m_begin += n; }
   void reduce(size_t n) { require(n <= size()); m_end -= n; }
+  int copy_from(ndbxfrm_input_iterator* in);
 private:
   byte* m_begin;
   byte* m_end;
@@ -102,10 +111,31 @@ public:
   void set_last() { m_last = true; }
   void advance(size_t n) { require(n <= size()); m_begin -= n; }
   void reduce(size_t n) { require(n <= size()); m_end += n; }
+  int copy_from(ndbxfrm_input_reverse_iterator* in);
 private:
   byte* m_begin;
   byte* m_end;
   bool m_last;
 };
+
+inline int ndbxfrm_output_iterator::copy_from(ndbxfrm_input_iterator* in)
+{
+  size_t copy_len = std::min(in->size(), size());
+  memcpy(begin(), in->cbegin(), copy_len);
+  advance(copy_len);
+  in->advance(copy_len);
+  if (in->empty()) return 0;
+  return have_more_output;
+}
+
+inline int ndbxfrm_output_reverse_iterator::copy_from(ndbxfrm_input_reverse_iterator* in)
+{
+  size_t copy_len = std::min(in->size(), size());
+  memcpy(begin() - copy_len, in->cbegin() - copy_len, copy_len);
+  advance(copy_len);
+  in->advance(copy_len);
+  if (in->empty()) return 0;
+  return have_more_output;
+}
 
 #endif

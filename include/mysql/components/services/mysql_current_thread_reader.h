@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ class THD;
 
   A service to fetch the current thread id
 
-  Use in conjuntion with all the related services that operate on thread ids
+  Use in conjunction with all the related services that operate on thread ids
   @sa mysql_component_mysql_current_thread_reader_imp
 */
 BEGIN_SERVICE_DEFINITION(mysql_current_thread_reader)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,21 +127,21 @@ static char *dbg_app_data_single(app_data_ptr a) {
     PTREXP(a->next);
     RET_GOUT;
   }
-  return NULL;
+  return nullptr;
 }
 /* purecov: end */
 /* Clone app_data message list */
 
 app_data_ptr clone_app_data(app_data_ptr a) {
-  app_data_ptr retval = NULL;
+  app_data_ptr retval = nullptr;
   app_data_list p = &retval; /* Initialize p with empty list */
 
-  while (NULL != a) {
+  while (nullptr != a) {
     app_data_ptr clone = clone_app_data_single(a);
     follow(p, clone);
     a = a->next;
     p = nextp(p);
-    if (clone == NULL && retval != NULL) {
+    if (clone == nullptr && retval != nullptr) {
       XCOM_XDR_FREE(xdr_app_data, retval);
       break;
     }
@@ -153,10 +153,10 @@ app_data_ptr clone_app_data(app_data_ptr a) {
    Clone an app_data struct.
  */
 app_data_ptr clone_app_data_single(app_data_ptr a) {
-  char *str = NULL;
-  app_data_ptr p = 0;
+  char *str = nullptr;
+  app_data_ptr p = nullptr;
 
-  if (0 != a) {
+  if (nullptr != a) {
     bool_t copied = FALSE;
 
     p = new_app_data();
@@ -185,7 +185,7 @@ app_data_ptr clone_app_data_single(app_data_ptr a) {
         if (!copied) {
           G_ERROR("Memory allocation failed.");
           free(p);
-          return NULL;
+          return nullptr;
         }
         break;
 #ifdef XCOM_TRANSACTIONS
@@ -223,7 +223,7 @@ app_data_ptr clone_app_data_single(app_data_ptr a) {
         free(str);
         assert(("No such xcom type" && FALSE));
     }
-    assert(p->next == 0);
+    assert(p->next == nullptr);
   }
   return p;
 }
@@ -245,7 +245,7 @@ size_t synode_no_array_size(synode_no_array sa) {
  */
 size_t app_data_size(app_data const *a) {
   size_t size = sizeof(*a);
-  if (a == 0) return 0;
+  if (a == nullptr) return 0;
   switch (a->body.c_t) {
     case xcom_set_group:
     case unified_boot_type:
@@ -325,7 +325,7 @@ char *dbg_app_data(app_data_ptr a) {
     STRLIT("app_data ");
     PTREXP(a);
     NDBG(msg_count(a), lu);
-    while (0 != a) {
+    while (nullptr != a) {
       COPY_AND_FREE_GOUT(dbg_app_data_single(a));
       a = a->next;
     }
@@ -352,7 +352,7 @@ void follow(app_data_list l, app_data_ptr p) {
       IFDBG(D_NONE, FN; STRLIT("unexpected next ");
             COPY_AND_FREE_GOUT(dbg_app_data(p)));
     }
-    assert(p->next == 0);
+    assert(p->next == nullptr);
     p->next = *l;
   }
   *l = p;

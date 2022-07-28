@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -183,7 +183,7 @@ static Item_cache *make_result_item(Item *value) {
 
   // In case of enum/set type, ordering is based on numeric
   // comparison. So, we need to create items that will
-  // evalute to integers.
+  // evaluate to integers.
   if (order_expr->real_item()->type() == Item::FIELD_ITEM) {
     Item_field *field = down_cast<Item_field *>(order_expr->real_item());
     if (field->field->real_type() == MYSQL_TYPE_ENUM ||
@@ -342,6 +342,19 @@ bool Window::setup_range_expressions(THD *thd) {
               return true;
             }
           }
+
+          // Special case to handle "INTERVAL expr" border. It is special
+          // because we allow a general expression there, not just a
+          // literal. If expr is a constant subquery like (SELECT 1), it gets
+          // replaced during fix_fields above with an Item_int. If it is not
+          // constant, we will detect it later in check_constant_bound.
+          if (border_type == WBT_VALUE_PRECEDING ||
+              border_type == WBT_VALUE_FOLLOWING) {
+            Item *border_val = down_cast<Item_func *>(cmp_arg)->arguments()[1];
+            if (border_val != *border->border_ptr())  // replaced?
+              *border->border_ptr() = border_val;
+          }
+
           comparators[i] = Arg_comparator(left_args, right_args);
           bool compare_func_set = false;
           // In case of enum/set type, as ordering is based on
@@ -390,7 +403,7 @@ ORDER *Window::sorting_order(THD *thd, bool implicitly_grouped) {
     This ensures that all columns are present in the resulting sort ordering
     and that all ORDER BY expressions are at the end.
     The resulting sort can the be used to detect partition change and also
-    satify the window ordering.
+    satisfy the window ordering.
   */
   if (ord == nullptr)
     m_sorting_order = part;
@@ -1073,6 +1086,12 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
                             List<Window> *windows) {
   // Only possible at resolution time.
   assert(thd->lex->current_query_block()->first_execution);
+
+  if (windows->elements > kMaxWindows) {
+    my_error(ER_TOO_MANY_WINDOWS, MYF(0), windows->elements, kMaxWindows);
+    return true;
+  }
+
   /*
     We can encounter aggregate functions in the ORDER BY and PARTITION clauses
     of window function, so make sure we allow it:
@@ -1173,7 +1192,7 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
         }
       } else {
         /*
-          This window has at least one dependant SQL 2014 section
+          This window has at least one dependent SQL 2014 section
           7.15 <window clause> SR 10.e
         */
         const Window *const ancestor = (*windows)[i];
@@ -1268,7 +1287,7 @@ bool Window::check_window_functions2(THD *thd) {
   }
 
   /*
-    We do not allow FROM_LAST yet, so sorting guarantees sequential traveral
+    We do not allow FROM_LAST yet, so sorting guarantees sequential traversal
     of the frame buffer under evaluation of several NTH_VALUE functions invoked
     on a window, which is important for the optimized wf eval strategy
   */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@
                           name into a global list and broadcasts the event which
                           wakes the threads that wait for this event.
 
-    - wait for a signal:  Wait on a event indentified by the signal name until
+    - wait for a signal:  Wait on a event identified by the signal name until
                           the signal thread signals the event.
 
   By default, all sync points are inactive. They do nothing (except to
@@ -368,13 +368,13 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_cond_bits.h"
-#include "mysql/components/services/psi_memory_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -403,7 +403,7 @@ using std::min;
 /*
   Action to perform at a synchronization point.
   NOTE: This structure is moved around in memory by realloc(), qsort(),
-        and memmove(). Do not add objects with non-trivial constuctors
+        and memmove(). Do not add objects with nontrivial constructors
         or destructors, which might prevent moving of this structure
         with these functions.
 */
@@ -923,7 +923,7 @@ static void debug_sync_reset(THD *thd) {
   @description
     Removing an action mainly means to decrement the ds_active counter.
     But if the action is between other active action in the array, then
-    the array needs to be shrinked. The active actions above the one to
+    the array needs to be shrunk. The active actions above the one to
     be removed have to be moved down by one slot.
 */
 
@@ -1980,6 +1980,7 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len) {
 }
 
 void conditional_sync_point(std::string name) {
+  if (current_thd == nullptr) return;
   const std::string debug_symbol = "syncpoint_" + name;
   DBUG_EXECUTE_IF(debug_symbol.c_str(), {
     DBUG_PRINT("info", ("reached sync point '%s' (enabled by debug symbol "
@@ -1995,6 +1996,7 @@ void conditional_sync_point(std::string name) {
 }
 
 void conditional_sync_point_for_timestamp(std::string name) {
+  if (current_thd == nullptr) return;
   conditional_sync_point(name + "_" +
                          std::to_string(current_thd->start_time.tv_sec));
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -245,14 +245,14 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
 int
 NdbBlob::getBlobEventName(char* bename, Ndb* anNdb, const char* eventName, const char* columnName)
 {
-  NdbEventImpl* e = anNdb->theDictionary->m_impl.getEvent(eventName);
+  std::unique_ptr<NdbEventImpl> e(
+          anNdb->theDictionary->m_impl.getEvent(eventName));
   if (e == NULL)
     return -1;
   NdbColumnImpl* c = e->m_tableImpl->getColumn(columnName);
   if (c == NULL)
     return -1;
-  getBlobEventName(bename, e, c);
-  delete e; // it is from new NdbEventImpl
+  getBlobEventName(bename, e.get(), c);
   return 0;
 }
 
@@ -785,7 +785,7 @@ NdbBlob::getNullOrEmptyBlobHeadDataPtr(const char * & data,
 
   /* Reset affected members */
   theSetBuf=NULL;
-  std::memset(&theHead, 0, sizeof(theHead));
+  theHead = Head();
 
   /* This column is not null anymore - record the fact so that
    * a setNull() call will modify state
@@ -850,10 +850,10 @@ NdbBlob::unpackBlobHead(Head& head, const char* buf, int blobVersion)
       head.pkid |= ((Uint32)*p++ << n);
     for (i = 0, n = 0; i < 8; i++, n += 8)
       head.length |= ((Uint64)*p++ << n);
-    assert(p - (uchar*)buf == 16);
+    assert(p - (const uchar*)buf == 16);
     assert(head.reserved == 0);
     head.headsize = (NDB_BLOB_V2_HEAD_SIZE << 2);
-    DBUG_DUMP("info", (uchar*)buf, 16);
+    DBUG_DUMP("info", (const uchar*)buf, 16);
   }
   DBUG_PRINT("info", ("unpack: varsize=%u length=%u pkid=%u",
                       (uint)head.varsize, (uint)head.length, (uint)head.pkid));
@@ -924,7 +924,7 @@ NdbBlob::getBlobKeyHash()
 
     const Uint32 numKeyCols = cmpTab->m_noOfKeys;
     uint64 nr1 = 0;
-    uint64 nr2 = 0;
+    uint64 nr2 = 4;
     const uchar* dataPtr = (const uchar*) keyBuf.data;
 
     Uint32 n = 0;
@@ -962,6 +962,12 @@ NdbBlob::getBlobKeyHash()
   DBUG_RETURN(m_keyHash);
 }
 
+/*
+ * Returns:
+ *  0 - if keys are equal for this and other
+ *  1 - if keys are different for this and other
+ *  -1 - on error
+ */
 int
 NdbBlob::getBlobKeysEqual(NdbBlob* other)
 {
@@ -1007,6 +1013,11 @@ NdbBlob::getBlobKeysEqual(NdbBlob* other)
                                       lbA,
                                       lenA);
       assert(ok);
+      if (unlikely(!ok))
+      {
+        DBUG_PRINT("error", ("Corrupt length of key column %u", i));
+        DBUG_RETURN(-1);
+      }
       Uint32 lbB, lenB;
       ok = NdbSqlUtil::get_var_length(colImpl->m_type,
                                       dataPtrB,
@@ -1014,8 +1025,12 @@ NdbBlob::getBlobKeysEqual(NdbBlob* other)
                                       lbB,
                                       lenB);
       assert(ok);
+      if (unlikely(!ok))
+      {
+        DBUG_PRINT("error", ("Corrupt length of key column %u", i));
+        DBUG_RETURN(-1);
+      }
       assert(lbA == lbB);
-
       CHARSET_INFO* cs = colImpl->m_cs ? colImpl->m_cs : &my_charset_bin;
       int res = (cs->coll->strnncollsp)(cs,
                                         dataPtrA + lbA,
@@ -1241,11 +1256,9 @@ NdbBlob::getHeadInlineValue(NdbOperation* anOp)
   }
   /*
    * If we get no data from this op then the operation is aborted
-   * one way or other.  Following hack in 5.0 makes sure we don't read
-   * garbage.  The proper fix exists only in version >= 5.1.
+   * one way or other.
    */
-  // 5.0 theHead->length = 0;
-  std::memset(&theHead, 0, sizeof(theHead));
+  theHead = Head();
   packBlobHead();
   DBUG_RETURN(0);
 }
@@ -3048,8 +3061,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType)
  * Initialise BlobTask structure based on request parameters
  *
  */
-int
-NdbBlob::initBlobTask(NdbTransaction::ExecType anExecType)
+int NdbBlob::initBlobTask(NdbTransaction::ExecType anExecType [[maybe_unused]])
 {
   DBUG_ENTER("NdbBlob::initBlobTask");
 

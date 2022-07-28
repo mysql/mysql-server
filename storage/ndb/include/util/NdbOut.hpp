@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -30,6 +30,7 @@
 #include <ndb_types.h>
 #include <util/BaseString.hpp>
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 /**
  * Class used for outputting logging messages to screen.

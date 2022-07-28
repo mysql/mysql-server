@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #ifndef METADATA_CACHE_CLUSTER_METADATA_AR_INCLUDED
 #define METADATA_CACHE_CLUSTER_METADATA_AR_INCLUDED
 
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include "cluster_metadata.h"
 #include "gr_notifications_listener.h"
 
@@ -34,7 +36,7 @@
  * Cluster metadata server.
  *
  */
-class METADATA_API ARClusterMetadata : public ClusterMetadata {
+class METADATA_CACHE_EXPORT ARClusterMetadata : public ClusterMetadata {
  public:
   /** @brief Constructor
    *
@@ -115,8 +117,9 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
    * @param session active connection to the member that is checked for the view
    * id
    * @param cluster_id ID of the cluster this operation refers to
-   * @param result [output parameter [out] member's metadata view_id
-   * @return True on success, false otherwise.
+   * @param[out] result  member's metadata view_id
+   * @retval true on success
+   * @retval false otherwise.
    */
   bool get_member_view_id(mysqlrouter::MySQLSession &session,
                           const std::string &cluster_id, uint64_t &result);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -126,20 +126,20 @@ static inline void page_zip_set_size(
 
 #ifndef UNIV_HOTBACKUP
 /** Determine if a record is so big that it needs to be stored externally.
-@param[in]	rec_size	length of the record in bytes
-@param[in]	comp		nonzero=compact format
-@param[in]	n_fields	number of fields in the record; ignored if
+@param[in]      rec_size        length of the record in bytes
+@param[in]      comp            nonzero=compact format
+@param[in]      n_fields        number of fields in the record; ignored if
 tablespace is not compressed
-@param[in]	page_size	page size
+@param[in]      page_size       page size
 @return false if the entire record can be stored locally on the page */
-static inline ibool page_zip_rec_needs_ext(ulint rec_size, ulint comp,
-                                           ulint n_fields,
-                                           const page_size_t &page_size) {
+static inline bool page_zip_rec_needs_ext(ulint rec_size, ulint comp,
+                                          ulint n_fields,
+                                          const page_size_t &page_size) {
   ut_ad(rec_size > (comp ? REC_N_NEW_EXTRA_BYTES : REC_N_OLD_EXTRA_BYTES));
   ut_ad(comp || !page_size.is_compressed());
 
-  if (UNIV_PAGE_SIZE_MAX > REC_MAX_DATA_SIZE && rec_size >= REC_MAX_DATA_SIZE) {
-    return (TRUE);
+  if (rec_size >= REC_MAX_DATA_SIZE) {
+    return true;
   }
 
   if (page_size.is_compressed()) {
@@ -152,7 +152,7 @@ static inline ibool page_zip_rec_needs_ext(ulint rec_size, ulint comp,
     on the uncompressed page. */
     return (rec_size - (REC_N_NEW_EXTRA_BYTES - 2 - 1) >=
                 page_zip_empty_size(n_fields, page_size.physical()) ||
-            rec_size >= page_get_free_space_of_empty(TRUE) / 2);
+            rec_size >= page_get_free_space_of_empty(true) / 2);
   }
 
   return (rec_size >= page_get_free_space_of_empty(comp) / 2);
@@ -162,9 +162,9 @@ static inline ibool page_zip_rec_needs_ext(ulint rec_size, ulint comp,
 /** Determine if the length of the page trailer.
  @return length of the page trailer, in bytes, not including the
  terminating zero byte of the modification log */
-static inline ibool page_zip_get_trailer_len(
+static inline ulint page_zip_get_trailer_len(
     const page_zip_des_t *page_zip, /*!< in: compressed page */
-    bool is_clust)                  /*!< in: TRUE if clustered index */
+    bool is_clust)                  /*!< in: true if clustered index */
 {
   ulint uncompressed_size;
 
@@ -186,13 +186,8 @@ static inline ibool page_zip_get_trailer_len(
           page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
 }
 
-/** Determine how big record can be inserted without recompressing the page.
- @return a positive number indicating the maximum size of a record
- whose insertion is guaranteed to succeed, or zero or negative */
-static inline lint page_zip_max_ins_size(
-    const page_zip_des_t *page_zip, /*!< in: compressed page */
-    ibool is_clust)                 /*!< in: TRUE if clustered index */
-{
+static inline lint page_zip_max_ins_size(const page_zip_des_t *page_zip,
+                                         bool is_clust) {
   ulint trailer_len;
 
   trailer_len = page_zip_get_trailer_len(page_zip, is_clust);
@@ -210,15 +205,9 @@ static inline lint page_zip_max_ins_size(
           (REC_N_NEW_EXTRA_BYTES - 2));
 }
 
-/** Determine if enough space is available in the modification log.
- @return true if enough space is available */
-static inline ibool page_zip_available(
-    const page_zip_des_t *page_zip, /*!< in: compressed page */
-    bool is_clust,                  /*!< in: TRUE if clustered index */
-    ulint length,                   /*!< in: combined size of the record */
-    ulint create)                   /*!< in: nonzero=add the record to
-                                    the heap */
-{
+static inline bool page_zip_available(const page_zip_des_t *page_zip,
+                                      bool is_clust, ulint length,
+                                      ulint create) {
   ulint trailer_len;
 
   ut_ad(length > REC_N_NEW_EXTRA_BYTES);
@@ -260,10 +249,10 @@ void page_zip_write_header_log(
 
 /** Write data to the uncompressed header portion of a page. The data must
 already have been written to the uncompressed page.
-@param[in,out]	page_zip	Compressed page
-@param[in]	str		Address on the uncompressed page
-@param[in]	length		Length of the data
-@param[in]	mtr		Mini-transaction, or NULL */
+@param[in,out]  page_zip        Compressed page
+@param[in]      str             Address on the uncompressed page
+@param[in]      length          Length of the data
+@param[in]      mtr             Mini-transaction, or NULL */
 static inline void page_zip_write_header(page_zip_des_t *page_zip,
                                          const byte *str, ulint length,
                                          mtr_t *mtr) {

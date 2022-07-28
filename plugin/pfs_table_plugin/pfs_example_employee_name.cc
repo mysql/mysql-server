@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,8 @@ Ename_Record ename_records_array[EMPLOYEEE_NAME_MAX_ROWS] = {
 
 /**
   Check for duplicate value of Primary/Unique Key column(s).
-  A sequential search is being used here, but its upto plugin writer to
-  implement his/her own search to make sure duplicate values are not inserted
+  A sequential search is being used here, but it is up to the plugin writer to
+  implement a search of their own to make sure duplicate values are not inserted
   for Primary/Unique Key Column(s).
 
   @param record record to be checked for duplicate

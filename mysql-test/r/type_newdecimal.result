@@ -1435,6 +1435,8 @@ i2	count(distinct j)
 drop table t1;
 create table t1(f1 decimal(20,6));
 insert into t1 values (CAST('10:11:12' AS date) + interval 14 microsecond);
+Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '10:11:12' at row 1 is deprecated. Prefer the standard '-'.
 insert into t1 values (CAST('10:11:12' AS time));
 select * from t1;
 f1
@@ -2366,85 +2368,47 @@ SET sql_mode=default;
 SELECT 1.0 div (@a:='xx');
 1.0 div (@a:='xx')
 NULL
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
-Warning	1365	Division by 0
 SELECT 1.0 div (@a:='1xx');
 1.0 div (@a:='1xx')
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 CREATE TABLE t1 (a DECIMAL(10,0), b DECIMAL(10,0), KEY(a)) ENGINE=INNODB;
 INSERT INTO t1 VALUES (0,0),(1,1);
 SELECT a FROM t1 FORCE INDEX(a) WHERE a='m';
 a
 0
-Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: 'm'
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=CONCAT('m');
 a
 0
-Warnings:
-Warning	1366	Incorrect decimal value: 'm' for column 'a' at row 1
-Warning	1366	Incorrect decimal value: 'm' for column 'a' at row 1
-Warning	1366	Incorrect decimal value: 'm' for column 'a' at row 1
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=COALESCE('m');
 a
 0
-Warnings:
-Warning	1366	Incorrect decimal value: 'm' for column 'a' at row 1
-Warning	1366	Incorrect decimal value: 'm' for column 'a' at row 1
-Warning	1366	Incorrect decimal value: 'm' for column 'a' at row 1
 SELECT * FROM t1 WHERE b='m';
 a	b
 0	0
-Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: 'm'
 SELECT * FROM t1 WHERE b=CONCAT('m');
 a	b
 0	0
-Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 SELECT * FROM t1 WHERE b=COALESCE('m');
 a	b
 0	0
-Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 SELECT a FROM t1 FORCE INDEX(a) WHERE a='';
 a
 0
-Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=CONCAT('');
 a
 0
-Warnings:
-Warning	1366	Incorrect decimal value: '' for column 'a' at row 1
-Warning	1366	Incorrect decimal value: '' for column 'a' at row 1
-Warning	1366	Incorrect decimal value: '' for column 'a' at row 1
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=COALESCE('');
 a
 0
-Warnings:
-Warning	1366	Incorrect decimal value: '' for column 'a' at row 1
-Warning	1366	Incorrect decimal value: '' for column 'a' at row 1
-Warning	1366	Incorrect decimal value: '' for column 'a' at row 1
 SELECT * FROM t1 WHERE b='';
 a	b
 0	0
-Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t1 WHERE b=CONCAT('');
 a	b
 0	0
-Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 SELECT * FROM t1 WHERE b=COALESCE('');
 a	b
 0	0
-Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 FORCE INDEX(a) WHERE a='m';
 ERROR 22007: Truncated incorrect DECIMAL value: 'm'
 CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 FORCE INDEX(a) WHERE a=CONCAT('m');

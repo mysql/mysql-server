@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,6 +181,14 @@ int main(int argc, char **argv) {
                            (first_argument_uses_wildcards) ? "" : argv[0],
                            opt_mysql_port, opt_mysql_unix_port, 0))) {
     fprintf(stderr, "%s: %s\n", my_progname, mysql_error(&mysql));
+    exit(1);
+  }
+  if (ssl_client_check_post_connect_ssl_setup(
+          &mysql, [](const char *err) { fprintf(stderr, "%s\n", err); })) {
+    mysql_close(&mysql);
+    free_passwords();
+    mysql_server_end();
+    my_end(my_end_arg);
     exit(1);
   }
   mysql.reconnect = true;

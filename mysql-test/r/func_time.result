@@ -580,48 +580,9 @@ NULL
 SELECT FROM_UNIXTIME(-0.000001);
 FROM_UNIXTIME(-0.000001)
 NULL
-select from_unixtime(2147483647);
-from_unixtime(2147483647)
-2038-01-19 06:14:07
-select from_unixtime(2147483648);
-from_unixtime(2147483648)
-NULL
 select from_unixtime(0);
 from_unixtime(0)
 1970-01-01 03:00:00
-select unix_timestamp(from_unixtime(2147483647));
-unix_timestamp(from_unixtime(2147483647))
-2147483647
-select unix_timestamp(from_unixtime(2147483648));
-unix_timestamp(from_unixtime(2147483648))
-NULL
-select unix_timestamp('2039-01-20 01:00:00');
-unix_timestamp('2039-01-20 01:00:00')
-0
-select unix_timestamp('1968-01-20 01:00:00');
-unix_timestamp('1968-01-20 01:00:00')
-0
-select unix_timestamp('2038-02-10 01:00:00');
-unix_timestamp('2038-02-10 01:00:00')
-0
-select unix_timestamp('1969-11-20 01:00:00');
-unix_timestamp('1969-11-20 01:00:00')
-0
-select unix_timestamp('2038-01-20 01:00:00');
-unix_timestamp('2038-01-20 01:00:00')
-0
-select unix_timestamp('1969-12-30 01:00:00');
-unix_timestamp('1969-12-30 01:00:00')
-0
-select unix_timestamp('2038-01-17 12:00:00');
-unix_timestamp('2038-01-17 12:00:00')
-2147331600
-select unix_timestamp('1970-01-01 03:00:01');
-unix_timestamp('1970-01-01 03:00:01')
-1
-select unix_timestamp('2038-01-19 07:14:07');
-unix_timestamp('2038-01-19 07:14:07')
-0
 SELECT CHARSET(DAYNAME(19700101));
 CHARSET(DAYNAME(19700101))
 utf8mb4
@@ -922,9 +883,13 @@ f1
 select f1 from t1 where f1 between cast("2006-1-1" as date) and cast("2006.1.1" as date);
 f1
 2006-01-01
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2006.1.1' at row 1 is deprecated. Prefer the standard '-'.
 select f1 from t1 where date(f1) between cast("2006-1-1" as date) and cast("2006.1.1" as date);
 f1
 2006-01-01
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2006.1.1' at row 1 is deprecated. Prefer the standard '-'.
 select f2 from t1 where f2 between cast("12:1:2" as time) and cast("12:2:2" as time);
 f2
 12:01:02
@@ -1041,6 +1006,7 @@ Warning	1292	Truncated incorrect time value: '100000:02:03'
 CREATE TABLE t1(f1 TIME);
 INSERT IGNORE INTO t1 VALUES('916:00:00 a');
 Warnings:
+Warning	4096	Delimiter ' ' in position 9 in datetime value '916:00:00 a' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 SELECT * FROM t1;
@@ -1219,6 +1185,8 @@ id	day	id	day
 1	2005-06-01	3	2005-07-15
 3	2005-07-01	1	2005-08-01
 3	2005-07-01	3	2005-07-15
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.09.01' at row 1 is deprecated. Prefer the standard '-'.
+Warnings:
 SELECT * FROM t1, t2 
 WHERE CAST(t1.day AS DATE) BETWEEN 
 '2005.09.01' - INTERVAL 6 MONTH AND t2.day;
@@ -1228,6 +1196,8 @@ id	day	id	day
 1	2005-06-01	3	2005-07-15
 3	2005-07-01	1	2005-08-01
 3	2005-07-01	3	2005-07-15
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.09.01' at row 1 is deprecated. Prefer the standard '-'.
+Warnings:
 DROP TABLE t1,t2;
 set time_zone= @@global.time_zone;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
@@ -2071,7 +2041,7 @@ c0000 text
 WITH cte1 AS
 (SELECT(replace(md5(0x9025c5c7),
 convert((1) using utf8),
-(!(cast((connection_id()) AS char(20)))))) AS a1 FROM t0022)
+(!(cast((555) AS char(20)))))) AS a1 FROM t0022)
 SELECT cte1.a1
 FROM cte1 WHERE cte1.a1 = from_unixtime(1537000917);
 ERROR HY000: Incorrect DATETIME value: 'f4a4727407f28927f036a0bf46ed03f7'
@@ -2092,3 +2062,33 @@ t	CREATE TABLE `t` (
   `y` decimal(9,1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t;
+#
+# Bug #32384355 INSERT,SELECT FROM SAME TABLE WITH AGGREGATE
+# AND NOW() COLUMNS PRODUCES ERROR
+#
+CREATE TABLE t1 (
+i1 INT,
+d1 DATETIME
+);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN INSERT INTO t1 SELECT MAX(1), NOW() FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t1` /* select#1 */ select sql_buffer_result max(1) AS `MAX(1)`,now() AS `NOW()` from `test`.`t1`
+INSERT INTO t1 SELECT MAX(1), NOW() FROM t1;
+SELECT i1, EXTRACT(HOUR FROM TIMEDIFF(NOW(), d1)) FROM t1;
+i1	EXTRACT(HOUR FROM TIMEDIFF(NOW(), d1))
+NULL	0
+DROP TABLE t1;
+#
+# BUG#33438883: Assertion `!thd->lex->is_view_context_analysis()
+#
+CREATE TABLE t1 (f1 INTEGER);
+CREATE VIEW v1 AS SELECT (SELECT 'v' FROM DUAL) AS field1 FROM t1 GROUP BY field1
+HAVING TIME(field1) != 0 AND  TIMESTAMP(field1) != 0;
+DROP VIEW v1;
+DROP TABLE t1;

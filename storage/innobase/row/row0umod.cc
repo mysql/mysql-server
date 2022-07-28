@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,7 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "ha_prototypes.h"
-#include "log0log.h"
+#include "log0chkp.h"
 #include "mach0data.h"
 #include "que0que.h"
 #include "row0log.h"
@@ -56,7 +56,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Considerations on undoing a modify operation.
 (1) Undoing a delete marking: all index records should be found. Some of
-them may have delete mark already FALSE, if the delete mark operation was
+them may have delete mark already false, if the delete mark operation was
 stopped underway, or if the undo operation ended prematurely because of a
 system crash.
 (2) Undoing an update of a delete unmarked record: the newer version of
@@ -106,27 +106,22 @@ introduced where a call to log_free_check() is bypassed. */
   btr_cur_t *btr_cur;
   dberr_t err;
   trx_t *trx = thr_get_trx(thr);
-#ifdef UNIV_DEBUG
-  ibool success;
-#endif /* UNIV_DEBUG */
 
   pcur = &node->pcur;
-  btr_cur = btr_pcur_get_btr_cur(pcur);
+  btr_cur = pcur->get_btr_cur();
 
 #ifdef UNIV_DEBUG
-  success =
+  auto success =
 #endif /* UNIV_DEBUG */
-      btr_pcur_restore_position(mode, pcur, mtr);
+      pcur->restore_position(mode, mtr, UT_LOCATION_HERE);
 
   ut_ad(success);
-  ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur), btr_cur_get_index(btr_cur)) ==
+  ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur), btr_cur->index) ==
         thr_get_trx(thr)->id);
 
-  if (mode != BTR_MODIFY_LEAF &&
-      dict_index_is_online_ddl(btr_cur_get_index(btr_cur))) {
-    *rebuilt_old_pk =
-        row_log_table_get_pk(trx, btr_cur_get_rec(btr_cur),
-                             btr_cur_get_index(btr_cur), nullptr, sys, &heap);
+  if (mode != BTR_MODIFY_LEAF && dict_index_is_online_ddl(btr_cur->index)) {
+    *rebuilt_old_pk = row_log_table_get_pk(btr_cur_get_rec(btr_cur),
+                                           btr_cur->index, nullptr, sys, &heap);
   } else {
     *rebuilt_old_pk = nullptr;
   }
@@ -135,22 +130,36 @@ introduced where a call to log_free_check() is bypassed. */
   explicit lock before applying update undo.*/
   row_convert_impl_to_expl_if_needed(btr_cur, node);
 
+  node->update->table = node->table;
+
   if (mode != BTR_MODIFY_TREE) {
     ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
 
-    err = btr_cur_optimistic_update(
-        BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG, btr_cur,
-        offsets, offsets_heap, node->update, node->cmpl_info, thr,
-        thr_get_trx(thr)->id, mtr);
+    err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG |
+                                        BTR_KEEP_SYS_FLAG | BTR_KEEP_POS_FLAG,
+                                    btr_cur, offsets, offsets_heap,
+                                    node->update, node->cmpl_info, thr,
+                                    thr_get_trx(thr)->id, mtr);
   } else {
     big_rec_t *dummy_big_rec;
 
     err = btr_cur_pessimistic_update(
-        BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG, btr_cur,
-        offsets, offsets_heap, heap, &dummy_big_rec, node->update,
+        BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG |
+            BTR_KEEP_POS_FLAG,
+        btr_cur, offsets, offsets_heap, heap, &dummy_big_rec, node->update,
         node->cmpl_info, thr, thr_get_trx(thr)->id, node->undo_no, mtr, pcur);
 
-    ut_a(!dummy_big_rec);
+    ut_a(!dummy_big_rec || node->table->has_row_versions());
+    if (dummy_big_rec) {
+      ut_a(err == DB_SUCCESS);
+
+      DEBUG_SYNC_C("before_row_upd_extern");
+      err = lob::btr_store_big_rec_extern_fields(trx, pcur, node->update,
+                                                 *offsets, dummy_big_rec, mtr,
+                                                 lob::OPCODE_UPDATE);
+      DEBUG_SYNC_C("after_row_upd_extern");
+      mem_heap_free(dummy_big_rec->heap);
+    }
   }
 
   return err;
@@ -160,7 +169,7 @@ introduced where a call to log_free_check() is bypassed. */
  This is attempted when the record was inserted by updating a
  delete-marked record and there no longer exist transactions
  that would see the delete-marked record.
- @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space
+ @return        DB_SUCCESS, DB_FAIL, or error code: we may run out of file space
  */
 [[nodiscard]] static dberr_t row_undo_mod_remove_clust_low(
     undo_node_t *node, /*!< in: row undo node */
@@ -176,15 +185,15 @@ introduced where a call to log_free_check() is bypassed. */
   /* Find out if the record has been purged already
   or if we can remove it. */
 
-  if (!btr_pcur_restore_position(mode, &node->pcur, mtr) ||
+  if (!node->pcur.restore_position(mode, mtr, UT_LOCATION_HERE) ||
       row_vers_must_preserve_del_marked(node->new_trx_id, node->table->name,
                                         mtr)) {
     return (DB_SUCCESS);
   }
 
-  btr_cur = btr_pcur_get_btr_cur(&node->pcur);
+  btr_cur = node->pcur.get_btr_cur();
 
-  trx_id_offset = btr_cur_get_index(btr_cur)->trx_id_offset;
+  trx_id_offset = btr_cur->index->trx_id_offset;
 
   if (!trx_id_offset) {
     mem_heap_t *heap = nullptr;
@@ -192,15 +201,15 @@ introduced where a call to log_free_check() is bypassed. */
     const ulint *offsets;
     ulint len;
 
-    trx_id_col = btr_cur_get_index(btr_cur)->get_sys_col_pos(DATA_TRX_ID);
+    trx_id_col = btr_cur->index->get_sys_col_pos(DATA_TRX_ID);
     ut_ad(trx_id_col > 0);
     ut_ad(trx_id_col != ULINT_UNDEFINED);
 
-    offsets =
-        rec_get_offsets(btr_cur_get_rec(btr_cur), btr_cur_get_index(btr_cur),
-                        nullptr, trx_id_col + 1, &heap);
+    offsets = rec_get_offsets(btr_cur_get_rec(btr_cur), btr_cur->index, nullptr,
+                              trx_id_col + 1, UT_LOCATION_HERE, &heap);
 
-    trx_id_offset = rec_get_nth_field_offs(offsets, trx_id_col, &len);
+    /* nullptr for index as trx_id_col is physical here */
+    trx_id_offset = rec_get_nth_field_offs(nullptr, offsets, trx_id_col, &len);
     ut_ad(len == DATA_TRX_ID_LEN);
     mem_heap_free(heap);
   }
@@ -230,7 +239,7 @@ introduced where a call to log_free_check() is bypassed. */
     after it had been completely inserted. Therefore, we
     are passing rollback=false, just like purge does. */
 
-    btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, node->trx->id,
+    btr_cur_pessimistic_delete(&err, false, btr_cur, 0, false, node->trx->id,
                                node->undo_no, node->rec_type, mtr, &node->pcur,
                                nullptr);
 
@@ -260,7 +269,7 @@ introduced where a call to log_free_check() is bypassed. */
 
   log_free_check();
   pcur = &node->pcur;
-  index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
+  index = pcur->get_btr_cur()->index;
 
   mtr_start(&mtr);
 
@@ -270,10 +279,10 @@ introduced where a call to log_free_check() is bypassed. */
   DEBUG_SYNC(current_thd, "row_undo_mod_clust");
 
   if (online) {
-    mtr_s_lock(dict_index_get_lock(index), &mtr);
+    mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
   }
 
-  mem_heap_t *heap = mem_heap_create(1024);
+  mem_heap_t *heap = mem_heap_create(1024, UT_LOCATION_HERE);
   mem_heap_t *offsets_heap = nullptr;
   ulint *offsets = nullptr;
   const dtuple_t *rebuilt_old_pk;
@@ -287,7 +296,7 @@ introduced where a call to log_free_check() is bypassed. */
       online ? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED : BTR_MODIFY_LEAF);
 
   if (err != DB_SUCCESS) {
-    btr_pcur_commit_specify_mtr(pcur, &mtr);
+    pcur->commit_specify_mtr(&mtr);
 
     /* We may have to modify tree structure: do a pessimistic
     descent down the index tree */
@@ -312,25 +321,24 @@ introduced where a call to log_free_check() is bypassed. */
 
     switch (node->rec_type) {
       case TRX_UNDO_DEL_MARK_REC:
-        row_log_table_insert(btr_pcur_get_rec(pcur), node->row, index, offsets);
+        row_log_table_insert(pcur->get_rec(), node->row, index, offsets);
         break;
       case TRX_UNDO_UPD_EXIST_REC:
-        row_log_table_update(btr_pcur_get_rec(pcur), index, offsets,
-                             rebuilt_old_pk, node->undo_row, node->row);
+        row_log_table_update(pcur->get_rec(), index, offsets, rebuilt_old_pk,
+                             node->undo_row, node->row);
         break;
       case TRX_UNDO_UPD_DEL_REC:
-        row_log_table_delete(node->trx, btr_pcur_get_rec(pcur), node->row,
-                             index, offsets, sys);
+        row_log_table_delete(pcur->get_rec(), node->row, index, offsets, sys);
         break;
       default:
-        ut_ad(0);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
     }
   }
 
-  ut_ad(rec_get_trx_id(btr_pcur_get_rec(pcur), index) == node->new_trx_id);
+  ut_ad(rec_get_trx_id(pcur->get_rec(), index) == node->new_trx_id);
 
-  btr_pcur_commit_specify_mtr(pcur, &mtr);
+  pcur->commit_specify_mtr(&mtr);
 
   DEBUG_SYNC_C("ib_undo_mod_before_remove_clust");
 
@@ -344,7 +352,7 @@ introduced where a call to log_free_check() is bypassed. */
     be omitted from the rebuilt copy of the table. */
     err = row_undo_mod_remove_clust_low(node, &mtr, BTR_MODIFY_LEAF);
     if (err != DB_SUCCESS) {
-      btr_pcur_commit_specify_mtr(pcur, &mtr);
+      pcur->commit_specify_mtr(&mtr);
 
       /* We may have to modify tree structure: do a
       pessimistic descent down the index tree */
@@ -359,7 +367,7 @@ introduced where a call to log_free_check() is bypassed. */
       ut_ad(err == DB_SUCCESS || err == DB_OUT_OF_FILE_SPACE);
     }
 
-    btr_pcur_commit_specify_mtr(pcur, &mtr);
+    pcur->commit_specify_mtr(&mtr);
   }
 
   node->state = UNDO_NODE_FETCH_NEXT;
@@ -383,14 +391,14 @@ introduced where a call to log_free_check() is bypassed. */
 {
   btr_pcur_t pcur;
   btr_cur_t *btr_cur;
-  ibool success;
-  ibool old_has;
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   mtr_t mtr_vers;
   row_search_result search_result;
-  ibool modify_leaf = false;
+  bool modify_leaf = false;
   ulint rec_deleted;
+  bool success;
+  bool old_has;
 
   log_free_check();
 
@@ -408,10 +416,10 @@ introduced where a call to log_free_check() is bypassed. */
     is protected by index->lock. */
     if (mode == BTR_MODIFY_LEAF) {
       mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-      mtr_s_lock(dict_index_get_lock(index), &mtr);
+      mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
     } else {
       ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
-      mtr_sx_lock(dict_index_get_lock(index), &mtr);
+      mtr_sx_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
     }
 
     if (row_log_online_op_try(index, entry, 0)) {
@@ -424,7 +432,7 @@ introduced where a call to log_free_check() is bypassed. */
     ut_ad(!dict_index_is_online_ddl(index));
   }
 
-  btr_cur = btr_pcur_get_btr_cur(&pcur);
+  btr_cur = pcur.get_btr_cur();
 
   if (dict_index_is_spatial(index)) {
     if (mode & BTR_MODIFY_LEAF) {
@@ -458,6 +466,17 @@ introduced where a call to log_free_check() is bypassed. */
       ut_error;
   }
 
+  /* If the key is delete marked then the statement could not modify the
+  key yet and the transaction has no implicit lock on it. We must convert
+  to explicit lock if and only if we are the transaction which has implicit
+  lock on it.Note that it is still ok to purge the delete mark key if it
+  is purgeable.*/
+  rec_deleted =
+      rec_get_deleted_flag(pcur.get_rec(), dict_table_is_comp(index->table));
+  if (rec_deleted == 0) {
+    row_convert_impl_to_expl_if_needed(btr_cur, node);
+  }
+
   /* We should remove the index record if no prior version of the row,
   which cannot be purged yet, requires its existence. If some requires,
   we should delete mark the record. */
@@ -465,24 +484,13 @@ introduced where a call to log_free_check() is bypassed. */
   mtr_start(&mtr_vers);
 
   success =
-      btr_pcur_restore_position(BTR_SEARCH_LEAF, &(node->pcur), &mtr_vers);
+      node->pcur.restore_position(BTR_SEARCH_LEAF, &mtr_vers, UT_LOCATION_HERE);
   ut_a(success);
 
-  /* If the key is delete marked then the statement could not modify the
-  key yet and the transaction has no implicit lock on it. We must convert
-  to explicit lock if and only if we are the transaction which has implicit
-  lock on it.Note that it is still ok to purge the delete mark key if it
-  is purgeable.*/
-  rec_deleted = rec_get_deleted_flag(btr_pcur_get_rec(&pcur),
-                                     dict_table_is_comp(index->table));
-  if (rec_deleted == 0) {
-    row_convert_impl_to_expl_if_needed(btr_cur, node);
-  }
-
-  old_has = row_vers_old_has_index_entry(FALSE, btr_pcur_get_rec(&(node->pcur)),
-                                         &mtr_vers, index, entry, 0, 0);
+  old_has = row_vers_old_has_index_entry(false, node->pcur.get_rec(), &mtr_vers,
+                                         index, entry, 0, 0);
   if (old_has) {
-    err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG, btr_cur, TRUE, thr,
+    err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG, btr_cur, true, thr,
                                        &mtr);
     ut_ad(err == DB_SUCCESS);
   } else {
@@ -509,7 +517,7 @@ introduced where a call to log_free_check() is bypassed. */
       the distinction only matters when deleting a
       record that contains externally stored columns. */
       ut_ad(!index->is_clustered());
-      btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, node->trx->id,
+      btr_cur_pessimistic_delete(&err, false, btr_cur, 0, false, node->trx->id,
                                  node->undo_no, node->rec_type, &mtr,
                                  &node->pcur, nullptr);
       /* The delete operation may fail if we have little
@@ -518,10 +526,10 @@ introduced where a call to log_free_check() is bypassed. */
     }
   }
 
-  btr_pcur_commit_specify_mtr(&(node->pcur), &mtr_vers);
+  node->pcur.commit_specify_mtr(&mtr_vers);
 
 func_exit:
-  btr_pcur_close(&pcur);
+  pcur.close();
 func_exit_no_pcur:
   mtr_commit(&mtr);
 
@@ -574,7 +582,7 @@ func_exit_no_pcur:
 /*!< in: undo number upto which to rollback.*/
 {
   btr_pcur_t pcur;
-  btr_cur_t *btr_cur = btr_pcur_get_btr_cur(&pcur);
+  btr_cur_t *btr_cur = pcur.get_btr_cur();
   upd_t *update;
   dberr_t err = DB_SUCCESS;
   big_rec_t *dummy_big_rec;
@@ -608,10 +616,10 @@ try_again:
     is protected by index->lock. */
     if (mode == BTR_MODIFY_LEAF) {
       mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-      mtr_s_lock(dict_index_get_lock(index), &mtr);
+      mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
     } else {
       ut_ad(mode == BTR_MODIFY_TREE);
-      mtr_sx_lock(dict_index_get_lock(index), &mtr);
+      mtr_sx_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
     }
 
     if (row_log_online_op_try(index, entry, trx->id)) {
@@ -644,7 +652,7 @@ try_again:
       if (dict_index_is_spatial(index) && btr_cur->rtr_info->fd_del) {
         if (mode != orig_mode) {
           mode = orig_mode;
-          btr_pcur_close(&pcur);
+          pcur.close();
           mtr_commit(&mtr);
           goto try_again;
         }
@@ -710,15 +718,17 @@ try_again:
 
       break;
     case ROW_FOUND:
-      err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG, btr_cur, FALSE,
+      err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG, btr_cur, false,
                                          thr, &mtr);
 
       ut_a(err == DB_SUCCESS);
-      heap = mem_heap_create(sizeof(upd_t) +
-                             dtuple_get_n_fields(entry) * sizeof(upd_field_t));
+      heap = mem_heap_create(
+          sizeof(upd_t) + dtuple_get_n_fields(entry) * sizeof(upd_field_t),
+          UT_LOCATION_HERE);
       offsets_heap = nullptr;
-      offsets = rec_get_offsets(btr_cur_get_rec(btr_cur), index, nullptr,
-                                ULINT_UNDEFINED, &offsets_heap);
+      offsets =
+          rec_get_offsets(btr_cur_get_rec(btr_cur), index, nullptr,
+                          ULINT_UNDEFINED, UT_LOCATION_HERE, &offsets_heap);
       update = row_upd_build_sec_rec_difference_binary(
           btr_cur_get_rec(btr_cur), index, offsets, entry, heap);
       if (upd_get_n_fields(update) == 0) {
@@ -751,7 +761,7 @@ try_again:
       mem_heap_free(offsets_heap);
   }
 
-  btr_pcur_close(&pcur);
+  pcur.close();
 func_exit_no_pcur:
   mtr_commit(&mtr);
 
@@ -781,10 +791,10 @@ static void row_undo_mod_sec_flag_corrupted(
 
 /** Undoes a modify in secondary indexes when undo record type is UPD_DEL.
 This is the specific function to handle the modify on multi-value indexes.
-@param[in,out]	node	row undo node
-@param[in,out]	thr	query thread
-@param[in]	index	the multi-value index
-@param[in,out]	heap	memory heap
+@param[in,out]  node    row undo node
+@param[in,out]  thr     query thread
+@param[in]      index   the multi-value index
+@param[in,out]  heap    memory heap
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 [[nodiscard]] static dberr_t row_undo_mod_upd_del_multi_sec(undo_node_t *node,
                                                             que_thr_t *thr,
@@ -820,7 +830,7 @@ This is the specific function to handle the modify on multi-value indexes.
   ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
   ut_ad(!node->undo_row);
 
-  heap = mem_heap_create(1024);
+  heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   while (node->index != nullptr) {
     dict_index_t *index = node->index;
@@ -881,10 +891,10 @@ This is the specific function to handle the modify on multi-value indexes.
 
 /** Undoes a modify in secondary indexes when undo record type is DEL_MARK.
 This is the specific function to handle the modify on multi-value indexes.
-@param[in,out]	node	row undo node
-@param[in,out]	thr	query thread
-@param[in]	index	the multi-value index
-@param[in,out]	heap	memory heap
+@param[in,out]  node    row undo node
+@param[in,out]  thr     query thread
+@param[in]      index   the multi-value index
+@param[in,out]  heap    memory heap
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 [[nodiscard]] static dberr_t row_undo_mod_del_mark_multi_sec(
     undo_node_t *node, que_thr_t *thr, dict_index_t *index, mem_heap_t *heap) {
@@ -932,7 +942,7 @@ This is the specific function to handle the modify on multi-value indexes.
 
   ut_ad(!node->undo_row);
 
-  heap = mem_heap_create(1024);
+  heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   while (node->index != nullptr) {
     dict_index_t *index = node->index;
@@ -996,12 +1006,12 @@ This is the specific function to handle the modify on multi-value indexes.
 
 /** Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
 This is the specific function to handle the modify on multi-value indexes.
-@param[in,out]	node		row undo node
-@param[in,out]	thr		query thread
-@param[in]	index		the multi-value index
-@param[in]	non_mv_upd	true if any non-multi-value field on the index
+@param[in,out]  node            row undo node
+@param[in,out]  thr             query thread
+@param[in]      index           the multi-value index
+@param[in]      non_mv_upd      true if any non-multi-value field on the index
                                 gets updated too
-@param[in,out]	heap		memory heap
+@param[in,out]  heap            memory heap
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static dberr_t row_undo_mod_upd_exist_multi_sec(undo_node_t *node,
                                                 que_thr_t *thr,
@@ -1066,19 +1076,16 @@ static dberr_t row_undo_mod_upd_exist_multi_sec(undo_node_t *node,
     return (err);
   }
 
-  heap = mem_heap_create(1024);
+  heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   while (node->index != nullptr) {
     dict_index_t *index = node->index;
     dtuple_t *entry;
 
     if (dict_index_is_spatial(index)) {
-      if (!row_upd_changes_ord_field_binary_func(index, node->update,
-#ifdef UNIV_DEBUG
-                                                 thr,
-#endif /* UNIV_DEBUG */
-                                                 node->row, node->ext, nullptr,
-                                                 ROW_BUILD_FOR_UNDO)) {
+      if (!row_upd_changes_ord_field_binary_func(
+              index, node->update, IF_DEBUG(thr, ) node->row, node->ext,
+              nullptr, ROW_BUILD_FOR_UNDO)) {
         dict_table_next_uncorrupted_index(node->index);
         continue;
       }
@@ -1186,9 +1193,9 @@ static dberr_t row_undo_mod_upd_exist_multi_sec(undo_node_t *node,
 }
 
 /** Parses the row reference and other info in a modify undo log record.
-@param[in]	node	row undo node
+@param[in]      node    row undo node
 @param[in]      thd     THD associated with the node
-@param[in,out]	mdl	MDL ticket or nullptr if unnecessary */
+@param[in,out]  mdl     MDL ticket or nullptr if unnecessary */
 static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
                                         MDL_ticket **mdl) {
   dict_index_t *clust_index;
@@ -1237,8 +1244,8 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
   ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref), node->heap);
 
   ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id, roll_ptr,
-                                       info_bits, node->trx, node->heap,
-                                       &(node->update), nullptr, type_cmpl);
+                                       info_bits, node->heap, &(node->update),
+                                       nullptr, type_cmpl);
 
   node->new_trx_id = trx_id;
   node->cmpl_info = cmpl_info;

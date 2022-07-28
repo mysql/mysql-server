@@ -1437,7 +1437,7 @@ body TEXT,
 FULLTEXT (title,body)
 ) ENGINE=InnoDB;
 INSERT INTO articles (title,body) VALUES ('Test Article','blah blah
-blah'),("Matt's Noise",'this is noisy'),('February Weather','It was terrible
+blah'),('Matt''s Noise','this is noisy'),('February Weather','It was terrible
 this year.'),('Peter Pan','Tis a kids story.'),('Test1','nada'),('Database
 database database','foo database database database'),('Database article
 title','body with lots of words.'),('myfulltext database', 'my test fulltext
@@ -1923,3 +1923,11 @@ id	a
 1	know database
 2	good database
 DROP TABLE t1;
+#
+# Bug#33409351: regression: change_to_use_tmp_fields_except_sums:
+#               Assertion `!thd->is_error()' failed.
+#
+CREATE TABLE t (a VARCHAR(10), FULLTEXT (a));
+SELECT ANY_VALUE(MATCH (a) AGAINST ('<' IN BOOLEAN MODE)), COUNT(*) FROM t;
+ERROR 42000: syntax error, unexpected $end
+DROP TABLE t;

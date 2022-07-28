@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,8 @@
 #include <sstream>  // std::ostringstream
 
 #include "my_dbug.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/current_thd.h"
-#include "sql/json_dom.h"  // Json_wrapper
 #include "sql/log.h"
 #include "sql/rpl_sys_key_access.h"
 #include "sql/sql_base.h"
@@ -269,7 +269,7 @@ bool Rpl_sys_table_access::delete_all_rows() {
       key_access.init(table, Rpl_sys_key_access::enum_key_type::INDEX_NEXT);
   if (!key_error) {
     do {
-      error |= table->file->ha_delete_row(table->record[0]);
+      error |= (table->file->ha_delete_row(table->record[0]) != 0);
       if (error) {
         return true;
       }
@@ -315,7 +315,7 @@ bool Rpl_sys_table_access::increment_version() {
     error |= table_version->file->ha_write_row(table_version->record[0]);
   }
 
-  error |= key_access.deinit();
+  error |= (key_access.deinit() != 0);
 
   return error;
 }
@@ -348,7 +348,7 @@ bool Rpl_sys_table_access::update_version(ulonglong version) {
     error |= table_version->file->ha_write_row(table_version->record[0]);
   }
 
-  error |= key_access.deinit();
+  error |= (key_access.deinit() != 0);
 
   return error;
 }
@@ -396,7 +396,7 @@ bool Rpl_sys_table_access::delete_version() {
     error |= table_version->file->ha_delete_row(table_version->record[0]);
   }
 
-  error |= key_access.deinit();
+  error |= (key_access.deinit() != 0);
 
   return error;
 }

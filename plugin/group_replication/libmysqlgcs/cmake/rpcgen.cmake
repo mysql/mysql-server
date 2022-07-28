@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,16 +40,24 @@ IF(WIN32)
     ${XCOM_BASEDIR}/windeps/sunrpc/xdr_mem.c
     ${XCOM_BASEDIR}/windeps/sunrpc/xdr.c
     )
+
+  # /wd4311 'type cast': pointer truncation from 'const caddr_t' to 'u_long'
+  # /wd4312 'type cast': conversion from 'long' to 'void *' of greater size
+  ADD_COMPILE_FLAGS(
+    ${XCOM_BASEDIR}/windeps/sunrpc/xdr_sizeof.c
+    COMPILE_FLAGS "/wd4311" "/wd4312"
+    )
+  ADD_COMPILE_FLAGS(
+    ${XCOM_BASEDIR}/windeps/sunrpc/xdr_mem.c
+    COMPILE_FLAGS "/wd4311"
+    )
 ENDIF()
 
 IF(APPLE)
-  # OSX missing xdr_sizeof() since clang 10.0.1.10010046
-  IF(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS "10.0.1.10010046")
-
-    SET(SUNRPC_SRCS
-      ${XCOM_BASEDIR}/windeps/sunrpc/xdr_sizeof.c
-      )
-  ENDIF()
+  # macOS 10.14 and later do not provide xdr_sizeof()
+  SET(SUNRPC_SRCS
+    ${XCOM_BASEDIR}/windeps/sunrpc/xdr_sizeof.c
+    )
 ENDIF()
 
 # Generate the RPC files if needed

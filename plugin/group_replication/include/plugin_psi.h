@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,8 +101,8 @@ extern PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_pipeline_stats_flow_control,
     key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
     key_GR_LOCK_plugin_modules_termination,
+    key_GR_LOCK_plugin_applier_module_initialize_terminate,
     key_GR_LOCK_plugin_online,
-    key_GR_LOCK_plugin_running,
     key_GR_LOCK_primary_election_action_phase,
     key_GR_LOCK_primary_election_action_notification,
     key_GR_LOCK_primary_election_primary_process_run,
@@ -118,6 +118,7 @@ extern PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_session_thread_run,
     key_GR_LOCK_stage_monitor_handler,
     key_GR_LOCK_synchronized_queue,
+    key_GR_LOCK_transaction_monitor_module,
     key_GR_LOCK_trx_unlocking,
     key_GR_LOCK_group_member_info_manager_update_lock,
     key_GR_LOCK_group_member_info_update_lock,
@@ -160,6 +161,7 @@ extern PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_session_thread_method_exec,
     key_GR_COND_session_thread_run,
     key_GR_COND_synchronized_queue,
+    key_GR_COND_transaction_monitor_module,
     key_GR_COND_view_modification_wait,
     key_GR_COND_wait_ticket,
     key_GR_COND_write_lock_protection,
@@ -171,6 +173,7 @@ extern PSI_cond_key key_GR_COND_applier_module_run,
 
 extern PSI_thread_key key_GR_THD_applier_module_receiver,
     key_GR_THD_autorejoin,
+    key_GR_THD_transaction_monitor,
     key_GR_THD_cert_broadcast,
     key_GR_THD_clone_thd,
     key_GR_THD_delayed_init,
@@ -190,11 +193,13 @@ extern PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
     key_GR_RWLOCK_gcs_operations_view_change_observers,
     key_GR_RWLOCK_group_event_observation_list,
     key_GR_RWLOCK_io_cache_unused_list,
+    key_GR_RWLOCK_plugin_running,
     key_GR_RWLOCK_plugin_stop,
     key_GR_RWLOCK_transaction_observation_list,
     key_GR_RWLOCK_transaction_consistency_manager_map,
     key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier,
-    key_GR_RWLOCK_flow_control_module_info;
+    key_GR_RWLOCK_flow_control_module_info,
+    key_GR_RWLOCK_transaction_consistency_info_members_that_must_prepare_the_transaction;
 
 extern PSI_stage_info info_GR_STAGE_autorejoin,
     info_GR_STAGE_multi_primary_mode_switch_pending_transactions,
@@ -220,6 +225,21 @@ extern PSI_stage_info info_GR_STAGE_autorejoin,
     info_GR_STAGE_clone_prepare,
     info_GR_STAGE_clone_execute;
 
+extern PSI_memory_key key_write_set_encoded,
+    key_certification_data,
+    key_certification_data_gc,
+    key_certification_info,
+    key_transaction_data,
+    key_sql_service_command_data,
+    key_mysql_thread_queued_task,
+    key_message_service_queue,
+    key_message_service_received_message,
+    key_group_member_info,
+    key_consistent_members_that_must_prepare_transaction,
+    key_consistent_transactions,
+    key_consistent_transactions_prepared,
+    key_consistent_transactions_waiting,
+    key_consistent_transactions_delayed_view_change;
 /* clang-format on */
 
 #endif /* PLUGIN_PSI_INCLUDED */

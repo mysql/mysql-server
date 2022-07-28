@@ -20,11 +20,6 @@
 # create test-bed
 #
 set global innodb_file_per_table = off;
-let $MYSQL_TMP_DIR = `select @@tmpdir`;
-let $MYSQL_DATA_DIR = `select @@datadir`;
-let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
-let $args = --loose-console > $SEARCH_FILE 2>&1;
-let crash = $args --innodb-force-recovery-crash;
 
 #-----------------------------------------------------------------------------
 #
@@ -113,6 +108,10 @@ drop procedure populate_t1_t2_small;
 # 3. In xa trx try loading temp + non-temp table.
 #    (Same as case-2 but from xa perspective)
 #
+--echo # The use of temporary tables in XA transactions is only permitted when
+--echo # xa_detach_on_prepare is OFF.
+SET @saved_xa_detach_on_prepare = @@SESSION.xa_detach_on_prepare;
+SET SESSION xa_detach_on_prepare = OFF;
 create temporary table t1 (i int) engine=innodb;
 create table t2 (i int) engine=innodb;
 insert into t1 values (1);
@@ -153,6 +152,8 @@ select * from t1;
 #
 drop table t1;
 drop table t2;
+
+SET SESSION xa_detach_on_prepare = @saved_xa_detach_on_prepare;
 
 #-----------------------------------------------------------------------------
 #

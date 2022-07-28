@@ -4147,7 +4147,7 @@ link_alias_148._field_156	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "1 <= seq_0_id <= 1"
+                          "seq_0_id = 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
@@ -4170,7 +4170,7 @@ link_alias_148._field_156	{
                       "index": "PRIMARY",
                       "rows": 1,
                       "ranges": [
-                        "1 <= seq_0_id <= 1"
+                        "seq_0_id = 1"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
@@ -4223,7 +4223,7 @@ link_alias_148._field_156	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "1 <= seq_0_id <= 1"
+                          "seq_0_id = 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
@@ -4246,7 +4246,7 @@ link_alias_148._field_156	{
                       "index": "PRIMARY",
                       "rows": 1,
                       "ranges": [
-                        "1 <= seq_0_id <= 1"
+                        "seq_0_id = 1"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
@@ -4299,7 +4299,7 @@ link_alias_148._field_156	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "1 <= seq_0_id <= 1"
+                          "seq_0_id = 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
@@ -4322,7 +4322,7 @@ link_alias_148._field_156	{
                       "index": "PRIMARY",
                       "rows": 1,
                       "ranges": [
-                        "1 <= seq_0_id <= 1"
+                        "seq_0_id = 1"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,

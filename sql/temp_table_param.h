@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,7 @@ class Temp_table_param {
   */
   uint outer_sum_func_count;
   /**
-    Enabled when we have atleast one outer_sum_func. Needed when used
+    Enabled when we have at least one outer_sum_func. Needed when used
     along with distinct.
 
     @see create_tmp_table

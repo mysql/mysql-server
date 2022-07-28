@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,52 +22,58 @@
 
 #include "sql/range_optimizer/index_merge_plan.h"
 
-#include "sql/handler.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/opt_trace.h"
-#include "sql/range_optimizer/index_merge.h"
-#include "sql/range_optimizer/range_opt_param.h"
-#include "sql/range_optimizer/range_scan.h"
-#include "sql/range_optimizer/range_scan_plan.h"
+#include "sql/range_optimizer/path_helpers.h"
 #include "sql/sql_class.h"
 
 class Opt_trace_context;
-class QUICK_SELECT_I;
 struct MEM_ROOT;
 
-void TRP_INDEX_MERGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
-                                       Opt_trace_object *trace_object) const {
+void trace_basic_info_index_merge(THD *thd, const AccessPath *path,
+                                  const RANGE_OPT_PARAM *param,
+                                  Opt_trace_object *trace_object) {
   Opt_trace_context *const trace = &thd->opt_trace;
   trace_object->add_alnum("type", "index_merge");
   Opt_trace_array ota(trace, "index_merge_of");
-  for (TRP_RANGE **current = range_scans; current != range_scans_end;
-       current++) {
-    Opt_trace_object trp_info(trace);
-    (*current)->trace_basic_info(thd, param, &trp_info);
+  for (AccessPath *range_scan : *path->index_merge().children) {
+    Opt_trace_object path_info(trace);
+    trace_basic_info(thd, range_scan, param, &path_info);
   }
 }
 
-QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(bool, MEM_ROOT *return_mem_root) {
-  QUICK_INDEX_MERGE_SELECT *quick_imerge;
-  QUICK_RANGE_SELECT *quick;
-  /* index_merge always retrieves full rows, ignore retrieve_full_rows */
-  if (!(quick_imerge = new (return_mem_root)
-            QUICK_INDEX_MERGE_SELECT(return_mem_root, table)))
-    return nullptr;
-  assert(quick_imerge->index == index);
+void add_keys_and_lengths_index_merge(const AccessPath *path, String *key_names,
+                                      String *used_lengths) {
+  bool first = true;
+  TABLE *table = path->index_merge().table;
 
-  quick_imerge->records = records;
-  quick_imerge->cost_est = cost_est;
+  // For EXPLAIN compatibility with older versions, PRIMARY is always
+  // printed last.
+  for (bool print_primary : {false, true}) {
+    for (AccessPath *child : *path->index_merge().children) {
+      const bool is_primary = table->file->primary_key_is_clustered() &&
+                              used_index(child) == table->s->primary_key;
+      if (is_primary != print_primary) continue;
+      if (first) {
+        first = false;
+      } else {
+        key_names->append(',');
+        used_lengths->append(',');
+      }
 
-  for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
-       range_scan++) {
-    if (!(quick = down_cast<QUICK_RANGE_SELECT *>(
-              (*range_scan)->make_quick(false, return_mem_root))) ||
-        quick_imerge->push_quick_back(quick)) {
-      destroy(quick);
-      destroy(quick_imerge);
-      return nullptr;
+      ::add_keys_and_lengths(child, key_names, used_lengths);
     }
   }
-  quick_imerge->forced_by_hint = forced_by_hint;
-  return quick_imerge;
 }
+
+#ifndef NDEBUG
+void dbug_dump_index_merge(int indent, bool verbose,
+                           const Mem_root_array<AccessPath *> &children) {
+  fprintf(DBUG_FILE, "%*squick index_merge select\n", indent, "");
+  fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
+  for (AccessPath *range_scan : children) {
+    dbug_dump(range_scan, indent + 2, verbose);
+  }
+  fprintf(DBUG_FILE, "%*s}\n", indent, "");
+}
+#endif

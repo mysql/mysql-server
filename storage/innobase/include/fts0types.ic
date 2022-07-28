@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -83,25 +83,28 @@ static inline int fts_update_doc_id_cmp(const void *p1, /*!< in: id1 */
   return ((int)(up1->doc_id - up2->doc_id));
 }
 
-/** Get the first character's code position for FTS index partition */
-extern ulint innobase_strnxfrm(const CHARSET_INFO *cs, /*!< in: Character set */
-                               const uchar *p2,        /*!< in: string */
-                               const ulint len2);      /*!< in: string length */
+/** Get the first character's code position for FTS index partition
+@param[in]      cs        Character set
+@param[in]      p2        string
+@param[in]      len2    string length
+*/
+extern ulint innobase_strnxfrm(const CHARSET_INFO *cs, const uchar *p2,
+                               const ulint len2);
 
 /** Check if fts index charset is cjk
-@param[in]	cs	charset
-@retval	true	if the charset is cjk
-@retval	false	if not. */
+@param[in]      cs      charset
+@retval true    if the charset is cjk
+@retval false   if not. */
 static inline bool fts_is_charset_cjk(const CHARSET_INFO *cs) {
-  if (strcmp(cs->name, "gb2312_chinese_ci") == 0 ||
-      strcmp(cs->name, "gbk_chinese_ci") == 0 ||
-      strcmp(cs->name, "big5_chinese_ci") == 0 ||
-      strcmp(cs->name, "gb18030_chinese_ci") == 0 ||
-      strcmp(cs->name, "ujis_japanese_ci") == 0 ||
-      strcmp(cs->name, "sjis_japanese_ci") == 0 ||
-      strcmp(cs->name, "cp932_japanese_ci") == 0 ||
-      strcmp(cs->name, "eucjpms_japanese_ci") == 0 ||
-      strcmp(cs->name, "euckr_korean_ci") == 0) {
+  if (strcmp(cs->m_coll_name, "gb2312_chinese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "gbk_chinese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "big5_chinese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "gb18030_chinese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "ujis_japanese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "sjis_japanese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "cp932_japanese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "eucjpms_japanese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "euckr_korean_ci") == 0) {
     return (true);
   } else {
     return (false);
@@ -109,10 +112,10 @@ static inline bool fts_is_charset_cjk(const CHARSET_INFO *cs) {
 }
 
 /** Select the FTS auxiliary index for the given character by range.
-@param[in]	cs	charset
-@param[in]	str	string
-@param[in]	len	string length
-@retval	the index to use for the string */
+@param[in]      cs      charset
+@param[in]      str     string
+@param[in]      len     string length
+@retval the index to use for the string */
 static inline ulint fts_select_index_by_range(const CHARSET_INFO *cs,
                                               const byte *str, ulint len) {
   ulint selected = 0;
@@ -135,9 +138,9 @@ static inline ulint fts_select_index_by_range(const CHARSET_INFO *cs,
 }
 
 /** Select the FTS auxiliary index for the given character by hash.
-@param[in]	cs	charset
-@param[in]	str	string
-@param[in]	len	string length
+@param[in]      cs      charset
+@param[in]      str     string
+@param[in]      len     string length
 @retval the index to use for the string */
 static inline ulint fts_select_index_by_hash(const CHARSET_INFO *cs,
                                              const byte *str, ulint len) {
@@ -159,18 +162,18 @@ static inline ulint fts_select_index_by_hash(const CHARSET_INFO *cs,
     it gives different results for Windows and Linux, but it needs to match
     on-disk data.
    */
-  uint64 nr1 = 1;
-  uint64 nr2 = 4;
+  uint64_t nr1 = 1;
+  uint64_t nr2 = 4;
   cs->coll->hash_sort(cs, str, char_len, &nr1, &nr2);
 
   return (static_cast<ulong>(nr1) % FTS_NUM_AUX_INDEX);
 }
 
 /** Select the FTS auxiliary index for the given character.
-@param[in]	cs	charset
-@param[in]	str	string
-@param[in]	len	string length in bytes
-@retval	the index to use for the string */
+@param[in]      cs      charset
+@param[in]      str     string
+@param[in]      len     string length in bytes
+@retval the index to use for the string */
 static inline ulint fts_select_index(const CHARSET_INFO *cs, const byte *str,
                                      ulint len) {
   ulint selected;
@@ -192,7 +195,7 @@ static inline const char *fts_get_suffix(
 }
 
 /** Return the selected FTS aux index suffix in 5.7 compatible format
-@param[in]	selected	selected index
+@param[in]      selected        selected index
 @return the suffix name */
 static inline const char *fts_get_suffix_5_7(ulint selected) {
   return (fts_index_selector_5_7[selected].suffix);

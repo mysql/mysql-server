@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -200,7 +200,7 @@ int multi_reg_replace(struct st_replace_regex *r, char *val, size_t *len) {
           // Copy result to output buffer.
           strncpy(out_buf, sout.c_str(), *len + 1);
 
-          // If the buffer has been reallocated, make adjustements
+          // If the buffer has been reallocated, make adjustments
           if (save_out_buf != out_buf) {
             if (save_out_buf == r->even_buf)
               r->even_buf = out_buf;

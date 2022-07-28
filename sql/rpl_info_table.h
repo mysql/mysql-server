@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ class Rpl_info_table : public Rpl_info_handler {
 
   /**
     This property represents a description of the repository.
-    Speciffically, "schema"."table".
+    Specifically, "schema"."table".
   */
   char *description;
 
@@ -143,7 +143,6 @@ class Rpl_info_table : public Rpl_info_handler {
     @param[in]  param_table      Table's name.
     @param[in]  nullable_bitmap  bitmap that holds the fields that are
                                  allowed to be `NULL`-
-    @param[out] counter          Number of entries found.
 
     @retval a pair of booleans
             First element is true if an error occurred, false otherwise.

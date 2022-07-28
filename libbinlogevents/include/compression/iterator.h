@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class Iterable_buffer {
      @param buffer input buffer
      @param buffer_size the input buffer size
      @param uncompressed_size the size of the data uncompressed
-     @param comp_algo the compression algorythm (e.g., ZSTD)
+     @param comp_algo the compression algorithm (e.g., ZSTD)
    */
   Iterable_buffer(const char *buffer, size_t buffer_size,
                   size_t uncompressed_size, CompType comp_algo);

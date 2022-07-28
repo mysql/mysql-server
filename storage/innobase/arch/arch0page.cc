@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -32,6 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "arch0page.h"
 #include "arch0recv.h"
 #include "clone0clone.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "srv0start.h"
 
 #ifdef UNIV_DEBUG
@@ -143,35 +145,20 @@ dberr_t Arch_Group::write_to_doublewrite_file(Arch_File_Ctx *from_file,
 
 dberr_t Arch_Group::init_dblwr_file_ctx(const char *path, const char *base_file,
                                         uint num_files, uint64_t file_size) {
-  auto err =
-      s_dblwr_file_ctx.init(ARCH_DIR, path, base_file, num_files, file_size);
+  auto err = s_dblwr_file_ctx.init(ARCH_DIR, path, base_file, num_files);
 
   if (err != DB_SUCCESS) {
     ut_ad(s_dblwr_file_ctx.get_phy_size() == file_size);
     return (err);
   }
 
-  err = s_dblwr_file_ctx.open(false, LSN_MAX, 0, 0);
+  err = s_dblwr_file_ctx.open(false, LSN_MAX, 0, 0, 0);
 
   if (err != DB_SUCCESS) {
     return (err);
   }
 
-  byte *buf = static_cast<byte *>(
-      ut::zalloc_withkey(ut::make_psi_memory_key(mem_key_archive), file_size));
-
-  /* Make sure that the physical file size is the same as logical by filling
-  the file with all-zeroes. Page archiver recovery expects that the physical
-  file size is the same as logical file size. */
-  err = s_dblwr_file_ctx.write(nullptr, buf, 0, file_size);
-
-  if (err == DB_SUCCESS) {
-    s_dblwr_file_ctx.flush();
-  }
-
-  ut::free(buf);
-
-  return (err);
+  return s_dblwr_file_ctx.resize_and_overwrite_with_zeros(file_size);
 }
 
 dberr_t Arch_Group::build_active_file_name() {
@@ -353,6 +340,8 @@ dberr_t Arch_Group::open_file(Arch_Page_Pos write_pos, bool create_new) {
   ut_d(auto count = get_file_count());
   ut_ad(count > 0);
 
+  ut_a(m_file_size == ARCH_PAGE_BLK_SIZE * ARCH_PAGE_FILE_CAPACITY);
+
   if (!create_new) {
     auto block_num = write_pos.m_block_num;
     uint file_index = Arch_Block::get_file_index(block_num, ARCH_DATA_BLOCK);
@@ -360,9 +349,9 @@ dberr_t Arch_Group::open_file(Arch_Page_Pos write_pos, bool create_new) {
 
     ut_ad(file_index + 1 == count);
 
-    err = m_file_ctx.open(false, m_begin_lsn, file_index, offset);
+    err = m_file_ctx.open(false, m_begin_lsn, file_index, offset, m_file_size);
   } else {
-    err = m_file_ctx.open_new(m_begin_lsn, m_header_len);
+    err = m_file_ctx.open_new(m_begin_lsn, m_file_size, m_header_len);
   }
 
   return err;
@@ -591,8 +580,7 @@ bool Arch_File_Ctx::validate_stop_point_in_file(Arch_Group *group,
   }
 
   if (file_index >= m_stop_points.size()) {
-    ut_ad(false);
-    return (false);
+    ut_error;
   }
 
   /* Read from file to the user buffer. */
@@ -622,8 +610,7 @@ bool Arch_File_Ctx::validate_stop_point_in_file(Arch_Group *group,
   stop_lsn = Arch_Block::get_stop_lsn(buf);
 
   if (stop_lsn != m_stop_points[file_index]) {
-    ut_ad(false);
-    return (false);
+    ut_error;
   }
 
   DBUG_PRINT("page_archiver", ("File stop point: %" PRIu64 "", stop_lsn));
@@ -662,15 +649,13 @@ bool Arch_File_Ctx::validate_reset_block_in_file(pfs_os_file_t file,
   Arch_Reset_File reset_file;
 
   if (!m_reset.size() || reset_count >= m_reset.size()) {
-    ut_ad(false);
-    return (false);
+    ut_error;
   }
 
   reset_file = m_reset.at(reset_count);
 
   if (reset_file.m_file_index != file_index) {
-    ut_ad(false);
-    return (false);
+    ut_error;
   }
 
   byte *block_data = buf + ARCH_PAGE_BLK_HEADER_LENGTH;
@@ -679,8 +664,7 @@ bool Arch_File_Ctx::validate_reset_block_in_file(pfs_os_file_t file,
   uint length = ARCH_PAGE_FILE_HEADER_RESET_LSN_SIZE;
 
   if (reset_file.m_lsn != file_reset_lsn) {
-    ut_ad(false);
-    return (false);
+    ut_error;
   }
 
   DBUG_PRINT("page_archiver", ("File lsn : %" PRIu64 "", file_reset_lsn));
@@ -690,8 +674,7 @@ bool Arch_File_Ctx::validate_reset_block_in_file(pfs_os_file_t file,
 
   while (length < data_length) {
     if (index >= reset_file.m_start_point.size()) {
-      ut_ad(false);
-      return (false);
+      ut_error;
     }
 
     start_point = reset_file.m_start_point.at(index);
@@ -704,8 +687,7 @@ bool Arch_File_Ctx::validate_reset_block_in_file(pfs_os_file_t file,
 
     if (block_num != start_point.pos.m_block_num ||
         block_offset != start_point.pos.m_offset) {
-      ut_ad(false);
-      return (false);
+      ut_error;
     }
 
     DBUG_PRINT("page_archiver",
@@ -718,8 +700,7 @@ bool Arch_File_Ctx::validate_reset_block_in_file(pfs_os_file_t file,
   ut_ad(length == data_length);
 
   if (reset_file.m_start_point.size() != index) {
-    ut_ad(false);
-    return (false);
+    ut_error;
   }
 
   ++reset_count;
@@ -779,8 +760,8 @@ bool Arch_File_Ctx::validate(Arch_Group *group, uint file_index,
 
   success = validate_reset_block_in_file(file, file_index, reset_count);
 
+  ut_ad(success);
   if (!success) {
-    ut_ad(false);
     if (file.m_file != OS_FILE_CLOSED) {
       os_file_close(file);
     }
@@ -795,8 +776,7 @@ bool Arch_File_Ctx::validate(Arch_Group *group, uint file_index,
 
   if (!success ||
       (file_index + 1 == m_count && reset_count != m_reset.size())) {
-    ut_ad(false);
-    return (false);
+    ut_error;
   }
 
   return (true);
@@ -848,10 +828,10 @@ lsn_t Arch_File_Ctx::purge(lsn_t begin_lsn, lsn_t end_lsn, lsn_t purge_lsn) {
        iterator. */
       it = m_reset.erase(it);
     } else {
-      ut_ad(0);
       purged_lsn = it->m_lsn;
       reset_file_it = it;
-      break;
+      ut_d(ut_error);
+      ut_o(break);
     }
   }
 
@@ -912,7 +892,6 @@ void Page_Arch_Client_Ctx::print() {
 int Page_Arch_Client_Ctx::start(bool recovery, uint64_t *start_id) {
   bool reset = false;
   int err = 0;
-  std::ostringstream msg;
 
   arch_client_mutex_enter();
 
@@ -938,7 +917,7 @@ int Page_Arch_Client_Ctx::start(bool recovery, uint64_t *start_id) {
       break;
 
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
   /* Start archiving. */
@@ -969,7 +948,7 @@ int Page_Arch_Client_Ctx::start(bool recovery, uint64_t *start_id) {
     dict_persist_to_dd_table_buffer();
 
     /* Make sure all written pages are synced to disk. */
-    fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
+    fil_flush_file_spaces();
 
     ib::info(ER_IB_MSG_20) << "Clone Start PAGE ARCH : start LSN : "
                            << m_start_lsn << ", checkpoint LSN : "
@@ -1046,10 +1025,10 @@ int Page_Arch_Client_Ctx::get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx,
     /* Check if last block */
     if (cur_pos.m_block_num >= m_stop_pos.m_block_num) {
       if (cur_pos.m_offset > m_stop_pos.m_offset) {
-        ut_ad(false);
         my_error(ER_INTERNAL_ERROR, MYF(0), "Wrong Archiver page offset");
         err = ER_INTERNAL_ERROR;
-        break;
+        ut_d(ut_error);
+        ut_o(break);
       }
 
       read_len = m_stop_pos.m_offset - cur_pos.m_offset;
@@ -1060,10 +1039,10 @@ int Page_Arch_Client_Ctx::get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx,
 
     } else {
       if (cur_pos.m_offset > ARCH_PAGE_BLK_SIZE) {
-        ut_ad(false);
         my_error(ER_INTERNAL_ERROR, MYF(0), "Wrong Archiver page offset");
         err = ER_INTERNAL_ERROR;
-        break;
+        ut_d(ut_error);
+        ut_o(break);
       }
 
       read_len = ARCH_PAGE_BLK_SIZE - cur_pos.m_offset;
@@ -1117,7 +1096,7 @@ void Page_Arch_Client_Ctx::release() {
       break;
 
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
   ut_ad(m_group != nullptr);
@@ -1174,17 +1153,17 @@ bool wait_flush_archiver(Page_Wait_Flush_Archiver_Cbk cbk_func) {
       return (false);
 
     } else if (is_timeout) {
-      ut_ad(false);
       ib::warn(ER_IB_MSG_22) << "Clone Page Tracking: wait for block flush "
                                 "timed out";
-      return (false);
+      ut_d(ut_error);
+      ut_o(return false);
     }
   }
   return (true);
 }
 
 uint Arch_Block::get_file_index(uint64_t block_num, Arch_Blk_Type type) {
-  size_t file_index = -1;
+  size_t file_index = std::numeric_limits<size_t>::max();
 
   switch (type) {
     case ARCH_RESET_BLOCK:
@@ -1196,7 +1175,7 @@ uint Arch_Block::get_file_index(uint64_t block_num, Arch_Blk_Type type) {
       break;
 
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   return file_index;
@@ -1242,7 +1221,7 @@ uint64_t Arch_Block::get_file_offset(uint64_t block_num, Arch_Blk_Type type) {
       break;
 
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   return offset;
@@ -1263,10 +1242,10 @@ bool Arch_Block::validate(byte *block) {
   auto checksum = ut_crc32(block + ARCH_PAGE_BLK_HEADER_LENGTH, data_length);
 
   if (checksum != block_checksum) {
-    ut_ad(0);
     ib::warn(ER_IB_ERR_PAGE_ARCH_INVALID_DOUBLE_WRITE_BUF)
         << Arch_Block::get_block_number(block);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   } else if (Arch_Block::is_zeroes(block)) {
     return (false);
   }
@@ -1290,7 +1269,7 @@ void Arch_Block::update_block_header(lsn_t stop_lsn, lsn_t reset_lsn) {
 }
 
 /** Set the block ready to begin writing page ID
-@param[in]	pos	position to initiate block number */
+@param[in]      pos     position to initiate block number */
 void Arch_Block::begin_write(Arch_Page_Pos pos) {
   m_data_len = 0;
 
@@ -1314,8 +1293,8 @@ Change state to #ARCH_BLOCK_READY_TO_FLUSH */
 void Arch_Block::end_write() { m_state = ARCH_BLOCK_READY_TO_FLUSH; }
 
 /** Add page ID to current block
-@param[in]	page	page from buffer pool
-@param[in]	pos	Archiver current position
+@param[in]      page    page from buffer pool
+@param[in]      pos     Archiver current position
 @return true, if successful
         false, if no more space in current block */
 bool Arch_Block::add_page(buf_page_t *page, Arch_Page_Pos *pos) {
@@ -1384,8 +1363,8 @@ bool Arch_Block::set_data(uint read_len, byte *read_buff, uint read_offset) {
 }
 
 /** Flush this block to the file group.
-@param[in]	file_group	current archive group
-@param[in]	type		flush type
+@param[in]      file_group      current archive group
+@param[in]      type            flush type
 @return error code. */
 dberr_t Arch_Block::flush(Arch_Group *file_group, Arch_Blk_Flush_Type type) {
   dberr_t err = DB_SUCCESS;
@@ -1393,7 +1372,7 @@ dberr_t Arch_Block::flush(Arch_Group *file_group, Arch_Blk_Flush_Type type) {
 
   checksum = ut_crc32(m_data + ARCH_PAGE_BLK_HEADER_LENGTH, m_data_len);
 
-  /* Update block header. */
+  /* Update block's header. */
   mach_write_to_1(m_data + ARCH_PAGE_BLK_HEADER_VERSION_OFFSET,
                   ARCH_PAGE_FILE_VERSION);
   mach_write_to_1(m_data + ARCH_PAGE_BLK_HEADER_TYPE_OFFSET, m_type);
@@ -1411,16 +1390,22 @@ dberr_t Arch_Block::flush(Arch_Group *file_group, Arch_Blk_Flush_Type type) {
     case ARCH_DATA_BLOCK: {
       bool is_partial_flush = (type == ARCH_FLUSH_PARTIAL);
 
-      /** We allow partial flush to happen even if there were no pages added
-      since the last partial flush as the header might contain some useful
-      info required during recovery. */
+      /* Callback responsible for setting up file's header starting at offset 0.
+      This header is left empty within this flush operation. */
+      auto get_empty_file_header_cbk = [](uint64_t, byte *) {
+        return DB_SUCCESS;
+      };
+
+      /* We allow partial flush to happen even if there were no pages added
+      since the last partial flush as the block's header might contain some
+      useful info required during recovery. */
       err = file_group->write_to_file(nullptr, m_data, m_size, is_partial_flush,
-                                      true);
+                                      true, get_empty_file_header_cbk);
       break;
     }
 
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
   return (err);
@@ -1565,8 +1550,8 @@ void ArchPageData::clean() {
 }
 
 /** Get the block for a position
-@param[in]	pos	position in page archive sys
-@param[in]	type	block type
+@param[in]      pos     position in page archive sys
+@param[in]      type    block type
 @return page archive in memory block */
 Arch_Block *ArchPageData::get_block(Arch_Page_Pos *pos, Arch_Blk_Type type) {
   switch (type) {
@@ -1582,10 +1567,10 @@ Arch_Block *ArchPageData::get_block(Arch_Page_Pos *pos, Arch_Blk_Type type) {
       return (m_reset_block);
 
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
-  return (nullptr);
+  ut_o(return (nullptr));
 }
 
 Arch_Page_Sys::Arch_Page_Sys() {
@@ -1705,10 +1690,10 @@ void Arch_Page_Sys::flush_at_checkpoint(lsn_t checkpoint_lsn) {
 
 /** Check and add page ID to archived data.
 Check for duplicate page.
-@param[in]	bpage		page to track
-@param[in]	track_lsn	LSN when tracking started
-@param[in]	frame_lsn	current LSN of the page
-@param[in]	force		if true, add page ID without check */
+@param[in]      bpage           page to track
+@param[in]      track_lsn       LSN when tracking started
+@param[in]      frame_lsn       current LSN of the page
+@param[in]      force           if true, add page ID without check */
 void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
                                lsn_t frame_lsn, bool force) {
   Arch_Block *cur_blk;
@@ -1737,13 +1722,13 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
         return;
       }
 
-      ut_ad(false);
       ib::warn(ER_IB_MSG_23) << "Fail to add page for tracking."
                              << " Space ID: " << bpage->id.space();
 
       m_state = ARCH_STATE_ABORT;
       arch_oper_mutex_exit();
-      return;
+      ut_d(ut_error);
+      ut_o(return );
     }
 
     cur_blk = m_data.get_block(&m_write_pos, ARCH_DATA_BLOCK);
@@ -1781,7 +1766,7 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
 
       if (!cur_blk->add_page(bpage, &m_write_pos)) {
         /* Should always succeed. */
-        ut_ad(false);
+        ut_d(ut_error);
       }
 
       /* page added successfully. */
@@ -1807,10 +1792,10 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
 
 /** Get page IDs from a specific position.
 Caller must ensure that read_len doesn't exceed the block.
-@param[in]	group		group whose pages we're interested in
-@param[in]	read_pos	position in archived data
-@param[in]	read_len	amount of data to read
-@param[out]	read_buff	buffer to return the page IDs.
+@param[in]      group           group whose pages we're interested in
+@param[in]      read_pos        position in archived data
+@param[in]      read_len        amount of data to read
+@param[out]     read_buff       buffer to return the page IDs.
 @note Caller must allocate the buffer.
 @return true if we could successfully read the block. */
 bool Arch_Page_Sys::get_pages(Arch_Group *group, Arch_Page_Pos *read_pos,
@@ -2149,10 +2134,10 @@ bool Arch_Page_Sys::wait_idle() {
         &m_mutex, is_timeout);
 
     if (err == 0 && is_timeout) {
-      ut_ad(false);
       err = ER_INTERNAL_ERROR;
       ib::info(ER_IB_MSG_25) << "Page Tracking start: wait for idle state "
                                 "timed out";
+      ut_d(ut_error);
     }
 
     if (err != 0) {
@@ -2276,7 +2261,7 @@ void Arch_Page_Sys::track_initial_pages() {
 }
 
 /** Enable tracking pages in all buffer pools.
-@param[in]	tracking_lsn	track pages from this LSN */
+@param[in]      tracking_lsn    track pages from this LSN */
 void Arch_Page_Sys::set_tracking_buf_pool(lsn_t tracking_lsn) {
   uint index;
   buf_pool_t *buf_pool;
@@ -2442,7 +2427,7 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
 
     case ARCH_STATE_PREPARE_IDLE:
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
   if (is_init() && !m_data.init()) {
@@ -2500,10 +2485,12 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
       return (ER_OUTOFMEMORY);
     }
 
+    const uint64_t new_file_size =
+        static_cast<uint64_t>(ARCH_PAGE_BLK_SIZE) * ARCH_PAGE_FILE_CAPACITY;
+
     /* Initialize archiver file context. */
     auto db_err = m_current_group->init_file_ctx(
-        ARCH_DIR, ARCH_PAGE_DIR, ARCH_PAGE_FILE, 0,
-        static_cast<uint64_t>(ARCH_PAGE_BLK_SIZE) * ARCH_PAGE_FILE_CAPACITY);
+        ARCH_DIR, ARCH_PAGE_DIR, ARCH_PAGE_FILE, 0, new_file_size, 0);
 
     if (db_err != DB_SUCCESS) {
       arch_oper_mutex_exit();
@@ -2693,7 +2680,7 @@ int Arch_Page_Sys::stop(Arch_Group *group, lsn_t *stop_lsn,
 }
 
 void Arch_Page_Sys::release(Arch_Group *group, bool is_durable,
-                            Arch_Page_Pos start_pos) {
+                            Arch_Page_Pos start_pos [[maybe_unused]]) {
   arch_mutex_enter();
   arch_oper_mutex_enter();
 

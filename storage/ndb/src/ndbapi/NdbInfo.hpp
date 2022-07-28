@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,39 +47,50 @@ public:
     ERR_VirtScanStart = 4244
   };
 
+  enum class TableName
+  {
+    WithPrefix,
+    NoPrefix
+  };
+
   struct Column
   {
   public:
 
-    enum Type
+    const enum Type
     {
       String = 1,
       Number = 2,
       Number64 = 3
     } m_type;
 
-    Uint32 m_column_id;
-    BaseString m_name;
+    const Uint32 m_column_id;
+    const BaseString m_name;
 
     Column(const char* name, Uint32 col_id, Type type);
     Column(const Column & col);
-    Column & operator=(const Column & col);
+    Column & operator=(const Column & col) = delete;
   };
 
   class Table
   {
   public:
-
-
-    Table(const char *name, Uint32 id,
-          const class VirtualTable* virt = NULL);
+    // Constructor for ndbinfo tables with pre-defined table id
+    Table(const char *name, Uint32 id, Uint32 rows_estimate = 0,
+          bool exact_row_count = false);
+    // Constructor for virtual tables
+    Table(const char * table_name, const class VirtualTable* virt,
+          Uint32 rows_estimate, bool exact_row_count = true,
+          TableName prefixed = TableName::WithPrefix);
     Table(const Table& tab);
-    const Table & operator=(const Table& tab);
+    const Table & operator=(const Table& tab) = delete;
     ~Table();
 
     const char * getName() const;
     static const Uint32 InvalidTableId = ~0;
     Uint32 getTableId() const;
+    Uint32 getRowsEstimate() const { return m_rows_estimate; }
+    bool rowCountIsExact() const { return m_exact_row_count; }
 
     bool addColumn(const Column aCol);
     unsigned columns(void) const;
@@ -90,15 +101,16 @@ public:
 
   private:
     friend class NdbInfo;
-    BaseString m_name;
+    const BaseString m_name;
     Uint32 m_table_id;
+    Uint32 m_rows_estimate;
+    bool m_exact_row_count;
+    bool m_use_full_prefix;
     Vector<Column*> m_columns;
     const class VirtualTable * m_virt;
   };
 
-  NdbInfo(class Ndb_cluster_connection* connection,
-          const char* prefix, const char* dbname = "",
-          const char* table_prefix = "");
+  NdbInfo(class Ndb_cluster_connection* connection, const char* prefix);
   bool init(void);
   ~NdbInfo();
 
@@ -120,9 +132,8 @@ private:
   HashMap<BaseString, Table, BaseString_get_key> m_tables;
   Table* m_tables_table;
   Table* m_columns_table;
-  BaseString m_prefix;
-  BaseString m_dbname;
-  BaseString m_table_prefix;
+  BaseString m_full_prefix;    // "./ndbinfo/ndb@0024"
+  BaseString m_short_prefix;   // "./ndbinfo/"
   Uint32 m_id_counter;
 
   bool addColumn(Uint32 tableId, const Column aCol);
@@ -134,7 +145,7 @@ private:
   bool check_tables();
   void flush_tables();
 
-  BaseString mysql_table_name(const char* table_name) const;
+  BaseString mysql_table_name(const NdbInfo::Table &) const;
 
   Vector<Table*> m_virtual_tables;
 

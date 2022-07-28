@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -35,12 +35,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define FN_REFLEN 2048
 bool make_absolute_urn(const char *input_urn, std::string *out_path) {
   char component_dir[FN_REFLEN];
-  if (getcwd(component_dir, FN_REFLEN) == NULL) {
+  if (getcwd(component_dir, FN_REFLEN) == nullptr) {
     return true;
   }
   /* Omit scheme prefix to get filename. */
   const char *file = strstr(input_urn, "://");
-  if (file == NULL) {
+  if (file == nullptr) {
     return true;
   }
   /* Offset by "://" */

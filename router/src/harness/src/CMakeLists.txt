@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -62,10 +62,13 @@ ADD_DYNAMIC_STATE_SCHEMA_COMMAND(SHARED)
 ADD_DYNAMIC_STATE_SCHEMA_COMMAND(STATIC)
 
 SET(harness_source
+  access_rights.cc
   loader.cc
   dynamic_loader.cc
   utilities.cc
+  config_option.cc
   config_parser.cc
+  plugin_config.cc
   designator.cc
   dynamic_state.cc
   event_state_tracker.cc

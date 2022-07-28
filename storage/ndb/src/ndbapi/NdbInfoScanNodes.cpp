@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -392,6 +392,11 @@ NdbInfoScanNodes::nextResult()
   DBUG_RETURN(-1);
 }
 
+bool NdbInfoScanNodes::seek(NdbInfoScanOperation::Seek, int)
+{
+  assert(false);
+  return false;
+}
 
 bool
 NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
@@ -414,9 +419,9 @@ NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
   m_recAttrs.reset_recattrs();
 
   // Read attributes from long signal section
-  AttributeHeader* attr = (AttributeHeader*)signal->ptr[0].p;
-  AttributeHeader* last = (AttributeHeader*)(signal->ptr[0].p +
-                                            signal->ptr[0].sz);
+  const AttributeHeader* attr = (const AttributeHeader*)signal->ptr[0].p;
+  const AttributeHeader* last =
+      (const AttributeHeader*)(signal->ptr[0].p + signal->ptr[0].sz);
   while (attr < last)
   {
     const Uint32 col = attr->getAttributeId();

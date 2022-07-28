@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20058,7 +20058,7 @@ static int my_strnncollsp_gb18030(const CHARSET_INFO *cs, const uchar *s,
 
 /**
   Make a sort key suitable for memcmp() corresponding to gb18030
-  Sort accroding to UPPER() for non-Chinese chars, and PINYIN
+  Sort according to UPPER() for non-Chinese chars, and PINYIN
   for Chinese chars
 
   @param[in]  cs       charset
@@ -20369,7 +20369,7 @@ static MY_CHARSET_HANDLER my_charset_gb18030_handler = {
     my_ismbchar_gb18030,
     my_mbcharlen_gb18030,
     my_numchars_mb,
-    my_charpos_mb,
+    my_charpos_mb3,
     my_well_formed_len_gb18030,
     my_lengthsp_8bit,
     my_numcells_mb,
@@ -20397,7 +20397,7 @@ MY_CHARSET_HANDLER my_charset_gb18030_uca_handler = {nullptr,
                                                      my_ismbchar_gb18030,
                                                      my_mbcharlen_gb18030,
                                                      my_numchars_mb,
-                                                     my_charpos_mb,
+                                                     my_charpos_mb3,
                                                      my_well_formed_len_gb18030,
                                                      my_lengthsp_8bit,
                                                      my_numcells_mb,
@@ -20427,7 +20427,7 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
     0,                                               /* number        */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state         */
     "gb18030",                                       /* cs name       */
-    "gb18030_chinese_ci",                            /* name          */
+    "gb18030_chinese_ci",                            /* m_coll_name   */
     "China National Standard GB18030",               /* comment       */
     nullptr,                                         /* tailoring     */
     nullptr,                                         /* coll_param    */
@@ -20462,7 +20462,7 @@ CHARSET_INFO my_charset_gb18030_bin = {
     0,                                 /* number        */
     MY_CS_COMPILED | MY_CS_BINSORT,    /* state         */
     "gb18030",                         /* cs name       */
-    "gb18030_bin",                     /* name          */
+    "gb18030_bin",                     /* m_coll_name   */
     "China National Standard GB18030", /* comment       */
     nullptr,                           /* tailoring     */
     nullptr,                           /* coll_param    */

@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.admin_tls_version);
 COUNT(@@GLOBAL.admin_tls_version)
 1
 1 Expected
-SET admin_tls_version = @@SESSION.admin_tls_version;
+SET admin_tls_version = @@GLOBAL.admin_tls_version;
 ERROR HY000: Variable 'admin_tls_version' is a GLOBAL variable and should be set with SET GLOBAL
 Expected error 'Variable is a GLOBAL variable'

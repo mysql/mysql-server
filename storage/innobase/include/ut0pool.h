@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -74,7 +74,7 @@ struct Pool {
     (MTR) results change if we instantiate too many mutexes up
     front. */
 
-    init(ut_min(size_t(16), size_t(m_end - m_start)));
+    init(std::min(size_t(16), size_t(m_end - m_start)));
 
     ut_ad(m_pqueue.size() <= size_t(m_last - m_start));
   }

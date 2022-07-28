@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -97,8 +97,8 @@ static inline void *ib_vector_pop(
     ib_vector_t *vec); /* in/out: vector */
 
 /** Remove an element to the vector
-@param[in]	vec	vector
-@param[in]	elem	value to remove
+@param[in]      vec     vector
+@param[in]      elem    value to remove
 @return pointer to the "removed" element */
 static inline void *ib_vector_remove(ib_vector_t *vec, const void *elem);
 
@@ -117,12 +117,12 @@ void ib_vector_resize(
 /********************************************************************
 Test whether a vector is empty or not.
 @return true if empty */
-static inline ibool ib_vector_is_empty(
+static inline bool ib_vector_is_empty(
     const ib_vector_t *vec); /*!< in: vector */
 
 /** Get the n'th element.
-@param[in]	vec	vector
-@param[in]	n	element index to get
+@param[in]      vec     vector
+@param[in]      n       element index to get
 @return n'th element */
 static inline void *ib_vector_get(ib_vector_t *vec, ulint n);
 
@@ -137,9 +137,9 @@ static inline const void *ib_vector_get_const(
 static inline void *ib_vector_get_last(ib_vector_t *vec); /*!< in: vector */
 
 /** Set the n'th element.
-@param[in]	vec	vector
-@param[in]	n	element index to set
-@param[in]	elem	data element */
+@param[in]      vec     vector
+@param[in]      n       element index to set
+@param[in]      elem    data element */
 static inline void ib_vector_set(ib_vector_t *vec, ulint n, void *elem);
 
 /********************************************************************

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <ndb_global.h>
-
+#include <cassert>
 #include <NdbCondition.h>
 #include <NdbMutex.h>
 #include "NdbTick.h"
@@ -288,12 +287,14 @@ int NdbCondition_Broadcast(struct NdbCondition* p_cond)
 
 int NdbCondition_Destroy(struct NdbCondition* p_cond)
 {
-  int result;
 
   if (p_cond == NULL)
     return 1;
 
+  int result [[maybe_unused]];
   result = native_cond_destroy(&p_cond->cond);
+  assert(result == 0);
+
   memset(p_cond, 0xff, sizeof(struct NdbCondition));
   free(p_cond);
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ class ClusterMetadata {
    * @throws std::out_of_range
    * @throws std::logic_error
    *
-   *  * checks that the server
+   * checks that the server
    *
    * - has the metadata in the correct version
    * - contains metadata for the group it's in (in case of GR cluster)
@@ -351,8 +351,6 @@ class ClusterMetadataAR : public ClusterMetadata {
  protected:
   uint64_t query_cluster_count() override;
 };
-
-MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql);
 
 std::unique_ptr<ClusterMetadata> create_metadata(
     const MetadataSchemaVersion &schema_version, MySQLSession *mysql,

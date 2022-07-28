@@ -137,9 +137,9 @@ t_utf8_2	CREATE TABLE `t_utf8_2` (
   `b` text
 ) /*!50100 TABLESPACE `s_cöĿǖmň` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLESPACE `s_😲` ADD DATAFILE 's_utf8_c.ibd';
-ERROR HY000: Invalid utf8 character string: 's_\xF0\x9F\x98\xB2'
+ERROR HY000: Invalid utf8mb3 character string: 's_\xF0\x9F\x98\xB2'
 CREATE TABLESPACE `s_𐌀𐌁𐌂𐌃𐌄𐌅𐌆𐌇𐌈𐌉𐌊𐌋𐌌𐌍𐌎𐌏𐌐𐌑𐌒𐌓𐌔𐌕𐌖𐌗𐌘𐌙𐌚𐌛𐌜` ADD DATAFILE 's_utf8_d.ibd';
-ERROR HY000: Invalid utf8 character string: 's_\xF0\x90\x8C\x80\xF0\x90\x8C\x81\xF0\x90\x8C\x82\xF0\x90\x8C\x'
+ERROR HY000: Invalid utf8mb3 character string: 's_\xF0\x90\x8C\x80\xF0\x90\x8C\x81\xF0\x90\x8C\x82\xF0\x90\x8C\x'
 CREATE TABLESPACE `s_வணக்கம்` ADD DATAFILE 'ஆவணம்.ibd';
 CREATE TABLE `t_utf8_3` (a int, b text) TABLESPACE `s_வணக்கம்`;
 SHOW CREATE TABLE `t_utf8_3`;

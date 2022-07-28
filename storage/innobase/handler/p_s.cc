@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -220,7 +220,7 @@ class Innodb_trx_scan_state {
 
   /** Check if a transaction belongs to the current range.
   As a side effect, compute the next range.
-  @param[in] trx_id	Transaction id to evaluate
+  @param[in] trx_id     Transaction id to evaluate
   @return True if transaction is within range.
   */
   bool trx_id_in_range(trx_id_t trx_id) {
@@ -263,10 +263,10 @@ class Innodb_data_lock_iterator : public PSI_engine_data_lock_iterator {
 
  private:
   /** Scan a trx list.
-  @param[in] container		The container to fill
-  @param[in] with_lock_data	True if column LOCK_DATA
+  @param[in] container          The container to fill
+  @param[in] with_lock_data     True if column LOCK_DATA
   needs to be populated.
-  @param[in] trx_list		The trx list to scan
+  @param[in] trx_list           The trx list to scan
   @returns The number of records found
   */
   template <typename Trx_list>
@@ -276,15 +276,15 @@ class Innodb_data_lock_iterator : public PSI_engine_data_lock_iterator {
   /** Scan a given trx.
   Either scan all the locks for a transaction,
   or scan only records matching a given lock.
-  @param[in] container		The container to fill
-  @param[in] with_lock_data	True if column LOCK_DATA
+  @param[in] container          The container to fill
+  @param[in] with_lock_data     True if column LOCK_DATA
   needs to be populated.
-  @param[in] trx			The trx to scan
-  @param[in] with_filter		True if looking for a specific record
+  @param[in] trx                        The trx to scan
+  @param[in] with_filter                True if looking for a specific record
   only.
   @param[in] filter_lock_immutable_id     Immutable id of lock_t we are looking
   for
-  @param[in] filter_heap_id	Heap id to look for, when filtering
+  @param[in] filter_heap_id     Heap id to look for, when filtering
   @returns The number of records found
   */
   size_t scan_trx(PSI_server_data_lock_container *container,
@@ -313,8 +313,8 @@ class Innodb_data_lock_wait_iterator
 
  private:
   /** Scan a given transaction list.
-  @param[in] container		The container to fill
-  @param[in] trx_list		The trx list to scan
+  @param[in] container          The container to fill
+  @param[in] trx_list           The trx list to scan
   @returns the number of records found.
   */
   template <typename Trx_list>
@@ -324,12 +324,12 @@ class Innodb_data_lock_wait_iterator
   /** Scan a given transaction.
   Either scan all the waits for a transaction,
   or scan only records matching a given wait.
-  @param[in] container		The container to fill
-  @param[in] trx			The trx to scan
-  @param[in] with_filter		True if looking for a given wait only.
-  @param[in] filter_requesting_lock_immutable_id		Immutable id of
+  @param[in] container          The container to fill
+  @param[in] trx                        The trx to scan
+  @param[in] with_filter                True if looking for a given wait only.
+  @param[in] filter_requesting_lock_immutable_id                Immutable id of
   lock_t for the requesting lock, when filtering
-  @param[in] filter_blocking_lock_immutable_id		Immutable idof
+  @param[in] filter_blocking_lock_immutable_id          Immutable idof
   lock_t for the blocking lock, when filtering
   @returns the number of records found.
   */
@@ -377,7 +377,7 @@ static constexpr bool is_read_write() {
 
 /** Find a transaction in a TRX LIST.
 @param[in] filter_trx_immutable_id  The transaction immutable id
-@param[in] trx_list	            The transaction list
+@param[in] trx_list                 The transaction list
 @returns The transaction when found, or NULL
 */
 template <typename Trx_list>
@@ -427,9 +427,9 @@ void Innodb_data_lock_inspector::destroy_data_lock_wait_iterator(
 }
 
 /** Allocate identifier in performance schema container.
-@param[in]	container	The container to fill
-@param[in]	id_str		The identifier string
-@param[out]	id_length	The identifier string length
+@param[in]      container       The container to fill
+@param[in]      id_str          The identifier string
+@param[out]     id_length       The identifier string length
 @returns string allocated in the performance schema container.
 */
 const char *alloc_identifier(PSI_server_data_lock_container *container,
@@ -449,23 +449,21 @@ Isolate the table schema, name, partition and sub partition
 from a table path string.
 Convert these strings and store them in the performance schema container.
 @note String returned are not zero terminated.
-@param[in] container			The container to fill
-@param[in] table_path			The table path string
-@param[in] table_path_length		The table path string length
-@param[out] table_schema		The table schema
-@param[out] table_schema_length		The table schema length
-@param[out] table_name			The table name
-@param[out] table_name_length		The table name length
-@param[out] partition_name		Partition name
-@param[out] partition_name_length	Partition name length
-@param[out] subpartition_name		Sub partition name
-@param[out] subpartition_name_length	Sub partition name length
+@param[in] container                    The container to fill
+@param[in] table_path                   The table path string
+@param[out] table_schema                The table schema
+@param[out] table_schema_length         The table schema length
+@param[out] table_name                  The table name
+@param[out] table_name_length           The table name length
+@param[out] partition_name              Partition name
+@param[out] partition_name_length       Partition name length
+@param[out] subpartition_name           Sub partition name
+@param[out] subpartition_name_length    Sub partition name length
 */
 void parse_table_path(PSI_server_data_lock_container *container,
-                      const char *table_path, size_t table_path_length,
-                      const char **table_schema, size_t *table_schema_length,
-                      const char **table_name, size_t *table_name_length,
-                      const char **partition_name,
+                      const char *table_path, const char **table_schema,
+                      size_t *table_schema_length, const char **table_name,
+                      size_t *table_name_length, const char **partition_name,
                       size_t *partition_name_length,
                       const char **subpartition_name,
                       size_t *subpartition_name_length) {
@@ -494,9 +492,9 @@ void parse_table_path(PSI_server_data_lock_container *container,
 }
 
 /** Print a table lock id.
-@param[in]	lock		The lock to print
-@param[in,out]	lock_id		Printing buffer
-@param[in]	lock_id_size	Printing buffer length
+@param[in]      lock            The lock to print
+@param[in,out]  lock_id         Printing buffer
+@param[in]      lock_id_size    Printing buffer length
 */
 void print_table_lock_id(const lock_t *lock, char *lock_id,
                          size_t lock_id_size) {
@@ -508,10 +506,10 @@ void print_table_lock_id(const lock_t *lock, char *lock_id,
 }
 
 /** Print a record lock id.
-@param[in]	lock		The lock to print
-@param[in]	heap_no		Lock heap number
-@param[in,out]	lock_id		Printing buffer
-@param[in]	lock_id_size	Printing buffer length
+@param[in]      lock            The lock to print
+@param[in]      heap_no         Lock heap number
+@param[in,out]  lock_id         Printing buffer
+@param[in]      lock_id_size    Printing buffer length
 */
 void print_record_lock_id(const lock_t *lock, ulint heap_no, char *lock_id,
                           size_t lock_id_size) {
@@ -523,10 +521,10 @@ void print_record_lock_id(const lock_t *lock, ulint heap_no, char *lock_id,
 }
 
 /** Print a lock id.
-@param[in]	lock		The lock to print
-@param[in]	heap_no		Lock heap number
-@param[in,out]	lock_id		Printing buffer
-@param[in]	lock_id_size	Printing buffer length
+@param[in]      lock            The lock to print
+@param[in]      heap_no         Lock heap number
+@param[in,out]  lock_id         Printing buffer
+@param[in]      lock_id_size    Printing buffer length
 */
 void print_lock_id(const lock_t *lock, ulint heap_no, char *lock_id,
                    size_t lock_id_size) {
@@ -544,14 +542,14 @@ void print_lock_id(const lock_t *lock, ulint heap_no, char *lock_id,
 
 /** Scan a lock id string and extract information necessary to find a row
 by primary key.
-@param[in] 	lock_id		        The lock id string to parse
-@param[out]	trx_immutable_id	The immutable id of lock->trx
-@param[out]	lock_immutable_id       The immutable id of lock
-@param[out]	heap_id		        The heap number found, for record locks
+@param[in]      lock_id                 The lock id string to parse
+@param[out]     trx_immutable_id        The immutable id of lock->trx
+@param[out]     lock_immutable_id       The immutable id of lock
+@param[out]     heap_id                 The heap number found, for record locks
 @returns The type of lock found.
-@retval LOCK_TABLE	Table lock
-@retval LOCK_REC	Record lock
-@retval 0		Format error
+@retval LOCK_TABLE      Table lock
+@retval LOCK_REC        Record lock
+@retval 0               Format error
 */
 int scan_lock_id(const char *lock_id, uint64_t *trx_immutable_id,
                  uint64_t *lock_immutable_id, ulint *heap_id) {
@@ -609,8 +607,7 @@ bool Innodb_data_lock_iterator::scan(PSI_server_data_lock_container *container,
 }
 
 bool Innodb_data_lock_iterator::fetch(PSI_server_data_lock_container *container,
-                                      const char *engine_lock_id,
-                                      size_t engine_lock_id_length,
+                                      const char *engine_lock_id, size_t,
                                       bool with_lock_data) {
   int record_type;
   uint64_t trx_immutable_id;
@@ -649,10 +646,10 @@ bool Innodb_data_lock_iterator::fetch(PSI_server_data_lock_container *container,
   return true;
 }
 /** Scan a trx list.
-@param[in] container		The container to fill
-@param[in] with_lock_data	True if column LOCK_DATA
+@param[in] container            The container to fill
+@param[in] with_lock_data       True if column LOCK_DATA
 needs to be populated.
-@param[in] trx_list		The trx list to scan
+@param[in] trx_list             The trx list to scan
 @returns The number of records found
 */
 template <typename Trx_list>
@@ -690,14 +687,14 @@ size_t Innodb_data_lock_iterator::scan_trx_list(
 /** Scan a given trx.
 Either scan all the locks for a transaction,
 or scan only records matching a given lock.
-@param[in] container		      The container to fill
-@param[in] with_lock_data	      True if column LOCK_DATA
+@param[in] container                  The container to fill
+@param[in] with_lock_data             True if column LOCK_DATA
 needs to be populated.
-@param[in] trx			      The trx to scan
-@param[in] with_filter		      True if looking for a specific
+@param[in] trx                        The trx to scan
+@param[in] with_filter                True if looking for a specific
 record only.
 @param[in] filter_lock_immutable_id   Immutable id of lock_t we are looking for
-@param[in] filter_heap_id	      Heap id to look for, when filtering
+@param[in] filter_heap_id             Heap id to look for, when filtering
 @returns The number of records found
 */
 size_t Innodb_data_lock_iterator::scan_trx(
@@ -757,10 +754,10 @@ size_t Innodb_data_lock_iterator::scan_trx(
     }
 
     table_path = lock_get_table_name(lock).m_name;
-    parse_table_path(container, table_path, strlen(table_path), &table_schema,
-                     &table_schema_length, &table_name, &table_name_length,
-                     &partition_name, &partition_name_length,
-                     &subpartition_name, &subpartition_name_length);
+    parse_table_path(container, table_path, &table_schema, &table_schema_length,
+                     &table_name, &table_name_length, &partition_name,
+                     &partition_name_length, &subpartition_name,
+                     &subpartition_name_length);
 
     if (!container->accept_object(table_schema, table_schema_length, table_name,
                                   table_name_length, partition_name,
@@ -874,10 +871,8 @@ bool Innodb_data_lock_wait_iterator::scan(
 
 bool Innodb_data_lock_wait_iterator::fetch(
     PSI_server_data_lock_wait_container *container,
-    const char *requesting_engine_lock_id,
-    size_t requesting_engine_lock_id_length,
-    const char *blocking_engine_lock_id,
-    size_t blocking_engine_lock_id_length) {
+    const char *requesting_engine_lock_id, size_t,
+    const char *blocking_engine_lock_id, size_t) {
   int requesting_record_type;
   uint64_t requesting_trx_immutable_id;
   ulint requesting_heap_id;
@@ -932,8 +927,8 @@ bool Innodb_data_lock_wait_iterator::fetch(
 }
 
 /** Scan a given transaction list.
-@param[in] container		The container to fill
-@param[in] trx_list		The trx list to scan
+@param[in] container            The container to fill
+@param[in] trx_list             The trx list to scan
 @returns the number of records found.
 */
 template <typename Trx_list>
@@ -971,12 +966,12 @@ size_t Innodb_data_lock_wait_iterator::scan_trx_list(
 /** Scan a given transaction.
 Either scan all the waits for a transaction,
 or scan only records matching a given wait.
-@param[in] container		The container to fill
-@param[in] trx			The trx to scan
-@param[in] with_filter		True if looking for a given wait only.
-@param[in] filter_requesting_lock_immutable_id		Immutable id of
+@param[in] container            The container to fill
+@param[in] trx                  The trx to scan
+@param[in] with_filter          True if looking for a given wait only.
+@param[in] filter_requesting_lock_immutable_id          Immutable id of
 lock_t for the requesting lock, when filtering
-@param[in] filter_blocking_lock_immutable_id		Immutable idof
+@param[in] filter_blocking_lock_immutable_id            Immutable idof
 lock_t for the blocking lock, when filtering
 @returns the number of records found.
 */
@@ -1003,7 +998,7 @@ size_t Innodb_data_lock_wait_iterator::scan_trx(
   char blocking_engine_lock_id[TRX_I_S_LOCK_ID_MAX_LEN + 1];
   size_t blocking_engine_lock_id_length;
   ut_ad(locksys::owns_exclusive_global_latch());
-  lock_t *wait_lock = trx->lock.wait_lock;
+  const lock_t *wait_lock = trx->lock.wait_lock;
   const lock_t *curr_lock;
   int requesting_record_type;
   size_t found = 0;
@@ -1044,7 +1039,7 @@ size_t Innodb_data_lock_wait_iterator::scan_trx(
 
   requesting_identity = wait_lock;
   lock_queue_iterator_reset(&iter, wait_lock, ULINT_UNDEFINED);
-
+  locksys::Trx_locks_cache wait_lock_cache{};
   for (curr_lock = lock_queue_iterator_get_prev(&iter); curr_lock != nullptr;
        curr_lock = lock_queue_iterator_get_prev(&iter)) {
     if (with_filter &&
@@ -1052,7 +1047,7 @@ size_t Innodb_data_lock_wait_iterator::scan_trx(
       continue;
     }
 
-    if (lock_has_to_wait(wait_lock, curr_lock)) {
+    if (locksys::has_to_wait(wait_lock, curr_lock, wait_lock_cache)) {
       blocking_trx_id = lock_get_trx_id(curr_lock);
       if (!container->accept_blocking_transaction_id(blocking_trx_id)) {
         continue;

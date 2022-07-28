@@ -1,8 +1,4 @@
---source include/have_ndb.inc
-
-# BUG#32019119 Supress error which occurs after cluster restart
-CALL mtr.add_suppression("NDB: Failed to setup events for 'mysql.ndb_schema' table");
-CALL mtr.add_suppression("NDB: Failed to setup binlogging for table 'mysql.ndb_schema'");
+--source include/have_multi_ndb.inc
 
 #
 # Setup
@@ -103,14 +99,18 @@ SELECT * FROM t2;
 --let $assert_select= Detected a normal system restart
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
 --let $assert_only_after= NDB Binlog: Detected server start
---let $assert_count= 1
+--let $assert_match= .*Detected a normal system restart.*
 --source include/assert_grep.inc
+
+--connection server2
+# Wait for mysqld to reconnect
+--source include/ndb_not_readonly.inc
 
 --let $assert_text= Detect normal restart in MySQL Server 2
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
---let $assert_count= 1
 --source include/assert_grep.inc
 
+--connection server1
 # Check that the metadata is still present
 SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
   FROM INFORMATION_SCHEMA.FILES
@@ -140,14 +140,18 @@ SELECT * FROM t2 ORDER BY a;
 --let $assert_select= Detected an initial system restart
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
 --let $assert_only_after= NDB Binlog: Detected server start
---let $assert_count= 1
+--let $assert_match= .*Detected an initial system restart.*
 --source include/assert_grep.inc
+
+--connection server2
+# Wait for mysqld to reconnect
+--source include/ndb_not_readonly.inc
 
 --let $assert_text= Detect initial restart in MySQL Server 2
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
---let $assert_count= 1
 --source include/assert_grep.inc
 
+--connection server1
 # Check that the metadata has been deleted
 SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
   FROM INFORMATION_SCHEMA.FILES

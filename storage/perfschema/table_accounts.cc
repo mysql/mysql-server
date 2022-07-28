@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,7 @@ int table_accounts::read_row_values(TABLE *table, unsigned char *buf,
       switch (f->field_index()) {
         case 0: /* USER */
         case 1: /* HOST */
-          m_row.m_account.set_field(f->field_index(), f);
+          m_row.m_account.set_nullable_field(f->field_index(), f);
           break;
         case 2: /* CURRENT_CONNECTIONS */
         case 3: /* TOTAL_CONNECTIONS */

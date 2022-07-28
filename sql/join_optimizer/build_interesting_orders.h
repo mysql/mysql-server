@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,8 @@ struct SortAheadOrdering {
 struct ActiveIndexInfo {
   TABLE *table;
   int key_idx;
-  LogicalOrderings::StateIndex forward_order = 0, reverse_order = 0;
+  LogicalOrderings::StateIndex forward_order = 0, reverse_order = 0,
+                               reverse_order_without_extended_key_parts = 0;
 };
 
 // A full-text index that we can use in the query, either for index lookup or

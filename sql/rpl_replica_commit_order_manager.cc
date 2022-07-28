@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
@@ -267,10 +267,11 @@ void Commit_order_manager::finish_one(Slave_worker *worker) {
     assert(this->m_workers.front() == worker->id);
     assert(!this->m_workers.is_empty());
 
-    auto this_seq_nr{0};
+    cs::apply::Commit_order_queue::sequence_type this_seq_nr{0};
     auto this_worker{cs::apply::Commit_order_queue::NO_WORKER};
     std::tie(this_worker, this_seq_nr) = this->m_workers.pop();
-    auto next_seq_nr = this_seq_nr + 1;
+    auto next_seq_nr =
+        cs::apply::Commit_order_queue::get_next_sequence_nr(this_seq_nr);
     assert(worker->id == this_worker);
 
     auto next_worker = this->m_workers.front();

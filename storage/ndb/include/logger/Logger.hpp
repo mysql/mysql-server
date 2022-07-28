@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define Logger_H
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include <time.h>
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
@@ -173,7 +174,9 @@ public:
    *
    * @return true if successful.
    */
+#ifdef _WIN32
   bool createEventLogHandler(const char* source_name);
+#endif
 
   /**
    * Create a default handler which writes to the specified file name.

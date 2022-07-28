@@ -1,210 +1,339 @@
+# This mtr test checks how InnoDB handles corrupted redo log files,
+# if these files were created using the current redo log format.
+#                                   ---------------------------
+#
+# For older redo formats, recovery reports that redo log isn't clean,
+# and clean shutdown must be performed using older version of MySQL.
+# However, scenarios for older redo formats are NOT part of this test.
+# They are located in log_5_7_8.test, log_5_7_9.test, ...
 
-let newdir= $MYSQLTEST_VARDIR/tmp/log_corruption;
---mkdir $newdir
---mkdir $newdir/mysql
-write_file $newdir/mysql/plugin.frm;
+# disabling checkpoints:
+--source include/have_debug.inc
+
+# According to perl's documentation, 'Q' in (un)pack() is supported only if perl
+# has been compiled with support for 64bit integers.
+# The log_get_newest_checkpoint(), which is used in this test, uses
+# log_file_get_checkpoint_lsn(), which uses unpack('Q>').
+# The log_file_get_start_lsn(), which is used in this test, uses unpack('Q>').
+--source include/have_perl_64bit_int.inc
+
+--source ../include/redo_log_error_patterns.inc
+
+let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
+let $saved_datadir = $tmp_dir/saved_datadir;
+
+let CORRUPTION_INFO_FILE = $tmp_dir/corruption.inc;
+let MYSQLD_DATADIR = $tmp_dir/log_corruption;
+let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
+let SEARCH_FILE = $MYSQLD_ERROR_LOG;
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+
+--echo # Initialize new data directory...
+--let $MYSQLD_EXTRA_ARGS= --innodb_page_size=$INNODB_PAGE_SIZE
+--source include/initialize_datadir.inc
+
+--echo # Restart MySQL using the new data directory...
+let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG;
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/log_corruption
+--source include/restart_mysqld.inc
+
+--echo # Prepare schema used in the tests.
+--source include/ib_log_spammer_init.inc
+
+--echo # Ensure there is a lot of free space in the redo log.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+
+--echo # Disable checkpointing.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+--echo # Create connection which generates spam to the redo log.
+--connect(C1,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+--echo # Create at least few redo records...
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+INSERT INTO t(a) VALUES(42);
+
+--echo # Kill MySQL...
+--source include/kill_mysqld.inc
+let $restart_parameters = restart:;
+
+--echo # Remove unused redo files and prepare saved_datadir...
+--remove_files_wildcard $MYSQLD_DATADIR/#innodb_redo #ib_redo*_tmp
+
+--force-cpdir $MYSQLD_DATADIR $saved_datadir
+
+--remove_file $SEARCH_FILE
+
+--echo ############################################################################################
+--echo # Case 1. Corrupt a mini-transaction after the checkpoint by changing type of redo record.
+--echo #         Start recovery and observe information about the corrupted redo record (invalid
+--echo #         type of redo record, equal to 0).
+--echo ############################################################################################
+
+# Create an empty file, because if perl script failed to locate mtr to corrupt,
+# the file would not be created. Still it would need be to included later, and
+# only then the test executor could discover, that the mtr hasn't been corrupted
+# (and skip further execution of the test).
+
+write_file $CORRUPTION_INFO_FILE;
 EOF
 
-let SEARCH_FILE = $newdir/my_restart.err;
-let $args=--no-defaults --innodb_dedicated_server=OFF --datadir=$newdir --secure-file-priv="" --loose-skip-auto-generate-certs --loose-skip-sha256-password-auto-generate-rsa-keys --loose-console --loose-skip-log-bin --log-error-verbosity=3 > $SEARCH_FILE 2>&1 ;
+perl;
+require 'include/ib_redo_log_files.inc';
 
---echo # redo log from before we started versioning in MySQL 5.7.9
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args
-let SEARCH_PATTERN=Unsupported redo log format \(0\). The redo log was created before MySQL 5\.7\.9.*;
---source include/search_pattern.inc
+# Find file with the newest checkpoint (and the related checkpoint_lsn)...
+my ($max_checkpoint_file, $max_checkpoint_lsn) = log_get_newest_checkpoint();
+$max_checkpoint_file ne '' or die "Did not find checkpoint!\n";
 
---echo # redo log from before MySQL 8.0.3, with corrupted log block
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption0.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args
-let SEARCH_PATTERN=Upgrade after a crash is not supported.*;
---source include/search_pattern.inc
+# Read start_lsn of the file, to compute offset for checkpoint_lsn...
+my $file_start_lsn = log_file_get_start_lsn($max_checkpoint_file);
 
---echo # redo log from MySQL 8.0.3, but with invalid header checksum
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption1.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args
-let SEARCH_PATTERN=Invalid redo log header checksum;
---source include/search_pattern.inc
+# Compute the checkpoint offset...
+my $checkpoint_offset = log_file_get_offset_for_lsn($file_start_lsn, $max_checkpoint_lsn);
 
---echo # distant future redo log format, with valid header checksum
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption2.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args
-let SEARCH_PATTERN=Unknown redo log format \(4294967295\).*;
---source include/search_pattern.inc
+# Start at the beginning of the next log block and search for the first block,
+# which has some mtr starting inside (field first_rec_group != 0).
+my $block_offset = log_file_get_block_offset($checkpoint_offset) + 512;
 
---echo # redo log from MySQL 8.0.3, with corrupted log checkpoint
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption3.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args
-let SEARCH_PATTERN=No valid checkpoint found.*corrupted redo log;
---source include/search_pattern.inc
+open my $fh, '+<:raw', $max_checkpoint_file or die "open failed: $!\n";
+# Search within ~0.5M - skip the test execution if failed to find the block.
+for (1..1024) {
+    if ($block_offset >= -s $max_checkpoint_file) {
+        last;
+    }
+    seek $fh, $block_offset + 6, 0;
+    read $fh, my $packed_first_rec_group, 2 or die "read failed: $!\n";
+    my $first_rec_group = unpack('S>', $packed_first_rec_group);
+    if ($first_rec_group != 0) {
+        # Found log block with mtr starting inside ($first_rec_group bytes
+        # after the block beginning). Save type of the first redo record:
+        seek $fh, $block_offset + $first_rec_group, 0;
+        read $fh, my $packed_corrupted_byte, 1 or die "read failed: $!\n";
+        my $corrupted_byte = unpack('C', $packed_corrupted_byte);
+        # Overwrite type of the first redo record with 0 (it's invalid type):
+        seek $fh, $block_offset + $first_rec_group, 0;
+        syswrite($fh, pack('C', 0), 1) == 1 or die "write failed: $!\n";
 
---echo # valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2,
---echo # invalid block checksum,
---echo # thus we cannot determine if the redo log is logically clean.
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption4.zip -d $newdir > $SEARCH_FILE
-# Anything below innodb_force_recovery=6 must find a valid redo log.
-# Missing tablespace files are tolerated already with innodb_force_recovery=1.
---error 1,42
---exec $MYSQLD $args --innodb-force-recovery=5
-let SEARCH_PATTERN=Database upgrade cannot be accomplished with innodb_force_recovery > 0;
---source include/search_pattern.inc
-
---echo # --innodb-force-recovery=6 (skip the entire redo log)
---error 1,42
---exec $MYSQLD $args --innodb-force-recovery=6
-let SEARCH_PATTERN=Database upgrade cannot be accomplished in read-only mode;
---source include/search_pattern.inc
-
---echo # valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block number
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption4a.zip -d $newdir > $SEARCH_FILE
-# Anything below innodb_force_recovery=6 must find a valid redo log.
-# Missing tablespace files are tolerated already with innodb_force_recovery=1.
---echo # Start with innodb-force-recovery=5
---error 1,42
---exec $MYSQLD $args --innodb-force-recovery=5
-let SEARCH_PATTERN=Database upgrade cannot be accomplished with innodb_force_recovery > 0;
---source include/search_pattern.inc
-
---echo # Start with --innodb-force-recovery=6 (skip the entire redo log)
---error 1,42
---exec $MYSQLD $args --innodb-force-recovery=6
-let SEARCH_PATTERN=Database upgrade cannot be accomplished in read-only mode;
---source include/search_pattern.inc
-
---echo # valid 8.0.3 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
---remove_file $newdir/ib_logfile0
-# Make server believe this is 8.0 datadir
---move_file $newdir/mysql/plugin.frm $newdir/mysql/plugin.frm.old
-write_file $newdir/mysql.ibd;
-EOF
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption4b.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args --innodb-force-recovery=5
-let SEARCH_PATTERN=Log block 2372 at lsn 1213952 has valid header, but checksum field contains 144444122, should be 3362026715;
---source include/search_pattern.inc
-let SEARCH_PATTERN=Data Dictionary initialization failed;
---source include/search_pattern.inc
---remove_file $newdir/mysql.ibd
---move_file $newdir/mysql/plugin.frm.old $newdir/mysql/plugin.frm
-
---echo # --innodb-force-recovery=6 (skip the entire redo log)
---error 1,42
---exec $MYSQLD $args --innodb-force-recovery=6
-let SEARCH_PATTERN=Database upgrade cannot be accomplished in read-only mode;
---source include/search_pattern.inc
-
---echo # valid 5.7.9 header, valid checkpoint 1, no matching MLOG_CHECKSUM
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption4c.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args
-let SEARCH_PATTERN=Upgrade after a crash is not supported\\. This redo log was created with malicious intentions, or perhaps\\.;
---source include/search_pattern.inc
-let SEARCH_PATTERN=Data Dictionary initialization failed;
---source include/search_pattern.inc
---echo # --innodb-force-recovery=6 (skip the entire redo log)
---error 1,42
---exec $MYSQLD $args --innodb-force-recovery=6
-let SEARCH_PATTERN=Database upgrade cannot be accomplished in read-only mode;
---source include/search_pattern.inc
-
---echo # upgrade: valid 5.7.9 header, valid checkpoint 1, logically non empty
---echo # redo log
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption4d.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args --innodb-log-file-size=4M
-let SEARCH_PATTERN=Upgrade after a crash is not supported.*;
---source include/search_pattern.inc
-
-# Replace database with 1M redo logs from before MySQL 8.0.3
---remove_file $newdir/ib_logfile0
---remove_file $newdir/ib_logfile1
---remove_file $newdir/ibdata1
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption.zip -d $newdir > $SEARCH_FILE
-
---echo # Test a corrupted record.
---echo # current header, valid checkpoint 1, all-zero (invalid) checkpoint 2
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption5.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args
-let SEARCH_PATTERN=############### CORRUPT LOG RECORD FOUND ###############;
---source include/search_pattern.inc
-let SEARCH_PATTERN=Log record type 56, page 0:0\\. Log parsing proceeded successfully up to 1213964\\. Previous log record type 128, is multi 0 Recv offset 0, prev 0;
---source include/search_pattern.inc
-let SEARCH_PATTERN= len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8               bogus ;
---source include/search_pattern.inc
-let SEARCH_PATTERN=Set innodb_force_recovery to ignore this error;
---source include/search_pattern.inc
-
---echo # Test a corrupted record.
---echo # valid header, invalid checkpoint 1, valid checkpoint 2
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption6.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args
-let SEARCH_PATTERN=The log file was created by mysqlbackup --apply-log at MEB      was here!!!1!\\. The following crash recovery is part of a normal restore\\.;
---source include/search_pattern.inc
-let SEARCH_PATTERN=############### CORRUPT LOG RECORD FOUND ###############;
---source include/search_pattern.inc
-let SEARCH_PATTERN=Log record type 56, page 0:0\\. Log parsing proceeded successfully up to 1213964\\. Previous log record type 128, is multi 0 Recv offset 0, prev 0;
---source include/search_pattern.inc
-let SEARCH_PATTERN=Hex dump starting 0 bytes before and ending 22 bytes after the corrupted record;
---source include/search_pattern.inc
-let SEARCH_PATTERN= len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8               bogus ;
---source include/search_pattern.inc
-let SEARCH_PATTERN=Set innodb_force_recovery to ignore this error;
---source include/search_pattern.inc
-
---echo # Test a corrupted record with creator field very long.
-# This file was created in such a way that checksums agree, but the creator field
-# and all subsequent bytes are non-zero, which might cause buffer overrun if one
-# simply tried to copy the creator string in a way which expects '\0'-terminated string
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption6b.zip -d $newdir > $SEARCH_FILE
---error 1,42
---exec $MYSQLD $args
-# The important thing here is that the field for creator has 32 bytes, and the file actually contains
-# MEB45678901234567890123456789012
-# which is 32 non-zero bytes (the string is thus not '\0'-terminated).
-# Moreover the following bytes, up to 2k-byte boundary are also non-zero, which means that
-# the whole read portion of header does not contain '\0'.
-# We expect this last '2' to be replaced with '\0' for safety.
-# If it is not replaced by '\0' then the output will contain the rest of header
-# and also a part of stack variables until first '\0'.
-
-# WL#13795: Disabling this search pattern temporarily. We now use other fields
-# beyond creator and corrupting these fields makes the server exit early. To
-# fix this log_corruption6b.zip needs to be corrected to have only 32 bytes
-# filled. This should be enough to test the NULL termination.
-
-#let SEARCH_PATTERN=The log file was created by mysqlbackup --apply-log at MEB4567890123456789012345678901\\. The following crash recovery is part of a normal restore\\.;
-#--source include/search_pattern.inc
-
---echo # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
---echo # redo log
---force-rmdir $newdir
---mkdir $newdir
---mkdir $newdir/mysql
-write_file $newdir/mysql/plugin.frm;
+        # This is the only way I could find to pass information from this perl
+        # script to the mtr test execution....
+        my $corrupted_offset = $block_offset + $first_rec_group;
+        my $lsn = log_file_get_lsn_for_offset($file_start_lsn, $corrupted_offset);
+        my $scanned_lsn = log_file_get_lsn_for_offset($file_start_lsn, $block_offset);
+        my $corrupted_block = log_file_get_block_no($lsn);
+        my $file_id = log_file_get_id($max_checkpoint_file);
+        open my $out_fh, '>', $ENV{CORRUPTION_INFO_FILE} or die "open failed: $!\n";
+        # Be warned, that whatever is printed, should be escaped.
+        # For safety, all printed variables are integers.
+        print $out_fh "let RECOVERED_LSN = $lsn;\n"
+            and print $out_fh "let SCANNED_LSN = $scanned_lsn;\n"
+            and print $out_fh "let CORRUPTED_LOG_FILE_ID = $file_id;\n"
+            and print $out_fh "let CORRUPTED_BLOCK_OFFSET = $block_offset;\n"
+            and print $out_fh "let CORRUPTED_OFFSET = $corrupted_offset;\n"
+            and print $out_fh "let CORRUPTED_REC_TYPE = $corrupted_byte;\n"
+            and print $out_fh "let CORRUPTED_LOG_BLOCK = $corrupted_block;\n"
+            or die "print failed: $!\n";
+        close $out_fh or die "close failed: $!\n";
+        last;
+    }
+    $block_offset += 512;
+}
+close $fh or die "close failed: $!\n";
 EOF
 
---exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/log_corruption7.zip -d $newdir > $SEARCH_FILE
---error 1
---exec $MYSQLD $args
-let SEARCH_PATTERN=Upgrading redo log: 2\\*.* bytes, LSN=1319985;
+let RECOVERED_LSN = 0;
+--source $CORRUPTION_INFO_FILE
+if ($RECOVERED_LSN == 0) {
+    --skip Failed to locate mini-transaction to corrupt
+}
+
+--echo # Start MySQL...
+--error 1,42
+--exec $MYSQLD_CMD $MYSQLD_ARGS --innodb_page_size=$INNODB_PAGE_SIZE --$UNKNOWN_PARAM --innodb-log-checksums=OFF
+
+--echo # Verify...
+
+let SEARCH_PATTERN = $PATTERN_CORRUPT_LOG_RECORD;
+# Expected: found
 --source include/search_pattern.inc
 
---force-rmdir  $newdir
+let SEARCH_PATTERN = Log record type 0, page .*:.*. Log parsing proceeded successfully up to $RECOVERED_LSN;
+# Expected: found
+--replace_result $RECOVERED_LSN RECOVERED_LSN
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_APPLY_BATCH_COMPLETED;
+# Expected: not found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_UNKNOWN_PARAM;
+# Expected: not found
+--source include/search_pattern.inc
+
+--echo ############################################################################################
+--echo # Case 2. Verify that recovery could be re-executed from previous checkpoint and go further
+--echo #         after the corrupted log block is fixed.
+--echo ############################################################################################
+
+--remove_file $SEARCH_FILE
+
+# The CORRUPTION_INFO_FILE script has CORRUPTED_LOG_FILE_ID instead of
+# a full path to the redo log file. This is to avoid troubles in case
+# the path contained characters that would need to be escaped.
+
+let CORRUPTED_LOG_FILE = $MYSQLD_DATADIR/#innodb_redo/#ib_redo$CORRUPTED_LOG_FILE_ID;
+
+--echo # Fix the corrupted log record type...
+perl;
+    open my $fh, "+<:raw", $ENV{CORRUPTED_LOG_FILE} or die "open failed: $!\n";
+    seek $fh, $ENV{CORRUPTED_OFFSET}, 0;
+    syswrite($fh, pack('C', $ENV{CORRUPTED_REC_TYPE}), 1) == 1 or die "syswrite failed\n";
+    close $fh or die "close failed: $!\n";
+EOF
+
+--echo # Start MySQL...
+--error 1,42
+--exec $MYSQLD_CMD $MYSQLD_ARGS --innodb_page_size=$INNODB_PAGE_SIZE --$UNKNOWN_PARAM
+
+--echo # Verify...
+
+let SEARCH_PATTERN = $PATTERN_DATABASE_NOT_CLEAN;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_STARTING_CRASH_RECOVERY;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_APPLYING_BATCH;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_APPLY_BATCH_COMPLETED;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_UNKNOWN_PARAM;
+# Expected: found
+--source include/search_pattern.inc
+
+--echo # Remove the data directory...
+--force-rmdir $MYSQLD_DATADIR
+
+--echo ############################################################################################
+--echo # Case 3. Check how recovery stops on log block with invalid checksum.
+--echo ############################################################################################
+
+--remove_file $SEARCH_FILE
+
+--echo # Restore the data directory from before recovery...
+--force-cpdir $saved_datadir $MYSQLD_DATADIR
+
+--echo # Corrupt checksum...
+perl;
+    open my $fh, "+<:raw", $ENV{CORRUPTED_LOG_FILE} or die "open $ENV{CORRUPTED_LOG_FILE} failed: $!\n";
+    my $offset = $ENV{CORRUPTED_BLOCK_OFFSET} + 508;
+    seek $fh, $offset, 0;
+    read $fh, my $packed_checksum, 4 or die "read failed: $!\n";
+    seek $fh, $offset, 0;
+    syswrite($fh, pack('L>', unpack('L>', $packed_checksum) ^ 1), 4) == 4 or die "write failed: $!\n";
+    close $fh or die "close failed: $!\n";
+EOF
+
+--echo # Start MySQL...
+--error 3,42
+--exec $MYSQLD_CMD $MYSQLD_ARGS --innodb_page_size=$INNODB_PAGE_SIZE --$UNKNOWN_PARAM --innodb-log-checksums=ON --innodb_force_recovery_crash=3
+
+--echo # Verify...
+let SEARCH_PATTERN = Log block $CORRUPTED_LOG_BLOCK at lsn $SCANNED_LSN has valid header, but checksum field contains .*, should be .*;
+# Expected: found
+--replace_result $SCANNED_LSN SCANNED_LSN $CORRUPTED_LOG_BLOCK CORRUPTED_LOG_BLOCK
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_RECOVERY_UP_TO $SCANNED_LSN;
+# Expected: found
+--replace_result $SCANNED_LSN SCANNED_LSN
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_UNKNOWN_PARAM;
+# Expected: not found
+--source include/search_pattern.inc
+
+--force-rmdir $MYSQLD_DATADIR
+
+--echo ############################################################################################
+--echo # Case 4. Check how recovery stops on log block with invalid block_no.
+--echo ############################################################################################
+
+--remove_file $SEARCH_FILE
+
+--echo # Restore the data directory from before recovery...
+--force-cpdir $saved_datadir $MYSQLD_DATADIR
+
+--echo # Corrupt the block_no...
+perl;
+    open my $fh, "+<:raw", $ENV{CORRUPTED_LOG_FILE} or die "open failed: $!\n";
+    seek $fh, $ENV{CORRUPTED_BLOCK_OFFSET}, 0;
+    read $fh, my $packed_block_no, 4 or die "read failed: $!\n";
+    my $block_no = unpack('L>', $packed_block_no) + 42;
+    seek $fh, $ENV{CORRUPTED_BLOCK_OFFSET}, 0;
+    syswrite($fh, pack('L>', $block_no), 4) == 4 or die "write failed: $!\n";
+    close $fh or die "close failed: $!\n";
+EOF
+
+--echo # Start MySQL...
+--error 3,42
+--exec $MYSQLD_CMD $MYSQLD_ARGS --innodb_page_size=$INNODB_PAGE_SIZE --$UNKNOWN_PARAM  --innodb-log-checksums=OFF --innodb_force_recovery_crash=3
+
+--echo # Verify...
+
+let SEARCH_PATTERN = $PATTERN_DATABASE_NOT_CLEAN;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_STARTING_CRASH_RECOVERY;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_RECOVERY_UP_TO $SCANNED_LSN;
+# Expected: found
+--replace_result $SCANNED_LSN SCANNED_LSN
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_APPLYING_BATCH;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_APPLY_BATCH_COMPLETED;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_UNKNOWN_PARAM;
+# Expected: not found
+--source include/search_pattern.inc
+
+--force-rmdir $MYSQLD_DATADIR
+
+--echo ############################################################################################
+
+--echo # Cleanup...
+--force-rmdir $saved_datadir
+--remove_file $CORRUPTION_INFO_FILE
+--remove_file $SEARCH_FILE
+let SEARCH_FILE=;
+let SEARCH_PATTERN=;
+let MYSQLD_ERROR_LOG=;
+let MYSQLD_DATADIR=;
+let RECOVERED_LSN=;
+let SCANNED_LSN=;
+let CORRUPTED_LOG_FILE_ID=;
+let CORRUPTED_LOG_FILE=;
+let CORRUPTED_BLOCK_OFFSET=;
+let CORRUPTED_OFFSET=;
+let CORRUPTED_REC_TYPE=;
+let CORRUPTED_LOG_BLOCK=;
+let CORRUPTION_INFO_FILE=;
+
+--echo # Start MySQL...
+--source include/start_mysqld.inc

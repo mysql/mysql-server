@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,14 +28,15 @@
 
 #include "m_ctype.h"
 #include "m_string.h"  // LEX_CSTRING
+#include "mutex_lock.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"  // st_mysql_auth
@@ -57,18 +58,18 @@
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/field.h"          // Field
 #include "sql/handler.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"          // my_localhost
 #include "sql/psi_memory_key.h"  // key_memory_acl_mem
-#include "sql/records.h"         // unique_ptr_destroy_only<RowIterator>
-#include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sql_audit.h"
 #include "sql/sql_base.h"   // open_and_lock_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_executor.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"  // my_plugin_lock_by_name
 #include "sql/sql_plugin_ref.h"
@@ -183,8 +184,7 @@ static void set_hostname(ACL_HOST_AND_IP *host, const char *host_arg,
   Allocates the memory in the the global_acl_memory MEM_ROOT.
 */
 void init_acl_memory() {
-  init_sql_alloc(key_memory_acl_mem, &global_acl_memory, ACL_ALLOC_BLOCK_SIZE,
-                 0);
+  init_sql_alloc(key_memory_acl_mem, &global_acl_memory, ACL_ALLOC_BLOCK_SIZE);
 }
 
 /**
@@ -662,6 +662,9 @@ int ACL_PROXY_USER::store_data_record(TABLE *table, const LEX_CSTRING &hostname,
                                                       system_charset_info))
     return true;
 
+  my_timeval tm = table->in_use->query_start_timeval_trunc(0);
+  table->field[MYSQL_PROXIES_PRIV_TIMESTAMP]->store_timestamp(&tm);
+
   return false;
 }
 
@@ -684,9 +687,9 @@ void ACL_DB::set_host(MEM_ROOT *mem, const char *host_arg) {
 /**
   Append the authorization id for the user
 
-  @param [in]       thd     The THD to find the SQL mode
-  @param [in]       user    ACL User to retrieve the user information
-  @param [in, out]  str     The string in which authID is suffixed
+  @param [in]       thd      The THD to find the SQL mode
+  @param [in]       acl_user ACL User to retrieve the user information
+  @param [in, out]  str      The string in which authID is suffixed
 */
 void append_auth_id(const THD *thd, ACL_USER *acl_user, String *str) {
   assert(thd);
@@ -696,7 +699,7 @@ void append_auth_id(const THD *thd, ACL_USER *acl_user, String *str) {
 }
 
 /**
-  Append the user@host to the str
+  Append the user\@host to the str.
 
   @param [in]       thd      The THD to find the SQL mode
   @param [in]       user     Username to append to authID
@@ -797,7 +800,7 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, const char *wildstr) {
 /*
   Return a number which, if sorted 'desc', puts strings in this order:
     no wildcards
-    strings containg wildcards and non-wildcard characters
+    strings containing wildcards and non-wildcard characters
     single muilt-wildcard character('%')
     empty string
 */
@@ -820,7 +823,7 @@ ulong get_sort(uint count, ...) {
         0                            if string is empty
         1                            if string is a single muilt-wildcard
                                      character('%')
-        first wildcard position + 1  if string containg wildcards and
+        first wildcard position + 1  if string containing wildcards and
                                      non-wildcard characters
     */
 
@@ -1377,8 +1380,8 @@ ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
     if (!acl_db->user || !strcmp(user, acl_db->user)) {
       if (acl_db->host.compare_hostname(host, ip)) {
         /*
-          Do the usual string comparision if partial_revokes is ON,
-          otherwise do the wildcard grant comparision
+          Do the usual string comparison if partial_revokes is ON,
+          otherwise do the wildcard grant comparison
         */
         if (!acl_db->db ||
             (db &&
@@ -1557,8 +1560,8 @@ bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
         if (!acl_db->user || (user && user[0] && !strcmp(user, acl_db->user))) {
           if (acl_db->host.compare_hostname(host, ip)) {
             /*
-              Do the usual string comparision if partial_revokes is ON,
-              otherwise do the wildcard grant comparision
+              Do the usual string comparison if partial_revokes is ON,
+              otherwise do the wildcard grant comparison
             */
             if (!acl_db->db ||
                 (db && (mysqld_partial_revokes()
@@ -1639,7 +1642,7 @@ static void validate_user_plugin_records() {
   DBUG_TRACE;
   if (!validate_user_plugins) return;
 
-  lock_plugin_data();
+  MUTEX_LOCK(plugin_lock, &LOCK_plugin);
   for (ACL_USER *acl_user = acl_users->begin(); acl_user != acl_users->end();
        ++acl_user) {
     struct st_plugin_int *plugin;
@@ -1667,7 +1670,6 @@ static void validate_user_plugin_records() {
       }
     }
   }
-  unlock_plugin_data();
 }
 
 /**
@@ -2219,7 +2221,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
       if a user error condition has been raised. Also do not print expected/
       transient errors about tables not being locked (occurs when user does
       FLUSH PRIVILEGES under LOCK TABLES) and MDL deadlocks. These errors
-      can't occurr at start-up and will be reported to user anyway.
+      can't occur at start-up and will be reported to user anyway.
     */
     if (!is_expected_or_transient_error(thd)) {
       LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_OPEN_AND_LOCK_PRIVILEGE_TABLES,
@@ -2685,13 +2687,13 @@ bool grant_reload(THD *thd, bool mdl_locked) {
 
     /*
       Create a new memory pool but save the current memory pool to make an
-      undo opertion possible in case of failure.
+      undo operation possible in case of failure.
     */
     old_mem = move(memex);
-    init_sql_alloc(key_memory_acl_memex, &memex, ACL_ALLOC_BLOCK_SIZE, 0);
+    init_sql_alloc(key_memory_acl_memex, &memex, ACL_ALLOC_BLOCK_SIZE);
     /*
       tables[2].table i.e. procs_priv can be null if we are working with
-      pre 4.1 privilage tables
+      pre 4.1 privilege tables
     */
     if ((return_val = (grant_load(thd, tables) ||
                        grant_reload_procs_priv(

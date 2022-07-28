@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,13 @@
 #define SQL_JOIN_OPTIMIZER_COST_MODEL_H_
 
 #include "my_base.h"
+#include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/relational_expression.h"
+#include "sql/mem_root_array.h"
 
 struct AccessPath;
+struct ContainedSubquery;
 class Item;
-struct JoinPredicate;
 class Query_block;
 class THD;
 struct TABLE;
@@ -59,6 +62,10 @@ struct FilterCost {
   double cost_to_materialize;
 };
 
+/// Used internally by EstimateFilterCost() only.
+void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
+             FilterCost *cost);
+
 /**
   Estimate the cost of evaluating “condition”, “num_rows” times.
   This is a fairly rudimentary estimation, _but_ it includes the cost
@@ -67,13 +74,58 @@ struct FilterCost {
 FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
                               Query_block *outer_query_block);
 
+/**
+  A cheaper overload of EstimateFilterCost() that assumes that all
+  contained subqueries have already been extracted (ie., it skips the
+  walking, which can be fairly expensive). This data is typically
+  computed by FindContainedSubqueries().
+ */
+inline FilterCost EstimateFilterCost(
+    THD *thd, double num_rows,
+    const Mem_root_array<ContainedSubquery> &contained_subqueries) {
+  FilterCost cost{0.0, 0.0, 0.0};
+  cost.cost_if_not_materialized = num_rows * kApplyOneFilterCost;
+  cost.cost_if_materialized = num_rows * kApplyOneFilterCost;
+
+  for (const ContainedSubquery &subquery : contained_subqueries) {
+    AddCost(thd, subquery, num_rows, &cost);
+  }
+  return cost;
+}
+
 double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
                                 double num_output_rows);
 void EstimateSortCost(AccessPath *path, ha_rows limit_rows = HA_POS_ERROR);
 void EstimateMaterializeCost(THD *thd, AccessPath *path);
-void EstimateAggregateCost(AccessPath *path);
-double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
-                             const JoinPredicate *edge,
-                             double already_applied_selectivity);
+void EstimateAggregateCost(AccessPath *path, const Query_block *query_block);
+void EstimateDeleteRowsCost(AccessPath *path);
+void EstimateUpdateRowsCost(AccessPath *path);
+
+inline double FindOutputRowsForJoin(double left_rows, double right_rows,
+                                    const JoinPredicate *edge) {
+  double fanout = right_rows * edge->selectivity;
+  if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
+    // For outer joins, every outer row produces at least one row (if none
+    // are matching, we get a NULL-complemented row).
+    // Note that this can cause inconsistent row counts; see bug #33550360
+    // and/or JoinHypergraph::has_reordered_left_joins.
+    fanout = std::max(fanout, 1.0);
+  } else if (edge->expr->type == RelationalExpression::SEMIJOIN) {
+    // Semi- and antijoin estimation is pretty tricky, since we want isn't
+    // really selectivity; we want the probability that at least one row
+    // is matching, which is something else entirely. However, given that
+    // we only have selectivity to work with, we don't really have anything
+    // better than to estimate it as a normal join and cap the result
+    // at selectivity 1.0 (ie., each outer row generates at most one inner row).
+    fanout = std::min(fanout, 1.0);
+  } else if (edge->expr->type == RelationalExpression::ANTIJOIN) {
+    // Antijoin are estimated as simply the opposite of semijoin (see above),
+    // but wrongly estimating 0 rows (or, of course, a negative amount) could be
+    // really bad, so we assume at least 10% coming out as a fudge factor.
+    // It's better to estimate too high than too low here.
+    fanout = std::max(1.0 - fanout, 0.1);
+  }
+  return left_rows * fanout;
+}
 
 #endif  // SQL_JOIN_OPTIMIZER_COST_MODEL_H_

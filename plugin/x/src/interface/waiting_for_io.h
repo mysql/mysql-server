@@ -1,4 +1,4 @@
-// Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -61,9 +61,8 @@ class Waiting_for_io {
     * IO code is waiting for a header
     * long-executing-sql
 
-    @return
-      @retval == true     OK
-      @retval == false     I/O error
+    @retval true     OK
+    @retval false    I/O error
    */
   virtual bool on_idle_or_before_read() = 0;
 };

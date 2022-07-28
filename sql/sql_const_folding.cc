@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,6 @@
 #include <float.h>                         // DBL_MAX, FLT_MAX
 #include <stdint.h>                        // UINT64_MAX
 #include <sys/types.h>                     // uint
-#include <cstring>                         // memset
 #include <utility>                         // swap
 #include "decimal.h"                       // E_DEC_FATAL_ERROR
 #include "field_types.h"                   // MYSQL_TYPE_DATE
@@ -544,6 +543,8 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
       // Compute actual (minimal) decimal type of the constant
       my_decimal buff, *d;
       d = (*const_val)->val_decimal(&buff);
+      if ((*const_val)->null_value) return false;
+      assert(d != nullptr);
       const int actual_frac = decimal_actual_fraction(d);
       const int actual_intg = decimal_intg(d);
       const bool overflow = actual_intg > f_intg;
@@ -781,7 +782,7 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
     case INT_RESULT: {
       MYSQL_TIME ltime =
           my_time_set(0, 0, 0, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME);
-      MYSQL_TIME_STATUS status{0, 0, 0};
+      MYSQL_TIME_STATUS status;
       if (rtype == STRING_RESULT) {
         String buf, *res = (*const_val)->val_str(&buf);
         /*
@@ -824,11 +825,11 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
       if (ft == MYSQL_TYPE_TIMESTAMP) {
         /*
           Convert constant to timeval, if it fits. If not, we are out of
-          range for a TIMESTAMP. The timeval is UTC since epoch.
+          range for a TIMESTAMP. The timeval is UTC since epoch, using 32
+          bits range.
         */
         int warnings = 0;
-        struct timeval tm;
-        std::memset(&tm, 0, sizeof(tm));
+        my_timeval tm = {0, 0};
         int zeros = 0;
         zeros += ltime.year == 0;
         zeros += ltime.month == 0;
@@ -852,7 +853,7 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
           compare with min/max, unless it is 0 or has a zero date part (year,
           month or day)
         */
-        if (tm.tv_sec != 0) {
+        if (tm.m_tv_sec != 0) {
           /* '2038-01-19 03:14:07.[999999]' */
           MYSQL_TIME max_timestamp = my_time_set(
               TIMESTAMP_MAX_YEAR, 1, 19, 3, 14, 7,

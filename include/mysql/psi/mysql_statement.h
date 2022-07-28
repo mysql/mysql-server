@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -256,7 +256,17 @@ static inline void inline_mysql_end_statement(
     PSI_STATEMENT_CALL(end_statement)(locker, stmt_da);
   }
 }
-#endif
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
+
+static inline void mysql_statement_set_secondary_engine(
+    PSI_statement_locker *locker [[maybe_unused]],
+    bool secondary [[maybe_unused]]) {
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(locker != nullptr)) {
+    PSI_STATEMENT_CALL(set_statement_secondary_engine)(locker, secondary);
+  }
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
+}
 
 /** @} (end of group psi_api_statement) */
 

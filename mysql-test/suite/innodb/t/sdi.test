@@ -24,7 +24,7 @@
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
 let $START_PAGE_SIZE= `select @@innodb_page_size`;
-let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
+let $LOG_CAPACITY= `select @@innodb_redo_log_capacity`;
 
 # Set path for --datadir
 let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/datadir;
@@ -38,7 +38,7 @@ CREATE DATABASE test;
 EOF
 
 # Set the bootstrap parameters with undo log encryption enabled
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --secure-file-priv="" --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL  </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --secure-file-priv="" --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL  </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
@@ -46,8 +46,8 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 --echo # Run the bootstrap command
 --exec $NEW_CMD
 
---let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR --innodb_log_file_size=$LOG_FILE_SIZE --innodb_log_files_in_group=2"
---replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $LOG_FILE_SIZE LOG_FILE_SIZE
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR --innodb_redo_log_capacity=$LOG_CAPACITY"
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $LOG_CAPACITY LOG_CAPACITY
 --source include/start_mysqld.inc
 
 CREATE TABLE t1 (a INT);
@@ -354,7 +354,7 @@ if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t18_#p#p1#sp#p12.json $JSON_FILE_PATH
 }
 
---replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $LOG_FILE_SIZE LOG_FILE_SIZE
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $LOG_CAPACITY LOG_CAPACITY
 --source include/start_mysqld.inc
 --echo # ALTER TABLE t1, ADD COLUMN. Verify SDI shows the newly added column
 ALTER TABLE t1 ADD COLUMN b INT;

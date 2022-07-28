@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -114,11 +114,13 @@ SET(MYSYS_SOURCES
   crypt_genhash_impl.cc
   my_default.cc
   my_getopt.cc
+  my_kdf.cc
   my_aes.cc
   my_sha1.cc
   my_sha2.cc
   my_md5.cc
   my_rnd.cc
+  my_openssl_fips.cc
 )
 LIST(APPEND MYSYS_SOURCES my_aes_openssl.cc)
 
@@ -150,6 +152,7 @@ IF (WIN32)
     my_winerr.cc
     my_winfile.cc
     win_timers.cc
+    my_nojemalloc.cc
   )
 ENDIF()
 

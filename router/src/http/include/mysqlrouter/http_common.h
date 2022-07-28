@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@
 #include <system_error>
 #include <vector>
 
+#include "my_compiler.h"
 #include "my_io.h"
 #include "my_macros.h"
 
@@ -95,7 +96,15 @@ constexpr type Write{1 << Pos::Write};
 constexpr type Signal{1 << Pos::Signal};
 }  // namespace EventFlags
 using EventBaseSocket = evutil_socket_t;
+
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning for now.
+// TODO(lkotula) Use proper 64bit/32bit signed/unsigned type based on platform.
+// 'initializing': truncation of constant value.
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4309)
 const int kEventBaseInvalidSocket = INVALID_SOCKET;
+MY_COMPILER_DIAGNOSTIC_POP()
+
 /**
  * Main event registration and dispatch `engine`
  *

@@ -1,0 +1,16 @@
+# Create an empty data directory...
+# Unzip 5_7_9_clean.zip to the created directory...
+# Kill the server
+############################################################################################
+# Case 4: Attempt to start on redo files created by foreign creators.
+# 4A: InnoDB starts and performs upgrade on redo files created by unknown creator,
+#     but warning is emitted.
+############################################################################################
+# Case 4A: Start MySQL...
+# Verify...
+Pattern "Redo log files created by unknown creator ping" found
+Pattern "Upgrading redo log: .*, LSN=" found
+Pattern "innodb-unknown-compound-v" found
+############################################################################################
+# Cleanup...
+# restart

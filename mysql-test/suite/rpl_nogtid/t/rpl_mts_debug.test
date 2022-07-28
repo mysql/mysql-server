@@ -57,7 +57,9 @@ DROP DATABASE db_2;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
+--disable_warnings
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 SET @@global.debug= @save.debug;
 --source include/start_slave.inc
 
@@ -96,7 +98,9 @@ start slave sql_thread;
 source include/wait_for_slave_sql_error.inc;
 
 set @@global.replica_checkpoint_group= @save.replica_checkpoint_group;
+--disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 set @@global.debug= @save.debug;
 
 # Bug#24679056:MULTI-THREADED SLAVE LEAKS WORKER THREADS IN CASE
@@ -131,6 +135,7 @@ call mtr.add_suppression("Mismatch between the number of bytes configured to sto
 
 set @save.replica_checkpoint_group= @@global.replica_checkpoint_group;
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+
 SET @@global.replica_parallel_workers= 2;
 SET @@global.replica_checkpoint_group=524281;
 
@@ -164,7 +169,9 @@ SET @@global.debug= @save.debug;
 # cleanup
 
 set @@global.replica_checkpoint_group= @save.replica_checkpoint_group;
+--disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 
 #
 # BUG13893310 Checkpoint_group
@@ -219,8 +226,9 @@ start slave sql_thread;
 # clean up
 #
 set @@global.debug= "-d,mta_replica_worker_init_at_gaps_fails";
+--disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
-
+--enable_warnings
 --source include/start_slave.inc
 --source include/rpl_reset.inc
 --source include/rpl_end.inc

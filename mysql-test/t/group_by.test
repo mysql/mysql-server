@@ -3238,3 +3238,122 @@ DROP TABLE t1;
 
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 select is_uuid(avg(distinct json_storage_free('$b*<*#]E')));
+
+--echo #
+--echo # Bug#31894023 THE RESULTS OF AGGREGATION ON BIT TYPE ARE INCONSISTENT WHEN JOIN TYPE DIFFERS
+--echo #
+
+CREATE TABLE t1(id INT, b1 BIT, b9 BIT(9), b64 BIT(64));
+INSERT INTO t1 VALUES
+(1, b'0', b'000000000', b'0000000000000000000000000000000000000000000000000000000000000000'),
+(2, b'1', b'100000000', b'1000000000000000000000000000000000000000000000000000000000000000');
+CREATE INDEX i1 ON t1(id);
+ANALYZE TABLE t1;
+
+SELECT HEX(CONCAT(MIN(b1))), HEX(CONCAT(MIN(b9))), HEX(CONCAT(MIN(b64))) FROM t1 GROUP BY id;
+SELECT HEX(CONCAT(MIN(b1))), HEX(CONCAT(MIN(b9))), HEX(CONCAT(MIN(b64))) FROM t1 IGNORE INDEX(i1) GROUP BY id;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33515752: Data insertion exception in version 8.0.27
+--echo #
+
+CREATE TABLE t1(f1 INTEGER);
+INSERT INTO t1 VALUES(1);
+
+SELECT SQL_BUFFER_RESULT MAX(f1)+1, 1 AS f2  FROM t1 GROUP BY f2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33603911: Incorrect result with aggregation by temporary table
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b VARCHAR(1) );
+INSERT INTO t1 VALUES (3, 'Q'), (4, '5');
+
+CREATE TABLE t2 ( a INTEGER );
+INSERT INTO t2 VALUES (3), (4);
+
+SELECT
+  t2d.a,
+  SUM(t1.b) AS field2
+FROM
+  t1
+  JOIN ( SELECT * FROM t2 ) AS t2d ON t1.a = t2d.a
+GROUP BY t2d.a
+HAVING t2d.a <> 3 OR field2 < 5;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#33738447:
+--echo # Assertion `!(used_tabs & (~ read_tables & ~filter_for_table))' failed.
+--echo #
+
+CREATE TABLE t (i INTEGER, blobfield LONGTEXT);
+INSERT INTO t VALUES (1, '');
+
+PREPARE ps FROM '
+SELECT d.i, COUNT(*)
+FROM t, LATERAL (SELECT i, blobfield) AS d
+GROUP BY d.i
+HAVING d.i < 100
+ORDER BY d.i
+';
+
+# The second execution used to get an assert failure with the
+# hypergraph optimizer.
+EXECUTE ps;
+EXECUTE ps;
+
+DEALLOCATE PREPARE ps;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#33674441: Wrong result with outer join and streaming aggregation
+--echo #
+
+CREATE TABLE t1 (a INTEGER PRIMARY KEY, b INTEGER);
+INSERT INTO t1 VALUES (1, 2), (2, 1), (3, 1);
+
+CREATE TABLE t2 (a INTEGER, b INTEGER, KEY (b));
+INSERT INTO t2 VALUES (1, 11);
+
+CREATE TABLE t3 (a INTEGER PRIMARY KEY, b INTEGER);
+INSERT INTO t3 VALUES (1, 10), (2, 11), (3, 0), (4, 0), (5, 0), (6, 0);
+
+--sorted_result
+SELECT t1.a, MAX(t2.a)
+FROM t1 LEFT JOIN (t2 JOIN t3 ON t2.b = t3.b) ON t1.b = t3.a
+GROUP BY t1.a;
+
+# The old optimizer has a separate code path for streaming aggregation when
+# SQL_BUFFER_RESULT is specified. Verify that both code paths are fixed.
+--sorted_result
+SELECT SQL_BUFFER_RESULT t1.a, MAX(t2.a)
+FROM t1 LEFT JOIN (t2 JOIN t3 ON t2.b = t3.b) ON t1.b = t3.a
+GROUP BY t1.a;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #33621358: Hypergraph: Assertion `!null_value || is_nullable()'
+--echo #                failed
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, PRIMARY KEY(f1));
+
+# This query used to get an assert failure for hypergraph optimizer.
+# The old optimizer will not process the window function because it
+# has a special code path for implicitly grouped queries. However
+# the hypergraph optimizer does because the resolver is only marking
+# the query as unordered but not removing the order by list when
+# window functions are present.
+SELECT SUM(t1.f1)
+FROM t1 JOIN t1 AS t2
+        ON t1.f1 = t2.f1
+ORDER BY RANK() OVER(), CAST(t1.f1 AS UNSIGNED);
+
+DROP TABLE t1;

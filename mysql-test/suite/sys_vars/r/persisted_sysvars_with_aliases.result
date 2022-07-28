@@ -539,25 +539,25 @@ include/assert.inc [slave_allow_batching should have value OFF in the persist fi
 SET @@PERSIST.slave_allow_batching = DEFAULT;
 Warnings:
 Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_allow_batching should be OFF in P_S.persisted_variables]
-include/assert.inc [replica_allow_batching should have value OFF in the persist file]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_allow_batching should be OFF in P_S.persisted_variables]
-include/assert.inc [slave_allow_batching should have value OFF in the persist file]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
 # R1. RESET <old>
 RESET PERSIST slave_allow_batching;
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [replica_allow_batching should not exist in P_S.persisted_variables]
 include/assert.inc [replica_allow_batching should not exist in the persist file]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [slave_allow_batching should not exist in P_S.persisted_variables]
 include/assert.inc [slave_allow_batching should not exist in the persist file]
@@ -602,13 +602,13 @@ include/assert.inc [slave_allow_batching should not exist in the persist file]
 SET GLOBAL replica_allow_batching = DEFAULT;
 # R1. SET <new> when variable was previously unset
 SET @@PERSIST_ONLY.replica_allow_batching = ON;
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
 include/assert.inc [replica_allow_batching should have value ON in the persist file]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
 include/assert.inc [slave_allow_batching should have value ON in the persist file]
@@ -616,13 +616,13 @@ include/assert.inc [slave_allow_batching should have value ON in the persist fil
 SET @@PERSIST_ONLY.slave_allow_batching = OFF;
 Warnings:
 Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [replica_allow_batching should be OFF in P_S.persisted_variables]
 include/assert.inc [replica_allow_batching should have value OFF in the persist file]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [slave_allow_batching should be OFF in P_S.persisted_variables]
 include/assert.inc [slave_allow_batching should have value OFF in the persist file]
@@ -630,25 +630,25 @@ include/assert.inc [slave_allow_batching should have value OFF in the persist fi
 SET @@PERSIST_ONLY.slave_allow_batching = DEFAULT;
 Warnings:
 Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_allow_batching should be OFF in P_S.persisted_variables]
-include/assert.inc [replica_allow_batching should have value OFF in the persist file]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_allow_batching should be OFF in P_S.persisted_variables]
-include/assert.inc [slave_allow_batching should have value OFF in the persist file]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
 # R1. RESET <old>
 RESET PERSIST slave_allow_batching;
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [replica_allow_batching should not exist in P_S.persisted_variables]
 include/assert.inc [replica_allow_batching should not exist in the persist file]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [slave_allow_batching should not exist in P_S.persisted_variables]
 include/assert.inc [slave_allow_batching should not exist in the persist file]
@@ -656,37 +656,37 @@ include/assert.inc [slave_allow_batching should not exist in the persist file]
 SET PERSIST_ONLY slave_allow_batching = OFF;
 Warnings:
 Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [replica_allow_batching should be OFF in P_S.persisted_variables]
 include/assert.inc [replica_allow_batching should have value OFF in the persist file]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [slave_allow_batching should be OFF in P_S.persisted_variables]
 include/assert.inc [slave_allow_batching should have value OFF in the persist file]
 # R1. SET <new> when variable was previously set through <old>
 SET PERSIST_ONLY replica_allow_batching = 1;
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
 include/assert.inc [replica_allow_batching should have value ON in the persist file]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
 include/assert.inc [slave_allow_batching should have value ON in the persist file]
 # R1. RESET <new>
 RESET PERSIST replica_allow_batching;
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [replica_allow_batching should not exist in P_S.persisted_variables]
 include/assert.inc [replica_allow_batching should not exist in the persist file]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
 include/assert.inc [slave_allow_batching should not exist in P_S.persisted_variables]
 include/assert.inc [slave_allow_batching should not exist in the persist file]
@@ -1854,187 +1854,6 @@ include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variable
 include/assert.inc [slave_net_timeout should not exist in the persist file]
 SET GLOBAL replica_net_timeout = DEFAULT;
 SET PERSIST_ONLY replica_net_timeout = 65536;
-sysvar:
-- name=replica_parallel_type
-- alias=slave_parallel_type
-- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
-- global=1
-- session=0
-- cmdline=1
-- persist=1
-- persist_as_readonly=1
-- dynamic=1
----- replica_parallel_type ----
-# R1. SET <new> when variable was previously unset
-SET @@PERSIST.replica_parallel_type = LOGICAL_CLOCK;
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value LOGICAL_CLOCK in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value LOGICAL_CLOCK in the persist file]
-# R1. SET <old> when variable was previously set through <new>
-SET @@PERSIST.slave_parallel_type = 'DATABASE';
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value DATABASE in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value DATABASE in the persist file]
-# R1. SET <old>  = DEFAULT
-SET @@PERSIST.slave_parallel_type = DEFAULT;
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value LOGICAL_CLOCK in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value LOGICAL_CLOCK in the persist file]
-# R1. RESET <old>
-RESET PERSIST slave_parallel_type;
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should not exist in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should not exist in the persist file]
-# R1. SET <old> when variable was previously unset
-SET PERSIST slave_parallel_type = 'DATABASE';
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value DATABASE in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value DATABASE in the persist file]
-# R1. SET <new> when variable was previously set through <old>
-SET PERSIST replica_parallel_type = 'LOGICAL_CLOCK';
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value LOGICAL_CLOCK in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value LOGICAL_CLOCK in the persist file]
-# R1. RESET <new>
-RESET PERSIST replica_parallel_type;
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should not exist in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should not exist in the persist file]
-SET GLOBAL replica_parallel_type = DEFAULT;
-# R1. SET <new> when variable was previously unset
-SET @@PERSIST_ONLY.replica_parallel_type = LOGICAL_CLOCK;
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value LOGICAL_CLOCK in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value LOGICAL_CLOCK in the persist file]
-# R1. SET <old> when variable was previously set through <new>
-SET @@PERSIST_ONLY.slave_parallel_type = 'DATABASE';
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value DATABASE in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value DATABASE in the persist file]
-# R1. SET <old>  = DEFAULT
-# R1. RESET <old>
-RESET PERSIST slave_parallel_type;
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should not exist in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should not exist in the persist file]
-# R1. SET <old> when variable was previously unset
-SET PERSIST_ONLY slave_parallel_type = 'DATABASE';
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value DATABASE in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value DATABASE in the persist file]
-# R1. SET <new> when variable was previously set through <old>
-SET PERSIST_ONLY replica_parallel_type = 'LOGICAL_CLOCK';
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value LOGICAL_CLOCK in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value LOGICAL_CLOCK in the persist file]
-# R1. RESET <new>
-RESET PERSIST replica_parallel_type;
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [replica_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should not exist in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source DYNAMIC in P_S.variables_info]
-include/assert.inc [slave_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should not exist in the persist file]
-SET GLOBAL replica_parallel_type = DEFAULT;
-SET PERSIST_ONLY replica_parallel_type = 'LOGICAL_CLOCK';
 sysvar:
 - name=replica_parallel_workers
 - alias=slave_parallel_workers
@@ -4267,26 +4086,6 @@ include/assert.inc [slave_net_timeout should have source PERSISTED in P_S.variab
 include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
 include/assert.inc [slave_net_timeout should have value 65536 in the persist file]
 sysvar:
-- name=replica_parallel_type
-- alias=slave_parallel_type
-- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
-- global=1
-- session=0
-- cmdline=1
-- persist=1
-- persist_as_readonly=1
-- dynamic=1
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source PERSISTED in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value LOGICAL_CLOCK in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source PERSISTED in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value LOGICAL_CLOCK in the persist file]
-sysvar:
 - name=replica_parallel_workers
 - alias=slave_parallel_workers
 - invalid=[1.5, "ON", "'x'", "NULL"]
@@ -4682,26 +4481,6 @@ include/assert.inc [slave_net_timeout should have source PERSISTED in P_S.variab
 include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
 include/assert.inc [slave_net_timeout should not exist in the persist file]
 sysvar:
-- name=replica_parallel_type
-- alias=slave_parallel_type
-- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
-- global=1
-- session=0
-- cmdline=1
-- persist=1
-- persist_as_readonly=1
-- dynamic=1
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source PERSISTED in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value LOGICAL_CLOCK in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source PERSISTED in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should not exist in the persist file]
-sysvar:
 - name=replica_parallel_workers
 - alias=slave_parallel_workers
 - invalid=[1.5, "ON", "'x'", "NULL"]
@@ -5094,26 +4873,6 @@ include/assert.inc [slave_net_timeout should have source PERSISTED in P_S.variab
 include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
 include/assert.inc [slave_net_timeout should have value 65536 in the persist file]
 sysvar:
-- name=replica_parallel_type
-- alias=slave_parallel_type
-- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
-- global=1
-- session=0
-- cmdline=1
-- persist=1
-- persist_as_readonly=1
-- dynamic=1
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source PERSISTED in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value LOGICAL_CLOCK in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source PERSISTED in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value LOGICAL_CLOCK in the persist file]
-sysvar:
 - name=replica_parallel_workers
 - alias=slave_parallel_workers
 - invalid=[1.5, "ON", "'x'", "NULL"]
@@ -5350,7 +5109,6 @@ include/assert_error_log.inc [server: 1, pattern:
 .*The variable slave_exec_mode has been renamed to replica_exec_mode, and the old name deprecated.*
 .*The variable slave_max_allowed_packet has been renamed to replica_max_allowed_packet, and the old name deprecated.*
 .*The variable slave_net_timeout has been renamed to replica_net_timeout, and the old name deprecated.*
-.*The variable slave_parallel_type has been renamed to replica_parallel_type, and the old name deprecated.*
 .*The variable slave_parallel_workers has been renamed to replica_parallel_workers, and the old name deprecated.*
 .*The variable slave_pending_jobs_size_max has been renamed to replica_pending_jobs_size_max, and the old name deprecated.*
 .*The variable slave_preserve_commit_order has been renamed to replica_preserve_commit_order, and the old name deprecated.*
@@ -5532,26 +5290,6 @@ include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
 include/assert.inc [slave_net_timeout should have source PERSISTED in P_S.variables_info]
 include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
 include/assert.inc [slave_net_timeout should have value 65536 in the persist file]
-sysvar:
-- name=replica_parallel_type
-- alias=slave_parallel_type
-- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
-- global=1
-- session=0
-- cmdline=1
-- persist=1
-- persist_as_readonly=1
-- dynamic=1
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source PERSISTED in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should not exist in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source PERSISTED in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value LOGICAL_CLOCK in the persist file]
 sysvar:
 - name=replica_parallel_workers
 - alias=slave_parallel_workers
@@ -5945,26 +5683,6 @@ include/assert.inc [slave_net_timeout should have source PERSISTED in P_S.variab
 include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
 include/assert.inc [slave_net_timeout should have value 65536 in the persist file]
 sysvar:
-- name=replica_parallel_type
-- alias=slave_parallel_type
-- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
-- global=1
-- session=0
-- cmdline=1
-- persist=1
-- persist_as_readonly=1
-- dynamic=1
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source PERSISTED in P_S.variables_info]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should have value LOGICAL_CLOCK in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source PERSISTED in P_S.variables_info]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should have value LOGICAL_CLOCK in the persist file]
-sysvar:
 - name=replica_parallel_workers
 - alias=slave_parallel_workers
 - invalid=[1.5, "ON", "'x'", "NULL"]
@@ -6203,7 +5921,6 @@ include/assert_error_log.inc [server: 1, pattern:
 .*The syntax .slave_load_tmpdir. is deprecated and will be removed in a future release. Please use replica_load_tmpdir instead.
 .*The syntax .slave_max_allowed_packet. is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
 .*The syntax .slave_net_timeout. is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
-.*The syntax .slave_parallel_type. is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
 .*The syntax .slave_parallel_workers. is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
 .*The syntax .slave_pending_jobs_size_max. is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
 .*The syntax .slave_preserve_commit_order. is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
@@ -6394,26 +6111,6 @@ include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
 include/assert.inc [slave_net_timeout should have source COMMAND_LINE in P_S.variables_info]
 include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variables]
 include/assert.inc [slave_net_timeout should not exist in the persist file]
-sysvar:
-- name=replica_parallel_type
-- alias=slave_parallel_type
-- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
-- global=1
-- session=0
-- cmdline=1
-- persist=1
-- persist_as_readonly=1
-- dynamic=1
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source COMMAND_LINE in P_S.variables_info]
-include/assert.inc [replica_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should not exist in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source COMMAND_LINE in P_S.variables_info]
-include/assert.inc [slave_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should not exist in the persist file]
 sysvar:
 - name=replica_parallel_workers
 - alias=slave_parallel_workers
@@ -6811,26 +6508,6 @@ include/assert.inc [slave_net_timeout should have source COMMAND_LINE in P_S.var
 include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variables]
 include/assert.inc [slave_net_timeout should not exist in the persist file]
 sysvar:
-- name=replica_parallel_type
-- alias=slave_parallel_type
-- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
-- global=1
-- session=0
-- cmdline=1
-- persist=1
-- persist_as_readonly=1
-- dynamic=1
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source COMMAND_LINE in P_S.variables_info]
-include/assert.inc [replica_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should not exist in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source COMMAND_LINE in P_S.variables_info]
-include/assert.inc [slave_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should not exist in the persist file]
-sysvar:
 - name=replica_parallel_workers
 - alias=slave_parallel_workers
 - invalid=[1.5, "ON", "'x'", "NULL"]
@@ -7059,7 +6736,6 @@ include/assert_error_log.inc [server: 1, pattern:
 .*The syntax .slave_load_tmpdir. is deprecated and will be removed in a future release. Please use replica_load_tmpdir instead.
 .*The syntax .slave_max_allowed_packet. is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
 .*The syntax .slave_net_timeout. is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
-.*The syntax .slave_parallel_type. is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
 .*The syntax .slave_parallel_workers. is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
 .*The syntax .slave_pending_jobs_size_max. is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
 .*The syntax .slave_preserve_commit_order. is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
@@ -7250,26 +6926,6 @@ include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
 include/assert.inc [slave_net_timeout should have source COMMAND_LINE in P_S.variables_info]
 include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variables]
 include/assert.inc [slave_net_timeout should not exist in the persist file]
-sysvar:
-- name=replica_parallel_type
-- alias=slave_parallel_type
-- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
-- global=1
-- session=0
-- cmdline=1
-- persist=1
-- persist_as_readonly=1
-- dynamic=1
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [replica_parallel_type should have source COMMAND_LINE in P_S.variables_info]
-include/assert.inc [replica_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [replica_parallel_type should not exist in the persist file]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [slave_parallel_type should have source COMMAND_LINE in P_S.variables_info]
-include/assert.inc [slave_parallel_type should not exist in P_S.persisted_variables]
-include/assert.inc [slave_parallel_type should not exist in the persist file]
 sysvar:
 - name=replica_parallel_workers
 - alias=slave_parallel_workers

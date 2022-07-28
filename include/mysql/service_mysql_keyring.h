@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
   This service allows plugins to interact with key store backends.
 
   A key currently is a blob of binary data, defined by a string
-  key type, that's meanigfull to the relevant backend.
+  key type, that's meaningful to the relevant backend.
   Typical key_type values include "AES", "DES", "DSA" etc.
   There's no length in the type, since it's defined by the number of bytes
   the key takes.

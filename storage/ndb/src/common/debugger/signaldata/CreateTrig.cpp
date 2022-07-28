@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,12 @@
 bool
 printCREATE_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateTrigReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateTrigReq* sig = (const CreateTrigReq*)theData;
   const Uint32 triggerType =
     TriggerInfo::getTriggerType(sig->triggerInfo);
@@ -95,6 +101,12 @@ printCREATE_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printCREATE_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateTrigConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateTrigConf* sig = (const CreateTrigConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %x", sig->clientData);
@@ -111,7 +123,13 @@ printCREATE_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printCREATE_TRIG_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const CreateTrigRef* sig = (CreateTrigRef*)theData;
+  if (len < CreateTrigRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const CreateTrigRef* sig = (const CreateTrigRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);

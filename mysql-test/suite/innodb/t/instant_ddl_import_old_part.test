@@ -1,0 +1,217 @@
+#############################################################################
+# Test script to test EXPORT/IMPORT for a partitioned table in older version
+# having INSTANT ADD columns.
+#
+# CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) row_format=COMPACT
+#                 PARTITION BY RANGE(c1 * 2)
+#                 (PARTITION p0 VALUES LESS THAN (128),
+#                  PARTITION p1 VALUES LESS THAN (256),
+#                  PARTITION p2 VALUES LESS THAN (384),
+#                  PARTITION p3 VALUES LESS THAN MAXVALUE);
+# INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
+# ALTER TABLE t1 ADD COLUMN c5 CHAR(20) default "c5_def", ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES(300, 400, 500, "xxxxxx", "r4c5") ;
+#############################################################################
+
+--source include/have_innodb_16k.inc
+
+--write_file $MYSQLTEST_VARDIR/tmp/import.inc EOF
+  ALTER TABLE t1 discard tablespace;
+  --copy_files_wildcard $MYSQL_TMP_DIR/$src_dir/ $MYSQLD_DATADIR/test/ t1*.cfg
+  --copy_files_wildcard $MYSQL_TMP_DIR/$src_dir/ $MYSQLD_DATADIR/test/ t1*.ibd
+  --error $error_num
+  ALTER TABLE t1 IMPORT TABLESPACE;
+EOF
+
+let MYSQLD_DATADIR = `SELECT @@datadir`;
+let $DATADIR = `SELECT @@datadir`;
+
+--echo # ------------------------------------------------------------
+--echo # Exported table t1 (in older version) having
+--echo #     c1 INT, c2 INT, c3 INT, c4 TEXT normal columns
+--echo #     c5 char(20) INSTANT ADD column with default def_c5.
+--echo #       +------+------+------+---------+--------+
+--echo #       | c1   | c2   | c3   | c4      | c5     |
+--echo #       +------+------+------+---------+--------+
+--echo #       |    1 |    2 |    3 | abcdefg | c5_def |
+--echo #       |  100 |  200 |  300 | qwerty  | c5_def |
+--echo #       |  200 |  300 |  400 | asdfg   | c5_def |
+--echo #       |  300 |  400 |  500 | xxxxxx  | r4c5   |
+--echo #       +------+------+------+---------+--------+
+--echo # ------------------------------------------------------------
+
+--echo # Copy and unzip the ibd/cfg files.
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/old_instant_part_comp.zip $MYSQL_TMP_DIR/old_instant_part_comp.zip
+--file_exists $MYSQL_TMP_DIR/old_instant_part_comp.zip
+--exec unzip -qo $MYSQL_TMP_DIR/old_instant_part_comp.zip -d $MYSQL_TMP_DIR
+--echo # listing MYSQL_TMP_DIR/old_instant_part_comp
+--list_files $MYSQL_TMP_DIR/old_instant_part_comp
+--let $src_dir = old_instant_part_comp
+
+--echo # ------------------------------------------------------------
+--echo # Scenario 1 : No INSTANT ADD/DROP Columns in target table
+--echo # ------------------------------------------------------------
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT, c5 char(20)) row_format=compact
+                 PARTITION BY RANGE(c1 * 2)
+                 (PARTITION p0 VALUES LESS THAN (128),
+                  PARTITION p1 VALUES LESS THAN (256),
+                  PARTITION p2 VALUES LESS THAN (384),
+                  PARTITION p3 VALUES LESS THAN MAXVALUE);
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # IMPORT
+--let $error_num=0
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+SELECT * FROM t1 ORDER BY c1;
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # Cleanup
+DROP TABLE t1;
+
+--echo # ------------------------------------------------------------
+--echo # Scenario 2 : No INSTANT ADD/DROP. Column mismatch
+--echo # ------------------------------------------------------------
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT, c5 char(10)) row_format=compact
+                 PARTITION BY RANGE(c1 * 2)
+                 (PARTITION p0 VALUES LESS THAN (128),
+                  PARTITION p1 VALUES LESS THAN (256),
+                  PARTITION p2 VALUES LESS THAN (384),
+                  PARTITION p3 VALUES LESS THAN MAXVALUE);
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # IMPORT
+--let $error_num=1808
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+--echo # Cleanup
+--remove_files_wildcard $DATADIR/test/ t1*
+DROP TABLE t1;
+
+--echo # ------------------------------------------------------------
+--echo # Scenario 3 : INSTANT ADD/DROP Columns in target table
+--echo # ------------------------------------------------------------
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) row_format=compact
+                 PARTITION BY RANGE(c1 * 2)
+                 (PARTITION p0 VALUES LESS THAN (128),
+                  PARTITION p1 VALUES LESS THAN (256),
+                  PARTITION p2 VALUES LESS THAN (384),
+                  PARTITION p3 VALUES LESS THAN MAXVALUE);
+ALTER TABLE t1 ADD COLUMN c5 char(20) DEFAULT "c5_def";
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # IMPORT
+--let $error_num=1808
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+--echo # Cleanup
+--remove_files_wildcard $DATADIR/test/ t1*
+DROP TABLE t1;
+
+--echo # ------------------------------------------------------------
+--echo # Scenario 4 : INSTANT ADD/DROP. Column mismatch
+--echo # ------------------------------------------------------------
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) row_format=compact
+                 PARTITION BY RANGE(c1 * 2)
+                 (PARTITION p0 VALUES LESS THAN (128),
+                  PARTITION p1 VALUES LESS THAN (256),
+                  PARTITION p2 VALUES LESS THAN (384),
+                  PARTITION p3 VALUES LESS THAN MAXVALUE);
+ALTER TABLE t1 ADD COLUMN c5 char(10) DEFAULT "c5_def";
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # IMPORT
+--let $error_num=1808
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+--echo # Cleanup
+--remove_files_wildcard $DATADIR/test/ t1*
+DROP TABLE t1;
+
+--echo # ------------------------------------------------------------
+--echo # Scenario 5 : INSTANT ADD/DROP. Default value mismatch
+--echo # ------------------------------------------------------------
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) row_format=compact
+                 PARTITION BY RANGE(c1 * 2)
+                 (PARTITION p0 VALUES LESS THAN (128),
+                  PARTITION p1 VALUES LESS THAN (256),
+                  PARTITION p2 VALUES LESS THAN (384),
+                  PARTITION p3 VALUES LESS THAN MAXVALUE);
+ALTER TABLE t1 ADD COLUMN c5 char(20) DEFAULT "def_c5";
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # IMPORT
+--let $error_num=1808
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+--echo # Cleanup
+DROP TABLE t1;
+--remove_files_wildcard $DATADIR/test/ t1*
+--force-rmdir $MYSQL_TMP_DIR/old_instant_part_comp
+--remove_file $MYSQL_TMP_DIR/old_instant_part_comp.zip
+
+--echo # --------------------------------------------------------------
+--echo # Scenario 6 : Table with INSTANT ADD and reorganized partitions
+--echo # --------------------------------------------------------------
+# Following is the table definition EXPORTED from old INSTANT ADD
+#
+#   CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT KEY, c1 char(10), c2 char(10)) 
+#    PARTITION BY RANGE(id) (
+#     PARTITION p0 VALUES LESS THAN (100),
+#     PARTITION p1 VALUES LESS THAN (200),
+#     PARTITION p2 VALUES LESS THAN MAXVALUE);
+#
+#   Insert into t1(c1, c2) values ("r1c1", "r1c2");
+#   Alter table t1 add column c3 char (10) default "c3_def", algorithm=instant;
+#   Insert into t1 (c1,c2,c3) values ("r2c1", "r2c2", "r2c3");
+#   ALTER TABLE t1 reorganize partition p1 into (partition p1_1 values less than (150), partition p1_2 values less than(200));
+
+--echo # Copy and unzip the ibd/cfg files.
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/old_instant_reorg_part_comp.zip $MYSQL_TMP_DIR/old_instant_reorg_part_comp.zip
+--file_exists $MYSQL_TMP_DIR/old_instant_reorg_part_comp.zip
+--exec unzip -qo $MYSQL_TMP_DIR/old_instant_reorg_part_comp.zip -d $MYSQL_TMP_DIR
+--echo # listing MYSQL_TMP_DIR/old_instant_reorg_part_comp
+--list_files $MYSQL_TMP_DIR/old_instant_reorg_part_comp
+--let $src_dir = old_instant_reorg_part_comp
+
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT KEY, c1 char(10), c2 char(10), c3 char(10)) 
+  PARTITION BY RANGE(id) (
+   PARTITION p0 VALUES LESS THAN (100),
+   PARTITION p1_1 VALUES LESS THAN (150),
+   PARTITION p1_2 VALUES LESS THAN (200),
+   PARTITION p2 VALUES LESS THAN MAXVALUE);
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # IMPORT
+--let $error_num=0
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+SELECT * FROM t1 ORDER BY c1;
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # Cleanup
+DROP TABLE t1;
+--remove_files_wildcard $DATADIR/test/ t1*
+--force-rmdir $MYSQL_TMP_DIR/old_instant_reorg_part_comp
+--remove_file $MYSQL_TMP_DIR/old_instant_reorg_part_comp.zip
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+--remove_file $MYSQLTEST_VARDIR/tmp/import.inc

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
-#include "mysql_session.h"
 #include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/mysql_session.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
@@ -144,7 +144,7 @@ class MetadataHttpAuthTest : public RouterComponentTest {
   auto &launch_router(
       const std::string &metadata_cache_section,
       const int expected_errorcode = EXIT_SUCCESS,
-      const std::chrono::milliseconds wait_for_notify_ready = 5s) {
+      const std::chrono::milliseconds wait_for_notify_ready = 30s) {
     const std::string &temp_test_dir_str = temp_test_dir.name();
 
     const auto &routing_section =
@@ -480,10 +480,18 @@ class FileAuthBackendWithMetadataAuthSettings : public MetadataHttpAuthTest {
 };
 
 TEST_F(FileAuthBackendWithMetadataAuthSettings, MixedBackendSettings) {
+  ProcessWrapper::OutputResponder responder{
+      [](const std::string &line) -> std::string {
+        if (line == "Please enter password: ")
+          return std::string(kRestApiPassword) + "\n";
+
+        return "";
+      }};
+
   auto &cmd = launch_command(
       ProcessManager::get_origin().join("mysqlrouter_passwd").str(),
-      {"set", passwd_file.str(), kRestApiUsername}, EXIT_SUCCESS, true);
-  cmd.register_response("Please enter password", "password\n");
+      {"set", passwd_file.str(), kRestApiUsername}, EXIT_SUCCESS, true, -1ms,
+      responder);
   EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
 
   set_mock_metadata({}, cluster_http_port, cluster_id, cluster_node_port, false,

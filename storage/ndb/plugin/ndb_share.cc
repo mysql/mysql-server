@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,70 +68,63 @@ static inline void format_key(char *buf, size_t buf_size, const char *db_name,
                        ndb_name_is_temp(table_name) ? FN_IS_TMP : 0);
 }
 
+NDB_SHARE::NDB_SHARE(const char *key_arg) {
+  /* Allocates enough space for key, db, and table_name */
+  key = NDB_SHARE::create_key(key_arg);
+
+  db = NDB_SHARE::key_get_db_name(key);
+  table_name = NDB_SHARE::key_get_table_name(key);
+
+  thr_lock_init(&lock);
+  mysql_mutex_init(PSI_INSTRUMENT_ME, &mutex, MY_MUTEX_INIT_FAST);
+
+#ifndef NDEBUG
+  refs = new Ndb_share_references();
+#endif
+
+  // Turn on special flag for mysql.ndb_apply_status table
+  if (strcmp(db, "mysql") == 0 && strcmp(table_name, "ndb_apply_status") == 0) {
+    DBUG_PRINT("info", ("Setting FLAG_TABLE_IS_APPLY_STATUS"));
+    flags |= FLAG_TABLE_IS_APPLY_STATUS;
+  }
+
+  // Initialize to preserve same behaviour as zerofilling malloc
+  // in prior versions
+  tuple_id_range.m_first_tuple_id = 0;
+  tuple_id_range.m_last_tuple_id = 0;
+  tuple_id_range.m_highest_seen = 0;
+}
+
 NDB_SHARE *NDB_SHARE::create(const char *key) {
   if (DBUG_EVALUATE_IF("ndb_share_create_fail1", true, false)) {
     // Simulate failure to create NDB_SHARE
     return nullptr;
   }
 
-  NDB_SHARE *share;
-  if (!(share = (NDB_SHARE *)my_malloc(PSI_INSTRUMENT_ME, sizeof(*share),
-                                       MYF(MY_WME | MY_ZEROFILL))))
-    return nullptr;
-
-  share->flags = 0;
-  share->state = NSS_INITIAL;
-
-  /* Allocates enough space for key, db, and table_name */
-  share->key = NDB_SHARE::create_key(key);
-
-  share->db = NDB_SHARE::key_get_db_name(share->key);
-  share->table_name = NDB_SHARE::key_get_table_name(share->key);
-
-  thr_lock_init(&share->lock);
-  mysql_mutex_init(PSI_INSTRUMENT_ME, &share->mutex, MY_MUTEX_INIT_FAST);
-
-  share->m_cfn_share = nullptr;
-
-  share->op = nullptr;
-
-#ifndef NDEBUG
-  assert(share->m_use_count == 0);
-  share->refs = new Ndb_share_references();
-#endif
-
-  share->inplace_alter_new_table_def = nullptr;
-
-  // Turn on special flag for mysql.ndb_apply_status table
-  if (strcmp(share->db, "mysql") == 0 &&
-      strcmp(share->table_name, "ndb_apply_status") == 0) {
-    DBUG_PRINT("info", ("Setting FLAG_TABLE_IS_APPLY_STATUS"));
-    share->flags |= FLAG_TABLE_IS_APPLY_STATUS;
-  }
-
-  return share;
+  return new (std::nothrow) NDB_SHARE(key);
 }
 
-void NDB_SHARE::destroy(NDB_SHARE *share) {
-  thr_lock_delete(&share->lock);
-  mysql_mutex_destroy(&share->mutex);
+NDB_SHARE::~NDB_SHARE() {
+  thr_lock_delete(&lock);
+  mysql_mutex_destroy(&mutex);
 
   // ndb_index_stat_free() should have cleaned up:
-  assert(share->index_stat_list == NULL);
+  assert(index_stat_list == nullptr);
 
-  teardown_conflict_fn(g_ndb, share->m_cfn_share);
+  teardown_conflict_fn(g_ndb, m_cfn_share);
 
 #ifndef NDEBUG
-  assert(share->m_use_count == 0);
-  assert(share->refs->check_empty());
-  delete share->refs;
+  assert(m_use_count == 0);
+  assert(refs->check_empty());
+  delete refs;
 #endif
 
   // Release memory for the variable length strings held by
   // key but also referenced by db, table_name and shadow_table->db etc.
-  free_key(share->key);
-  my_free(share);
+  free_key(key);
 }
+
+void NDB_SHARE::destroy(NDB_SHARE *share) { delete share; }
 
 /*
   Struct holding dynamic length strings for NDB_SHARE. The type is
@@ -836,23 +829,4 @@ bool NDB_SHARE::install_event_op(NdbEventOperation *new_op, bool replace_op) {
 
   op = new_op;
   return true;
-}
-
-void NDB_SHARE::update_cached_row_count(int changed_rows) {
-  if (changed_rows == 0) {
-    // Nothing to do
-    return;
-  }
-
-  mysql_mutex_lock(&mutex);
-  DBUG_PRINT("info", ("Update cached row count %llu for table '%s' with: %d",
-                      cached_table_stats.row_count, table_name, changed_rows));
-
-  cached_table_stats.row_count =
-      // Check for underflow
-      ((Int64)cached_table_stats.row_count + changed_rows > 0)
-          ? cached_table_stats.row_count + changed_rows
-          : 0;  // All rows gone
-
-  mysql_mutex_unlock(&mutex);
 }

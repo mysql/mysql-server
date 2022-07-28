@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef STATICSLOTPOOL_HPP
 #define STATICSLOTPOOL_HPP
 
+#include "util/require.h"
 #include "debugger/EventLogger.hpp"
 #include "portlib/ndb_prefetch.h"
 #include "vm/IntrusiveList.hpp"
@@ -105,7 +106,7 @@ class StaticSlotPool::Page
 
   static void static_asserts()
   {
-    NDB_STATIC_ASSERT(sizeof(Page) == WORDS_PER_PAGE * sizeof(Uint32));
+    static_assert(sizeof(Page) == WORDS_PER_PAGE * sizeof(Uint32));
   }
 };
 

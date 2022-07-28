@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_histogram.h"
 #include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_name.h"
 #include "storage/perfschema/pfs_stat.h"
 
 extern bool flag_statements_digest;
@@ -49,9 +50,8 @@ struct PFS_thread;
   Structure to store a hash value (digest) for a statement.
 */
 struct PFS_digest_key {
+  PFS_schema_name m_schema_name;
   unsigned char m_hash[DIGEST_HASH_SIZE];
-  char m_schema_name[NAME_LEN];
-  uint m_schema_name_length;
 };
 
 /** A statement digest stat record. */

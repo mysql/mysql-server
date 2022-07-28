@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -450,12 +450,12 @@ void ut_list_remove(List &list, typename List::elem_type *elem) {
 #define UT_LIST_GET_LAST(BASE) (BASE).last_element
 
 struct NullValidate {
-  void operator()(const void *elem) {}
+  void operator()(const void *) {}
 };
 
 /** Iterate over all the elements and call the functor for each element.
- @param[in]	list	base node (not a pointer to it)
- @param[in,out]	functor	Functor that is called for each element in the list */
+ @param[in]     list    base node (not a pointer to it)
+ @param[in,out] functor Functor that is called for each element in the list */
 template <typename List, class Functor>
 void ut_list_map(const List &list, Functor &functor) {
   size_t count = 0;
@@ -485,8 +485,8 @@ void ut_list_reverse(List &list) {
 #define UT_LIST_REVERSE(LIST) ut_list_reverse(LIST)
 
 /** Checks the consistency of a two-way list.
- @param[in]		list base node (not a pointer to it)
- @param[in,out]		functor Functor that is called for each element in
+ @param[in]             list base node (not a pointer to it)
+ @param[in,out]         functor Functor that is called for each element in
  the list */
 template <typename List, class Functor>
 void ut_list_validate(const List &list, Functor &functor) {
@@ -511,8 +511,8 @@ void ut_list_validate(const List &list, Functor &functor) {
   } while (0)
 
 /** Move the given element to the beginning of the list.
-@param[in,out]	list	the list object
-@param[in]	elem	the element of the list which will be moved
+@param[in,out]  list    the list object
+@param[in]      elem    the element of the list which will be moved
                         to the beginning of the list. */
 template <typename List>
 void ut_list_move_to_front(List &list, typename List::elem_type *elem) {
@@ -526,8 +526,8 @@ void ut_list_move_to_front(List &list, typename List::elem_type *elem) {
 
 #ifdef UNIV_DEBUG
 /** Check if the given element exists in the list.
-@param[in,out]	list	the list object
-@param[in]	elem	the element of the list which will be checked */
+@param[in,out]  list    the list object
+@param[in]      elem    the element of the list which will be checked */
 template <typename List>
 bool ut_list_exists(List &list, typename List::elem_type *elem) {
   ut_ad(UT_LIST_IS_INITIALISED(list));

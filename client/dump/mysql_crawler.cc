@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ void Mysql_crawler::enumerate_objects() {
 
     std::optional<std::string> stmt = this->get_create_statement(
         runner, "", db_name, "DATABASE IF NOT EXISTS");
-    if (!stmt.has_value()) continue;  // some error ocurred
+    if (!stmt.has_value()) continue;  // some error occurred
 
     Database *database =
         new Database(this->generate_new_object_id(), db_name, stmt.value());
@@ -202,6 +202,12 @@ void Mysql_crawler::enumerate_tables(const Database &db) {
   Mysql::Tools::Base::Mysql_query_runner *runner = this->get_runner();
 
   if (!runner) return;
+
+  if (m_mysqldump_tool_cmaker_options->m_object_reader_options->m_skip_gipk)
+    runner->run_query(
+        "/*!80030 SET SESSION "
+        "show_gipk_in_create_table_and_information_schema = OFF */");
+
   /*
     Get statistics from SE by setting information_schema_stats_expiry=0.
     This makes the queries IS queries retrieve latest
@@ -275,7 +281,7 @@ void Mysql_crawler::enumerate_tables(const Database &db) {
     bool isInnoDB = table_data[1] == "InnoDB";         // "Engine"
     std::optional<std::string> stmt =
         this->get_create_statement(runner, db.get_name(), table_name, "TABLE");
-    if (!stmt.has_value()) continue;  // some error ocurred
+    if (!stmt.has_value()) continue;  // some error occurred
     Table *table = new Table(this->generate_new_object_id(), table_name,
                              db.get_name(), stmt.value(), fields, table_data[1],
                              rows, (uint64)(rows * (isInnoDB ? 1.5 : 1)),
@@ -306,6 +312,11 @@ void Mysql_crawler::enumerate_tables(const Database &db) {
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&tables);
   runner->run_query_store(
       "/*!80000 SET SESSION information_schema_stats_expiry=default */", &t);
+
+  if (m_mysqldump_tool_cmaker_options->m_object_reader_options->m_skip_gipk)
+    runner->run_query(
+        "/*!80030 SET SESSION "
+        "show_gipk_in_create_table_and_information_schema = default */");
   delete runner;
 }
 
@@ -390,7 +401,7 @@ void Mysql_crawler::enumerate_functions(const Database &db, std::string type) {
 
     std::optional<std::string> stmt = this->get_create_statement(
         runner, db.get_name(), function_row[1], type, 2);
-    if (!stmt.has_value())  // some error ocurred
+    if (!stmt.has_value())  // some error occurred
       break;
 
     TObject *function = new TObject(
@@ -431,7 +442,7 @@ void Mysql_crawler::enumerate_event_scheduler_events(const Database &db) {
     std::optional<std::string> stmt = this->get_create_statement(
         runner, db.get_name(), event_row[1], "EVENT", 3);
 
-    if (!stmt.has_value())  // some error ocurred
+    if (!stmt.has_value())  // some error occurred
       break;
 
     Event_scheduler_event *event = new Event_scheduler_event(
@@ -523,7 +534,7 @@ void Mysql_crawler::enumerate_table_triggers(const Table &table,
     const Mysql::Tools::Base::Mysql_query_runner::Row &trigger_row = **it;
     std::optional<std::string> stmt = this->get_create_statement(
         runner, table.get_schema(), trigger_row[0], "TRIGGER", 2);
-    if (!stmt.has_value())  // some error occured
+    if (!stmt.has_value())  // some error occurred
       break;
     Trigger *trigger = new Trigger(
         this->generate_new_object_id(), trigger_row[0], table.get_schema(),

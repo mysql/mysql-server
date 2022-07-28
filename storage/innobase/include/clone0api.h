@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,89 +37,89 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/handler.h"
 
 /** Get capability flags for clone operation
-@param[out]	flags	capability flag */
+@param[out]     flags   capability flag */
 void innodb_clone_get_capability(Ha_clone_flagset &flags);
 
 /** Begin copy from source database
-@param[in]	hton	handlerton for SE
-@param[in]	thd	server thread handle
-@param[in,out]	loc	locator
-@param[in,out]	loc_len	locator length
-@param[out]	task_id	task identifier
-@param[in]	type	clone type
-@param[in]	mode	mode for starting clone
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in,out]  loc     locator
+@param[in,out]  loc_len locator length
+@param[out]     task_id task identifier
+@param[in]      type    clone type
+@param[in]      mode    mode for starting clone
 @return error code */
 int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
                        uint &loc_len, uint &task_id, Ha_clone_type type,
                        Ha_clone_mode mode);
 
 /** Copy data from source database in chunks via callback
-@param[in]	hton	handlerton for SE
-@param[in]	thd	server thread handle
-@param[in]	loc	locator
-@param[in]	loc_len	locator length in bytes
-@param[in]	task_id	task identifier
-@param[in]	cbk	callback interface for sending data
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in]      loc     locator
+@param[in]      loc_len locator length in bytes
+@param[in]      task_id task identifier
+@param[in]      cbk     callback interface for sending data
 @return error code */
 int innodb_clone_copy(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
                       uint task_id, Ha_clone_cbk *cbk);
 
 /** Acknowledge data to source database
-@param[in]	hton	handlerton for SE
-@param[in]	thd	server thread handle
-@param[in]	loc	locator
-@param[in]	loc_len	locator length in bytes
-@param[in]	task_id	task identifier
-@param[in]	in_err	inform any error occurred
-@param[in]	cbk	callback interface for receiving data
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in]      loc     locator
+@param[in]      loc_len locator length in bytes
+@param[in]      task_id task identifier
+@param[in]      in_err  inform any error occurred
+@param[in]      cbk     callback interface for receiving data
 @return error code */
 int innodb_clone_ack(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
                      uint task_id, int in_err, Ha_clone_cbk *cbk);
 
 /** End copy from source database
-@param[in]	hton	handlerton for SE
-@param[in]	thd	server thread handle
-@param[in]	loc	locator
-@param[in]	loc_len	locator length in bytes
-@param[in]	task_id	task identifier
-@param[in]	in_err	error code when ending after error
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in]      loc     locator
+@param[in]      loc_len locator length in bytes
+@param[in]      task_id task identifier
+@param[in]      in_err  error code when ending after error
 @return error code */
 int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
                      uint task_id, int in_err);
 
 /** Begin apply to destination database
-@param[in]	hton		handlerton for SE
-@param[in]	thd		server thread handle
-@param[in,out]	loc		locator
-@param[in,out]	loc_len		locator length
-@param[out]	task_id		task identifier
-@param[in]	mode		mode for starting clone
-@param[in]	data_dir	target data directory
+@param[in]      hton            handlerton for SE
+@param[in]      thd             server thread handle
+@param[in,out]  loc             locator
+@param[in,out]  loc_len         locator length
+@param[out]     task_id         task identifier
+@param[in]      mode            mode for starting clone
+@param[in]      data_dir        target data directory
 @return error code */
 int innodb_clone_apply_begin(handlerton *hton, THD *thd, const byte *&loc,
                              uint &loc_len, uint &task_id, Ha_clone_mode mode,
                              const char *data_dir);
 
 /** Apply data to destination database in chunks via callback
-@param[in]	hton	handlerton for SE
-@param[in]	thd	server thread handle
-@param[in]	loc	locator
-@param[in]	loc_len	locator length in bytes
-@param[in]	task_id	task identifier
-@param[in]	in_err	inform any error occurred
-@param[in]	cbk	callback interface for receiving data
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in]      loc     locator
+@param[in]      loc_len locator length in bytes
+@param[in]      task_id task identifier
+@param[in]      in_err  inform any error occurred
+@param[in]      cbk     callback interface for receiving data
 @return error code */
 int innodb_clone_apply(handlerton *hton, THD *thd, const byte *loc,
                        uint loc_len, uint task_id, int in_err,
                        Ha_clone_cbk *cbk);
 
 /** End apply to destination database
-@param[in]	hton	handlerton for SE
-@param[in]	thd	server thread handle
-@param[in]	loc	locator
-@param[in]	loc_len	locator length in bytes
-@param[in]	task_id	task identifier
-@param[in]	in_err	error code when ending after error
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in]      loc     locator
+@param[in]      loc_len locator length in bytes
+@param[in]      task_id task identifier
+@param[in]      in_err  error code when ending after error
 @return error code */
 int innodb_clone_apply_end(handlerton *hton, THD *thd, const byte *loc,
                            uint loc_len, uint task_id, int in_err);
@@ -128,13 +128,13 @@ int innodb_clone_apply_end(handlerton *hton, THD *thd, const byte *loc,
 void clone_init_list_files();
 
 /** Add file name to clone list file for future replacement or rollback.
-@param[in]	list_file_name	list file name where to add the file
-@param[in]	file_name	file name to add to the list
+@param[in]      list_file_name  list file name where to add the file
+@param[in]      file_name       file name to add to the list
 @return error code */
 int clone_add_to_list_file(const char *list_file_name, const char *file_name);
 
 /** Remove one of the clone list files.
-@param[in]	file_name	list file name to delete */
+@param[in]      file_name       list file name to delete */
 void clone_remove_list_file(const char *file_name);
 
 /** Revert back clone changes in case of an error. */
@@ -142,16 +142,16 @@ void clone_files_error();
 
 #ifdef UNIV_DEBUG
 /** Debug function to check and crash during recovery.
-@param[in]	is_cloned_db	if cloned database recovery */
+@param[in]      is_cloned_db    if cloned database recovery */
 bool clone_check_recovery_crashpoint(bool is_cloned_db);
 #endif
 
 /** Change cloned file states during recovery.
-@param[in]	finished	if recovery is finishing */
+@param[in]      finished        if recovery is finishing */
 void clone_files_recovery(bool finished);
 
 /** Update cloned GTIDs to recovery status file.
-@param[in]	gtids	cloned GTIDs */
+@param[in]      gtids   cloned GTIDs */
 void clone_update_gtid_status(std::string &gtids);
 
 /** Initialize Clone system
@@ -209,9 +209,9 @@ class Clone_notify {
   ~Clone_notify() {}
 #else
   /** Constructor to initiate notification.
-  @param[in]	type	notification type
-  @param[in]	space	tablespace ID for which notification is sent
-  @param[in]	no_wait	set error and return immediately if needs to wait */
+  @param[in]    type    notification type
+  @param[in]    space   tablespace ID for which notification is sent
+  @param[in]    no_wait set error and return immediately if needs to wait */
   Clone_notify(Type type, space_id_t space, bool no_wait);
 
   /** Destructor to automatically end notification. */
@@ -219,8 +219,8 @@ class Clone_notify {
 #endif /* UNIV_HOTBACKUP */
 
   /** Get notification message for printing.
-  @param[in]	begin	 true if notification begin otherwise end
-  @param[out]	mesg	notification message */
+  @param[in]    begin    true if notification begin otherwise end
+  @param[out]   mesg    notification message */
   void get_mesg(bool begin, std::string &mesg);
 
   /** @return true iff notification failed. */

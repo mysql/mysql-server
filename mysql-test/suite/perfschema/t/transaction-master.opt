@@ -1,2 +1,3 @@
 --loose-gtid-mode=on
 --loose-enforce-gtid-consistency
+--xa_detach_on_prepare=off

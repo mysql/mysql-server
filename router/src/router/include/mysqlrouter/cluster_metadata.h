@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef MYSQLROUTER_CLUSTER_METADATA_INCLUDED
 #define MYSQLROUTER_CLUSTER_METADATA_INCLUDED
+
+#include "mysqlrouter/router_export.h"
 
 #include <stdexcept>
 #include <string>
@@ -72,7 +74,7 @@ struct MetadataSchemaVersion {
   }
 };
 
-std::string to_string(const MetadataSchemaVersion &version);
+std::string ROUTER_LIB_EXPORT to_string(const MetadataSchemaVersion &version);
 
 // Semantic version numbers that this Router version supports for bootstrap mode
 constexpr MetadataSchemaVersion kRequiredBootstrapSchemaVersion[]{{1, 0, 0},
@@ -91,9 +93,10 @@ constexpr MetadataSchemaVersion kClusterSetsMetadataVersion{2, 1, 0};
 // Version that will be is set while the metadata is being updated
 constexpr MetadataSchemaVersion kUpgradeInProgressMetadataVersion{0, 0, 0};
 
-MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql);
+MetadataSchemaVersion ROUTER_LIB_EXPORT
+get_metadata_schema_version(MySQLSession *mysql);
 
-bool metadata_schema_version_is_compatible(
+bool ROUTER_LIB_EXPORT metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion &required,
     const mysqlrouter::MetadataSchemaVersion &available);
 
@@ -129,14 +132,16 @@ enum class ClusterType {
   RS_V2  /* ReplicaSet (metadata 2.x) */
 };
 
-ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
-                             MySQLSession *mysql, unsigned int router_id = 0);
+ClusterType ROUTER_LIB_EXPORT
+get_cluster_type(const MetadataSchemaVersion &schema_version,
+                 MySQLSession *mysql, unsigned int router_id = 0);
 
-std::string to_string(const ClusterType cluster_type);
+std::string ROUTER_LIB_EXPORT to_string(const ClusterType cluster_type);
 
 class MetadataUpgradeInProgressException : public std::exception {};
 
-stdx::expected<void, std::string> setup_metadata_session(MySQLSession &session);
+stdx::expected<void, std::string> ROUTER_LIB_EXPORT
+setup_metadata_session(MySQLSession &session);
 
 class TargetCluster {
  public:
@@ -153,16 +158,12 @@ class TargetCluster {
   const char *c_str() const { return target_value_.c_str(); }
 
   TargetType target_type() const { return target_type_; }
-  bool is_primary() const { return is_primary_; }
-  bool is_invalidated() const { return is_invalidated_; }
   InvalidatedClusterRoutingPolicy invalidated_cluster_routing_policy() const {
     return invalidated_cluster_routing_policy_;
   }
 
   void target_type(const TargetType value) { target_type_ = value; }
   void target_value(const std::string &value) { target_value_ = value; }
-  void is_primary(const bool value) { is_primary_ = value; }
-  void is_invalidated(const bool value) { is_invalidated_ = value; }
   void invalidated_cluster_routing_policy(
       const InvalidatedClusterRoutingPolicy value) {
     invalidated_cluster_routing_policy_ = value;
@@ -178,10 +179,6 @@ class TargetCluster {
   std::string target_value_;
   InvalidatedClusterRoutingPolicy invalidated_cluster_routing_policy_{
       InvalidatedClusterRoutingPolicy::DropAll};
-  // in case of ClusterSet is this Cluster a Primary
-  bool is_primary_{true};
-  // is the Cluster marked as invalid in the metadata
-  bool is_invalidated_{false};
 
   std::string options_string_{"{}"};
 };

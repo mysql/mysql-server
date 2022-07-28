@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <mutex>  // std::adopt_lock_t
 
 #include "libbinlogevents/include/compression/base.h"
+#include "libbinlogevents/include/gtids/global.h"
 #include "libbinlogevents/include/uuid.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
@@ -96,14 +97,15 @@ class THD;
 
 /// Type of SIDNO (source ID number, first component of GTID)
 typedef int rpl_sidno;
-/// Type of GNO, the second (numeric) component of GTID
-typedef std::int64_t rpl_gno;
+/// GNO, the second (numeric) component of a GTID, is an alias of
+/// binary_log::gtids::gno_t
+using rpl_gno = binary_log::gtids::gno_t;
 typedef int64 rpl_binlog_pos;
 
 /**
   Generic return type for many functions that can succeed or fail.
 
-  This is used in conjuction with the macros below for functions where
+  This is used in conjunction with the macros below for functions where
   the return status either indicates "success" or "failure".  It
   provides the following features:
 
@@ -326,7 +328,7 @@ class Checkable_rwlock {
   /// Destroy this Checkable_lock.
   ~Checkable_rwlock() { mysql_rwlock_destroy(&m_rwlock); }
 
-  enum enum_lock_type { NO_LOCK, READ_LOCK, WRITE_LOCK };
+  enum enum_lock_type { NO_LOCK, READ_LOCK, WRITE_LOCK, TRY_READ_LOCK };
 
   /**
     RAII class to acquire a lock for the duration of a block.
@@ -349,6 +351,9 @@ class Checkable_rwlock {
         case WRITE_LOCK:
           wrlock();
           break;
+        case TRY_READ_LOCK:
+          tryrdlock();
+          break;
         case NO_LOCK:
           break;
       }
@@ -368,6 +373,7 @@ class Checkable_rwlock {
         case WRITE_LOCK:
           lock.assert_some_wrlock();
           break;
+        case TRY_READ_LOCK:
         case NO_LOCK:
           break;
       }
@@ -408,6 +414,18 @@ class Checkable_rwlock {
       assert(m_lock_type == NO_LOCK);
       int ret = m_lock.trywrlock();
       if (ret == 0) m_lock_type = WRITE_LOCK;
+      return ret;
+    }
+
+    /**
+      Try to acquire a read lock, and fail if it cannot be
+      immediately granted.
+    */
+    int tryrdlock() {
+      DBUG_TRACE;
+      assert(m_lock_type == NO_LOCK);
+      int ret = m_lock.tryrdlock();
+      if (ret == 0) m_lock_type = READ_LOCK;
       return ret;
     }
 
@@ -1196,7 +1214,7 @@ struct Trx_monitoring_info {
   void copy_to_ps_table(Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
                         ulonglong *original_commit_ts_arg,
                         ulonglong *immediate_commit_ts_arg,
-                        ulonglong *start_time_arg);
+                        ulonglong *start_time_arg) const;
 
   /**
     Copies this transaction monitoring information to the output parameters
@@ -1216,7 +1234,8 @@ struct Trx_monitoring_info {
   void copy_to_ps_table(Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
                         ulonglong *original_commit_ts_arg,
                         ulonglong *immediate_commit_ts_arg,
-                        ulonglong *start_time_arg, ulonglong *end_time_arg);
+                        ulonglong *start_time_arg,
+                        ulonglong *end_time_arg) const;
 
   /**
     Copies this transaction monitoring information to the output parameters
@@ -1245,7 +1264,7 @@ struct Trx_monitoring_info {
       ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
       ulonglong *start_time_arg, uint *last_transient_errno_arg,
       char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
-      ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg);
+      ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const;
 
   /**
     Copies this transaction monitoring information to the output parameters
@@ -1281,7 +1300,7 @@ struct Trx_monitoring_info {
                         char *last_transient_errmsg_arg,
                         uint *last_transient_errmsg_length_arg,
                         ulonglong *last_transient_timestamp_arg,
-                        ulong *retries_count_arg);
+                        ulong *retries_count_arg) const;
 };
 
 /**
@@ -2430,7 +2449,7 @@ class Owned_gtids {
   */
   void remove_gtid(const Gtid &gtid, const my_thread_id owner);
   /**
-    Ensures that this Owned_gtids object can accomodate SIDNOs up to
+    Ensures that this Owned_gtids object can accommodate SIDNOs up to
     the given SIDNO.
 
     If this Owned_gtids object needs to be resized, then the lock
@@ -3035,8 +3054,8 @@ class Gtid_state {
     OFF_PERMISSIVE) for the THD, and acquires ownership.
 
     @param thd The thread.
-    @param specified_sidno Externaly generated sidno.
-    @param specified_gno   Externaly generated gno.
+    @param specified_sidno Externally generated sidno.
+    @param specified_gno   Externally generated gno.
     @param[in,out] locked_sidno This parameter should be used when there is
                                 a need of generating many GTIDs without having
                                 to acquire/release a sidno_lock many times.
@@ -3080,12 +3099,15 @@ class Gtid_state {
     @param sidno Sidno to wait for.
     @param[in] abstime The absolute point in time when the wait times
     out and stops, or NULL to wait indefinitely.
+    @param[in] update_thd_status when true updates the stage info with
+    the new wait condition, when false keeps the current stage info.
 
     @retval false Success.
     @retval true Failure: either timeout or thread was killed.  If
     thread was killed, the error has been generated.
   */
-  bool wait_for_sidno(THD *thd, rpl_sidno sidno, struct timespec *abstime);
+  bool wait_for_sidno(THD *thd, rpl_sidno sidno, struct timespec *abstime,
+                      bool update_thd_status = true);
   /**
     This is only a shorthand for wait_for_sidno, which contains
     additional debug printouts and assertions for the case when the
@@ -3100,12 +3122,15 @@ class Gtid_state {
     @param gtid_set Gtid_set to wait for.
     @param[in] timeout The maximum number of milliseconds that the
     function should wait, or 0 to wait indefinitely.
+    @param[in] update_thd_status when true updates the stage info with
+    the new wait condition, when false keeps the current stage info.
 
     @retval false Success.
     @retval true Failure: either timeout or thread was killed.  If
     thread was killed, the error has been generated.
    */
-  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, double timeout);
+  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, double timeout,
+                         bool update_thd_status = true);
 #endif  // ifdef MYSQL_SERVER
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
@@ -3142,7 +3167,7 @@ class Gtid_state {
   /**
     Adds the given Gtid_set to lost_gtids and executed_gtids.
     lost_gtids must be a subset of executed_gtids.
-    purged_gtid and executed_gtid sets are appened with the argument set
+    purged_gtid and executed_gtid sets are appended with the argument set
     provided the latter is disjoint with gtid_executed owned_gtids.
 
     Requires that the caller holds global_sid_lock.wrlock.

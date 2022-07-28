@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 class DestMetadataCacheGroup final
     : public RouteDestination,
       public metadata_cache::ClusterStateListenerInterface,
+      public metadata_cache::MetadataRefreshListenerInterface,
       public metadata_cache::AcceptorUpdateHandlerInterface {
  public:
   enum ServerRole { Primary, Secondary, PrimaryAndSecondary };
@@ -98,7 +99,7 @@ class DestMetadataCacheGroup final
   // get cache-api
   metadata_cache::MetadataCacheAPIBase *cache_api() { return cache_api_; }
 
-  stdx::expected<Destinations, void> refresh_destinations(
+  std::optional<Destinations> refresh_destinations(
       const Destinations &dests) override;
 
   Destinations primary_destinations();
@@ -146,16 +147,6 @@ class DestMetadataCacheGroup final
    */
   void init();
 
-  struct AvailableDestination {
-    AvailableDestination(mysql_harness::TCPAddress a, std::string i)
-        : address{std::move(a)}, id{std::move(i)} {}
-
-    mysql_harness::TCPAddress address;
-    std::string id;
-  };
-
-  using AvailableDestinations = std::vector<AvailableDestination>;
-
   /** @brief Gets available destinations from Metadata Cache
    *
    * This method gets the destinations using Metadata Cache information. It uses
@@ -166,14 +157,14 @@ class DestMetadataCacheGroup final
    * secondaries (false).
    *
    */
-  std::pair<AvailableDestinations, bool> get_available(
+  std::pair<AllowedNodes, bool> get_available(
       const metadata_cache::LookupResult &managed_servers,
       bool for_new_connections = true) const;
 
-  AvailableDestinations get_available_primaries(
+  AllowedNodes get_available_primaries(
       const metadata_cache::LookupResult &managed_servers) const;
 
-  Destinations balance(const AvailableDestinations &all_replicaset_nodes,
+  Destinations balance(const AllowedNodes &all_replicaset_nodes,
                        bool primary_fallback);
 
   routing::RoutingStrategy routing_strategy_;
@@ -193,6 +184,7 @@ class DestMetadataCacheGroup final
                            const bool md_servers_reachable);
   void subscribe_for_metadata_cache_changes();
   void subscribe_for_acceptor_handler();
+  void subscribe_for_md_refresh_handler();
 
   void notify_instances_changed(
       const metadata_cache::LookupResult &instances,
@@ -202,6 +194,9 @@ class DestMetadataCacheGroup final
 
   bool update_socket_acceptor_state(
       const metadata_cache::LookupResult &instances) noexcept override;
+
+  void on_md_refresh(const bool instances_changed,
+                     const metadata_cache::LookupResult &instances) override;
 
   // MUST take the RouteDestination Mutex
   size_t start_pos_{};

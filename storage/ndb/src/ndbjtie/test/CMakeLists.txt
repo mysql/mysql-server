@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -94,11 +94,6 @@ SET(MYJAPI_TEST_JAR
 SET(UNLOAD_TEST_DIR "${NDBJTIE_DIR}/jtie/test/unload")
 SET(UNLOAD_TEST_JAR
   "${UNLOAD_TEST_DIR}/jtie-test-unload-${JAVA_NDB_VERSION}.jar")
-
-IF(WITH_ASAN)
-  MESSAGE(STATUS "Skipping java tests for ASAN builds")
-  RETURN()
-ENDIF()
 
 # Needed on Windows, to find SSL .dlls at runtime.
 IF(WIN32)

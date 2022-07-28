@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @code
   char buf[1024]; // buffer must be big enough to store the digest
 
-  mysql_string_converter->convert_to_buffer(str, buf, sizeof(buf), "utf8");
+  mysql_string_converter->convert_to_buffer(str, buf, sizeof(buf), "utf8mb3");
   @endcode
 
   After the string content has been copied into another buffer, it must be

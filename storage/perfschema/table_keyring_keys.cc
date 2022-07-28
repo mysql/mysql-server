@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -188,7 +188,7 @@ static bool fetch_keys(std::vector<row_keyring_keys> &keyring_keys) {
       "mysql_keyring_native_key_id", plugin_registry);
 
   my_h_keyring_keys_metadata_iterator forward_iterator = nullptr;
-  if (keyring_keys_metadata_iterator->init(&forward_iterator) == true) {
+  if (keyring_keys_metadata_iterator->init(&forward_iterator) != 0) {
     mysql_plugin_registry_release(plugin_registry);
     return false;
   }
@@ -199,7 +199,7 @@ static bool fetch_keys(std::vector<row_keyring_keys> &keyring_keys) {
     memset(user_id, 0, KEYRING_ITEM_BUFFER_SIZE);
     if (keyring_keys_metadata_iterator->get(forward_iterator, key_id,
                                             KEYRING_ITEM_BUFFER_SIZE, user_id,
-                                            KEYRING_ITEM_BUFFER_SIZE) == true) {
+                                            KEYRING_ITEM_BUFFER_SIZE) != 0) {
       break;
     }
 

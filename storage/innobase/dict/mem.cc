@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -92,7 +92,7 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 {
   ut_ad(table);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-  ut_d(table->cached = FALSE);
+  ut_d(table->cached = false);
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
@@ -178,19 +178,10 @@ static bool dict_mem_table_is_system(const std::string name) {
   }
 }
 
-/** Creates a table memory object.
- @return own: table object */
-dict_table_t *dict_mem_table_create(
-    const char *name, /*!< in: table name */
-    space_id_t space, /*!< in: space where the clustered index of
-                      the table is placed */
-    ulint n_cols,     /*!< in: total number of columns including
-                      virtual and non-virtual columns */
-    ulint n_v_cols,   /*!< in: number of virtual columns */
-    ulint n_m_v_cols, /*!< in: number of multi-value virtual columns */
-    uint32_t flags,   /*!< in: table flags */
-    uint32_t flags2)  /*!< in: table flags2 */
-{
+dict_table_t *dict_mem_table_create(const char *name, space_id_t space,
+                                    ulint n_cols, ulint n_v_cols,
+                                    ulint n_m_v_cols, uint32_t flags,
+                                    uint32_t flags2, uint32_t n_drop_cols) {
   dict_table_t *table;
   mem_heap_t *heap;
 
@@ -200,7 +191,7 @@ dict_table_t *dict_mem_table_create(
   ut_a(!(flags2 & DICT_TF2_UNUSED_BIT_MASK));
 #endif /* !UNIV_HOTBACKUP */
 
-  heap = mem_heap_create(DICT_HEAP_SIZE);
+  heap = mem_heap_create(DICT_HEAP_SIZE, UT_LOCATION_HERE);
 
   table = static_cast<dict_table_t *>(mem_heap_zalloc(heap, sizeof(*table)));
 
@@ -229,7 +220,7 @@ dict_table_t *dict_mem_table_create(
   table->n_instant_cols = table->n_cols;
 
   table->cols = static_cast<dict_col_t *>(
-      mem_heap_alloc(heap, table->n_cols * sizeof(dict_col_t)));
+      mem_heap_alloc(heap, (table->n_cols + n_drop_cols) * sizeof(dict_col_t)));
   table->v_cols = static_cast<dict_v_col_t *>(
       mem_heap_alloc(heap, n_v_cols * sizeof(*table->v_cols)));
 
@@ -266,7 +257,7 @@ dict_table_t *dict_mem_table_create(
   }
 
   if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-    dict_get_and_save_space_name(table, true);
+    dict_get_and_save_space_name(table);
   }
 
   new (&table->foreign_set) dict_foreign_set();
@@ -297,7 +288,7 @@ dict_index_t *dict_mem_index_create(
 
   ut_ad(table_name && index_name);
 
-  heap = mem_heap_create(DICT_HEAP_SIZE);
+  heap = mem_heap_create(DICT_HEAP_SIZE, UT_LOCATION_HERE);
 
   index = static_cast<dict_index_t *>(mem_heap_zalloc(heap, sizeof(*index)));
 
@@ -326,7 +317,8 @@ dict_index_t *dict_mem_index_create(
 /** Adds a column definition to a table. */
 void dict_mem_table_add_col(dict_table_t *table, mem_heap_t *heap,
                             const char *name, ulint mtype, ulint prtype,
-                            ulint len, bool is_visible) {
+                            ulint len, bool is_visible, uint32_t phy_pos,
+                            uint8_t v_added, uint8_t v_dropped) {
   dict_col_t *col;
   ulint i;
 
@@ -341,7 +333,7 @@ void dict_mem_table_add_col(dict_table_t *table, mem_heap_t *heap,
   table->n_t_def++;
 
   if (name) {
-    if (table->n_def == table->n_cols) {
+    if (table->n_def == (table->n_cols + table->get_n_instant_drop_cols())) {
       heap = table->heap;
     }
     if (i && !table->col_names) {
@@ -356,13 +348,14 @@ void dict_mem_table_add_col(dict_table_t *table, mem_heap_t *heap,
 
   col = table->get_col(i);
 
-  dict_mem_fill_column_struct(col, i, mtype, prtype, len, is_visible);
+  dict_mem_fill_column_struct(col, i, mtype, prtype, len, is_visible, phy_pos,
+                              v_added, v_dropped);
 }
 
-/** This function populates a dict_col_t memory structure with
-supplied information. */
 void dict_mem_fill_column_struct(dict_col_t *column, ulint col_pos, ulint mtype,
-                                 ulint prtype, ulint col_len, bool is_visible) {
+                                 ulint prtype, ulint col_len, bool is_visible,
+                                 uint32_t phy_pos, uint8_t v_added,
+                                 uint8_t v_dropped) {
   column->ind = (unsigned int)col_pos;
   column->ord_part = 0;
   column->max_prefix = 0;
@@ -371,6 +364,9 @@ void dict_mem_fill_column_struct(dict_col_t *column, ulint col_pos, ulint mtype,
   column->len = (unsigned int)col_len;
   column->instant_default = nullptr;
   column->is_visible = is_visible;
+  column->set_phy_pos(phy_pos);
+  column->set_version_added(v_added);
+  column->set_version_dropped(v_dropped);
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
   ulint mbminlen;

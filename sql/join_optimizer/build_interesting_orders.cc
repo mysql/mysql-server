@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -444,7 +444,6 @@ void BuildInterestingOrders(
     const table_map inner_tables = pred.expr->right->tables_in_subtree;
     Ordering ordering =
         Ordering::Alloc(thd->mem_root, pred.expr->equijoin_conditions.size());
-    table_map used_tables = 0;
     bool contains_row_item = false;
     for (size_t i = 0; i < pred.expr->equijoin_conditions.size(); ++i) {
       Item *item = pred.expr->equijoin_conditions[i]->get_arg(1);
@@ -466,7 +465,6 @@ void BuildInterestingOrders(
         }
       }
       ordering[i].item = orderings->GetHandle(item);
-      used_tables |= item->used_tables();
     }
     if (contains_row_item) {
       continue;
@@ -576,6 +574,22 @@ void BuildInterestingOrders(
       index_info.reverse_order =
           orderings->AddOrdering(thd, ordering, /*interesting=*/false,
                                  /*used_at_end=*/true, /*homogenize_tables=*/0);
+
+      // Reverse index range scans need to know whether they should use the
+      // extended key parts (key parts from the primary key that are appended to
+      // the keys in a secondary index). So we also keep the ordering for a
+      // reverse scan that only uses the user-defined key parts.
+      if (const int user_defined_key_parts = key->user_defined_key_parts;
+          sortable_key_parts <= user_defined_key_parts) {
+        index_info.reverse_order_without_extended_key_parts =
+            index_info.reverse_order;
+      } else {
+        index_info.reverse_order_without_extended_key_parts =
+            orderings->AddOrdering(thd, ordering.prefix(user_defined_key_parts),
+                                   /*interesting=*/false,
+                                   /*used_at_end=*/true,
+                                   /*homogenize_tables=*/0);
+      }
     }
   }
 

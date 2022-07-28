@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -51,20 +51,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const space_id_t TRX_SYS_SPACE = 0;
 
 /** Page number of the transaction system page */
-#define TRX_SYS_PAGE_NO FSP_TRX_SYS_PAGE_NO
+constexpr uint32_t TRX_SYS_PAGE_NO = FSP_TRX_SYS_PAGE_NO;
 
 /** Random value to check for corruption of trx_t */
 static const ulint TRX_MAGIC_N = 91118598;
 
 /** If this flag is set then the transaction cannot be rolled back
 asynchronously. */
-static const ib_uint32_t TRX_FORCE_ROLLBACK_DISABLE = 1 << 29;
+static const uint32_t TRX_FORCE_ROLLBACK_DISABLE = 1 << 29;
 
 /** Mark the transaction for forced rollback */
-static const ib_uint32_t TRX_FORCE_ROLLBACK = 1 << 31;
+static const uint32_t TRX_FORCE_ROLLBACK = 1U << 31;
 
 /** For masking out the above four flags */
-static const ib_uint32_t TRX_FORCE_ROLLBACK_MASK = 0x1FFFFFFF;
+static const uint32_t TRX_FORCE_ROLLBACK_MASK = 0x1FFFFFFF;
 
 /** Transaction execution states when trx->state == TRX_STATE_ACTIVE */
 enum trx_que_t {
@@ -316,7 +316,7 @@ class Rsegs {
   void clear();
 
   /** Add rollback segment.
-  @param[in]	rseg	rollback segment to add. */
+  @param[in]    rseg    rollback segment to add. */
   void push_back(trx_rseg_t *rseg) { m_rsegs.push_back(rseg); }
 
   /** Number of registered rsegs.
@@ -332,12 +332,12 @@ class Rsegs {
   Rseg_Iterator end() { return (m_rsegs.end()); }
 
   /** Find the rseg at the given slot in this vector.
-  @param[in]	slot	a slot within the vector.
+  @param[in]    slot    a slot within the vector.
   @return an iterator to the end */
   trx_rseg_t *at(ulint slot) { return (m_rsegs.at(slot)); }
 
   /** Find an rseg in the std::vector that uses the rseg_id given.
-  @param[in]	rseg_id		A slot in a durable array such as
+  @param[in]    rseg_id         A slot in a durable array such as
                                   the TRX_SYS page or RSEG_ARRAY page.
   @return a pointer to an trx_rseg_t that uses the rseg_id. */
   trx_rseg_t *find(ulint rseg_id);
@@ -354,13 +354,13 @@ class Rsegs {
   }
 
   /** Acquire the shared lock on m_rsegs. */
-  void s_lock() { rw_lock_s_lock(m_latch); }
+  void s_lock() { rw_lock_s_lock(m_latch, UT_LOCATION_HERE); }
 
   /** Release the shared lock on m_rsegs. */
   void s_unlock() { rw_lock_s_unlock(m_latch); }
 
   /** Acquire the exclusive lock on m_rsegs. */
-  void x_lock() { rw_lock_x_lock(m_latch); }
+  void x_lock() { rw_lock_x_lock(m_latch, UT_LOCATION_HERE); }
 
   /** Release the exclusive lock on m_rsegs. */
   void x_unlock() { rw_lock_x_unlock(m_latch); }
@@ -598,7 +598,7 @@ struct TrxVersion {
   TrxVersion(trx_t *trx);
 
   trx_t *m_trx;
-  ulint m_version;
+  uint64_t m_version;
 };
 
 typedef std::vector<TrxVersion, ut::allocator<TrxVersion>> hit_list_t;

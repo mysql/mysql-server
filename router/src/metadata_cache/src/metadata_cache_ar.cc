@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,38 +54,38 @@ bool ARMetadataCache::refresh(bool needs_writable_node) {
     // Ensure that the refresh does not result in an inconsistency during the
     // lookup.
     std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-    if (cluster_data_ != cluster_topology.cluster_data) {
-      cluster_data_ = cluster_topology.cluster_data;
+    if (cluster_topology_ != cluster_topology) {
+      cluster_topology_ = cluster_topology;
       changed = true;
     } else {
-      cluster_data_.writable_server =
+      cluster_topology_.cluster_data.writable_server =
           cluster_topology.cluster_data.writable_server;
     }
   }
+
+  const auto &cluster_members = cluster_topology_.cluster_data.members;
+
+  on_md_refresh(changed, cluster_members);
 
   if (changed) {
     log_info(
         "Potential changes detected in cluster '%s' after metadata refresh",
         target_cluster_.c_str());
     // dump some debugging info about the cluster
-    if (cluster_data_.empty())
+    if (cluster_members.empty())
       log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
     else {
-      view_id = cluster_data_.view_id;
+      view_id = cluster_topology_.view_id;
       log_info("view_id = %" PRIu64 ", (%i members)", view_id,
-               (int)cluster_data_.members.size());
-      for (auto &mi : cluster_data_.members) {
+               (int)cluster_members.size());
+      for (const auto &mi : cluster_members) {
         log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
                  mi.xport, to_string(mi.mode).c_str(),
                  get_hidden_info(mi).c_str());
-
-        if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
-          has_unreachable_nodes = false;
-        }
       }
     }
 
-    on_instances_changed(/*md_servers_reachable=*/true, cluster_data_.members,
+    on_instances_changed(/*md_servers_reachable=*/true, cluster_members,
                          cluster_topology.metadata_servers, view_id);
 
     on_refresh_succeeded(metadata_servers_[metadata_server_id]);

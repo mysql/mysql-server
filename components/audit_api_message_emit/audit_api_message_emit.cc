@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ Arg_def audit_log_primary_args_def[] = {
     {audit_log_primary_args, array_elements(audit_log_primary_args)}};
 
 /**
-  Optional arguments defition (key, value).
+  Optional arguments definition (key, value).
 */
 Arg_def audit_log_extra_args_def[] = {
     {audit_log_key_value_string_args,
@@ -190,7 +190,7 @@ char *collation_name = const_cast<char *>(collation);
   @param [in, out]  args      UDF arguments structure
   @param [out]      handler   Error handler
 
-  @retval false Set the charset of all arguments successully
+  @retval false Set the charset of all arguments successfully
   @retval true  Otherwise
 */
 static bool set_args_charset_info(UDF_ARGS *args, IError_handler &handler) {
@@ -262,7 +262,7 @@ static int arg_check(IError_handler &handler, unsigned int arg_count,
       result = true;
 
   /*
-    At least one argument count was matched againts definition.
+    At least one argument count was matched against definition.
   */
   if (result == false) {
     handler.error("Invalid argument count.");

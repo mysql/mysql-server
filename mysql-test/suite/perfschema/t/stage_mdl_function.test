@@ -1,6 +1,7 @@
 # Tests for the performance schema
 #
 
+--source include/not_valgrind.inc
 --source ../include/stage_setup.inc
 
 connect (con1, localhost, user1, , );

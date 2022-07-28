@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,11 @@
 #ifndef METADATA_CACHE_METADATA_CACHE_AR_INCLUDED
 #define METADATA_CACHE_METADATA_CACHE_AR_INCLUDED
 
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include "metadata_cache.h"
 
-class METADATA_API ARMetadataCache : public MetadataCache {
+class METADATA_CACHE_EXPORT ARMetadataCache : public MetadataCache {
  public:
   /**
    * Initialize a connection to the MySQL Metadata server.

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 #include "m_string.h"  // Needed because debug_sync.h is not self-sufficient.
 #include "my_dbug.h"
-#include "mysql/components/services/my_thread_bits.h"
+#include "mysql/components/services/bits/my_thread_bits.h"
 #include "mysqld_error.h"
 #include "plugin/rewriter/messages.h"
 #include "plugin/rewriter/persisted_rule.h"

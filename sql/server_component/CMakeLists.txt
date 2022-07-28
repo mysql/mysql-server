@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -57,6 +57,9 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_server_keyring_lockable_imp.cc
   mysql_system_variable_update_imp.cc
   mysql_thd_attributes_imp.cc
+  transaction_delegate_control_imp.cc
+  mysql_audit_print_service_longlong_data_source_imp.cc
+  mysql_audit_print_service_double_data_source_imp.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

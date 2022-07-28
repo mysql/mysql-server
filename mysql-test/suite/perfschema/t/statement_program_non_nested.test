@@ -2,6 +2,8 @@
 # Tests for the performance schema stored program instrumentation.
 # -----------------------------------------------------------------------
 
+--source include/not_valgrind.inc
+
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 

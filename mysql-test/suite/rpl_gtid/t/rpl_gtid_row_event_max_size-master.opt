@@ -1,1 +1,1 @@
---binlog-row-event-max-size=2097152 --innodb_log_file_size=40M
+--binlog-row-event-max-size=2097152 --innodb_redo_log_capacity=80M

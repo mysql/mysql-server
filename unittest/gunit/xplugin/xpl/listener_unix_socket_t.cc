@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -57,10 +57,16 @@ const int FSYNC_ERR = -1;
 const int FSYNC_OK = 0;
 const int CLOSE_ERR = -1;
 const int CLOSE_OK = 0;
+const int CURRENT_PPID = 2;
 const int CURRENT_PID = 6;
-const char *const UNIX_SOCKET_FILE_CONTENT = "X6\n";  // "X%d" % CURRENT_PID
+
+const char *const UNIX_SOCKET_FILE_CONTENT = "6\n";  // "%d" % CURRENT_PID
 const char *const UNIX_SOCKET_FILE = "/tmp/xplugin_test.sock";
 const char *const UNIX_SOCKET_LOCK_FILE = "/tmp/xplugin_test.sock.lock";
+
+ACTION_P(SetArg0ToPChar, value) { strcpy(static_cast<char *>(arg0), value); }
+ACTION_P(SetArg0ToChar, value) { *static_cast<char *>(arg0) = value; }
+ACTION_P(SetArg0ToChar2, value) { (static_cast<char *>(arg0)[1]) = value; }
 
 MATCHER(EqInvalidSocket, "") {
   return INVALID_SOCKET == mysql_socket_getfd(arg);
@@ -97,6 +103,29 @@ class Listener_unix_socket_testsuite : public Test {
         BACKLOG);
   }
 
+  void assert_valid_lock_file_but_kills_old() {
+    EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
+    EXPECT_CALL(*m_mock_factory, open_file(StrEq(UNIX_SOCKET_LOCK_FILE), _, _))
+        .WillOnce(Return(m_mock_file_invalid))
+        .WillOnce(Return(m_mock_file))
+        .WillOnce(Return(m_mock_file));
+    EXPECT_CALL(*m_mock_system, get_errno()).WillOnce(Return(EEXIST));
+    EXPECT_CALL(*m_mock_file, read(_, _))
+        .WillOnce(DoAll(SetArg0ToPChar("X101"), Return(4)))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*m_mock_system, get_ppid()).WillOnce(Return(CURRENT_PPID));
+
+    EXPECT_CALL(*m_mock_system, kill(101, _)).WillOnce(Return(1));
+    EXPECT_CALL(*m_mock_file, write(EqCastToCStr(UNIX_SOCKET_FILE_CONTENT),
+                                    strlen(UNIX_SOCKET_FILE_CONTENT)))
+        .WillOnce(Return(strlen(UNIX_SOCKET_FILE_CONTENT)));
+    EXPECT_CALL(*m_mock_system, unlink(StrEq(UNIX_SOCKET_LOCK_FILE)));
+    EXPECT_CALL(*m_mock_file, fsync()).WillOnce(Return(FSYNC_OK));
+    EXPECT_CALL(*m_mock_file, close())
+        .WillOnce(Return(CLOSE_OK))
+        .WillOnce(Return(CLOSE_OK));
+  }
+
   void assert_valid_lock_file() {
     EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
     EXPECT_CALL(*m_mock_factory, open_file(StrEq(UNIX_SOCKET_LOCK_FILE), _, _))
@@ -108,9 +137,7 @@ class Listener_unix_socket_testsuite : public Test {
     EXPECT_CALL(*m_mock_file, close()).WillOnce(Return(CLOSE_OK));
   }
 
-  void assert_setup_listener_successful() {
-    ASSERT_NO_FATAL_FAILURE(assert_valid_lock_file());
-
+  void assert_unix_socket_listen() {
     EXPECT_CALL(*m_mock_factory, create_socket(_, AF_UNIX, SOCK_STREAM, 0))
         .WillOnce(Return(m_mock_socket));
     EXPECT_CALL(*m_mock_system, unlink(StrEq(UNIX_SOCKET_FILE)));
@@ -123,6 +150,11 @@ class Listener_unix_socket_testsuite : public Test {
 
     std::shared_ptr<iface::Socket> socket = m_mock_socket;
     EXPECT_CALL(m_mock_socket_events, listen(socket, _)).WillOnce(Return(true));
+  }
+
+  void assert_setup_listener_successful() {
+    ASSERT_NO_FATAL_FAILURE(assert_valid_lock_file());
+    ASSERT_NO_FATAL_FAILURE(assert_unix_socket_listen());
 
     ASSERT_TRUE(sut->setup_listener(nullptr));
     ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_prepared));
@@ -138,6 +170,21 @@ class Listener_unix_socket_testsuite : public Test {
     ASSERT_TRUE(Mock::VerifyAndClearExpectations(m_mock_factory.get()));
   }
 
+  void assert_close_listener() {
+    EXPECT_CALL(*m_mock_factory, create_system_interface())
+        .WillRepeatedly(Return(m_mock_system));
+    EXPECT_CALL(*m_mock_socket, get_socket_fd()).WillOnce(Return(SOCKET_OK));
+    EXPECT_CALL(*m_mock_socket, close());
+    EXPECT_CALL(*m_mock_system, unlink(StrEq(UNIX_SOCKET_LOCK_FILE)))
+        .WillOnce(Return(UNLINK_OK));
+    EXPECT_CALL(*m_mock_system, unlink(StrEq(UNIX_SOCKET_FILE)))
+        .WillOnce(Return(UNLINK_OK));
+
+    sut->close_listener();
+
+    ASSERT_NO_FATAL_FAILURE(assert_and_clear_mocks());
+  }
+
   std::shared_ptr<mock::Socket> m_mock_socket;
   std::shared_ptr<mock::Socket> m_mock_socket_invalid;
   std::shared_ptr<mock::System> m_mock_system;
@@ -148,9 +195,6 @@ class Listener_unix_socket_testsuite : public Test {
 
   std::shared_ptr<Listener_unix_socket> sut;
 };
-
-ACTION_P(SetArg0ToChar, value) { *static_cast<char *>(arg0) = value; }
-ACTION_P(SetArg0ToChar2, value) { (static_cast<char *>(arg0)[1]) = value; }
 
 TEST_F(Listener_unix_socket_testsuite,
        unixsocket_try_to_create_empty_unixsocket_filename) {
@@ -259,6 +303,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_read_not_x_plugin_lockfile) {
                                                std::ref(m_mock_socket_events),
                                                BACKLOG);
 
+  EXPECT_CALL(*m_mock_system, get_ppid()).WillOnce(Return(CURRENT_PPID));
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
   EXPECT_CALL(*m_mock_factory, open_file(StrEq(UNIX_SOCKET_LOCK_FILE), _, _))
       .WillOnce(Return(m_mock_file_invalid))
@@ -502,17 +547,25 @@ TEST_F(Listener_unix_socket_testsuite, close_listener_closes_valid_socket) {
 #if defined(HAVE_SYS_UN_H)
   ASSERT_NO_FATAL_FAILURE(assert_setup_listener_successful());
 
-  EXPECT_CALL(*m_mock_factory, create_system_interface())
-      .WillRepeatedly(Return(m_mock_system));
-  EXPECT_CALL(*m_mock_socket, get_socket_fd()).WillOnce(Return(SOCKET_OK));
-  EXPECT_CALL(*m_mock_socket, close());
-  EXPECT_CALL(*m_mock_system, unlink(StrEq(UNIX_SOCKET_LOCK_FILE)))
-      .WillOnce(Return(UNLINK_OK));
-  EXPECT_CALL(*m_mock_system, unlink(StrEq(UNIX_SOCKET_FILE)))
-      .WillOnce(Return(UNLINK_OK));
-  sut->close_listener();
+  ASSERT_NO_FATAL_FAILURE(assert_close_listener());
+#endif
+}
+
+TEST_F(Listener_unix_socket_testsuite, unixsocket_read_old_x_plugin_lockfile) {
+#if defined(HAVE_SYS_UN_H)
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
+                                               BACKLOG);
+
+  ASSERT_NO_FATAL_FAILURE(assert_valid_lock_file_but_kills_old());
+  ASSERT_NO_FATAL_FAILURE(assert_unix_socket_listen());
+
+  ASSERT_TRUE(sut->setup_listener(nullptr));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_prepared));
 
   ASSERT_NO_FATAL_FAILURE(assert_and_clear_mocks());
+
+  ASSERT_NO_FATAL_FAILURE(assert_close_listener());
 #endif
 }
 

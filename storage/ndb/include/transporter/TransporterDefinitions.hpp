@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,8 +75,8 @@ enum SB_LevelType
  * with nodes at versions lower than mysql-5.1-telco-6.3.18 
  * 
  */
-const Uint32 MAX_RECV_MESSAGE_BYTESIZE = 32768;
-const Uint32 MAX_SEND_MESSAGE_BYTESIZE = 32768;
+constexpr Uint32 MAX_RECV_MESSAGE_BYTESIZE = 32768;
+constexpr Uint32 MAX_SEND_MESSAGE_BYTESIZE = 32768;
 
 /**
  * TransporterConfiguration

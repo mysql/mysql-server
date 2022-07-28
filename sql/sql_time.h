@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,12 +76,17 @@ my_time_t TIME_to_timestamp(const MYSQL_TIME *t, const Time_zone &tz,
                             bool *not_exist);
 bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *t,
                                               const Time_zone &tz,
-                                              struct timeval *tm,
-                                              int *warnings);
+                                              my_timeval *tm, int *warnings);
 bool datetime_to_timeval(const MYSQL_TIME *t, const Time_zone &tz,
-                         struct timeval *tm, int *warnings);
+                         my_timeval *tm, int *warnings);
 bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
                                my_time_flags_t flags);
+bool decimal_to_datetime(const my_decimal *decimal, MYSQL_TIME *ltime,
+                         my_time_flags_t flags);
+bool decimal_to_time(const my_decimal *decimal, MYSQL_TIME *ltime);
+bool double_to_datetime(double nr, MYSQL_TIME *ltime, my_time_flags_t flags);
+bool double_to_time(double nr, MYSQL_TIME *ltime);
+
 bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
                                       MYSQL_TIME *ltime, my_time_flags_t flags);
 bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
@@ -231,7 +236,7 @@ MYSQL_TIME my_time_set(uint y, uint m, uint d, uint h, uint mi, uint s,
   Return the number of significant second fraction decimals in ts, e.g.
   for ts->second_part == 120300, return 4.
 
-  @param ts the time value for which we wnat the number of decmals
+  @param ts the time value for which we want the number of decmals
   @return the number of decimals
 */
 uint actual_decimals(const MYSQL_TIME *ts);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define __UTIL_BASESTRING_HPP_INCLUDED__
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include <util/Vector.hpp>
 #include "Bitmask.hpp"
 
@@ -71,6 +72,11 @@ public:
   /** @brief Assigns from a char * */
   BaseString& assign(const char* s);
 
+  /** @brief Assigns one char */
+  BaseString& assign(char c);
+  /** @brief Assigns a sequence of repeated char */
+  BaseString& assign(size_t n, char c);
+
   /** @brief Assigns from another BaseString */
   BaseString& assign(const BaseString& str);
 
@@ -95,6 +101,8 @@ public:
 
   /** @brief Appends a char to the end */
   BaseString& append(char c);
+  /** @brief Appends a char repeatably to the end */
+  BaseString& append(size_t n, char c);
 
   /** @brief Appends another BaseString to the end */
   BaseString& append(const BaseString& str);

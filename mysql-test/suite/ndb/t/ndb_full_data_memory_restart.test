@@ -1,0 +1,44 @@
+--source include/have_ndb.inc
+
+call mtr.add_suppression("The table 't1' is full");
+
+create table t1(x int primary key) engine=ndbcluster;
+
+# Node 1 can use 95% of data memory (MinFreePct=5)
+# Node 2 can use 90% of data memory (MinFreePct=10)
+
+# Stop node 2 so it is possible to use 95% of data memory
+--exec $NDB_MGM -e "2 restart -n"
+--exec $NDB_WAITER --not-started --wait-nodes=2 >> $NDB_TOOLS_OUTPUT
+
+# Avoid problem with too large transactions.
+set ndb_use_transactions=0;
+
+# Disables warnings to get same behaviour on Windows and other platforms.
+# Else for unknown reason warning is implicitly shown on Windows but not on
+# other platforms.
+--disable_warnings
+
+# Use up all available data memory (95%)
+--disable_query_log
+insert into t1 values (0), (1);
+set @n=1;
+while (!$mysql_errno)
+{
+  set @n= 2 * @n;
+--error 0,1114
+  insert into t1 select @n + x from t1;
+}
+show warnings;
+--enable_query_log
+--enable_warnings
+
+# Start node 2, during restart it can use all data memory (100%).
+--exec $NDB_MGM -e "2 start"
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+
+# Now after restart node 2 have no usable memory free.
+delete from t1;
+
+drop table t1;
+--remove_file $NDB_TOOLS_OUTPUT

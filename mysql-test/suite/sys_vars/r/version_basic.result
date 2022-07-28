@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.version);
 COUNT(@@GLOBAL.version)
 1
 1 Expected
-SELECT version = @@SESSION.version;
+SELECT version;
 ERROR 42S22: Unknown column 'version' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

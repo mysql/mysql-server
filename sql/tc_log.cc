@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,28 +45,224 @@
 #include "my_dbug.h"
 #include "my_thread_local.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/plugin.h"  // MYSQL_STORAGE_ENGINE_PLUGIN
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
+#include "sql/debug_sync.h"  // CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP
 #include "sql/handler.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"          // mysql_data_home
 #include "sql/psi_memory_key.h"  // key_memory_TC_LOG_MMAP_pages
+#include "sql/raii/sentry.h"     // raii::Sentry<>
+#include "sql/rpl_handler.h"     // RUN_HOOK
 #include "sql/sql_class.h"       // THD
 #include "sql/sql_const.h"
+#include "sql/sql_plugin.h"      // plugin_foreach
+#include "sql/sql_plugin_ref.h"  // plugin_ref
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
 #include "thr_mutex.h"
 
+namespace {
+/**
+  Invokes the handler interface for the storage engine, the
+  `handler::commit_by_xid` function.
+
+  @param thd The `THD` session object within which the command is being
+             executed.
+  @param plugin The `plugin_ref` object associated with the given storage
+                engine.
+  @param arg The XID of the transaction being committed.
+
+  @return  operation result
+    @retval false  Success
+    @retval true   Failure
+ */
+bool commit_one_ht(THD *thd, plugin_ref plugin, void *arg);
+/**
+  Invokes the handler interface for the storage engine, the
+  `handler::rollback_by_xid` function.
+
+  @param thd The `THD` session object within which the command is being
+             executed.
+  @param plugin The `plugin_ref` object associated with the given storage
+                engine.
+  @param arg The XID of the transaction being relled back.
+
+  @return  operation result
+    @retval false  Success
+    @retval true   Failure
+ */
+bool rollback_one_ht(THD *thd, plugin_ref plugin, void *arg);
+/**
+  Invokes the handler interface for the storage engine, the
+  `handler::prepared_in_tc` function.
+
+  @param thd The `THD` session object within which the command is being
+             executed.
+  @param ht The pointer to the target SE plugin.
+ */
+int set_prepared_in_tc_one_ht(THD *thd, handlerton *ht);
+}  // namespace
+
+bool trx_coordinator::commit_detached_by_xid(THD *thd, bool run_after_commit) {
+  DBUG_TRACE;
+  auto trx_ctx = thd->get_transaction();
+  auto xs = trx_ctx->xid_state();
+  assert(xs->is_detached());
+  raii::Sentry<> reset_detached_guard{[&]() -> void { xs->reset(); }};
+
+  auto error = plugin_foreach(thd, ::commit_one_ht, MYSQL_STORAGE_ENGINE_PLUGIN,
+                              const_cast<XID *>(xs->get_xid()));
+
+  if (run_after_commit && trx_ctx->m_flags.run_hooks) {
+    if (!error) (void)RUN_HOOK(transaction, after_commit, (thd, true));
+    trx_ctx->m_flags.run_hooks = false;
+  }
+
+  return error;
+}
+
+bool trx_coordinator::rollback_detached_by_xid(THD *thd) {
+  DBUG_TRACE;
+  auto xs = thd->get_transaction()->xid_state();
+  assert(xs->is_detached());
+  raii::Sentry<> reset_detached_guard{[&]() -> void { xs->reset(); }};
+
+  return plugin_foreach(thd, ::rollback_one_ht, MYSQL_STORAGE_ENGINE_PLUGIN,
+                        const_cast<XID *>(xs->get_xid()));
+}
+
+bool trx_coordinator::commit_in_engines(THD *thd, bool all,
+                                        bool run_after_commit) {
+  if (all) {
+    CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_commit_in_engines");
+  }
+  if (thd->get_transaction()
+          ->xid_state()
+          ->is_detached())  // if processing a detached XA, commit by XID
+    return trx_coordinator::commit_detached_by_xid(thd, run_after_commit);
+  else  // if not, commit normally
+    return ha_commit_low(thd, all, run_after_commit);
+}
+
+bool trx_coordinator::rollback_in_engines(THD *thd, bool all) {
+  if (all) {
+    CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_rollback_in_engines");
+  }
+  if (thd->get_transaction()
+          ->xid_state()
+          ->is_detached())  // if processing a detached XA, commit by XID
+    return trx_coordinator::rollback_detached_by_xid(thd);
+  else  // if not, rollback normally
+    return ha_rollback_low(thd, all);
+}
+
+int trx_coordinator::set_prepared_in_tc_in_engines(THD *thd, bool all) {
+  DBUG_TRACE;
+  if (!all || !trx_coordinator::should_statement_set_prepared_in_tc(thd))
+    return 0;
+
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_set_prepared_in_tc");
+  int error{0};
+  auto trn_ctx = thd->get_transaction();
+  auto ha_list = trn_ctx->ha_trx_info(Transaction_ctx::SESSION);
+  for (auto const &ha_info : ha_list) {  // Store in SE information that
+                                         // trx is prepared in TC
+    auto ht = ha_info.ht();
+    error = ::set_prepared_in_tc_one_ht(thd, ht);
+    if (error != 0) return error;
+  }
+  return 0;
+}
+
+bool trx_coordinator::should_statement_set_prepared_in_tc(THD *thd) {
+  return is_xa_prepare(thd);
+}
+
+namespace {
+bool commit_one_ht(THD *, plugin_ref plugin, void *arg) {
+  DBUG_TRACE;
+  auto ht = plugin_data<handlerton *>(plugin);
+  if (ht->commit_by_xid != nullptr && ht->state == SHOW_OPTION_YES &&
+      ht->recover != nullptr) {
+    xa_status_code ret = ht->commit_by_xid(ht, static_cast<XID *>(arg));
+
+    if (ret != XA_OK &&
+        ret != XAER_NOTA  // XAER_NOTA is an expected result since it's not
+                          // necessary that SE represented by `handlerton` is
+                          // participating in the transaction, hence it may not
+                          // have any representation of the XID at this point
+    ) {
+      my_error(ER_XAER_RMERR, MYF(0));
+      return true;
+    }
+  }
+  return false;
+}
+
+bool rollback_one_ht(THD *, plugin_ref plugin, void *arg) {
+  DBUG_TRACE;
+  auto ht = plugin_data<handlerton *>(plugin);
+  if (ht->rollback_by_xid != nullptr && ht->state == SHOW_OPTION_YES &&
+      ht->recover != nullptr) {
+    xa_status_code ret = ht->rollback_by_xid(ht, static_cast<XID *>(arg));
+
+    if (ret != XA_OK &&
+        ret != XAER_NOTA  // XAER_NOTA is an expected result since it's not
+                          // necessary that SE represented by `handlerton` is
+                          // participating in the transaction, hence it may not
+                          // have any representation of the XID at this point
+    ) {
+      my_error(ER_XAER_RMERR, MYF(0));
+      return true;
+    }
+  }
+  return false;
+}
+
+int set_prepared_in_tc_one_ht(THD *thd, handlerton *ht) {
+  DBUG_TRACE;
+  if (ht->set_prepared_in_tc != nullptr) {
+    return ht->set_prepared_in_tc(ht, thd);
+  } else {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA,
+                        ER_THD(thd, ER_ILLEGAL_HA),
+                        ha_resolve_storage_engine_name(ht));
+  }
+  return 0;
+}
+}  // namespace
+
+int TC_LOG_DUMMY::open(const char *) {
+  if (ha_recover()) {
+    LogErr(ERROR_LEVEL, ER_TC_RECOVERY_FAILED_THESE_ARE_YOUR_OPTIONS);
+    return 1;
+  }
+  return 0;
+}
+
 TC_LOG::enum_result TC_LOG_DUMMY::commit(THD *thd, bool all) {
-  return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
+  if (all) {
+    CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_commit_in_tc");
+  }
+  return trx_coordinator::commit_in_engines(thd, all) ? RESULT_ABORTED
+                                                      : RESULT_SUCCESS;
 }
 
 int TC_LOG_DUMMY::rollback(THD *thd, bool all) {
-  return ha_rollback_low(thd, all);
+  if (all) {
+    CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_rollback_in_tc");
+  }
+  return trx_coordinator::rollback_in_engines(thd, all);
 }
 
 int TC_LOG_DUMMY::prepare(THD *thd, bool all) {
-  return ha_prepare_low(thd, all);
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_prepare_in_engines");
+  int error = ha_prepare_low(thd, all);
+  if (error != 0) return error;
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("after_ha_prepare_low");
+  return trx_coordinator::set_prepared_in_tc_in_engines(thd, all);
 }
 
 /********* transaction coordinator log for 2pc - mmap() based solution *******/
@@ -180,7 +376,12 @@ int TC_LOG_MMAP::open(const char *opt_name) {
   pages[npages - 1].next = nullptr;
   inited = 4;
 
-  if (crashed && recover()) goto err;
+  if (crashed) {
+    if (recover()) goto err;
+  } else if (ha_recover()) {
+    LogErr(ERROR_LEVEL, ER_TC_RECOVERY_FAILED_THESE_ARE_YOUR_OPTIONS);
+    goto err;
+  }
 
   memcpy(data, tc_log_magic, sizeof(tc_log_magic));
   data[sizeof(tc_log_magic)] = (uchar)total_ha_2pc;
@@ -285,7 +486,7 @@ void TC_LOG_MMAP::overflow() {
 /**
   Commit the transaction.
 
-  @note When the TC_LOG inteface was changed, this function was added
+  @note When the TC_LOG interface was changed, this function was added
   and uses the functions that were there with the old interface to
   implement the logic.
  */
@@ -294,12 +495,16 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all) {
   ulong cookie = 0;
   my_xid xid = thd->get_transaction()->xid_state()->get_xid()->get_my_xid();
 
-  if (all && xid)
-    if (!(cookie = log_xid(xid)))
-      return RESULT_ABORTED;  // Failed to log the transaction
+  if (all) {
+    CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_commit_in_tc");
+    if (xid)
+      if (!(cookie = log_xid(xid)))
+        return RESULT_ABORTED;  // Failed to log the transaction
+  }
 
-  if (ha_commit_low(thd, all))
-    return RESULT_INCONSISTENT;  // Transaction logged, but not committed
+  if (trx_coordinator::commit_in_engines(thd, all))
+    return RESULT_INCONSISTENT;  // Transaction logged, if not XA , but not
+                                 // committed
 
   /* If cookie is non-zero, something was logged */
   if (cookie) unlog(cookie, xid);
@@ -308,11 +513,18 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all) {
 }
 
 int TC_LOG_MMAP::rollback(THD *thd, bool all) {
-  return ha_rollback_low(thd, all);
+  if (all) {
+    CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_rollback_in_tc");
+  }
+  return trx_coordinator::rollback_in_engines(thd, all);
 }
 
 int TC_LOG_MMAP::prepare(THD *thd, bool all) {
-  return ha_prepare_low(thd, all);
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_prepare_in_engines");
+  int error = ha_prepare_low(thd, all);
+  if (error != 0) return error;
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("after_ha_prepare_low");
+  return trx_coordinator::set_prepared_in_tc_in_engines(thd, all);
 }
 
 /**

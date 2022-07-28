@@ -277,7 +277,8 @@ SELECT count(*) FROM information_schema.INNODB_TABLES WHERE NAME LIKE '%t6469%';
 DROP TABLE t6469_1,t6469_2,t6469_3;
 SELECT * FROM information_schema.files WHERE file_name LIKE '%t6469%';
 SELECT * FROM information_schema.INNODB_DATAFILES WHERE PATH LIKE '%t6469%';
-SELECT * FROM information_schema.INNODB_TABLES WHERE NAME LIKE '%t6469%';
+SELECT TABLE_ID, NAME, FLAG, N_COLS, SPACE, ROW_FORMAT, ZIP_PAGE_SIZE, SPACE_TYPE,
+INSTANT_COLS, TOTAL_ROW_VERSIONS FROM information_schema.INNODB_TABLES WHERE NAME LIKE '%t6469%';
 
 #-------------------------------------------------------------
 #

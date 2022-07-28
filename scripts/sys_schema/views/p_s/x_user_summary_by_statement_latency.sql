@@ -1,4 +1,4 @@
--- Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+-- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ VIEW x$user_summary_by_statement_latency (
   total_latency,
   max_latency,
   lock_latency,
+  cpu_latency,
   rows_sent,
   rows_examined,
   rows_affected,
@@ -48,6 +49,7 @@ SELECT IF(user IS NULL, 'background', user) AS user,
        SUM(sum_timer_wait) AS total_latency,
        SUM(max_timer_wait) AS max_latency,
        SUM(sum_lock_time) AS lock_latency,
+       SUM(sum_cpu_time) AS cpu_latency,
        SUM(sum_rows_sent) AS rows_sent,
        SUM(sum_rows_examined) AS rows_examined,
        SUM(sum_rows_affected) AS rows_affected,

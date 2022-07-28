@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -120,9 +120,6 @@
   performance_schema tables changed in MySQL 8.0.17
   - WL#12571 increases the HOST name length from 60 to 255.
 
-
-  Version published is now 80020. The next number to use is 80021.
-
   80018:
 
   performance_schema tables changed in MySQL 8.0.18
@@ -171,10 +168,12 @@
   performance_schema.replication_asynchronous_connection_failover_managed
 
   80024:
+
   performance_schema tables changed in MySQL 8.0.24
   - WL#13446 added performance_schema.keyring_component_status
 
   80027:
+
   performance_schema tables changed in MySQL 8.0.27
   - WL#9852 added replication_group_members column
     MEMBER_COMMUNICATION_PROTOCOL_STACK
@@ -185,8 +184,32 @@
   - BUG#104643 Defaults in performance schema tables incompatible with sql_mode
     fixed TIMESTAMP columns (removed default 0)
     fixed DOUBLE columns (removed sign)
+
+  80028:
+
+  performance_schema tables changed in MySQL 8.0.28
+  - WL#14779 PERFORMANCE_SCHEMA, ADD CPU TIME TO STATEMENT METRICS
+    added CPU_TIME, SUM_CPU_TIME columns.
+  - Fixed performance_schema.processlist host column to size 261.
+
+  80029:
+
+  performance_schema tables changed in MySQL 8.0.29
+  - WL#14346 PERFORMANCE_SCHEMA, SECONDARY_ENGINE STATS
+    Added columns EXECUTION_ENGINE, COUNT_SECONDARY
+  - Bug #30624990 NO UTF8MB3 IN INFORMATION_SCHEMA.CHARACTER_SETS
+    Use 'utf8mb3' rather than 'utf8' alias for for character set names.
+
+  80030:
+
+  performance_schema tables changed in MySQL 8.0.30
+  - WL#12527 added innodb_redo_log_files table (table is created dynamically
+    and based on PFS_engine_table_share_proxy mechanism)
+  - Bug #33787300 Rename utf8_xxx collations to utf8mb3_xxx
+    This patch renames utf8_bin to utf8mb3_bin
+    This patch renames utf8_general_ci
 */
 
-static const uint PFS_DD_VERSION = 80027;
+static const uint PFS_DD_VERSION = 80030;
 
 #endif /* PFS_DD_VERSION_H */

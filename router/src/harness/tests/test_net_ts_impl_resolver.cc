@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -117,9 +117,12 @@ TEST(NetTS_impl_resolver, getnameinfo_invalid_sockaddr_size) {
   // windows: WSAEFAULT
   // solaris: resolver:4 (EAI_FAIL)
   // others: EAI_FAMILY
+  // wine: WSAEAFNOSUPPORT
 #if defined(_WIN32)
-  EXPECT_THAT(res, stdx::make_unexpected(
-                       std::error_code(WSAEFAULT, std::system_category())));
+  EXPECT_THAT(res, ::testing::AnyOf(stdx::make_unexpected(make_error_code(
+                                        net::ip::resolver_errc::bad_family)),
+                                    stdx::make_unexpected(std::error_code(
+                                        WSAEFAULT, std::system_category()))));
 #else
   EXPECT_THAT(res, ::testing::AnyOf(stdx::make_unexpected(make_error_code(
                                         net::ip::resolver_errc::bad_family)),
@@ -167,9 +170,13 @@ TEST(NetTS_impl_resolver, getnameinfo_overflow) {
   // macosx: EAI_OVERFLOW
   // solaris: ENOSPC
   // windows: ERROR_INSUFFICIENT_BUFFER
+  // wine: WSATRY_AGAIN
 #if defined(_WIN32)
-  EXPECT_THAT(res, stdx::make_unexpected(std::error_code(
-                       ERROR_INSUFFICIENT_BUFFER, std::system_category())));
+  EXPECT_THAT(res, ::testing::AnyOf(
+                       stdx::make_unexpected(std::error_code(
+                           ERROR_INSUFFICIENT_BUFFER, std::system_category())),
+                       stdx::make_unexpected(std::error_code(make_error_code(
+                           net::ip::resolver_errc::try_again)))));
 #else
   EXPECT_THAT(
       res,

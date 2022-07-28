@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "metadata_factory.h"
+#include "metadata_cache.h"
+
 #include "cluster_metadata.h"
 #include "cluster_metadata_ar.h"
 #include "cluster_metadata_gr.h"
 
-std::shared_ptr<MetaData> meta_data{nullptr};
-
+namespace metadata_cache {
+static std::shared_ptr<MetaData> meta_data{nullptr};
 /**
  * Return an instance of cluster metadata.
  *
@@ -43,20 +44,21 @@ std::shared_ptr<MetaData> meta_data{nullptr};
  * @param view_id last known view_id of the cluster metadata (only relevant
  *                for ReplicaSet cluster)
  */
-std::shared_ptr<MetaData> get_instance(
+std::shared_ptr<MetaData> metadata_factory_get_instance(
     const mysqlrouter::ClusterType cluster_type,
     const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
     const mysqlrouter::SSLOptions &ssl_options,
     const bool use_cluster_notifications, const unsigned view_id) {
   switch (cluster_type) {
     case mysqlrouter::ClusterType::RS_V2:
-      meta_data.reset(
-          new ARClusterMetadata(session_config, ssl_options, view_id));
+      meta_data = std::make_unique<ARClusterMetadata>(session_config,
+                                                      ssl_options, view_id);
       break;
     default:
-      meta_data.reset(new GRClusterMetadata(session_config, ssl_options,
-                                            use_cluster_notifications));
+      meta_data = std::make_unique<GRClusterMetadata>(
+          session_config, ssl_options, use_cluster_notifications);
   }
 
   return meta_data;
 }
+}  // namespace metadata_cache

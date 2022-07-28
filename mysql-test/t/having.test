@@ -63,9 +63,7 @@ INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
 select Fld1, max(Fld2) as q from t1 group by Fld1 having q is not null;
 select Fld1, max(Fld2) from t1 group by Fld1 having max(Fld2) is not null;
 select Fld1, max(Fld2) from t1 group by Fld1 having avg(Fld2) is not null;
---skip_if_hypergraph  # Hits bug #31848191 (ITEM_SUM_STD AND _VARIANCE HAS INCORRECT IS_NULL()).
 select Fld1, max(Fld2) from t1 group by Fld1 having std(Fld2) is not null;
---skip_if_hypergraph  # Hits bug #31848191 (ITEM_SUM_STD AND _VARIANCE HAS INCORRECT IS_NULL()).
 select Fld1, max(Fld2) from t1 group by Fld1 having variance(Fld2) is not null;
 drop table t1;
 
@@ -964,3 +962,16 @@ GROUP BY t1.a
 HAVING COUNT(DISTINCT t1.a) = 1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #30617496: BAD ITEM REF FROM CORRELATED SUBQUERY TO OUTER DISTINCT TABLE
+--echo #
+
+CREATE TABLE t1 (f1 INT, f2 TEXT, f3 INT, PRIMARY KEY(f1));
+CREATE TABLE t2 LIKE t1;
+
+--error ER_BAD_FIELD_ERROR
+SELECT DISTINCT f3 FROM t1 HAVING (SELECT 1 FROM t2 HAVING f2 LIMIT 1) ORDER BY f3;
+
+DROP TABLE t1;
+DROP TABLE t2;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "record_types.hpp"
 #include "IntrusiveList.hpp"
 #include "TransientPagePool.hpp"
@@ -254,4 +255,80 @@ bool TransientSlotPool::shrink(Uint32 slot_size)
 #if !INLINE_TRANSIENT_SLOT_POOL
 #define inline
 #include "TransientSlotPool.inline.hpp.inc"
+#endif
+
+#ifdef TEST_TRANSIENTSLOTPOOL
+
+#undef JAM_FILE_ID
+
+#include <memory>
+#include "ndb_types.h"
+#include "Pool.hpp"
+#include "test_context.hpp"
+#include "TransientSlotPool.hpp"
+#include "unittest/mytap/tap.h"
+
+static bool seize_and_release(Uint32 slot_size, Uint32 pages);
+
+int main(int argc, char*argv[])
+{
+  plan(1);
+
+  constexpr Uint32 slot_size = 744;
+  constexpr Uint32 pages = 10000;
+  ok(seize_and_release(slot_size, pages), "Seize and release above 8184 pages");
+
+  return exit_status();
+}
+
+static bool seize_and_release(Uint32 slot_size, Uint32 pages)
+{
+  Pool_context pool_ctx = test_context(pages);
+  TransientSlotPool slot_pool;
+  constexpr Uint32 page_size = 8184;
+
+  Uint32 dummy;
+  slot_pool.init(MAKE_TID(1,1), slot_size, &dummy, pool_ctx);
+
+  size_t est_recs = 2 * (pages * page_size / slot_size);
+  auto slot_ptr = std::make_unique<Ptr<TransientSlotPool::Type>[]>(est_recs);
+
+  size_t seized_recs = 0;
+  size_t released_recs = 0;
+
+  /*
+   * Seize records until out of pages. Concurrently release every second
+   * record.
+   */
+  while (slot_pool.seize(slot_ptr[seized_recs], slot_size))
+  {
+    seized_recs++;
+    if (seized_recs > est_recs)
+    {
+      diag("Managed to seize more (%zu) records than estimated (%zu)!",
+           seized_recs, est_recs);
+      return false;
+    }
+    if (seized_recs % 2 == 0)
+    {
+      slot_pool.release(slot_ptr[released_recs], slot_size);
+      released_recs++;
+    }
+  }
+
+  /*
+   * Release all records left.
+   */
+  while (released_recs < seized_recs)
+  {
+    slot_pool.release(slot_ptr[released_recs], slot_size);
+    released_recs++;
+  }
+
+  Uint32 shrinks = pages;
+  bool can_shrink_more = slot_pool.rearrange_free_list_and_shrink(&shrinks,
+                                                                  slot_size);
+
+  return (seized_recs == released_recs) && !can_shrink_more;
+}
 #endif

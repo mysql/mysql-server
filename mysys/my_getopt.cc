@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,13 +113,16 @@ void my_getopt_register_get_addr(my_getopt_value func_addr) {
   getopt_get_addr = func_addr;
 }
 
-bool is_key_cache_variable_suffix(const char *suffix) {
-  static std::array<const char *, 4> key_cache_components = {
+bool is_key_cache_variable_suffix(std::string_view suffix) {
+  constexpr static std::array<std::string_view, 4> key_cache_components = {
       {"key_buffer_size", "key_cache_block_size", "key_cache_division_limit",
        "key_cache_age_threshold"}};
 
-  for (auto component : key_cache_components)
-    if (!my_strcasecmp(&my_charset_latin1, component, suffix)) return true;
+  for (auto component : key_cache_components) {
+    if (suffix.size() == component.size() &&
+        !native_strncasecmp(suffix.data(), component.data(), suffix.size()))
+      return true;
+  }
 
   return false;
 }
@@ -313,7 +316,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
     if (!is_cmdline_arg && (my_getopt_is_args_separator(cur_arg))) {
       is_cmdline_arg = true;
 
-      /* save the separator too if skip unkown options  */
+      /* save the separator too if skip unknown options  */
       if (my_getopt_skip_unknown)
         (*argv)[argvpos++] = cur_arg;
       else
@@ -1239,7 +1242,7 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
 }
 
 /*
-  Get double value withing ranges
+  Get double value within ranges
 
   Evaluates and returns the value that user gave as an argument to a variable.
 
@@ -1247,7 +1250,7 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
     decimal value of arg
 
     In case of an error, prints an error message and sets *err to
-    EXIT_ARGUMENT_INVALID.  Otherwise err is not touched
+    EXIT_ARGUMENT_INVALID.  Otherwise err is not touched.
 */
 
 static double getopt_double(const char *arg, const struct my_option *optp,

@@ -1801,7 +1801,7 @@ explain
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using pushed condition (`test`.`t2`.`attr1` < 1); Using temporary; Using filesort
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using pushed condition (`test`.`t3`.`attr1` < 5); Using join buffer (hash join)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using pushed condition (`test`.`t3`.`attr1` < 5); Using join buffer (hash join)
 Warnings:
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select `test`.`t2`.`pk1` AS `pk1`,`test`.`t2`.`attr1` AS `attr1`,`test`.`t2`.`attr2` AS `attr2`,`test`.`t2`.`attr3` AS `attr3`,`test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`attr1` AS `attr1`,`test`.`t3`.`attr2` AS `attr2`,`test`.`t3`.`attr3` AS `attr3`,`test`.`t3`.`attr4` AS `attr4` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`attr1` < 1) and (`test`.`t2`.`attr2` = `test`.`t3`.`attr2`) and (`test`.`t3`.`attr1` < 5)) order by `test`.`t2`.`pk1`
@@ -1811,7 +1811,7 @@ pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	index	attr1	PRIMARY	4	NULL	#	#	Using pushed condition ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3))
+1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	range	attr1	attr1	4	NULL	#	#	Using pushed condition ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3)); Using MRR; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`pk1` AS `pk1`,`test`.`t4`.`attr1` AS `attr1`,`test`.`t4`.`attr2` AS `attr2`,`test`.`t4`.`attr3` AS `attr3`,`test`.`t4`.`attr4` AS `attr4` from `test`.`t4` where ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3)) order by `test`.`t4`.`pk1`
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
@@ -2006,6 +2006,9 @@ insert into NodeAlias VALUES(null, 6 , '154' , '154' , 0 , '2008-03-10 10:48:43'
 insert into NodeAlias VALUES(null, 7 , '158' , '158' , 0 , '2008-03-10 10:48:57');
 insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
 12:22:26');
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-03-10
+12:22:26' at row 1 is deprecated. Prefer the standard ' '.
 explain select * from nodealias where (aliasKey LIKE '491803%');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	nodealias	p0,p1,p2,p3,p4,p5,p6,p7	range	nodealias_KeyIndex	nodealias_KeyIndex	183	NULL	#	#	Using pushed condition (`test`.`nodealias`.`aliasKey` like '491803%'); Using MRR
@@ -2383,7 +2386,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	#	#	Using filesort
 1	SIMPLE	tx	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	#	#	NULL
 Warnings:
-Note	1003	Table 't2' is not pushable, need filesort before joining child tables
+Note	1003	Can't push table 'tx' as child of 't2', it is in a sorted-branch which can't be referred.
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2402,7 +2405,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	#	#	Using filesort
 1	SIMPLE	tx	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	#	#	NULL
 Warnings:
-Note	1003	Table 't2' is not pushable, need filesort before joining child tables
+Note	1003	Can't push table 'tx' as child of 't2', it is in a sorted-branch which can't be referred.
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 drop table tx;
 set @@optimizer_switch = 'engine_condition_pushdown=on';
@@ -3531,7 +3534,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t2.y	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	Can't push table 't2' as child, column 'pk' does neither 'ref' a column nor a constant
-Note	1003	Can't push table 't3' as child of 't1', column 't2.y' is outside scope of pushable join
+Note	1003	Can't push table 't3' as child of 't1', column 't2.y' refers a table which was not pushed
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`x` = `test`.`t1`.`b`) and (`test`.`t3`.`d` = `test`.`t2`.`y`) and (`test`.`t2`.`pk` = (`test`.`t1`.`a` + 0)))
 select straight_join * from t1
 join t2 on t2.pk = t1.a+0 and t2.x = t1.b
@@ -3558,46 +3561,46 @@ insert into t1 values
 explain format=tree
 select * from t1 where b > 2;
 EXPLAIN
--> Table scan on t1, with pushed condition: (t1.b > 2)  (cost=4001.60 rows=16)
+-> Table scan on t1, with pushed condition: (t1.b > 2)  (cost=4001.60 rows=5)
 
 explain format=tree
 select * from t1 where a > 2;
 EXPLAIN
--> Index range scan on t1 using PRIMARY, with pushed condition: (t1.a > 2)  (cost=1.61 rows=3)
+-> Index range scan on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=2.61 rows=3)
 
 explain format=tree
 select * from t1 where a > 2 order by b;
 EXPLAIN
--> Sort: t1.b  (cost=1.61 rows=3)
-    -> Index range scan on t1 using PRIMARY, with pushed condition: (t1.a > 2)  (cost=1.61 rows=3)
+-> Sort: t1.b  (cost=2.61 rows=3)
+    -> Index range scan on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=2.61 rows=3)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0;
 EXPLAIN
--> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=1.10 rows=3)
+-> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=2.10 rows=1)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0 order by d;
 EXPLAIN
--> Sort: t1.d  (cost=1.10 rows=3)
+-> Sort: t1.d  (cost=2.10 rows=3)
     -> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)
 
 explain format=tree
 select * from t1 where b > 0 order by a;
 EXPLAIN
--> Index scan on t1 using PRIMARY, with pushed condition: (t1.b > 0)  (cost=4001.60 rows=16)
+-> Index scan on t1 using PRIMARY, with pushed condition: (t1.b > 0)  (cost=4001.60 rows=5)
 
 explain format=tree
 select * from t1 where b > 0 order by a desc;
 EXPLAIN
--> Index scan on t1 using PRIMARY (reverse), with pushed condition: (t1.b > 0)  (cost=4001.60 rows=16)
+-> Index scan on t1 using PRIMARY (reverse), with pushed condition: (t1.b > 0)  (cost=4001.60 rows=5)
 
 explain format=tree
 select * from t1 join t1 as t2 on t2.a = t1.b and t2.c > 3;
 EXPLAIN
--> Nested loop inner join  (cost=4014.40 rows=16)
+-> Nested loop inner join  (cost=4011.20 rows=5)
     -> Table scan on t1, activating pushed join of 2 tables  (cost=4001.60 rows=16)
-    -> Index lookup on t2 using PRIMARY (a=t1.b), child of t1 in pushed join, with pushed condition: (t2.c > 3)  (cost=0.50 rows=1)
+    -> Index lookup on t2 using PRIMARY (a=t1.b), child of t1 in pushed join, with pushed condition: (t2.c > 3)  (cost=0.50 rows=0.3)
 
 drop table t1;
 #
@@ -3623,8 +3626,8 @@ SELECT t1.col_varchar_256 AS field1
 FROM t1 WHERE t1.col_int_unique <> 8
 ORDER BY field1;
 EXPLAIN
--> Sort: t1.col_varchar_256  (cost=3.21 rows=6)
-    -> Index range scan on t1 using ix1, with pushed condition: (t1.col_int_unique <> 8)  (cost=3.21 rows=6)
+-> Sort: t1.col_varchar_256  (cost=5.21 rows=6)
+    -> Index range scan on t1 using ix1 over (NULL < col_int_unique < 8) OR (8 < col_int_unique), with pushed condition: (t1.col_int_unique <> 8)  (cost=5.21 rows=6)
 
 DROP TABLE t1;
 #
@@ -3757,6 +3760,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t2.a	1	11.11	Child of 't2' in pushed join@1; Using pushed condition ((`test`.`t3`.`c` >= `test`.`t1`.`c`) and (`test`.`t3`.`c` <= `test`.`t2`.`c`))
 Warnings:
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 't3' as child of 't1', column 't2.a' is outside scope of pushable join
+Note	1003	Can't push table 't3' as child of 't1', column 't2.a' refers a table which was not pushed
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t2`.`d` = `test`.`t1`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`a`) and (`test`.`t3`.`c` >= `test`.`t1`.`c`) and (`test`.`t3`.`c` <= `test`.`t2`.`c`))
 drop table t1;

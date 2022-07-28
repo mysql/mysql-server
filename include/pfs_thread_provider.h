@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,8 @@ void pfs_set_thread_os_id_vc(PSI_thread *thread);
 
 PSI_thread *pfs_get_thread_vc(void);
 
+void pfs_set_mem_cnt_THD_vc(THD *thd, THD **backup_thd);
+
 void pfs_set_thread_user_vc(const char *user, int user_len);
 
 void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
@@ -97,6 +99,8 @@ void pfs_set_thread_state_vc(const char *state);
 void pfs_set_connection_type_vc(opaque_vio_type conn_type);
 
 void pfs_set_thread_info_vc(const char *info, uint info_len);
+
+void pfs_set_thread_secondary_engine_vc(bool secondary);
 
 int pfs_set_thread_resource_group_vc(const char *group_name, int group_name_len,
                                      void *user_data);

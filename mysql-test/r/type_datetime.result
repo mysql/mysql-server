@@ -136,7 +136,9 @@ t
 delete from t1;
 insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
 Warnings:
+Warning	4096	Delimiter ' ' in position 19 in datetime value '0000-00-00 00:00:00 some trailer' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 't' at row 1
+Warning	4096	Delimiter ' ' in position 19 in datetime value '2003-01-01 00:00:00 some trailer' at row 2 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 't' at row 2
 select * from t1 order by t;
 t
@@ -982,3 +984,135 @@ SELECT TIMESTAMP'2019-09-20 10:00:00.999999+02:00 ';
 TIMESTAMP'2019-09-20 10:00:00.999999+02:00 '
 2019-09-20 08:00:00.999999
 SET time_zone = DEFAULT;
+# Bug#32915973: Prepare DATE_ADD/DATE_SUB incorrectly returns DATETIME
+set @d_str = '2020-01-01';
+set @t_str = '01:01:01';
+set @dt_str = '2020-01-01 01:01:01';
+set @dt_tz = '2020-01-01 01:01:01+03:00';
+set @d_int = 20200101;
+set @t_int = 010101;
+set @dt_int = 20200101010101;
+set @d_dec = 20200101.0;
+set @t_dec = 010101.0;
+set @dt_dec = 20200101010101.0;
+set @d_flt = 20200101E0;
+set @t_flt = 010101E0;
+set @dt_flt = 20200101010101E0;
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_str;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_str;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_str;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+1
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_tz;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+1
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_int;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_int;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_int;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+1
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_dec;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_dec;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_dec;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+1
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @d_flt;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @t_flt;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+0
+prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
+execute stmt using @dt_flt;
+TIMESTAMP'2020-01-01 01:01:01' = ?
+1
+deallocate prepare stmt;
+# Bug#33788832: wrong result with COALESCE function
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+t0 TIME NOT NULL,
+t1 TIME NOT NULL,
+dt DATETIME
+);
+INSERT INTO t1 VALUES
+(1, TIME'08:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00'),
+(2, TIME'12:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00'),
+(3, TIME'16:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00');
+SELECT pk, t0, t1, dt,
+t0 BETWEEN NULL AND t1 AS b1,
+t0 NOT BETWEEN NULL AND t1 AS b2,
+t0 BETWEEN NULL AND COALESCE(t1, dt) AS b3,
+t0 NOT BETWEEN NULL AND COALESCE(t1, dt) AS b4
+FROM t1;
+pk	t0	t1	dt	b1	b2	b3	b4
+1	08:00:00	12:00:00	2020-01-01 00:00:00	NULL	NULL	NULL	NULL
+2	12:00:00	12:00:00	2020-01-01 00:00:00	NULL	NULL	NULL	NULL
+3	16:00:00	12:00:00	2020-01-01 00:00:00	0	1	0	1
+SELECT pk, t0, t1, dt,
+t1 BETWEEN t0 AND NULL AS b1,
+t1 NOT BETWEEN t0 AND NULL AS b2,
+t1 BETWEEN COALESCE(t0, dt) AND NULL AS b3,
+t1 NOT BETWEEN COALESCE(t0, dt) AND NULL AS b4
+FROM t1;
+pk	t0	t1	dt	b1	b2	b3	b4
+1	08:00:00	12:00:00	2020-01-01 00:00:00	NULL	NULL	NULL	NULL
+2	12:00:00	12:00:00	2020-01-01 00:00:00	NULL	NULL	NULL	NULL
+3	16:00:00	12:00:00	2020-01-01 00:00:00	0	1	0	1
+DROP TABLE t1;
+#
+# Bug #33897969 DATE/DATETIME
+#               type cover other values type in Item_func_in
+#
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+col_date date DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+col_varchar VARCHAR(1) DEFAULT NULL,
+KEY (col_varchar)
+);
+INSERT INTO t1 VALUES(5, '2022-02-25', '2022-02-25 11:01:14', 'I');
+SELECT * FROM t1 WHERE pk = 5 AND
+(col_datetime, col_varchar)
+IN (('2022-02-25 11:01:14', 'Y'), ('2022-02-25 11:01:14', 'I'));
+pk	col_date	col_datetime	col_varchar
+5	2022-02-25	2022-02-25 11:01:14	I
+SELECT * FROM t1 WHERE pk = 5 AND
+(col_datetime, col_varchar) IN ((@a, @b), (@c, @d));
+pk	col_date	col_datetime	col_varchar
+SELECT * FROM t1 WHERE pk = 5 AND
+(col_date, col_varchar) IN (('2022-02-25', 'Y'), ('2022-02-25', 'I'));
+pk	col_date	col_datetime	col_varchar
+5	2022-02-25	2022-02-25 11:01:14	I
+SELECT * FROM t1 wHERE pk = 5 AND
+(col_varchar, col_date) IN (('Y','2022-02-25'), ('I', '2022-02-25'));
+pk	col_date	col_datetime	col_varchar
+5	2022-02-25	2022-02-25 11:01:14	I
+SELECT * FROM t1 wHERE pk = 5 AND
+(col_varchar, col_date) IN (('I','2022-02-25'), ('I', '2022-02-25'));
+pk	col_date	col_datetime	col_varchar
+5	2022-02-25	2022-02-25 11:01:14	I
+DROP TABLE t1;

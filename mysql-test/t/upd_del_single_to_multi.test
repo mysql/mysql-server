@@ -11,10 +11,14 @@ analyze table t1,t2;
 
 # Remains single-table if there is only a scalar subquery:
 
+--skip_if_hypergraph  # Always uses multi-table code path.
 explain format=tree update t1 set t1.a=3 where a=(select a from t2);
 explain update t1 set t1.a=3 where a=(select a from t2);
+--skip_if_hypergraph  # Always uses multi-table code path.
 explain format=tree delete from t1 where a=(select a from t2);
 explain delete from t1 where a=(select a from t2);
+
+--echo # This line exists only to help --skip_if_hypergraph diffing.
 
 # becomes multi-table if there is IN(subquery), we see the
 # semijoin strategy in EXPLAIN:
@@ -61,14 +65,18 @@ analyze table t1;
 # now we also disable subquery materialization and it is not transformed
 # anymore - remains a single-table statement:
 
+--skip_if_hypergraph  # Always uses multi-table code path.
 explain format=tree update t1 set t1.a=3 where a in (select /*+ subquery(intoexists) */ a from t2);
 explain update t1 set t1.a=3 where a in (select /*+ subquery(intoexists) */ a from t2);
+--skip_if_hypergraph  # Always uses multi-table code path.
 explain format=tree delete from t1 where a in (select /*+ subquery(intoexists) */ a from t2);
 explain delete from t1 where a in (select /*+ subquery(intoexists) */ a from t2);
 
 # Remove hints and use @@optimizer_switch:
 set optimizer_switch='semijoin=off,materialization=off';
+--skip_if_hypergraph  # Always uses multi-table code path.
 explain format=tree update t1 set t1.a=3 where a in (select a from t2);
+--skip_if_hypergraph  # Always uses multi-table code path.
 explain format=tree delete from t1 where a in (select a from t2);
 set optimizer_switch=default;
 

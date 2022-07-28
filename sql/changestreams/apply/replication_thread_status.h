@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,10 +56,6 @@ void unlock_slave_threads(Master_info *mi);
 
   IMPLEMENTATION
     Get a bit mask for which threads are running.
-
-  @return
-            If inverse == 0, running threads
-            If inverse == 1, stopped threads
 */
 void init_thread_mask(int *mask, Master_info *mi, bool inverse,
                       bool ignore_monitor_thread = false);

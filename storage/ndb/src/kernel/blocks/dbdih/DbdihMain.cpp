@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #define DBDIH_C
+#include "util/require.h"
 #include <ndb_global.h>
 #include <ndb_limits.h>
 #include <string.h>
@@ -79,6 +80,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/LqhFrag.hpp>
+#include <signaldata/FsCloseReq.hpp>
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/DihScanTab.hpp>
 #include <signaldata/DictLock.hpp>
@@ -94,6 +96,7 @@
 #include <signaldata/DihRestart.hpp>
 #include <signaldata/IsolateOrd.hpp>
 #include <ndb_constants.h>
+#include "portlib/mt-asm.h"
 
 #include <EventLogger.hpp>
 
@@ -855,7 +858,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
     {
       jam();
       Ptr<TakeOverRecord> takeOverPtr;
-      c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+      ndbrequire(c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]));
       sendStartTo(signal, takeOverPtr);
       return;
     }
@@ -863,7 +866,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
     {
       jam();
       Ptr<TakeOverRecord> takeOverPtr;
-      c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+      ndbrequire(c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]));
       sendUpdateTo(signal, takeOverPtr);
       return;
     }
@@ -878,7 +881,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
   case DihContinueB::ZTO_START_FRAGMENTS:
   {
     TakeOverRecordPtr takeOverPtr;
-    c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+    ndbrequire(c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]));
     nr_start_fragments(signal, takeOverPtr);
     return;
   }
@@ -901,7 +904,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
   {
     jam();
     TakeOverRecordPtr takeOverPtr;
-    c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+    ndbrequire(c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]));
     nr_start_logging(signal, takeOverPtr);
     return;
   }
@@ -974,7 +977,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
       getNodeInfo(cmasterNodeId).m_version));
     SegmentedSectionPtr ptr;
     ndbrequire(num_sections == 1);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= (sizeof(cdata)/4));
     copy(cdata, ptr);
     cdata_size_in_words = ptr.sz;
@@ -1928,6 +1931,7 @@ void Dbdih::execSET_LATEST_LCP_ID(Signal *signal)
 void Dbdih::execGET_LATEST_GCI_REQ(Signal *signal)
 {
   Uint32 nodeId = signal->theData[0];
+  ndbrequire(nodeId < MAX_NDB_NODES);
   Uint32 latestGci = SYSFILE->lastCompletedGCI[nodeId];
   signal->theData[0] = latestGci;
 }
@@ -2387,7 +2391,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -2706,7 +2710,7 @@ void Dbdih::execSTART_MECONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= (sizeof(cdata)/4));
     copy(cdata, ptr);
     cdata_size_in_words = ptr.sz;
@@ -4861,7 +4865,7 @@ void Dbdih::execSTART_TOREQ(Signal* signal)
     jam();
     TakeOverRecordPtr takeOverPtr;
     
-    c_takeOverPool.seize(takeOverPtr);
+    ndbrequire(c_takeOverPool.seize(takeOverPtr));
     c_masterActiveTakeOverList.addFirst(takeOverPtr);
     takeOverPtr.p->toStartingNode = req.startingNodeId;
     takeOverPtr.p->m_senderRef = req.senderRef;
@@ -5000,7 +5004,7 @@ Dbdih::updateToReq_fragmentMutex_locked(Signal * signal,
 {
   jamEntry();
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, toPtrI);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, toPtrI));
   
   Uint32 nodeId = takeOverPtr.p->toStartingNode;
 
@@ -5117,7 +5121,7 @@ Dbdih::switchPrimaryMutex_locked(Signal* signal, Uint32 toPtrI, Uint32 retVal)
   ndbrequire(retVal == 0);
   
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, toPtrI);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, toPtrI));
 
   Uint32 nodeId = takeOverPtr.p->toStartingNode;
   NodeRecordPtr nodePtr;
@@ -5151,7 +5155,7 @@ Dbdih::switchPrimaryMutex_unlocked(Signal* signal, Uint32 toPtrI, Uint32 retVal)
   ndbrequire(retVal == 0);
   
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, toPtrI);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, toPtrI));
 
   UpdateToConf * conf = (UpdateToConf *)&signal->theData[0];
   conf->senderData = takeOverPtr.p->m_senderData;
@@ -8327,7 +8331,7 @@ Dbdih::execSTART_TOREF(Signal* signal)
   (void)errCode; // TODO check for "valid" error
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, ref->senderData));
   
   signal->theData[0] = DihContinueB::ZSEND_START_TO;
   signal->theData[1] = takeOverPtr.i;
@@ -8451,7 +8455,7 @@ Dbdih::execSTART_TOCONF(Signal* signal)
   StartToConf * conf = (StartToConf*)signal->getDataPtr();
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->senderData));
 
   CRASH_INSERTION(7133);
 
@@ -8544,7 +8548,7 @@ void Dbdih::startNextCopyFragment(Signal* signal, Uint32 takeOverPtrI)
 {
   TabRecordPtr tabPtr;
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI));
 
   Uint32 loopCount;
   loopCount = 0;
@@ -8632,7 +8636,7 @@ void Dbdih::startNextCopyFragment(Signal* signal, Uint32 takeOverPtrI)
 void Dbdih::toCopyFragLab(Signal* signal, Uint32 takeOverPtrI) 
 {
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI));
 
   /**
    * Inform starting node that TakeOver is about to start
@@ -8677,7 +8681,7 @@ Dbdih::execPREPARE_COPY_FRAG_REF(Signal* signal)
   PrepareCopyFragRef ref = *(PrepareCopyFragRef*)signal->getDataPtr();
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, ref.senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, ref.senderData));
 
   ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_PREPARE_COPY);
   
@@ -8702,7 +8706,7 @@ Dbdih::execPREPARE_COPY_FRAG_CONF(Signal* signal)
   PrepareCopyFragConf conf = *(PrepareCopyFragConf*)signal->getDataPtr();
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, conf.senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf.senderData));
 
   TabRecordPtr tabPtr;
   FragmentstorePtr fragPtr;
@@ -8814,7 +8818,7 @@ Dbdih::execUPDATE_TOREF(Signal* signal)
   ndbrequire(ref->senderData == c_mainTakeOverPtr.i);
   ndbrequire(c_activeThreadTakeOverPtr.i != RNIL);
 
-  c_takeOverPool.getPtr(takeOverPtr, c_activeThreadTakeOverPtr.i);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, c_activeThreadTakeOverPtr.i));
 
   g_eventLogger->info("UPDATE_TOREF: thread: %u, state:%u"
                       ", errCode: %u, extra: %u",
@@ -8846,7 +8850,7 @@ Dbdih::execUPDATE_TOCONF(Signal* signal)
   ndbrequire(conf->senderData == c_mainTakeOverPtr.i);
   ndbrequire(c_activeThreadTakeOverPtr.i != RNIL);
 
-  c_takeOverPool.getPtr(takeOverPtr, c_activeThreadTakeOverPtr.i);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, c_activeThreadTakeOverPtr.i));
  
   g_eventLogger->debug("UPDATE_TOCONF: thread: %u, state:%u",
                        takeOverPtr.i,
@@ -8985,7 +8989,7 @@ void Dbdih::execUPDATE_FRAG_STATECONF(Signal* signal)
   
   TakeOverRecordPtr takeOverPtr;
 
-  c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->senderData));
 
   g_eventLogger->debug("Updated frag state for inst:%u,tab:%u,frag:%u,state:%u",
                        takeOverPtr.i,
@@ -9034,7 +9038,7 @@ void Dbdih::execCOPY_FRAGREF(Signal* signal)
   Uint32 errorCode = ref->errorCode;
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI);  
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI));
   ndbrequire(ref->tableId == takeOverPtr.p->toCurrentTabref);
   ndbrequire(ref->fragId == takeOverPtr.p->toCurrentFragid);
   ndbrequire(ref->startingNodeId == takeOverPtr.p->toStartingNode);
@@ -9063,7 +9067,7 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   CRASH_INSERTION(7142);
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, conf->userPtr);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->userPtr));
 
   Uint32 rows_lo = conf->rows_lo;
   Uint32 bytes_lo = conf->bytes_lo;
@@ -9139,7 +9143,7 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
   CRASH_INSERTION(7143);
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, conf->userPtr);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->userPtr));
 
   ndbrequire(conf->tableId == takeOverPtr.p->toCurrentTabref);
   ndbrequire(conf->fragId == takeOverPtr.p->toCurrentFragid);
@@ -9373,7 +9377,7 @@ Dbdih::execEND_TOREF(Signal* signal)
   EndToRef* ref = (EndToRef*)signal->getDataPtr();
   
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, ref->senderData));
 
   ndbabort();
 }
@@ -9387,7 +9391,7 @@ Dbdih::execEND_TOCONF(Signal* signal)
   CRASH_INSERTION(7144);
   
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->senderData));
   
   Uint32 senderData = takeOverPtr.p->m_senderData;
   Uint32 senderRef = takeOverPtr.p->m_senderRef;
@@ -9866,7 +9870,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(allFailed.rep.data, ptr);
     releaseSections(handle);
@@ -10954,6 +10958,8 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
      */
     gcpState = MasterGCPConf::GCP_READY; //Compiler keep quiet
     ndbabort();
+  default:
+    ndbabort();
   }
 
   MasterGCPConf::SaveState saveState;
@@ -10974,6 +10980,8 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     jam();
     saveState = MasterGCPConf::GCP_SAVE_COPY_GCI;
     break;
+  default:
+    ndbabort();
   }
 
   MasterGCPConf * const masterGCPConf = (MasterGCPConf *)&signal->theData[0];  
@@ -11057,7 +11065,7 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
 
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     memset(temp_lcpActive,
@@ -12303,7 +12311,7 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   
 #ifdef VM_TRACE
   g_eventLogger->info("MASTER_LCPCONF from node %u", senderNodeId);
-  printMASTER_LCP_CONF(stdout, &signal->theData[0], 0, 0);
+  printMASTER_LCP_CONF(stdout, &signal->theData[0], signal->getLength(), 0);
 #endif  
 
   bool found = false;
@@ -13102,6 +13110,7 @@ Dbdih::find_next_log_part(TabRecord *primTabPtrP, Uint32 & next_log_part)
  */
 void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   CreateFragmentationReq * const req = 
     (CreateFragmentationReq*)signal->getDataPtr();
@@ -13121,6 +13130,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
     getFragmentsPerNode() * cnoOfNodeGroups * cnoReplicas;
   const Uint32 maxFragments =
     MAX_FRAG_PER_LQH * getFragmentsPerNode() * cnoOfNodeGroups;
+  ndbrequire(noOfFragments <= MAX_NDB_PARTITIONS);
 
   if (flags != CreateFragmentationReq::RI_GET_FRAGMENTATION)
   {
@@ -13161,9 +13171,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       case DictTabInfo::HashMapPartition:
       {
         jam();
-        ndbrequire(map_ptr_i != RNIL);
         Ptr<Hash2FragmentMap> ptr;
-        g_hash_map.getPtr(ptr, map_ptr_i);
+        ndbrequire(g_hash_map.getPtr(ptr, map_ptr_i));
         if (noOfFragments == 0 ||
             partitionCount != ptr.p->m_fragments ||
             noOfFragments % partitionCount != 0)
@@ -13226,7 +13235,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
        * used so far. However after this instance key we will simply use
        * instanceKey++ to find the instance key of the next fragment.
        */
-
+      ndbrequire(noOfFragments <= NDB_ARRAY_SIZE(tmp_node_group_id));
       memcpy(&tmp_node_group_id[0], &signal->theData[25], 2 * noOfFragments);
       Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS]
                                  [NDBMT_MAX_WORKER_INSTANCES] =
@@ -13348,9 +13357,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       case DictTabInfo::HashMapPartition:
       {
         jam();
-        ndbrequire(map_ptr_i != RNIL);
         Ptr<Hash2FragmentMap> ptr;
-        g_hash_map.getPtr(ptr, map_ptr_i);
+        ndbrequire(g_hash_map.getPtr(ptr, map_ptr_i));
         if (noOfFragments == 0 ||
             partitionCount != ptr.p->m_fragments ||
             noOfFragments % partitionCount != 0)
@@ -13375,6 +13383,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         When we come here the the exact partition is specified
         and there is an array of node groups sent along as well.
       */
+      ndbrequire(noOfFragments <= NDB_ARRAY_SIZE(tmp_node_group_id));
       memcpy(&tmp_node_group_id[0], &signal->theData[25], 2 * noOfFragments);
       Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS]
                                  [NDBMT_MAX_WORKER_INSTANCES] =
@@ -14375,7 +14384,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     tabPtr.p->m_map_ptr_i = req->hashMapPtrI;
     tabPtr.p->m_new_map_ptr_i = RNIL;
     Ptr<Hash2FragmentMap> mapPtr;
-    g_hash_map.getPtr(mapPtr, tabPtr.p->m_map_ptr_i);
+    ndbrequire(g_hash_map.getPtr(mapPtr, tabPtr.p->m_map_ptr_i));
     ndbrequire(tabPtr.p->totalfragments >= mapPtr.p->m_fragments);
   }
 
@@ -15030,7 +15039,7 @@ void Dbdih::releaseReplicas(Uint32 * replicaPtrI)
 
 void Dbdih::seizeReplicaRec(ReplicaRecordPtr& replicaPtr) 
 {
-  c_replicaRecordPool.seize(replicaPtr);
+  ndbrequire(c_replicaRecordPool.seize(replicaPtr));
   cnoFreeReplicaRec--;
   replicaPtr.p->nextPool = RNIL;
 }//Dbdih::seizeReplicaRec()
@@ -15196,7 +15205,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     signal->theData[4] = connectPtr.i;
     signal->theData[5] = Uint32(now.getUint64() >> 32);
     signal->theData[6] = Uint32(now.getUint64());
-    signal->theData[7] = 3; // Seconds to wait
+    signal->theData[7] = 10; // Seconds to wait
     sendSignal(reference(), GSN_CONTINUEB, signal, 8, JBB);
     return;
   }
@@ -15209,14 +15218,19 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     jam();
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     union {
-      Uint16 buf[2+2*MAX_NDB_PARTITIONS];
-      Uint32 _align[1];
+      Uint16 buf[MAX_FRAGMENT_DATA_ENTRIES];
+      Uint32 _align[MAX_FRAGMENT_DATA_WORDS];
     };
+    ndbrequire(ptr.sz <= MAX_FRAGMENT_DATA_WORDS);
     copy(_align, ptr);
     releaseSections(handle);
-    start_add_fragments_in_new_table(tabPtr, connectPtr, buf, signal);
+    start_add_fragments_in_new_table(tabPtr,
+                                     connectPtr,
+                                     buf,
+                                     ptr.sz * 2,
+                                     signal);
     return;
   }
 
@@ -15224,10 +15238,14 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 }
 
 Uint32
-Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr, const Uint16 buf[])
+Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr,
+                              const Uint16 buf[],
+                              const Uint32 bufLen)
 {
   Uint32 replicas = buf[0];
   Uint32 cnt = buf[1];
+
+  ndbrequire(bufLen >= (2 + ((1+replicas) * cnt)));
 
   Uint32 i = 0;
   Uint32 err = 0;
@@ -15324,24 +15342,18 @@ Dbdih::wait_old_scan(Signal* signal)
   const NDB_TICKS now  = NdbTick_getCurrentTicks();
   const Uint32 elapsed = (Uint32)NdbTick_Elapsed(start,now).seconds();
 
-  if (elapsed > wait)
+  if (elapsed >= wait)
   {
-    infoEvent("Waiting(%u) for scans(%u) to complete on table %u",
+    infoEvent("Waiting %us for %u scans to complete on table %u",
               elapsed,
               tabPtr.p->m_scan_count[1],
               tabPtr.i);
 
-    if (wait == 3)
-    {
-      signal->theData[7] = 3 + 7;
-    }
-    else
-    {
-      signal->theData[7] = 2 * wait;
-    }
+
+    signal->theData[7] = wait + 10;
   }
 
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 7);
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 8);
 }
 
 Uint32
@@ -16172,8 +16184,7 @@ loop:
     if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
     {
       thrjamDebug(jambuf);
-      g_hash_map.getPtr(ptr, map_ptr_i, false);
-      if (unlikely(ptr.p == nullptr))
+      if (unlikely(!g_hash_map.getPtr(ptr, map_ptr_i)))
       {
         thrjam(jambuf);
         goto crash_check_exit;
@@ -16183,8 +16194,7 @@ loop:
       if (unlikely(new_map_ptr_i != RNIL))
       {
         thrjam(jambuf);
-        g_hash_map.getPtr(ptr, new_map_ptr_i, false);
-        if (unlikely(ptr.p == nullptr))
+        if (unlikely(!g_hash_map.getPtr(ptr, new_map_ptr_i)))
         {
           thrjam(jambuf);
           goto crash_check_exit;
@@ -16210,8 +16220,7 @@ loop:
        *   We want the first new fragment.
        */
       thrjam(jambuf);
-      g_hash_map.getPtr(ptr, map_ptr_i, false);
-      if (unlikely(ptr.p == nullptr))
+      if (unlikely(!g_hash_map.getPtr(ptr, map_ptr_i)))
       {
         thrjam(jambuf);
         goto crash_check_exit;
@@ -16564,7 +16573,6 @@ Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
   }
 
   tabPtr.p->m_scan_count[0]++;
-  ndbrequire(tabPtr.p->m_map_ptr_i != DihScanTabConf::InvalidCookie);
   {
     DihScanTabConf* conf = (DihScanTabConf*)signal->getDataPtrSend();
     conf->tableId = tabPtr.i;
@@ -16583,7 +16591,7 @@ Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
     conf->fragmentCount = tabPtr.p->partitionCount;
 
     conf->noOfBackups = tabPtr.p->noOfBackups;
-    conf->scanCookie = tabPtr.p->m_map_ptr_i;
+    conf->scanCookie = tabPtr.p->m_scan_reorg_flag;
     conf->reorgFlag = tabPtr.p->m_scan_reorg_flag;
     NdbMutex_Unlock(&tabPtr.p->theMutex);
     return;
@@ -16602,7 +16610,7 @@ error:
 
 void
 Dbdih::complete_scan_on_table(TabRecordPtr tabPtr,
-                              Uint32 map_ptr_i,
+                              Uint32 scanCookie,
                               EmulatedJamBuffer *jambuf)
 {
   /**
@@ -16615,16 +16623,18 @@ Dbdih::complete_scan_on_table(TabRecordPtr tabPtr,
 
   Uint32 line;
   NdbMutex_Lock(&tabPtr.p->theMutex);
-  if (map_ptr_i == tabPtr.p->m_map_ptr_i)
+  if (scanCookie == tabPtr.p->m_scan_reorg_flag)
   {
+    /* Scan started + completed in same reorg state */
     line = __LINE__;
-    ndbassert(tabPtr.p->m_scan_count[0]);
+    ndbrequire(tabPtr.p->m_scan_count[0]);
     tabPtr.p->m_scan_count[0]--;
   }
   else
   {
+    /* Scan started + completed in diff reorg states */
     line = __LINE__;
-    ndbassert(tabPtr.p->m_scan_count[1]);
+    ndbrequire(tabPtr.p->m_scan_count[1]);
     tabPtr.p->m_scan_count[1]--;
   }
   NdbMutex_Unlock(&tabPtr.p->theMutex);
@@ -16734,6 +16744,7 @@ void
 Dbdih::start_add_fragments_in_new_table(TabRecordPtr tabPtr,
                                         ConnectRecordPtr connectPtr,
                                         const Uint16 buf[],
+                                        const Uint32 bufLen,
                                         Signal *signal)
 {
   /**
@@ -16748,7 +16759,7 @@ Dbdih::start_add_fragments_in_new_table(TabRecordPtr tabPtr,
   DIH_TAB_WRITE_LOCK(tabPtr.p);
 
   Uint32 save = tabPtr.p->totalfragments;
-  if ((err = add_fragments_to_table(tabPtr, buf)))
+  if ((err = add_fragments_to_table(tabPtr, buf, bufLen)))
   {
     jam();
     DIH_TAB_WRITE_UNLOCK(tabPtr.p);
@@ -16885,7 +16896,7 @@ Dbdih::make_new_table_read_and_writeable(TabRecordPtr tabPtr,
     DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
     /* These variables are only protected by mutex. */
-    ndbassert(tabPtr.p->m_scan_count[1] == 0);
+    ndbrequire(tabPtr.p->m_scan_count[1] == 0);
     tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
     tabPtr.p->m_scan_count[0] = 0;
     tabPtr.p->m_scan_reorg_flag = 1;
@@ -16932,7 +16943,7 @@ Dbdih::make_old_table_non_writeable(TabRecordPtr tabPtr,
      * REORG_NOT_MOVED flag set we also start waiting for those
      * scans to complete here.
      */
-    ndbassert(tabPtr.p->m_scan_count[1] == 0);
+    ndbrequire(tabPtr.p->m_scan_count[1] == 0);
     tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
     tabPtr.p->m_scan_count[0] = 0;
     wait_flag = true;
@@ -17077,8 +17088,8 @@ Dbdih::getFragstore(const TabRecord * tab,      //In parameter
   Fragmentstore* TfragStore = fragmentstore;
   Uint32 chunkNo = fragNo >> LOG_NO_OF_FRAGS_PER_CHUNK;
   Uint32 chunkIndex = fragNo & (NO_OF_FRAGS_PER_CHUNK - 1);
-  fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
   if (likely(chunkNo < NDB_ARRAY_SIZE(tab->startFid))) {
+    fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
     ptrCheckGuard(fragPtr, TfragstoreFileSize, TfragStore);
     fragptr = fragPtr;
     return;
@@ -17096,9 +17107,9 @@ Dbdih::getFragstoreCanFail(const TabRecord * tab,      //In parameter
   Fragmentstore* TfragStore = fragmentstore;
   Uint32 chunkNo = fragNo >> LOG_NO_OF_FRAGS_PER_CHUNK;
   Uint32 chunkIndex = fragNo & (NO_OF_FRAGS_PER_CHUNK - 1);
-  fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
   if (likely(chunkNo < NDB_ARRAY_SIZE(tab->startFid)))
   {
+    fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
     if (fragPtr.i < TfragstoreFileSize)
     {
       ptrAss(fragPtr, TfragStore);
@@ -17189,14 +17200,6 @@ void Dbdih::initialiseFragstore()
     cremainingfrags += NO_OF_FRAGS_PER_CHUNK;
   }//for    
 }//Dbdih::initialiseFragstore()
-
-#ifndef NDB_HAVE_RMB
-#define rmb() do { } while (0)
-#endif
-
-#ifndef NDB_HAVE_WMB
-#define wmb() do { } while (0)
-#endif
 
 inline
 bool
@@ -18917,14 +18920,14 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
     ndbrequire(signal->getNoOfSections() <= 2);
     SegmentedSectionPtr ptr1;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr1, 0);
+    ndbrequire(handle.getSection(ptr1, 0));
     ndbrequire(ptr1.sz <= NdbNodeBitmask::Size);
     copy(req->participatingLQH.rep.data, ptr1);
     if (noOfSections == 2)
     {
       jam();
       SegmentedSectionPtr ptr2;
-      handle.getSection(ptr2, 1);
+      ndbrequire(handle.getSection(ptr2, 1));
       ndbrequire(ptr2.sz <= NdbNodeBitmask::Size);
       copy(req->participatingDIH.rep.data, ptr2);
     }
@@ -20588,7 +20591,7 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
      * This is node restart
      */
     Ptr<TakeOverRecord> takeOverPtr;
-    c_takeOverPool.getPtr(takeOverPtr, senderData);
+    ndbrequire(c_takeOverPool.getPtr(takeOverPtr, senderData));
     sendStartTo(signal, takeOverPtr);
     return;
   }
@@ -20798,7 +20801,7 @@ void Dbdih::copyTableLab(Signal* signal, Uint32 tableId)
 {
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
-  ptrAss(tabPtr, tabRecord);
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
   ndbrequire(tabPtr.p->tabCopyStatus == TabRecord::CS_IDLE);
   tabPtr.p->tabCopyStatus = TabRecord::CS_SR_PHASE2_READ_TABLE;
@@ -24158,32 +24161,42 @@ void Dbdih::checkKeepGci(TabRecordPtr tabPtr, Uint32 fragId, Fragmentstore*,
 
 void Dbdih::closeFile(Signal* signal, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = filePtr.p->fileRef;
-  signal->theData[1] = reference();
-  signal->theData[2] = filePtr.i;
-  signal->theData[3] = ZCLOSE_NO_DELETE;
-  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, 4, JBA);
+  FsCloseReq* req = (FsCloseReq*)signal->getDataPtrSend();
+  req->filePointer = filePtr.p->fileRef;
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->fileFlag = 0;
+  FsCloseReq::setRemoveFileFlag(req->fileFlag, false);
+  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
 }//Dbdih::closeFile()
 
 void Dbdih::closeFileDelete(Signal* signal, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = filePtr.p->fileRef;
-  signal->theData[1] = reference();
-  signal->theData[2] = filePtr.i;
-  signal->theData[3] = ZCLOSE_DELETE;
-  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, 4, JBA);
+  FsCloseReq* req = (FsCloseReq*)signal->getDataPtrSend();
+  req->filePointer = filePtr.p->fileRef;
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->fileFlag = 0;
+  FsCloseReq::setRemoveFileFlag(req->fileFlag, true);
+  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
 }//Dbdih::closeFileDelete()
 
 void Dbdih::createFileRw(Signal* signal, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = reference();
-  signal->theData[1] = filePtr.i;
-  signal->theData[2] = filePtr.p->fileName[0];
-  signal->theData[3] = filePtr.p->fileName[1];
-  signal->theData[4] = filePtr.p->fileName[2];
-  signal->theData[5] = filePtr.p->fileName[3];
-  signal->theData[6] = ZCREATE_READ_WRITE;
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+  FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->fileNumber[0] = filePtr.p->fileName[0];
+  req->fileNumber[1] = filePtr.p->fileName[1];
+  req->fileNumber[2] = filePtr.p->fileName[2];
+  req->fileNumber[3] = filePtr.p->fileName[3];
+  req->fileFlags = FsOpenReq::OM_READWRITE | FsOpenReq::OM_CREATE |
+                   FsOpenReq::OM_TRUNCATE;
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dbdih::createFileRw()
 
 void
@@ -24194,6 +24207,8 @@ Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
     jam();
     return;
   }
+
+  ndbrequire(q < NDB_ARRAY_SIZE(c_diverify_queue));
 
   if (!isEmpty(c_diverify_queue[q]))
   {
@@ -25251,7 +25266,8 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       for (initReplicaPtr.i = 0; initReplicaPtr.i < creplicaFileSize;
 	   initReplicaPtr.i++) {
         refresh_watch_dog();
-        c_replicaRecordPool.seizeId(initReplicaPtr, initReplicaPtr.i);
+        ndbrequire(c_replicaRecordPool.seizeId(initReplicaPtr,
+                                               initReplicaPtr.i));
 	initReplicaPtr.p->lcpIdStarted = 0;
 	initReplicaPtr.p->lcpOngoingFlag = false;
         c_replicaRecordPool.releaseLast(initReplicaPtr);
@@ -25634,7 +25650,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     memset(node_bitmask,
            0,
@@ -25734,6 +25750,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   }
   case CheckNodeGroups::GetNodeGroupMembers: {
     ok = true;
+    ndbrequire(sd->nodeId < MAX_NDB_NODES);
     Uint32 ng = SYSFILE->getNodeGroup(sd->nodeId);
     DEB_MULTI_TRP(("My node group is %u", ng));
     if (ng == NO_NODE_GROUP_ID)
@@ -25947,26 +25964,36 @@ void Dbdih::nodeResetStart(Signal *signal)
 
 void Dbdih::openFileRw(Signal* signal, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = reference();
-  signal->theData[1] = filePtr.i;
-  signal->theData[2] = filePtr.p->fileName[0];
-  signal->theData[3] = filePtr.p->fileName[1];
-  signal->theData[4] = filePtr.p->fileName[2];
-  signal->theData[5] = filePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READWRITE;
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+  FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->fileNumber[0] = filePtr.p->fileName[0];
+  req->fileNumber[1] = filePtr.p->fileName[1];
+  req->fileNumber[2] = filePtr.p->fileName[2];
+  req->fileNumber[3] = filePtr.p->fileName[3];
+  req->fileFlags = FsOpenReq::OM_READWRITE;
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dbdih::openFileRw()
 
 void Dbdih::openFileRo(Signal* signal, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = reference();
-  signal->theData[1] = filePtr.i;
-  signal->theData[2] = filePtr.p->fileName[0];
-  signal->theData[3] = filePtr.p->fileName[1];
-  signal->theData[4] = filePtr.p->fileName[2];
-  signal->theData[5] = filePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READONLY;
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+  FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->fileNumber[0] = filePtr.p->fileName[0];
+  req->fileNumber[1] = filePtr.p->fileName[1];
+  req->fileNumber[2] = filePtr.p->fileName[2];
+  req->fileNumber[3] = filePtr.p->fileName[3];
+  req->fileFlags = FsOpenReq::OM_READONLY;
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dbdih::openFileRw()
 
 /*************************************************************************/
@@ -27185,7 +27212,7 @@ void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
   int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
   jamLine((Uint16)ret);
   ndbrequire(ret == 0);
-  STATIC_ASSERT(Sysfile::SYSFILE_FILE_SIZE >= Sysfile::SYSFILE_SIZE32_v2);
+  static_assert(Sysfile::SYSFILE_FILE_SIZE >= Sysfile::SYSFILE_SIZE32_v2);
   memcpy(&sysfileDataToFile[0], &cdata[0], 4 * cdata_size_in_words);
   // zero fill unused part of file
   memset(&sysfileDataToFile[cdata_size_in_words],
@@ -27239,7 +27266,7 @@ void Dbdih::writeTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr)
   req->varIndex = ZVAR_NO_WORD;
   req->numberOfPages = tab->noPages;
 
-  NDB_STATIC_ASSERT(NDB_ARRAY_SIZE(tab->pageRef) <= NDB_FS_RW_PAGES);
+  static_assert(NDB_ARRAY_SIZE(tab->pageRef) <= NDB_FS_RW_PAGES);
   Uint32 section[1 + NDB_ARRAY_SIZE(tab->pageRef)];
   // .listOfMemPages.fileOffset
   section[0] = 0;
@@ -29443,8 +29470,7 @@ Dbdih::sendDictLockReq(Signal* signal, Uint32 lockType, Callback c)
   DictLockReq* req = (DictLockReq*)&signal->theData[0];
   DictLockSlavePtr lockPtr;
 
-  c_dictLockSlavePool.seize(lockPtr);
-  ndbrequire(lockPtr.i != RNIL);
+  ndbrequire(c_dictLockSlavePool.seize(lockPtr));
 
   req->userPtr = lockPtr.i;
   req->lockType = lockType;
@@ -29480,7 +29506,7 @@ Dbdih::recvDictLockConf(Signal* signal)
   const DictLockConf* conf = (const DictLockConf*)&signal->theData[0];
 
   DictLockSlavePtr lockPtr;
-  c_dictLockSlavePool.getPtr(lockPtr, conf->userPtr);
+  ndbrequire(c_dictLockSlavePool.getPtr(lockPtr, conf->userPtr));
   
   lockPtr.p->lockPtr = conf->lockPtr;
   ndbrequire(lockPtr.p->lockType == conf->lockType);
@@ -29497,7 +29523,7 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
   DictUnlockOrd* ord = (DictUnlockOrd*)&signal->theData[0];
 
   DictLockSlavePtr lockPtr;
-  c_dictLockSlavePool.getPtr(lockPtr, lockSlavePtrI);
+  ndbrequire(c_dictLockSlavePool.getPtr(lockPtr, lockSlavePtrI));
 
   ord->lockPtr = lockPtr.p->lockPtr;
   ord->lockType = lockPtr.p->lockType;

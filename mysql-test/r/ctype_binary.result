@@ -798,7 +798,7 @@ create table t1 as select concat(uuid()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(36) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(36) CHARACTER SET utf8mb3 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select coercibility(uuid()), coercibility(cast('a' as char character set latin1));
@@ -2761,9 +2761,9 @@ is_ipv4(inet_ntoa('1'))
 SELECT is_ipv6(inet_ntoa('1'));
 is_ipv6(inet_ntoa('1'))
 0
-SELECT inet6_aton(inet_ntoa('1'));
-inet6_aton(inet_ntoa('1'))
-   
+SELECT HEX(inet6_aton(inet_ntoa('1')));
+HEX(inet6_aton(inet_ntoa('1')))
+00000001
 SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL

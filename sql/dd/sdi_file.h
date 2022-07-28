@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,8 @@ const String_type EXT = ".sdi";
 
   @param id object id if dd object
   @param entity_name name (as returned by dd::Entity_object::name())
-         of dd obejct.
-  @param schema name of schema, or "" for schemaless entites (schemata).
+         of dd object.
+  @param schema name of schema, or "" for schemaless entities (schemata).
   @retval filename to use for sdi file
  */
 String_type sdi_filename(Object_id id, const String_type &entity_name,

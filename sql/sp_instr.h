@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,9 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "sql/sql_class.h"  // Query_arena
+#include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -418,7 +419,7 @@ class sp_lex_instr : public sp_instr {
     mem-root is freed when a reparse is triggered or the stored
     routine is dropped.
   */
-  MEM_ROOT m_lex_mem_root;
+  MEM_ROOT m_lex_mem_root{PSI_NOT_INSTRUMENTED, MEM_ROOT_BLOCK_SIZE};
 
   /**
     Indicates whether this sp_lex_instr instance is responsible for
@@ -949,7 +950,7 @@ class sp_instr_set_case_expr : public sp_lex_branch_instr {
   /////////////////////////////////////////////////////////////////////////
 
   /*
-    NOTE: set_destination() and backpatch() are overriden here just because the
+    NOTE: set_destination() and backpatch() are overridden here just because the
     m_dest attribute is not used by this class, so there is no need to do
     anything about it.
 

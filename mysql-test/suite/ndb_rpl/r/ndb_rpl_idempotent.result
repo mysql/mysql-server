@@ -4,16 +4,10 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET MASTER;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+RESET REPLICA;
+START REPLICA;
 INSERT INTO t1 VALUES ("row1","will go away",1);
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
@@ -39,13 +33,9 @@ c1	c2	c3
 row3	C	3
 row4	D	4
 include/check_slave_is_running.inc
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/check_slave_no_error.inc
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row3	C	3
@@ -54,18 +44,12 @@ SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row3	C	3
 row4	D	4
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 DROP TABLE t1;
 RESET master;
 DROP TABLE t1;
-RESET slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+RESET REPLICA;
+START REPLICA;
 CREATE TABLE t1 (c1 CHAR(15) NOT NULL, c2 CHAR(15) NOT NULL, c3 INT NOT NULL, PRIMARY KEY (c3)) ENGINE = NDB ;
 INSERT INTO t1 VALUES ("row1","remove on slave",1);
 DELETE FROM t1;
@@ -78,16 +62,10 @@ c1	c2	c3
 row2	new on slave	2
 include/check_slave_is_running.inc
 DROP TABLE IF EXISTS t1;
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET MASTER;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+RESET REPLICA;
+START REPLICA;
 Let's interleave some DDL and DML in the Binlog
 Some DDL
 create table t1(a int primary key) engine=ndb;
@@ -114,27 +92,21 @@ insert into t2 values (1), (2), (3);
 commit;
 include/check_slave_is_running.inc
 Stop slave and reset position to start of the applied epoch
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/check_slave_no_error.inc
-call mtr.add_suppression("Slave: Table \'t2\' already exists .*");
-call mtr.add_suppression("Slave SQL for channel '': Error \'Table \'t2\' already exists\' .*");
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+call mtr.add_suppression("Table \'t2\' already exists.*");
+call mtr.add_suppression("Worker 1 failed executing transaction.*");
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=1050]
-Last_SQL_Error = 'Error 'Table 't2' already exists' on query. Default database: 'test'. Query: 'create table t2 (a int primary key) engine=ndb''
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+SELECT LAST_ERROR_MESSAGE
+FROM performance_schema.replication_applier_status_by_worker
+WHERE LAST_ERROR_NUMBER=1050 AND channel_name = '';
+LAST_ERROR_MESSAGE
+Error 'Table 't2' already exists' on query. Default database: 'test'. Query: 'create table t2 (a int primary key) engine=ndb'
+STOP REPLICA;
 RESET MASTER;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+RESET REPLICA;
+START REPLICA;
 DROP TABLE t1;
 DROP TABLE t2;
 include/rpl_end.inc

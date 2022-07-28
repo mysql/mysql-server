@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,8 @@
 #include <assert.h>
 
 #include "my_alloc.h"
+#include "sql/range_optimizer/index_range_scan.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/range_scan.h"
 #include "sql/sql_list.h"
 
 class RowIterator;
@@ -37,10 +37,10 @@ struct MY_BITMAP;
 struct TABLE;
 
 /*
-  QUICK_INDEX_MERGE_SELECT - index_merge access method quick select.
+  IndexMergeIterator - index_merge access method quick select.
 
-    QUICK_INDEX_MERGE_SELECT uses
-     * QUICK_RANGE_SELECTs to get rows
+    IndexMergeIterator uses
+     * IndexRangeScanIterators to get rows
      * Unique class to remove duplicate rows
 
   INDEX MERGE OPTIMIZER
@@ -70,7 +70,7 @@ struct TABLE;
     advantage of Clustered Primary Key (CPK) if the table has one.
     The index_merge algorithm consists of two phases:
 
-    Phase 1 (implemented in QUICK_INDEX_MERGE_SELECT::prepare_unique):
+    Phase 1 (implemented in IndexMergeIterator::prepare_unique):
     prepare()
     {
       activate 'index only';
@@ -84,7 +84,7 @@ struct TABLE;
       deactivate 'index only';
     }
 
-    Phase 2 (implemented as sequence of QUICK_INDEX_MERGE_SELECT::get_next
+    Phase 2 (implemented as sequence of IndexMergeIterator::Read()
     calls):
 
     fetch()
@@ -95,55 +95,34 @@ struct TABLE;
     }
 */
 
-class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
-  Unique *unique;
-
+class IndexMergeIterator : public TableRowIterator {
  public:
-  QUICK_INDEX_MERGE_SELECT(MEM_ROOT *mem_root, TABLE *table);
-  ~QUICK_INDEX_MERGE_SELECT() override;
+  // NOTE: Both pk_quick_select (if non-nullptr) and all children must be
+  // of the type IndexRangeScanIterator, possibly wrapped in a TimingIterator.
+  IndexMergeIterator(
+      THD *thd, MEM_ROOT *mem_root, TABLE *table,
+      unique_ptr_destroy_only<RowIterator> pk_quick_select,
+      Mem_root_array<unique_ptr_destroy_only<RowIterator>> children);
+  ~IndexMergeIterator() override;
 
-  int init() override;
-  void need_sorted_output() override { assert(false); /* Can't do it */ }
-  int reset(void) override;
-  int get_next() override;
-  bool reverse_sorted() const override { return false; }
-  bool reverse_sort_possible() const override { return false; }
-  bool unique_key_range() override { return false; }
-  RangeScanType get_type() const override { return QS_TYPE_INDEX_MERGE; }
-  bool is_loose_index_scan() const override { return false; }
-  bool is_agg_loose_index_scan() const override { return false; }
-  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
-  void add_info_string(String *str) override;
-  bool is_keys_used(const MY_BITMAP *fields) override;
-#ifndef NDEBUG
-  void dbug_dump(int indent, bool verbose) override;
-#endif
+  bool Init() override;
+  int Read() override;
 
-  bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
-
-  /* range quick selects this index_merge read consists of */
-  List<QUICK_RANGE_SELECT> quick_selects;
-
-  /* quick select that uses clustered primary key (NULL if none) */
-  QUICK_RANGE_SELECT *pk_quick_select;
-
-  /* true if this select is currently doing a clustered PK scan */
-  bool doing_pk_scan;
-
-  int read_keys_and_merge();
-
-  void get_fields_used(MY_BITMAP *used_fields) override {
-    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-    QUICK_RANGE_SELECT *quick;
-    while ((quick = it++)) quick->get_fields_used(used_fields);
-
-    if (pk_quick_select) pk_quick_select->get_fields_used(used_fields);
-  }
+ private:
+  unique_ptr_destroy_only<Unique> unique;
 
   /* used to get rows collected in Unique */
   unique_ptr_destroy_only<RowIterator> read_record;
 
- private:
+  /* quick select that uses clustered primary key (NULL if none) */
+  unique_ptr_destroy_only<RowIterator> pk_quick_select;
+
+  /* range quick selects this index_merge read consists of */
+  Mem_root_array<unique_ptr_destroy_only<RowIterator>> m_children;
+
+  /* true if this select is currently doing a clustered PK scan */
+  bool doing_pk_scan;
+
   MEM_ROOT *mem_root;
 };
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -87,40 +87,12 @@
  *
  * ## Refresh trigger
  * `MetadataCache::refresh_thread()` call to `MetadataCache::refresh()` can be
- * triggered in 3 ways:
+ * triggered in 2 ways:
  * - `<TTL>` seconds passed since last refresh
- * - emergency mode (cluster is flagged to have at least one node
- * unreachable).
  * - X protocol notification triggered by the GR change in case of GR cluster
  *
  * It's implemented by running a sleep loop between refreshes. The loop sleeps 1
- * second at a time, until `<TTL>` iterations have gone or emergency mode is
- * enabled.
- *
- *
- * ### Emergency mode
- * Emergency mode is entered, when Routing Plugin discovers that it's unable to
- * connect to a node that's declared by MDC as routable (node that is labelled
- * as writable or readonly). In such situation, it will flag the cluster as
- * missing a node, and MDC will react by increasing refresh rate to 1/s (if it
- * is currently lower).
- *
- * This emergency mode will stay enabled, until routing table resulting from
- * most recent MD and GR query is different from the one before it _AND_ the
- * cluster is in RW mode.
- *
- * @note
- * The reason why we require the routing table to be different before we disable
- * the emergency mode, is because it usually takes several seconds for GR to
- * figure out that some node went down. Thus we want to wait until GR gives us a
- * topology that reflects the change. This strategy might have a bug however
- * [05].
- *
- * @note
- * The reason why we require the cluster to be in RW mode before we disable
- * the emergency mode, is the assumption that the user wants the cluster to
- * be RW and if it is in RO, it is undergoing a failure. This assumption is
- * probably flawed [06].
+ * second at a time, until `<TTL>` iterations have gone.
  *
  *
  *
@@ -412,33 +384,11 @@
  *
  * Once stage 2 is complete, the resulting routing table from Stage 2 is
  * applied. It is also compared to the old routing table and if there is a
- * difference between them, two things happen:
- *
- * 1. Appropriate log messages are issued advising of availability change.
- *
- * 2. A check is run if cluster is in RW mode. If it is, emergency mode is
- *    called off (see "Emergency mode" section for more information).
+ * difference between them then appropriate log messages are issued advising of
+ * availability change.
  *
  *
  *
- *
- *
- * ##NOTES
- *
- * ### Emergency mode
- * [05] Imagine a scenario where a cluster is perfectly healthy, but Routing
- *      Plugin has a network hickup and fails to connect to one of its nodes. As
- *      a result, it will flag the cluster as missing a node, triggerring
- *      emergency mode. Emergency mode will only be turned off after routing
- *      table changes (the assumption is that the current one is stale and we're
- *      waiting for an updated one reflecting the problem Routing Plugin
- *      observed). However, since the cluster is healthy, as long as it stays
- *      that way no such update will come, leaving emergency mode enabled
- *      indefinitely. This has been reported as BUG#27065614
- *
- * [06] Requiring cluster to be available in RW mode before disabling
- *      emergency mode has a flaw: if cluster is placed in super-read-only
- *      mode, it is possible for PRIMARY node to be read-only.
  *
  *
  * ### Stage 1.1
@@ -493,53 +443,47 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
     // Ensure that the refresh does not result in an inconsistency during
     // the lookup.
     std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-    if (cluster_data_ != cluster_topology.cluster_data) {
-      cluster_data_ = cluster_topology.cluster_data;
+    if (cluster_topology_ != cluster_topology) {
+      cluster_topology_ = cluster_topology;
       changed = true;
     } else {
-      cluster_data_.writable_server =
+      cluster_topology_.cluster_data.writable_server =
           cluster_topology.cluster_data.writable_server;
     }
   }
+
+  const auto &cluster_members = cluster_topology_.cluster_data.members;
+  on_md_refresh(changed, cluster_members);
 
   // we want to trigger those actions not only if the metadata has really
   // changed but also when something external (like unsuccessful client
   // connection) triggered the refresh so that we verified if this wasn't
   // false alarm and turn it off if it was
-  view_id = cluster_data_.view_id;
+  view_id = cluster_topology_.view_id;
   if (changed) {
     log_info(
         "Potential changes detected in cluster '%s' after metadata refresh",
         target_cluster_.c_str());
     // dump some informational/debugging information about the cluster
     log_cluster_details();
-    if (cluster_data_.empty())
+    if (cluster_members.empty())
       log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
     else {
       log_info(
           "Metadata for cluster '%s' has %zu member(s), %s: (view_id=%" PRIu64
           ")",
-          target_cluster_.c_str(), cluster_data_.members.size(),
-          cluster_data_.single_primary_mode ? "single-primary"
-                                            : "multi-primary",
+          target_cluster_.c_str(), cluster_members.size(),
+          cluster_topology_.cluster_data.single_primary_mode ? "single-primary"
+                                                             : "multi-primary",
           view_id);
-      for (const auto &mi : cluster_data_.members) {
+      for (const auto &mi : cluster_members) {
         log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
                  mi.xport, to_string(mi.mode).c_str(),
                  get_hidden_info(mi).c_str());
-
-        if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
-          // If we were running with a primary or secondary node gone
-          // missing before (in so-called "emergency mode"), we trust that
-          // the update fixed the problem. This is wrong behavior that
-          // should be fixed, see notes [05] and [06] in Notes section of
-          // Metadata Cache module in Doxygen.
-          has_unreachable_nodes = false;
-        }
       }
     }
 
-    on_instances_changed(/*md_servers_reachable=*/true, cluster_data_.members,
+    on_instances_changed(/*md_servers_reachable=*/true, cluster_members,
                          cluster_topology.metadata_servers, view_id);
     // never let the list that we iterate over become empty as we would
     // not recover from that
@@ -562,14 +506,14 @@ void GRMetadataCache::log_cluster_details() const {
 
   if (cluster_type == mysqlrouter::ClusterType::GR_CS) {
     const std::string cluster_role =
-        target_cluster_.is_primary() ? "primary" : "replica";
+        cluster_topology_.cluster_data.is_primary ? "primary" : "replica";
     const std::string cluster_invalidated =
-        target_cluster_.is_invalidated()
+        cluster_topology_.cluster_data.is_invalidated
             ? "cluster is marked as invalid in the metadata; "
             : "";
 
     bool has_rw_nodes{false};
-    for (const auto &mi : cluster_data_.members) {
+    for (const auto &mi : cluster_topology_.cluster_data.members) {
       if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
         has_rw_nodes = true;
       }

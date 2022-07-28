@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ struct st_row_connect_status {
 
 class PFS_index_rpl_connection_status : public PFS_engine_index {
  public:
-  PFS_index_rpl_connection_status(PFS_engine_key *key)
+  explicit PFS_index_rpl_connection_status(PFS_engine_key *key)
       : PFS_engine_index(key) {}
 
   ~PFS_index_rpl_connection_status() override = default;

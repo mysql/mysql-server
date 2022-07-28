@@ -2,6 +2,17 @@
 # Problem with range optimizer
 #
 
+-- disable_query_log
+-- disable_result_log
+# High values set for sampling scanning, effectively forcing full scan for
+# statistics.
+SET @innodb_stats_transient_sample_pages= @@GLOBAL.innodb_stats_transient_sample_pages;
+SET @@global.innodb_stats_transient_sample_pages=5000000000;
+SET @innodb_stats_persistent_sample_pages= @@GLOBAL.innodb_stats_persistent_sample_pages;
+SET @@global.innodb_stats_persistent_sample_pages=5000000000;
+-- enable_result_log
+-- enable_query_log
+
 --disable_warnings
 drop table if exists t1, t2, t3;
 --enable_warnings
@@ -921,7 +932,7 @@ explain select * from t2 where a between 'a' and 'A';
 explain select * from t2 where a = 'a' or a='A';
 
 update t1 set a='b' where a<>'a';
---replace_column 10 #
+--replace_column 10 # 11 100.00
 explain select * from t1 where a not between 'b' and 'b'; 
 select a, hex(filler) from t1 where a not between 'b' and 'b'; 
 
@@ -1966,6 +1977,7 @@ ANALYZE TABLE t1, t2;
 --echo
 EXPLAIN SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
 --sorted_result
+--replace_regex /(at row )\d+/\1#/
 SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
 
 let $query_ab=SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
@@ -3173,3 +3185,19 @@ INSERT INTO t1 VALUES ('abcde', 10);
 --echo # Used to return 10. The expected result is NULL.
 SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#33611112: Reverse index scan is not sorted on implicit InnoDB primary key
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY (a), KEY (b));
+INSERT INTO t1 VALUES (1, NULL), (2, NULL), (3, 3), (4, NULL);
+SELECT a FROM t1 WHERE b IS NULL GROUP BY a ORDER BY a DESC;
+DROP TABLE t1;
+
+-- disable_query_log
+-- disable_result_log
+SET @@GLOBAL.innodb_stats_transient_sample_pages= @innodb_stats_transient_sample_pages;
+SET @@GLOBAL.innodb_stats_persistent_sample_pages= @innodb_stats_persistent_sample_pages;
+-- enable_result_log
+-- enable_query_log

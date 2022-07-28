@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include "dim.h"
 #include "filelog_plugin.h"
 #include "mysql/harness/string_utils.h"
+#include "mysql/harness/utility/string.h"  // join
 
 #ifdef _WIN32
 #include "mysql/harness/logging/eventlog_plugin.h"
@@ -75,7 +76,21 @@ static inline bool legal_consolelog_destination(
   return true;
 }
 
-static HandlerPtr create_logging_sink(
+const std::array<const char *, 4> sink_supported_options = {
+    {mysql_harness::logging::kConfigOptionLogFilename,
+     mysql_harness::logging::kConfigOptionLogDestination,
+     mysql_harness::logging::kConfigOptionLogLevel,
+     mysql_harness::logging::kConfigOptionLogTimestampPrecision}};
+
+namespace {
+
+static const std::array<const char *, 5> logger_supported_options = {
+    {"sinks", mysql_harness::logging::kConfigOptionLogFilename,
+     mysql_harness::logging::kConfigOptionLogDestination,
+     mysql_harness::logging::kConfigOptionLogLevel,
+     mysql_harness::logging::kConfigOptionLogTimestampPrecision}};
+
+HandlerPtr create_logging_sink(
     const std::string &sink_name, const mysql_harness::LoaderConfig &config,
     const std::string &default_log_filename,
     const mysql_harness::logging::LogLevel default_log_level,
@@ -232,6 +247,8 @@ static HandlerPtr create_logging_sink(
   return result;
 }
 
+}  // namespace
+
 void create_plugin_loggers(const mysql_harness::LoaderConfig &config,
                            mysql_harness::logging::Registry &registry,
                            const mysql_harness::logging::LogLevel level) {
@@ -355,18 +372,37 @@ static void switch_to_loggers_in_config(
   mysql_harness::logging::create_logger(*registry, min_log_level, "sql");
 
   // attach all loggers to the handlers (throws std::runtime_error)
+  bool new_config_has_consolelog{false};
   for (const auto &handler : logger_handlers) {
     registry->add_handler(handler.first, handler.second);
     attach_handler_to_all_loggers(*registry, handler.first);
+
+    if (handler.first == kConsolelogPluginName) {
+      new_config_has_consolelog = true;
+    }
   }
 
-  // in case we switched away from the default consolelog, log that we are now
-  // switching away
-  if (!(logger_handlers.size() == 1 &&
-        logger_handlers.at(0).first == "consolelog")) {
-    log_info(
-        "logging facility initialized, switching logging to loggers specified "
-        "in configuration");
+  // in case we switched away from the default consolelog and something was
+  // already logged to the console, log that we are now switching away
+  if (!new_config_has_consolelog) {
+    auto &reg = DIM::instance().get_LoggingRegistry();
+    try {
+      // there may be no main_console_handler.
+      auto handler =
+          reg.get_handler(mysql_harness::logging::kMainConsoleHandler);
+
+      if (handler->has_logged()) {
+        std::vector<std::string> handler_names;
+        for (const auto &handler : logger_handlers) {
+          handler_names.push_back(handler.first);
+        }
+
+        log_info("stopping to log to the console. Continuing to log to %s",
+                 mysql_harness::join(handler_names, ", ").c_str());
+      }
+    } catch (const std::exception &) {
+      // not found.
+    }
   }
 
   // nothing threw - we're good. Now let's replace the new registry with the
@@ -392,8 +428,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   auto &config = DIM::instance().get_Config();
 
   bool res = init_handlers(env, config, logger_handlers);
-  // something went wrong; the init_handlers called set_error() so we just stop
-  // progress further and let Loader deal with it
+  // something went wrong; the init_handlers called set_error() so we just
+  // stop progress further and let Loader deal with it
   if (!res) return;
 
   switch_to_loggers_in_config(config, logger_handlers);
@@ -413,4 +449,6 @@ mysql_harness::Plugin harness_plugin_logger = {
     nullptr,  // start
     nullptr,  // stop
     false,    // declares_readiness
+    logger_supported_options.size(),
+    logger_supported_options.data(),
 };

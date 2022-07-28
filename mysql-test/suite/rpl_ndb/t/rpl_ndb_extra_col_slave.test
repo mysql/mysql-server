@@ -4,7 +4,7 @@
 # slave_skip_counter, which expected skipped events count will not
 # match the number of events on a compressed binlog.
 -- source include/not_binlog_transaction_compression_on.inc
--- source include/have_binlog_format_row.inc
+-- source include/have_binlog_format_mixed_or_row.inc
 -- source include/have_ndb.inc
 -- source suite/ndb_rpl/ndb_master-slave.inc
 CALL mtr.add_suppression("Slave: .*Duplicate column name");

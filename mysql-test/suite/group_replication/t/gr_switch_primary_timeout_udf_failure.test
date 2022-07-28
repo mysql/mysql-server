@@ -1,0 +1,119 @@
+###############################################################################
+#
+# This test validates that transactions monitor dies if UDF fails.
+#
+# Test:
+# 0. This test requires two servers
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 secondary.
+# 2. Stop the applier thread on server2.
+# 3. Start a primary change on server1 and block the operation at validation.
+# 4. Wait for the THD_transaction_monitor thread to start and unblock the operation.
+# 5. Allow the primary change operation to continue.
+# 6. Check the monitor thread exited.
+# 7. Cleanup
+#
+###############################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start group in single primary mode.
+--echo #    Server1 will be primary and server 2 secondary.
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. The appointed primary for election left the group, this operation will be aborted and if present the old primary member will be re-elected. Check the group member list to see who is the primary.");
+set session sql_log_bin=1;
+
+SET @debug_save_m1= @@GLOBAL.DEBUG;
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue on the primary election process: Could not wait for the execution of local transactions. The member will now leave the group.");
+call mtr.add_suppression("Plugin group_replication reported: 'A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.'");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Error while executing a group configuration operation: A critical error occurred during the local execution of this action. The member will now leave the group.");
+set session sql_log_bin=1;
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Stop the applier thread on server2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_stop_applier_sql_thread.inc
+
+--echo
+--echo # 3. Start a primary change on server1 and block the operation at validation.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+
+--replace_result $server2_uuid MEMBER2_UUID
+--send_eval SELECT group_replication_set_as_primary("$server2_uuid",30)
+
+--echo
+--echo # 4. Wait for the THD_transaction_monitor thread to start and unblock the operation.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME LIKE "thread/group_rpl/THD_transaction_monitor%"
+--source include/wait_condition.inc
+
+SET DEBUG_SYNC = "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+
+--echo
+--echo # 5. Allow the primary change operation to continue.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_GRP_RPL_UDF_ERROR
+--reap
+
+--echo
+--echo # 6. Check the monitor thread exited.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME LIKE "thread/group_rpl/THD_transaction_monitor%"
+--source include/wait_condition.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+## Note: Server1 is in ERROR state so it's primary status cannot be checked
+--let $group_replication_member_state=ERROR
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo # 7. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET GLOBAL DEBUG= @debug_save_m1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/group_replication_end.inc

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,10 +52,10 @@ namespace classic_protocol {
 //
 constexpr size_t bytes_per_bits(size_t bits) { return (bits + 7) / 8; }
 
-static_assert(bytes_per_bits(0) == 0, "");
-static_assert(bytes_per_bits(1) == 1, "");
-static_assert(bytes_per_bits(8) == 1, "");
-static_assert(bytes_per_bits(9) == 2, "");
+static_assert(bytes_per_bits(0) == 0);
+static_assert(bytes_per_bits(1) == 1);
+static_assert(bytes_per_bits(8) == 1);
+static_assert(bytes_per_bits(9) == 2);
 
 /**
  * Codec for a type.

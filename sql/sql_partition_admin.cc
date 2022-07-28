@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -391,7 +391,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
   /* OK to exchange */
 
   /*
-    Get exclusive mdl lock on both tables, alway the non partitioned table
+    Get exclusive mdl lock on both tables, always the non partitioned table
     first. Remember the tickets for downgrading locks later.
   */
   auto downgrade_mdl_lambda = [thd](MDL_ticket *ticket) {

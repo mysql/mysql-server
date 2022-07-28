@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -233,7 +233,7 @@ inline Cursor &Cursor::operator--() {
 
   if (m_type == Type::HASH) {
     /* We don't support decrement on a hash and it shouldn't be called. */
-    abort();
+    my_abort();
   } else {
     assert(m_type == Type::TREE);
     --m_tree_iterator;

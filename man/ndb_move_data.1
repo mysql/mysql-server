@@ -2,12 +2,12 @@
 .\"     Title: ndb_move_data
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_MOVE_DATA" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_MOVE_DATA" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -108,7 +108,7 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--character-sets-dir=name\fR\fB \fR
+\fB \fR\fB--character-sets-dir=path\fR\fB \fR
 T}:T{
 Directory where character sets are
 T}:T{
@@ -135,9 +135,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -155,9 +155,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--database=dbname\fR,
+\fB--database=name\fR,
 .PP
-\fB \fR\fB-d\fR\fB \fR
+\fB \fR\fB-d name\fR\fB \fR
 T}:T{
 Name of database in which table is found
 T}:T{
@@ -204,7 +204,7 @@ T{
 .PP
 \fB \fR\fB--error-insert\fR\fB \fR
 T}:T{
-Insert random temporary errors (testing option)
+Insert random temporary errors (used in testing)
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -251,9 +251,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -264,9 +264,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -377,23 +377,11 @@ T}
 \fB\-\-abort\-on\-error\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --abort-on-error
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -417,7 +405,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---character-sets-dir=name
+--character-sets-dir=path
 T}
 T{
 Type
@@ -543,7 +531,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -601,7 +589,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---database=dbname
+--database=name
 T}
 T{
 Type
@@ -731,23 +719,11 @@ Also read groups with concat(group, suffix)\&.
 \fB\-\-drop\-source\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --drop-source
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -765,23 +741,11 @@ Drop source table after all rows have been moved\&.
 \fB\-\-error\-insert\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --error-insert
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -799,23 +763,11 @@ Insert random temporary errors (testing option)\&.
 \fB\-\-exclude\-missing\-columns\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --exclude-missing-columns
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -890,23 +842,11 @@ Read given path from login file\&.
 \fB\-l\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --lossy-conversions
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -930,7 +870,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -964,7 +904,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type
@@ -1097,23 +1037,11 @@ Print program argument list and exit\&.
 \fB\-A\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --promote-attributes
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1188,23 +1116,11 @@ Display help text and exit; same as
 \fB\-\-verbose\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --verbose
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1235,7 +1151,7 @@ Display version information and exit\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

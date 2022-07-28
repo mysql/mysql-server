@@ -176,3 +176,32 @@ DROP TABLE t;
 --echo #
 
 select find_in_set(json_unquote(json_set('{}','$','')),1);
+
+--echo # Bug#33635637: Regression in FIND_IN_SET() in 8.0.22
+
+CREATE TABLE t1 (
+    c varchar(40),
+    z varchar(40),
+    s set('alpha','bravo','charlie','delta','echo','foxtrot','golf')
+);
+INSERT INTO t1 VALUES
+  ('foxtrot', 'zulu', 'bravo,delta,foxtrot'),
+  ('foxtrot', 'zulu', 'foxtrot'),
+  ('foxtrot', 'zulu', 'alpha');
+
+SET @a = 'foxtrot';
+SET @z = 'zulu';
+
+SELECT 'using string   ' as param, FIND_IN_SET('foxtrot', s) as f, s FROM t1
+UNION
+SELECT 'using variable', FIND_IN_SET(@a, s), s FROM t1
+UNION
+SELECT 'using column  ', FIND_IN_SET(c, s), s FROM t1;
+
+SELECT 'invalid string   ' as param, FIND_IN_SET('zulu', s) as f, s FROM t1
+UNION
+SELECT 'invalid variable', FIND_IN_SET(@z, s), s FROM t1
+UNION
+SELECT 'invalid column  ', FIND_IN_SET(z, s), s FROM t1;
+
+DROP TABLE t1;

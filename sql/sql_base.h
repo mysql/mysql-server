@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #include "mem_root_deque.h"
 #include "my_base.h"  // ha_extra_function
 #include "my_inttypes.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "prealloced_array.h"        // Prealloced_array
 #include "sql/locked_tables_list.h"  // enum_locked_tables_mode
 #include "sql/mdl.h"                 // MDL_savepoint

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-// Implements
-#include "storage/ndb/plugin/ndb_blobs_buffer.h"
-
 #ifdef TEST_NDB_BLOBS_BUFFER
+#include "storage/ndb/plugin/ndb_blobs_buffer.h"
 #include <NdbTap.hpp>
 
 TAPTEST(NdbBlobsBuffer) {

@@ -2,12 +2,12 @@
 .\"     Title: ndb_index_stat
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_INDEX_STAT" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_INDEX_STAT" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -72,7 +72,7 @@ database:
 .RS 4
 .\}
 .nf
-shell> \fBndb_index_stat \-d test mytable\fR
+$> \fBndb_index_stat \-d test mytable\fR
 table:City index:PRIMARY fragCount:2
 sampleVersion:3 loadTime:1399585986 sampleCount:1994 keyBytes:7976
 query cache: valid:1 sampleCount:1994 totalBytes:27916
@@ -138,7 +138,7 @@ option provides some additional output, as shown here:
 .RS 4
 .\}
 .nf
-shell> \fBndb_index_stat \-d test mytable \-\-verbose\fR
+$> \fBndb_index_stat \-d test mytable \-\-verbose\fR
 random seed 1337010518
 connected
 loop 1 of 1
@@ -150,7 +150,7 @@ query cache: valid:1 sampleCount:0 totalBytes:0
 times in ms: save: 20\&.766 sort: 0\&.001
 disconnected
 NDBT_ProgramExit: 0 \- OK
-shell>
+$>
 .fi
 .if n \{\
 .RE
@@ -249,9 +249,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -271,7 +271,7 @@ T{
 .PP
 \fB--database=name\fR,
 .PP
-\fB \fR\fB-d\fR\fB \fR
+\fB \fR\fB-d name\fR\fB \fR
 T}:T{
 Name of database containing table
 T}:T{
@@ -355,9 +355,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -368,9 +368,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -668,7 +668,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -866,33 +866,11 @@ Also read groups with concat(group, suffix)\&.
 \fB\-\-delete\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --delete
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -910,33 +888,11 @@ Delete the index statistics for the given table, stopping any auto\-update that 
 \fB\-\-dump\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --dump
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -1062,7 +1018,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -1096,7 +1052,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type
@@ -1274,33 +1230,11 @@ Perform random range queries on first key attribute (must be int unsigned)\&.
 \fB\-\-sys\-drop\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --sys-drop
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -1319,33 +1253,11 @@ Drop all statistics tables and events in the NDB kernel\&.
 \fB\-\-sys\-create\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --sys-create
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -1363,33 +1275,11 @@ Create all statistics tables and events in the NDB kernel\&. This works only if 
 \fB\-\-sys\-create\-if\-not\-exist\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --sys-create-if-not-exist
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -1407,33 +1297,11 @@ Create any NDB system statistics tables or events (or both) that do not already 
 \fB\-\-sys\-create\-if\-not\-valid\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --sys-create-if-not-valid
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -1451,33 +1319,11 @@ Create any NDB system statistics tables or events that do not already exist, aft
 \fB\-\-sys\-check\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --sys-check
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -1495,33 +1341,11 @@ Verify that all required system statistics tables and events exist in the NDB ke
 \fB\-\-sys\-skip\-tables\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --sys-skip-tables
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -1541,33 +1365,11 @@ options to any statistics tables\&.
 \fB\-\-sys\-skip\-events\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --sys-skip-events
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -1587,33 +1389,11 @@ options to any events\&.
 \fB\-\-update\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --update
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -1654,33 +1434,11 @@ Display help text and exit; same as
 \fB\-\-verbose\fR
 .TS
 allbox tab(:);
-lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --verbose
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
-T}
-T{
-Minimum Value
-T}:T{
-T}
-T{
-Maximum Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -1849,7 +1607,7 @@ ndb_index_stat system options)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

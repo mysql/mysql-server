@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -113,15 +113,6 @@ class basic_named_pipe_impl_base {
 
   executor_type get_executor() noexcept { return io_ctx_->get_executor(); }
 
-  stdx::expected<void, std::error_code> close() {
-    if (is_open()) {
-      CloseHandle(native_handle_);
-      native_handle_ = impl::named_pipe::kInvalidHandle;
-    }
-
-    return {};
-  }
-
   stdx::expected<size_t, std::error_code> cancel() {
     // TODO: once the io-context has support for OVERLAPPED IO on windows
     // a full implemenantation can be done.
@@ -174,16 +165,12 @@ class basic_named_pipe_impl : public basic_named_pipe_impl_base {
     if (this == std::addressof(rhs)) {
       return *this;
     }
-
-    close();
     __base::operator=(std::move(rhs));
 
     return *this;
   }
 
-  ~basic_named_pipe_impl() {
-    if (is_open()) close();
-  }
+  ~basic_named_pipe_impl() {}
 
   executor_type get_executor() noexcept { return __base::get_executor(); }
 
@@ -237,11 +224,8 @@ class basic_named_pipe_impl : public basic_named_pipe_impl_base {
         // available
         const std::error_code ec_pipe_busy{ERROR_PIPE_BUSY,
                                            std::system_category()};
-        const std::error_code ec_file_not_found{ERROR_FILE_NOT_FOUND,
-                                                std::system_category()};
 
-        if ((error_code == ec_pipe_busy || error_code == ec_file_not_found) &&
-            clock_type::now() < end_time) {
+        if ((error_code == ec_pipe_busy) && clock_type::now() < end_time) {
           std::this_thread::sleep_for(retry_step);
           continue;
         }
@@ -290,9 +274,10 @@ class basic_named_pipe : private basic_named_pipe_impl<Protocol> {
 
   constexpr bool is_open() const noexcept { return __base::is_open(); }
 
-  stdx::expected<void, std::error_code> close() { return __base::close(); }
-
   native_handle_type native_handle() const { return __base::native_handle(); }
+  void native_handle(native_handle_type handle) {
+    __base::native_handle(handle);
+  }
 
   stdx::expected<void, std::error_code> native_non_blocking(bool v) {
     return __base::native_non_blocking(v);
@@ -400,7 +385,9 @@ class basic_named_pipe_socket : public basic_named_pipe<Protocol> {
   // NOLINTNEXTLINE(hicpp-noexcept-move,performance-noexcept-move-constructor)
   basic_named_pipe_socket &operator=(basic_named_pipe_socket &&) = default;
 
-  ~basic_named_pipe_socket() = default;
+  ~basic_named_pipe_socket() {
+    if (is_open()) close();
+  }
 
   constexpr bool is_open() const noexcept { return __base::is_open(); }
 
@@ -410,6 +397,15 @@ class basic_named_pipe_socket : public basic_named_pipe<Protocol> {
     if (is_open()) {
       return stdx::make_unexpected(
           make_error_code(net::socket_errc::already_open));
+    }
+
+    return {};
+  }
+
+  stdx::expected<void, std::error_code> close() {
+    if (is_open()) {
+      DisconnectNamedPipe(native_handle());
+      __base::native_handle(impl::named_pipe::kInvalidHandle);
     }
 
     return {};
@@ -476,7 +472,9 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
   // NOLINTNEXTLINE(hicpp-noexcept-move,performance-noexcept-move-constructor)
   basic_named_pipe_acceptor &operator=(basic_named_pipe_acceptor &&) = default;
 
-  ~basic_named_pipe_acceptor() = default;
+  ~basic_named_pipe_acceptor() {
+    if (is_open()) close();
+  }
 
   executor_type get_executor() noexcept { return __base::get_executor(); }
 
@@ -489,6 +487,15 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
   }
 
   stdx::expected<void, std::error_code> open() { return __base::open(); }
+
+  stdx::expected<void, std::error_code> close() {
+    if (is_open()) {
+      CloseHandle(native_handle());
+      native_handle(impl::named_pipe::kInvalidHandle);
+    }
+
+    return {};
+  }
 
   stdx::expected<native_handle_type, std::error_code> release() {
     return __base::release();
@@ -509,10 +516,14 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
    *
    * in accordance with net-ts' acceptors' bind().
    *
+   * @param ep    an endpoint this method binds to a socket
+   * @param flags flags passed to CreateNamedPipe() as is. Use for PIPE_NOWAIT.
+   *
    * @retval std::errc::invalid_argument if ep.path() is empty
    * @retval std::errc::invalid_argument if already bound.
    */
-  stdx::expected<void, std::error_code> bind(const endpoint_type &ep) {
+  stdx::expected<void, std::error_code> bind(const endpoint_type &ep,
+                                             int flags = 0) {
     if (ep.path().empty()) {
       return stdx::make_unexpected(
           make_error_code(std::errc::invalid_argument));
@@ -525,6 +536,26 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
     }
 
     ep_ = ep;
+
+    const auto protocol = protocol_type();
+
+    if (native_non_blocking_ == 1) flags |= PIPE_NOWAIT;
+
+    if (!is_open()) {
+      const DWORD fl = protocol.type() | protocol.protocol() | flags |
+                       PIPE_REJECT_REMOTE_CLIENTS;
+      auto handle = CreateNamedPipe(
+          TEXT(ep_.path().c_str()), PIPE_ACCESS_DUPLEX,
+          protocol.type() | protocol.protocol() | PIPE_REJECT_REMOTE_CLIENTS,
+          back_log_, 1024 * 16, 1024 * 16, NMPWAIT_USE_DEFAULT_WAIT, NULL);
+
+      if (handle == impl::named_pipe::kInvalidHandle) {
+        auto ec = win32::last_error_code();
+        return stdx::make_unexpected(ec);
+      }
+
+      native_handle(handle);
+    }
 
     return {};
   }
@@ -554,12 +585,10 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
    * - CreateNamedPipe() on the endpoint assigned by bind()
    * - ConnectNamedPipe() to accept the client connection.
    *
-   * @param flags passed to CreateNamedPipe() as is. Use for PIPE_NOWAIT.
-   *
    * @return a connected named pipe.
    * @retval std::errc::invalid_argument if no endpoint bound.
    */
-  stdx::expected<socket_type, std::error_code> accept(int flags = 0) {
+  stdx::expected<socket_type, std::error_code> accept() {
     // not bound.
     if (ep_.path().empty()) {
       return stdx::make_unexpected(
@@ -567,23 +596,6 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
     }
 
     const auto protocol = protocol_type();
-
-    if (native_non_blocking_ == 1) flags |= PIPE_NOWAIT;
-
-    if (!is_open()) {
-      auto handle = CreateNamedPipe(
-          TEXT(ep_.path().c_str()), PIPE_ACCESS_DUPLEX,
-          protocol.type() | protocol.protocol() | flags |
-              PIPE_REJECT_REMOTE_CLIENTS,
-          back_log_, 1024 * 16, 1024 * 16, NMPWAIT_USE_DEFAULT_WAIT, NULL);
-
-      if (handle == impl::named_pipe::kInvalidHandle) {
-        auto ec = win32::last_error_code();
-        return stdx::make_unexpected(ec);
-      }
-
-      native_handle(handle);
-    }
 
     const bool connected = ConnectNamedPipe(native_handle(), NULL);
     if (!connected) {
@@ -595,18 +607,17 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
                                        std::system_category()};
 
       // ERROR_PIPE_CONNECTED is also a success
-      // ERROR_NO_DATA too, it just meands the pipe is already closed, but quite
+      // ERROR_NO_DATA too, it just means the pipe is already closed, but quite
       // likely readable.
       if (last_ec == ec_pipe_connected || last_ec == ec_no_data) {
         return {std::in_place, get_executor().context(), protocol,
-                release().value()};
+                native_handle()};
       }
 
       return stdx::make_unexpected(last_ec);
     }
 
-    return {std::in_place, get_executor().context(), protocol,
-            release().value()};
+    return {std::in_place, get_executor().context(), protocol, native_handle()};
   }
 
   stdx::expected<endpoint_type, std::error_code> local_endpoint() const {

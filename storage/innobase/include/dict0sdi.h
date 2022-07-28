@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -99,59 +99,59 @@ class Sdi_Compressor {
 
 /** Create SDI in a tablespace. This API should be used when
 upgrading a tablespace with no SDI.
-@param[in,out]	tablespace	tablespace object
-@retval		false		success
-@retval		true		failure */
+@param[in,out]  tablespace      tablespace object
+@retval         false           success
+@retval         true            failure */
 bool dict_sdi_create(dd::Tablespace *tablespace);
 
 /** Drop SDI in a tablespace. This API should be used only
 when SDI is corrupted.
-@param[in,out]	tablespace	tablespace object
-@retval		false		success
-@retval		true		failure */
+@param[in,out]  tablespace      tablespace object
+@retval         false           success
+@retval         true            failure */
 bool dict_sdi_drop(dd::Tablespace *tablespace);
 
 /** Get the SDI keys in a tablespace into the vector provided.
-@param[in]	tablespace	tablespace object
-@param[in,out]	vector		vector to hold SDI keys
-@retval		false		success
-@retval		true		failure */
+@param[in]      tablespace      tablespace object
+@param[in,out]  vector          vector to hold SDI keys
+@retval         false           success
+@retval         true            failure */
 bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector);
 
 /** Retrieve SDI from tablespace.
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key
-@param[in,out]	sdi		SDI retrieved from tablespace
-@param[in,out]	sdi_len		in:  size of memory allocated
+@param[in]      tablespace      tablespace object
+@param[in]      sdi_key         SDI key
+@param[in,out]  sdi             SDI retrieved from tablespace
+@param[in,out]  sdi_len         in:  size of memory allocated
                                 out: actual length of SDI
-@retval		false		success
-@retval		true		in case of failures like record not found,
+@retval         false           success
+@retval         true            in case of failures like record not found,
                                 sdi_len is UINT64MAX_T, else sdi_len is
                                 actual length of SDI */
 bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
-                  void *sdi, uint64 *sdi_len);
+                  void *sdi, uint64_t *sdi_len);
 
 /** Insert/Update SDI in tablespace.
-@param[in]	hton            handlerton object
-@param[in]	tablespace	tablespace object
-@param[in]	table		table object
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+@param[in]      hton            handlerton object
+@param[in]      tablespace      tablespace object
+@param[in]      table           table object
+@param[in]      sdi_key         SDI key to uniquely identify the tablespace
 object
-@param[in]	sdi		SDI to be stored in tablespace
-@param[in]	sdi_len		SDI length
-@retval		false		success
-@retval		true		failure */
+@param[in]      sdi             SDI to be stored in tablespace
+@param[in]      sdi_len         SDI length
+@retval         false           success
+@retval         true            failure */
 bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
                   const dd::Table *table, const sdi_key_t *sdi_key,
-                  const void *sdi, uint64 sdi_len);
+                  const void *sdi, uint64_t sdi_len);
 
 /** Delete SDI from tablespace.
-@param[in]	tablespace	tablespace object
-@param[in]	table		table object
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+@param[in]      tablespace      tablespace object
+@param[in]      table           table object
+@param[in]      sdi_key         SDI key to uniquely identify the tablespace
                                 object
-@retval		false		success
-@retval		true		failure */
+@retval         false           success
+@retval         true            failure */
 bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
                      const sdi_key_t *sdi_key);
 #endif

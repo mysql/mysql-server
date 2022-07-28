@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,12 +50,12 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"
 
 #include "mysqlrouter/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_auth_realm_export.h"
-#include "mysqlrouter/plugin_config.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -64,7 +64,9 @@ using namespace std::string_literals;
 static constexpr const char kSectionName[]{"http_auth_realm"};
 static std::vector<std::string> registered_realms;
 
-class HttpAuthRealmPluginConfig : public mysqlrouter::BasePluginConfig {
+using StringOption = mysql_harness::StringOption;
+
+class HttpAuthRealmPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string backend;
   std::string method;
@@ -73,11 +75,11 @@ class HttpAuthRealmPluginConfig : public mysqlrouter::BasePluginConfig {
 
   explicit HttpAuthRealmPluginConfig(
       const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        backend(get_option_string(section, "backend")),
-        method(get_option_string(section, "method")),
-        require(get_option_string(section, "require")),
-        name(get_option_string(section, "name")) {}
+      : mysql_harness::BasePluginConfig(section),
+        backend(get_option(section, "backend", StringOption{})),
+        method(get_option(section, "method", StringOption{})),
+        require(get_option(section, "require", StringOption{})),
+        name(get_option(section, "name", StringOption{})) {}
 
   std::string get_default(const std::string &option) const override {
     const std::map<std::string, std::string> defaults{
@@ -190,6 +192,9 @@ static const std::array<const char *, 1> required = {{
     "logger",
 }};
 
+static const std::array<const char *, 4> supported_options{"backend", "method",
+                                                           "require", "name"};
+
 extern "C" {
 mysql_harness::Plugin HTTP_AUTH_REALM_EXPORT harness_plugin_http_auth_realm = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
@@ -197,13 +202,17 @@ mysql_harness::Plugin HTTP_AUTH_REALM_EXPORT harness_plugin_http_auth_realm = {
     "HTTP_AUTH_REALM",                       // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     nullptr,  // start
     nullptr,  // stop
     false,    // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

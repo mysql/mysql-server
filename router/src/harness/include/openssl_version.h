@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,14 +52,24 @@
    ((PATCH & 0xff) << 4) | (STATUS & 0xf))
 
 /**
- * build openssl version.
+ * build openssl version (pre-releases and stable).
  *
  * @see ROTUER_OPENSSL_VERSION_FULL
  */
 #define ROUTER_OPENSSL_VERSION(MAJOR, MINOR, FIX) \
+  ROUTER_OPENSSL_VERSION_FULL(MAJOR, MINOR, FIX, 0, 0x0)
+
+/**
+ * build openssl version (stable only).
+ *
+ * @see ROTUER_OPENSSL_VERSION_FULL
+ */
+#define ROUTER_OPENSSL_VERSION_STABLE(MAJOR, MINOR, FIX) \
   ROUTER_OPENSSL_VERSION_FULL(MAJOR, MINOR, FIX, 0, 0xf)
 
-static_assert(ROUTER_OPENSSL_VERSION(1, 2, 3) == 0x1020300fL, "failed");
-static_assert(ROUTER_OPENSSL_VERSION(0, 9, 4) == 0x0090400fL, "failed");
+static_assert(ROUTER_OPENSSL_VERSION(1, 2, 3) == 0x10203000L, "failed");
+static_assert(ROUTER_OPENSSL_VERSION(0, 9, 4) == 0x00904000L, "failed");
+static_assert(ROUTER_OPENSSL_VERSION_STABLE(1, 2, 3) == 0x1020300fL, "failed");
+static_assert(ROUTER_OPENSSL_VERSION_STABLE(0, 9, 4) == 0x0090400fL, "failed");
 
 #endif

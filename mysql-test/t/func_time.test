@@ -266,44 +266,10 @@ select unix_timestamp('1969-12-01 19:00:01');
 #
 select from_unixtime(-1);
 SELECT FROM_UNIXTIME(-0.000001);
-# check for from_unixtime(2^31-1) and from_unixtime(2^31)
-select from_unixtime(2147483647);
-select from_unixtime(2147483648);
+# check for from_unixtime(2^31-1) and from_unixtime(2^31), and similarly for
+# test of unix_timestamp, moved to unixtime.inc
 select from_unixtime(0);
 
-#
-# Some more tests for bug #9191 "TIMESTAMP/from_unixtime() no
-# longer accepts 2^31-1". Here we test that from_unixtime and
-# unix_timestamp are consistent, when working with boundary dates.
-#
-select unix_timestamp(from_unixtime(2147483647));
-select unix_timestamp(from_unixtime(2147483648));
-
-# check for invalid dates
-
-# bad year
-select unix_timestamp('2039-01-20 01:00:00');
-select unix_timestamp('1968-01-20 01:00:00');
-# bad month
-select unix_timestamp('2038-02-10 01:00:00');
-select unix_timestamp('1969-11-20 01:00:00');
-# bad day
-select unix_timestamp('2038-01-20 01:00:00');
-select unix_timestamp('1969-12-30 01:00:00');
-
-#
-# Check negative shift (we subtract several days for boundary dates during
-# conversion).
-select unix_timestamp('2038-01-17 12:00:00');
-
-#
-# Check positive shift. (it happens only on
-# platfroms with unsigned time_t, such as QNX)
-#
-select unix_timestamp('1970-01-01 03:00:01');
-
-# check bad date, close to the boundary (we cut them off in the very end)
-select unix_timestamp('2038-01-19 07:14:07');
 
 #
 # Bug #28759: DAYNAME() and MONTHNAME() return binary string
@@ -1319,7 +1285,7 @@ CREATE TABLE t0022 (
 WITH cte1 AS
 (SELECT(replace(md5(0x9025c5c7),
                     convert((1) using utf8),
-                    (!(cast((connection_id()) AS char(20)))))) AS a1 FROM t0022)
+                    (!(cast((555) AS char(20)))))) AS a1 FROM t0022)
 SELECT cte1.a1
 FROM cte1 WHERE cte1.a1 = from_unixtime(1537000917);
 
@@ -1337,3 +1303,34 @@ CREATE TABLE t AS
 SELECT * FROM t;
 SHOW CREATE TABLE t;
 DROP TABLE t;
+
+
+--echo #
+--echo # Bug #32384355 INSERT,SELECT FROM SAME TABLE WITH AGGREGATE
+--echo # AND NOW() COLUMNS PRODUCES ERROR
+--echo #
+
+CREATE TABLE t1 (
+  i1 INT,
+  d1 DATETIME
+);
+
+ANALYZE TABLE t1;
+
+let $query = INSERT INTO t1 SELECT MAX(1), NOW() FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+SELECT i1, EXTRACT(HOUR FROM TIMEDIFF(NOW(), d1)) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#33438883: Assertion `!thd->lex->is_view_context_analysis()
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+CREATE VIEW v1 AS SELECT (SELECT 'v' FROM DUAL) AS field1 FROM t1 GROUP BY field1
+HAVING TIME(field1) != 0 AND  TIMESTAMP(field1) != 0;
+DROP VIEW v1;
+DROP TABLE t1;

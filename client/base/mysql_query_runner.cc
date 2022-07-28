@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,7 +145,7 @@ int64 Mysql_query_runner::run_query_unguarded(string query) {
 
       vector<std::function<int64(const Row &)> *>::reverse_iterator it;
       for (it = m_result_callbacks.rbegin(); it != m_result_callbacks.rend();
-           it++) {
+           ++it) {
         int64 callback_result = (**it)(*processed_row);
         if (callback_result != 0) {
           mysql_free_result(results);
@@ -289,7 +289,7 @@ void Mysql_query_runner::cleanup_result(
     std::vector<const Mysql_query_runner::Row *> *result) {
   for (vector<const Mysql_query_runner::Row *>::const_iterator it =
            result->begin();
-       it != result->end(); it++) {
+       it != result->end(); ++it) {
     delete *it;
   }
   result->clear();

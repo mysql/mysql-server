@@ -40,6 +40,7 @@ ndb-extra-logging=99
 # are filtered away
 log-error-verbosity=3
 binlog-format=row
+replica-parallel-workers=1
 
 [cluster_config.mysqld.1.cluster1]
 NodeId=49

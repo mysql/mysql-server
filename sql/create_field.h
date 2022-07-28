@@ -1,7 +1,7 @@
 #ifndef SQL_CREATE_FIELD_INCLUDED
 #define SQL_CREATE_FIELD_INCLUDED
 
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,8 +96,8 @@ class Create_field {
     NULL for columns added.
   */
   const char *change;
-  const char *after;    // Put column after this one
-  LEX_CSTRING comment;  // Comment for field
+  const char *after{nullptr};  // Put column after this one
+  LEX_CSTRING comment;         // Comment for field
 
   /**
      The declared default value, if any, otherwise NULL. Note that this member
@@ -237,7 +237,7 @@ class Create_field {
   /// The maximum display width of this column.
   ///
   /// The "display width" is the number of code points that is needed to print
-  /// out the string represenation of a value. It can be given by the user
+  /// out the string representation of a value. It can be given by the user
   /// both explicitly and implicitly. If a user creates a table with the columns
   /// "a VARCHAR(3), b INT(3)", both columns are given an explicit display width
   /// of 3 code points. But if a user creates a table with the columns
@@ -248,7 +248,7 @@ class Create_field {
   /// This is related to storage size for some types (VARCHAR, BLOB etc), but
   /// not for all types (an INT is four bytes regardless of the display width).
   ///
-  /// A "code point" is bascially a numeric value. For instance, ASCII
+  /// A "code point" is basically a numeric value. For instance, ASCII
   /// compromises of 128 code points (0x00 to 0x7F), while unicode contains way
   /// more. In most cases a code point represents a single graphical unit (aka
   /// grapheme), but not always. For instance, É may consists of two code points

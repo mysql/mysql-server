@@ -854,6 +854,8 @@ INSERT INTO Sow6_2f VALUES (11);
 -- error 1264
 INSERT INTO Sow6_2f VALUES (101.55);
 #-- should return SQLSTATE 22003 numeric value out of range
+# Different row number with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 5/
 -- error 1264
 UPDATE Sow6_2f SET col1 = col1 * 50 WHERE col1 = 11;
 #-- should return SQLSTATE 22003 numeric value out of range
@@ -1907,6 +1909,9 @@ DROP TABLE t;
 
 SET sql_mode=default;
 
+# Hypergraph optimizer has different warnings.
+--disable_warnings
+
 SELECT 1.0 div (@a:='xx');
 
 SELECT 1.0 div (@a:='1xx');
@@ -1916,8 +1921,10 @@ INSERT INTO t1 VALUES (0,0),(1,1);
 
 SELECT a FROM t1 FORCE INDEX(a) WHERE a='m';
 
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=CONCAT('m');
 
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=COALESCE('m');
 
 SELECT * FROM t1 WHERE b='m';
@@ -1928,8 +1935,10 @@ SELECT * FROM t1 WHERE b=COALESCE('m');
 
 SELECT a FROM t1 FORCE INDEX(a) WHERE a='';
 
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=CONCAT('');
 
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=COALESCE('');
 
 SELECT * FROM t1 WHERE b='';
@@ -1955,6 +1964,8 @@ CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 WHERE b=CONCAT('m');
 
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 WHERE b=COALESCE('m');
+
+--enable_warnings
 
 CREATE TABLE t2 (a char(10), b varchar(10));
 INSERT INTO t2 VALUES('x1 y ', 'x1 y ');

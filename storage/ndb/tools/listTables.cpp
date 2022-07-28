@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
+#include "portlib/ndb_compiler.h"
 
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
@@ -268,22 +269,22 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_show_tables"),
   { "database", 'd', "Name of database table is in. Requires table-name in argument",
-    (uchar**) &_dbname, (uchar**) &_dbname, 0,
+    &_dbname, &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "loops", 'l', "loops",
-    (uchar**) &_loops, (uchar**) &_loops, 0,
+    &_loops, &_loops, 0,
     GET_INT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0 }, 
   { "type", 't', "type",
-    (uchar**) &_type, (uchar**) &_type, 0,
+    &_type, &_type, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "fully-qualified", 'f', "Show fully qualified table names",
-    (uchar**) &_fully_qualified, (uchar**) &_fully_qualified, 0,
+    &_fully_qualified, &_fully_qualified, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "parsable", 'p', "Return output suitable for mysql LOAD DATA INFILE",
-    (uchar**) &_parsable, (uchar**) &_parsable, 0,
+    &_parsable, &_parsable, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "show-temp-status", NDB_OPT_NOSHORT, "Show table temporary flag",
-    (uchar**) &show_temp_status, (uchar**) &show_temp_status, 0,
+    &show_temp_status, &show_temp_status, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

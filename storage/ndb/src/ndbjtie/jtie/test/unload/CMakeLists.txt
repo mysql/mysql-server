@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,11 +33,6 @@ SET(JTIE_TEST_UNLOAD_JAR "${CMAKE_CURRENT_BINARY_DIR}/jtie-test-unload-${JAR}")
 GET_FILENAME_COMPONENT(PARENT ${CMAKE_CURRENT_BINARY_DIR} PATH)
 SET(JTIE_MYJAPI_DIR "${PARENT}/myjapi")
 SET(JTIE_MYJAPI_JAR "${JTIE_MYJAPI_DIR}/jtie-test-myjapi-${JAR}")
-
-IF(WITH_ASAN)
-  MESSAGE(STATUS "Skipping java tests for ASAN builds")
-  RETURN()
-ENDIF()
 
 ADD_TEST(
   NAME test_jtie_unload

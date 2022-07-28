@@ -50,7 +50,7 @@ INSERT INTO t1 VALUES (2);
 # 6. Unblock the local transaction on server 1
 [connection server_1]
 SET @@GLOBAL.DEBUG='-d,group_replication_after_before_commit_hook';
-SET DEBUG_SYNC= "now SIGNAL signal.commit_continue";
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_before_commit_hook_continue";
 [connection server1]
 #
 # 7. Server 3 should now be online

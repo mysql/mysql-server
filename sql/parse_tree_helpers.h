@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -232,12 +232,7 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
                                      const char *query_start_ptr,
                                      const char *start, const char *end);
 
-bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp);
-bool set_system_variable(THD *thd, struct sys_var_with_base *tmp,
-                         enum enum_var_type var_type, Item *val);
 LEX_CSTRING make_string(THD *thd, const char *start_ptr, const char *end_ptr);
-bool set_trigger_new_row(Parse_context *pc, LEX_CSTRING trigger_field_name,
-                         Item *expr_item, LEX_CSTRING expr_query);
 void sp_create_assignment_lex(THD *thd, const char *option_ptr);
 bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr);
 bool resolve_engine(THD *thd, const LEX_CSTRING &name, bool is_temp_table,
@@ -252,7 +247,6 @@ inline bool is_identifier(const char *str, const char *ident) {
 inline bool is_identifier(const LEX_STRING &str, const char *ident) {
   return is_identifier(str.str, ident);
 }
-bool is_key_cache_variable_suffix(const char *suffix);
 
 bool validate_vcpu_range(const resourcegroups::Range &range);
 bool validate_resource_group_priority(THD *thd, int *priority,
@@ -263,4 +257,5 @@ bool check_resource_group_name_len(const LEX_CSTRING &name,
                                    Sql_condition::enum_severity_level severity);
 
 void move_cf_appliers(Parse_context *tddlpc, Column_parse_context *cpc);
+
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

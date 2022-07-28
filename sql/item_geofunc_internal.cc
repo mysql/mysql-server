@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,7 +174,7 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr, BG_geotype &geout,
     /*
       The memory for the result is owned by a BG_result_buf_mgr,
       so use String::set(char*, size_t, const CHARSET_INFO)
-      which points the internall buffer to the input argument,
+      which points the internal buffer to the input argument,
       and sets m_is_alloced = false, signifying the String object
       does not own the buffer.
     */

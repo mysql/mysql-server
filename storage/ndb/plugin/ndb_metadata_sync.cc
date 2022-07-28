@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #include "storage/ndb/plugin/ndb_dd.h"                // ndb_dd_fs_name_case
 #include "storage/ndb/plugin/ndb_dd_client.h"         // Ndb_dd_client
 #include "storage/ndb/plugin/ndb_dd_disk_data.h"  // ndb_dd_disk_data_get_object_id_and_version
-#include "storage/ndb/plugin/ndb_dd_table.h"  // ndb_dd_table_get_object_id_and_version
+#include "storage/ndb/plugin/ndb_dd_table.h"  // ndb_dd_table_get_spi_and_version
 #include "storage/ndb/plugin/ndb_local_connection.h"  // Ndb_local_connection
 #include "storage/ndb/plugin/ndb_log.h"               // ndb_log_*
 #include "storage/ndb/plugin/ndb_metadata.h"          // Ndb_metadata

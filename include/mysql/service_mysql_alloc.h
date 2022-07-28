@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 #endif
 
 /* PSI_memory_key */
-#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
 
 /* myf */
 typedef int myf_t;

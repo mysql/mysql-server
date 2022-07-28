@@ -27,8 +27,8 @@ VARIABLE_NAME LIKE '%source%') AND
 ORDER BY VARIABLE_NAME;
 CREATE TABLE non_persisted (name VARCHAR(100) PRIMARY KEY);
 INSERT INTO non_persisted VALUES
-('gtid_executed'), ('gtid_owned'), ('log_bin'), ('log_bin_basename'),
-('log_bin_index'), ('relay_log'), ('relay_log_basename'),
+('gtid_executed'), ('gtid_owned'), ('gtid_purged'), ('log_bin'),
+('log_bin_basename'), ('log_bin_index'), ('relay_log'), ('relay_log_basename'),
 ('relay_log_index'), ('relay_log_info_file'), ('replica_load_tmpdir'),
 ('slave_load_tmpdir'), ('log_bin_use_v1_row_events');
 CREATE TABLE aliases (
@@ -47,7 +47,7 @@ INSERT INTO aliases(name) VALUES
 ('slave_parallel_workers'), ('slave_pending_jobs_size_max'),
 ('pseudo_slave_mode'), ('skip_slave_start');
 
-include/assert.inc [Expect 113 variables in the table.]
+include/assert.inc [Expect 114 variables in the table.]
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -55,6 +55,7 @@ SET PERSIST_ONLY binlog_checksum = @@GLOBAL.binlog_checksum;
 SET PERSIST_ONLY binlog_direct_non_transactional_updates = @@GLOBAL.binlog_direct_non_transactional_updates;
 SET PERSIST_ONLY binlog_encryption = @@GLOBAL.binlog_encryption;
 SET PERSIST_ONLY binlog_error_action = @@GLOBAL.binlog_error_action;
+SET PERSIST_ONLY binlog_expire_logs_auto_purge = @@GLOBAL.binlog_expire_logs_auto_purge;
 SET PERSIST_ONLY binlog_expire_logs_seconds = @@GLOBAL.binlog_expire_logs_seconds;
 SET PERSIST_ONLY binlog_format = @@GLOBAL.binlog_format;
 SET PERSIST_ONLY binlog_group_commit_sync_delay = @@GLOBAL.binlog_group_commit_sync_delay;
@@ -85,6 +86,7 @@ SET PERSIST_ONLY gtid_mode = @@GLOBAL.gtid_mode;
 SET PERSIST_ONLY gtid_owned = @@GLOBAL.gtid_owned;
 ERROR HY000: Variable 'gtid_owned' is a non persistent read only variable
 SET PERSIST_ONLY gtid_purged = @@GLOBAL.gtid_purged;
+ERROR HY000: Variable 'gtid_purged' is a non persistent variable
 SET PERSIST_ONLY init_replica = @@GLOBAL.init_replica;
 SET PERSIST_ONLY init_slave = @@GLOBAL.init_slave;
 Warnings:
@@ -147,6 +149,9 @@ ERROR HY000: Variable 'replica_load_tmpdir' is a non persistent read only variab
 SET PERSIST_ONLY replica_max_allowed_packet = @@GLOBAL.replica_max_allowed_packet;
 SET PERSIST_ONLY replica_net_timeout = @@GLOBAL.replica_net_timeout;
 SET PERSIST_ONLY replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET PERSIST_ONLY replica_pending_jobs_size_max = @@GLOBAL.replica_pending_jobs_size_max;
 SET PERSIST_ONLY replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
@@ -276,6 +281,7 @@ RESET PERSIST binlog_checksum;
 RESET PERSIST binlog_direct_non_transactional_updates;
 RESET PERSIST binlog_encryption;
 RESET PERSIST binlog_error_action;
+RESET PERSIST binlog_expire_logs_auto_purge;
 RESET PERSIST binlog_expire_logs_seconds;
 RESET PERSIST binlog_format;
 RESET PERSIST binlog_group_commit_sync_delay;
@@ -303,6 +309,7 @@ RESET PERSIST gtid_mode;
 RESET PERSIST gtid_owned;
 ERROR HY000: Variable gtid_owned does not exist in persisted config file
 RESET PERSIST gtid_purged;
+ERROR HY000: Variable gtid_purged does not exist in persisted config file
 RESET PERSIST init_replica;
 RESET PERSIST log_bin;
 ERROR HY000: Variable log_bin does not exist in persisted config file

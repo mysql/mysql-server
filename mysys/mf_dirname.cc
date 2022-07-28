@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,7 +143,7 @@ char *convert_dirname(char *to, const char *from, const char *from_end) {
 #endif
   DBUG_TRACE;
 
-  /* We use -2 here, becasue we need place for the last FN_LIBCHAR */
+  /* We use -2 here, because we need place for the last FN_LIBCHAR */
   if (!from_end || (from_end - from) > FN_REFLEN - 2)
     from_end = from + FN_REFLEN - 2;
 
@@ -170,7 +170,7 @@ char *convert_dirname(char *to, const char *from, const char *from_end) {
     *to = 0;
   }
 #else
-  /* This is ok even if to == from, becasue we need to cut the string */
+  /* This is ok even if to == from, because we need to cut the string */
   to = strmake(to, from, (size_t)(from_end - from));
 #endif
 

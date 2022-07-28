@@ -1,6 +1,6 @@
 /****************************************************************************
 
-Copyright (c) 2010, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -131,16 +131,18 @@ struct FTS::Parser {
   @return DB_SUCCESS or error code. */
   dberr_t init(size_t n_threads) noexcept;
 
-  /** @return the i'th file. */
-  const file_t &get_file(size_t id) noexcept { return m_handlers[id]->m_file; }
+  /** Releases ownership of the i'th file used.
+  @return the i'th file. */
+  file_t release_file(size_t id) noexcept {
+    return std::move(m_handlers[id]->m_file);
+  }
 
   /** Data structures for building an index. */
   struct Handler {
     /** Constructor.
-    @param[in] id             Auxilliary index ID.
     @param[in,out] index      Index to create.
     @param[in] size           IO buffer size. */
-    explicit Handler(size_t id, dict_index_t *index, size_t size) noexcept;
+    explicit Handler(dict_index_t *index, size_t size) noexcept;
 
     /** Destructor. */
     ~Handler() noexcept;
@@ -204,7 +206,7 @@ struct FTS::Parser {
 
   /** FTS plugin parser 'myql_add_word' callback function for row merge.
   Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
-  @param[in] param              Parser paramter.
+  @param[in] param              Parser parameter.
   @param[in] word               Token word.
   @param[in] word_len           Word len.
   @param[in] boolean_info       Boolean info.
@@ -284,29 +286,29 @@ struct FTS::Inserter {
   @param[in] id                 Aux index ID.
   @param[in] file               File to merge and insert.
   @return DB_SUCCESS or error code. */
-  dberr_t add_file(size_t id, const file_t &file) noexcept {
+  dberr_t add_file(size_t id, file_t file) noexcept {
     auto &handler = m_handlers[id];
 
-    handler.m_files.push_back(file);
+    handler.m_files.push_back(std::move(file));
 
     return DB_SUCCESS;
   }
 
   /** Write out a single word's data as new entry/entries in the INDEX table.
-  @param[in] ins_ctx	            Insert context.
-  @param[in] word	                Word string.
-  @param[in] node	                Node colmns.
-  @return	DB_SUCCUESS if insertion runs fine, otherwise error code */
+  @param[in] ins_ctx                Insert context.
+  @param[in] word                       Word string.
+  @param[in] node                       Node columns.
+  @return       DB_SUCCUESS if insertion runs fine, otherwise error code */
   dberr_t write_node(const Insert *ins_ctx, const fts_string_t *word,
                      const fts_node_t *node) noexcept;
 
-  /** Insert processed FTS data to auxillary index tables.
+  /** Insert processed FTS data to auxiliary index tables.
   @param[in] ins_ctx              Insert context.
   @param[in] word                 Sorted and tokenized word.
   @return DB_SUCCESS if insertion runs fine */
   dberr_t write_word(Insert *ins_ctx, fts_tokenizer_word_t *word) noexcept;
 
-  /** Read sorted FTS data files and insert data tuples to auxillary tables.
+  /** Read sorted FTS data files and insert data tuples to auxiliary tables.
   @param[in] ins_ctx              Insert context.
   @param[in] word                 Last processed tokenized word.
   @param[in] positions            Word position.
@@ -331,8 +333,7 @@ struct FTS::Inserter {
   Handlers m_handlers{};
 };
 
-FTS::Parser::Handler::Handler(size_t id, dict_index_t *index,
-                              size_t size) noexcept
+FTS::Parser::Handler::Handler(dict_index_t *index, size_t size) noexcept
     : m_file(), m_key_buffer(index, size), m_aligned_buffer() {}
 
 FTS::Parser::Handler::~Handler() noexcept {}
@@ -355,7 +356,7 @@ dberr_t FTS::Parser::init(size_t n_threads) noexcept {
 
   for (size_t i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
     m_handlers[i] = Handler_ptr(
-        ut::new_withkey<Handler>(ut::make_psi_memory_key(mem_key_ddl), i,
+        ut::new_withkey<Handler>(ut::make_psi_memory_key(mem_key_ddl),
                                  m_dup->m_index, buffer_size.first),
         [](Handler *handler) { ut::delete_(handler); });
 
@@ -369,7 +370,7 @@ dberr_t FTS::Parser::init(size_t n_threads) noexcept {
       return DB_OUT_OF_MEMORY;
     }
 
-    if (file_create(&handler->m_file, path) < 0) {
+    if (!file_create(&handler->m_file, path)) {
       return DB_OUT_OF_MEMORY;
     }
   }
@@ -460,6 +461,9 @@ dict_index_t *FTS::create_index(dict_index_t *index, dict_table_t *table,
   field->col->prtype = idx_field->col->prtype | DATA_NOT_NULL;
   field->col->mbminmaxlen = idx_field->col->mbminmaxlen;
   field->fixed_len = 0;
+  field->col->set_version_added(UINT8_UNDEFINED);
+  field->col->set_version_dropped(UINT8_UNDEFINED);
+  field->col->set_phy_pos(UINT32_UNDEFINED);
 
   /* Doc ID */
   field = new_index->get_field(1);
@@ -504,6 +508,9 @@ dict_index_t *FTS::create_index(dict_index_t *index, dict_table_t *table,
   field->col->prtype = DATA_NOT_NULL | DATA_BINARY_TYPE;
 
   field->col->mbminmaxlen = 0;
+  field->col->set_version_added(UINT8_UNDEFINED);
+  field->col->set_version_dropped(UINT8_UNDEFINED);
+  field->col->set_phy_pos(UINT32_UNDEFINED);
 
   /* The third field is on the word's position in the original doc */
   field = new_index->get_field(2);
@@ -519,6 +526,9 @@ dict_index_t *FTS::create_index(dict_index_t *index, dict_table_t *table,
   field->fixed_len = 4;
   field->col->prtype = DATA_NOT_NULL;
   field->col->mbminmaxlen = 0;
+  field->col->set_version_added(UINT8_UNDEFINED);
+  field->col->set_version_dropped(UINT8_UNDEFINED);
+  field->col->set_phy_pos(UINT32_UNDEFINED);
 
   return new_index;
 }
@@ -622,7 +632,7 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
         /* Parse the whole doc and cache tokens. */
         tokenize(doc, parser, t_ctx);
 
-        /* Just indictate we have parsed all the word. */
+        /* Just indicate we have parsed all the word. */
         t_ctx->m_processed_len += 1;
       }
 
@@ -778,7 +788,7 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
   }
 
   if (!buf_full) {
-    /* we pad one byte between text accross two fields */
+    /* we pad one byte between text across two fields */
     t_ctx->m_init_pos += doc->text.f_len + 1;
   }
 
@@ -815,7 +825,7 @@ void FTS::Parser::parse(Builder *builder) noexcept {
 
   auto table = m_ctx.new_table();
   auto old_table = m_ctx.old_table();
-  auto blob_heap = mem_heap_create(512);
+  auto blob_heap = mem_heap_create(512, UT_LOCATION_HERE);
 
   memset(&doc, 0, sizeof(doc));
 
@@ -876,7 +886,7 @@ void FTS::Parser::parse(Builder *builder) noexcept {
         auto &file = handler->m_file;
         handler->m_offsets.push_back(file.m_size);
 
-        auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
+        auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
           return builder->append(file, io_buffer);
         };
 
@@ -992,7 +1002,7 @@ void FTS::Parser::parse(Builder *builder) noexcept {
 
       handler->m_offsets.push_back(file.m_size);
 
-      auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
+      auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
         return builder->append(file, io_buffer);
       };
 
@@ -1252,7 +1262,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
 
   auto trx = trx_allocate_for_background();
 
-  trx_start_if_not_started(trx, true);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   trx->op_info = "inserting index entries";
 
@@ -1260,7 +1270,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
 
   ins_ctx.m_doc_id_32_bit = m_doc_id_32_bit;
 
-  auto tuple_heap = mem_heap_create(512);
+  auto tuple_heap = mem_heap_create(512, UT_LOCATION_HERE);
 
   auto index = m_dup->m_index;
 
@@ -1388,7 +1398,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
 
   doc_id_t doc_id{};
   dtuple_t *dtuple{};
-  auto heap = mem_heap_create(1000);
+  auto heap = mem_heap_create(1000, UT_LOCATION_HERE);
   auto positions = ib_vector_create(heap_alloc, sizeof(doc_id_t), 32);
 
   while ((err = cursor.fetch(dtuple)) == DB_SUCCESS) {
@@ -1591,14 +1601,14 @@ dberr_t FTS::insert(Builder *builder) noexcept {
 dberr_t FTS::setup_insert_phase() noexcept {
   for (auto parser : m_parsers) {
     for (size_t i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
-      auto &file = parser->get_file(i);
+      auto file = parser->release_file(i);
 
       if (file.m_n_recs == 0) {
         /* Ignore empty files. */
         continue;
       }
 
-      const auto err = m_inserter->add_file(i, file);
+      const auto err = m_inserter->add_file(i, std::move(file));
 
       if (err != DB_SUCCESS) {
         break;
@@ -1649,7 +1659,7 @@ dberr_t FTS::scan_finished(dberr_t err) noexcept {
         auto name = m_ctx.m_old_table->name.m_name;
         const auto max_doc_id{fts.m_doc_id->max_doc_id()};
 
-        fts_update_next_doc_id(0, m_ctx.m_new_table, name, max_doc_id);
+        fts_update_next_doc_id(nullptr, m_ctx.m_new_table, name, max_doc_id);
       }
     }
   }

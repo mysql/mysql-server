@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 
@@ -976,7 +977,7 @@ int runScanFilterConstructorFail(NDBT_Context* ctx, NDBT_Step* step)
   
   if (trans == NULL)
   {
-    APIERROR(trans->getNdbError());
+    APIERROR(myNdb->getNdbError());
     return NDBT_FAILED;
   }
   
@@ -1045,7 +1046,7 @@ int runScanFilterConstructorFail(NDBT_Context* ctx, NDBT_Step* step)
   
   if (trans == NULL)
   {
-    APIERROR(trans->getNdbError());
+    APIERROR(myNdb->getNdbError());
     return NDBT_FAILED;
   }
   

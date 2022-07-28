@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -267,7 +267,7 @@ static MYSQL_SYSVAR_BOOL(
     PLUGIN_VAR_OPCMDARG,
     "Hello notice is a X Protocol message send by the server after connection "
     "establishment, using this variable it can be disabled",
-    NULL, &details::update_plugin_system_variable<bool>,
+    nullptr, &details::update_plugin_system_variable<bool>,
     defaults::connectivity::k_enable_hello_notice);
 
 static MYSQL_SYSVAR_SET(

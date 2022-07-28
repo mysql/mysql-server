@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,10 +39,11 @@
 #include "sql/opt_costmodel.h"
 #include "sql/opt_hints.h"
 #include "sql/opt_trace.h"
+#include "sql/range_optimizer/index_range_scan.h"
+#include "sql/range_optimizer/index_range_scan_plan.h"
 #include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_opt_param.h"
-#include "sql/range_optimizer/range_scan.h"
-#include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
 #include "sql/range_optimizer/tree.h"
 #include "sql/sql_bitmap.h"
@@ -54,9 +55,10 @@
 #include "sql_string.h"
 
 class Opt_trace_context;
-class QUICK_SELECT_I;
 
+using std::max;
 using std::min;
+using std::move;
 
 #ifndef NDEBUG
 static void print_ror_scans_arr(TABLE *table, const char *msg,
@@ -76,139 +78,34 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 }
 #endif
 
-void TRP_ROR_INTERSECT::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
-                                         Opt_trace_object *trace_object) const {
+void trace_basic_info_rowid_intersection(THD *thd, const AccessPath *path,
+                                         const RANGE_OPT_PARAM *param,
+                                         Opt_trace_object *trace_object) {
   trace_object->add_alnum("type", "index_roworder_intersect")
-      .add("rows", records)
-      .add("cost", cost_est)
-      .add("covering", is_covering)
-      .add("clustered_pk_scan", cpk_scan != nullptr);
+      .add("rows", path->num_output_rows)
+      .add("cost", path->cost)
+      .add("covering", path->rowid_intersection().is_covering)
+      .add("clustered_pk_scan",
+           path->rowid_intersection().cpk_child != nullptr);
 
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_array ota(trace, "intersect_of");
-  for (ROR_SCAN_INFO *cur_scan : intersect_scans) {
-    const KEY &cur_key = table->key_info[cur_scan->keynr];
-    const KEY_PART_INFO *key_part = cur_key.key_part;
-
+  for (AccessPath *child : *path->rowid_intersection().children) {
     Opt_trace_object trace_isect_idx(trace);
-    trace_isect_idx.add_alnum("type", "range_scan")
-        .add_utf8("index", cur_key.name)
-        .add("rows", cur_scan->records);
-
-    Opt_trace_array trace_range(trace, "ranges");
-    for (const SEL_ARG *current = cur_scan->sel_root->root->first(); current;
-         current = current->next) {
-      String range_info;
-      range_info.set_charset(system_charset_info);
-      for (const SEL_ARG *part = current; part;
-           part = part->next_key_part ? part->next_key_part->root : nullptr) {
-        const KEY_PART_INFO *cur_key_part = key_part + part->part;
-        append_range(&range_info, cur_key_part, part->min_value,
-                     part->max_value, part->min_flag | part->max_flag);
-      }
-      trace_range.add_utf8(range_info.ptr(), range_info.length());
-    }
+    trace_basic_info(thd, child, param, &trace_isect_idx);
   }
 }
 
-void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
-                                     Opt_trace_object *trace_object) const {
+void trace_basic_info_rowid_union(THD *thd, const AccessPath *path,
+                                  const RANGE_OPT_PARAM *param,
+                                  Opt_trace_object *trace_object) {
   Opt_trace_context *const trace = &thd->opt_trace;
   trace_object->add_alnum("type", "index_roworder_union");
   Opt_trace_array ota(trace, "union_of");
-  for (TABLE_READ_PLAN **current = first_ror; current != last_ror; current++) {
-    Opt_trace_object trp_info(trace);
-    (*current)->trace_basic_info(thd, param, &trp_info);
+  for (AccessPath *child : *path->rowid_union().children) {
+    Opt_trace_object path_info(trace);
+    ::trace_basic_info(thd, child, param, &path_info);
   }
-}
-
-// A replacement for get_quick_select() for when you already have
-// the ranges available, instead of a SEL_TREE that you need to extract
-// ranges from. Does not support reverse range scans.
-static QUICK_RANGE_SELECT *get_quick_select_local(
-    MEM_ROOT *return_mem_root, TABLE *table, KEY_PART *key, uint keyno,
-    uint mrr_flags, uint mrr_buf_size, uint used_key_parts,
-    Bounds_checked_array<QUICK_RANGE *> ranges) {
-  DBUG_TRACE;
-
-  if (table->key_info[keyno].flags & HA_SPATIAL) {
-    return new (return_mem_root)
-        QUICK_RANGE_SELECT_GEOM(table, keyno, return_mem_root, mrr_flags,
-                                mrr_buf_size, key, ranges, used_key_parts);
-  } else {
-    QUICK_RANGE_SELECT *quick = new (return_mem_root)
-        QUICK_RANGE_SELECT(table, keyno, return_mem_root, mrr_flags,
-                           mrr_buf_size, key, ranges, used_key_parts);
-    return quick;
-  }
-}
-
-QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
-                                              MEM_ROOT *return_mem_root) {
-  QUICK_RANGE_SELECT *quick;
-  DBUG_TRACE;
-
-  QUICK_ROR_INTERSECT_SELECT *quick_intrsect = new (return_mem_root)
-      QUICK_ROR_INTERSECT_SELECT(table,
-                                 (retrieve_full_rows ? (!is_covering) : false),
-                                 return_mem_root);
-  if (quick_intrsect) {
-    assert(quick_intrsect->index == index);
-    DBUG_EXECUTE("info",
-                 print_ror_scans_arr(
-                     table, "creating ROR-intersect", &intersect_scans[0],
-                     &intersect_scans[0] + intersect_scans.size()););
-    for (ROR_SCAN_INFO *current : intersect_scans) {
-      uint idx = current->idx;
-      if (!(quick = get_quick_select_local(
-                return_mem_root, table, key[idx], real_keynr[idx],
-                HA_MRR_SORTED, 0, current->used_key_parts, current->ranges)) ||
-          quick_intrsect->push_quick_back(quick)) {
-        destroy(quick_intrsect);
-        return nullptr;
-      }
-    }
-    if (cpk_scan) {
-      uint idx = cpk_scan->idx;
-      if (!(quick = get_quick_select_local(return_mem_root, table, key[idx],
-                                           real_keynr[idx], HA_MRR_SORTED, 0,
-                                           cpk_scan->used_key_parts,
-                                           cpk_scan->ranges))) {
-        destroy(quick_intrsect);
-        return nullptr;
-      }
-      quick->file = nullptr;
-      quick_intrsect->cpk_quick = quick;
-    }
-    quick_intrsect->records = records;
-    quick_intrsect->cost_est = cost_est;
-  }
-  quick_intrsect->forced_by_hint = forced_by_hint;
-  return quick_intrsect;
-}
-
-QUICK_SELECT_I *TRP_ROR_UNION::make_quick(bool, MEM_ROOT *return_mem_root) {
-  QUICK_ROR_UNION_SELECT *quick_roru;
-  TABLE_READ_PLAN **scan;
-  QUICK_SELECT_I *quick;
-  DBUG_TRACE;
-  /*
-    It is impossible to construct a ROR-union that will not retrieve full
-    rows, ignore retrieve_full_rows parameter.
-  */
-  if ((quick_roru = new (return_mem_root)
-           QUICK_ROR_UNION_SELECT(return_mem_root, table))) {
-    assert(quick_roru->index == index);
-    for (scan = first_ror; scan != last_ror; scan++) {
-      if (!(quick = (*scan)->make_quick(false, return_mem_root)) ||
-          quick_roru->push_quick_back(quick))
-        return nullptr;
-    }
-    quick_roru->records = records;
-    quick_roru->cost_est = cost_est;
-  }
-  quick_roru->forced_by_hint = forced_by_hint;
-  return quick_roru;
 }
 
 /*
@@ -273,9 +170,11 @@ static ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
       param->table->file->index_scan_cost(ror_scan->keynr, 1, rows);
 
   Quick_ranges ranges(param->return_mem_root);
+  unsigned num_exact_key_parts_unused;
   if (get_ranges_from_tree(param->return_mem_root, param->table,
                            param->key[idx], param->real_keynr[idx], sel_root,
-                           MAX_REF_PARTS, &ror_scan->used_key_parts, &ranges)) {
+                           MAX_REF_PARTS, &ror_scan->used_key_parts,
+                           &num_exact_key_parts_unused, &ranges)) {
     return nullptr;
   }
   ror_scan->ranges = {&ranges[0], ranges.size()};
@@ -635,6 +534,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
       {
         DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
         assert(min_range.length > 0);
+        assert(
+            !table->pos_in_table_list->is_derived_unfinished_materialization());
         records =
             table->file->records_in_range(scan->keynr, &min_range, &max_range);
       } else {
@@ -771,6 +672,34 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   return true;
 }
 
+static AccessPath *MakeAccessPath(ROR_SCAN_INFO *scan, TABLE *table,
+                                  KEY_PART *used_key_part, bool reuse_handler,
+                                  MEM_ROOT *mem_root) {
+  AccessPath *path = new (mem_root) AccessPath;
+  path->type = AccessPath::INDEX_RANGE_SCAN;
+
+  // TODO(sgunders): The initial cost is high (it needs to read all rows and
+  // sort), so we should not have zero init_cost.
+  path->cost = scan->index_read_cost.total_cost();
+  path->num_output_rows = scan->records;
+
+  path->index_range_scan().used_key_part = used_key_part;
+  path->index_range_scan().ranges = &scan->ranges[0];
+  path->index_range_scan().num_ranges = scan->ranges.size();
+  path->index_range_scan().mrr_flags = HA_MRR_SORTED;
+  path->index_range_scan().mrr_buf_size = 0;
+  path->index_range_scan().index = scan->keynr;
+  path->index_range_scan().num_used_key_parts = scan->used_key_parts;
+  path->index_range_scan().can_be_used_for_ror = true;
+  path->index_range_scan().need_rows_in_rowid_order = true;
+  path->index_range_scan().can_be_used_for_imerge = false;  // Irrelevant.
+  path->index_range_scan().reuse_handler = reuse_handler;
+  path->index_range_scan().geometry =
+      Overlaps(table->key_info[scan->keynr].flags, HA_SPATIAL);
+  path->index_range_scan().reverse = false;
+  return path;
+}
+
 /*
   Get best ROR-intersection plan using non-covering ROR-intersection search
   algorithm. The returned plan may be covering.
@@ -778,8 +707,6 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   SYNOPSIS
     get_best_ror_intersect()
       param            Parameter from test_quick_select function.
-      order_direction  The sort order the range access method must be able
-                       to provide. Three-value logic: asc/desc/don't care
       tree             Transformed restriction condition to be used to look
                        for ROR scans.
       cost_est         Do not return read plans with cost > cost_est.
@@ -840,11 +767,11 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
     NULL if out of memory or no suitable plan found.
 */
 
-TRP_ROR_INTERSECT *get_best_ror_intersect(
+AccessPath *get_best_ror_intersect(
     THD *thd, const RANGE_OPT_PARAM *param, TABLE *table,
-    bool index_merge_intersect_allowed, enum_order order_direction,
-    SEL_TREE *tree, const MY_BITMAP *needed_fields,
-    const Cost_estimate *cost_est, bool force_index_merge_result) {
+    bool index_merge_intersect_allowed, SEL_TREE *tree,
+    const MY_BITMAP *needed_fields, double cost_est,
+    bool force_index_merge_result, bool reuse_handler) {
   uint idx;
   Cost_estimate min_cost;
   Opt_trace_context *const trace = &thd->opt_trace;
@@ -868,8 +795,6 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
       trace_ror.add("need_tracing", true);
     return nullptr;
   }
-
-  if (order_direction == ORDER_DESC) return nullptr;
 
   /*
     Step1: Collect ROR-able SEL_ARGs and create ROR_SCAN_INFO for each of
@@ -1034,35 +959,141 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
     }
   }
   /* Ok, return ROR-intersect plan if we have found one */
-  TRP_ROR_INTERSECT *trp = nullptr;
-  if ((min_cost < *cost_est || force_index_merge) &&
+  if ((min_cost.total_cost() < cost_est || force_index_merge) &&
       (cpk_scan_used || best_num > 1)) {
-    if (!(trp = new (param->return_mem_root) TRP_ROR_INTERSECT(
-              table, force_index_merge, param->key, param->real_keynr,
-              {intersect_scans, best_num}, intersect_best->index_scan_cost,
-              intersect_best->is_covering,
-              cpk_scan_used ? cpk_scan : nullptr))) {
-      return trp;
+    // Create AccessPaths from the ROR child scans.
+    auto *children = new (param->return_mem_root)
+        Mem_root_array<AccessPath *>(param->return_mem_root);
+    children->resize(best_num);
+    for (unsigned i = 0; i < best_num; ++i) {
+      (*children)[i] = MakeAccessPath(intersect_scans[i], table,
+                                      param->key[intersect_scans[i]->idx],
+                                      /*reuse_handler=*/reuse_handler &&
+                                          intersect_best->is_covering && i == 0,
+                                      param->return_mem_root);
     }
-    trp->cost_est = intersect_best->total_cost;
-    /* Prevent divisons by zero */
-    ha_rows best_rows = double2rows(intersect_best->out_rows);
-    if (!best_rows) best_rows = 1;
-    table->quick_condition_rows = min(table->quick_condition_rows, best_rows);
-    trp->records = best_rows;
+    AccessPath *cpk_child =
+        cpk_scan_used
+            ? MakeAccessPath(cpk_scan, table, param->key[cpk_scan->idx],
+                             /*reuse_handler=*/false, param->return_mem_root)
+            : nullptr;
 
-    trace_ror.add("rows", trp->records)
-        .add("cost", trp->cost_est)
+    AccessPath *path = new (param->return_mem_root) AccessPath;
+    path->type = AccessPath::ROWID_INTERSECTION;
+    path->cost = intersect_best->total_cost.total_cost();
+    /* Prevent divisions by zero */
+    double best_rows = max(intersect_best->out_rows, 1.0);
+    table->quick_condition_rows =
+        min<ha_rows>(table->quick_condition_rows, best_rows);
+    path->num_output_rows = best_rows;
+
+    path->rowid_intersection().table = table;
+    path->rowid_intersection().children = children;
+    path->rowid_intersection().cpk_child = cpk_child;
+    path->rowid_intersection().forced_by_hint = force_index_merge;
+    path->rowid_intersection().retrieve_full_rows =
+        !intersect_best->is_covering;  // Can be overridden later.
+    path->rowid_intersection().need_rows_in_rowid_order =
+        false;  // Can be overridden later.
+    path->rowid_intersection().reuse_handler = reuse_handler;
+    path->rowid_intersection().is_covering = intersect_best->is_covering;
+
+    trace_ror.add("rows", path->num_output_rows)
+        .add("cost", path->cost)
         .add("covering", intersect_best->is_covering)
         .add("chosen", true);
 
     DBUG_PRINT("info", ("Returning non-covering ROR-intersect plan:"
-                        "cost %g, records %lu",
-                        trp->cost_est.total_cost(), (ulong)trp->records));
+                        "cost %g, records %g",
+                        path->cost, path->num_output_rows));
+    return path;
   } else {
     trace_ror.add("chosen", false)
-        .add_alnum("cause", (*cost_est > min_cost) ? "too_few_indexes_to_merge"
-                                                   : "cost");
+        .add_alnum("cause", (cost_est > min_cost.total_cost())
+                                ? "too_few_indexes_to_merge"
+                                : "cost");
+    return nullptr;
   }
-  return trp;
 }
+
+static int find_max_used_key_length(const AccessPath *scan) {
+  int max_used_key_length = 0;
+  for (const QUICK_RANGE *range :
+       Bounds_checked_array{scan->index_range_scan().ranges,
+                            scan->index_range_scan().num_ranges}) {
+    max_used_key_length = std::max<int>(max_used_key_length, range->min_length);
+    max_used_key_length = std::max<int>(max_used_key_length, range->max_length);
+  }
+  return max_used_key_length;
+}
+
+void add_keys_and_lengths_rowid_intersection(const AccessPath *path,
+                                             String *key_names,
+                                             String *used_lengths) {
+  TABLE *table = path->rowid_intersection().table;
+
+  char buf[64];
+  size_t length;
+  bool first = true;
+  for (AccessPath *current : *path->rowid_intersection().children) {
+    KEY *key_info = table->key_info + current->index_range_scan().index;
+    if (first)
+      first = false;
+    else {
+      key_names->append(',');
+      used_lengths->append(',');
+    }
+    key_names->append(key_info->name);
+
+    length =
+        longlong10_to_str(find_max_used_key_length(current), buf, 10) - buf;
+    used_lengths->append(buf, length);
+  }
+
+  AccessPath *cpk_child = path->rowid_intersection().cpk_child;
+  if (cpk_child) {
+    KEY *key_info = table->key_info + cpk_child->index_range_scan().index;
+    key_names->append(',');
+    key_names->append(key_info->name);
+    length =
+        longlong10_to_str(find_max_used_key_length(cpk_child), buf, 10) - buf;
+    used_lengths->append(',');
+    used_lengths->append(buf, length);
+  }
+}
+
+void add_keys_and_lengths_rowid_union(const AccessPath *path, String *key_names,
+                                      String *used_lengths) {
+  bool first = true;
+  for (AccessPath *current : *path->rowid_union().children) {
+    if (first) {
+      first = false;
+    } else {
+      used_lengths->append(',');
+      key_names->append(',');
+    }
+    ::add_keys_and_lengths(current, key_names, used_lengths);
+  }
+}
+
+#ifndef NDEBUG
+void dbug_dump_rowid_intersection(
+    int indent, bool verbose, const Mem_root_array<AccessPath *> &children) {
+  fprintf(DBUG_FILE, "%*squick ROR-intersect select\n", indent, ""),
+      fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
+  for (AccessPath *range_scan : children) {
+    dbug_dump(range_scan, indent + 2, verbose);
+  }
+  fprintf(DBUG_FILE, "%*s}\n", indent, "");
+}
+
+void dbug_dump_rowid_union(int indent, bool verbose,
+                           const Mem_root_array<AccessPath *> &children) {
+  fprintf(DBUG_FILE, "%*squick ROR-union select\n", indent, "");
+  fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
+  for (AccessPath *child : children) {
+    ::dbug_dump(child, indent + 2, verbose);
+  }
+  fprintf(DBUG_FILE, "%*s}\n", indent, "");
+}
+#endif

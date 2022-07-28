@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,8 +271,7 @@ struct role_id_hash {
   }
 };
 
-typedef std::unordered_multimap<const Role_id, const Role_id, role_id_hash>
-    Default_roles;
+typedef std::unordered_multimap<Role_id, Role_id, role_id_hash> Default_roles;
 typedef std::map<std::string, bool> Dynamic_privileges;
 
 void get_privilege_access_maps(
@@ -308,7 +307,7 @@ bool set_and_validate_user_attributes(
     bool *history_check_done, const char *cmd, Userhostpassword_list &,
     I_multi_factor_auth **mfa = nullptr);
 typedef std::pair<std::string, bool> Grant_privilege;
-typedef std::unordered_multimap<const Role_id, Grant_privilege, role_id_hash>
+typedef std::unordered_multimap<Role_id, Grant_privilege, role_id_hash>
     User_to_dynamic_privileges_map;
 User_to_dynamic_privileges_map *get_dynamic_privileges_map();
 User_to_dynamic_privileges_map *swap_dynamic_privileges_map(
@@ -342,4 +341,7 @@ bool read_user_application_user_metadata_from_table(LEX_CSTRING user,
                                                     TABLE *table,
                                                     bool mode_no_backslash);
 bool is_expected_or_transient_error(THD *thd);
+bool report_missing_user_grant_message(THD *thd, bool user_exists,
+                                       const char *user, const char *host,
+                                       const char *object_name, int err_code);
 #endif /* AUTH_INTERNAL_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@
 class String;
 
 /**
-  Parse context for column type attribyte specific parse tree nodes.
+  Parse context for column type attribute specific parse tree nodes.
 
   For internal use in the contextualization code.
 
@@ -541,6 +541,7 @@ class PT_type : public Parse_tree_node {
   virtual const CHARSET_INFO *get_charset() const { return nullptr; }
   virtual uint get_uint_geom_type() const { return 0; }
   virtual List<String> *get_interval_list() const { return nullptr; }
+  virtual bool is_serial_type() const { return false; }
 };
 
 /**
@@ -852,6 +853,7 @@ class PT_serial_type : public PT_type {
   ulong get_type_flags() const override {
     return AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG | UNIQUE_FLAG;
   }
+  bool is_serial_type() const override { return true; }
 };
 
 /**
@@ -998,6 +1000,12 @@ class PT_generated_field_def : public PT_field_def_base {
     if (super::contextualize(&pc) || contextualize_attrs(&pc, opt_attrs) ||
         expr->itemize(&pc, &expr))
       return true;
+
+    // column of type serial cannot be generated
+    if (type_node->is_serial_type()) {
+      my_error(ER_WRONG_USAGE, MYF(0), "SERIAL", "generated column");
+      return true;
+    }
 
     gcol_info = new (pc.mem_root) Value_generator;
     if (gcol_info == nullptr) return true;  // OOM

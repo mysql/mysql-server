@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,16 +45,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Converts an implict lock on the record to explict in case of partial
  rollback.
-@param[in]	cursor		cursor to record
-@param[in]	node		undo node */
+@param[in]      cursor          cursor to record
+@param[in]      node            undo node */
 void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node);
 
 /** Creates a row undo node to a query graph.
-@param[in]	trx		 transaction
-@param[in]	parent		 parent node, i.e., a thr node
-@param[in]	heap		 memory heap where created
-@param[in]	partial_rollback true if partial rollback
-@return		undo node */
+@param[in]      trx              transaction
+@param[in]      parent           parent node, i.e., a thr node
+@param[in]      heap             memory heap where created
+@param[in]      partial_rollback true if partial rollback
+@return         undo node */
 undo_node_t *row_undo_node_create(trx_t *trx, que_thr_t *parent,
                                   mem_heap_t *heap, bool partial_rollback);
 

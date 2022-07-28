@@ -1,0 +1,170 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+#
+# ndb_rpl_skip.test
+#
+# Show behaviour of replica applier --slave-skip-errors option with Ndb
+# 
+# Behaviours shown
+# 1.  Using slave-skip-errors to skip an epoch transaction
+#     results in a subsequent replication failure as Ndb 
+#     detects that the epoch was started but not committed.
+#
+# 2.  Using slave-skip-errors and ndb_applier_allow_skip_epoch=1
+#     avoids replication failure
+#
+# 3.  When skipping an error in applying an epoch transaction, 
+#     the whole epoch transaction is skipped.
+#
+# The ndb_rpl_skip-slave.opt file sets --slave-skip-errors=1022 so that
+# uniqueness violations are skipped in replication
+#
+--connection master
+create table t1 (a int not null, b int, c int, unique(c)) engine=ndb;
+
+--echo Insert some records
+#####
+
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+ eval insert into t1 values($1, $1, $1);
+ dec $1;
+}
+enable_query_log;
+
+--sync_slave_with_master
+--echo Connect to replica and ensure data is there.
+#####
+--connection slave
+select count(*) from t1;
+
+# Errors from epoch sequence checking :
+call mtr.add_suppression(".*NDB Replica: SQL thread stopped as attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
+call mtr.add_suppression(".*Could not execute Write_rows event on table.*");
+call mtr.add_suppression(".*Slave: Got error 173 'Unknown error code' from NDBCLUSTER.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+
+--echo Make a replica side change
+--echo This can cause uniqueness violations when we replicate data
+####
+insert into t1 values (2001,2001,1001);
+insert into t1 values (2002,2002,1002);
+insert into t1 values (2003,2003,1003);
+
+--echo Scenario 1 : skipping causes problem with epoch sequence check
+--echo --------------------------------------------------------------
+
+--connection master
+--echo Cause a conflict
+###
+insert into t1 values (1001,1001,1001); # Will conflict on c=1001
+
+--echo Sync with master, will succeed
+--sync_slave_with_master
+
+--echo Show that row was not replicated to slave
+--connection slave
+select * from t1 where a=1001;
+
+--echo Show that subsequent changes cause an error
+--connection master
+insert into t1 values (3000,3000,3000);
+
+--echo Expect replication to stop with an error
+--connection slave
+--let $slave_sql_errno=1296
+--source include/wait_for_slave_sql_error.inc
+
+--echo Data not replicated
+select * from t1 where a=3000;
+
+--echo Simply starting the slave again should be enough
+--echo to move on
+
+start replica;
+--connection master
+--sync_slave_with_master
+
+--connection slave
+--echo Data now replicated
+select * from t1 where a=3000;
+
+--echo Scenario 2 : ndb_applier_allow_skip_epoch avoids slave stop
+--echo -----------------------------------------------------------
+
+--connection slave
+show variables like 'ndb_applier_allow_skip_epoch';
+set global ndb_applier_allow_skip_epoch = 1;
+show variables like 'ndb_applier_allow_skip_epoch';
+
+# Warning from epoch sequence checking when --ndb-applier-allow-skip-epoch is set
+call mtr.add_suppression(".*NDB Replica: SQL thread attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+
+--connection master
+--echo Cause a conflict
+###
+insert into t1 values (1002,1002,1002); # Will conflict on c=1002
+
+--echo Sync with master, will succeed
+--sync_slave_with_master
+
+--echo Show that row was not replicated to slave
+--connection slave
+select * from t1 where a=1001;
+
+--echo Show that subsequent changes have no problem
+--connection master
+insert into t1 values (3001,3001,3001);
+
+--sync_slave_with_master
+--connection slave
+
+--echo Data replicated
+select * from t1 where a=3001;
+
+--echo Show that whole epoch is skipped
+--echo --------------------------------
+
+--connection slave
+--let $epoch1 = query_get_value('select epoch from mysql.ndb_apply_status;', epoch, 1)
+
+--connection master
+--echo Single transaction shown here
+
+begin;
+  # ~500 rows of change - ok
+  update t1 set b=1234 where a < 500;
+  # 1 row in conflict
+  update t1 set b=1234, c=1003 where a = 500;
+  # ~500 rows of change - ok
+  update t1 set b=1234 where a > 500 and a <= 1000;
+commit;
+
+select count(1) from t1 where b=1234;
+
+--sync_slave_with_master
+
+--connection slave
+
+--echo Replica has none of the changes
+
+select count(1) from t1 where b=1234;
+select * from t1 where a=500;
+
+--echo Show epoch unchanged (diff is zero)
+--disable_query_log
+eval select epoch - $epoch1 as epoch_diff from mysql.ndb_apply_status;
+--enable_query_log
+
+set global ndb_applier_allow_skip_epoch=0;
+
+--connection master
+drop table t1;
+
+# Cleanup Replication
+--source include/rpl_end.inc

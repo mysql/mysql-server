@@ -1,55 +1,9 @@
 # test --crl for the client : should connect
-Variable_name	Value
-admin_ssl_ca	
-admin_ssl_capath	
-admin_ssl_cert	
-admin_ssl_cipher	
-admin_ssl_crl	
-admin_ssl_crlpath	
-admin_ssl_key	
-have_openssl	YES
-have_ssl	YES
-mysqlx_ssl_ca	
-mysqlx_ssl_capath	
-mysqlx_ssl_cert	
-mysqlx_ssl_cipher	
-mysqlx_ssl_crl	
-mysqlx_ssl_crlpath	
-mysqlx_ssl_key	
-ssl_ca	MYSQL_TEST_DIR/std_data/crl-ca-cert.pem
-ssl_capath	
-ssl_cert	MYSQL_TEST_DIR/std_data/crl-server-cert.pem
-ssl_cipher	
-ssl_crl	MYSQL_TEST_DIR/std_data/crl-client-revoked.crl
-ssl_crlpath	
-ssl_fips_mode	OFF
-ssl_key	MYSQL_TEST_DIR/std_data/crl-server-key.pem
+LENGTH(VARIABLE_VALUE) > 0
+1
 # test --crlpath for the client : should connect
-Variable_name	Value
-admin_ssl_ca	
-admin_ssl_capath	
-admin_ssl_cert	
-admin_ssl_cipher	
-admin_ssl_crl	
-admin_ssl_crlpath	
-admin_ssl_key	
-have_openssl	YES
-have_ssl	YES
-mysqlx_ssl_ca	
-mysqlx_ssl_capath	
-mysqlx_ssl_cert	
-mysqlx_ssl_cipher	
-mysqlx_ssl_crl	
-mysqlx_ssl_crlpath	
-mysqlx_ssl_key	
-ssl_ca	MYSQL_TEST_DIR/std_data/crl-ca-cert.pem
-ssl_capath	
-ssl_cert	MYSQL_TEST_DIR/std_data/crl-server-cert.pem
-ssl_cipher	
-ssl_crl	MYSQL_TEST_DIR/std_data/crl-client-revoked.crl
-ssl_crlpath	
-ssl_fips_mode	OFF
-ssl_key	MYSQL_TEST_DIR/std_data/crl-server-key.pem
+LENGTH(VARIABLE_VALUE) > 0
+1
 # try logging in with a certificate in the server's --ssl-crl : should fail
 #
 # Bug#21920678: SSL-CA DOES NOT ACCEPT ~USER TILDE HOME DIRECTORY

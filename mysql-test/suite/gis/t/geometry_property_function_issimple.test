@@ -175,7 +175,8 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10,10 0,0 10,0 0)'));
 
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,1e100 1e100,0.0001 0.000)'));
 
-SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,1e100 1e100,-1e100 -1e100,0 0)'));
+# TODO Bug #33739281 Some gis functions give different results with gcc11 in optimized mode on ARM
+# SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,1e100 1e100,-1e100 -1e100,0 0)'));
 
 --echo #====================================================================================
 --echo # multilinestring

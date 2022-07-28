@@ -1,4 +1,4 @@
-/*  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 
 /**
   @file
-  These are the commond defintions between the plugin service for sessions
+  These are the common definitions between the plugin service for sessions
   and the component service extension for sessions.
   Note that this file is part of both the PLUGIN API/ABI and the component
   service API.

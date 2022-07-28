@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,44 +34,30 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef api0api_h
 #define api0api_h
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "config.h"
 #include "db0err.h"
-
-/* Define uint32 outside my_compiler.h, because my_compiler.h would not allow
-Memcached C code to use the bool data type. */
-#if SIZEOF_INT == 4
-typedef unsigned int uint32;
-#elif SIZEOF_LONG == 4
-typedef unsigned long uint32;
-#else
-#error Neither int or long is of 4 bytes width
-#endif
 
 #if defined(WITH_INNODB_MEMCACHED) && !defined(NDEBUG)
 #define UNIV_MEMCACHED_SDI
 #endif
 
 /** Page number */
-typedef uint32 page_no_t;
+typedef uint32_t page_no_t;
 /** Tablespace identifier */
-typedef uint32 space_id_t;
+typedef uint32_t space_id_t;
 
 typedef struct ib_sdi_key ib_sdi_key_t;
 typedef struct ib_sdi_vector ib_sdi_vector_t;
-
-/* See comment about ib_bool_t as to why the two macros are unsigned long. */
-/** The boolean value of "true" used internally within InnoDB */
-#define IB_TRUE 0x1UL
-/** The boolean value of "false" used internally within InnoDB */
-#define IB_FALSE 0x0UL
 
 /* Basic types used by the InnoDB API. */
 /** All InnoDB error codes are represented by ib_err_t */
 typedef enum dberr_t ib_err_t;
 /** Representation of a byte within InnoDB */
 typedef unsigned char ib_byte_t;
+
 /** Representation of an unsigned long int within InnoDB */
 #ifdef _WIN64
 typedef unsigned __int64 ib_ulint_t;
@@ -79,86 +65,14 @@ typedef unsigned __int64 ib_ulint_t;
 typedef unsigned long int ib_ulint_t;
 #endif /* _WIN64 */
 
-/* We assume C99 support except when using VisualStudio. */
-#if !defined(_MSC_VER)
-#include <stdint.h>
-#endif /* _MSC_VER */
-
-/* Integer types used by the API. Microsft VS defines its own types
-and we use the Microsoft types when building with Visual Studio. */
-#if defined(_MSC_VER)
-/** A signed 8 bit integral type. */
-typedef __int8 ib_i8_t;
-#else
-/** A signed 8 bit integral type. */
-typedef int8_t ib_i8_t;
-#endif
-
-#if defined(_MSC_VER)
-/** An unsigned 8 bit integral type. */
-typedef unsigned __int8 ib_u8_t;
-#else
-/** An unsigned 8 bit integral type. */
-typedef uint8_t ib_u8_t;
-#endif
-
-#if defined(_MSC_VER)
-/** A signed 16 bit integral type. */
-typedef __int16 ib_i16_t;
-#else
-/** A signed 16 bit integral type. */
-typedef int16_t ib_i16_t;
-#endif
-
-#if defined(_MSC_VER)
-/** An unsigned 16 bit integral type. */
-typedef unsigned __int16 ib_u16_t;
-#else
-/** An unsigned 16 bit integral type. */
-typedef uint16_t ib_u16_t;
-#endif
-
-#if defined(_MSC_VER)
-/** A signed 32 bit integral type. */
-typedef __int32 ib_i32_t;
-#else
-/** A signed 32 bit integral type. */
-typedef int32_t ib_i32_t;
-#endif
-
-#if defined(_MSC_VER)
-/** An unsigned 32 bit integral type. */
-typedef unsigned __int32 ib_u32_t;
-#else
-/** An unsigned 32 bit integral type. */
-typedef uint32_t ib_u32_t;
-#endif
-
-#if defined(_MSC_VER)
-/** A signed 64 bit integral type. */
-typedef __int64 ib_i64_t;
-#else
-/** A signed 64 bit integral type. */
-typedef int64_t ib_i64_t;
-#endif
-
-#if defined(_MSC_VER)
-/** An unsigned 64 bit integral type. */
-typedef unsigned __int64 ib_u64_t;
-#else
-/** An unsigned 64 bit integral type. */
-typedef uint64_t ib_u64_t;
-#endif
-
 typedef void *ib_opaque_t;
 typedef ib_opaque_t ib_charset_t;
-typedef ib_ulint_t ib_bool_t;
-typedef ib_u64_t ib_id_u64_t;
+typedef uint64_t ib_id_u64_t;
 
 /** @enum ib_cfg_type_t Possible types for a configuration variable. */
 typedef enum {
-  IB_CFG_IBOOL, /*!< The configuration parameter is
-                of type ibool */
+  IB_CFG_BOOL, /*!< The configuration parameter is
+                of type bool */
 
   /* XXX Can we avoid having different types for ulint and ulong?
   - On Win64 "unsigned long" is 32 bits
@@ -340,9 +254,9 @@ typedef struct {
 
   ib_col_attr_t attr; /*!< Column attributes */
 
-  ib_u32_t type_len; /*!< Length of type */
+  uint32_t type_len; /*!< Length of type */
 
-  ib_u16_t client_type; /*!< 16 bits of data relevant only to
+  uint16_t client_type; /*!< 16 bits of data relevant only to
                         the client. InnoDB doesn't care */
 
   ib_charset_t *charset; /*!< Column charset */
@@ -380,9 +294,9 @@ typedef enum {
 /** Generical InnoDB callback prototype. */
 typedef void (*ib_cb_t)(void);
 
-#define IB_CFG_BINLOG_ENABLED 0x1
-#define IB_CFG_MDL_ENABLED 0x2
-#define IB_CFG_DISABLE_ROWLOCK 0x4
+constexpr uint32_t IB_CFG_BINLOG_ENABLED = 0x1;
+constexpr uint32_t IB_CFG_MDL_ENABLED = 0x2;
+constexpr uint32_t IB_CFG_DISABLE_ROWLOCK = 0x4;
 
 /** Used by ib_read_tuple to determine number of bytes to allocate for new slot
 if needed */
@@ -432,12 +346,12 @@ typedef struct ib_cursor_t *ib_crsr_t;
  @return 1, 0, -1, if a is greater, equal, less than b, respectively */
 
 typedef int (*ib_client_cmp_t)(const ib_col_meta_t *col_meta,
-                               const ib_byte_t *p1, ib_ulint_t p1_len,
-                               const ib_byte_t *p2, ib_ulint_t p2_len);
+                               const ib_byte_t *p1, uint64_t p1_len,
+                               const ib_byte_t *p2, uint64_t p2_len);
 
 /* This should be the same as univ.i */
 /** Represents SQL_NULL length */
-#define IB_SQL_NULL 0xFFFFFFFF
+constexpr uint32_t IB_SQL_NULL = 0xFFFFFFFF;
 
 /** Start a transaction that's been rolled back. This special function
  exists for the case when InnoDB's deadlock detector has rolledack
@@ -449,24 +363,24 @@ typedef int (*ib_client_cmp_t)(const ib_col_meta_t *col_meta,
 ib_err_t ib_trx_start(
     ib_trx_t ib_trx,             /*!< in: transaction to restart */
     ib_trx_level_t ib_trx_level, /*!< in: trx isolation level */
-    ib_bool_t read_write,        /*!< in: true if read write
-                                 transaction */
-    ib_bool_t auto_commit,       /*!< in: auto commit after each
-                                 single DML */
+    bool read_write,             /*!< in: true if read write
+                                      transaction */
+    bool auto_commit,            /*!< in: auto commit after each
+                                      single DML */
     void *thd);                  /*!< in: THD */
 
 /** Begin a transaction. This will allocate a new transaction handle and
 put the transaction in the active state.
-@param[in]	ib_trx_level	trx isolation level
-@param[in]	read_write	true if read write transaction
-@param[in]	auto_commit	auto commit after each single DML
-@param[in,out]	thd		MySQL THD
+@param[in]      ib_trx_level    trx isolation level
+@param[in]      read_write      true if read write transaction
+@param[in]      auto_commit     auto commit after each single DML
+@param[in,out]  thd             MySQL THD
 @return innobase txn handle */
-ib_trx_t ib_trx_begin(ib_trx_level_t ib_trx_level, ib_bool_t read_write,
-                      ib_bool_t auto_commit, void *thd);
+ib_trx_t ib_trx_begin(ib_trx_level_t ib_trx_level, bool read_write,
+                      bool auto_commit, void *thd);
 
 /** Check if the transaction is read_only */
-ib_u32_t ib_trx_read_only(ib_trx_t ib_trx); /*!< in: trx handle */
+uint32_t ib_trx_read_only(ib_trx_t ib_trx); /*!< in: trx handle */
 
 /** Release the resources of the transaction. If the transaction was
  selected as a victim by InnoDB and rolled back then use this function
@@ -539,15 +453,15 @@ ib_err_t ib_cursor_delete_row(ib_crsr_t ib_crsr); /*!< in: cursor instance */
 /** Read current row.
  @return DB_SUCCESS or err code */
 ib_err_t ib_cursor_read_row(
-    ib_crsr_t ib_crsr,     /*!< in: InnoDB cursor instance */
-    ib_tpl_t ib_tpl,       /*!< out: read cols into this tuple */
-    ib_tpl_t cmp_tpl,      /*!< in: tuple to compare and stop
-                           reading */
-    int mode,              /*!< in: mode determine when to
-                           stop read */
-    void **row_buf,        /*!< in/out: row buffer */
-    ib_ulint_t *row_len,   /*!< in/out: row buffer len */
-    ib_ulint_t *used_len); /*!< in/out: row buffer len used */
+    ib_crsr_t ib_crsr,   /*!< in: InnoDB cursor instance */
+    ib_tpl_t ib_tpl,     /*!< out: read cols into this tuple */
+    ib_tpl_t cmp_tpl,    /*!< in: tuple to compare and stop
+                         reading */
+    int mode,            /*!< in: mode determine when to
+                         stop read */
+    void **row_buf,      /*!< in/out: row buffer */
+    uint64_t *row_len,   /*!< in/out: row buffer len */
+    uint64_t *used_len); /*!< in/out: row buffer len used */
 
 /** Move cursor to the first record in the table.
  @return DB_SUCCESS or err code */
@@ -562,93 +476,107 @@ ib_err_t ib_cursor_next(ib_crsr_t ib_crsr); /*!< in: InnoDB cursor instance */
 ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
                           ib_tpl_t ib_tpl,   /*!< in: Key to search for */
                           ib_srch_mode_t ib_srch_mode, /*!< in: search mode */
-                          ib_ulint_t direction); /*!< in: search direction */
+                          uint64_t direction); /*!< in: search direction */
 
-/** Set the match mode for ib_cursor_move(). */
-void ib_cursor_set_match_mode(
-    ib_crsr_t ib_crsr,           /*!< in: Cursor instance */
-    ib_match_mode_t match_mode); /*!< in: ib_cursor_moveto match mode */
+/** Set the match mode for ib_cursor_move().
+@param[in] ib_crsr Cursor instance
+@param[in] match_mode ib_cursor_moveto match mode*/
+void ib_cursor_set_match_mode(ib_crsr_t ib_crsr, ib_match_mode_t match_mode);
 
 /** Set a column of the tuple. Make a copy using the tuple's heap.
+ @param[in] ib_tpl tuple instance
+ @param[in] col_no column index in tuple
+ @param[in] src data value
+ @param[in] len data value len
+ @param[in] need_cpy if need memcpy
  @return DB_SUCCESS or error code */
-ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,     /*!< in: tuple instance */
-                          ib_ulint_t col_no,   /*!< in: column index in tuple */
-                          const void *src,     /*!< in: data value */
-                          ib_ulint_t len,      /*!< in: data value len */
-                          ib_bool_t need_cpy); /*!< in: if need memcpy */
+ib_err_t ib_col_set_value(ib_tpl_t ib_tpl, ib_ulint_t col_no, const void *src,
+                          uint64_t len, bool need_cpy);
 
 /** Get the size of the data available in the column the tuple.
+ @param[in] ib_tpl tuple instance
+ @param[in] i column index in tuple
  @return bytes avail or IB_SQL_NULL */
-ib_ulint_t ib_col_get_len(ib_tpl_t ib_tpl, /*!< in: tuple instance */
-                          ib_ulint_t i);   /*!< in: column index in tuple */
+uint64_t ib_col_get_len(ib_tpl_t ib_tpl, ib_ulint_t i);
 
 /** Copy a column value from the tuple.
+ @param[in] ib_tpl tuple instance
+ @param[in] i in column index in tuple
+ @param[out] dst copied data value
+ @param[in] len max data value len to copy
  @return bytes copied or IB_SQL_NULL */
-ib_ulint_t ib_col_copy_value(
-    ib_tpl_t ib_tpl, /*!< in: tuple instance */
-    ib_ulint_t i,    /*!< in: column index in tuple */
-    void *dst,       /*!< out: copied data value */
-    ib_ulint_t len); /*!< in: max data value len to copy */
+uint64_t ib_col_copy_value(ib_tpl_t ib_tpl, ib_ulint_t i, void *dst,
+                           uint32_t len);
 
 /** Read a signed int 8 bit column from an InnoDB tuple.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] i column number
+ @param[out] ival integer value
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i8(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                          ib_ulint_t i,    /*!< in: column number */
-                          ib_i8_t *ival);  /*!< out: integer value */
+ib_err_t ib_tuple_read_i8(ib_tpl_t ib_tpl, ib_ulint_t i, int8_t *ival);
 
 /** Read an unsigned int 8 bit column from an InnoDB tuple.
+ @param[in] ib_tpl InnoDB tuplr
+ @param[in] i column number
+ @param[out] ival integer value
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u8(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                          ib_ulint_t i,    /*!< in: column number */
-                          ib_u8_t *ival);  /*!< out: integer value */
+ib_err_t ib_tuple_read_u8(ib_tpl_t ib_tpl, ib_ulint_t i, uint8_t *ival);
 
 /** Read a signed int 16 bit column from an InnoDB tuple.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] i column number
+ @param[out] ival integer value
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i16(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_i16_t *ival); /*!< out: integer value */
+ib_err_t ib_tuple_read_i16(ib_tpl_t ib_tpl, ib_ulint_t i, int16_t *ival);
 
 /** Read an unsigned int 16 bit column from an InnoDB tuple.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] i column number
+ @param[out] ival integer value
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u16(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_u16_t *ival); /*!< out: integer value */
+ib_err_t ib_tuple_read_u16(ib_tpl_t ib_tpl, ib_ulint_t i, uint16_t *ival);
 
 /** Read a signed int 32 bit column from an InnoDB tuple.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] i column number
+ @param[out] ival integer value
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i32(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_i32_t *ival); /*!< out: integer value */
+ib_err_t ib_tuple_read_i32(ib_tpl_t ib_tpl, ib_ulint_t i, int32_t *ival);
 
 /** Read an unsigned int 32 bit column from an InnoDB tuple.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] i column number
+ @param[out] ival integer value
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u32(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_u32_t *ival); /*!< out: integer value */
+ib_err_t ib_tuple_read_u32(ib_tpl_t ib_tpl, ib_ulint_t i, uint32_t *ival);
 
 /** Read a signed int 64 bit column from an InnoDB tuple.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] i column number
+ @param[out] ival integer value
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i64(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_i64_t *ival); /*!< out: integer value */
+ib_err_t ib_tuple_read_i64(ib_tpl_t ib_tpl, ib_ulint_t i, int64_t *ival);
 
 /** Read an unsigned int 64 bit column from an InnoDB tuple.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] i column number
+ @param[out] ival integer value
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u64(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_u64_t *ival); /*!< out: integer value */
+ib_err_t ib_tuple_read_u64(ib_tpl_t ib_tpl, ib_ulint_t i, uint64_t *ival);
 
 /** Get a column value pointer from the tuple.
+ @param[in] ib_tpl tuple instance
+ @param[in] i column index in tuple
  @return NULL or pointer to buffer */
-const void *ib_col_get_value(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                             ib_ulint_t i);   /*!< in: column number */
+const void *ib_col_get_value(ib_tpl_t ib_tpl, ib_ulint_t i);
 
 /** Get a column type, length and attributes from the tuple.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] i column number
+ @param[out] ib_col_meta column meta data
  @return len of column data */
-ib_ulint_t ib_col_get_meta(
-    ib_tpl_t ib_tpl,             /*!< in: InnoDB tuple */
-    ib_ulint_t i,                /*!< in: column number */
-    ib_col_meta_t *ib_col_meta); /*!< out: column meta data */
+uint64_t ib_col_get_meta(ib_tpl_t ib_tpl, ib_ulint_t i,
+                         ib_col_meta_t *ib_col_meta);
 
 /** "Clear" or reset an InnoDB tuple. We free the heap and recreate the tuple.
  @return new tuple, or NULL */
@@ -657,114 +585,123 @@ ib_tpl_t ib_tuple_clear(ib_tpl_t ib_tpl); /*!< in: InnoDB tuple */
 /** Create a new cluster key search tuple and copy the contents of  the
  secondary index key tuple columns that refer to the cluster index record
  to the cluster key. It does a deep copy of the column data.
+ @param[in] ib_crsr secondary index cursor
+ @param[out] ib_dst_tpl destination tuple
+ @param[in] ib_src_tpl source tuple
  @return DB_SUCCESS or error code */
-ib_err_t ib_tuple_get_cluster_key(
-    ib_crsr_t ib_crsr,          /*!< in: secondary index cursor */
-    ib_tpl_t *ib_dst_tpl,       /*!< out,own: destination tuple */
-    const ib_tpl_t ib_src_tpl); /*!< in: source tuple */
+ib_err_t ib_tuple_get_cluster_key(ib_crsr_t ib_crsr, ib_tpl_t *ib_dst_tpl,
+                                  const ib_tpl_t ib_src_tpl);
 
 /** Create an InnoDB tuple used for index/table search.
+ @param[in] ib_crsr Cursor instance
  @return tuple for current index */
-ib_tpl_t ib_sec_search_tuple_create(
-    ib_crsr_t ib_crsr); /*!< in: Cursor instance */
+ib_tpl_t ib_sec_search_tuple_create(ib_crsr_t ib_crsr);
 
 /** Create an InnoDB tuple used for index/table search.
+ @param[in] ib_crsr Cursor instance
  @return tuple for current index */
-ib_tpl_t ib_sec_read_tuple_create(
-    ib_crsr_t ib_crsr); /*!< in: Cursor instance */
+ib_tpl_t ib_sec_read_tuple_create(ib_crsr_t ib_crsr);
 
 /** Create an InnoDB tuple used for table key operations.
+* @param[in] ib_crsr Cursor instance
  @return tuple for current table */
-ib_tpl_t ib_clust_search_tuple_create(
-    ib_crsr_t ib_crsr); /*!< in: Cursor instance */
+ib_tpl_t ib_clust_search_tuple_create(ib_crsr_t ib_crsr);
 
 /** Create an InnoDB tuple for table row operations.
+ @param[in] ib_crsr Cursor instance
  @return tuple for current table */
-ib_tpl_t ib_clust_read_tuple_create(
-    ib_crsr_t ib_crsr); /*!< in: Cursor instance */
+ib_tpl_t ib_clust_read_tuple_create(ib_crsr_t ib_crsr);
 
 /** Return the number of user columns in the tuple definition.
+ @param[in] ib_tpl Tuple for current table
  @return number of user columns */
-ib_ulint_t ib_tuple_get_n_user_cols(
-    const ib_tpl_t ib_tpl); /*!< in: Tuple for current table */
+uint64_t ib_tuple_get_n_user_cols(const ib_tpl_t ib_tpl);
 
 /** Return the number of columns in the tuple definition.
+ @param[in] ib_tpl Tuple for current table
  @return number of columns */
-ib_ulint_t ib_tuple_get_n_cols(
-    const ib_tpl_t ib_tpl); /*!< in: Tuple for current table */
+uint64_t ib_tuple_get_n_cols(const ib_tpl_t ib_tpl);
 
-/** Destroy an InnoDB tuple. */
-void ib_tuple_delete(ib_tpl_t ib_tpl); /*!< in,own: Tuple instance to delete */
+/** Destroy an InnoDB tuple.
+ @param[in] ib_tpl Tuple for current table*/
+void ib_tuple_delete(ib_tpl_t ib_tpl);
 
 /** Get a table id.
+ @param[in] table_name table_to_find
+ @param[out] table_id table id if found
  @return DB_SUCCESS if found */
-ib_err_t ib_table_get_id(const char *table_name, /*!< in: table to find */
-                         ib_id_u64_t *table_id); /*!< out: table id if found */
+ib_err_t ib_table_get_id(const char *table_name, ib_id_u64_t *table_id);
 
 /** Check if cursor is positioned.
+ @param[in] ib_crsr InnoDB cursor instance
  @return IB_true if positioned */
-ib_bool_t ib_cursor_is_positioned(
-    const ib_crsr_t ib_crsr); /*!< in: InnoDB cursor instance */
+bool ib_cursor_is_positioned(const ib_crsr_t ib_crsr);
 
 /** Checks if the data dictionary is latched in exclusive mode by a
  user transaction.
+ @param[in] ib_trx transaction
  @return true if exclusive latch */
-ib_bool_t ib_schema_lock_is_exclusive(
-    const ib_trx_t ib_trx); /*!< in: transaction */
+bool ib_schema_lock_is_exclusive(const ib_trx_t ib_trx);
 
 /** Lock an InnoDB cursor/table.
+ @param[in,out] ib_crsr InnoDB cursor
+ @param[in] ib_lck_mode InnoDB lock mode
  @return DB_SUCCESS or error code */
-ib_err_t ib_cursor_lock(ib_crsr_t ib_crsr, /*!< in/out: InnoDB cursor */
-                        ib_lck_mode_t ib_lck_mode); /*!< in: InnoDB lock mode */
+ib_err_t ib_cursor_lock(ib_crsr_t ib_crsr, ib_lck_mode_t ib_lck_mode);
 
 /** Set the Lock mode of the cursor.
+ @param[in,out] ib_crsr InnoDB cursor
+ @param[in] ib_lck_mode InnoDB lock mode
  @return DB_SUCCESS or error code */
-ib_err_t ib_cursor_set_lock_mode(
-    ib_crsr_t ib_crsr,          /*!< in/out: InnoDB cursor */
-    ib_lck_mode_t ib_lck_mode); /*!< in: InnoDB lock mode */
+ib_err_t ib_cursor_set_lock_mode(ib_crsr_t ib_crsr, ib_lck_mode_t ib_lck_mode);
 
-/** Set need to access clustered index record flag. */
-void ib_cursor_set_cluster_access(
-    ib_crsr_t ib_crsr); /*!< in/out: InnoDB cursor */
+/** Set need to access clustered index record flag.
+ @param[in,out] ib_crsr InnoDB cursor */
+void ib_cursor_set_cluster_access(ib_crsr_t ib_crsr);
 
-/** Inform the cursor that it's the start of an SQL statement. */
-void ib_cursor_stmt_begin(ib_crsr_t ib_crsr); /*!< in: cursor */
+/** Inform the cursor that it's the start of an SQL statement.
+ @param[in,out] ib_crsr InnoDB cursor */
+void ib_cursor_stmt_begin(ib_crsr_t ib_crsr);
 
 /** Write a double value to a column.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] col_no column number
+ @param[in] val value to write
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_write_double(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                               int col_no,      /*!< in: column number */
-                               double val);     /*!< in: value to write */
+ib_err_t ib_tuple_write_double(ib_tpl_t ib_tpl, int col_no, double val);
 
 /** Read a double column value from an InnoDB tuple.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] col_no column number
+ @param[out] dval double value
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_double(ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
-                              ib_ulint_t col_no, /*!< in: column number */
-                              double *dval);     /*!< out: double value */
+ib_err_t ib_tuple_read_double(ib_tpl_t ib_tpl, uint64_t col_no, double *dval);
 
 /** Write a float value to a column.
+ @param[in,out] ib_tpl tuple to write to
+ @param[in] col_no column number
+ @param[in] val value to write
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_write_float(ib_tpl_t ib_tpl, /*!< in/out: tuple to write to */
-                              int col_no,      /*!< in: column number */
-                              float val);      /*!< in: value to write */
+ib_err_t ib_tuple_write_float(ib_tpl_t ib_tpl, int col_no, float val);
 
 /** Read a float value from an InnoDB tuple.
+ @param[in] ib_tpl InnoDB tuple
+ @param[in] col_no column number
+ @param[out] fval float value
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_float(ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
-                             ib_ulint_t col_no, /*!< in: column number */
-                             float *fval);      /*!< out: float value */
+ib_err_t ib_tuple_read_float(ib_tpl_t ib_tpl, uint64_t col_no, float *fval);
 
 /** Get a column type, length and attributes from the tuple.
+ @param[in] ib_crsr InnoDB cursor instance
+ @param[in] i column index in tuple
  @return len of column data */
-const char *ib_col_get_name(
-    ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
-    ib_ulint_t i);     /*!< in: column index in tuple */
+const char *ib_col_get_name(ib_crsr_t ib_crsr, ib_ulint_t i);
 
 /** Get an index field name from the cursor.
+ @param[in] ib_crsr InnoDB cursor instance
+ @param[in] i column index in tuple
  @return name of the field */
-const char *ib_get_idx_field_name(
-    ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
-    ib_ulint_t i);     /*!< in: column index in tuple */
+const char *ib_get_idx_field_name(ib_crsr_t ib_crsr, ib_ulint_t i);
 
 /** Get generic configure status
  @return configure status*/
@@ -776,11 +713,11 @@ ib_trx_level_t ib_cfg_trx_level();
 
 /** Return configure value for background commit interval (in seconds)
  @return background commit interval (in seconds) */
-ib_ulint_t ib_cfg_bk_commit_interval();
+uint64_t ib_cfg_bk_commit_interval();
 
 /** Get a trx start time.
  @return trx start_time */
-ib_u64_t ib_trx_get_start_time(ib_trx_t ib_trx); /*!< in: transaction */
+uint64_t ib_trx_get_start_time(ib_trx_t ib_trx); /*!< in: transaction */
 
 /** Wrapper of ut_strerr() which converts an InnoDB error number to a
  human readable text message.
@@ -788,23 +725,23 @@ ib_u64_t ib_trx_get_start_time(ib_trx_t ib_trx); /*!< in: transaction */
 const char *ib_ut_strerr(ib_err_t num); /*!< in: error number */
 
 /** Get the SDI keys in a tablespace into vector.
-@param[in]	tablespace_id	tablespace id
-@param[in,out]	ib_sdi_vector	vector to hold objects with tablespace types
+@param[in]      tablespace_id   tablespace id
+@param[in,out]  ib_sdi_vector   vector to hold objects with tablespace types
 and ids
-@param[in,out]	trx		data dictionary transaction
+@param[in,out]  trx             data dictionary transaction
 @return DB_SUCCESS if SDI keys retrieval is successful, else error */
 ib_err_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
                          ib_trx_t trx);
 
 /** Retrieve SDI from tablespace
-@param[in]	tablespace_id	tablespace id
-@param[in]	ib_sdi_key	SDI key
-@param[in,out]	comp_sdi	in: buffer to hold the SDI BLOB
+@param[in]      tablespace_id   tablespace id
+@param[in]      ib_sdi_key      SDI key
+@param[in,out]  comp_sdi        in: buffer to hold the SDI BLOB
                                 out: compressed SDI retrieved from tablespace
-@param[in,out]	comp_sdi_len	in:  Size of memory allocated
+@param[in,out]  comp_sdi_len    in:  Size of memory allocated
                                 out: compressed length of SDI
-@param[out]	uncomp_sdi_len	out: uncompressed length of SDI
-@param[in,out]	trx		innodb transaction
+@param[out]     uncomp_sdi_len  out: uncompressed length of SDI
+@param[in,out]  trx             innodb transaction
 @return DB_SUCCESS if SDI retrieval is successful, else error
 in case the passed buffer length is smaller than the actual SDI
 DB_OUT_OF_MEMORY is thrown and uncompressed length is set in
@@ -814,94 +751,94 @@ ib_err_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                     uint32_t *uncomp_sdi_len, ib_trx_t trx);
 
 /** Insert/Update SDI in tablespace
-@param[in]	tablespace_id	tablespace id
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+@param[in]      tablespace_id   tablespace id
+@param[in]      sdi_key         SDI key to uniquely identify the tablespace
                                 object
-@param[in]	uncomp_len	uncompressed length of SDI
-@param[in]	comp_len	compressed length of SDI
-@param[in]	sdi		compressed SDI to be stored in tablespace
-@param[in,out]	trx		innodb transaction
+@param[in]      uncomp_len      uncompressed length of SDI
+@param[in]      comp_len        compressed length of SDI
+@param[in]      sdi             compressed SDI to be stored in tablespace
+@param[in,out]  trx             innodb transaction
 @return DB_SUCCESS if SDI Insert/Update is successful, else error */
 ib_err_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *sdi_key,
                     uint32_t uncomp_len, uint32_t comp_len, const void *sdi,
                     ib_trx_t trx);
 
 /** Delete SDI from tablespace.
-@param[in]	tablespace_id	tablespace id
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+@param[in]      tablespace_id   tablespace id
+@param[in]      sdi_key         SDI key to uniquely identify the tablespace
 object
-@param[in,out]	trx		innodb transaction
+@param[in,out]  trx             innodb transaction
 @return DB_SUCCESS if SDI deletion is successful, else error */
 ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *sdi_key,
                        ib_trx_t trx);
 
 /** Create SDI in a tablespace
-@param[in]	tablespace_id	InnoDB tablespace id
+@param[in]      tablespace_id   InnoDB tablespace id
 @return DB_SUCCESS if SDI index creation is successful, else error */
 ib_err_t ib_sdi_create(space_id_t tablespace_id);
 
 /** Drop SDI Index from tablespace. This should be used only when SDI
 is corrupted.
-@param[in]	tablespace_id	InnoDB tablespace id
+@param[in]      tablespace_id   InnoDB tablespace id
 @return DB_SUCCESS if dropping of SDI indexes is successful, else error */
 ib_err_t ib_sdi_drop(space_id_t tablespace_id);
 
 /** Flush SDI in a tablespace. The pages of a SDI Index modified by the
 transaction will be flushed to disk.
-@param[in]	space_id	tablespace id
+@param[in]      space_id        tablespace id
 @return DB_SUCCESS always */
 ib_err_t ib_sdi_flush(space_id_t space_id);
 
 #ifdef UNIV_MEMCACHED_SDI
 /** Wrapper function to retrieve SDI from tablespace.
-@param[in]	crsr		Memcached cursor
-@param[in]	key		Memcached key
-@param[in,out]	sdi		SDI data retrieved
-@param[in,out]	sdi_len		in:  Size of allocated memory
+@param[in]      crsr            Memcached cursor
+@param[in]      key             Memcached key
+@param[in,out]  sdi             SDI data retrieved
+@param[in,out]  sdi_len         in:  Size of allocated memory
                                 out: Actual SDI length
 @return DB_SUCCESS if SDI retrieval is successful, else error */
 ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key, void *sdi,
                          uint64_t *sdi_len);
 
 /** Wrapper function to delete SDI from tablespace.
-@param[in,out]	crsr		Memcached cursor
-@param[in]	key		Memcached key
+@param[in,out]  crsr            Memcached cursor
+@param[in]      key             Memcached key
 @return DB_SUCCESS if SDI deletion is successful, else error */
 ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key);
 
 /** Wrapper function to insert SDI into tablespace.
-@param[in]	crsr		Memcached cursor
-@param[in]	key		Memcached key
-@param[in]	sdi		SDI to be stored in tablespace
-@param[in]	sdi_len		SDI length
+@param[in]      crsr            Memcached cursor
+@param[in]      key             Memcached key
+@param[in]      sdi             SDI to be stored in tablespace
+@param[in]      sdi_len         SDI length
 @return DB_SUCCESS if SDI insertion is successful, else error */
 ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key, const void *sdi,
                          uint64_t *sdi_len);
 
 /** Wrapper function to create SDI in a tablespace.
-@param[in,out]	crsr		Memcached cursor
+@param[in,out]  crsr            Memcached cursor
 @return DB_SUCCESS if SDI creation is successful, else error */
 ib_err_t ib_memc_sdi_create(ib_crsr_t crsr);
 
 /** Wrapper function to drop SDI in a tablespace.
-@param[in,out]	crsr		Memcached cursor
+@param[in,out]  crsr            Memcached cursor
 @return DB_SUCCESS if dropping of SDI is successful, else error */
 ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr);
 
 /* Wrapper function to retreive list of SDI keys into the buffer
 The SDI keys are copied in the from x:y and separated by '|'.
-@param[in,out]	crsr		Memcached cursor
-@param[in]	key		Memcached key
-@param[out]	sdi		The keys are copies into this buffer
+@param[in,out]  crsr            Memcached cursor
+@param[in]      key             Memcached key
+@param[out]     sdi             The keys are copies into this buffer
 @return DB_SUCCESS if SDI keys retrieval is successful, else error */
 ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key, void *sdi,
                               uint64_t list_buf_len);
 #endif /* UNIV_MEMCACHED_SDI */
 
 /** Check the table whether it contains virtual columns.
-@param[in]	crsr	InnoDB Cursor
+@param[in]      crsr    InnoDB Cursor
 @return true if the table contains virtual column else failure. */
-ib_bool_t ib_is_virtual_table(ib_crsr_t crsr);
+bool ib_is_virtual_table(ib_crsr_t crsr);
 
 #ifdef UNIV_MEMCACHED_SDI
 #define ONLY_FOR_MEMCACHED_SDI(x) x

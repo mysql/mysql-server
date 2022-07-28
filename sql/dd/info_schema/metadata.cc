@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -425,15 +425,16 @@ bool update_plugins_I_S_metadata(THD *thd) {
   Create INFORMATION_SCHEMA system views.
 */
 bool create_system_views(THD *thd, bool is_non_dd_based) {
-  // Force use of utf8 charset.
+  // Force use of utf8mb3 charset.
   const CHARSET_INFO *client_cs = thd->variables.character_set_client;
   const CHARSET_INFO *cs = thd->variables.collation_connection;
   const CHARSET_INFO *m_client_cs, *m_connection_cl;
   Disable_binlog_guard binlog_guard(thd);
   Implicit_substatement_state_guard substatement_guard(thd);
 
-  resolve_charset("utf8", system_charset_info, &m_client_cs);
-  resolve_collation("utf8_general_ci", system_charset_info, &m_connection_cl);
+  resolve_charset("utf8mb3", system_charset_info, &m_client_cs);
+  resolve_collation("utf8mb3_general_ci", system_charset_info,
+                    &m_connection_cl);
 
   thd->variables.character_set_client = m_client_cs;
   thd->variables.collation_connection = m_connection_cl;

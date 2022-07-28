@@ -1,7 +1,7 @@
 #ifndef UNSAFE_STRING_APPEND_INCLUDED
 #define UNSAFE_STRING_APPEND_INCLUDED
 
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #include "sql_string.h"
 
 /*
-  The following append operations do NOT check alloced memory
+  The following append operations do NOT check allocated memory
   q_*** methods writes values of parameters itself
   qs_*** methods writes string representation of value
 */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ typedef void *mysql_string_handle;
   The policy is enfoced through st_mysql_validate_password::validate_password()
   that answers the question of whether this password is good enough or not.
 
-  There's one auxilary functon
+  There's one auxiliary function
   st_mysql_validate_password::get_password_strength() that can be used by
   password changing UIs to display a password strength meter as the user enters
   a password.

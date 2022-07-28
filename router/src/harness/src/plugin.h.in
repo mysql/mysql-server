@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -486,6 +486,13 @@ struct Plugin {
   void (*stop)(PluginFuncEnv *env);  // not allowed to throw!
 
   bool declares_readiness;
+
+  /**
+   * Array of names of option this plugin supports.
+   *
+   */
+  size_t supported_options_length;
+  const char *const *supported_options;
 };
 
 /**

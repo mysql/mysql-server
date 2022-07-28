@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,6 @@ typedef unsigned int PSI_memory_key;
 extern PSI_memory_key key_memory_Filesort_buffer_sort_keys;
 extern PSI_memory_key key_memory_Gtid_set_Interval_chunk;
 extern PSI_memory_key key_memory_Gtid_set_to_string;
-extern PSI_memory_key key_memory_NAMED_ILINK_name;
 extern PSI_memory_key key_memory_Sid_map_Node;
 extern PSI_memory_key key_memory_String_value;
 extern PSI_memory_key key_memory_log_error_loaded_services;
@@ -65,6 +64,7 @@ extern PSI_memory_key key_memory_DD_default_values;
 extern PSI_memory_key key_memory_DD_import;
 extern PSI_memory_key key_memory_DD_objects;
 extern PSI_memory_key key_memory_DD_String_type;
+extern PSI_memory_key key_memory_event_basic_root;
 extern PSI_memory_key key_memory_Event_queue_element_for_exec_names;
 extern PSI_memory_key key_memory_Event_scheduler_scheduler_param;
 extern PSI_memory_key key_memory_File_query_log_name;
@@ -90,7 +90,7 @@ extern PSI_memory_key key_memory_NET_compress_packet;
 extern PSI_memory_key key_memory_Owned_gtids_sidno_to_hash;
 extern PSI_memory_key key_memory_Owned_gtids_to_string;
 extern PSI_memory_key key_memory_PROFILE;
-extern PSI_memory_key key_memory_QUICK_RANGE_SELECT_mrr_buf_desc;
+extern PSI_memory_key key_memory_IndexRangeScanIterator_mrr_buf_desc;
 extern PSI_memory_key key_memory_READ_INFO;
 extern PSI_memory_key key_memory_READ_RECORD_cache;
 extern PSI_memory_key key_memory_xa_recovered_transactions;
@@ -142,6 +142,9 @@ extern PSI_memory_key key_memory_my_bitmap_map;
 extern PSI_memory_key key_memory_my_str_malloc;
 extern PSI_memory_key key_memory_opt_bin_logname;
 extern PSI_memory_key key_memory_partition_syntax_buffer;
+extern PSI_memory_key key_memory_persisted_variables_memroot;
+extern PSI_memory_key key_memory_persisted_variables_unordered_map;
+extern PSI_memory_key key_memory_persisted_variables_unordered_set;
 extern PSI_memory_key key_memory_prepared_statement_infrastructure;
 extern PSI_memory_key key_memory_prepared_statement_main_mem_root;
 extern PSI_memory_key key_memory_partitions_prune_exec;

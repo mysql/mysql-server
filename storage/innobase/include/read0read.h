@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,7 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 class MVCC {
  public:
   /** Constructor
-  @param size		Number of views to pre-allocate */
+  @param size           Number of views to pre-allocate */
   explicit MVCC(ulint size);
 
   /** Destructor.
@@ -51,21 +51,21 @@ class MVCC {
   ~MVCC();
 
   /** Allocate and create a view.
-  @param view	View owned by this class created for the caller. Must be
+  @param view   View owned by this class created for the caller. Must be
   freed by calling view_close()
-  @param trx	Transaction instance of caller */
+  @param trx    Transaction instance of caller */
   void view_open(ReadView *&view, trx_t *trx);
 
   /**
   Close a view created by the above function.
-  @param view		view allocated by trx_open.
-  @param own_mutex	true if caller owns trx_sys_t::mutex */
+  @param view           view allocated by trx_open.
+  @param own_mutex      true if caller owns trx_sys_t::mutex */
   void view_close(ReadView *&view, bool own_mutex);
 
   /**
   Release a view that is inactive but not closed. Caller must own
   the trx_sys_t::mutex.
-  @param view		View to release */
+  @param view           View to release */
   void view_release(ReadView *&view);
 
   /** Clones the oldest view and stores it in view. No need to
@@ -73,7 +73,7 @@ class MVCC {
   It will also move the closed views from the m_views list to the
   m_free list. This function is called by Purge to determine whether it should
   purge the delete marked record or not.
-  @param view		Preallocated view, owned by the caller */
+  @param view           Preallocated view, owned by the caller */
   void clone_oldest_view(ReadView *view);
 
   /**

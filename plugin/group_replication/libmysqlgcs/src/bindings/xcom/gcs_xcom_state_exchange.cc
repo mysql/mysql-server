@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -595,7 +595,6 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
    However, it will send an empty message anyway.
    */
   if (exchangeable_data_len > 0) {
-    uint64_t slider_total_len = 0;
     uint64_t slider_len = 0;
     for (auto it = exchangeable_data.begin(); it != it_ends; ++it) {
       auto &msg_data = (*it);
@@ -607,7 +606,6 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
             static_cast<long long unsigned>(slider_len));
         msg_data->encode(slider, &slider_len);
         slider += slider_len;
-        slider_total_len += slider_len;
       }
     }
   }

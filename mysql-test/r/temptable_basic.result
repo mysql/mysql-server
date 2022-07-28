@@ -497,7 +497,7 @@ truncate performance_schema.memory_summary_global_by_event_name;
 select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
 EVENT_NAME	COUNT_ALLOC	COUNT_FREE	SUM_NUMBER_OF_BYTES_ALLOC	SUM_NUMBER_OF_BYTES_FREE	LOW_COUNT_USED	CURRENT_COUNT_USED	HIGH_COUNT_USED	LOW_NUMBER_OF_BYTES_USED	CURRENT_NUMBER_OF_BYTES_USED	HIGH_NUMBER_OF_BYTES_USED
 memory/temptable/physical_disk	0	0	0	0	0	0	0	0	0	0
-memory/temptable/physical_ram	1	0	1048576	0	1	1	1	1048576	1048576	1048576
+memory/temptable/physical_ram	1	0	1048608	0	1	1	1	1048608	1048608	1048608
 # conn1
 show variables like '%tmp_mem_storage%';
 Variable_name	Value
@@ -505,15 +505,15 @@ internal_tmp_mem_storage_engine	TempTable
 select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
 EVENT_NAME	COUNT_ALLOC	COUNT_FREE	SUM_NUMBER_OF_BYTES_ALLOC	SUM_NUMBER_OF_BYTES_FREE	LOW_COUNT_USED	CURRENT_COUNT_USED	HIGH_COUNT_USED	LOW_NUMBER_OF_BYTES_USED	CURRENT_NUMBER_OF_BYTES_USED	HIGH_NUMBER_OF_BYTES_USED
 memory/temptable/physical_disk	0	0	0	0	0	0	0	0	0	0
-memory/temptable/physical_ram	2	0	2097152	0	1	2	2	1048576	2097152	2097152
+memory/temptable/physical_ram	2	0	2097216	0	1	2	2	1048608	2097216	2097216
 select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
 EVENT_NAME	COUNT_ALLOC	COUNT_FREE	SUM_NUMBER_OF_BYTES_ALLOC	SUM_NUMBER_OF_BYTES_FREE	LOW_COUNT_USED	CURRENT_COUNT_USED	HIGH_COUNT_USED	LOW_NUMBER_OF_BYTES_USED	CURRENT_NUMBER_OF_BYTES_USED	HIGH_NUMBER_OF_BYTES_USED
 memory/temptable/physical_disk	0	0	0	0	0	0	0	0	0	0
-memory/temptable/physical_ram	2	0	2097152	0	1	2	2	1048576	2097152	2097152
+memory/temptable/physical_ram	2	0	2097216	0	1	2	2	1048608	2097216	2097216
 select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
 EVENT_NAME	COUNT_ALLOC	COUNT_FREE	SUM_NUMBER_OF_BYTES_ALLOC	SUM_NUMBER_OF_BYTES_FREE	LOW_COUNT_USED	CURRENT_COUNT_USED	HIGH_COUNT_USED	LOW_NUMBER_OF_BYTES_USED	CURRENT_NUMBER_OF_BYTES_USED	HIGH_NUMBER_OF_BYTES_USED
 memory/temptable/physical_disk	0	0	0	0	0	0	0	0	0	0
-memory/temptable/physical_ram	2	1	2097152	1048576	1	1	2	1048576	1048576	2097152
+memory/temptable/physical_ram	2	1	2097216	1048608	1	1	2	1048608	1048608	2097216
 #
 # Bug #31091089 TEMPTABLE: ASSERTION `P - M_MYSQL_BUF < M_LENGTH' FAILED.
 #

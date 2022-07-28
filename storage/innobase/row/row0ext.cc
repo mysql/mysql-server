@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,30 +39,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "btr0cur.h"
 
-#ifdef UNIV_DEBUG
-#define row_ext_cache_fill(index, ext, i, page_size, is_sdi, dfield) \
-  row_ext_cache_fill_func(index, ext, i, page_size, is_sdi, dfield)
-#else /* UNIV_DEBUG */
-#define row_ext_cache_fill(index, ext, i, page_size, is_sdi, dfield) \
-  row_ext_cache_fill_func(index, ext, i, page_size, dfield)
-#endif /* UNIV_DEBUG */
-
 /** Fills the column prefix cache of an externally stored column.
-@param[in]	index		clustered index from which LOB is fetched.
-@param[in,out]	ext		column prefix cache
-@param[in]	i		index of ext->ext[]
-@param[in]	page_size	page size
-@param[in]	dfield		data field */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI Index */
-#endif /* UNIV_DEBUG */
-static void row_ext_cache_fill_func(const dict_index_t *index, row_ext_t *ext,
-                                    ulint i, const page_size_t &page_size,
-#ifdef UNIV_DEBUG
-                                    bool is_sdi,
-#endif /* UNIV_DEBUG */
-                                    const dfield_t *dfield) {
+@param[in]      index           clustered index from which LOB is fetched.
+@param[in,out]  ext             column prefix cache
+@param[in]      i               index of ext->ext[]
+@param[in]      page_size       page size
+@param[in]      dfield          data field
+@param[in]      is_sdi          true for SDI Index */
+static void row_ext_cache_fill(const dict_index_t *index, row_ext_t *ext,
+                               ulint i, const page_size_t &page_size,
+                               IF_DEBUG(bool is_sdi, ) const dfield_t *dfield) {
   const byte *field = static_cast<const byte *>(dfield_get_data(dfield));
   ulint f_len = dfield_get_len(dfield);
   byte *buf = ext->buf + i * ext->max_len;
@@ -96,37 +82,31 @@ static void row_ext_cache_fill_func(const dict_index_t *index, row_ext_t *ext,
       access a half-deleted BLOB if the server previously
       crashed during the execution of
       btr_free_externally_stored_field(). */
-      ext->len[i] = lob::btr_copy_externally_stored_field_prefix(
-          nullptr, index, buf, ext->max_len, page_size, field, is_sdi, f_len);
+      ext->len[i] = lob::btr_copy_externally_stored_field_prefix_func(
+          nullptr, index, buf, ext->max_len, page_size, field,
+          IF_DEBUG(is_sdi, ) f_len);
     }
   }
 }
 
 /** Creates a cache of column prefixes of externally stored columns.
-@param[in]	index	the index to which LOB belongs.
-@param[in]	n_ext	number of externally stored columns
-@param[in]	ext	col_no's of externally stored columns in the InnoDB
+@param[in]      index   the index to which LOB belongs.
+@param[in]      n_ext   number of externally stored columns
+@param[in]      ext     col_no's of externally stored columns in the InnoDB
 table object, as reported by dict_col_get_no(); NOT relative to the records
 in the clustered index
-@param[in]	flags	table->flags
-@param[in]	tuple	data tuple containing the field references of the
+@param[in]      flags   table->flags
+@param[in]      tuple   data tuple containing the field references of the
 externally stored columns; must be indexed by col_no; the clustered index record
 must be covered by a lock or a page latch to prevent deletion (rollback
-or purge) */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi	true for SDI Indexes */
-#endif /* UNIV_DEBUG */
-/**
-@param[in,out]	heap	heap where created
+or purge)
+@param[in]      is_sdi  true for SDI Indexes
+@param[in,out]  heap    heap where created
 @return own: column prefix cache */
 row_ext_t *row_ext_create_func(const dict_index_t *index, ulint n_ext,
                                const ulint *ext, uint32_t flags,
                                const dtuple_t *tuple,
-#ifdef UNIV_DEBUG
-                               bool is_sdi,
-#endif /* UNIV_DEBUG */
-                               mem_heap_t *heap) {
+                               IF_DEBUG(bool is_sdi, ) mem_heap_t *heap) {
   ulint i;
   const page_size_t &page_size = dict_tf_get_page_size(flags);
 
@@ -158,7 +138,7 @@ row_ext_t *row_ext_create_func(const dict_index_t *index, ulint n_ext,
     const dfield_t *dfield;
 
     dfield = dtuple_get_nth_field(tuple, ext[i]);
-    row_ext_cache_fill(index, ret, i, page_size, is_sdi, dfield);
+    row_ext_cache_fill(index, ret, i, page_size, IF_DEBUG(is_sdi, ) dfield);
   }
 
   return (ret);

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "syslog_plugin.h"
 
+#include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/plugin.h"  // Plugin
 
 extern "C" {
@@ -41,5 +42,7 @@ mysql_harness::Plugin harness_plugin_syslog = {
     nullptr,  // start
     nullptr,  // stop
     false,    // declares_readiness
+    sink_supported_options.size(),
+    sink_supported_options.data(),
 };
 }

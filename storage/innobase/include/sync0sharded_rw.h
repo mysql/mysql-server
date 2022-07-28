@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -95,8 +95,7 @@ class Sharded_rw_lock {
   size_t s_lock(ut::Location location) {
     const size_t shard_no =
         default_indexer_t<>::get_rnd_index() & (m_n_shards - 1);
-    rw_lock_s_lock_inline(&m_shards[shard_no], 0, location.filename,
-                          location.line);
+    rw_lock_s_lock_gen(&m_shards[shard_no], 0, location);
     return shard_no;
   }
 
@@ -104,7 +103,14 @@ class Sharded_rw_lock {
     ut_a(shard_no < m_n_shards);
     rw_lock_s_unlock(&m_shards[shard_no]);
   }
-
+  /** Checks if there is a thread requesting an x-latch waiting for threads to
+  release their s-latches on given shard.
+  @param[in]  shard_no  The shard to check.
+  @return true iff there is an x-latcher blocked by s-latchers on shard_no. */
+  bool is_x_blocked_by_s(size_t shard_no) {
+    ut_a(shard_no < m_n_shards);
+    return m_shards[shard_no].is_x_blocked_by_s();
+  }
   /**
   Tries to obtain exclusive latch - similar to x_lock(), but non-blocking, and
   thus can fail.
@@ -112,8 +118,7 @@ class Sharded_rw_lock {
   */
   bool try_x_lock(ut::Location location) {
     for (size_t shard_no = 0; shard_no < m_n_shards; ++shard_no) {
-      if (!rw_lock_x_lock_func_nowait_inline(
-              &m_shards[shard_no], location.filename, location.line)) {
+      if (!rw_lock_x_lock_nowait(&m_shards[shard_no], location)) {
         while (0 < shard_no--) {
           rw_lock_x_unlock(&m_shards[shard_no]);
         }
@@ -125,7 +130,7 @@ class Sharded_rw_lock {
 
   void x_lock(ut::Location location) {
     for_each([location](rw_lock_t &lock) {
-      rw_lock_x_lock_inline(&lock, 0, location.filename, location.line);
+      rw_lock_x_lock_gen(&lock, 0, location);
     });
   }
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -83,11 +83,21 @@ class HARNESS_EXPORT Handler {
    */
   virtual void reopen(const std::string dst = "") = 0;
 
+  /**
+   * check if the handler has logged at least one record.
+   *
+   * @retval true if at least one record was logged
+   * @retval false if no record has been logged yet.
+   */
+  bool has_logged() const { return has_logged_; }
+
  protected:
   std::string format(const Record &record) const;
 
   explicit Handler(bool format_messages, LogLevel level,
                    LogTimestampPrecision timestamp_precision);
+
+  void has_logged(bool v) { has_logged_ = v; }
 
  private:
   /**
@@ -117,6 +127,8 @@ class HARNESS_EXPORT Handler {
    * Timestamp precision for logging
    */
   LogTimestampPrecision precision_;
+
+  bool has_logged_{false};
 };
 
 /**

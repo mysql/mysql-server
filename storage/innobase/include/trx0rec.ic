@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,16 +47,16 @@ static inline ulint trx_undo_rec_get_cmpl_info(
   return (mach_read_from_1(undo_rec + 2) / TRX_UNDO_CMPL_INFO_MULT);
 }
 
-/** Returns TRUE if an undo log record contains an extern storage field.
+/** Returns true if an undo log record contains an extern storage field.
  @return true if extern */
-static inline ibool trx_undo_rec_get_extern_storage(
+static inline bool trx_undo_rec_get_extern_storage(
     const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
   if (mach_read_from_1(undo_rec + 2) & TRX_UNDO_UPD_EXTERN) {
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Reads the undo log record number.

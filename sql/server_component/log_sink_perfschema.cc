@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -71,19 +71,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 static const size_t ring_buffer_size = 5 * 1024 * 1024;
 
-static char *ring_buffer_start = nullptr;  //< buffer start
-static char *ring_buffer_end = nullptr;    //< buffer end (for convenience)
+static char *ring_buffer_start = nullptr;  ///< buffer start
+static char *ring_buffer_end = nullptr;    ///< buffer end (for convenience)
 
-static char *ring_buffer_write = nullptr;  //< write position ("head")
-static char *ring_buffer_read = nullptr;   //< read pos (oldest entry, "tail")
+static char *ring_buffer_write = nullptr;  ///< write position ("head")
+static char *ring_buffer_read = nullptr;   ///< read pos (oldest entry, "tail")
 
-ulong log_sink_pfs_buffered_bytes = 0;   //< bytes in use (now)
-ulong log_sink_pfs_buffered_events = 0;  //< events in buffer (now)
-ulong log_sink_pfs_expired_events = 0;   //< number of expired entries (ever)
-ulong log_sink_pfs_longest_event = 0;    //< longest event seen (ever)
-ulonglong log_sink_pfs_latest_timestamp = 0;  //< timestamp of most recent write
+ulong log_sink_pfs_buffered_bytes = 0;   ///< bytes in use (now)
+ulong log_sink_pfs_buffered_events = 0;  ///< events in buffer (now)
+ulong log_sink_pfs_expired_events = 0;   ///< number of expired entries (ever)
+ulong log_sink_pfs_longest_event = 0;    ///< longest event seen (ever)
+ulonglong log_sink_pfs_latest_timestamp =
+    0;  ///< timestamp of most recent write
 
-PSI_memory_key key_memory_log_sink_pfs;  //< memory instrumentation
+PSI_memory_key key_memory_log_sink_pfs;  ///< memory instrumentation
 
 /**
   ring-buffer rwlock

@@ -1,4 +1,5 @@
 SET optimizer_switch='subquery_to_derived=on';
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 #
 # Tests for WL#12885 Add ability to transform scalar subqueries to inner
 # derived table
@@ -2683,6 +2684,8 @@ sum_sort_rows BIGINT UNSIGNED NOT NULL,
 sum_sort_scan BIGINT UNSIGNED NOT NULL,
 sum_no_index_used BIGINT UNSIGNED NOT NULL,
 sum_no_good_index_used BIGINT UNSIGNED NOT NULL,
+sum_cpu_time BIGINT UNSIGNED NOT NULL,
+count_secondary BIGINT UNSIGNED NOT NULL,
 first_seen TIMESTAMP NULL DEFAULT NULL,
 last_seen TIMESTAMP NULL DEFAULT NULL,
 quantile_95 BIGINT UNSIGNED NOT NULL,
@@ -2799,7 +2802,6 @@ JOIN t1 AS table2
 ON table2.col_int_key = table1.col_int_key
 );
 field1	( SELECT COUNT( col_int_key )
-FROM t1
 )
 0	4
 1	4
@@ -2807,6 +2809,7 @@ FROM t1
 8	4
 8	4
 8	4
+FROM t1
 EXPLAIN SELECT *
 FROM where_subselect_20070
 WHERE (field1, ( SELECT COUNT( col_int_key ) FROM t1 )) IN (
@@ -3725,7 +3728,7 @@ FROM cc,a
 FROM cc STRAIGHT_JOIN bb ON bb.col_varchar = cc.col_varchar_key
 WHERE cc.col_varchar <> 'w';
 EXPLAIN
--> Left hash join (no condition)  (cost=6.44 rows=2)
+-> Left hash join (no condition)  (cost=6.23 rows=1)
     -> Table scan on derived_1_3  (cost=2.51..2.51 rows=1)
         -> Materialize  (cost=3.51..3.51 rows=1)
             -> Aggregate: avg(cc.col_varchar_key)  (cost=0.90 rows=1)
@@ -3735,9 +3738,9 @@ EXPLAIN
                         -> Filter: (cc.col_varchar <> 'w')  (cost=0.45 rows=1)
                             -> Table scan on cc  (cost=0.45 rows=2)
     -> Hash
-        -> Table scan on derived_1_4  (cost=1.26..2.52 rows=2)
-            -> Materialize  (cost=2.46..3.72 rows=2)
-                -> Aggregate: sum(cc.col_int_key)  (cost=1.00 rows=2)
+        -> Table scan on derived_1_4  (cost=2.51..2.51 rows=1)
+            -> Materialize  (cost=3.61..3.61 rows=1)
+                -> Aggregate: sum(cc.col_int_key)  (cost=1.00 rows=1)
                     -> Inner hash join (no condition)  (cost=0.80 rows=2)
                         -> Table scan on cc  (cost=0.45 rows=2)
                         -> Hash
@@ -3843,27 +3846,27 @@ table1.col_varchar_key < 'O'
 ORDER BY table1.col_varchar ASC, field2, field1
 LIMIT 1000 OFFSET 2;
 EXPLAIN
--> Limit/Offset: 1000/2 row(s)  (cost=253.15 rows=718)
-    -> Left hash join (no condition)  (cost=253.15 rows=720)
-        -> Table scan on derived_1_4  (cost=0.14..2.75 rows=20)
-            -> Materialize  (cost=8.64..11.25 rows=20)
-                -> Aggregate: avg(table2.col_int)  (cost=6.50 rows=20)
+-> Limit/Offset: 1000/2 row(s)  (cost=177.33 rows=0)
+    -> Left hash join (no condition)  (cost=177.33 rows=1)
+        -> Table scan on derived_1_4  (cost=2.51..2.51 rows=1)
+            -> Materialize  (cost=9.11..9.11 rows=1)
+                -> Aggregate: avg(table2.col_int)  (cost=6.50 rows=1)
                     -> Inner hash join (no condition)  (cost=4.50 rows=20)
                         -> Table scan on table2  (cost=2.25 rows=20)
                         -> Hash
                             -> Filter: ((((table1.pk = 1) and ((table1.col_varchar_key = 'D') or (table1.col_varchar_key = table1.col_varchar_key))) or (table1.col_varchar_key < 'O')) and (table1.col_varchar_key = table1.col_varchar_key))  (cost=2.25 rows=1)
                                 -> Table scan on table1  (cost=2.25 rows=20)
         -> Hash
-            -> Table scan on derived_1_5  (cost=0.08..2.94 rows=36)
-                -> Materialize  (cost=175.78..178.64 rows=36)
-                    -> Aggregate: count(subquery1_t1.col_varchar_key)  (cost=172.10 rows=36)
+            -> Table scan on derived_1_5  (cost=2.51..2.51 rows=1)
+                -> Materialize  (cost=174.71..174.71 rows=1)
+                    -> Aggregate: count(subquery1_t1.col_varchar_key)  (cost=172.10 rows=1)
                         -> Nested loop inner join  (cost=168.50 rows=36)
                             -> Filter: (subquery1_t1.col_varchar_key <> subquery1_t2.col_varchar)  (cost=42.50 rows=360)
                                 -> Inner hash join (no condition)  (cost=42.50 rows=360)
                                     -> Table scan on subquery1_t2  (cost=0.10 rows=20)
                                     -> Hash
                                         -> Covering index scan on subquery1_t1 using idx_cc_col_varchar_key  (cost=2.25 rows=20)
-                            -> Filter: (cc.col_varchar = subquery1_t2.col_varchar_key)  (cost=0.25 rows=0)
+                            -> Filter: (cc.col_varchar = subquery1_t2.col_varchar_key)  (cost=0.25 rows=0.1)
                                 -> Index lookup on cc using idx_cc_col_int_key (col_int_key=subquery1_t2.col_int)  (cost=0.25 rows=1)
 
 DROP VIEW view_cc;
@@ -4511,7 +4514,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	table2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 2	DERIVED	table1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`alias1`.`col_decimal_10_8` AS `field1`,`derived_1_2`.`SQ1_field1` AS `field2`,grouping(rollup_group_item(`rollup_group_item(log(alias1.col_int),2)`,2)) AS `field3` from `test`.`t1` `alias1` join `test`.`t1` `alias2` left join (/* select#2 */ select sum(`test`.`table1`.`col_smallint`) AS `SQ1_field1` from `test`.`t1` `table2` left join `test`.`t1` `table1` on(true) where true) `derived_1_2` on(true) semi join (`test`.`t1`) where (cast(`test`.`alias2`.`pk` as double) = cast(`test`.`t1`.`col_char_255` as double)) group by `field1`,`field2`,log(`test`.`alias1`.`col_int`) with rollup order by `test`.`alias1`.`col_datetime`,`field1`,`field2`,log(`test`.`alias1`.`col_int`)
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_decimal_10_8` AS `field1`,`derived_1_2`.`SQ1_field1` AS `field2`,grouping(rollup_group_item(`rollup_group_item(log(alias1.col_int),2)`,2)) AS `field3` from `test`.`t1` `alias1` join `test`.`t1` `alias2` left join (/* select#2 */ select sum(`test`.`table1`.`col_smallint`) AS `SQ1_field1` from `test`.`t1` `table2` left join `test`.`t1` `table1` on(true) where true) `derived_1_2` on(true) semi join (`test`.`t1`) where (cast(`test`.`alias2`.`pk` as double) = cast(`test`.`t1`.`col_char_255` as double)) group by `field1`,`field2`,log(`test`.`alias1`.`col_int`) with rollup order by `test`.`alias1`.`col_datetime`,`test`.`alias1`.`col_decimal_10_8`,`derived_1_2`.`SQ1_field1`,log(`test`.`alias1`.`col_int`)
 set sql_mode=default;
 DROP TABLE t1;
 #

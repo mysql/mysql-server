@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,13 +38,14 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cassert>
 #include <cstdio>
-#include <cstdlib>  // abort
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -55,18 +56,17 @@
 #include "prealloced_array.h"  // Prealloced_array
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/basic_row_iterators.h"
-#include "sql/composite_iterators.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
-#include "sql/item_sum.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
+#include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"
 #include "sql/opt_explain.h"  // explain_no_table
@@ -74,10 +74,10 @@
 #include "sql/opt_trace.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h"  // PT_with_clause
+#include "sql/parser_yystype.h"
 #include "sql/pfs_batch_mode.h"
 #include "sql/protocol.h"
 #include "sql/query_options.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_base.h"  // fill_record
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
@@ -91,7 +91,7 @@
 #include "sql/sql_tmp_table.h"   // tmp tables
 #include "sql/table_function.h"  // Table_function
 #include "sql/thd_raii.h"
-#include "sql/timing_iterator.h"
+#include "sql/visible_fields.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"
 
@@ -118,7 +118,6 @@ bool Query_result_union::send_data(THD *thd,
 
   const int error = table->file->ha_write_row(table->record[0]);
   if (!error) {
-    m_rows_in_table++;
     return false;
   }
   // create_ondisk_from_heap will generate error if needed
@@ -129,7 +128,6 @@ bool Query_result_union::send_data(THD *thd,
       return true; /* purecov: inspected */
     // Table's engine changed, index is not initialized anymore
     if (table->hash_field) table->file->ha_index_init(0, false);
-    if (!is_duplicate) m_rows_in_table++;
   }
   return false;
 }
@@ -216,7 +214,6 @@ bool Query_result_union::create_result_table(
 */
 
 bool Query_result_union::reset() {
-  m_rows_in_table = 0;
   return table ? table->empty_result_table() : false;
 }
 
@@ -254,29 +251,20 @@ class Query_result_union_direct final : public Query_result_union {
   bool send_result_set_metadata(THD *, const mem_root_deque<Item *> &,
                                 uint) override {
     // Should never be called.
-    abort();
+    my_abort();
   }
   bool send_data(THD *, const mem_root_deque<Item *> &) override {
     // Should never be called.
-    abort();
-  }
-  bool optimize() override {
-    if (optimized) return false;
-    optimized = true;
-
-    return result->optimize();
+    my_abort();
   }
   bool start_execution(THD *thd) override {
     if (execution_started) return false;
     execution_started = true;
     return result->start_execution(thd);
   }
-  void send_error(THD *thd, uint errcode, const char *err) override {
-    result->send_error(thd, errcode, err); /* purecov: inspected */
-  }
   bool send_eof(THD *) override {
     // Should never be called.
-    abort();
+    my_abort();
   }
   bool flush() override { return false; }
   bool check_simple_query_block() const override {
@@ -856,10 +844,13 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
 
     if (false) {
       // This can be useful during debugging.
+      // TODO(sgunders): Consider adding the SET DEBUG force-subplan line here,
+      // like we have on EXPLAIN FORMAT=tree if subplan_tokens is active.
       bool is_root_of_join = (join != nullptr);
-      fprintf(
-          stderr, "Query plan:\n%s\n",
-          PrintQueryPlan(0, m_root_access_path, join, is_root_of_join).c_str());
+      fprintf(stderr, "Query plan:\n%s\n",
+              PrintQueryPlan(0, m_root_access_path, join, is_root_of_join,
+                             /*tokens_for_force_subplan=*/nullptr)
+                  .c_str());
     }
   }
 
@@ -870,8 +861,7 @@ bool Query_expression::finalize(THD *thd) {
   for (Query_block *query_block = first_query_block(); query_block != nullptr;
        query_block = query_block->next_query_block()) {
     if (query_block->join != nullptr && query_block->join->needs_finalize) {
-      if (FinalizePlanForQueryBlock(thd, query_block,
-                                    query_block->join->root_access_path())) {
+      if (FinalizePlanForQueryBlock(thd, query_block)) {
         return true;
       }
     }
@@ -1447,7 +1437,7 @@ void Query_expression::assert_not_fully_clean() {
 
 /**
   Change the query result object used to return the final result of
-  the unit, replacing occurences of old_result with new_result.
+  the unit, replacing occurrences of old_result with new_result.
 
   @param thd        Thread handle
   @param new_result New query result object
@@ -1547,11 +1537,11 @@ void Query_expression::change_to_access_path_without_in2exists(THD *thd) {
 
   @param list List of tables to search in
 */
-static void remove_materialized(TABLE_LIST *list) {
+static void cleanup_tmp_tables(TABLE_LIST *list) {
   for (auto tl = list; tl; tl = tl->next_local) {
     if (tl->merge_underlying_list) {
       // Find a materialized view inside another view.
-      remove_materialized(tl->merge_underlying_list);
+      cleanup_tmp_tables(tl->merge_underlying_list);
     } else if (tl->is_table_function()) {
       tl->table_function->cleanup();
     }
@@ -1577,16 +1567,19 @@ static void remove_materialized(TABLE_LIST *list) {
 
    @param list List of tables to search in
 */
-static void destroy_materialized(TABLE_LIST *list) {
+static void destroy_tmp_tables(TABLE_LIST *list) {
   for (auto tl = list; tl; tl = tl->next_local) {
     if (tl->merge_underlying_list) {
       // Find a materialized view inside another view.
-      destroy_materialized(tl->merge_underlying_list);
+      destroy_tmp_tables(tl->merge_underlying_list);
     } else if (tl->is_table_function()) {
       tl->table_function->destroy();
     }
+    // If this table has a reference to CTE, we need to remove it.
+    if (tl->common_table_expr() != nullptr) {
+      tl->common_table_expr()->references.erase_value(tl);
+    }
     if (tl->table == nullptr) continue;  // Not materialized
-
     assert(tl->schema_table == nullptr);
     if (tl->is_view_or_derived() || tl->is_recursive_reference() ||
         tl->schema_table || tl->is_table_function()) {
@@ -1598,8 +1591,6 @@ static void destroy_materialized(TABLE_LIST *list) {
 
 /**
   Cleanup after preparation of one round of execution.
-
-  @return false if previous execution was successful, and true otherwise
 */
 
 void Query_block::cleanup(THD *thd, bool full) {
@@ -1614,7 +1605,7 @@ void Query_block::cleanup(THD *thd, bool full) {
   }
 
   if (full) {
-    remove_materialized(get_table_list());
+    cleanup_tmp_tables(get_table_list());
     if (hidden_items_from_optimization > 0) remove_hidden_items();
     if (m_windows.elements > 0) {
       List_iterator<Window> li(m_windows);
@@ -1650,7 +1641,7 @@ void Query_block::destroy() {
   while ((w = li++)) w->destroy();
 
   // Destroy allocated derived tables
-  destroy_materialized(get_table_list());
+  destroy_tmp_tables(get_table_list());
 
   // Our destructor is not called, so we need to make sure
   // all the memory for these arrays is freed.

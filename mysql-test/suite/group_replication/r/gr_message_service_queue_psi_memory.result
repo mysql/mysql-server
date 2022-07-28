@@ -1,0 +1,65 @@
+include/have_replication_observers_example_plugin.inc
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables.
+SET @@GLOBAL.DEBUG= '+d,group_replication_message_service_dispatcher_before_pop';
+include/start_and_bootstrap_group_replication.inc
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/message_service_queue';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/message_service_queue	YES	NULL	global_statistics	0	Memory gets allocated when messages of Group Replication: delivery message service are added to deliver them in orderly manner.
+include/assert.inc ['There should be 1 entry corresponding to the message_service_queue in the setup_instruments table after starting GR']
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/message_service_queue';
+EVENT_NAME
+memory/group_rpl/message_service_queue
+include/assert.inc ['There should be 1 entry corresponding to the message_service_queue in the memory_summary_global_by_event_name table after starting GR']
+
+############################################################
+# 2. Load plugin replication observers example on server1
+include/install_replication_observers_example.inc
+
+############################################################
+# 3. Verify that the sum of bytes allocated is greater than
+#    zero for the transmitted tag and message over GR send
+#    service.
+SELECT group_replication_service_message_send("TAG", repeat('a',1024*1024));
+group_replication_service_message_send("TAG", repeat('a',1024*1024))
+The tag and message was sent to the group.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_message_service_dispatcher_before_pop_reached";
+include/assert.inc ['The sum bytes allocated must be greater than 0']
+SET @@GLOBAL.DEBUG= '-d,group_replication_message_service_dispatcher_before_pop';
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_message_service_dispatcher_before_pop_continue";
+
+############################################################
+# 4. Assert server1 received messages transmitted by GR message
+#    delivery
+
+##############################################################
+# 5. Verify that the entries corresponding to the instrumented
+#    message_service_queue remain in the tables after stopping GR.
+include/stop_group_replication.inc
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/message_service_queue';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/message_service_queue	YES	NULL	global_statistics	0	Memory gets allocated when messages of Group Replication: delivery message service are added to deliver them in orderly manner.
+include/assert.inc ['There should be 1 entry corresponding to the message_service_queue in the setup_instruments table after stopping GR']
+SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/message_service_queue';
+EVENT_NAME	CURRENT_NUMBER_OF_BYTES_USED
+memory/group_rpl/message_service_queue	0
+include/assert.inc ['There should be 1 entry corresponding to the message_service_queue in the memory_summary_global_by_event_name table after stopping GR']
+
+#################################################################
+# 6. Assert that the number of bytes allocated for
+#    message_service_queue event must be 0.
+include/assert.inc ['The sum of bytes allocated must be zero after stopping GR']
+
+#################################################################
+# 7. Cleanup
+include/uninstall_replication_observers_example.inc
+include/group_replication_end.inc

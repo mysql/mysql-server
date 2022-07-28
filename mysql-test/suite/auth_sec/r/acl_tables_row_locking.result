@@ -2874,7 +2874,7 @@ User char(32) COLLATE utf8_bin DEFAULT '' NOT NULL,
 address CHAR(255),
 FOREIGN KEY (Host, User) REFERENCES mysql.user(Host,User));
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
 ALTER TABLE fk_to_acl_table MODIFY COLUMN address char(200),
 ALGORITHM=COPY;
@@ -3471,7 +3471,7 @@ User char(32) COLLATE utf8_bin DEFAULT '' NOT NULL,
 address CHAR(255),
 FOREIGN KEY (Host, User) REFERENCES mysql.user(Host,User));
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
 ALTER TABLE fk_to_acl_table MODIFY COLUMN address char(200),
 ALGORITHM=COPY;
@@ -4045,7 +4045,7 @@ User char(32) COLLATE utf8_bin DEFAULT '' NOT NULL,
 address CHAR(255),
 FOREIGN KEY (Host, User) REFERENCES mysql.user(Host,User));
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
 ALTER TABLE fk_to_acl_table MODIFY COLUMN address char(200),
 ALGORITHM=COPY;
@@ -4617,7 +4617,7 @@ User char(32) COLLATE utf8_bin DEFAULT '' NOT NULL,
 address CHAR(255),
 FOREIGN KEY (Host, User) REFERENCES mysql.user(Host,User));
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
 ALTER TABLE fk_to_acl_table MODIFY COLUMN address char(200),
 ALGORITHM=COPY;

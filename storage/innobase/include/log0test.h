@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Portions of this file contain modifications contributed and copyrighted by
-Google, Inc. Those modifications are gratefully acknowledged and are described
-briefly in the InnoDB documentation. The contributions by Google are
-incorporated with their permission, and subject to the conditions contained in
-the file COPYING.Google.
-
 *****************************************************************************/
 
 /**************************************************/ /**
@@ -40,7 +34,26 @@ the file COPYING.Google.
 #ifndef log0test_h
 #define log0test_h
 
+#include <memory>
+
+/* lsn_t */
 #include "log0types.h"
+
+#ifdef UNIV_DEBUG
+
+/* DBUG_EXECUTE_IF */
+#include "my_dbug.h"
+
+/* DEBUG_SYNC_C */
+#include "my_sys.h"
+
+/* current_thd */
+#include "sql/current_thd.h"
+
+/* debug_sync_set_action */
+#include "sql/debug_sync.h"
+
+#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
 
@@ -135,6 +148,33 @@ class Log_test {
   int m_verbosity = 0;
   int m_flush_every = 10;
 };
+
+/** Represents currently running test of redo log, nullptr otherwise. */
+extern std::unique_ptr<Log_test> log_test;
+
+/** This function is responsible for three actions:
+
+1. Defines a conditional sync point with name = sync_point_name
+   (@see CONDITIONAL_SYNC_POINT).
+
+2. Crashes MySQL if debug variable with name = "crash_" + sync_poit_name is
+   defined. You could use following approach to crash it:
+      SET GLOBAL DEBUG = '+d,crash_foo' (if sync_point_name='foo')
+
+3. Notifies log_test (unless it's nullptr) about the sync point.
+
+@param[in]  sync_point_name  name of syncpoint, must be a string literal */
+template <size_t N>
+static void log_sync_point(const char (&sync_point_name)[N]) {
+#ifdef UNIV_DEBUG
+  CONDITIONAL_SYNC_POINT(sync_point_name);
+  const std::string crash_var_name = std::string{"crash_"} + sync_point_name;
+  DBUG_EXECUTE_IF(crash_var_name.c_str(), DBUG_SUICIDE(););
+#endif /* UNIV_DEBUG */
+  if (log_test != nullptr) {
+    log_test->sync_point(sync_point_name);
+  }
+}
 
 #endif /* !UNIV_HOTBACKUP */
 

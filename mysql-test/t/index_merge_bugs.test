@@ -25,3 +25,21 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 = 2 FOR UPDATE;
 SELECT * FROM t1 WHERE c1 = 1 AND c2 = 2 FOR UPDATE;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#33499071: 'keyread'(only) broken for index-merge access method
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, INDEX i1(f1), INDEX i2(f2));
+
+INSERT INTO t1 VALUES (1,1),(2,2);
+INSERT INTO t1 SELECT f1+2, f2+2 FROM t1;
+
+ANALYZE TABLE t1;
+
+# Should not assert
+--skip_if_hypergraph
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 < 3 or f2 > 1020;
+SELECT * FROM t1 WHERE f1 < 3 or f2 > 1020;
+
+DROP TABLE t1;

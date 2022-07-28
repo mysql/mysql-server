@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -163,7 +163,7 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
 
 void Mysqldump_tool_chain_maker::stop_queues() {
   std::map<int, Object_queue *>::const_iterator iter;
-  for (iter = m_object_queues.begin(); iter != m_object_queues.end(); iter++) {
+  for (iter = m_object_queues.begin(); iter != m_object_queues.end(); ++iter) {
     iter->second->stop_queue();
   }
 }

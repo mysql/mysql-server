@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,32 +43,37 @@
 #include <iostream>
 #include <random>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 
 #include <rapidjson/rapidjson.h>
 
 #include "certificate_handler.h"
-#include "common.h"
+#include "common.h"  // truncate_string
 #include "config_builder.h"
 #include "dim.h"
 #include "harness_assert.h"
 #include "hostname_validator.h"
 #include "keyring/keyring_manager.h"
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/dynamic_state.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/vt100.h"
 #include "mysqld_error.h"
+#include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"
 #include "random_generator.h"
 #include "router_app.h"
 #include "sha1.h"  // compute_sha1_hash() from mysql's include/
 IMPORT_LOG_FUNCTIONS()
 
 #include "cluster_metadata.h"
-#include "cluster_metadata_dynamic_state.h"
+#include "mysqlrouter/cluster_metadata_dynamic_state.h"
 
 static const int kDefaultRWPort = 6446;
 static const int kDefaultROPort = 6447;
@@ -115,9 +120,10 @@ static constexpr unsigned kDefaultPasswordRetries =
          // for the router user during the bootstrap
 static constexpr unsigned kMaxPasswordRetries = 10000;
 
+static const std::string kDefaultMetadataCacheSectionKey = "bootstrap";
+
 using mysql_harness::DIM;
 using mysql_harness::get_from_map;
-using mysql_harness::get_strerror;
 using mysql_harness::Path;
 using mysql_harness::truncate_string;
 using namespace mysqlrouter;
@@ -262,53 +268,44 @@ bool ConfigGenerator::warn_on_no_ssl(
 // throws std::runtime_error on invalid option value
 void ConfigGenerator::parse_bootstrap_options(
     const std::map<std::string, std::string> &bootstrap_options) {
-  if (bootstrap_options.find("base-port") != bootstrap_options.end()) {
-    char *end = nullptr;
-    const char *tmp = bootstrap_options.at("base-port").c_str();
-    int base_port = static_cast<int>(std::strtol(tmp, &end, 10));
-    int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
-    if (base_port < 0 || base_port > max_base_port ||
-        end != tmp + strlen(tmp)) {
-      throw std::runtime_error("Invalid base-port number " +
-                               bootstrap_options.at("base-port") +
-                               "; please pick a value between 0 and " +
-                               std::to_string((max_base_port)));
+  {
+    const auto it = bootstrap_options.find("base-port");
+
+    if (it != bootstrap_options.end()) {
+      const int max_base_port =
+          (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
+
+      // verify only.
+      mysql_harness::option_as_uint<uint16_t>(it->second, "--conf-base-port", 0,
+                                              max_base_port);
     }
   }
-  if (bootstrap_options.find("bind-address") != bootstrap_options.end()) {
-    auto address = bootstrap_options.at("bind-address");
-    if (!mysql_harness::is_valid_domainname(address)) {
-      throw std::runtime_error("Invalid bind-address value " + address);
+
+  {
+    const auto it = bootstrap_options.find("bind-address");
+
+    if (it != bootstrap_options.end()) {
+      const auto address = it->second;
+      if (!mysql_harness::is_valid_domainname(address)) {
+        throw std::runtime_error("Invalid --bind-address value " + address);
+      }
     }
   }
-  if (bootstrap_options.find("connect-timeout") != bootstrap_options.end()) {
-    char *end = nullptr;
-    const char *tmp = bootstrap_options.at("connect-timeout").c_str();
-    int connect_timeout = static_cast<int>(std::strtol(tmp, &end, 10));
 
-    if (connect_timeout <= 0 || connect_timeout > 65535 ||
-        end != tmp + strlen(tmp)) {
-      throw std::runtime_error(
-          "option connect-timeout needs value between 1 and 65535 inclusive, "
-          "was " +
-          std::to_string((connect_timeout)));
+  {
+    const auto it = bootstrap_options.find("connect-timeout");
+    if (it != bootstrap_options.end()) {
+      connect_timeout_ = mysql_harness::option_as_uint<uint16_t>(
+          it->second, "--connect-timeout", 1);
     }
-
-    connect_timeout_ = connect_timeout;
   }
-  if (bootstrap_options.find("read-timeout") != bootstrap_options.end()) {
-    char *end = nullptr;
-    const char *tmp = bootstrap_options.at("read-timeout").c_str();
-    int read_timeout = static_cast<int>(std::strtol(tmp, &end, 10));
 
-    if (read_timeout <= 0 || read_timeout > 65535 || end != tmp + strlen(tmp)) {
-      throw std::runtime_error(
-          "option read-timeout needs value between 1 and 65535 inclusive, "
-          "was " +
-          std::to_string((read_timeout)));
+  {
+    const auto it = bootstrap_options.find("read-timeout");
+    if (it != bootstrap_options.end()) {
+      read_timeout_ = mysql_harness::option_as_uint<uint16_t>(
+          it->second, "--read-timeout", 1);
     }
-
-    read_timeout_ = read_timeout;
   }
 }
 
@@ -433,7 +430,7 @@ void ConfigGenerator::init(
 
   if (!metadata_schema_version_is_compatible(kRequiredBootstrapSchemaVersion,
                                              schema_version_)) {
-    throw std::runtime_error(mysqlrouter::string_format(
+    throw std::runtime_error(mysql_harness::utility::string_format(
         "This version of MySQL Router is not compatible with the provided "
         "MySQL InnoDB cluster metadata. Expected metadata version %s, "
         "got %s",
@@ -496,7 +493,8 @@ static stdx::expected<std::ofstream, std::error_code> open_ofstream(
 }
 
 void ConfigGenerator::bootstrap_system_deployment(
-    const std::string &config_file_path, const std::string &state_file_path,
+    const std::string &program_name, const std::string &config_file_path,
+    const std::string &state_file_path,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
     const std::map<std::string, std::string> &default_paths) {
@@ -544,9 +542,9 @@ void ConfigGenerator::bootstrap_system_deployment(
       (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
 
   const std::string bootstrap_report_text = bootstrap_deployment(
-      config_files[0], config_files[1], config_file_path, state_file_path,
-      router_name, options, multivalue_options, default_paths, false,
-      auto_clean);
+      program_name, config_files[0], config_files[1], config_file_path,
+      state_file_path, router_name, options, multivalue_options, default_paths,
+      false, auto_clean);
 
   for (size_t i = 0; i < config_files.size(); ++i) {
     config_files[i].close();
@@ -565,11 +563,13 @@ void ConfigGenerator::bootstrap_system_deployment(
     }
 
     // rename the .tmp file to the final file
-    if (mysqlrouter::rename_file((path + ".tmp"), path) != 0) {
-      // log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
-      //  config_file_path.c_str(), get_strerror(errno));
-      throw std::runtime_error("Could not save " + file_desc +
-                               " file to final location");
+    auto rename_res = mysqlrouter::rename_file((path + ".tmp"), path);
+
+    if (!rename_res) {
+      auto ec = rename_res.error();
+
+      throw std::system_error(
+          ec, "Could not save " + file_desc + " file to final location");
     }
     try {
       // for dynamic config file we need to grant the write access too
@@ -607,7 +607,7 @@ bool ConfigGenerator::datadir_contains_allowed_files(
  * Create a self-contained deployment of the Router in a directory.
  */
 void ConfigGenerator::bootstrap_directory_deployment(
-    const std::string &directory,
+    const std::string &program_name, const std::string &directory,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
     const std::map<std::string, std::string> &default_paths) {
@@ -633,12 +633,13 @@ void ConfigGenerator::bootstrap_directory_deployment(
   if (!path.exists()) {
     int err = mysql_harness::mkdir(directory, kStrictDirectoryPerm);
     if (err != 0) {
+      auto ec = std::error_code{err, std::generic_category()};
       log_error("Cannot create directory '%s': %s",
-                truncate_string(directory).c_str(), get_strerror(err).c_str());
+                truncate_string(directory).c_str(), ec.message().c_str());
 #ifndef _WIN32
       if (err == EACCES || err == EPERM) log_error(kAppArmorMsg);
 #endif
-      throw std::runtime_error("Could not create deployment directory");
+      throw std::system_error(ec, "Could not create deployment directory");
     }
     auto_clean.add_directory_delete(directory, true);
   }
@@ -702,12 +703,14 @@ void ConfigGenerator::bootstrap_directory_deployment(
       int res =
           mysql_harness::mkdir(options[option_name], kStrictDirectoryPerm);
       if (res != 0) {
+        std::error_code ec{res, std::generic_category()};
         if (res != EEXIST) {
           log_error("Cannot create directory '%s': %s",
                     truncate_string(options[option_name]).c_str(),
-                    get_strerror(errno).c_str());
-          throw std::runtime_error("Could not create " + option_name +
-                                   " directory: " + options[option_name]);
+                    ec.message().c_str());
+          throw std::system_error(ec,
+                                  "Could not create " + option_name +
+                                      " directory: " + options[option_name]);
         }
       } else {
         auto_clean.add_directory_delete(options[option_name]);
@@ -749,7 +752,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
       (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
 
   const std::string bootstrap_report_text = bootstrap_deployment(
-      config_files[0], config_files[1], config_files_names[0],
+      program_name, config_files[0], config_files[1], config_files_names[0],
       config_files_names[1], router_name, options, multivalue_options,
       default_paths, true,
       auto_clean);  // throws std::runtime_error, ?
@@ -766,13 +769,15 @@ void ConfigGenerator::bootstrap_directory_deployment(
                   << config_file_name << ".bak'" << std::endl;
     }
     // rename the .tmp file to the final file
-    if (mysqlrouter::rename_file((config_file_name + ".tmp").c_str(),
-                                 config_file_name.c_str()) != 0) {
-      // log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
-      //  config_file_path.c_str(), get_strerror(errno));
-      throw std::runtime_error(
-          "Could not move configuration file '" + config_file_name +
-          ".tmp' to final location: " + mysqlrouter::get_last_error());
+    auto rename_res = mysqlrouter::rename_file(
+        (config_file_name + ".tmp").c_str(), config_file_name.c_str());
+
+    if (!rename_res) {
+      const auto ec = rename_res.error();
+
+      throw std::system_error(ec, "Could not move configuration file '" +
+                                      config_file_name +
+                                      ".tmp' to final location");
     }
 
     try {
@@ -791,8 +796,8 @@ void ConfigGenerator::bootstrap_directory_deployment(
   }
 
   // create start/stop scripts
-  create_start_script(path.str(), keyring_info_.get_master_key_file().empty(),
-                      options);
+  create_start_script(program_name, path.str(),
+                      keyring_info_.get_master_key_file().empty(), options);
   create_stop_script(path.str(), options);
 
 #ifndef _WIN32
@@ -821,10 +826,10 @@ void ConfigGenerator::bootstrap_directory_deployment(
     set_user(orig_user_name);
 
     if (!user_has_access) {
-      throw std::runtime_error("Could not access the config file as user '" +
-                               user_name +
-                               "' after the bootstrap in the directory " +
-                               directory + " : " + get_strerror(errno));
+      std::error_code ec{errno, std::generic_category()};
+      throw std::system_error(
+          ec, "Could not access the config file as user '" + user_name +
+                  "' after the bootstrap in the directory " + directory);
     }
   }
 #endif
@@ -842,22 +847,18 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   bool use_sockets = false;
   bool skip_tcp = false;
   int base_port = kBasePortDefault;
-  if (user_options.find("base-port") != user_options.end()) {
-    if (user_options.at("base-port").empty()) {
-      throw std::runtime_error("Value for base-port can't be empty");
-    }
-    char *end = nullptr;
-    const char *tmp = user_options.at("base-port").c_str();
-    base_port = static_cast<int>(std::strtol(tmp, &end, 10));
-    int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
-    if (base_port < 0 || base_port > max_base_port ||
-        end != tmp + strlen(tmp)) {
-      throw std::runtime_error("Invalid base-port number " +
-                               user_options.at("base-port") +
-                               "; please pick a value lower than " +
-                               std::to_string((max_base_port)));
+
+  {
+    const auto it = user_options.find("base-port");
+
+    if (it != user_options.end()) {
+      const int max_base_port =
+          (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
+      base_port = mysql_harness::option_as_uint<uint16_t>(
+          it->second, "--conf-base-port", 0, max_base_port);
     }
   }
+
   if (user_options.find("use-sockets") != user_options.end()) {
     use_sockets = true;
   }
@@ -1020,21 +1021,19 @@ namespace {
 
 unsigned get_password_retries(
     const std::map<std::string, std::string> &user_options) {
-  if (user_options.find("password-retries") == user_options.end()) {
+  const auto it = user_options.find("password-retries");
+  if (it == user_options.end()) {
     return kDefaultPasswordRetries;
   }
 
-  char *end = nullptr;
-  const char *tmp = user_options.at("password-retries").c_str();
-  unsigned result = static_cast<unsigned>(std::strtoul(tmp, &end, 10));
-  if (result == 0 || result > kMaxPasswordRetries || end != tmp + strlen(tmp)) {
-    throw std::runtime_error("Invalid password-retries value '" +
-                             user_options.at("password-retries") +
-                             "'; please pick a value from 1 to " +
-                             std::to_string((kMaxPasswordRetries)));
+  if (it->second.empty()) {
+    throw std::invalid_argument(
+        "--password-retries needs value between 1 and " +
+        std::to_string(kMaxPasswordRetries) + " inclusive, was ''");
   }
 
-  return result;
+  return mysql_harness::option_as_uint<unsigned long>(
+      it->second, "--password-retries", 1, kMaxPasswordRetries);
 }
 
 std::string compute_password_hash(const std::string &password) {
@@ -1340,16 +1339,100 @@ void ConfigGenerator::prepare_ssl_certificate_files(
     if (!router_key_path.exists()) missing_files += tls_filenames_.router_key;
     if (!missing_files.empty()) missing_files += ", ";
     if (!router_cert_path.exists()) missing_files += tls_filenames_.router_cert;
-    throw std::runtime_error{mysqlrouter::string_format(
+    throw std::runtime_error{mysql_harness::utility::string_format(
         "Missing certificate files in %s: '%s'. Please provide them or erase "
         "the existing certificate files and re-run bootstrap.",
         datadir_path.c_str(), missing_files.c_str())};
   }
 }
 
+namespace {
+
+bool is_valid_conf_ident(const std::string &name) {
+  if (name.empty()) return false;
+
+  return std::all_of(name.begin(), name.end(),
+                     mysql_harness::is_valid_conf_ident_char);
+}
+
+std::map<std::string, std::string> get_config_cmdln_options(
+    const std::map<std::string, std::vector<std::string>> &multivalue_options) {
+  if (multivalue_options.count("conf-set-option") == 0) return {};
+
+  std::map<std::string, std::string> result;
+
+  const auto &conf_options = multivalue_options.at("conf-set-option");
+  for (const auto &option : conf_options) {
+    const auto eq_pos = option.find_first_of('=');
+    if (eq_pos == std::string::npos) {
+      throw std::runtime_error("conf-set-option: invalid option '" + option +
+                               "', should be section.option_name=value");
+    }
+
+    std::string option_id = option.substr(0, eq_pos);
+    const std::string option_value = option.substr(eq_pos + 1);
+
+    const auto dot = option_id.find('.');
+    if (dot == std::string::npos) {
+      throw std::runtime_error("conf-set-option: invalid option '" + option +
+                               "', should be section.option_name=value");
+    }
+
+    const std::string section_name = option_id.substr(0, dot);
+    bool section_name_valid{false};
+    const auto colon = section_name.find(':');
+    if (colon != std::string::npos) {
+      std::string section = section_name.substr(0, colon);
+      const std::string label =
+          section_name.substr(colon + 1, section_name.length() - colon - 1);
+
+      section_name_valid =
+          is_valid_conf_ident(section) && is_valid_conf_ident(label);
+
+      // label part is not allowed for DEFAULT section
+      std::transform(section.begin(), section.end(), section.begin(),
+                     ::tolower);
+      if (section == "default") {
+        throw std::runtime_error(
+            "conf-set-option: DEFAULT section is not allowed to have a key: '" +
+            section_name + "'");
+      }
+    } else {
+      section_name_valid = is_valid_conf_ident(section_name);
+    }
+
+    if (!section_name_valid) {
+      throw std::runtime_error("conf-set-option: invalid section name '" +
+                               section_name + "'");
+    }
+
+    const std::string option_name =
+        option_id.substr(dot + 1, option_id.length() - dot - 1);
+
+    if (!is_valid_conf_ident(option_name)) {
+      throw std::runtime_error("conf-set-option: invalid option name '" +
+                               option_name + "'");
+    }
+
+    std::transform(option_id.begin(), option_id.end(), option_id.begin(),
+                   ::tolower);
+
+    if (result.count(option_id) > 0) {
+      throw std::runtime_error("conf-set-option: duplicate value for option '" +
+                               option_id + "'");
+    }
+
+    result[option_id] = option_value;
+  }
+
+  return result;
+}
+
+}  // namespace
+
 std::string ConfigGenerator::bootstrap_deployment(
-    std::ostream &config_file, std::ostream &state_file,
-    const mysql_harness::Path &config_file_path,
+    const std::string &program_name, std::ostream &config_file,
+    std::ostream &state_file, const mysql_harness::Path &config_file_path,
     const mysql_harness::Path &state_file_path, const std::string &router_name,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
@@ -1446,7 +1529,8 @@ std::string ConfigGenerator::bootstrap_deployment(
     auto system_username = get_from_map(user_options, "user"s, ""s);
     create_config(config_file, state_file, conf_options.router_id, router_name,
                   system_username, cluster_info, conf_options.username, options,
-                  default_paths, state_file_path.str());
+                  default_paths, get_config_cmdln_options(multivalue_options),
+                  state_file_path.str());
   }
 
   // return bootstrap report (several lines of human-readable text) if desired
@@ -1464,7 +1548,7 @@ std::string ConfigGenerator::bootstrap_deployment(
     ();
 
     return get_bootstrap_report_text(
-        config_file_path.str(), router_name, cluster_info.name,
+        program_name, config_file_path.str(), router_name, cluster_info.name,
         cluster_type_name,
         get_from_map(user_options, "report-host"s, "localhost"s),
         !directory_deployment, options);
@@ -1918,84 +2002,259 @@ void ConfigGenerator::init_keyring_file(uint32_t router_id,
   keyring_initialized_ = true;
 }
 
-// TODO This is very ugly, it should not be a global. It's set in main(), and
-//      used in find_executable_path() below to provide path to Router binary
-//      when generating start.sh.
-std::string g_program_name;
-
 #ifdef _WIN32
 // This is only for Windows
 static std::string find_plugin_path() {
-  char szPath[MAX_PATH];
-  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0) {
-    mysql_harness::Path mypath(szPath);
-    mysql_harness::Path mypath2(mypath.dirname().dirname());
-    mypath2.append("lib");
-    return std::string(mypath2.str());
+  std::array<char, MAX_PATH> szPath;
+  if (GetModuleFileName(NULL, szPath.data(), szPath.size()) != 0) {
+    // bin/mysqlrouter/../../lib/
+    auto p = mysql_harness::Path(szPath.data()).dirname().dirname();
+
+    p.append("lib");
+
+    return p.str();
   }
   throw std::logic_error("Could not find own installation directory");
 }
 #endif
 
-static std::string find_executable_path() {
-#ifdef _WIN32
-  // the bin folder is not usually in the path, just the lib folder
-  char szPath[MAX_PATH];
-  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0) {
-    char *pc = szPath - 1;
-    while (*++pc)
-      if (*pc == '\\') *pc = '/';
-    return std::string(szPath);
-  }
-#else
-  harness_assert(!g_program_name.empty());
+namespace {
 
-  if (g_program_name.find('/') != std::string::npos) {
-    char *tmp = realpath(g_program_name.c_str(), nullptr);
-    harness_assert(tmp);  // will fail if g_program_name provides bogus path
-    std::string path(tmp);
-    free(tmp);
-    return path;
-  } else {
-    std::string path(std::getenv("PATH"));
-    char *last = nullptr;
-    char *p = strtok_r(&path[0], ":", &last);
-    while (p) {
-      if (*p && p[strlen(p) - 1] == '/') p[strlen(p) - 1] = 0;
-      std::string tmp(std::string(p) + "/" + g_program_name);
-      if (access(tmp.c_str(), R_OK | X_OK) == 0) {
-        return tmp;
+using mysql_harness::ConfigBuilder;
+class ConfigSectionPrinter {
+ public:
+  ConfigSectionPrinter(
+      std::ostream &ostream,
+      const std::map<std::string, std::string> &config_cmdln_options,
+      const std::string &section_name)
+      : ostream_(ostream),
+        config_cmdln_options_(config_cmdln_options),
+        section_name_(section_name) {
+    auto section_name_lc = section_name;
+    std::transform(section_name_lc.begin(), section_name_lc.end(),
+                   section_name_lc.begin(), ::tolower);
+
+    used_sections_.insert(section_name_lc);
+  }
+
+  ConfigSectionPrinter &add_line(const std::string &key,
+                                 const std::string &value) {
+    std::string cmdln_option_key = section_name_ + "." + key;
+    std::transform(cmdln_option_key.begin(), cmdln_option_key.end(),
+                   cmdln_option_key.begin(), ::tolower);
+    if (config_cmdln_options_.count(cmdln_option_key) > 0) {
+      section_options_.push_back(
+          {key, config_cmdln_options_.at(cmdln_option_key)});
+
+      used_cmdln_options_.insert(key);
+    } else if (!value.empty()) {
+      section_options_.push_back({key, value});
+    }
+
+    return *this;
+  }
+
+  ~ConfigSectionPrinter() {
+    // got through all the command line options for this section and see if
+    // there are some that user provided and we did not use them yet, now is
+    // time to add them to our section
+    for (const auto &cmdln_option : config_cmdln_options_) {
+      const auto &cmdln_option_key = cmdln_option.first;
+      const auto dot = cmdln_option_key.find('.');
+      if (dot == std::string::npos) continue;
+      const std::string section = cmdln_option_key.substr(0, dot);
+
+      std::string section_name_lowerc = section_name_;
+      std::transform(section_name_lowerc.begin(), section_name_lowerc.end(),
+                     section_name_lowerc.begin(), ::tolower);
+
+      if (section != section_name_lowerc) continue;
+
+      const std::string option =
+          cmdln_option_key.substr(dot + 1, cmdln_option_key.length() - dot - 1);
+
+      if (used_cmdln_options_.count(option) == 0)
+        section_options_.push_back({option, cmdln_option.second});
+    }
+
+    ostream_ << ConfigBuilder::build_section(section_name_, section_options_);
+  }
+
+  static void add_remaining_sections(
+      std::ostream &ostream,
+      const std::map<std::string, std::string> &config_cmdln_options) {
+    std::string current_section;
+    std::vector<ConfigBuilder::kv_type> section_options;
+
+    for (const auto &cmdln_option : config_cmdln_options) {
+      const auto &cmdln_option_key = cmdln_option.first;
+      const auto dot = cmdln_option_key.find('.');
+      // that should be checked before
+      assert(dot != std::string::npos);
+      const std::string section_name = cmdln_option_key.substr(0, dot);
+      if (used_sections_.count(section_name) > 0) {
+        continue;
       }
-      p = strtok_r(nullptr, ":", &last);
+
+      if (section_name != current_section) {
+        if (!current_section.empty()) {
+          ostream << ConfigBuilder::build_section(current_section,
+                                                  section_options);
+        }
+        current_section = section_name;
+        section_options.clear();
+      }
+
+      const std::string option =
+          cmdln_option_key.substr(dot + 1, cmdln_option_key.length() - dot - 1);
+
+      section_options.push_back({option, cmdln_option.second});
+    }
+
+    if (!current_section.empty()) {
+      ostream << ConfigBuilder::build_section(current_section, section_options);
     }
   }
-#endif
-  throw std::logic_error("Could not find own installation directory");
-}
 
-/*static*/ std::string ConfigGenerator::endpoint_option(
-    const Options &options, const Options::Endpoint &ep) {
-  std::string r;
+ private:
+  std::ostream &ostream_;
+  const std::map<std::string, std::string> &config_cmdln_options_;
+  const std::string section_name_;
+
+  std::vector<ConfigBuilder::kv_type> section_options_;
+
+  std::set<std::string> used_cmdln_options_;
+  static std::set<std::string> used_sections_;
+};
+
+/*static*/ std::set<std::string> ConfigSectionPrinter::used_sections_;
+
+void add_endpoint_option(ConfigSectionPrinter &config_section_printer,
+                         const ConfigGenerator::Options &options,
+                         const ConfigGenerator::Options::Endpoint &ep) {
   if (ep.port > 0) {
     auto bind_address =
         (!options.bind_address.empty()) ? options.bind_address : "0.0.0.0";
-    r.append("bind_address=" + bind_address + "\n");
-    r.append("bind_port=" + std::to_string(ep.port));
+    config_section_printer.add_line("bind_address", bind_address);
+    config_section_printer.add_line("bind_port", std::to_string(ep.port));
   }
+
   if (!ep.socket.empty()) {
-    if (!r.empty()) r.append("\n");
-    r.append("socket=" + options.socketsdir + "/" + ep.socket);
+    config_section_printer.add_line("socket",
+                                    options.socketsdir + "/" + ep.socket);
   }
-  return r;
 }
 
-static std::string option_line(const std::string &key,
-                               const std::string &value) {
-  if (!value.empty()) {
-    return key + "=" + value + "\n";
-  }
-  return "";
+void add_metadata_cache_routing_section(
+    std::ostream &config_file, bool is_classic, bool is_writable,
+    const ConfigGenerator::Options::Endpoint endpoint,
+    const ConfigGenerator::Options &options, const std::string &metadata_key,
+    const std::string &cluster_name,
+    const std::map<std::string, std::string> &config_cmdln_options) {
+  if (!endpoint) return;
+
+  const std::string key_suffix =
+      std::string(is_classic ? "" : "_x") + (is_writable ? "_rw" : "_ro");
+  const std::string role = is_writable ? "PRIMARY" : "SECONDARY";
+  const std::string strategy =
+      is_writable ? "first-available" : "round-robin-with-fallback";
+  const std::string protocol = is_classic ? "classic" : "x";
+  // kept for backward compatibility, always empty
+  const std::string metadata_replicaset{""};
+
+  ConfigSectionPrinter section_printer(config_file, config_cmdln_options,
+                                       "routing:" + metadata_key + key_suffix);
+  add_endpoint_option(section_printer, options, endpoint);
+  section_printer
+      .add_line("destinations", "metadata-cache://" + cluster_name + "/" +
+                                    metadata_replicaset + "?role=" + role)
+      .add_line("routing_strategy", strategy)
+      .add_line("protocol", protocol);
 }
+
+/**
+ * Add proper authentication backend section to the config based on the
+ * metadata version. If needed it creates an empty authentication password
+ * file used in the config.
+ *
+ * @param[in] config_file - output configuration file stream
+ * @param[in] datadir - path of a router data directory
+ * @param[in] auth_backend_name - authentication backend section name
+ * @param[in] schema_version - metadata schema version
+ * @param[in] config_cmdln_options - config options overwrites from the command
+ * line
+ *
+ */
+static void add_http_auth_backend_section(
+    std::ostream &config_file, const mysql_harness::Path &datadir,
+    const std::string_view auth_backend_name,
+    const mysqlrouter::MetadataSchemaVersion schema_version,
+    const std::map<std::string, std::string> &config_cmdln_options) {
+  ConfigSectionPrinter section_printer{
+      config_file, config_cmdln_options,
+      "http_auth_backend:" + std::string(auth_backend_name)};
+  if (metadata_schema_version_is_compatible(kNewMetadataVersion,
+                                            schema_version)) {
+    section_printer.add_line("backend", "metadata_cache");
+  } else {
+    const auto auth_backend_passwd_file =
+        datadir.join("auth_backend_passwd_file").str();
+    const auto open_res = open_ofstream(auth_backend_passwd_file);
+    if (!open_res) {
+      log_warning("Cannot create file '%s': %s",
+                  auth_backend_passwd_file.c_str(),
+                  open_res.error().message().c_str());
+    }
+
+    section_printer.add_line("backend", "file")
+        .add_line("filename", auth_backend_passwd_file);
+  }
+}
+
+void add_rest_section(
+    std::ostream &config_file, const ConfigGenerator::Options &options,
+    const std::map<std::string, std::string> &default_paths,
+    const std::map<std::string, std::string> &config_cmdln_options,
+    const std::string &ssl_cert, const std::string &ssl_key,
+    const mysqlrouter::MetadataSchemaVersion &schema_version) {
+  std::stringstream config;
+  const std::string auth_realm_name{"default_auth_realm"};
+  const std::string auth_backend_name{"default_auth_backend"};
+
+  mysql_harness::Path datadir_path;
+  if (!options.override_datadir.empty())
+    datadir_path = mysql_harness::Path(options.override_datadir);
+  else
+    datadir_path = mysql_harness::Path(default_paths.at("data_folder"));
+
+  ConfigSectionPrinter(config_file, config_cmdln_options, "http_server")
+      .add_line("port", options.https_port_str)
+      .add_line("ssl", "1")
+      .add_line("ssl_cert", datadir_path.real_path().join(ssl_cert).str())
+      .add_line("ssl_key", datadir_path.real_path().join(ssl_key).str());
+
+  ConfigSectionPrinter(config_file, config_cmdln_options,
+                       "http_auth_realm:" + auth_realm_name)
+      .add_line("backend", auth_backend_name)
+      .add_line("method", "basic")
+      .add_line("name", "default_realm");
+
+  ConfigSectionPrinter(config_file, config_cmdln_options, "rest_router")
+      .add_line("require_realm", auth_realm_name);
+
+  ConfigSectionPrinter(config_file, config_cmdln_options, "rest_api");
+
+  add_http_auth_backend_section(config_file, datadir_path, auth_backend_name,
+                                schema_version, config_cmdln_options);
+
+  ConfigSectionPrinter(config_file, config_cmdln_options, "rest_routing")
+      .add_line("require_realm", auth_realm_name);
+
+  ConfigSectionPrinter(config_file, config_cmdln_options, "rest_metadata_cache")
+      .add_line("require_realm", auth_realm_name);
+}
+
+}  // namespace
 
 static void save_initial_dynamic_state(
     std::ostream &state_stream, ClusterMetadata &cluster_metadata,
@@ -2020,238 +2279,118 @@ static void save_initial_dynamic_state(
   mdc_dynamic_state.save(state_stream);
 }
 
-/**
- * Add proper authentication backend section to the config based on the
- * metadata version. If needed it creates an empty authentication password
- * file used in the config.
- *
- * @param[in] datadir - path of a router data directory
- * @param[in] auth_backend_name - authentication backend section name
- * @param[in] schema_version - metadata schema version
- *
- * @return http_auth_backend config section string
- */
-static std::string create_http_auth_backend_section(
-    const mysql_harness::Path &datadir,
-    const std::string_view auth_backend_name,
-    const mysqlrouter::MetadataSchemaVersion schema_version) {
-  if (metadata_schema_version_is_compatible(kNewMetadataVersion,
-                                            schema_version)) {
-    return mysql_harness::ConfigBuilder::build_section(
-        std::string{"http_auth_backend:"}.append(auth_backend_name),
-        {{"backend", "metadata_cache"}});
-  } else {
-    const auto auth_backend_passwd_file =
-        datadir.join("auth_backend_passwd_file").str();
-    const auto open_res = open_ofstream(auth_backend_passwd_file);
-    if (!open_res) {
-      log_warning("Cannot create file '%s': %s",
-                  auth_backend_passwd_file.c_str(),
-                  open_res.error().message().c_str());
-    }
-
-    return mysql_harness::ConfigBuilder::build_section(
-        std::string{"http_auth_backend:"}.append(auth_backend_name),
-        {{"backend", "file"}, {"filename", auth_backend_passwd_file}});
-  }
-}
-
-/*static*/ std::string ConfigGenerator::gen_metadata_cache_routing_section(
-    bool is_classic, bool is_writable, const Options::Endpoint endpoint,
-    const Options &options, const std::string &metadata_key) {
-  if (!endpoint) return "";
-
-  const std::string key_suffix =
-      std::string(is_classic ? "" : "_x") + (is_writable ? "_rw" : "_ro");
-  const std::string role = is_writable ? "PRIMARY" : "SECONDARY";
-  const std::string strategy =
-      is_writable ? "first-available" : "round-robin-with-fallback";
-  const std::string protocol = is_classic ? "classic" : "x";
-  // kept for backward compatibility, always empty
-  const std::string metadata_replicaset{""};
-
-  // clang-format off
-  return "[routing:" + metadata_key + key_suffix + "]\n" +
-         endpoint_option(options, endpoint) + "\n" +
-         "destinations=metadata-cache://" + metadata_key + "/" +
-             metadata_replicaset + "?role=" + role + "\n"
-         "routing_strategy=" + strategy + "\n"
-         "protocol=" + protocol + "\n"
-         "\n";
-  // clang-format on
-}
-
 void ConfigGenerator::create_config(
     std::ostream &config_file, std::ostream &state_file, uint32_t router_id,
     const std::string &router_name, const std::string &system_username,
     const ClusterInfo &cluster_info, const std::string &username,
     const Options &options,
     const std::map<std::string, std::string> &default_paths,
+    const std::map<std::string, std::string> &config_cmdln_options,
     const std::string &state_file_name) {
-  config_file
-      << "# File automatically generated during MySQL Router bootstrap\n";
+  config_file << "# File automatically generated during MySQL Router bootstrap"
+              << "\n";
 
-  config_file << "[DEFAULT]\n";
-
-  config_file << option_line("name", router_name)
-              << option_line("user", system_username)
-              << option_line("logging_folder", options.override_logdir)
-              << option_line("runtime_folder", options.override_rundir)
-              << option_line("data_folder", options.override_datadir)
-              << option_line("keyring_path", options.keyring_file_path)
-              << option_line("master_key_path",
-                             options.keyring_master_key_file_path)
-              << option_line("master_key_reader",
-                             keyring_info_.get_master_key_reader())
-              << option_line("master_key_writer",
-                             keyring_info_.get_master_key_writer());
-
-  config_file << "connect_timeout=" << connect_timeout_ << "\n";
-  config_file << "read_timeout=" << read_timeout_ << "\n";
-
-  config_file << "dynamic_state=" << state_file_name << "\n";
+  ConfigSectionPrinter(config_file, config_cmdln_options, "DEFAULT")
+      .add_line("name", router_name)
+      .add_line("user", system_username)
+      .add_line("logging_folder", options.override_logdir)
+      .add_line("runtime_folder", options.override_rundir)
+      .add_line("data_folder", options.override_datadir)
+      .add_line("keyring_path", options.keyring_file_path)
+      .add_line("master_key_path", options.keyring_master_key_file_path)
+      .add_line("master_key_reader", keyring_info_.get_master_key_reader())
+      .add_line("master_key_writer", keyring_info_.get_master_key_writer())
+      .add_line("connect_timeout", std::to_string(connect_timeout_))
+      .add_line("read_timeout", std::to_string(read_timeout_))
+      .add_line("dynamic_state", state_file_name)
+      .add_line("client_ssl_cert", options.client_ssl_cert)
+      .add_line("client_ssl_key", options.client_ssl_key)
+      .add_line("client_ssl_cipher", options.client_ssl_cipher)
+      .add_line("client_ssl_curves", options.client_ssl_curves)
+      .add_line("client_ssl_mode", options.client_ssl_mode)
+      .add_line("client_ssl_dh_params", options.client_ssl_dh_params)
+      .add_line("server_ssl_ca", options.server_ssl_ca)
+      .add_line("server_ssl_capath", options.server_ssl_capath)
+      .add_line("server_ssl_crl", options.server_ssl_crl)
+      .add_line("server_ssl_crlpath", options.server_ssl_crlpath)
+      .add_line("server_ssl_cipher", options.server_ssl_cipher)
+      .add_line("server_ssl_curves", options.server_ssl_curves)
+      .add_line("server_ssl_mode", options.server_ssl_mode)
+      .add_line("server_ssl_verify", options.server_ssl_verify)
+      .add_line("unknown_config_option", "error");
 
   save_initial_dynamic_state(state_file, *metadata_.get(), cluster_specific_id_,
                              cluster_info.metadata_servers);
 
-  config_file << option_line("client_ssl_cert", options.client_ssl_cert)
-              << option_line("client_ssl_key", options.client_ssl_key)
-              << option_line("client_ssl_cipher", options.client_ssl_cipher)
-              << option_line("client_ssl_curves", options.client_ssl_curves)
-              << option_line("client_ssl_mode", options.client_ssl_mode)
-              << option_line("client_ssl_dh_params",
-                             options.client_ssl_dh_params)
-              << option_line("server_ssl_ca", options.server_ssl_ca)
-              << option_line("server_ssl_capath", options.server_ssl_capath)
-              << option_line("server_ssl_crl", options.server_ssl_crl)
-              << option_line("server_ssl_crlpath", options.server_ssl_crlpath)
-              << option_line("server_ssl_cipher", options.server_ssl_cipher)
-              << option_line("server_ssl_curves", options.server_ssl_curves)
-              << option_line("server_ssl_mode", options.server_ssl_mode)
-              << option_line("server_ssl_verify", options.server_ssl_verify);
+  ConfigSectionPrinter(config_file, config_cmdln_options,
+                       mysql_harness::logging::kConfigSectionLogger)
+      .add_line(mysql_harness::logging::kConfigOptionLogLevel, "INFO")
+      .add_line("filename", options.override_logfilename);
 
-  config_file << "\n"
-              << "[" << mysql_harness::logging::kConfigSectionLogger << "]\n"
-              << mysql_harness::logging::kConfigOptionLogLevel << " = INFO\n";
+  {
+    ConfigSectionPrinter metadata_section_printer(
+        config_file, config_cmdln_options,
+        "metadata_cache:" + kDefaultMetadataCacheSectionKey);
 
-  config_file << option_line("filename", options.override_logfilename);
+    metadata_section_printer
+        .add_line("cluster_type", mysqlrouter::to_string(metadata_->get_type()))
+        .add_line("router_id", std::to_string(router_id))
+        .add_line("user", username);
 
-  config_file << "\n";
+    if (mysqlrouter::ClusterType::GR_CS != metadata_->get_type()) {
+      metadata_section_printer.add_line("metadata_cluster", cluster_info.name);
+    }
 
-  const auto &metadata_key = cluster_info.name;
+    metadata_section_printer
+        .add_line("ttl", mysqlrouter::ms_to_seconds_string(options.ttl))
+        .add_line("auth_cache_ttl",
+                  mysqlrouter::ms_to_seconds_string(kDefaultAuthCacheTTL))
+        .add_line("auth_cache_refresh_interval",
+                  mysqlrouter::ms_to_seconds_string(
+                      kDefaultAuthCacheRefreshInterval > options.ttl
+                          ? kDefaultAuthCacheRefreshInterval
+                          : options.ttl));
 
-  const std::string use_gr_notifications =
-      mysqlrouter::ClusterType::RS_V2 == metadata_->get_type()
-          ? ""
-          : "use_gr_notifications="s +
-                (options.use_gr_notifications ? "1" : "0") + "\n";
+    if (mysqlrouter::ClusterType::RS_V2 != metadata_->get_type()) {
+      metadata_section_printer.add_line(
+          "use_gr_notifications", options.use_gr_notifications ? "1" : "0");
+    }
 
-  const std::string metadata_cluster =
-      mysqlrouter::ClusterType::GR_CS == metadata_->get_type()
-          ? ""
-          : "metadata_cluster="s + cluster_info.name + "\n";
+    metadata_section_printer.add_line("ssl_mode", options.ssl_options.mode)
+        .add_line("ssl_cipher", options.ssl_options.cipher)
+        .add_line("tls_version", options.ssl_options.tls_version)
+        .add_line("ssl_ca", options.ssl_options.ca)
+        .add_line("ssl_capath", options.ssl_options.capath)
+        .add_line("ssl_crl", options.ssl_options.crl)
+        .add_line("ssl_crlpath", options.ssl_options.crlpath);
+  }
 
-  config_file << "[metadata_cache:" << cluster_info.name << "]\n"
-              << "cluster_type="
-              << mysqlrouter::to_string(metadata_->get_type()) << "\n"
-              << "router_id=" << router_id << "\n"
-              << "user=" << username << "\n"
-              << metadata_cluster
-              << "ttl=" << mysqlrouter::ms_to_seconds_string(options.ttl)
-              << "\n"
-              << "auth_cache_ttl="
-              << mysqlrouter::ms_to_seconds_string(kDefaultAuthCacheTTL) << "\n"
-              << "auth_cache_refresh_interval="
-              << mysqlrouter::ms_to_seconds_string(
-                     kDefaultAuthCacheRefreshInterval > options.ttl
-                         ? kDefaultAuthCacheRefreshInterval
-                         : options.ttl)
-              << "\n"
-              << use_gr_notifications;
-
-  // SSL options
-  config_file << option_line("ssl_mode", options.ssl_options.mode)
-              << option_line("ssl_cipher", options.ssl_options.cipher)
-              << option_line("tls_version", options.ssl_options.tls_version)
-              << option_line("ssl_ca", options.ssl_options.ca)
-              << option_line("ssl_capath", options.ssl_options.capath)
-              << option_line("ssl_crl", options.ssl_options.crl)
-              << option_line("ssl_crlpath", options.ssl_options.crlpath);
   // Note: we don't write cert and key because
   // creating router accounts with REQUIRE X509 is not yet supported.
   // The cert and key options passed to bootstrap if for the bootstrap
   // connection itself.
-  config_file << "\n";
 
-  // proxy to save on typing the same long list of args
-  auto gen_mdc_rt_sect = [&](bool is_classic, bool is_writable,
+  auto add_mdc_rt_sect = [&](bool is_classic, bool is_writable,
                              Options::Endpoint endpoint) {
-    return gen_metadata_cache_routing_section(is_classic, is_writable, endpoint,
-                                              options, metadata_key);
+    add_metadata_cache_routing_section(config_file, is_classic, is_writable,
+                                       endpoint, options,
+                                       kDefaultMetadataCacheSectionKey,
+                                       cluster_info.name, config_cmdln_options);
   };
-  config_file << gen_mdc_rt_sect(true, true, options.rw_endpoint);
-  config_file << gen_mdc_rt_sect(true, false, options.ro_endpoint);
-  config_file << gen_mdc_rt_sect(false, true, options.rw_x_endpoint);
-  config_file << gen_mdc_rt_sect(false, false, options.ro_x_endpoint);
+  add_mdc_rt_sect(true, true, options.rw_endpoint);
+  add_mdc_rt_sect(true, false, options.ro_endpoint);
+  add_mdc_rt_sect(false, true, options.rw_x_endpoint);
+  add_mdc_rt_sect(false, false, options.ro_x_endpoint);
 
   if (!options.disable_rest) {
-    config_file << generate_config_for_rest(options, default_paths);
+    add_rest_section(config_file, options, default_paths, config_cmdln_options,
+                     tls_filenames_.router_cert, tls_filenames_.router_key,
+                     schema_version_);
   }
 
+  ConfigSectionPrinter::add_remaining_sections(config_file,
+                                               config_cmdln_options);
   config_file.flush();
-}
-
-std::string ConfigGenerator::generate_config_for_rest(
-    const Options &options,
-    const std::map<std::string, std::string> &default_paths) const {
-  std::stringstream config;
-  const std::string auth_realm_name{"default_auth_realm"};
-  const std::string auth_backend_name{"default_auth_backend"};
-
-  mysql_harness::Path datadir_path;
-  if (!options.override_datadir.empty())
-    datadir_path = mysql_harness::Path(options.override_datadir);
-  else
-    datadir_path = mysql_harness::Path(default_paths.at("data_folder"));
-
-  config << mysql_harness::ConfigBuilder::build_section(
-      "http_server",
-      {
-          {"port", options.https_port_str},
-          {"ssl", "1"},
-          {"ssl_cert",
-           datadir_path.real_path().join(tls_filenames_.router_cert).str()},
-          {"ssl_key",
-           datadir_path.real_path().join(tls_filenames_.router_key).str()},
-      });
-
-  config << "\n\n";
-  config << mysql_harness::ConfigBuilder::build_section(
-      "http_auth_realm:" + auth_realm_name, {{"backend", auth_backend_name},
-                                             {"method", "basic"},
-                                             {"name", "default_realm"}});
-
-  config << "\n\n";
-  config << mysql_harness::ConfigBuilder::build_section(
-      "rest_router", {{"require_realm", auth_realm_name}});
-
-  config << "\n\n";
-  config << mysql_harness::ConfigBuilder::build_section("rest_api", {});
-
-  config << "\n\n";
-  config << create_http_auth_backend_section(datadir_path, auth_backend_name,
-                                             schema_version_);
-
-  config << "\n\n";
-  config << mysql_harness::ConfigBuilder::build_section(
-      "rest_routing", {{"require_realm", auth_realm_name}});
-
-  config << "\n\n";
-  config << mysql_harness::ConfigBuilder::build_section(
-      "rest_metadata_cache", {{"require_realm", auth_realm_name}});
-
-  config << "\n\n";
-  return config.str();
 }
 
 void ConfigGenerator::print_bootstrap_start_msg(
@@ -2275,10 +2414,10 @@ void ConfigGenerator::print_bootstrap_start_msg(
 }
 
 std::string ConfigGenerator::get_bootstrap_report_text(
-    const std::string &config_file_name, const std::string &router_name,
-    const std::string &metadata_cluster, const std::string &cluster_type_name,
-    const std::string &hostname, bool is_system_deployment,
-    const Options &options) {
+    const std::string &program_name, const std::string &config_file_name,
+    const std::string &router_name, const std::string &metadata_cluster,
+    const std::string &cluster_type_name, const std::string &hostname,
+    bool is_system_deployment, const Options &options) {
   constexpr const char kPromptPrefix[]{
 #ifdef _WIN32
       "> "
@@ -2321,7 +2460,7 @@ std::string ConfigGenerator::get_bootstrap_report_text(
     }
   }
 #endif
-  ss << "    " << kPromptPrefix << g_program_name << " -c " << config_file_name
+  ss << "    " << kPromptPrefix << program_name << " -c " << config_file_name
      << "\n\n"
      << cluster_type_name << " '" << metadata_cluster
      << "' can be reached by connecting to:\n"
@@ -2441,7 +2580,7 @@ std::string ConfigGenerator::create_accounts_with_compliant_password(
       user_options.find("force-password-validation") != user_options.end();
   std::string password_candidate;
   unsigned retries =
-      get_password_retries(user_options);  // throws std::runtime_error
+      get_password_retries(user_options);  // throws std::invalid_argument
   if (!force_password_validation) {
     // 1) Try to create an account using mysql_native_password with the hashed
     // password to avoid validate_password verification (hashing is done inside
@@ -3061,15 +3200,18 @@ void ConfigGenerator::set_script_permissions(
   UNREFERENCED_PARAMETER(options);
 #else
   if (::chmod(script_path.c_str(), kStrictDirectoryPerm) < 0) {
+    std::error_code ec{errno, std::generic_category()};
+
     std::cerr << "Could not change permissions for " << script_path << ": "
-              << get_strerror(errno) << "\n";
+              << ec.message() << "\n";
   }
   set_file_owner(options, script_path);
 #endif
 }
 
 void ConfigGenerator::create_start_script(
-    const std::string &directory, bool interactive_master_key,
+    const std::string &program_name, const std::string &directory,
+    bool interactive_master_key,
     const std::map<std::string, std::string> &options) {
 #ifdef _WIN32
   UNREFERENCED_PARAMETER(interactive_master_key);
@@ -3080,14 +3222,16 @@ void ConfigGenerator::create_start_script(
 
   script.open(script_path);
   if (script.fail()) {
-    throw std::runtime_error("Could not open " + script_path +
-                             " for writing: " + get_strerror(errno));
+    std::error_code ec{errno, std::generic_category()};
+    throw std::system_error(ec,
+                            "Could not open " + script_path + " for writing");
   }
   script << "$env:path += \";" << find_plugin_path() << "\"" << std::endl;
   script << "[Environment]::SetEnvironmentVariable(\"ROUTER_PID\","
          << "\"" << directory << "\\"
          << "mysqlrouter.pid\", \"Process\")" << std::endl;
-  script << "Start-Process \"" << find_executable_path() << "\" \" -c "
+  script << "Start-Process \""
+         << mysqlrouter::find_full_executable_path(program_name) << "\" \" -c "
          << directory << "/mysqlrouter.conf\""
          << " -WindowStyle Hidden" << std::endl;
   script.close();
@@ -3099,8 +3243,9 @@ void ConfigGenerator::create_start_script(
 
   script.open(script_path);
   if (script.fail()) {
-    throw std::runtime_error("Could not open " + script_path +
-                             " for writing: " + get_strerror(errno));
+    std::error_code ec{errno, std::generic_category()};
+    throw std::system_error(ec,
+                            "Could not open " + script_path + " for writing");
   }
   script << "#!/bin/bash\n";
   script << "basedir=" << directory << "\n";
@@ -3116,9 +3261,10 @@ void ConfigGenerator::create_start_script(
 
   // Router launch command
   {
-    std::string main_cmd = "ROUTER_PID=$basedir/mysqlrouter.pid " +
-                           find_executable_path() +
-                           " -c $basedir/mysqlrouter.conf ";
+    std::string main_cmd =
+        "ROUTER_PID=$basedir/mysqlrouter.pid " +
+        mysqlrouter::find_full_executable_path(program_name) +
+        " -c $basedir/mysqlrouter.conf ";
 
     if (options.find("user") != options.end()) {
       // if --user was given, we use it to generate shell code that works for
@@ -3169,8 +3315,9 @@ void ConfigGenerator::create_stop_script(
 
   script.open(script_path);
   if (script.fail()) {
-    throw std::runtime_error("Could not open " + script_path +
-                             " for writing: " + get_strerror(errno));
+    std::error_code ec{errno, std::generic_category()};
+    throw std::system_error(ec,
+                            "Could not open " + script_path + " for writing");
   }
   script << "$filename = [Environment]::GetEnvironmentVariable(\"ROUTER_PID\", "
             "\"Process\")"
@@ -3192,8 +3339,9 @@ void ConfigGenerator::create_stop_script(
 
   script.open(script_path);
   if (script.fail()) {
-    throw std::runtime_error("Could not open " + script_path +
-                             " for writing: " + get_strerror(errno));
+    std::error_code ec{errno, std::generic_category()};
+    throw std::system_error(ec,
+                            "Could not open " + script_path + " for writing");
   }
   script << "#!/bin/bash\n";
   script << "if [ -f " + directory + "/mysqlrouter.pid ]; then\n";

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,27 +30,13 @@
 
 #include "tcp_address.h"
 
-#ifdef _WIN32
-#ifdef metadata_cache_tests_DEFINE_STATIC
-#define METADATA_TESTS_API
-#else
-#ifdef metadata_cache_tests_EXPORTS
-#define METADATA_TESTS_API __declspec(dllexport)
-#else
-#define METADATA_TESTS_API __declspec(dllimport)
-#endif
-#endif
-#else
-#define METADATA_TESTS_API
-#endif
-
 /** @class MockNG
  *
  * Used for simulating NG metadata for testing purposes.
  *
  */
 
-class METADATA_TESTS_API MockNG : public GRClusterMetadata {
+class MockNG : public GRClusterMetadata {
  public:
   /**
    * Objects representing the servers that are part of the topology.

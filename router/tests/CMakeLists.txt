@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,13 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
-
-INCLUDE_DIRECTORIES(helpers
-  ${PROJECT_SOURCE_DIR}/src/harness/include
-  ${PROJECT_SOURCE_DIR}/src/router/include/mysqlrouter
-  ${PROJECT_SOURCE_DIR}/src/http/include/
-  ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
-  )
 
 SET(helper_sources
   helpers/filesystem_utils.cc
@@ -58,9 +51,17 @@ ADD_LIBRARY(routertest_helpers STATIC ${helper_sources})
 
 TARGET_LINK_LIBRARIES(routertest_helpers harness-library router_lib
   rest_api_lib mock_server_rest_client)
+TARGET_INCLUDE_DIRECTORIES(routertest_helpers
+  PUBLIC
+  helpers
+  ${PROJECT_SOURCE_DIR}/src/harness/shared/include/
+  )
+
+
 
 ADD_SUBDIRECTORY(component)
 ADD_SUBDIRECTORY(fuzzers)
+ADD_SUBDIRECTORY(integration)
 
 ADD_DEFINITIONS(
   -DCOMPONENT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/component/data/")

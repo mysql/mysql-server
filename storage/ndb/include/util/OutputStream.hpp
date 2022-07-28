@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define OUTPUT_STREAM_HPP
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include <NdbTCP.h>
 
 /**
@@ -124,7 +125,30 @@ public:
   ~NullOutputStream() override {}
   int print(const char * /* unused */, ...) override { return 1;}
   int println(const char * /* unused */, ...) override { return 1;}
-  int write(const void * buf, size_t len) override { return 1;}
+  int write(const void * /*buf*/, size_t /*len*/) override { return 1;}
+};
+
+class StaticBuffOutputStream : public OutputStream
+{
+private:
+  char* m_buff;
+  const size_t m_size;
+  size_t m_offset;
+public:
+  StaticBuffOutputStream(char* buff, size_t size);
+  ~StaticBuffOutputStream() override;
+
+  int print(const char * fmt, ...) override
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  int println(const char * fmt, ...) override
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+
+  int write(const void * buf, size_t len) override;
+  void flush() override {}
+
+  const char* getBuff() const {return m_buff;}
+  size_t getLen() const {return m_offset;}
+  void reset() {m_buff[0] = '\n'; m_offset = 0; }
 };
 
 #endif

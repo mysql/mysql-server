@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -89,8 +89,8 @@ static inline ib_list_node_t *ib_list_get_last(
 
 /********************************************************************
 Check if list is empty. */
-static inline ibool ib_list_is_empty(
-    /* out: TRUE if empty else  */
+static inline bool ib_list_is_empty(
+    /* out: true if empty else  */
     const ib_list_t *list); /* in: list */
 
 /* List. */

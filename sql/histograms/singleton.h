@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_SINGLETON_INCLUDED
 #define HISTOGRAMS_SINGLETON_INCLUDED
 
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,15 +70,14 @@
 */
 
 #include <stddef.h>
-#include <map>      // std::map
-#include <string>   // std::string
-#include <utility>  // std::pair
+#include <string>  // std::string
 
 #include "my_inttypes.h"
 #include "mysql_time.h"
 #include "sql/histograms/histogram.h"  // Histogram, Histogram_comparator,
 #include "sql/histograms/value_map_type.h"
 #include "sql/mem_root_allocator.h"
+#include "sql/mem_root_array.h"
 #include "sql/my_decimal.h"
 #include "sql_string.h"
 
@@ -90,52 +89,60 @@ namespace histograms {
 
 /**
   Singleton histogram.
+
+  Singleton histograms do not have a public constructor, but are instead created
+  through the factory method Singleton<T>::create() and returned by pointer.
+  This is done to ensure that we can return nullptr in case memory allocations
+  carried out during construction fail.
+
+  Likewise, the Singleton class does not have a public copy constructor, but
+  instead implements a clone() method that returns nullptr in case of failure.
 */
 struct Histogram_comparator;
 template <class T>
 class Value_map;
 
 template <class T>
+struct SingletonBucket {
+  T value;
+  double cumulative_frequency;
+  SingletonBucket(T value, double cumulative_frequency)
+      : value(value), cumulative_frequency(cumulative_frequency) {}
+};
+
+template <class T>
 class Singleton : public Histogram {
- private:
-  /// String representation of the histogram type SINGLETON.
-  static constexpr const char *singleton_str() { return "singleton"; }
-
-  using singleton_buckets_allocator =
-      Mem_root_allocator<std::pair<const T, double>>;
-
-  using singleton_buckets_type = std::map<const T, double, Histogram_comparator,
-                                          singleton_buckets_allocator>;
-
-  /// The buckets for this histogram [key, cumulative frequency].
-  singleton_buckets_type m_buckets;
-
  public:
   /**
-    Singleton constructor.
+    Singleton histogram factory method.
 
-    This will not build the histogram, but only set its properties.
+    Attempts to allocate and initialize a singleton histogram on the supplied
+    mem_root. This will not build the histogram, but only set its properties.
+    If the attempt to allocate the histogram fails or if an error occurs during
+    construction we return nullptr.
 
     @param mem_root the mem_root where the histogram contents will be allocated
     @param db_name  name of the database this histogram represents
     @param tbl_name name of the table this histogram represents
     @param col_name name of the column this histogram represents
     @param data_type the type of data that this histogram contains
+
+    @return A pointer to a Singleton histogram on success. Returns nullptr on
+    error.
   */
-  Singleton(MEM_ROOT *mem_root, const std::string &db_name,
-            const std::string &tbl_name, const std::string &col_name,
-            Value_map_type data_type);
+  static Singleton<T> *create(MEM_ROOT *mem_root, const std::string &db_name,
+                              const std::string &tbl_name,
+                              const std::string &col_name,
+                              Value_map_type data_type);
 
   /**
-    Singleton copy-constructor
+    Make a clone of this histogram on a MEM_ROOT.
 
-    This will take a copy of the histogram and all of its contents on the
-    provided MEM_ROOT.
+    @param mem_root the MEM_ROOT to allocate the new histogram contents on.
 
-    @param mem_root the MEM_ROOT to allocate the new histogram on.
-    @param other    the histogram to take a copy of
+    @return a copy of the histogram allocated on the provided MEM_ROOT.
   */
-  Singleton(MEM_ROOT *mem_root, const Singleton<T> &other);
+  Histogram *clone(MEM_ROOT *mem_root) const override;
 
   Singleton(const Singleton<T> &other) = delete;
 
@@ -171,6 +178,10 @@ class Singleton : public Histogram {
   /**
     Get the estimated number of distinct non-NULL values.
     @return number of distinct non-NULL values
+
+    TODO(christiani): If the histogram is based on sampling, then this estimate
+    is potentially off by a factor 1/sampling_rate. It should be adjusted to an
+    actual estimate if we are going to use it.
   */
   size_t get_num_distinct_values() const override { return get_num_buckets(); }
 
@@ -180,15 +191,6 @@ class Singleton : public Histogram {
     @return a readable string representation of the histogram type
   */
   std::string histogram_type_to_str() const override;
-
-  /**
-    Make a clone of this histogram on a MEM_ROOT.
-
-    @param mem_root the MEM_ROOT to allocate the new histogram contents on.
-
-    @return a copy of the histogram allocated on the provided MEM_ROOT.
-  */
-  Histogram *clone(MEM_ROOT *mem_root) const override;
 
   /**
     Find the number of values equal to 'value'.
@@ -226,7 +228,48 @@ class Singleton : public Histogram {
   */
   double get_greater_than_selectivity(const T &value) const;
 
+ protected:
+  /**
+    Populate this histogram with contents from a JSON object.
+
+    @param json_object a JSON object that represents an Singleton histogram
+
+    @return true on error, false otherwise.
+  */
+  bool json_to_histogram(const Json_object &json_object) override;
+
  private:
+  /// String representation of the histogram type SINGLETON.
+  static constexpr const char *singleton_str() { return "singleton"; }
+
+  /**
+    Singleton constructor.
+
+    This will not build the histogram, but only set its properties.
+
+    @param mem_root  the mem_root where the histogram contents will be allocated
+    @param db_name   name of the database this histogram represents
+    @param tbl_name  name of the table this histogram represents
+    @param col_name  name of the column this histogram represents
+    @param data_type the type of data that this histogram contains
+    @param[out] error is set to true if an error occurs
+  */
+  Singleton(MEM_ROOT *mem_root, const std::string &db_name,
+            const std::string &tbl_name, const std::string &col_name,
+            Value_map_type data_type, bool *error);
+
+  /**
+    Singleton copy-constructor
+
+    This will take a copy of the histogram and all of its contents on the
+    provided MEM_ROOT.
+
+    @param mem_root   the MEM_ROOT to allocate the new histogram on.
+    @param other      the histogram to take a copy of
+    @param[out] error is set to true if an error occurs
+  */
+  Singleton(MEM_ROOT *mem_root, const Singleton<T> &other, bool *error);
+
   /**
     Add value to a JSON bucket
 
@@ -247,18 +290,11 @@ class Singleton : public Histogram {
 
     @return     true on error, false otherwise
   */
-  static bool create_json_bucket(const std::pair<T, double> &bucket,
+  static bool create_json_bucket(const SingletonBucket<T> &bucket,
                                  Json_array *json_bucket);
 
- protected:
-  /**
-    Populate this histogram with contents from a JSON object.
-
-    @param json_object a JSON object that represents an Singleton histogram
-
-    @return true on error, false otherwise.
-  */
-  bool json_to_histogram(const Json_object &json_object) override;
+  /// The buckets for this histogram [value, cumulative frequency].
+  Mem_root_array<SingletonBucket<T>> m_buckets;
 };
 
 }  // namespace histograms

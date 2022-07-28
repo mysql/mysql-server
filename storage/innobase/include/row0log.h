@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,20 +48,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 class Alter_stage;
 
 /** Allocate the row log for an index and flag the index
- for online creation.
- @retval true if success, false if not */
-[[nodiscard]] bool row_log_allocate(
-    dict_index_t *index, /*!< in/out: index */
-    dict_table_t *table, /*!< in/out: new table being rebuilt,
-                         or NULL when creating a secondary index */
-    bool same_pk,        /*!< in: whether the definition of the
-                         PRIMARY KEY has remained the same */
-    const dtuple_t *add_cols,
-    /*!< in: default values of
-    added columns, or NULL */
-    const ulint *col_map, /*!< in: mapping of old column
-                          numbers to new ones, or NULL if !table */
-    const char *path);    /*!< in: where to create temporary file */
+for online creation.
+@param[in] index    Index.
+@param[in] table    New table being rebuilt, or NULL when creating a secondary
+index.
+@param[in] same_pk  Whether the definition of the PRIMARY KEY has remained the
+same.
+@param[in] add_cols Default values of added columns, or nullptr.
+@param[in] col_map  Mapping of old column numbers to new ones, or nullptr if
+!table.
+@param[in] path     Where to create temporary file.
+@retval true if success, false if not */
+bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
+                      const dtuple_t *add_cols, const ulint *col_map,
+                      const char *path);
 
 /** Free the row log for an index that was being created online. */
 void row_log_free(row_log_t *&log); /*!< in,own: row log */
@@ -71,16 +71,16 @@ void row_log_free(row_log_t *&log); /*!< in,own: row log */
 static inline void row_log_abort_sec(
     dict_index_t *index); /*!< in/out: index (x-latched) */
 
-/** Try to log an operation to a secondary index that is
- (or was) being created.
- @retval true if the operation was logged or can be ignored
- @retval false if online index creation is not taking place */
-[[nodiscard]] static inline bool row_log_online_op_try(
-    dict_index_t *index,   /*!< in/out: index, S or X latched */
-    const dtuple_t *tuple, /*!< in: index tuple */
-    trx_id_t trx_id);      /*!< in: transaction ID for insert,
-                          or 0 for delete */
-#endif                     /* !UNIV_HOTBACKUP */
+/** Try to log an operation to a secondary index that is (or was) being created.
+@param[in,out] index Index, S- or X-latched.
+@param[in] tuple Index tuple.
+@param[in] trx_id Transaction ID for insert, or 0 for delete.
+@retval true if the operation was logged or can be ignored
+@retval false if online index creation is not taking place */
+[[nodiscard]] static inline bool row_log_online_op_try(dict_index_t *index,
+                                                       const dtuple_t *tuple,
+                                                       trx_id_t trx_id);
+#endif /* !UNIV_HOTBACKUP */
 /** Logs an operation to a secondary index that is (or was) being created. */
 void row_log_online_op(
     dict_index_t *index,   /*!< in/out: index, S or X latched */
@@ -97,15 +97,14 @@ void row_log_online_op(
 
 /** Check whether a virtual column is indexed in the new table being
 created during alter table
-@param[in]	index	cluster index
-@param[in]	v_no	virtual column number
+@param[in]      index   cluster index
+@param[in]      v_no    virtual column number
 @return true if it is indexed, else false */
 bool row_log_col_is_indexed(const dict_index_t *index, ulint v_no);
 
 /** Logs a delete operation to a table that is being rebuilt.
  This will be merged in row_log_table_apply_delete(). */
 void row_log_table_delete(
-    trx_t *trx,             /*!< in: current transaction. */
     const rec_t *rec,       /*!< in: clustered index leaf page record,
                             page X-latched */
     const dtuple_t *ventry, /*!< in: dtuple holding virtual column info */
@@ -137,7 +136,6 @@ void row_log_table_update(
  @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
  or NULL if the PRIMARY KEY definition does not change */
 [[nodiscard]] const dtuple_t *row_log_table_get_pk(
-    trx_t *trx,           /*!< in: the current transaction. */
     const rec_t *rec,     /*!< in: clustered index leaf page record,
                           page X-latched */
     dict_index_t *index,  /*!< in/out: clustered index, S-latched
@@ -171,10 +169,10 @@ void row_log_table_blob_alloc(
     UNIV_COLD;
 
 /** Apply the row_log_table log to a table upon completing rebuild.
-@param[in]	thr		query graph
-@param[in]	old_table	old table
-@param[in,out]	table		MySQL table (for reporting duplicates)
-@param[in,out]	stage		performance schema accounting object, used by
+@param[in]      thr             query graph
+@param[in]      old_table       old table
+@param[in,out]  table           MySQL table (for reporting duplicates)
+@param[in,out]  stage           performance schema accounting object, used by
 ALTER TABLE. stage->begin_phase_log_table() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
@@ -190,11 +188,11 @@ stage->inc() will be called for each block of log that is applied.
     dict_index_t *index); /*!< in: index, must be locked */
 
 /** Apply the row log to the index upon completing index creation.
-@param[in]	trx	transaction (for checking if the operation was
+@param[in]      trx     transaction (for checking if the operation was
 interrupted)
-@param[in,out]	index	secondary index
-@param[in,out]	table	MySQL table (for reporting duplicates)
-@param[in,out]	stage	performance schema accounting object, used by
+@param[in,out]  index   secondary index
+@param[in,out]  table   MySQL table (for reporting duplicates)
+@param[in,out]  stage   performance schema accounting object, used by
 ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
@@ -204,7 +202,7 @@ stage->inc() will be called for each block of log that is applied.
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Estimate how much work is to be done by the log apply phase
 of an ALTER TABLE for this index.
-@param[in]	index	index whose log to assess
+@param[in]      index   index whose log to assess
 @return work to be done by log-apply in abstract units
 */
 ulint row_log_estimate_work(const dict_index_t *index);

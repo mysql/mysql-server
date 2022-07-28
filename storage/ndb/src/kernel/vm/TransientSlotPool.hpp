@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,7 +130,7 @@ private:
 
   static void static_asserts()
   {
-    NDB_STATIC_ASSERT(sizeof(Page) == WORDS_PER_PAGE * sizeof(Uint32));
+    static_assert(sizeof(Page) == WORDS_PER_PAGE * sizeof(Uint32));
   }
 };
 

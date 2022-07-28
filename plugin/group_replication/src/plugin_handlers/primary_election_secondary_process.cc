@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ void Primary_election_secondary_process::set_stop_wait_timeout(ulong timeout) {
 
 int Primary_election_secondary_process::launch_secondary_election_process(
     enum_primary_election_mode mode, std::string &primary_to_elect,
-    std::vector<Group_member_info *> *group_members_info) {
+    Group_member_info_list *group_members_info) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&election_lock);
@@ -162,8 +162,10 @@ int Primary_election_secondary_process::secondary_election_process_handler() {
   }
 
   if (election_mode == DEAD_OLD_PRIMARY) {
-    group_events_observation_manager->after_primary_election(primary_uuid, true,
-                                                             election_mode);
+    group_events_observation_manager->after_primary_election(
+        primary_uuid,
+        enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
+        election_mode);
     goto wait_for_queued_message;
   }
 
@@ -230,7 +232,10 @@ end:
 
   if (error && !election_process_aborted) {
     group_events_observation_manager->after_primary_election(
-        primary_uuid, true, election_mode, error); /* purecov: inspected */
+        primary_uuid,
+        enum_primary_election_primary_change_status::
+            PRIMARY_DID_CHANGE_WITH_ERROR,
+        election_mode, error); /* purecov: inspected */
     kill_transactions_and_leave_on_election_error(
         err_msg); /* purecov: inspected */
   }
@@ -348,8 +353,21 @@ int Primary_election_secondary_process::after_view_change(
     if (!group_in_read_mode) {
       group_in_read_mode = true;
       mysql_cond_broadcast(&election_cond);
+      /*
+       group_in_read_mode is false so response from some member was still
+       pending. But known_members_addresses is empty so members on which
+       election was waiting have left the group.
+       If primary is part of the group then we can end the election normally.
+       If primary member has left the group then forcefully end the election so
+       that new election can take place.
+      */
+      const enum_primary_election_primary_change_status primary_changed_status =
+          group_member_mgr->is_member_info_present(primary_uuid)
+              ? enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE
+              : enum_primary_election_primary_change_status::
+                    PRIMARY_DID_NOT_CHANGE_PRIMARY_LEFT_FORCE_ELECTION_END;
       group_events_observation_manager->after_primary_election(
-          primary_uuid, true, election_mode);
+          primary_uuid, primary_changed_status, election_mode);
     }
   }
 
@@ -371,7 +389,8 @@ int Primary_election_secondary_process::after_view_change(
 }
 
 int Primary_election_secondary_process::after_primary_election(
-    std::string, bool, enum_primary_election_mode, int) {
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0;
 }
 
@@ -420,7 +439,9 @@ int Primary_election_secondary_process::before_message_handling(
           group_in_read_mode = true;
           mysql_cond_broadcast(&election_cond);
           group_events_observation_manager->after_primary_election(
-              primary_uuid, true, election_mode);
+              primary_uuid,
+              enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
+              election_mode);
         }
       }
       mysql_mutex_unlock(&election_lock);

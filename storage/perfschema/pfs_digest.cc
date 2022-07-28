@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 
 #include "my_compiler.h"
 
+#include "my_murmur3.h"
 #include "my_sys.h"
 #include "sql/sql_get_diagnostics.h"
 #include "sql/sql_lex.h"
@@ -166,14 +167,58 @@ static const uchar *digest_hash_get_key(const uchar *entry, size_t *length) {
   return reinterpret_cast<const uchar *>(result);
 }
 
+static uint digest_hash_func(const LF_HASH *, const uchar *key,
+                             size_t key_len [[maybe_unused]]) {
+  const PFS_digest_key *digest_key;
+  uint64 nr1;
+  uint64 nr2;
+
+  assert(key_len == sizeof(PFS_digest_key));
+  digest_key = reinterpret_cast<const PFS_digest_key *>(key);
+  assert(digest_key != nullptr);
+
+  nr1 = 0;
+  nr2 = 0;
+
+  nr1 = murmur3_32(digest_key->m_hash, DIGEST_HASH_SIZE, nr2);
+  digest_key->m_schema_name.hash(&nr1, &nr2);
+
+  return nr1;
+}
+
+static int digest_hash_cmp_func(const uchar *key1,
+                                size_t key_len1 [[maybe_unused]],
+                                const uchar *key2,
+                                size_t key_len2 [[maybe_unused]]) {
+  const PFS_digest_key *digest_key1;
+  const PFS_digest_key *digest_key2;
+  int cmp;
+
+  assert(key_len1 == sizeof(PFS_digest_key));
+  assert(key_len2 == sizeof(PFS_digest_key));
+  digest_key1 = reinterpret_cast<const PFS_digest_key *>(key1);
+  digest_key2 = reinterpret_cast<const PFS_digest_key *>(key2);
+  assert(digest_key1 != nullptr);
+  assert(digest_key2 != nullptr);
+
+  cmp = memcmp(digest_key1->m_hash, &digest_key2->m_hash, DIGEST_HASH_SIZE);
+  if (cmp != 0) {
+    return cmp;
+  }
+  cmp = digest_key1->m_schema_name.sort(&digest_key2->m_schema_name);
+  return cmp;
+}
+
 /**
   Initialize the digest hash.
   @return 0 on success
 */
 int init_digest_hash(const PFS_global_param *param) {
   if ((!digest_hash_inited) && (param->m_digest_sizing != 0)) {
-    lf_hash_init(&digest_hash, sizeof(PFS_statements_digest_stat *),
-                 LF_HASH_UNIQUE, 0, 0, digest_hash_get_key, &my_charset_bin);
+    lf_hash_init3(&digest_hash, sizeof(PFS_statements_digest_stat *),
+                  LF_HASH_UNIQUE, digest_hash_get_key, digest_hash_func,
+                  digest_hash_cmp_func, nullptr /* ctor */, nullptr /* dtor */,
+                  nullptr /* init */);
     digest_hash_inited = true;
   }
   return 0;
@@ -214,20 +259,11 @@ PFS_statements_digest_stat *find_or_create_digest(
     return nullptr;
   }
 
-  /*
-    Note: the LF_HASH key is a block of memory,
-    make sure to clean unused bytes,
-    so that memcmp() can compare keys.
-  */
   PFS_digest_key hash_key;
-  memset(&hash_key, 0, sizeof(hash_key));
   /* Copy digest hash of the tokens received. */
   memcpy(&hash_key.m_hash, digest_storage->m_hash, DIGEST_HASH_SIZE);
   /* Add the current schema to the key */
-  hash_key.m_schema_name_length = schema_name_length;
-  if (schema_name_length > 0) {
-    memcpy(hash_key.m_schema_name, schema_name, schema_name_length);
-  }
+  hash_key.m_schema_name.set(schema_name, schema_name_length);
 
   int res;
   uint retry_count = 0;
@@ -282,7 +318,7 @@ search:
     if (pfs->m_lock.is_free()) {
       if (pfs->m_lock.free_to_dirty(&dirty_state)) {
         /* Copy digest hash/LF Hash search key. */
-        memcpy(&pfs->m_digest_key, &hash_key, sizeof(PFS_digest_key));
+        pfs->m_digest_key = hash_key;
 
         /*
           Copy digest storage to statement_digest_stat_array so that it could be

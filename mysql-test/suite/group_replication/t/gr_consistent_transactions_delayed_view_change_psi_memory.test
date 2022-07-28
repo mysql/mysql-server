@@ -1,0 +1,328 @@
+################################################################################
+# This test verifies following for 'consistent_transactions_delayed_view_change'
+# event name:
+# - Verify that entries corresponding to the
+#   'consistent_transactions_delayed_view_change' performance schema
+#   instrumented memory are in the memory table only during the
+#   execution of the group replication plugin.
+# - Verify that the sum of bytes allocated is greater than zero for a
+#   transaction.
+#
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Start server1
+# 2. Start server2
+# 3. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables for the event
+#    consistent_transactions_delayed_view_change.
+# 4. Block T1 and T2 before message send after applier prepare
+#    on server2.
+# 5. Execute T1 and T2 on server1.
+# 6. Check wait condition on server2.
+# 7. Execute T3 on server1
+#    Make it wait on before transaction message broadcast.
+# 8. Check wait condition on server1.
+# 9. Start server3
+# 10. Signal to continue T3 on server1.
+# 11. Verify that the number of bytes allocated for
+#     consistency_members_that_prepare_transaction
+#     event is greater than 0.
+# 12. Signal to continue T1 and T2 on server2.
+# 13. Check members state on server1 and server3.
+# 14. Drop tables and stop GR on server 1.
+# 15. Verify that the entries corresponding to the instrumented
+#     consistent_transactions_delayed_view_change remain in the
+#     tables after stopping GR.
+# 16. Assert that the number of bytes allocated for
+#     consistent_transactions_delayed_view_change
+#     event must be 0.
+# 17. Clean up.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo #
+--echo # Setup a new group with three servers.
+--echo #
+
+--echo
+--echo ############################################################
+--echo # 1. Start server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Force server3 to recover from server1
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Start server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Verify that the entries corresponding to the
+--echo #    instrumented memory are in the setup instruments
+--echo #    table and the memory summary tables for the event
+--echo #    consistent_transactions_delayed_view_change.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_delayed_view_change';
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the setup_instruments table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/consistent_transactions_delayed_view_change"
+--source include/assert.inc
+
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions_delayed_view_change';
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the memory_summary_global_by_event_name table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_delayed_view_change"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Block T1 and T2 before message send after applier prepare
+--echo #    on server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+
+
+--echo
+--echo ############################################################
+--echo # 5. Execute T1 and T2 on server1.
+
+--connect (server_1_2,127.0.0.1,root,,test,$MASTER_MYPORT,,)
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--send CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
+
+--let $rpl_connection_name= server_1_2
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'waiting for handler commit' and info = 'CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB'
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+--send CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
+
+--let $rpl_connection_name= server_1_2
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'waiting for handler commit' and info = 'CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Check wait condition on server2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now' and info = 'CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Execute T3 on server1
+--echo #    Make it wait on before transaction message broadcast.
+--let $rpl_connection_name= server_1_2
+--source include/rpl_connection.inc
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_message_broadcast';
+
+--send CREATE TABLE test.t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
+
+
+--echo
+--echo ############################################################
+--echo # 8. Check wait condition on server1.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now' and INFO = 'CREATE TABLE test.t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 9. Start server3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'recovery_user', SOURCE_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an error when connecting to the donor server*");
+call mtr.add_suppression("For details please check performance_schema*");
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master");
+SET SESSION sql_log_bin= 1;
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 10. Signal to continue T3 on server1.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= 'now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+
+--echo
+--echo ############################################################
+--echo # 11. Verify that the number of bytes allocated for
+--echo #     consistent_transactions_delayed_view_change
+--echo #     event is greater than 0.
+--let $assert_text= 'The sum of bytes allocated must be greater than 0'
+--let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_delayed_view_change"] > 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 12. Signal to continue T1 and T2 on server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+
+--echo
+--echo ############################################################
+--echo # 13. Check members state on server1 and server3.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_1_2
+--source include/rpl_connection.inc
+--reap
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $assert_text= Server1 MEMBER_STATE is ONLINE
+--let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members WHERE MEMBER_ID=\'$server1_uuid\', MEMBER_STATE, 1]" = "ONLINE"
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $group_replication_member_state = ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1, server3:test.t1
+--source include/diff_tables.inc
+
+--let $diff_tables= server1:test.t2, server2:test.t2, server3:test.t2
+--source include/diff_tables.inc
+
+--let $diff_tables= server1:test.t3, server2:test.t3, server3:test.t3
+--source include/diff_tables.inc
+
+
+--echo
+--echo ############################################################
+--echo # 14. Drop tables and stop GR on server 1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--source include/stop_group_replication.inc
+--source include/uninstall_group_replication_plugin.inc
+
+
+--echo
+--echo ##############################################################
+--echo # 15. Verify that the entries corresponding to the instrumented
+--echo #     consistent_transactions_delayed_view_change remain in the
+--echo #     tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_delayed_view_change';
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the setup_instruments table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/consistent_transactions_delayed_view_change"
+--source include/assert.inc
+
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the memory_summary_global_by_event_name table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_delayed_view_change"
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 16. Assert that the number of bytes allocated for
+--echo #     consistent_transactions_delayed_view_change
+--echo #     event must be 0.
+--let $assert_text= 'The sum of bytes allocated must be zero after stopping GR'
+--let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_delayed_view_change"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 17. Clean up.
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/install_group_replication_plugin.inc
+--source include/group_replication_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ class Schema : virtual public Entity_object {
   virtual View *create_system_view(THD *thd) const = 0;
 
   /**
-    Allocate a new object and invoke the copy contructor.
+    Allocate a new object and invoke the copy constructor.
 
     @return pointer to dynamically allocated copy
   */

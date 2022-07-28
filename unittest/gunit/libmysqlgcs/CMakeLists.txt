@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,6 +19,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+IF (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)
+  RETURN()
+ENDIF()
 
 IF(NOT WIN32)
   MYSQL_CHECK_RPC()
@@ -84,11 +88,28 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_xcom_xcom_single_writer
 )
 
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  xcom/gcs_logging-t.cc
+  xcom/gcs_logging_system-t.cc
+  xcom/gcs_xcom_communication_interface-t.cc
+  xcom/gcs_xcom_control_interface-t.cc
+  xcom/gcs_xcom_group_management-t.cc
+  xcom/gcs_xcom_input_queue-t.cc
+  xcom/gcs_xcom_networking-t.cc
+  xcom/gcs_message_stage_fragmentation-t.cc
+  xcom/gcs_xcom_network_provider_manager-t.cc
+  )
+
 # When binding using IPv6 the way XCom does (dual stack IPv4/IPv6), it
 # does not detect that a port is busy when binding and overruns the
 # previous port. As such, this test cannot run on Solaris
 IF(SOLARIS)
   LIST(REMOVE_ITEM GCS_XCOM_TESTS xcom/gcs_xcom_network_provider)
+ENDIF()
+
+IF(WIN32)
+  # UINT8_MAX: macro redefinition
+  ADD_COMPILE_FLAGS(xcom/gcs_xcom_site_def-t.cc COMPILE_FLAGS "/wd4005")
 ENDIF()
 
 ###

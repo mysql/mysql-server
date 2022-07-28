@@ -32,7 +32,7 @@ Mode switched to single-primary successfully.
 # 3. Execute action of set a new primary:
 # 3.1. With extra arguments it must fail.
 SELECT group_replication_set_as_primary("MEMBER1_UUID", "extra", "arguments");
-ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: You need to specify a server uuid.
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: UDF accepts maximum of 2 parameters.
 # 3.2. With invalid uuid it must fail.
 SELECT group_replication_set_as_primary("not an uuid");
 ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: The server uuid is not valid.

@@ -13,11 +13,11 @@ connect-timeout=            60
 log-bin-trust-function-creators=1
 
 # Running MTR with --mem causes var directories to be created in memory.
-# Set innodb-buffer-pool-size and innodb-log-file-size to a lower
+# Set innodb-buffer-pool-size and innodb-redo-log-capacity to a lower
 # value because running tests in parallel, on the ramdisk may consume
 # excessive memory.
 innodb-buffer-pool-size=24M
-innodb-log-file-size=5M
+innodb-redo-log-capacity=10M
 # MAINTAINER:
 # the loose- syntax is to make sure the cnf file is also
 # valid when building without the performance schema.
@@ -50,6 +50,7 @@ loose-performance-schema-instrument='%=ON'
 loose-performance-schema-consumer-events-stages-current=ON
 loose-performance-schema-consumer-events-stages-history=ON
 loose-performance-schema-consumer-events-stages-history-long=ON
+loose-performance-schema-consumer-events-statements-cpu=ON
 loose-performance-schema-consumer-events-statements-current=ON
 loose-performance-schema-consumer-events-statements-history=ON
 loose-performance-schema-consumer-events-statements-history-long=ON

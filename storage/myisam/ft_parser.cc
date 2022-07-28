@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,7 +119,7 @@ uchar ft_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
                   FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param) {
   uchar *doc = *start;
   int ctype;
-  uint mwc, length;
+  uint length;
   int mbl;
 
   param->yesno = (FTB_YES == ' ') ? 1 : (param->quot != nullptr);
@@ -171,19 +171,14 @@ uchar ft_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
       param->weight_adjust = param->wasign = 0;
     }
 
-    mwc = length = 0;
+    length = 0;
     for (word->pos = doc; doc < end;
          length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
       mbl = cs->cset->ctype(cs, &ctype, (uchar *)doc, (uchar *)end);
-      if (true_word_char(ctype, *doc))
-        mwc = 0;
-      else if (!misc_word_char(*doc) || mwc)
-        break;
-      else
-        mwc++;
+      if (!true_word_char(ctype, *doc)) break;
     }
     param->prev = 'A'; /* be sure *prev is true_word_char */
-    word->len = (uint)(doc - word->pos) - mwc;
+    word->len = (uint)(doc - word->pos);
     if ((param->trunc = (doc < end && *doc == FTB_TRUNC))) doc++;
 
     if (((length >= ft_min_word_len &&
@@ -213,7 +208,7 @@ ret:
 uchar ft_simple_get_word(const CHARSET_INFO *cs, uchar **start,
                          const uchar *end, FT_WORD *word, bool skip_stopwords) {
   uchar *doc = *start;
-  uint mwc, length;
+  uint length;
   int mbl;
   int ctype;
   DBUG_TRACE;
@@ -225,19 +220,14 @@ uchar ft_simple_get_word(const CHARSET_INFO *cs, uchar **start,
       if (true_word_char(ctype, *doc)) break;
     }
 
-    mwc = length = 0;
+    length = 0;
     for (word->pos = doc; doc < end;
          length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
       mbl = cs->cset->ctype(cs, &ctype, doc, end);
-      if (true_word_char(ctype, *doc))
-        mwc = 0;
-      else if (!misc_word_char(*doc) || mwc)
-        break;
-      else
-        mwc++;
+      if (!true_word_char(ctype, *doc)) break;
     }
 
-    word->len = (uint)(doc - word->pos) - mwc;
+    word->len = (uint)(doc - word->pos);
 
     if (skip_stopwords == false ||
         (length >= ft_min_word_len && length < ft_max_word_len &&

@@ -1,0 +1,61 @@
+# ==== Purpose ====
+#
+# This test verifies that when replicate_same_server_id=1 then there should
+# not be any conflicts applying binary log files as relay logs files in a
+# server that has the same server id as the id in the files.
+#
+# ==== Implementation ====
+#
+# 1) Supress a warning.
+# 2) Initialize source datadir path.
+# 3) Stop the server.
+# 4) Rename the already executed and saved binary logs
+#    to relay logs and copy them to the data dir.
+# 5) Restart the server.
+# 6) Start replica.
+# 7) Wait for replica to finish.
+# 8) Cleanup.
+#
+# ==== References ====
+#
+# Bug#27492990 PARALLEL REPLICATION ALWAYS FAILS WITH SPECIFIC WORKLOAD FROM SYSBENCH
+#
+
+# This test requires row format binlogging.
+--source include/have_binlog_format_row.inc
+--source include/only_mts_replica_parallel_workers.inc
+--source include/only_mts_replica_parallel_type_logical_clock.inc
+
+# 1) Supress a warning.
+call mtr.add_suppression("using --replicate-same-server-id in conjunction with --log-replica-updates would lead to infinite loops in this server.");
+
+# 2) Initialize source data dir path.
+--let $master_datadir= `select @@datadir`
+
+# 3) Stop Server.
+--source include/shutdown_mysqld.inc
+
+# 4) Rename the already executed and saved binary logs to relay logs and copy them to the data dir.
+--copy_file $MYSQL_TEST_DIR/std_data/replicated-bin.000001 $master_datadir/replicate-relay-bin.000001
+--copy_file $MYSQL_TEST_DIR/std_data/replicated-bin.000002 $master_datadir/replicate-relay-bin.000002
+--copy_file $MYSQL_TEST_DIR/std_data/replicated-bin.index $master_datadir/replicate-relay-bin.index
+
+# 5) Restart the server.
+--let $restart_parameters="restart: --replicate-same-server-id=1 --server_id=1 --relay-log=replicate-relay-bin"
+--source include/start_mysqld.inc
+
+# 6) Start replica in parallel mode.
+SET GLOBAL RELAY_LOG_PURGE=OFF;
+CHANGE MASTER TO RELAY_LOG_FILE='replicate-relay-bin.000001', RELAY_LOG_POS=1, MASTER_HOST='dummy';
+START SLAVE SQL_THREAD;
+
+# 7) Wait for replica to finish.
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+--let $condition= = 'Replica has read all relay log; waiting for more updates'
+--source include/wait_show_condition.inc
+
+# 8) Cleanup.
+SET GLOBAL RELAY_LOG_PURGE=ON;
+STOP SLAVE SQL_THREAD;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root';

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -78,6 +78,7 @@ MACRO(ADD_CONVENIENCE_LIBRARY TARGET_ARG)
     DEPENDENCIES        # for ADD_DEPENDENCIES
     INCLUDE_DIRECTORIES # for TARGET_INCLUDE_DIRECTORIES
     LINK_LIBRARIES      # for TARGET_LINK_LIBRARIES
+    SYSTEM_INCLUDE_DIRECTORIES
     )
 
   CMAKE_PARSE_ARGUMENTS(ARG
@@ -140,6 +141,12 @@ MACRO(ADD_CONVENIENCE_LIBRARY TARGET_ARG)
       ${ARG_INCLUDE_DIRECTORIES})
   ENDIF()
 
+  # Add SYSTEM INCLUDE_DIRECTORIES to _objlib
+  IF(ARG_SYSTEM_INCLUDE_DIRECTORIES)
+    TARGET_INCLUDE_DIRECTORIES(${TARGET_LIB} SYSTEM PRIVATE
+      ${ARG_SYSTEM_INCLUDE_DIRECTORIES})
+  ENDIF()
+
   # Add LINK_LIBRARIES to static lib
   IF(ARG_LINK_LIBRARIES)
     TARGET_LINK_LIBRARIES(${TARGET} ${ARG_LINK_LIBRARIES})
@@ -164,6 +171,7 @@ MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
                 #   INTERFACE_LINK_LIBRARIES for the target library is empty.
     SKIP_INSTALL# Do not install it.
                 # By default it will be installed to ${INSTALL_LIBDIR}
+    NAMELINK_SKIP
     )
   SET(SHLIB_ONE_VALUE_KW
     COMPONENT   # Installation COMPONENT.
@@ -190,6 +198,7 @@ MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
 
   CREATE_EXPORT_FILE(SRC ${TARGET} "${ARG_EXPORTS}")
   IF(UNIX)
+    SET(export_link_flags)
     # Mark every export as explicitly needed, so that ld won't remove the
     # .a files containing them. This has a similar effect as
     # --Wl,--no-whole-archive, but is more focused.
@@ -263,7 +272,7 @@ MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
 
   MY_TARGET_LINK_OPTIONS(${TARGET} "${export_link_flags}")
 
-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  IF(APPLE_WITH_CUSTOM_SSL)
     SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${TARGET})
     # All executables have dependencies:  "@loader_path/../lib/xxx.dylib
     # Create a symlink so that this works for Xcode also.
@@ -285,7 +294,11 @@ MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
     ELSE()
       SET(DESTINATION "${INSTALL_LIBDIR}")
     ENDIF()
-    MYSQL_INSTALL_TARGET(${TARGET} DESTINATION "${DESTINATION}" ${COMP})
+    IF(ARG_NAMELINK_SKIP)
+      SET(INSTALL_ARGS NAMELINK_SKIP)
+    ENDIF()
+    MYSQL_INSTALL_TARGET(${TARGET} DESTINATION "${DESTINATION}" ${COMP}
+      ${INSTALL_ARGS})
   ENDIF()
 
   IF(WIN32)
@@ -432,6 +445,13 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES TARGET_ARG)
     FOREACH(LIB ${SSL_LIBRARIES})
       STRING_APPEND(LINKER_EXTRA_FLAGS " ${LIB}")
     ENDFOREACH()
+
+    # __NULL_IMPORT_DESCRIPTOR already defined, second definition ignored
+    # Same symbol from both libssl and libcrypto
+    # But: Lib.exe has no /IGNORE option, see
+    # https://docs.microsoft.com/en-us/cpp/build/reference/running-lib?view=msvc-160
+    # STRING_APPEND(LINKER_EXTRA_FLAGS " /IGNORE:LNK4006")
+
     SET_TARGET_PROPERTIES(${TARGET}
       PROPERTIES STATIC_LIBRARY_FLAGS "${LINKER_EXTRA_FLAGS}")
   ENDIF()

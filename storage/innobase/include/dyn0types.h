@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,16 +33,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef dyn0types_h
 #define dyn0types_h
 
+#include <stdint.h>
 #include <cstddef>
 
 /** Value of dyn_block_t::magic_n */
-constexpr size_t DYN_BLOCK_MAGIC_N = 375767;
+constexpr uint32_t DYN_BLOCK_MAGIC_N = 375767;
 
 /** This is the initial 'payload' size of a dynamic array;
 this must be > MLOG_BUF_MARGIN + 30! */
-constexpr size_t DYN_ARRAY_DATA_SIZE = 512;
+constexpr uint32_t DYN_ARRAY_DATA_SIZE = 512;
 
 /** Flag for dyn_block_t::used that indicates a full block */
-constexpr size_t DYN_BLOCK_FULL_FLAG = 0x1000000UL;
+constexpr uint32_t DYN_BLOCK_FULL_FLAG = 0x1000000UL;
 
 #endif /* dyn0types_h */

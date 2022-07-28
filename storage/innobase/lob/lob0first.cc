@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -32,8 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-void first_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
-                                  ulint &want, mtr_t *mtr) {
+void first_page_t::replace_inline(ulint offset, const byte *&ptr, ulint &want,
+                                  mtr_t *mtr) {
   byte *old_ptr = data_begin();
   old_ptr += offset;
 
@@ -206,14 +206,14 @@ std::ostream &first_page_t::print_index_entries(std::ostream &out) const {
 #ifdef UNIV_DEBUG
 bool first_page_t::validate() const {
   flst_base_node_t *idx_list = index_list();
-  ut_ad(flst_validate(idx_list, m_mtr));
+  ut_d(flst_validate(idx_list, m_mtr));
   return (true);
 }
 #endif /* UNIV_DEBUG */
 
 /** Allocate the first page for uncompressed LOB.
-@param[in,out]	alloc_mtr	the allocation mtr.
-@param[in]	is_bulk		true if it is bulk operation.
+@param[in,out]  alloc_mtr       the allocation mtr.
+@param[in]      is_bulk         true if it is bulk operation.
                                 (OPCODE_INSERT_BULK)
 return the allocated buffer block.*/
 buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
@@ -249,7 +249,7 @@ buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
     flst_add_last(free_lst, cur, m_mtr);
     cur += index_entry_t::SIZE;
   }
-  ut_ad(flst_validate(free_lst, m_mtr));
+  ut_d(flst_validate(free_lst, m_mtr));
   set_next_page_null();
   ut_ad(get_page_type() == FIL_PAGE_TYPE_LOB_FIRST);
   return (m_block);
@@ -257,7 +257,7 @@ buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
 
 /** Allocate one index entry.  If required an index page (of type
 FIL_PAGE_TYPE_LOB_INDEX) will be allocated.
-@param[in]	bulk	true if it is a bulk operation
+@param[in]      bulk    true if it is a bulk operation
                         (OPCODE_INSERT_BULK), false otherwise.
 @return the file list node of the index entry. */
 flst_node_t *first_page_t::alloc_index_entry(bool bulk) {
@@ -287,26 +287,36 @@ void first_page_t::free_all_data_pages() {
   flst_base_node_t *flst = index_list();
   fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
+  const page_no_t first_page_no = get_page_no();
   while (!fil_addr_is_null(node_loc)) {
     flst_node_t *node = addr2ptr_x(node_loc, &local_mtr);
     cur_entry.reset(node);
+    cur_entry.free_data_page(first_page_no);
 
-    page_no_t page_no = cur_entry.get_page_no();
+    flst_base_node_t *vers = cur_entry.get_versions_list();
+    fil_addr_t ver_loc = flst_get_first(vers, &local_mtr);
 
-    if (page_no != get_page_no() && page_no != FIL_NULL) {
-      data_page_t data_page(&local_mtr, m_index);
-      data_page.load_x(page_no);
-      data_page.dealloc();
-      cur_entry.set_page_no(FIL_NULL);
+    while (!fil_addr_is_null(ver_loc)) {
+      flst_node_t *ver_node = addr2ptr_x(ver_loc, &local_mtr);
+      index_entry_t vers_entry(ver_node, &local_mtr, m_index);
+      vers_entry.free_data_page(first_page_no);
+      ver_loc = vers_entry.get_next();
+
+      ut_ad(!local_mtr.conflicts_with(m_mtr));
+      restart_mtr(&local_mtr);
+      node = addr2ptr_x(node_loc, &local_mtr);
+      cur_entry.reset(node);
     }
-
+    cur_entry.set_versions_null();
     node_loc = cur_entry.get_next();
     cur_entry.reset(nullptr);
 
     ut_ad(!local_mtr.conflicts_with(m_mtr));
     restart_mtr(&local_mtr);
   }
-
+  flst_init(flst, &local_mtr);
+  byte *free_lst = free_list();
+  flst_init(free_lst, &local_mtr);
   ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
 }
@@ -349,7 +359,7 @@ void first_page_t::free_all_index_pages() {
 @return the buffer block of the first page. */
 buf_block_t *first_page_t::load_x(const page_id_t &page_id,
                                   const page_size_t &page_size, mtr_t *mtr) {
-  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, mtr);
+  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
   ut_ad(m_block != nullptr);
 #ifdef UNIV_DEBUG
@@ -402,9 +412,9 @@ void first_page_t::mark_cannot_be_partially_updated(trx_t *trx) {
 }
 
 /** Read data from the first page.
-@param[in]	offset	the offset from where read starts.
-@param[out]	ptr	the output buffer
-@param[in]	want	number of bytes to read.
+@param[in]      offset  the offset from where read starts.
+@param[out]     ptr     the output buffer
+@param[in]      want    number of bytes to read.
 @return number of bytes read. */
 ulint first_page_t::read(ulint offset, byte *ptr, ulint want) {
   byte *start = data_begin();
@@ -417,9 +427,9 @@ ulint first_page_t::read(ulint offset, byte *ptr, ulint want) {
 }
 
 /** Write as much as possible of the given data into the page.
-@param[in]	trxid	the current transaction.
-@param[in]	data	the data to be written.
-@param[in]	len	the length of the given data.
+@param[in]      trxid   the current transaction.
+@param[in]      data    the data to be written.
+@param[in]      len     the length of the given data.
 @return number of bytes actually written. */
 ulint first_page_t::write(trx_id_t trxid, const byte *&data, ulint &len) {
   byte *ptr = data_begin();
@@ -469,10 +479,18 @@ void first_page_t::destroy() {
 void first_page_t::make_empty() {
   free_all_data_pages();
   free_all_index_pages();
-  byte *free_lst = free_list();
-  byte *index_lst = index_list();
-  flst_init(index_lst, m_mtr);
-  flst_init(free_lst, m_mtr);
+}
+
+flst_node_t *first_page_t::addr2ptr_x(const fil_addr_t &addr,
+                                      mtr_t *mtr) const {
+  const space_id_t space = dict_index_get_space(m_index);
+  const page_size_t page_size = dict_table_page_size(m_index->table);
+  buf_block_t *block = nullptr;
+  flst_node_t *result =
+      fut_get_ptr(space, page_size, addr, RW_X_LATCH, mtr, &block);
+  const page_type_t type = block->get_page_type();
+  ut_a(type == FIL_PAGE_TYPE_LOB_FIRST || type == FIL_PAGE_TYPE_LOB_INDEX);
+  return result;
 }
 
 }  // namespace lob

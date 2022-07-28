@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,8 @@ class Sql_cmd_uninstall_component : public Sql_cmd {
 */
 class Deployed_components final {
  public:
-  explicit Deployed_components(const std::string program_name);
+  explicit Deployed_components(const std::string program_name,
+                               const std::string instance_path);
   ~Deployed_components();
   bool valid() const { return valid_; }
   bool components_loaded() const { return loaded_; }
@@ -104,6 +105,7 @@ class Deployed_components final {
 
  private:
   std::string program_name_;
+  std::string instance_path_;
   std::string components_;
   std::string last_error_;
   bool valid_;

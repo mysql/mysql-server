@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ Indexes::Indexes() {
                          "table_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
-                             String_type(name_collation()->name));
+                             String_type(name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_TYPE, "FIELD_TYPE",
                          "type ENUM(\n"
                          "  'PRIMARY',\n"
@@ -87,8 +87,9 @@ Indexes::Indexes() {
                          "se_private_data MEDIUMTEXT");
   m_target_def.add_field(FIELD_TABLESPACE_ID, "FIELD_TABLESPACE_ID",
                          "tablespace_id BIGINT UNSIGNED");
-  m_target_def.add_field(FIELD_ENGINE, "FIELD_ENGINE",
-                         "engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+  m_target_def.add_field(
+      FIELD_ENGINE, "FIELD_ENGINE",
+      "engine VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci");
   m_target_def.add_field(FIELD_ENGINE_ATTRIBUTE, "FIELD_ENGINE_ATTRIBUTE",
                          "engine_attribute JSON");
   m_target_def.add_field(FIELD_SECONDARY_ENGINE_ATTRIBUTE,

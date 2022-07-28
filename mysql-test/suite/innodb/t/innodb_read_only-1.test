@@ -143,7 +143,6 @@ UNLOCK TABLES;
 #------------------------------------------------------------------------------
 #
 
-let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 DROP USER 'test1'@'localhost';
 DROP USER 'test2'@'localhost';
@@ -321,7 +320,6 @@ UNLOCK TABLES;
 # clean-up
 #------------------------------------------------------------------------------
 #
-let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 DROP DATABASE testdb_wl6445;
 
@@ -407,7 +405,6 @@ UNLOCK TABLES;
 #------------------------------------------------------------------------------
 #
 
-let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 DROP DATABASE testdb_wl6445;
 
@@ -441,12 +438,9 @@ let $innodb_change_buffering_orig = `select @@innodb_change_buffering`;
 let $innodb_print_all_deadlocks_orig = `select @@innodb_print_all_deadlocks`;
 
 
-SET GLOBAL innodb_fast_shutdown = 0;
---disable_query_log
-CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
---enable_query_log
-let $restart_parameters = restart: --innodb-read-only --innodb_purge_threads=5 --innodb_buffer_pool_size=16M;
---source include/restart_mysqld.inc
+let $extra_restart_parameters = --innodb_purge_threads=5 --innodb_buffer_pool_size=16M;
+--source include/restart_innodb_read_only.inc
+let $extra_restart_parameters = ;
 
 SET GLOBAL innodb_max_purge_lag = 10;
 SET GLOBAL innodb_max_purge_lag_delay = 10;
@@ -496,7 +490,6 @@ eval SET GLOBAL innodb_print_all_deadlocks = $innodb_print_all_deadlocks_orig;
 #------------------------------------------------------------------------------
 #
 
-let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 DROP DATABASE testdb_wl6445;
 
@@ -517,12 +510,9 @@ INSERT INTO t1 VALUES (4,'mysql database'),(5,'mysql database innodb support'),(
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
 
-SET GLOBAL innodb_fast_shutdown = 0;
---disable_query_log
-CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
---enable_query_log
-let $restart_parameters = restart: --innodb-read-only --read-only;
---source include/restart_mysqld.inc
+let $extra_restart_parameters = --read-only;
+--source include/restart_innodb_read_only.inc
+let $extra_restart_parameters = ;
 USE testdb_wl6445;
 show tables;
 select * from t1 where i = 4;
@@ -542,6 +532,7 @@ CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
 
 let $restart_parameters = restart: --read-only;
 --source include/restart_mysqld.inc
+let $restart_parameters = restart;
 USE testdb_wl6445;
 # check if root user able to do DML/DDL
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
@@ -560,7 +551,6 @@ GRANT ALL ON testdb_wl6445.* TO 'test5_2'@'localhost';
 #------------------------------------------------------------------------------
 #
 
-let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 DROP USER 'test5_2'@'localhost';
 DROP DATABASE testdb_wl6445;
@@ -608,7 +598,6 @@ SELECT i FROM t1 ORDER BY i;
 #------------------------------------------------------------------------------
 # clean-up
 #------------------------------------------------------------------------------
-let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 DROP DATABASE testdb_wl6445;
 --rmdir $MYSQL_TMP_DIR/alt_dir/testdb_wl6445

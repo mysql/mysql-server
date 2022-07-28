@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+DISABLE_MISSING_PROFILE_WARNING()
 
 # These are the headers required to #include <mysql.h>, which we ship
 # to the client as part of our API.
@@ -61,3 +63,29 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
     COMPONENT Development
     )
 ENDIF()
+
+SET(INSTALLED_HEADERS_CC ${CMAKE_CURRENT_BINARY_DIR}/installed_headers.cc)
+SET(INSTALLED_HEADERS_CONTENT "")
+FOREACH(HEADER ${HEADERS} ${HEADERS_MYSQL_DIR})
+  STRING_APPEND(INSTALLED_HEADERS_CONTENT "#include \"${HEADER}\"")
+  STRING_APPEND(INSTALLED_HEADERS_CONTENT "\n")
+ENDFOREACH()
+STRING_APPEND(INSTALLED_HEADERS_CONTENT
+  "int main(int, char **) { return 0; }"
+  )
+
+CONFIGURE_FILE_CONTENT("${INSTALLED_HEADERS_CONTENT}"
+  ${INSTALLED_HEADERS_CC}
+  )
+
+# Verifies that all installed headers comply with -std=c++11
+# i.e. no c++17 features used.
+# VS/clang on windows do not accept /std:c++11
+MYSQL_ADD_EXECUTABLE(installed_headers
+  ${INSTALLED_HEADERS_CC}
+  DEPENDENCIES GenError
+  SKIP_INSTALL
+  )
+# This will add -std=gnu++11 for compilers which support it.
+# It will be silently ignored on Windows.
+SET_PROPERTY(TARGET installed_headers PROPERTY CXX_STANDARD 11)

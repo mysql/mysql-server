@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysql/components/services/psi_error_bits.h"
+#include "mysql/components/services/bits/psi_error_bits.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysqld_error.h"     // ER_*
 #include "sql/derror.h"       // ER_THD

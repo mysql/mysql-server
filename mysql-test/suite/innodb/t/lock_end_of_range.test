@@ -530,8 +530,8 @@ DROP TABLE t1;
 # In this scenario, we test what happens when semi-consistent read is involved.
 # In particular con1 locks row with id=6 while deleting it, and con2 tries
 # to lock rows with id<=6 while updating them using semi-consistent read.
-# This scenario is interesting, because when con2 goes notices it would have to
-# wait, it cancels it's own waiting lock, and reports the old (non-deleted)
+# This scenario is interesting, because when con2 notices it would have to
+# wait, it avoids creating a waiting lock, and reports the old (non-deleted)
 # version of the row to the higher layer, which then retries the read, this time
 # with proper locking enabled - so it is interesting what would happen if con1
 # have had commited the delete meanwhile.
@@ -557,7 +557,7 @@ INSERT INTO t1 (id,val) VALUES (1,1),(2,2) ,(3,3), (4,4), (5,5), (6,6),   (9,9);
   SET DEBUG_SYNC='
     semi_consistent_read_would_wait
     SIGNAL con2_would_wait
-    WAIT_FOR con2_can_unlock';
+    WAIT_FOR con2_can_peek';
   SET DEBUG_SYNC='
     row_search_for_mysql_before_return
     SIGNAL con2_returns_row
@@ -581,7 +581,7 @@ INSERT INTO t1 (id,val) VALUES (1,1),(2,2) ,(3,3), (4,4), (5,5), (6,6),   (9,9);
   SELECT index_name, lock_type, lock_mode, lock_status, lock_data
     FROM performance_schema.data_locks
     WHERE object_name='t1';
-  SET DEBUG_SYNC='now SIGNAL con2_can_unlock';
+  SET DEBUG_SYNC='now SIGNAL con2_can_peek';
   SET DEBUG_SYNC='now WAIT_FOR con2_returns_row';
   --sorted_result
   SELECT index_name, lock_type, lock_mode, lock_status, lock_data

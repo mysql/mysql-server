@@ -1,3 +1,4 @@
+--source include/not_valgrind.inc
 
 # Check the default value
 SET @orig = @@global.innodb_checksum_algorithm;

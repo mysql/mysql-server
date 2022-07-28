@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,12 +40,13 @@
 #include "mock_server_testutils.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"  // ::join
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "temp_dir.h"
+#include "test/helpers.h"
+#include "test/temp_directory.h"
 
 using namespace std::string_literals;
 
@@ -169,7 +170,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
   init_keyring(default_section, conf_dir_.name());
 
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
+      conf_dir_.name(), mysql_harness::join(config_sections, ""),
       &default_section, "mysqlrouter.conf", "connect_timeout=1")};
 
   SCOPED_TRACE("// starting router");
@@ -867,8 +868,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/status",
      "/routes/{routeName}/status",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect |
-         HttpMethod::Head,
+         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Head,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -877,8 +877,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
     {"routes_invalid_methods", std::string(rest_api_basepath) + "/routes",
      "/routes",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect |
-         HttpMethod::Head,
+         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Head,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -888,8 +887,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/config",
      "/routes/{routeName}/config",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -899,8 +897,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/health",
      "/routes/{routeName}/health",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -910,8 +907,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/destinations",
      "/routes/{routeName}/destinations",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -921,8 +917,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/blockedHosts",
      "/routes/{routeName}/blockedHosts",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -932,8 +927,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/connections",
      "/routes/{routeName}/connections",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -967,13 +961,13 @@ TEST_F(RestRoutingApiTest, routing_api_no_auth) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
-  EXPECT_THAT(router_output, ::testing::HasSubstr(
-                                 "  init 'rest_routing' failed: option "
-                                 "require_realm in [rest_routing] is required"))
-      << router_output;
+  const std::string router_output = router.get_logfile_content();
+  EXPECT_THAT(
+      router_output,
+      ::testing::HasSubstr("  init 'rest_routing' failed: option "
+                           "require_realm in [rest_routing] is required"));
 }
 
 /**
@@ -991,9 +985,9 @@ TEST_F(RestRoutingApiTest, invalid_realm) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(
       router_output,
       ::testing::HasSubstr(
@@ -1035,7 +1029,7 @@ TEST_F(RestRoutingApiTest, rest_routing_section_twice) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_output();
   EXPECT_THAT(router_output,
@@ -1059,9 +1053,9 @@ TEST_F(RestRoutingApiTest, rest_routing_section_has_key) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(router_output, ::testing::HasSubstr(
                                  "  init 'rest_routing' failed: [rest_routing] "
                                  "section does not expect a key, found 'A'"))
@@ -1161,7 +1155,7 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
   init_keyring(default_section, conf_dir_.name());
 
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
+      conf_dir_.name(), mysql_harness::join(config_sections, ""),
       &default_section)};
 
   ProcessWrapper &http_server =

@@ -1,0 +1,33 @@
+libfido2 can be fuzzed using AFL or libFuzzer, with or without
+ASAN/MSAN/UBSAN.
+
+AFL is more convenient when fuzzing the path from the authenticator to
+libfido2 in an existing application. To do so, use preload-snoop.c with a real
+authenticator to obtain an initial corpus, rebuild libfido2 with -DFUZZ=ON, and
+use preload-fuzz.c to read device data from stdin.
+
+libFuzzer is better suited for bespoke fuzzers; see fuzz_cred.c, fuzz_credman.c,
+fuzz_assert.c, fuzz_hid.c, and fuzz_mgmt.c for examples. To build these
+harnesses, use -DFUZZ=ON -DLIBFUZZER=ON.
+
+To run under ASAN/MSAN/UBSAN, libfido2 needs to be linked against flavours of
+libcbor and OpenSSL built with the respective sanitiser. In order to keep
+memory utilisation at a manageable level, you can either enforce limits at
+the OS level (e.g. cgroups on Linux), or patch libcbor with the diff below.
+
+diff --git src/cbor/internal/memory_utils.c src/cbor/internal/memory_utils.c
+index aa049a2..e294b38 100644
+--- src/cbor/internal/memory_utils.c
++++ src/cbor/internal/memory_utils.c
+@@ -28,7 +28,10 @@ bool _cbor_safe_to_multiply(size_t a, size_t b) {
+ 
+ void* _cbor_alloc_multiple(size_t item_size, size_t item_count) {
+   if (_cbor_safe_to_multiply(item_size, item_count)) {
+-    return _CBOR_MALLOC(item_size * item_count);
++    if (item_count > 1000) {
++      return NULL;
++    } else
++      return _CBOR_MALLOC(item_size * item_count);
+   } else {
+     return NULL;
+   }

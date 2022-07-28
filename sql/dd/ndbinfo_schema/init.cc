@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,21 +78,18 @@ static bool check_ndbinfo_schema_has_correct_version(THD *thd) {
   return tag_exists ? (version == MYSQL_VERSION_ID) : false;
 }
 
-static bool drop_and_create_table(THD *thd, const Plugin_table &table) {
+static bool drop_object(THD *thd, const Plugin_table &table) {
   dd::String_type drop_sql("DROP ");
   drop_sql.append(table.get_object_type());  // TABLE or VIEW
   drop_sql.append(" IF EXISTS ").append(table.get_qualified_name());
 
-  if (dd::execute_query(thd, drop_sql)) return true;
+  return dd::execute_query(thd, drop_sql);
+}
 
+static bool create_object(THD *thd, const Plugin_table &table) {
   if (table.get_table_definition()) {
-    /* Create schema if needed */
-    if (create_schema(thd, table.get_schema_name())) return true;
-
-    /* Create table */
     if (dd::execute_query(thd, table.get_ddl())) return true;
   }
-
   return false;  // success
 }
 
@@ -142,15 +139,21 @@ static bool initialize_ndbinfo(THD *thd) {
                       &ndbinfo_tables, nullptr))
     return true;
 
-  // Create and use the ndbinfo schema
+  // Create the ndbinfo schema
   if (create_schema(thd, "ndbinfo")) return true;
-  if (dd::execute_query(thd, dd::String_type("USE ndbinfo"))) return true;
 
-  // Create each table or view defined in the list
+  // Drop all known tables & views (current version and previous versions)
   bool failed = false;
   for (const Plugin_table &table : ndbinfo_tables) {
     if (!failed) {
-      failed = drop_and_create_table(thd, table);
+      failed = drop_object(thd, table);
+    }
+  }
+
+  // Create the current set of tables and views
+  for (const Plugin_table &table : ndbinfo_tables) {
+    if (!failed) {
+      failed = create_object(thd, table);
     }
   }
 

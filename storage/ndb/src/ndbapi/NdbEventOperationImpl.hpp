@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #define NdbEventOperationImpl_H
 
 #include <cstring>
+#include <vector>
+
 #include <NdbEventOperation.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <NdbRecAttr.hpp>
@@ -58,6 +60,36 @@ typedef enum ndb_logevent_event_buffer_status_report_reason ReportReason;
 
 class NdbEventOperationImpl;
 class EpochData;
+class EventBufDataHead;
+
+/////////////////////////////////
+
+/**
+ * EventBufAllocator is a C++ STL memory allocator.
+ *
+ * It can be used to construct STL container objects which allocate
+ * its memory in the NdbEventBuffer
+ */
+template <class T>
+class EventBufAllocator
+{
+ public:
+  typedef T value_type;
+
+  EventBufAllocator (NdbEventBuffer* e) : m_eventBuffer(e) {}
+
+  template <class U> constexpr
+    EventBufAllocator (const EventBufAllocator <U>&other) noexcept
+      : m_eventBuffer(other.m_eventBuffer)
+  {}
+
+  [[nodiscard]] T* allocate(std::size_t n);
+  void deallocate(T* p, std::size_t n) noexcept;
+
+  NdbEventBuffer *const m_eventBuffer;
+};
+
+/////////////////////////////////
 
 class EventBufData
 {
@@ -76,23 +108,40 @@ public:
    * Data item lists keep track of item count and sum(sz) and
    * these include both main items and blob parts.
    */
-
-  EventBufData *m_next; // Next wrt to global order or Next blob part
+  union {               // Next wrt to global order or Next blob part
+    EventBufData *m_next;
+    EventBufDataHead *m_next_main;
+  };
   EventBufData *m_next_blob; // First part in next blob
-
-  EventBufData *m_next_hash; // Next in per-GCI hash
-  Uint32 m_pkhash; // PK hash (without op) for fast compare
+  EventBufDataHead *m_main; // Head of set of events
 
   EventBufData()
     : memory(NULL),
       m_event_op(NULL), m_next(NULL), m_next_blob(NULL)
   {}
 
+  size_t get_this_size() const;
+
+  // Debug/assert only, else prefer size/count in EventBufDataHead
   Uint32 get_count() const;
-  Uint32 get_size() const;
+  size_t get_size() const;
   Uint64 getGCI() const;
 };
 
+/**
+ * The 'main' EventBufData aggregates the total volume blob-parts
+ * available through the m_next_blob chains.
+ */
+class EventBufDataHead : public EventBufData
+{
+public:
+  EventBufDataHead()
+    : m_event_count(0), m_data_size(0)
+  {}
+
+  Uint32 m_event_count;
+  size_t m_data_size;
+};
 
 /**
  * The MonotonicEpoch class provides a monotonic increasing epoch
@@ -234,28 +283,47 @@ private:
 class EventBufData_hash
 {
 public:
-  struct Pos { // search result
-    Uint32 index;       // index into hash array
-    EventBufData* data; // non-zero if found
-    Uint32 pkhash;      // PK hash
+  EventBufData_hash(NdbEventBuffer *event_buffer);
+
+  void clear();
+
+  struct Pos { // Hash head, and search result
+    Uint32 pkhash;        // PK hash
+    Uint32 event_id;      // Id of event operation
+    union {               // hash either blob_data or main_data
+      EventBufData* data; // non-null if found
+      EventBufDataHead* main_data;
+    };
   };
 
-  static Uint32 getpkhash(NdbEventOperationImpl* op, const LinearSectionPtr ptr[3]);
-  static bool getpkequal(NdbEventOperationImpl* op, const LinearSectionPtr ptr1[3], const LinearSectionPtr ptr2[3]);
+  void append(const Pos hpos);
+  EventBufData* search(Pos& hpos, NdbEventOperationImpl* op,
+                       const LinearSectionPtr ptr[3]);
 
-  void search(Pos& hpos, NdbEventOperationImpl* op, const LinearSectionPtr ptr[3]);
-  void append(Pos& hpos, EventBufData* data);
+private:
+  // Allocate and move into a larger m_hash[]
+  void expand();
 
-  enum { GCI_EVENT_HASH_SIZE = 101 };
-  EventBufData* m_hash[GCI_EVENT_HASH_SIZE];
+  static Uint32 getpkhash(NdbEventOperationImpl* op,
+                          const LinearSectionPtr ptr[3]);
+
+  static bool getpkequal(NdbEventOperationImpl* op,
+                         const LinearSectionPtr ptr1[3],
+                         const LinearSectionPtr ptr2[3]);
+
+  NdbEventBuffer *m_event_buffer;
+
+  // We start out with a m_hash[] of SIZE_MIN.
+  // It will expand on demand, being allocated from m_event_buffer.
+  static constexpr int GCI_EVENT_HASH_SIZE_MIN = 37;
+  static constexpr int GCI_EVENT_HASH_SIZE_MAX = 4711;
+
+  typedef std::vector<Pos,EventBufAllocator<Pos>> HashBucket;
+  HashBucket *m_hash;
+  size_t m_hash_size;
+  size_t m_element_count;
 };
 
-inline
-void EventBufData_hash::append(Pos& hpos, EventBufData* data)
-{
-  data->m_next_hash = m_hash[hpos.index];
-  m_hash[hpos.index] = data;
-}
 
 /**
  * The Gci_container creates a collection of EventBufData and
@@ -274,19 +342,20 @@ struct Gci_op  //A helper
 class Gci_container
 {
 public:
-  Gci_container(NdbEventBuffer* event_buffer)
-  : m_event_buffer(event_buffer),
-    m_state(0),
-    m_gcp_complete_rep_count(0),
-    m_gcp_complete_rep_sub_data_streams(),
-    m_gci(0),
-    m_head(NULL), m_tail(NULL),
-    m_gci_op_list(NULL),
-    m_gci_op_count(0),
-    m_gci_op_alloc(0)
-  {
-    std::memset(&m_data_hash, 0, sizeof(m_data_hash));
-  }
+ Gci_container(NdbEventBuffer *event_buffer = nullptr)
+     : m_event_buffer(event_buffer),
+       m_state(0),
+       m_gcp_complete_rep_count(0),
+       m_gcp_complete_rep_sub_data_streams(),
+       m_gci(0),
+       m_head(NULL),
+       m_tail(NULL),
+       m_data_hash(event_buffer),
+       m_gci_op_list(NULL),
+       m_gci_op_count(0),
+       m_gci_op_alloc(0)
+ {
+ }
 
   void clear()
   {
@@ -296,7 +365,7 @@ public:
     m_gcp_complete_rep_sub_data_streams.clear();
     m_gci = 0;
     m_head = m_tail = NULL;
-    std::memset(&m_data_hash, 0, sizeof(m_data_hash));
+    m_data_hash.clear();
 
     m_gci_op_list = NULL;
     m_gci_op_count = 0;
@@ -314,14 +383,14 @@ public:
     ,GC_OUT_OF_MEMORY = 0x8 // Not enough event buffer memory to buffer data
   };
 
-  NdbEventBuffer *const m_event_buffer;  //Owner
+  NdbEventBuffer *m_event_buffer;  //Owner
 
   Uint16 m_state;
   Uint16 m_gcp_complete_rep_count; // Remaining SUB_GCP_COMPLETE_REP until done
   Bitmask<(MAX_SUB_DATA_STREAMS+31)/32> m_gcp_complete_rep_sub_data_streams;
   Uint64 m_gci;                    // GCI
 
-  EventBufData *m_head, *m_tail;
+  EventBufDataHead *m_head, *m_tail;
   EventBufData_hash m_data_hash;
 
   Gci_op *m_gci_op_list;
@@ -338,16 +407,11 @@ public:
   void add_gci_op(Gci_op g);
 
   // append data and insert data into Gci_op list with add_gci_op
-  void append_data(EventBufData *data);
+  void append_data(EventBufDataHead *data);
 
   // Create an EpochData containing the Gci_op and event data added above.
   // This effectively 'completes' the epoch represented by this Gci_container
   EpochData* createEpochData(Uint64 gci);
-};
-
-struct Gci_container_pod
-{
-  char data[sizeof(Gci_container)];
 };
 
 
@@ -370,7 +434,7 @@ class EpochData
 public:
   EpochData(MonotonicEpoch gci,
             Gci_op *gci_op_list, Uint32 count,
-            EventBufData *data)
+            EventBufDataHead *data)
     : m_gci(gci),
       m_error(0),
       m_gci_op_count(count),
@@ -387,7 +451,7 @@ public:
   Uint32 m_error;
   Uint32 const m_gci_op_count;
   Gci_op* const m_gci_op_list;  //All event_op receiving an event
-  EventBufData* m_data;         //All event data within epoch
+  EventBufDataHead* m_data;     //All event data within epoch
   EpochData *m_next;            //Next completed epoch
 };
 
@@ -451,7 +515,7 @@ public:
   }
 
   // find first event data to be delivered.
-  EventBufData *get_first_event_data() const
+  EventBufDataHead *get_first_event_data() const
   {
     EpochData *epoch = m_head;
     while (epoch != NULL)
@@ -464,15 +528,14 @@ public:
   }
 
   // get and consume first EventData
-  EventBufData *consume_first_event_data()
+  EventBufDataHead *consume_first_event_data()
   {
     EpochData *epoch = m_head;
     if (epoch != NULL)
     {
-      EventBufData *data = epoch->m_data;
+      EventBufDataHead *data = epoch->m_data;
       if (data != NULL)
-        m_head->m_data = data->m_next;
-    
+        m_head->m_data = data->m_next_main;
       return data;
     }
     return NULL;
@@ -489,11 +552,11 @@ public:
 class NdbEventOperationImpl : public NdbEventOperation {
 public:
   NdbEventOperationImpl(NdbEventOperation &f,
-			Ndb *theNdb, 
-			const char* eventName);
-  NdbEventOperationImpl(Ndb *theNdb, 
-			NdbEventImpl& evnt);
-  void init(NdbEventImpl& evnt);
+                        Ndb *ndb,
+                        const NdbDictionary::Event* event);
+  NdbEventOperationImpl(Ndb *theNdb,
+                        NdbEventImpl *evnt);
+  void init();
   NdbEventOperationImpl(NdbEventOperationImpl&); //unimplemented
   NdbEventOperationImpl& operator=(const NdbEventOperationImpl&); //unimplemented
   ~NdbEventOperationImpl();
@@ -527,16 +590,17 @@ public:
   NdbDictionary::Event::TableEvent getEventType2();
 
   void print();
-  void printAll();
 
   NdbEventOperation *m_facade;
   Uint32 m_magic_number;
 
   const NdbError & getNdbError() const;
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
-  Ndb *m_ndb;
-  NdbEventImpl *m_eventImpl;
+  Ndb *const m_ndb;
+  // The Event is owned by pointer to NdbEventImpl->m_facade
+  NdbEventImpl *const m_eventImpl;
 
   NdbRecAttr *theFirstPkAttrs[2];
   NdbRecAttr *theCurrentPkAttrs[2];
@@ -552,7 +616,6 @@ public:
   Uint32 mi_type; /* should be == 0 if m_state != EO_EXECUTING
 		   * else same as in EventImpl
 		   */
-  Uint32 m_eventId;
   Uint32 m_oid;
 
   /*
@@ -773,13 +836,13 @@ public:
   Uint16 m_min_gci_index;
   Uint16 m_max_gci_index;
   Vector<Uint64> m_known_gci;
-  Vector<Gci_container_pod> m_active_gci;
+  Vector<Gci_container> m_active_gci;
   static constexpr Uint32 ACTIVE_GCI_DIRECTORY_SIZE = 4;
   static constexpr Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
 
   NdbEventOperation *createEventOperation(const char* eventName,
 					  NdbError &);
-  NdbEventOperationImpl *createEventOperationImpl(NdbEventImpl& evnt,
+  NdbEventOperationImpl *createEventOperationImpl(NdbEventImpl* evnt,
                                                   NdbError &);
   void dropEventOperation(NdbEventOperation *);
   static NdbEventOperationImpl* getEventOperationImpl(NdbEventOperation* tOp);
@@ -838,7 +901,7 @@ public:
   bool is_exceptional_epoch(EventBufData *data);
 
   // Consume current EventData and dequeue next for consumption 
-  EventBufData *nextEventData();
+  EventBufDataHead *nextEventData();
 
   // Dequeue event data from event queue and give it for consumption.
   NdbEventOperation *nextEvent2();
@@ -850,10 +913,11 @@ public:
                                                  Uint32* cumulative_any_value);
   void deleteUsedEventOperations(MonotonicEpoch last_consumed_gci);
 
-  EventBufData *move_data();
+  EventBufDataHead *move_data();
 
   // routines to copy/merge events
   EventBufData* alloc_data();
+  EventBufDataHead* alloc_data_main();
   int alloc_mem(EventBufData* data,
                 const LinearSectionPtr ptr[3]);
   int copy_data(const SubTableData * const sdata, Uint32 len,
@@ -865,9 +929,7 @@ public:
   int get_main_data(Gci_container* bucket,
                     EventBufData_hash::Pos& hpos,
                     EventBufData* blob_data);
-  void add_blob_data(Gci_container* bucket,
-                     EventBufData* main_data,
-                     EventBufData* blob_data);
+  void add_blob_data(EventBufDataHead *main_data, EventBufData *blob_data);
 
   void *alloc(Uint32 sz);
   Uint32 get_free_data_sz() const;
@@ -941,9 +1003,10 @@ public:
   unsigned m_gci_slip_thresh;
   NDB_TICKS m_last_log_time; // Limit frequency of event buffer status reports
 
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
-private:
+ private:
   void insert_event(NdbEventOperationImpl* impl,
                     SubTableData &data,
                     const LinearSectionPtr *ptr,

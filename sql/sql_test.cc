@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,7 @@
 #include "sql/events.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
 #include "sql/keycaches.h"
 #include "sql/mysqld.h"              // LOCK_status
@@ -55,7 +56,8 @@
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/psi_memory_key.h"
-#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
+#include "sql/range_optimizer/path_helpers.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -134,7 +136,7 @@ void TEST_join(JOIN *join) {
             form->alias, join_type_str[tab->type()],
             tab->keys().print(key_map_buff), tab->ref().key_parts,
             tab->ref().key, tab->ref().key_length);
-    if (tab->quick()) {
+    if (tab->range_scan()) {
       char buf[MAX_KEY / 8 + 1];
       if (tab->use_quick == QS_DYNAMIC_RANGE)
         fprintf(DBUG_FILE,
@@ -143,7 +145,7 @@ void TEST_join(JOIN *join) {
                 form->quick_keys.print(buf));
       else {
         fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->quick()->dbug_dump(18, false);
+        dbug_dump(tab->range_scan(), 18, false);
       }
     }
     if (tab->ref().key_parts) {
@@ -287,10 +289,8 @@ static inline int dl_compare(const TABLE_LOCK_INFO *a,
                              const TABLE_LOCK_INFO *b) {
   if (a->thread_id > b->thread_id) return 1;
   if (a->thread_id < b->thread_id) return -1;
-  if (a->waiting == b->waiting)
-    return 0;
-  else if (a->waiting)
-    return -1;
+  if (a->waiting == b->waiting) return 0;
+  if (a->waiting) return -1;
   return 1;
 }
 

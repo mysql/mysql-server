@@ -1,0 +1,31 @@
+DELIMITER |;
+CREATE PROCEDURE check_memory(IN psi_key CHAR(64))
+BEGIN
+  SELECT ROUND((SUM_NUMBER_OF_BYTES_ALLOC-SUM_NUMBER_OF_BYTES_FREE)/1024.0)
+  FROM performance_schema.memory_summary_global_by_event_name
+  WHERE event_name = CONCAT("memory/innodb/", psi_key);
+END;|
+DELIMITER ;|
+
+--echo #
+--echo # Test memory allocations related to innodb_log_buffer_size changes
+--echo #
+
+--let $pfs_key = 'log_buffer_memory'
+
+--let $orig_log_buffer_size = `SELECT @@innodb_log_buffer_size`
+--eval CALL check_memory($pfs_key)
+
+SET GLOBAL innodb_log_buffer_size = 32*1024*1024;
+--eval CALL check_memory($pfs_key)
+
+SET GLOBAL innodb_log_buffer_size = 64*1024*1024;
+--eval CALL check_memory($pfs_key)
+
+SET GLOBAL innodb_log_buffer_size = 4*1024*1024;
+--eval CALL check_memory($pfs_key)
+
+--eval SET GLOBAL innodb_log_buffer_size = $orig_log_buffer_size
+--eval CALL check_memory($pfs_key)
+
+DROP PROCEDURE check_memory;

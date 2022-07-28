@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,11 @@ unsigned ConnectionContainer::disconnect(const AllowedNodes &nodes) {
       [&nodes, &number_of_disconnected_connections](
           std::pair<MySQLRoutingConnectionBase *const,
                     std::unique_ptr<MySQLRoutingConnectionBase>> &connection) {
-        if (std::find(nodes.begin(), nodes.end(),
-                      connection.first->get_destination_id()) == nodes.end()) {
+        if (std::find_if(nodes.begin(), nodes.end(),
+                         [&connection](const auto &node) {
+                           return node.address.str() ==
+                                  connection.first->get_destination_id();
+                         }) == nodes.end()) {
           const auto server_address = connection.first->get_server_address();
           const auto client_address = connection.first->get_client_address();
 

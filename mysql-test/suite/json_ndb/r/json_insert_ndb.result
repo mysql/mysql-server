@@ -123,8 +123,6 @@ Warning	1478	Table storage engine 'ndbcluster' does not support the create optio
 create table pt2(j json);
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
-prepare ps1 from 'insert into pt1 values (cast(? as json))';
-prepare ps2 from 'insert into pt2 values (?)';
 set @a=123;
 set @b='123';
 set @c=3.14;
@@ -132,24 +130,38 @@ set @d=3.14E1;
 set @e='"123"';
 set @f='2010-12-01 18:44:25';
 set @g=null;
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @a;
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @b;
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @c;
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @d;
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @e;
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @f;
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 4.
+prepare ps1 from 'insert into pt1 values (cast(? as json))';
 execute ps1 using @g;
+prepare ps2 from 'insert into pt2 values (?)';
 execute ps2 using @a;
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'pt2.j'.
+prepare ps2 from 'insert into pt2 values (?)';
 execute ps2 using @b;
+prepare ps2 from 'insert into pt2 values (?)';
 execute ps2 using @c;
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'pt2.j'.
+prepare ps2 from 'insert into pt2 values (?)';
 execute ps2 using @d;
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'pt2.j'.
+prepare ps2 from 'insert into pt2 values (?)';
 execute ps2 using @e;
+prepare ps2 from 'insert into pt2 values (?)';
 execute ps2 using @f;
 ERROR 22032: Invalid JSON text: "The document root must not be followed by other values." at position 4 in value for column 'pt2.j'.
+prepare ps2 from 'insert into pt2 values (?)';
 execute ps2 using @g;
 select json_type(j), j from pt1 order by j;
 json_type(j)	j
@@ -177,6 +189,8 @@ execute ps1 using @json_latin1;
 execute ps2 using @json_utf8;
 execute ps2 using @json_latin1;
 set @string_ucs2=_ucs2 0x0627064A0631062706460650;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select HEX(CONVERT(@string_ucs2 USING utf8mb4));
 HEX(CONVERT(@string_ucs2 USING utf8mb4))
 D8A7D98AD8B1D8A7D986D990

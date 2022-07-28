@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,7 +187,7 @@ int STDCALL mysql_server_init(int argc [[maybe_unused]],
     the library.
 
     To make things simpler when used with windows dll's (which calls this
-    function automaticly), it's safe to call this function multiple times.
+    function automatically), it's safe to call this function multiple times.
 */
 
 void STDCALL mysql_server_end() {
@@ -558,7 +558,7 @@ static int default_local_infile_init(void **ptr, const char *filename,
     default_local_infile_read()
     ptr			Points to handle allocated by _init
     buf			Read data here
-    buf_len		Ammount of data to read
+    buf_len		Amount of data to read
 
   RETURN
     > 0		number of bytes read
@@ -608,7 +608,7 @@ static void default_local_infile_end(void *ptr) {
     ptr			Points to handle allocated by _init
                         May be NULL if _init failed!
     error_msg		Store error text here
-    error_msg_len	Max lenght of error_msg
+    error_msg_len	Max length of error_msg
 
   RETURN
     error message number
@@ -960,15 +960,15 @@ ulong STDCALL mysql_thread_id(MYSQL *mysql) {
 }
 
 const char *STDCALL mysql_character_set_name(MYSQL *mysql) {
-  return replace_utf8_utf8mb3(mysql->charset->csname);
+  return mysql->charset->csname;
 }
 
 void STDCALL mysql_get_character_set_info(MYSQL *mysql,
                                           MY_CHARSET_INFO *csinfo) {
   csinfo->number = mysql->charset->number;
   csinfo->state = mysql->charset->state;
-  csinfo->csname = replace_utf8_utf8mb3(mysql->charset->csname);
-  csinfo->name = mysql->charset->name;
+  csinfo->csname = mysql->charset->csname;
+  csinfo->name = mysql->charset->m_coll_name;
   csinfo->comment = mysql->charset->comment;
   csinfo->mbminlen = mysql->charset->mbminlen;
   csinfo->mbmaxlen = mysql->charset->mbmaxlen;
@@ -1183,7 +1183,7 @@ static int stmt_read_row_no_result_set(MYSQL_STMT *stmt, unsigned char **row);
 static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
 static bool setup_one_fetch_function(MYSQL_BIND *, MYSQL_FIELD *field);
 
-/* Auxilary function used to reset statement handle. */
+/* Auxiliary function used to reset statement handle. */
 
 #define RESET_SERVER_SIDE 1
 #define RESET_LONG_DATA 2
@@ -1647,7 +1647,7 @@ static void update_stmt_fields(MYSQL_STMT *stmt) {
 
   RETURN
     NULL  statement contains no result set or out of memory.
-          In the latter case you can retreive error message
+          In the latter case you can retrieve error message
           with mysql_stmt_error.
     MYSQL_RES  a result set with no rows
 */
@@ -1680,7 +1680,7 @@ MYSQL_RES *STDCALL mysql_stmt_result_metadata(MYSQL_STMT *stmt) {
   Returns parameter columns meta information in the form of
   result set.
 
-  SYNOPSYS
+  SYNOPSIS
     mysql_stmt_param_metadata()
     stmt    statement handle
 
@@ -1726,7 +1726,7 @@ static inline int add_binary_row(NET *net, MYSQL_STMT *stmt, ulong pkt_len,
 }
 
 /**
-  Auxilary function to send COM_STMT_EXECUTE packet to server and read reply.
+  Auxiliary function to send COM_STMT_EXECUTE packet to server and read reply.
 
   Used from @ref cli_stmt_execute, which is in turn used by
   @ref mysql_stmt_execute.
@@ -1879,9 +1879,9 @@ int cli_stmt_execute(MYSQL_STMT *stmt) {
     }
 
     if (mysql_int_serialize_param_data(
-            &mysql->net, stmt->param_count, stmt->params, NULL, 1, &param_data,
-            &param_length, stmt->send_types_to_server, send_named_params, false,
-            can_deal_with_flags)) {
+            &mysql->net, stmt->param_count, stmt->params, nullptr, 1,
+            &param_data, &param_length, stmt->send_types_to_server,
+            send_named_params, false, can_deal_with_flags)) {
       set_stmt_errmsg(stmt, &mysql->net);
       return 1;
     }
@@ -4005,7 +4005,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt) {
 
   if (stmt->update_max_length && !stmt->bind_result_done) {
     /*
-      We must initalize the bind structure to be able to calculate
+      We must initialize the bind structure to be able to calculate
       max_length
     */
     MYSQL_BIND *my_bind, *end;
@@ -4176,7 +4176,7 @@ bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt) {
 *********************************************************************/
 
 /*
-  Close the statement handle by freeing all alloced resources
+  Close the statement handle by freeing all allocated resources
 
   SYNOPSIS
     mysql_stmt_close()

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,8 @@ int mi_close_share(MI_INFO *info, bool *closed_share) {
 
   my_free(mi_get_rec_buff_ptr(info, info->rec_buff));
   if (flag) {
-    DBUG_EXECUTE_IF("crash_before_flush_keys", if (share->kfile >= 0) abort(););
+    DBUG_EXECUTE_IF("crash_before_flush_keys",
+                    if (share->kfile >= 0) my_abort(););
     if (share->kfile >= 0 &&
         flush_key_blocks(
             share->key_cache, keycache_thread_var(), share->kfile,

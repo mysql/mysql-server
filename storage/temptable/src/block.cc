@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -60,8 +60,9 @@ PSI_memory_info pfs_info[] = {
 #ifdef TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL
     {&mem_key_logical, "logical", 0, 0, PSI_DOCUMENT_ME},
 #endif /* TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL */
-    {&mem_key_physical_disk, "physical_disk", 0, 0, PSI_DOCUMENT_ME},
-    {&mem_key_physical_ram, "physical_ram", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+    {&mem_key_physical_disk, "physical_disk", PSI_FLAG_MEM_COLLECT, 0,
+     PSI_DOCUMENT_ME},
+    {&mem_key_physical_ram, "physical_ram", PSI_FLAG_MEM_COLLECT, 0,
      PSI_DOCUMENT_ME},
 };
 
@@ -98,43 +99,50 @@ void Block_PSI_track_logical_deallocation(size_t size) {
 #endif /* TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL */
 }
 
-void Block_PSI_track_physical_ram_allocation(size_t size) {
-  (void)size;
+void Block_PSI_track_physical_ram_allocation(void *ptr [[maybe_unused]],
+                                             size_t size [[maybe_unused]]) {
 #ifdef TEMPTABLE_PFS_MEMORY
-  const PSI_memory_key psi_key = mem_key_physical_ram;
-  PSI_thread *owner_thread;
-#ifndef NDEBUG
-  PSI_memory_key got_key =
-#endif /* NDEBUG */
-      PSI_MEMORY_CALL(memory_alloc)(psi_key, size, &owner_thread);
-  assert(got_key == psi_key || got_key == PSI_NOT_INSTRUMENTED);
+  my_memory_header *mh = (my_memory_header *)ptr;
+  mh->m_magic = PSI_MEMORY_MAGIC;
+  mh->m_size = size;
+  mh->m_key = PSI_MEMORY_CALL(memory_alloc)(
+      mem_key_physical_ram, size + PSI_HEADER_SIZE, &mh->m_owner);
+  assert(PSI_REAL_MEM_KEY(mh->m_key) == mem_key_physical_ram ||
+         mh->m_key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY */
 }
 
-void Block_PSI_track_physical_ram_deallocation(size_t size) {
-  (void)size;
+void Block_PSI_track_physical_ram_deallocation(uint8_t *ptr [[maybe_unused]]) {
 #ifdef TEMPTABLE_PFS_MEMORY
-  PSI_MEMORY_CALL(memory_free)(mem_key_physical_ram, size, nullptr);
+  my_memory_header *mh = (my_memory_header *)ptr;
+  PSI_MEMORY_CALL(memory_free)
+  (mh->m_key, mh->m_size + PSI_HEADER_SIZE, mh->m_owner);
+  assert(PSI_REAL_MEM_KEY(mh->m_key) == mem_key_physical_ram ||
+         mh->m_key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY */
 }
 
-void Block_PSI_track_physical_disk_allocation(size_t size) {
-  (void)size;
+void Block_PSI_track_physical_disk_allocation(void *ptr [[maybe_unused]],
+                                              size_t size [[maybe_unused]]) {
 #ifdef TEMPTABLE_PFS_MEMORY
-  const PSI_memory_key psi_key = mem_key_physical_disk;
-  PSI_thread *owner_thread;
-#ifndef NDEBUG
-  PSI_memory_key got_key =
-#endif /* NDEBUG */
-      PSI_MEMORY_CALL(memory_alloc)(psi_key, size, &owner_thread);
-  assert(got_key == psi_key || got_key == PSI_NOT_INSTRUMENTED);
+  my_memory_header *mh = (my_memory_header *)ptr;
+  mh->m_magic = PSI_MEMORY_MAGIC;
+  mh->m_size = size;
+  mh->m_key = PSI_MEMORY_CALL(memory_alloc)(
+      mem_key_physical_disk, size + PSI_HEADER_SIZE, &mh->m_owner);
+  assert(PSI_REAL_MEM_KEY(mh->m_key) == mem_key_physical_disk ||
+         mh->m_key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY */
 }
 
-void Block_PSI_track_physical_disk_deallocation(size_t size) {
-  (void)size;
+void Block_PSI_track_physical_disk_deallocation(uint8_t *ptr [[maybe_unused]]) {
 #ifdef TEMPTABLE_PFS_MEMORY
-  PSI_MEMORY_CALL(memory_free)(mem_key_physical_disk, size, nullptr);
+  my_memory_header *mh = (my_memory_header *)ptr;
+  PSI_MEMORY_CALL(memory_free)
+  (mh->m_key, mh->m_size + PSI_HEADER_SIZE, mh->m_owner);
+
+  assert(PSI_REAL_MEM_KEY(mh->m_key) == mem_key_physical_disk ||
+         mh->m_key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY */
 }
 

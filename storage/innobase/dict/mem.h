@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -34,18 +34,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef dict_mem_h
 #define dict_mem_h
 /** Creates a table memory object.
- @return own: table object */
-dict_table_t *dict_mem_table_create(
-    const char *name, /*!< in: table name */
-    space_id_t space, /*!< in: space where the clustered index
-                      of the table is placed */
-    ulint n_cols,     /*!< in: total number of columns
-                      including virtual and non-virtual
-                      columns */
-    ulint n_v_cols,   /*!< in: number of virtual columns */
-    ulint n_m_v_cols, /*!< in: number of multi-value virtual columns */
-    uint32_t flags,   /*!< in: table flags */
-    uint32_t flags2); /*!< in: table flags2 */
+@param[in]  name        table name
+@param[in]  space       space where the clustered index of the table is placed
+@param[in]  n_cols      total number of columns ncluding virtual and non-virtual
+                        columns
+@param[in]  n_v_cols    number of virtual columns
+@param[in]  n_m_v_cols  number of multi-value virtual columns
+@param[in]  flags       table flags
+@param[in]  flags2      table flags2
+@param[in]  n_drop_cols Number of INSTANT drop cols
+@return own: table object */
+dict_table_t *dict_mem_table_create(const char *name, space_id_t space,
+                                    ulint n_cols, ulint n_v_cols,
+                                    ulint n_m_v_cols, uint32_t flags,
+                                    uint32_t flags2, uint32_t n_drop_cols = 0);
+
 /** Free a table memory object. */
 void dict_mem_table_free(dict_table_t *table); /*!< in: table */
 
@@ -68,10 +71,16 @@ dict_index_t *dict_mem_index_create(
 @param[in] mtype        main datatype
 @param[in] prtype       precise type
 @param[in] len          length of column
-@param[in] is_visible   true if column is visible */
+@param[in] is_visible   true if column is visible
+@param[in] phy_pos      position of col in physical record
+@param[in] v_added      table row version when col was added INSTANTly
+@param[in] v_dropped    table_row version when col was dropped INSTANTly */
 void dict_mem_table_add_col(dict_table_t *table, mem_heap_t *heap,
                             const char *name, ulint mtype, ulint prtype,
-                            ulint len, bool is_visible);
+                            ulint len, bool is_visible,
+                            uint32_t phy_pos = UINT32_UNDEFINED,
+                            uint8_t v_added = UINT8_UNDEFINED,
+                            uint8_t v_dropped = UINT8_UNDEFINED);
 
 /** This function populates a dict_col_t memory structure with
 supplied information.
@@ -80,9 +89,14 @@ supplied information.
 @param[in]  mtype       main data type
 @param[in]  prtype      precise type
 @param[in]  col_len     column length
-@param[in]  is_visible  true if column is visible */
+@param[in]  is_visible  true if column is visible
+@param[in]  phy_pos     position of col in physical record
+@param[in]  v_added     table row version when col was added INSTANTly
+@param[in]  v_dropped   table row version when col was dropped INSTANTly */
 void dict_mem_fill_column_struct(dict_col_t *column, ulint col_pos, ulint mtype,
-                                 ulint prtype, ulint col_len, bool is_visible);
+                                 ulint prtype, ulint col_len, bool is_visible,
+                                 uint32_t phy_pos, uint8_t v_added,
+                                 uint8_t v_dropped);
 
 /** Append 'name' to 'col_names'.  @see dict_table_t::col_names
  @return new column names array */

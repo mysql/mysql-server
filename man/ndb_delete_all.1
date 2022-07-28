@@ -2,12 +2,12 @@
 .\"     Title: ndb_delete_all
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_DELETE_ALL" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_DELETE_ALL" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -131,9 +131,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -151,9 +151,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--database=dbname\fR,
+\fB--database=name\fR,
 .PP
-\fB-d\fR
+\fB-d name\fR
 T}:T{
 Name of the database in which the table is found
 T}:T{
@@ -191,7 +191,7 @@ T{
 .PP
 \fB--diskscan\fR
 T}:T{
-Run disk scan
+Perform disk scan
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -218,9 +218,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -231,9 +231,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -284,7 +284,8 @@ T{
 .PP
 \fB \fR\fB-t\fR\fB \fR
 T}:T{
-Perform the delete in a single transaction (may run out of operations)
+Perform delete in one single transaction; possible to run out of
+              operations when used
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -293,7 +294,7 @@ T{
 .PP
 \fB--tupscan\fR
 T}:T{
-Run tup scan
+Perform tuple scan
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -454,7 +455,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -512,7 +513,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---database=dbname
+--database=name
 T}
 T{
 Type
@@ -642,23 +643,11 @@ Also read groups with concat(group, suffix)\&.
 \fB\-\-diskscan\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --diskscan
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -738,7 +727,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -772,7 +761,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type
@@ -986,7 +975,7 @@ testing library\&. This dependency has been removed in NDB 8\&.0, eliminating th
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

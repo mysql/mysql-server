@@ -58,7 +58,7 @@
  *
  *      Michael Widenius:
  *        DBUG_DUMP       - To dump a block of memory.
- *        PUSH_FLAG "O"   - To be used insted of "o" if we
+ *        PUSH_FLAG "O"   - To be used instead of "o" if we
  *                          want flushing after each write
  *        PUSH_FLAG "A"   - as 'O', but we will append to the out file instead
  *                          of creating a new one.
@@ -2107,7 +2107,7 @@ static bool Writable(const char *pathname) {
 }
 
 /* flush dbug-stream, free mutex lock & wait delay */
-/* This is because some systems (MSDOS!!) dosn't flush fileheader */
+/* This is because some systems (MSDOS!!) don't flush the file header */
 /* and dbug-file isn't readable after a system crash !! */
 
 static void DbugFlush(CODE_STATE *cs) {
@@ -2129,14 +2129,20 @@ void _db_flush_() {
 #ifndef _WIN32
 
 #ifdef HAVE_GCOV
+#if defined(__GNUC__) && __GNUC__ >= 11
+extern "C" void __gcov_dump();
+static void dump_gcov_data() { __gcov_dump(); }
+#else
 extern "C" void __gcov_flush();
+static void dump_gcov_data() { __gcov_flush(); }
+#endif
 #endif
 
 void _db_flush_gcov_() {
 #ifdef HAVE_GCOV
   // Gcov will assert() if we try to flush in parallel.
   native_mutex_lock(&THR_LOCK_gcov);
-  __gcov_flush();
+  dump_gcov_data();
   native_mutex_unlock(&THR_LOCK_gcov);
 #endif
 }

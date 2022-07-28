@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
+#include <thread>
 
 REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_current_thread_reader, current_thd_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(udf_registration, udf_srv);
@@ -822,6 +823,40 @@ static char *test_table_access_driver(UDF_INIT *, UDF_ARGS *args, char *result,
   return nullptr;
 }
 
+#define CONST_STR_AND_LEN(x) x, sizeof(x) - 1
+
+/**
+ @param [out] status: true for failure, false otherwise
+ */
+static void thd_function(bool *ret) {
+  TA_table tb = nullptr;
+  Table_access ta = nullptr;
+  size_t ticket = 0;
+  bool txn_started = false;
+  *ret = true;
+
+  ta = ta_factory_srv->create(nullptr, 1);
+  if (!ta) goto cleanup;
+  ticket = ta_srv->add(ta, CONST_STR_AND_LEN("mysql"), CONST_STR_AND_LEN("db"),
+                       TA_READ);
+  if (ta_srv->begin(ta)) goto cleanup;
+  txn_started = true;
+  tb = ta_srv->get(ta, ticket);
+  if (!tb) goto cleanup;
+
+  *ret = false;
+cleanup:
+  if (txn_started) ta_srv->rollback(ta);
+  if (ta) ta_factory_srv->destroy(ta);
+}
+
+static bool test_native_thread() {
+  bool retval = true;
+  std::thread thd(thd_function, &retval);
+  thd.join();
+  return retval;
+}
+
 mysql_service_status_t test_table_access_init() {
   if (udf_srv->udf_register(udf_name, Item_result::STRING_RESULT,
                             (Udf_func_any)test_table_access_driver, udf_init,
@@ -836,6 +871,7 @@ mysql_service_status_t test_table_access_init() {
   */
   (void)test_math_insert_utf8mb3(nullptr);
   (void)test_math_insert_utf8mb4(nullptr);
+  if (test_native_thread()) return 1;
 
   return 0;
 }

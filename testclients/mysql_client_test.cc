@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1087,12 +1087,12 @@ static void test_wl4435_3() {
 
   WL4435_TEST("INT", "2147483647", MYSQL_TYPE_LONG, MYSQL_TYPE_LONG, int, ,
               ("  - INT / int / MYSQL_TYPE_LONG:\t\t\t %d", pspv),
-              pspv == 2147483647l);
+              pspv == 2147483647L);
 
   WL4435_TEST("BIGINT", "9223372036854775807", MYSQL_TYPE_LONGLONG,
               MYSQL_TYPE_LONGLONG, long long, ,
               ("  - BIGINT / long long / MYSQL_TYPE_LONGLONG:\t\t %lld", pspv),
-              pspv == 9223372036854775807ll);
+              pspv == 9223372036854775807LL);
 
   WL4435_TEST("TIMESTAMP", "'2007-11-18 15:01:02'", MYSQL_TYPE_TIMESTAMP,
               MYSQL_TYPE_TIMESTAMP, MYSQL_TIME, ,
@@ -1475,7 +1475,7 @@ static void test_prepare() {
   mysql_stmt_close(stmt);
 }
 
-/* Test double comparision */
+/* Test double comparison */
 
 static void test_double_compare() {
   MYSQL_STMT *stmt;
@@ -5867,6 +5867,317 @@ static void test_date_dt() {
   bind_date_conv(2, false);
 }
 
+static void test_simple_temporal() {
+  myheader("test_simple_temporal");
+
+  MYSQL_STMT *stmt = nullptr;
+  uint rc;
+  ulong length = 0;
+  MYSQL_BIND my_bind[4], my_bind2;
+  bool is_null = false;
+  MYSQL_TIME tm;
+  char string[100];
+  MYSQL_RES *rs;
+  MYSQL_FIELD *field;
+
+  /* Initialize param/fetch buffers for data, null flags, lengths */
+  memset(&my_bind, 0, sizeof(my_bind));
+  memset(&my_bind2, 0, sizeof(my_bind2));
+
+  /* Initialize the first input parameter */
+  my_bind[0].buffer_type = MYSQL_TYPE_DATETIME;
+  my_bind[0].buffer = &tm;
+  my_bind[0].is_null = &is_null;
+  my_bind[0].length = &length;
+  my_bind[0].buffer_length = sizeof(tm);
+
+  /* Clone the other input parameters */
+  my_bind[3] = my_bind[2] = my_bind[1] = my_bind[0];
+
+  my_bind[1].buffer_type = MYSQL_TYPE_TIMESTAMP;
+  my_bind[2].buffer_type = MYSQL_TYPE_DATE;
+  my_bind[3].buffer_type = MYSQL_TYPE_TIME;
+
+  /* Initialize fetch parameter */
+  my_bind2.buffer_type = MYSQL_TYPE_STRING;
+  my_bind2.length = &length;
+  my_bind2.is_null = &is_null;
+  my_bind2.buffer_length = sizeof(string);
+  my_bind2.buffer = string;
+
+  /* Prepare and bind simple SELECT with DATETIME parameter */
+  stmt = mysql_simple_prepare(mysql, "SELECT ?");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_param(stmt, &my_bind[0]);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, &my_bind2);
+  check_execute(stmt, rc);
+
+  /* Initialize DATETIME value */
+  tm.neg = false;
+  tm.time_type = MYSQL_TIMESTAMP_DATETIME;
+  tm.year = 2001;
+  tm.month = 10;
+  tm.day = 20;
+  tm.hour = 10;
+  tm.minute = 10;
+  tm.second = 59;
+  tm.second_part = 500000;
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rs = mysql_stmt_result_metadata(stmt);
+  field = mysql_fetch_fields(rs);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(field->type == MYSQL_TYPE_DATETIME);
+  DIE_UNLESS(strcmp(string, "2001-10-20 10:10:59.500000") == 0);
+
+  mysql_free_result(rs);
+
+  mysql_stmt_close(stmt);
+
+  /* Same test with explicit CAST */
+  stmt = mysql_simple_prepare(mysql, "SELECT CAST(? AS DATETIME(6))");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_param(stmt, &my_bind[0]);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, &my_bind2);
+  check_execute(stmt, rc);
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rs = mysql_stmt_result_metadata(stmt);
+  field = mysql_fetch_fields(rs);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(field->type == MYSQL_TYPE_DATETIME);
+  DIE_UNLESS(strcmp(string, "2001-10-20 10:10:59.500000") == 0);
+
+  mysql_free_result(rs);
+
+  mysql_stmt_close(stmt);
+
+  /* Prepare and bind simple SELECT with TIMESTAMP parameter */
+  stmt = mysql_simple_prepare(mysql, "SELECT ?");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_param(stmt, &my_bind[1]);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, &my_bind2);
+  check_execute(stmt, rc);
+
+  /* Initialize TIMESTAMP value */
+  tm.neg = false;
+  tm.time_type = MYSQL_TIMESTAMP_DATETIME;
+  tm.year = 2001;
+  tm.month = 10;
+  tm.day = 20;
+  tm.hour = 10;
+  tm.minute = 10;
+  tm.second = 59;
+  tm.second_part = 500000;
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rs = mysql_stmt_result_metadata(stmt);
+  field = mysql_fetch_fields(rs);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(field->type == MYSQL_TYPE_DATETIME);
+  DIE_UNLESS(strcmp(string, "2001-10-20 10:10:59.500000") == 0);
+
+  mysql_free_result(rs);
+
+  mysql_stmt_close(stmt);
+
+  /* Prepare and bind simple SELECT with DATE parameter */
+  stmt = mysql_simple_prepare(mysql, "SELECT ?");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_param(stmt, &my_bind[2]);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, &my_bind2);
+  check_execute(stmt, rc);
+
+  /* Initialize DATE value */
+  tm.neg = false;
+  tm.time_type = MYSQL_TIMESTAMP_DATE;
+  tm.year = 2001;
+  tm.month = 10;
+  tm.day = 20;
+  tm.hour = 0;
+  tm.minute = 0;
+  tm.second = 0;
+  tm.second_part = 0;
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rs = mysql_stmt_result_metadata(stmt);
+  field = mysql_fetch_fields(rs);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(field->type == MYSQL_TYPE_DATE);
+  DIE_UNLESS(strcmp(string, "2001-10-20") == 0);
+
+  mysql_free_result(rs);
+
+  mysql_stmt_close(stmt);
+
+  /* Same test with explicit CAST */
+  stmt = mysql_simple_prepare(mysql, "SELECT CAST(? AS DATE)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_param(stmt, &my_bind[2]);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, &my_bind2);
+  check_execute(stmt, rc);
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rs = mysql_stmt_result_metadata(stmt);
+  field = mysql_fetch_fields(rs);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(field->type == MYSQL_TYPE_DATE);
+  DIE_UNLESS(strcmp(string, "2001-10-20") == 0);
+
+  mysql_free_result(rs);
+
+  mysql_stmt_close(stmt);
+
+  /* Prepare and bind simple SELECT with TIME parameter */
+  stmt = mysql_simple_prepare(mysql, "SELECT ?");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_param(stmt, &my_bind[3]);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, &my_bind2);
+  check_execute(stmt, rc);
+
+  /* Initialize TIME value */
+  tm.neg = false;
+  tm.time_type = MYSQL_TIMESTAMP_TIME;
+  tm.year = 0;
+  tm.month = 0;
+  tm.day = 0;
+  tm.hour = 10;
+  tm.minute = 10;
+  tm.second = 59;
+  tm.second_part = 500000;
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rs = mysql_stmt_result_metadata(stmt);
+  field = mysql_fetch_fields(rs);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(field->type == MYSQL_TYPE_TIME);
+  DIE_UNLESS(strcmp(string, "10:10:59.500000") == 0);
+
+  mysql_free_result(rs);
+
+  mysql_stmt_close(stmt);
+
+  /* Same test with explicit CAST */
+  stmt = mysql_simple_prepare(mysql, "SELECT CAST(? AS TIME(6))");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_param(stmt, &my_bind[3]);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, &my_bind2);
+  check_execute(stmt, rc);
+
+  /* Initialize TIME value */
+  tm.neg = false;
+  tm.time_type = MYSQL_TIMESTAMP_TIME;
+  tm.year = 0;
+  tm.month = 0;
+  tm.day = 0;
+  tm.hour = 10;
+  tm.minute = 10;
+  tm.second = 59;
+  tm.second_part = 500000;
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rs = mysql_stmt_result_metadata(stmt);
+  field = mysql_fetch_fields(rs);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(field->type == MYSQL_TYPE_TIME);
+  DIE_UNLESS(strcmp(string, "10:10:59.500000") == 0);
+
+  mysql_free_result(rs);
+
+  mysql_stmt_close(stmt);
+}
+
 /*
   Test TIME/DATETIME parameters to cover the following methods:
     Item_param::val_int()
@@ -5975,7 +6286,7 @@ static void test_temporal_param() {
   my_bind[0].buffer_type = my_bind[1].buffer_type = my_bind[2].buffer_type =
       MYSQL_TYPE_TIME;
 
-  /* Prepare and bind intput and output parameters */
+  /* Prepare and bind input and output parameters */
   stmt = mysql_simple_prepare(mysql, "SELECT CAST(? AS SIGNED), ?+0e0, ?+0.0");
   check_stmt(stmt);
   verify_param_count(stmt, N_PARAMS);
@@ -6011,6 +6322,73 @@ static void test_temporal_param() {
   DIE_UNLESS(bigint == 101100);
   DIE_UNLESS(real == 101059.5);
   DIE_UNLESS(!strcmp(dec, "101059.500000"));
+
+  mysql_stmt_close(stmt);
+}
+
+static void test_temporal_functions() {
+  MYSQL_STMT *stmt = nullptr;
+  uint rc;
+  ulong length = 0;
+  MYSQL_BIND bind_date{};
+  MYSQL_BIND bind_result{};
+  bool is_null = false;
+  MYSQL_TIME date, result;
+
+  /* Initialize the temporal parameters */
+  bind_date.buffer_type = MYSQL_TYPE_DATE;
+  bind_date.buffer = (void *)&date;
+  bind_date.is_null = &is_null;
+  bind_date.length = &length;
+  bind_date.buffer_length = (ulong)sizeof(date);
+
+  bind_result.buffer_type = MYSQL_TYPE_TIMESTAMP;
+  bind_result.buffer = (void *)&result;
+  bind_result.is_null = &is_null;
+  bind_result.length = &length;
+  bind_result.buffer_length = (ulong)sizeof(result);
+
+  /* Initialize the temporal values */
+  date.neg = false;
+  date.time_type = MYSQL_TIMESTAMP_DATE;
+  date.year = 2000;
+  date.month = 1;
+  date.day = 1;
+  date.hour = 0;
+  date.minute = 0;
+  date.second = 0;
+  date.second_part = 0;
+
+  /* Prepare and bind input and output parameters */
+  stmt = mysql_simple_prepare(mysql, "SELECT ADDDATE(?, INTERVAL 1 MONTH)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_param(stmt, &bind_date);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, &bind_result);
+  check_execute(stmt, rc);
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
 
   mysql_stmt_close(stmt);
 }
@@ -8156,7 +8534,7 @@ static void test_ts() {
   char query[MAX_TEST_QUERY_LENGTH];
   const char *queries[3] = {
       "SELECT a, b, c FROM test_ts WHERE %c=?",
-      "SELECT a, b, c FROM test_ts WHERE %c=?",
+      "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS TIME)",
       "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS DATE)"};
   myheader("test_ts");
 
@@ -9637,7 +10015,7 @@ static void test_bug1664() {
 
   /*
     Now we are sending other long data. It should not be
-    concatened to previous.
+    concatenated to previous.
   */
 
   data = "SomeOtherData";
@@ -10980,8 +11358,8 @@ static void test_bug5194() {
             "(as expected).\n",
             nrows * COLUMN_COUNT);
       break;
-    } else
-      check_execute(stmt, rc);
+    }
+    check_execute(stmt, rc);
 
     if (!opt_silent)
       printf("Insert: query length= %d, row count= %d, param count= %lu\n",
@@ -11373,7 +11751,7 @@ static void test_cursor_for_show() {
 }
 
 /*
-  Altough mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
+  Although mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
   should not crash server and should not hang in case of errors.
 
   Since those functions can't be seen in modern API we use simple_command()
@@ -11520,6 +11898,7 @@ static void test_datetime_ranges() {
 
   myheader("test_datetime_ranges");
 
+  rc = mysql_real_query(mysql, STRING_WITH_LEN("set sql_mode=''"));
   stmt_text = "drop table if exists t1";
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
@@ -11789,7 +12168,7 @@ static void test_conversion() {
   myquery(rc);
 }
 
-static void test_rewind(void) {
+static void test_rewind() {
   MYSQL_STMT *stmt;
   MYSQL_BIND my_bind;
   int rc = 0;
@@ -11828,7 +12207,7 @@ static void test_rewind(void) {
   rc = mysql_stmt_bind_result(stmt, &my_bind);
   DIE_UNLESS(rc == 0);
 
-  /* retreive all result sets till we are at the end */
+  /* retrieve all result sets till we are at the end */
   while (!mysql_stmt_fetch(stmt))
     if (!opt_silent) printf("fetched result:%ld\n", Data);
 
@@ -12150,7 +12529,7 @@ static void test_truncation_option() {
 
 /* Bug#6761 - mysql_list_fields doesn't work */
 
-static void test_bug6761(void) {
+static void test_bug6761() {
   const char *stmt_text;
   MYSQL_RES *res;
   int rc;
@@ -12182,7 +12561,7 @@ static void test_bug8330() {
   myheader("test_bug8330");
 
   stmt_text = "drop table if exists t1";
-  /* in case some previos test failed */
+  /* in case some previous test failed */
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text = "create table t1 (a int, b int)";
@@ -12270,7 +12649,7 @@ static void test_bug15518() {
 
   /*
     Use the same stmt and reprepare with another query that
-    suceeds
+    succeeds
   */
   rc = mysql_stmt_prepare(stmt, "SHOW STATUS", 12);
   if (!opt_silent)
@@ -12297,7 +12676,7 @@ static void test_bug15518() {
 
   /*
     Use the same stmt and reprepare with another query that
-    suceeds. The prepare should fail with error 2013 since
+    succeeds. The prepare should fail with error 2013 since
     connection to server has been closed.
   */
   rc = mysql_stmt_prepare(stmt, "SHOW STATUS", 12);
@@ -12841,7 +13220,7 @@ static void test_bug11111() {
 
 /*
   Check that proper cleanups are done for prepared statement when
-  fetching thorugh a cursor.
+  fetching through a cursor.
 */
 
 static void test_bug10729() {
@@ -13300,7 +13679,7 @@ static void test_client_character_set() {
 
   mysql_get_character_set_info(mysql, &cs);
   DIE_UNLESS(!strcmp(cs.csname, "utf8mb3"));
-  DIE_UNLESS(!strcmp(cs.name, "utf8_general_ci"));
+  DIE_UNLESS(!strcmp(cs.name, "utf8mb3_general_ci"));
   /* Restore the default character set */
   rc = mysql_set_character_set(mysql, csdefault);
   myquery(rc);
@@ -14560,7 +14939,7 @@ static void test_bug17667() {
     char line_buffer[MAX_TEST_QUERY_LENGTH * 2];
     /* more than enough room for the query and some marginalia. */
 
-    /* Prepared statments always occurs twice in log */
+    /* Prepared statements always occurs twice in log */
     if (statement_cursor->qt == QT_PREPARED) expected_hits++;
 
     /* Loop until we found expected number of log entries */
@@ -15036,8 +15415,7 @@ static void test_bug21206() {
                                 "INSERT INTO t1 VALUES (1), (2), (3)"};
   const char *query = "SELECT * FROM t1";
 
-  Stmt_fetch *fetch_array =
-      (Stmt_fetch *)calloc(cursor_count, sizeof(Stmt_fetch));
+  auto *fetch_array = (Stmt_fetch *)calloc(cursor_count, sizeof(Stmt_fetch));
 
   Stmt_fetch *fetch;
 
@@ -15992,7 +16370,7 @@ static void test_bug30472() {
   DIE_UNLESS(strcmp(character_set_name_2, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
-  DIE_UNLESS(strcmp(collation_connnection_2, "utf8_general_ci") == 0);
+  DIE_UNLESS(strcmp(collation_connnection_2, "utf8mb3_general_ci") == 0);
 
   DIE_UNLESS(strcmp(character_set_name_1, character_set_name_2) != 0);
   DIE_UNLESS(strcmp(character_set_client_1, character_set_client_2) != 0);
@@ -16040,7 +16418,7 @@ static void test_bug30472() {
   DIE_UNLESS(strcmp(character_set_name_4, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_client_4, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(character_set_results_4, "utf8mb3") == 0);
-  DIE_UNLESS(strcmp(collation_connnection_4, "utf8_general_ci") == 0);
+  DIE_UNLESS(strcmp(collation_connnection_4, "utf8mb3_general_ci") == 0);
 
   /* That's it. Cleanup. */
 
@@ -16960,7 +17338,7 @@ static void test_wl4284_1() {
   myquery(rc);
 }
 
-static void test_bug38486(void) {
+static void test_bug38486() {
   MYSQL_STMT *stmt;
   const char *stmt_text;
   unsigned long type = CURSOR_TYPE_READ_ONLY;
@@ -16988,7 +17366,7 @@ static void test_bug38486(void) {
      given an already connected MYSQL handle.
 */
 
-static void test_bug33831(void) {
+static void test_bug33831() {
   MYSQL *l_mysql;
 
   DBUG_TRACE;
@@ -17012,7 +17390,7 @@ static void test_bug33831(void) {
   mysql_close(l_mysql);
 }
 
-static void test_bug40365(void) {
+static void test_bug40365() {
   uint rc, i;
   MYSQL_STMT *stmt = nullptr;
   MYSQL_BIND my_bind[2];
@@ -17100,7 +17478,7 @@ static void test_bug40365(void) {
   the server. Verifies that it is connected to a debug server before proceeding
   with the test.
  */
-static void test_bug43560(void) {
+static void test_bug43560() {
   MYSQL *conn;
   uint rc;
   MYSQL_STMT *stmt = nullptr;
@@ -17233,7 +17611,7 @@ static void test_bug36326() {
              string value.
 */
 
-static void test_bug41078(void) {
+static void test_bug41078() {
   uint rc;
   MYSQL_STMT *stmt = nullptr;
   MYSQL_BIND param, result;
@@ -17928,7 +18306,7 @@ static void test_bug12337762() {
                    "create table charset_tab("
                    "txt1 varchar(32) character set Latin1,"
                    "txt2 varchar(32) character set Latin1 collate latin1_bin,"
-                   "txt3 varchar(32) character set utf8 collate utf8_bin"
+                   "txt3 varchar(32) character set utf8 collate utf8mb3_bin"
                    ")");
 
   DIE_UNLESS(rc == 0);
@@ -20194,7 +20572,7 @@ static void test_bug25701141() {
                    "pretty CHAR(20) DEFAULT NULL,"
                    "CONSTRAINT UNIQUE KEY unique_serial (serial) USING HASH,"
                    "INDEX pretty_index USING HASH (pretty)"
-                   ") ENGINE = InnoDB CHARSET = utf8 COLLATE = utf8_bin");
+                   ") ENGINE = InnoDB CHARSET = utf8 COLLATE = utf8mb3_bin");
   myquery(rc);
 
   my_stpcpy(query, "INSERT IGNORE INTO t1 SET `serial`=?, `pretty`=?");
@@ -20349,12 +20727,12 @@ static void test_bug32391415() {
 
   myheader("test_bug32391415");
 
-  lmysql = mysql_client_init(NULL);
-  DIE_UNLESS(lmysql != NULL);
+  lmysql = mysql_client_init(nullptr);
+  DIE_UNLESS(lmysql != nullptr);
 
   lmysql = mysql_real_connect(lmysql, opt_host, opt_user, opt_password,
                               current_db, opt_port, opt_unix_socket, 0);
-  DIE_UNLESS(lmysql != 0);
+  DIE_UNLESS(lmysql != nullptr);
   if (!opt_silent) fprintf(stdout, "Established a test connection\n");
 
   rc = mysql_query(lmysql, "CREATE USER b32391415@localhost");
@@ -20369,7 +20747,7 @@ static void test_bug32391415() {
   rc = mysql_options4(lmysql, MYSQL_OPT_CONNECT_ATTR_ADD, "key1", "value1");
   DIE_UNLESS(rc == 0);
 
-  rc = mysql_change_user(lmysql, "b32391415", NULL, NULL);
+  rc = mysql_change_user(lmysql, "b32391415", nullptr, nullptr);
   myquery2(lmysql, rc);
 
   /* success: the query attribute should be present */
@@ -21269,12 +21647,12 @@ static void test_wl13168() {
 static void test_wl13510() {
   DBUG_TRACE;
   /*
-    Lambda to tests the following in various combinations of arguments
+    Lambda to test the following in various combinations of arguments
     1. Send a SELECT 'XXXXXXX....<packet_size>'; to server.
-    2. Recieve the response from the server which must be same as sent by the
+    2. Receive the response from the server which must be same as sent by the
        client.
     3. To verify the veracity of the string:
-       (a) Calculate the MD5 digest of the recieved the string
+       (a) Calculate the MD5 digest of the received the string
        (b) Get the digest from the server directly for the similar length string
        (c) Test fails if the digests mismatch
   */
@@ -21316,7 +21694,7 @@ static void test_wl13510() {
 
     mysql_autocommit(mysql_local, true);
 
-    /*  Send and Recieve the packet using nonblocking client APIs */
+    /*  Send and Receive the packet using nonblocking client APIs */
     std::string query("SELECT (\"");
     for (size_t i = 0; i < packet_size; i++) {
       query += "X";
@@ -21346,7 +21724,7 @@ static void test_wl13510() {
 
     DIE_IF(!select_row[0]);
 
-    /* Determine the digest of the string client has receieved. */
+    /* Determine the digest of the string client has received. */
     query.assign("SELECT MD5('");
     query.append(select_row[0]);
     query.append("')");
@@ -21538,7 +21916,7 @@ static void test_bug31082201() {
   MYSQL_ROW row;
 
   /*make new non blocking connection to do asynchronous operations */
-  if (!(mysql_local = mysql_client_init(NULL))) {
+  if (!(mysql_local = mysql_client_init(nullptr))) {
     myerror("mysql_client_init() failed");
     exit(1);
   }
@@ -21614,7 +21992,7 @@ static void test_bug31104389() {
 
   MYSQL *mysql_local;
 
-  if (!(mysql_local = mysql_client_init(NULL))) {
+  if (!(mysql_local = mysql_client_init(nullptr))) {
     myerror("mysql_client_init() failed");
     exit(1);
   }
@@ -21739,7 +22117,7 @@ static void test_wl12542() {
     mytest(res);
     row = mysql_fetch_row(res);
     mytest(row);
-    DIE_UNLESS(row[0] == 0);
+    DIE_UNLESS(row[0] == nullptr);
     mysql_free_result(res);
   }
 
@@ -21797,7 +22175,7 @@ static void test_wl12542() {
     row = mysql_fetch_row(res);
     mytest(row);
     printf("return '%s'\n", row[0] ? row[0] : "<NULL>");
-    DIE_UNLESS(row[0] == 0);
+    DIE_UNLESS(row[0] == nullptr);
     mysql_free_result(res);
   }
 
@@ -22100,7 +22478,7 @@ static void test_bug32372038() {
   MYSQL *mysql_local;
   DBUG_SET("+d,bug32372038");
 
-  if (!(mysql_local = mysql_client_init(NULL))) {
+  if (!(mysql_local = mysql_client_init(nullptr))) {
     fprintf(stderr, "\n mysql_client_init() failed");
     exit(1);
   }
@@ -22154,7 +22532,7 @@ static void test_bug32558782() {
   bind[0].buffer_type = MYSQL_TYPE_BLOB;  // Same thing with MYSQL_TYPE_STRING
   bind[0].buffer = data_buf.get();
   bind[0].buffer_length = buflen;
-  bind[0].is_null = 0;
+  bind[0].is_null = nullptr;
   bind[0].length = &len;
 
   /* INT COLUMN */
@@ -22254,6 +22632,459 @@ static void test_bug33164347() {
   DIE_UNLESS(rc != 0);
 }
 
+static void test_bug32915973() {
+  DBUG_TRACE;
+  myheader("test_bug32915973");
+
+  int rc = 0;
+  MYSQL_STMT *stmt;
+  MYSQL_RES *result;
+
+  const char *query1 = "select ADDDATE(?, INTERVAL 1 DAY) AS c";
+  const char *query2 = "select ADDDATE(?, INTERVAL 1 HOUR) AS c";
+
+  stmt = mysql_stmt_init(mysql);
+  DIE_UNLESS(stmt != nullptr);
+
+  ulong length[2];
+  bool is_null[2] = {false, false};
+  MYSQL_TIME tm[2];
+
+  MYSQL_BIND bind[2];
+  memset(bind, 0, sizeof(bind));
+
+  bind[0].buffer_type = MYSQL_TYPE_DATE;
+  bind[0].buffer = (void *)&tm[0];
+  bind[0].is_null = &is_null[0];
+  bind[0].length = &length[0];
+  bind[0].buffer_length = 30;
+  length[0] = 20;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATE;
+  bind[1].buffer = (void *)&tm[1];
+  bind[1].is_null = &is_null[1];
+  bind[1].length = &length[1];
+  bind[1].buffer_length = 30;
+  length[1] = 20;
+
+  tm[0].neg = false;
+  tm[0].year = 2021;
+  tm[0].month = 2;
+  tm[0].day = 3;
+  tm[0].hour = 1;
+  tm[0].minute = 2;
+  tm[0].second = 3;
+  tm[0].second_part = 0;
+  tm[0].time_type = MYSQL_TIMESTAMP_NONE;
+
+  // Test 1: ADDDATE with date interval and date parameter, result date
+
+  rc = mysql_stmt_prepare(stmt, query1, strlen(query1));
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",               // field and its org name
+                       MYSQL_TYPE_DATE,  // field type
+                       "", "",           // table and its org name
+                       "", 10, 0);       // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 4);
+
+  mysql_free_result(result);
+
+  // Test 2: ADDDATE with date interval and time parameter, result datetime
+
+  rc = mysql_stmt_prepare(stmt, query1, strlen(query1));
+  check_execute(stmt, rc);
+
+  bind[0].buffer_type = MYSQL_TYPE_TIME;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",                   // field and its org name
+                       MYSQL_TYPE_DATETIME,  // field type
+                       "", "",               // table and its org name
+                       "", 26, 0);           // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  // Year, month and day are taken from current date and are not checked:
+  DIE_UNLESS(tm[1].hour == 1 && tm[1].minute == 2 && tm[1].second == 3);
+
+  mysql_free_result(result);
+
+  // Test 3: ADDDATE with date interval and datetime parameter, result datetime
+
+  rc = mysql_stmt_prepare(stmt, query1, strlen(query1));
+  check_execute(stmt, rc);
+
+  bind[0].buffer_type = MYSQL_TYPE_DATETIME;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",                   // field and its org name
+                       MYSQL_TYPE_DATETIME,  // field type
+                       "", "",               // table and its org name
+                       "", 26, 0);           // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 4 &&
+             tm[1].hour == 1 && tm[1].minute == 2 && tm[1].second == 3);
+
+  mysql_free_result(result);
+
+  // Test 4: ADDDATE with time interval and time parameter, result is NULL
+
+  rc = mysql_stmt_prepare(stmt, query2, strlen(query2));
+  check_execute(stmt, rc);
+
+  bind[0].buffer_type = MYSQL_TYPE_TIME;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",                   // field and its org name
+                       MYSQL_TYPE_DATETIME,  // field type
+                       "", "",               // table and its org name
+                       "", 26, 0);           // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(is_null[1]);
+
+  mysql_free_result(result);
+
+  // Test 5: ADDDATE with time interval and date parameter, result datetime
+
+  rc = mysql_stmt_prepare(stmt, query2, strlen(query2));
+  check_execute(stmt, rc);
+
+  bind[0].buffer_type = MYSQL_TYPE_DATE;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",                   // field and its org name
+                       MYSQL_TYPE_DATETIME,  // field type
+                       "", "",               // table and its org name
+                       "", 26, 0);           // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 3 &&
+             tm[1].hour == 1 && tm[1].minute == 0 && tm[1].second == 0);
+
+  mysql_free_result(result);
+
+  // Test 6: ADDDATE with time interval and datetime parameter, result datetime
+
+  rc = mysql_stmt_prepare(stmt, query2, strlen(query2));
+  check_execute(stmt, rc);
+
+  bind[0].buffer_type = MYSQL_TYPE_DATETIME;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",                   // field and its org name
+                       MYSQL_TYPE_DATETIME,  // field type
+                       "", "",               // table and its org name
+                       "", 26, 0);           // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 3 &&
+             tm[1].hour == 2 && tm[1].minute == 2 && tm[1].second == 3);
+
+  mysql_free_result(result);
+
+  mysql_stmt_close(stmt);
+}
+
+static void test_wl13075() {
+  int rc;
+  myheader("test_wl13075");
+
+  /* check that we're on an SSL connection */
+  const char *cipher = mysql_get_ssl_cipher(mysql);
+  DIE_UNLESS(cipher != nullptr);
+
+  /* FR1: get session data */
+  unsigned int session_len = 0;
+  void *session_data = mysql_get_ssl_session_data(mysql, 0, &session_len);
+  DIE_UNLESS(session_data != nullptr);
+  DIE_UNLESS(session_len > 0);
+
+  /* FR1.1: get null */
+  MYSQL lmysql;
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+
+  /* test return on an unconnected mysql */
+  {
+    unsigned int slen = 0;
+    void *sdata = mysql_get_ssl_session_data(&lmysql, 0, &slen);
+    DIE_UNLESS(sdata == nullptr);
+    DIE_UNLESS(slen == 0);
+  }
+
+  /* test return on an unencrypted mysql */
+  {
+    enum mysql_ssl_mode ssl_mode_disabled = SSL_MODE_DISABLED;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_disabled);
+    myquery(rc);
+  }
+
+  if (!mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          0)) {
+    myerror("mysql_real_connect failed");
+    mysql_close(&lmysql);
+    exit(1);
+  }
+  {
+    unsigned int slen = 0;
+    void *sdata = mysql_get_ssl_session_data(&lmysql, 0, &slen);
+    DIE_UNLESS(sdata == nullptr);
+    DIE_UNLESS(slen == 0);
+  }
+  mysql_close(&lmysql);
+
+  /* FR2: test session reuse */
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  rc = mysql_options(&lmysql, MYSQL_OPT_SSL_SESSION_DATA, session_data);
+  myquery(rc);
+
+  /* FR5: test if we get the same handle */
+  {
+    void *ret_ses_data = nullptr;
+    rc = mysql_get_option(&lmysql, MYSQL_OPT_SSL_SESSION_DATA, &ret_ses_data);
+    myquery(rc);
+    DIE_UNLESS(!strcmp(reinterpret_cast<char *>(ret_ses_data),
+                       reinterpret_cast<char *>(session_data)));
+  }
+  {
+    enum mysql_ssl_mode ssl_mode_required = SSL_MODE_REQUIRED;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_required);
+    myquery(rc);
+  }
+  if (!mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          0)) {
+    myerror("mysql_real_connect failed");
+    mysql_close(&lmysql);
+    exit(1);
+  }
+  /*
+    FR4: test mysql_get_ssl_session_reused returning true on a successful reuse
+  */
+  {
+    bool is_reused = mysql_get_ssl_session_reused(&lmysql);
+    DIE_UNLESS(is_reused);
+  }
+  mysql_close(&lmysql);
+
+  /* FR 2.1: failing to reuse a connection still works */
+  /* invalidate the session data at the server side */
+  rc = mysql_query(mysql, "ALTER INSTANCE RELOAD TLS");
+  myquery(rc);
+  /* try connecting */
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  rc = mysql_options(&lmysql, MYSQL_OPT_SSL_SESSION_DATA, session_data);
+  myquery(rc);
+  {
+    enum mysql_ssl_mode ssl_mode_required = SSL_MODE_REQUIRED;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_required);
+    myquery(rc);
+  }
+  if (!mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          0)) {
+    myerror("mysql_real_connect failed");
+    mysql_close(&lmysql);
+    exit(1);
+  }
+  /*
+    FR4: test mysql_get_ssl_session_reused returning false on a failed reuse
+  */
+  {
+    bool is_reused = mysql_get_ssl_session_reused(&lmysql);
+    DIE_UNLESS(!is_reused);
+  }
+  mysql_close(&lmysql);
+
+  /* FR3: must free session data */
+  rc = mysql_free_ssl_session_data(mysql, session_data);
+  myquery(rc);
+
+  /* FR5: test if we get a nullptr for MYSQL_OPT_SSL_SESSION_DATA */
+  {
+    void *ret_ses_data = nullptr;
+    rc = mysql_get_option(mysql, MYSQL_OPT_SSL_SESSION_DATA, &ret_ses_data);
+    myquery(rc);
+    DIE_UNLESS(ret_ses_data == nullptr);
+  }
+}
+
+static void finish_with_error(MYSQL *con) {
+  fprintf(stderr, "[%i] %s\n", mysql_errno(con), mysql_error(con));
+  mysql_close(con);
+  exit(1);
+}
+
+static bool send_query(MYSQL *mysql_con, const char *query) {
+  printf("Sending query: %s\n", query);
+
+  int res = mysql_query(mysql_con, query);
+  if (res != 0) {
+    fprintf(stderr, "mysql_query error: %i\n", res);
+    return false;
+  }
+  MYSQL_RES *result = mysql_store_result(mysql_con);
+  if (result == NULL) {
+    printf("No result-set\n");
+  } else {
+    MYSQL_ROW row = mysql_fetch_row(result);
+    printf("Result: %s\n", row[0]);
+    mysql_free_result(result);
+  }
+  printf("\n");
+  return true;
+}
+
+static void test_bug34007830() {
+  myheader("test_bug34007830");
+  MYSQL *lmysql;
+  bool reconnect = 1;
+
+  lmysql = mysql_client_init(nullptr);
+  DIE_UNLESS(lmysql);
+
+  /* enable auto-reconnect */
+  if (mysql_options(lmysql, MYSQL_OPT_RECONNECT, &reconnect)) {
+    fprintf(stderr, "mysql_options failed.");
+  }
+
+  if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, 0)) {
+    fprintf(stderr, "Failed to connect to the database\n");
+    DIE_UNLESS(0);
+  }
+  /* set session wait_timeout */
+  if (!send_query(lmysql, "SET SESSION wait_timeout=5")) {
+    finish_with_error(lmysql);
+  }
+
+  /* send query #1 */
+  if (!send_query(lmysql, "SELECT 1")) {
+    finish_with_error(lmysql);
+  }
+
+  /* wait until connection times-out */
+  printf("Waiting for 10s\n");
+  sleep(10);
+
+  /* send query #2 */
+  if (!send_query(lmysql, "SELECT 2")) {
+    finish_with_error(lmysql);
+  }
+
+  printf("Test successfully completed\n");
+
+  mysql_close(lmysql);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -22322,7 +23153,9 @@ static struct my_tests_st my_tests[] = {
     {"test_subselect", test_subselect},
     {"test_date", test_date},
     {"test_date_frac", test_date_frac},
+    {"test_simple_temporal", test_simple_temporal},
     {"test_temporal_param", test_temporal_param},
+    {"test_temporal_functions", test_temporal_functions},
     {"test_date_date", test_date_date},
     {"test_date_time", test_date_time},
     {"test_date_ts", test_date_ts},
@@ -22560,6 +23393,9 @@ static struct my_tests_st my_tests[] = {
     {"test_bug32847269", test_bug32847269},
     {"test_bug32892045", test_bug32892045},
     {"test_bug33164347", test_bug33164347},
+    {"test_bug32915973", test_bug32915973},
+    {"test_wl13075", test_wl13075},
+    {"test_bug34007830", test_bug34007830},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

@@ -2,7 +2,7 @@
 !include include/default_ndbd.cnf
 
 [cluster_config.1]
-ThreadConfig=ldm={count=4}
+ThreadConfig=main,rep,recv,ldm={count=4}
 NoOfReplicas=                  2
 ndbd=,,,,,,,
 ndb_mgmd=

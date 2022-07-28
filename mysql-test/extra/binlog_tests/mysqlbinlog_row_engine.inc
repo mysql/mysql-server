@@ -1855,7 +1855,15 @@ FLUSH LOGS;
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
 --let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/binlog.000001
---source include/mysqlbinlog.inc
+--let $using_hypergraph = `SELECT FIND_IN_SET('hypergraph_optimizer=on', @@optimizer_switch)`
+if ($using_hypergraph) {
+  # The hypergraph optimizer performs the deletes in a different order than
+  # the old optimizer, so the output from mysqlbinlog is different.
+  --echo <ignored hypergraph optimizer error: different mysqlbinlog output>
+}
+if (!$using_hypergraph) {
+  --source include/mysqlbinlog.inc
+}
 
 --echo #
 --echo # Cleanup.

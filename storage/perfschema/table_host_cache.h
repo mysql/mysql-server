@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,8 @@ struct row_host_cache {
 
 class PFS_index_host_cache : public PFS_engine_index {
  public:
-  PFS_index_host_cache(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_host_cache(PFS_engine_key *key_1)
+      : PFS_engine_index(key_1) {}
 
   ~PFS_index_host_cache() override = default;
 

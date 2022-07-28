@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+-- Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -76,19 +76,24 @@ BEGIN
           FROM performance_schema.global_variables
              WHERE VARIABLE_NAME='ndb_connectstring') THEN
 
-      -- List dict objects in NDB, skip objects created by ndbcluster plugin
-      -- and HashMap's since those can't be dropped after having been
-      -- created by test
-      SELECT id, indented_name FROM ndbinfo.dict_obj_tree
-        WHERE root_type != 24 AND  -- HashMap
-              root_name NOT IN ( 'mysql/def/ndb_schema',
-                                 'mysql/def/ndb_schema_result',
-                                 'mysql/def/ndb_index_stat_head',
-                                 'mysql/def/ndb_index_stat_sample',
-                                 'mysql/def/ndb_apply_status',
-                                 'mysql/def/ndb_sql_metadata')
-        ORDER BY path;
+      -- Check ndbinfo engine is enabled, else ndbinfo schema will not exists
+      IF ((SELECT count(*) FROM information_schema.engines
+           WHERE engine='ndbinfo' AND support IN ('YES', 'DEFAULT')) = 1) THEN
 
+        -- List dict objects in NDB, skip objects created by ndbcluster plugin
+        -- and HashMap's since those can't be dropped after having been
+        -- created by test
+        SELECT id, indented_name FROM ndbinfo.dict_obj_tree
+          WHERE root_type != 24 AND  -- HashMap
+                root_name NOT IN ( 'mysql/def/ndb_schema',
+                                   'mysql/def/ndb_schema_result',
+                                   'mysql/def/ndb_index_stat_head',
+                                   'mysql/def/ndb_index_stat_sample',
+                                   'mysql/def/ndb_apply_status',
+                                   'mysql/def/ndb_sql_metadata')
+          ORDER BY path;
+
+      END IF;
     END IF;
   END IF;
 END$$

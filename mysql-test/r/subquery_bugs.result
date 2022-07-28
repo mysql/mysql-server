@@ -604,7 +604,7 @@ EXPLAIN
         -> Materialize with deduplication  (cost=3.42..3.42 rows=1)
             -> Nested loop left join  (cost=0.81 rows=1)
                 -> Filter: (t1.f1 >= 'o')  (cost=0.46 rows=1)
-                    -> Covering index range scan on t1 using k1  (cost=0.46 rows=1)
+                    -> Covering index range scan on t1 using k1 over ('o' <= f1)  (cost=0.46 rows=1)
                 -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.35 rows=1)
     -> Single-row index lookup on t1 using PRIMARY (pk=`<subquery2>`.pk)  (cost=0.35 rows=1)
 
@@ -623,7 +623,6 @@ SELECT 1
 FROM t1 LEFT JOIN t1 AS t2 ON 'f' IN ( SELECT f1 FROM t1 )
 WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t3.f1='a' )
 );
-ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
 #
 # Bug #29231551: WL#12470: SIG 6 QEP_TAB->LAST_INNER() == (-2) CONNECTJOINS()|SQL/SQL_EXECUTOR.CC
@@ -646,8 +645,8 @@ WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.
 EXPLAIN
 -> Nested loop left join  (cost=0.91 rows=1)
     -> Nested loop semijoin  (cost=0.68 rows=1)
-        -> Filter: ((t1.f1 = 80) and (t1.pk > 80))  (cost=0.46 rows=0)
-            -> Index range scan on t1 using PRIMARY  (cost=0.46 rows=1)
+        -> Filter: ((t1.f1 = 80) and (t1.pk > 80))  (cost=0.46 rows=0.5)
+            -> Index range scan on t1 using PRIMARY over (80 < pk)  (cost=0.46 rows=1)
         -> Nested loop inner join  (cost=0.77 rows=2)
             -> Table scan on t5  (cost=0.45 rows=1)
             -> Index scan on t4 using PRIMARY  (cost=1.30 rows=2)
@@ -1118,19 +1117,19 @@ GROUP BY table_user.id
 ) AS d
 ) AS users FROM table_city;
 EXPLAIN
--> Index scan on table_city using PRIMARY  (cost=0.85 rows=6)
+-> Index scan on table_city using PRIMARY (rows=6)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: group_concat(d.id separator ',')  (cost=5.95..8.40 rows=5)
-        -> Table scan on d  (cost=0.51..2.56 rows=5)
-            -> Materialize  (cost=5.85..7.90 rows=5)
-                -> Table scan on <temporary>  (cost=0.51..2.56 rows=5)
-                    -> Temporary table with deduplication  (cost=2.79..4.84 rows=5)
-                        -> Nested loop inner join  (cost=1.77 rows=5)
-                            -> Filter: (table_city.id = `<subquery4>`.city)  (cost=1.47..1.02 rows=5)
-                                -> Table scan on <subquery4>  (cost=0.49..2.56 rows=5)
-                                    -> Materialize with deduplication  (cost=2.06..4.14 rows=5)
-                                        -> Index lookup on table_city_user using city (city=table_city.id)  (cost=1.05 rows=5)
-                            -> Single-row covering index lookup on table_user using PRIMARY (id=`<subquery4>`.`user`)  (cost=0.35 rows=1)
+    -> Aggregate: group_concat(d.id separator ',') (rows=1)
+        -> Table scan on d (rows=5)
+            -> Materialize (rows=5)
+                -> Table scan on <temporary> (rows=5)
+                    -> Temporary table with deduplication (rows=5)
+                        -> Nested loop inner join (rows=5)
+                            -> Filter: (table_city.id = `<subquery4>`.city) (rows=5)
+                                -> Table scan on <subquery4> (rows=5)
+                                    -> Materialize with deduplication (rows=5)
+                                        -> Index lookup on table_city_user using city (city=table_city.id) (rows=5)
+                            -> Single-row covering index lookup on table_user using PRIMARY (id=`<subquery4>`.`user`) (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table_city.id' of SELECT #4 was resolved in SELECT #1
@@ -2009,3 +2008,158 @@ LEFT JOIN t1 AS t3 ON (t2.a = t3.a OR 0 IN ( SELECT REGEXP_LIKE(a, '') FROM t1 )
 1
 1
 DROP TABLE t1;
+# Bug#33952115: Semijoin may give wrong result
+CREATE TABLE t1(c0 int);
+INSERT INTO t1 VALUES(NULL), (1), (NULL), (2), (NULL), (3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain SELECT t1.c0 AS ref0
+FROM t1
+WHERE t1.c0 IN (SELECT t2.c0 AS ref1
+FROM t1 as t2
+WHERE t2.c0 NOT IN (SELECT t3.c0 AS ref2
+FROM t1 as t3
+WHERE t3.c0
+)
+= t2.c0
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (hash join)
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	6	83.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c0` AS `ref0` from `test`.`t1` semi join (`test`.`t1` `t2`) where ((`test`.`t1`.`c0` = `<subquery2>`.`ref1`) and (<in_optimizer>(`test`.`t2`.`c0`,`test`.`t2`.`c0` not in ( <materialize> (/* select#3 */ select `test`.`t3`.`c0` AS `ref2` from `test`.`t1` `t3` where (0 <> `test`.`t3`.`c0`) having true ), <primary_index_lookup>(`test`.`t2`.`c0` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`c0` = `<materialized_subquery>`.`ref2`))))) = `test`.`t2`.`c0`))
+SELECT t1.c0 AS ref0
+FROM t1
+WHERE t1.c0 IN (SELECT t2.c0 AS ref1
+FROM t1 as t2
+WHERE t2.c0 NOT IN (SELECT t3.c0 AS ref2
+FROM t1 as t3
+WHERE t3.c0
+)
+= t2.c0
+);
+ref0
+DROP TABLE t1;
+# Bug#33957233: Incorrect inner hash join when using materialization
+CREATE TABLE t0 (
+c0 INTEGER
+);
+INSERT INTO t0 VALUES
+(321108437), (-64596961), (329053785), (1983), (NULL), (NULL),
+(1936), (-543970881), (NULL), (NULL), (-1945919442), (NULL), (1230052719);
+ANALYZE TABLE t0;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+explain SELECT t0.c0
+FROM t0
+WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref1
+FROM t0
+WHERE t0.c0 IN (SELECT t0.c0
+FROM t0
+WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref3
+FROM t0
+)
+= t0.c0
+)
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t0	NULL	ALL	NULL	NULL	NULL	NULL	13	100.00	Using where
+2	SUBQUERY	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+2	SUBQUERY	t0	NULL	ALL	NULL	NULL	NULL	NULL	13	10.00	Using where; Using join buffer (hash join)
+3	MATERIALIZED	t0	NULL	ALL	NULL	NULL	NULL	NULL	13	10.00	Using where
+4	SUBQUERY	t0	NULL	ALL	NULL	NULL	NULL	NULL	13	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`c0` AS `c0` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`c0`,`test`.`t0`.`c0` in ( <materialize> (/* select#2 */ select `test`.`t0`.`c0` AS `ref1` from `test`.`t0` semi join (`test`.`t0`) where ((<in_optimizer>(`test`.`t0`.`c0`,`test`.`t0`.`c0` not in ( <materialize> (/* select#4 */ select `test`.`t0`.`c0` AS `ref3` from `test`.`t0` where true having true ), <primary_index_lookup>(`test`.`t0`.`c0` in <temporary table> on <auto_distinct_key> where ((`test`.`t0`.`c0` = `<materialized_subquery>`.`ref3`))))) = `test`.`t0`.`c0`) and (`test`.`t0`.`c0` = `<subquery3>`.`c0`)) having true ), <primary_index_lookup>(`test`.`t0`.`c0` in <temporary table> on <auto_distinct_key> where ((`test`.`t0`.`c0` = `<materialized_subquery>`.`ref1`)))) is false)
+SELECT t0.c0
+FROM t0
+WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref1
+FROM t0
+WHERE t0.c0 IN (SELECT t0.c0
+FROM t0
+WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref3
+FROM t0
+)
+= t0.c0
+)
+);
+c0
+321108437
+-64596961
+329053785
+1983
+NULL
+NULL
+1936
+-543970881
+NULL
+NULL
+-1945919442
+NULL
+1230052719
+DROP TABLE t0;
+# Bug#33755139: prepare stmt query return error record
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, NULL);
+CREATE TABLE t2(c INTEGER, d INTEGER);
+INSERT INTO t2 VALUES(2, 2);
+SELECT a FROM t1 WHERE b =ALL (SELECT d FROM t2 WHERE c = 1);
+a
+1
+SELECT a FROM t1 WHERE b =ALL (SELECT d FROM t2 WHERE c = 2);
+a
+prepare ps FROM "
+SELECT a FROM t1 WHERE b =ALL (SELECT d FROM t2 WHERE c = ?)";
+SET @v = 1;
+execute ps using @v;
+a
+1
+SET @v = 2;
+execute ps using @v;
+a
+deallocate prepare ps;
+DROP TABLE t1, t2;
+#
+# Bug#34060289 optimizer rewrites view and turns left joins into inner joins
+#
+CREATE TABLE vt1 (c1 INT);
+CREATE TABLE vt2 (c1 INT);
+CREATE TABLE vt3 (c1 INT NOT NULL AUTO_INCREMENT, c2 INT,
+c3 INT, c4 INT, c5 INT, PRIMARY KEY (c1));
+INSERT INTO vt3 (c2,c3) VALUES (1,1);
+CREATE TABLE vt4 (c1 INT);
+INSERT INTO vt4 (c1) VALUES (1);
+CREATE VIEW v1 AS
+SELECT vt3.c2 AS vc1, vt3.c3 AS vc2, vt4.c1 AS vc3
+FROM (((vt3 LEFT JOIN vt1 ON vt1.c1 = vt3.c5)
+LEFT JOIN vt2 ON vt3.c4= vt2.c1) JOIN vt4);
+CREATE TABLE t1 (c1 INT, c2 CHAR(2));
+INSERT INTO t1 VALUES (1, '01');
+CREATE TABLE t2 (c2 INT, c3 INT);
+INSERT INTO t2 VALUES (1, null);
+SET optimizer_switch="derived_merge=off";
+SELECT *
+FROM v1
+WHERE (v1.vc3 IN (SELECT c1 FROM t1 WHERE c2='01'))
+AND (null IS null OR v1.vc1 IN (SELECT c2 FROM t2 WHERE c3=null))
+AND (null IS null OR v1.vc2 IN (null));
+vc1	vc2	vc3
+1	1	1
+SET optimizer_switch="derived_merge=on";
+SELECT *
+FROM v1
+WHERE (v1.vc3 IN (SELECT c1 FROM t1 WHERE c2='01'))
+AND (null IS null OR v1.vc1 IN (SELECT c2 FROM t2 WHERE c3=null))
+AND (null IS null OR v1.vc2 IN (null));
+vc1	vc2	vc3
+1	1	1
+SELECT *
+FROM v1
+WHERE (vc3 IN (SELECT c1 FROM t1 WHERE c2='01'))
+AND (null IS null OR v1.vc1 IN (SELECT c2 FROM t2 WHERE c3=null));
+vc1	vc2	vc3
+1	1	1
+DROP VIEW v1;
+DROP TABLE vt1, vt2, vt3, vt4, t1, t2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,14 +65,6 @@
   This flag is set at startup, and never changes.
 */
 bool pfs_enabled = true;
-
-/**
-  Global flag used to enable and disable SHOW PROCESSLIST in the
-  performance schema. This flag only takes effect if the performance schema
-  is configured to support SHOW PROCESSLIST.
-  @sa performance-schema-enable-processlist
-*/
-bool pfs_processlist_enabled = false;
 
 /**
   Global performance schema reference count for plugin and component events.
@@ -502,16 +494,69 @@ static const uchar *table_share_hash_get_key(const uchar *entry,
   assert(typed_entry != nullptr);
   share = *typed_entry;
   assert(share != nullptr);
-  *length = share->m_key.m_key_length;
-  result = &share->m_key.m_hash_key[0];
+  *length = sizeof(share->m_key);
+  result = &share->m_key;
   return reinterpret_cast<const uchar *>(result);
+}
+
+static uint table_share_hash_func(const LF_HASH *, const uchar *key,
+                                  size_t key_len [[maybe_unused]]) {
+  const PFS_table_share_key *share_key;
+  uint64 nr1;
+  uint64 nr2;
+
+  assert(key_len == sizeof(PFS_table_share_key));
+  share_key = reinterpret_cast<const PFS_table_share_key *>(key);
+  assert(share_key != nullptr);
+
+  nr1 = share_key->m_type;
+  nr2 = 0;
+
+  share_key->m_schema_name.hash(&nr1, &nr2);
+
+  share_key->m_table_name.hash(&nr1, &nr2);
+
+  return nr1;
+}
+
+static int table_share_hash_cmp_func(const uchar *key1,
+                                     size_t key_len1 [[maybe_unused]],
+                                     const uchar *key2,
+                                     size_t key_len2 [[maybe_unused]]) {
+  const PFS_table_share_key *share_key1;
+  const PFS_table_share_key *share_key2;
+  int cmp;
+
+  assert(key_len1 == sizeof(PFS_table_share_key));
+  assert(key_len2 == sizeof(PFS_table_share_key));
+  share_key1 = reinterpret_cast<const PFS_table_share_key *>(key1);
+  share_key2 = reinterpret_cast<const PFS_table_share_key *>(key2);
+  assert(share_key1 != nullptr);
+  assert(share_key2 != nullptr);
+
+  if (share_key1->m_type > share_key2->m_type) {
+    return +1;
+  }
+
+  if (share_key1->m_type < share_key2->m_type) {
+    return -1;
+  }
+
+  cmp = share_key1->m_schema_name.sort(&share_key2->m_schema_name);
+  if (cmp != 0) {
+    return cmp;
+  }
+
+  cmp = share_key1->m_table_name.sort(&share_key2->m_table_name);
+  return cmp;
 }
 
 /** Initialize the table share hash table. */
 int init_table_share_hash(const PFS_global_param *param) {
   if ((!table_share_hash_inited) && (param->m_table_share_sizing != 0)) {
-    lf_hash_init(&table_share_hash, sizeof(PFS_table_share *), LF_HASH_UNIQUE,
-                 0, 0, table_share_hash_get_key, &my_charset_bin);
+    lf_hash_init3(&table_share_hash, sizeof(PFS_table_share *), LF_HASH_UNIQUE,
+                  table_share_hash_get_key, table_share_hash_func,
+                  table_share_hash_cmp_func, nullptr, nullptr, nullptr);
     table_share_hash_inited = true;
   }
   return 0;
@@ -556,28 +601,12 @@ static void set_table_share_key(PFS_table_share_key *key, bool temporary,
                                 size_t table_name_length) {
   assert(schema_name_length <= NAME_LEN);
   assert(table_name_length <= NAME_LEN);
-  char *saved_schema_name;
-  char *saved_table_name;
 
-  char *ptr = &key->m_hash_key[0];
-  ptr[0] = (temporary ? OBJECT_TYPE_TEMPORARY_TABLE : OBJECT_TYPE_TABLE);
-  ptr++;
-  saved_schema_name = ptr;
-  memcpy(ptr, schema_name, schema_name_length);
-  ptr += schema_name_length;
-  ptr[0] = 0;
-  ptr++;
-  saved_table_name = ptr;
-  memcpy(ptr, table_name, table_name_length);
-  ptr += table_name_length;
-  ptr[0] = 0;
-  ptr++;
-  key->m_key_length = ptr - &key->m_hash_key[0];
+  key->m_type = (temporary ? OBJECT_TYPE_TEMPORARY_TABLE : OBJECT_TYPE_TABLE);
 
-  if (lower_case_table_names) {
-    my_casedn_str(files_charset_info, saved_schema_name);
-    my_casedn_str(files_charset_info, saved_table_name);
-  }
+  key->m_schema_name.set(schema_name, schema_name_length);
+
+  key->m_table_name.set(table_name, table_name_length);
 }
 
 /**
@@ -687,9 +716,8 @@ void PFS_table_share::destroy_index_stats() {
 }
 
 void PFS_table_share::refresh_setup_object_flags(PFS_thread *thread) {
-  lookup_setup_object(thread, OBJECT_TYPE_TABLE, m_schema_name,
-                      m_schema_name_length, m_table_name, m_table_name_length,
-                      &m_enabled, &m_timed);
+  lookup_setup_object_table(thread, OBJECT_TYPE_TABLE, &m_key.m_schema_name,
+                            &m_key.m_table_name, &m_enabled, &m_timed);
 }
 
 /**
@@ -1041,7 +1069,7 @@ static void configure_instr_class(PFS_instr_class *entry) {
     return;
   }
   Pfs_instr_config_array::iterator it = pfs_instr_config_array->begin();
-  for (; it != pfs_instr_config_array->end(); it++) {
+  for (; it != pfs_instr_config_array->end(); ++it) {
     PFS_instr_config *e = *it;
 
     /**
@@ -1644,7 +1672,8 @@ PFS_memory_key register_memory_class(const char *name, uint name_length,
                      PFS_CLASS_MEMORY);
     entry->m_event_name_index = index;
 
-    entry->enforce_valid_flags(PSI_FLAG_ONLY_GLOBAL_STAT);
+    entry->enforce_valid_flags(
+        (PSI_FLAG_ONLY_GLOBAL_STAT | PSI_FLAG_MEM_COLLECT));
 
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
@@ -1812,8 +1841,8 @@ PFS_table_share *find_or_create_table_share(PFS_thread *thread, bool temporary,
   pfs_dirty_state dirty_state;
 
 search:
-  entry = reinterpret_cast<PFS_table_share **>(lf_hash_search(
-      &table_share_hash, pins, key.m_hash_key, key.m_key_length));
+  entry = reinterpret_cast<PFS_table_share **>(
+      lf_hash_search(&table_share_hash, pins, &key, sizeof(key)));
   if (entry && (entry != MY_LF_ERRPTR)) {
     pfs = *entry;
     pfs->inc_refcount();
@@ -1838,9 +1867,8 @@ search:
   lf_hash_search_unpin(pins);
 
   if (retry_count == 0) {
-    lookup_setup_object(thread, OBJECT_TYPE_TABLE, schema_name,
-                        schema_name_length, table_name, table_name_length,
-                        &enabled, &timed);
+    lookup_setup_object_table(thread, key.m_type, &key.m_schema_name,
+                              &key.m_table_name, &enabled, &timed);
     /*
       Even when enabled is false, a record is added in the dictionary:
       - It makes enabling a table already in the table cache possible,
@@ -1852,10 +1880,6 @@ search:
   pfs = global_table_share_container.allocate(&dirty_state);
   if (pfs != nullptr) {
     pfs->m_key = key;
-    pfs->m_schema_name = &pfs->m_key.m_hash_key[1];
-    pfs->m_schema_name_length = schema_name_length;
-    pfs->m_table_name = &pfs->m_key.m_hash_key[schema_name_length + 2];
-    pfs->m_table_name_length = table_name_length;
     pfs->m_enabled = enabled;
     pfs->m_timed = timed;
     pfs->init_refcount();
@@ -1990,12 +2014,11 @@ void drop_table_share(PFS_thread *thread, bool temporary,
   set_table_share_key(&key, temporary, schema_name, schema_name_length,
                       table_name, table_name_length);
   PFS_table_share **entry;
-  entry = reinterpret_cast<PFS_table_share **>(lf_hash_search(
-      &table_share_hash, pins, key.m_hash_key, key.m_key_length));
+  entry = reinterpret_cast<PFS_table_share **>(
+      lf_hash_search(&table_share_hash, pins, &key, sizeof(key)));
   if (entry && (entry != MY_LF_ERRPTR)) {
     PFS_table_share *pfs = *entry;
-    lf_hash_delete(&table_share_hash, pins, pfs->m_key.m_hash_key,
-                   pfs->m_key.m_key_length);
+    lf_hash_delete(&table_share_hash, pins, &pfs->m_key, sizeof(pfs->m_key));
     pfs->destroy_lock_stat();
     pfs->destroy_index_stats();
 
@@ -2047,7 +2070,8 @@ void reset_socket_class_io(void) {
 class Proc_table_share_derived_flags
     : public PFS_buffer_processor<PFS_table_share> {
  public:
-  Proc_table_share_derived_flags(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_table_share_derived_flags(PFS_thread *thread)
+      : m_thread(thread) {}
 
   void operator()(PFS_table_share *pfs) override {
     pfs->refresh_setup_object_flags(m_thread);
@@ -2065,7 +2089,8 @@ void update_table_share_derived_flags(PFS_thread *thread) {
 class Proc_program_share_derived_flags
     : public PFS_buffer_processor<PFS_program> {
  public:
-  Proc_program_share_derived_flags(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_program_share_derived_flags(PFS_thread *thread)
+      : m_thread(thread) {}
 
   void operator()(PFS_program *pfs) override {
     pfs->refresh_setup_object_flags(m_thread);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,64 @@
 */
 class Transaction_consistency_info {
  public:
+  /*
+    Allocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] size    memory size to be allocated
+    @param[in] nothrow When the nothrow constant is passed as second parameter
+                       to operator new, operator new returns a null-pointer on
+                       failure instead of throwing a bad_alloc exception.
+
+    @return pointer to the allocated memory, or NULL if memory could not
+            be allocated.
+  */
+  void *operator new(size_t size, const std::nothrow_t &) noexcept {
+    /*
+      Call my_malloc() with the MY_WME flag to make sure that it will
+      write an error message if the memory could not be allocated.
+    */
+    return my_malloc(key_consistent_transactions, size, MYF(MY_WME));
+  }
+
+  /*
+    Deallocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] ptr     pointer to the allocated memory
+    @param[in] nothrow When the nothrow constant is passed as second parameter
+                       to operator new, operator new returns a null-pointer on
+                       failure instead of throwing a bad_alloc exception.
+  */
+  void operator delete(void *ptr, const std::nothrow_t &) noexcept {
+    my_free(ptr);
+  }
+
+  /**
+    Allocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] size    memory size to be allocated
+
+    @return pointer to the allocated memory, or NULL if memory could not
+            be allocated.
+  */
+  void *operator new(size_t size) noexcept {
+    /*
+      Call my_malloc() with the MY_WME flag to make sure that it will
+      write an error message if the memory could not be allocated.
+    */
+    return my_malloc(key_consistent_transactions, size, MYF(MY_WME));
+  }
+
+  /**
+    Deallocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] ptr     pointer to the allocated memory
+  */
+  void operator delete(void *ptr) noexcept { my_free(ptr); }
+
   /**
     Constructor
 
@@ -66,8 +124,7 @@ class Transaction_consistency_info {
       my_thread_id thread_id, bool local_transaction, const rpl_sid *sid,
       rpl_sidno sidno, rpl_gno gno,
       enum_group_replication_consistency_level consistency_level,
-      std::list<Gcs_member_identifier>
-          *members_that_must_prepare_the_transaction);
+      Members_list *members_that_must_prepare_the_transaction);
 
   virtual ~Transaction_consistency_info();
 
@@ -182,7 +239,9 @@ class Transaction_consistency_info {
   const rpl_sidno m_sidno;
   const rpl_gno m_gno;
   const enum_group_replication_consistency_level m_consistency_level;
-  std::list<Gcs_member_identifier> *m_members_that_must_prepare_the_transaction;
+  Members_list *m_members_that_must_prepare_the_transaction;
+  std::unique_ptr<Checkable_rwlock>
+      m_members_that_must_prepare_the_transaction_lock;
   bool m_transaction_prepared_locally;
   bool m_transaction_prepared_remotely;
 };
@@ -191,8 +250,13 @@ typedef std::pair<rpl_sidno, rpl_gno> Transaction_consistency_manager_key;
 typedef std::pair<Transaction_consistency_manager_key,
                   Transaction_consistency_info *>
     Transaction_consistency_manager_pair;
-typedef std::map<Transaction_consistency_manager_key,
-                 Transaction_consistency_info *>
+typedef std::pair<Pipeline_event *, Transaction_consistency_manager_key>
+    Transaction_consistency_manager_pevent_pair;
+typedef std::map<
+    Transaction_consistency_manager_key, Transaction_consistency_info *,
+    std::less<Transaction_consistency_manager_key>,
+    Malloc_allocator<std::pair<const Transaction_consistency_manager_key,
+                               Transaction_consistency_info *>>>
     Transaction_consistency_manager_map;
 
 /**
@@ -463,10 +527,14 @@ class Transaction_consistency_manager : public Group_transaction_listener {
   Transaction_consistency_manager_map m_map;
 
   Checkable_rwlock *m_prepared_transactions_on_my_applier_lock;
-  std::list<Transaction_consistency_manager_key>
+
+  std::list<Transaction_consistency_manager_key,
+            Malloc_allocator<Transaction_consistency_manager_key>>
       m_prepared_transactions_on_my_applier;
-  std::list<my_thread_id> m_new_transactions_waiting;
-  std::list<std::pair<Pipeline_event *, Transaction_consistency_manager_key>>
+  std::list<my_thread_id, Malloc_allocator<my_thread_id>>
+      m_new_transactions_waiting;
+  std::list<Transaction_consistency_manager_pevent_pair,
+            Malloc_allocator<Transaction_consistency_manager_pevent_pair>>
       m_delayed_view_change_events;
   Transaction_consistency_manager_key m_last_local_transaction;
 

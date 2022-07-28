@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
 #include "sql/binlog.h"
@@ -124,11 +124,11 @@ class Master_info : public Rpl_info {
   */
   char start_password[MAX_PASSWORD_LENGTH + 1];
   /**
-    Stores the autentication plugin specified when running START SLAVE.
+    Stores the authentication plugin specified when running START SLAVE.
   */
   char start_plugin_auth[FN_REFLEN + 1];
   /**
-    Stores the autentication plugin directory specified when running
+    Stores the authentication plugin directory specified when running
     START SLAVE.
   */
   char start_plugin_dir[FN_REFLEN + 1];
@@ -473,7 +473,7 @@ class Master_info : public Rpl_info {
   /**
      returns the column number of a channel in the TABLE repository.
      Mainly used during server startup to load the information required
-     from the slave repostiory tables. See rpl_info_factory.cc
+     from the slave repository tables. See rpl_info_factory.cc
   */
   static uint get_channel_field_num();
 
@@ -799,7 +799,7 @@ class Master_info : public Rpl_info {
 
   /**
     Is the replica working in GTID only mode, meaning it does not
-    persist position related information when executing or queing transactions.
+    persist position related information when executing or queueing transactions.
   */
   bool m_gtid_only_mode;
 

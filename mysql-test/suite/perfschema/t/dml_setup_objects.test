@@ -25,26 +25,26 @@ select * from performance_schema.setup_objects
 
 --error ER_NO_REFERENCED_ROW_2
 insert into performance_schema.setup_objects
-  set object_type='ILLEGAL', object_schema='FOO', object_name='BAR',
+  set object_type='ILLEGAL', object_schema='foo', object_name='bar',
   enabled='YES', timed='YES';
 
 insert into performance_schema.setup_objects
-  set object_type='TABLE', object_schema='FOO', object_name='BAR',
+  set object_type='TABLE', object_schema='foo', object_name='bar',
   enabled='YES', timed='YES';
 
 --error ER_DUP_KEY
 insert into performance_schema.setup_objects
-  set object_type='TABLE', object_schema='FOO', object_name='BAR',
+  set object_type='TABLE', object_schema='foo', object_name='bar',
   enabled='YES', timed='NO';
 
 delete from performance_schema.setup_objects
-  where object_type='TABLE' and object_schema='FOO';
+  where object_type='TABLE' and object_schema='foo';
 
 select * from performance_schema.setup_objects
   order by object_type, object_schema, object_name;
 
 insert into performance_schema.setup_objects
-  set object_type='TABLE', object_schema='FOO', object_name='BAR',
+  set object_type='TABLE', object_schema='foo', object_name='bar',
   enabled='NO', timed='YES';
 
 select * from performance_schema.setup_objects

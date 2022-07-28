@@ -86,8 +86,10 @@ SET global.binlog_order_commits = ON;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.binlog_order_commits = ON' at line 1
 SELECT global.binlog_order_commits;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT binlog_order_commits = @@session.binlog_order_commits;
+SELECT binlog_order_commits;
 ERROR 42S22: Unknown column 'binlog_order_commits' in 'field list'
+SELECT @@session.binlog_order_commits;
+ERROR HY000: Variable 'binlog_order_commits' is a GLOBAL variable
 SET @@global.binlog_order_commits = @start_value;
 SELECT @@global.binlog_order_commits;
 @@global.binlog_order_commits

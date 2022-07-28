@@ -9,9 +9,13 @@ call mtr.add_suppression("An unexpected event sequence was detected by the IO th
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
 include/stop_slave.inc
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = 2;
 SET GLOBAL replica_transaction_retries = 0;
 include/start_slave.inc
@@ -31,6 +35,8 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
 SET GLOBAL replica_parallel_type = @save_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_transaction_retries = @save_replica_transaction_retries;
 include/start_slave.inc
 include/rpl_end.inc

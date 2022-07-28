@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 #define HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,12 +75,12 @@
 */
 
 #include <cstddef>  // size_t
-#include <set>
-#include <string>  // std::string
+#include <string>   // std::string
 
 #include "sql/histograms/equi_height_bucket.h"  // IWYU pragma: keep
 #include "sql/histograms/histogram.h"           // Histogram, value_map_type
 #include "sql/histograms/value_map_type.h"
+#include "sql/mem_root_array.h"
 
 class Json_array;
 class Json_object;
@@ -100,50 +100,54 @@ class Bucket;
 
 template <class T>
 class Equi_height : public Histogram {
- private:
-  /// String representation of the histogram type EQUI-HEIGHT.
-  static constexpr const char *equi_height_str() { return "equi-height"; }
+ public:
+  /**
+    Equi-height histogram factory method.
 
-  /// The buckets for this histogram.
-  std::set<equi_height::Bucket<T>, Histogram_comparator,
-           Mem_root_allocator<equi_height::Bucket<T>>>
-      m_buckets;
+    Attempts to allocate and initialize an equi-height histogram on the supplied
+    mem_root. This will not build the histogram, but only set its properties.
+    If the attempt to allocate the histogram fails or if an error occurs during
+    construction we return nullptr.
+
+    @param mem_root the mem_root where the histogram contents will be allocated
+    @param db_name  name of the database this histogram represents
+    @param tbl_name name of the table this histogram represents
+    @param col_name name of the column this histogram represents
+    @param data_type the type of data that this histogram contains
+
+    @return A pointer to an equi-height histogram on success. Returns nullptr on
+            error.
+  */
+  static Equi_height<T> *create(MEM_ROOT *mem_root, const std::string &db_name,
+                                const std::string &tbl_name,
+                                const std::string &col_name,
+                                Value_map_type data_type);
 
   /**
-    Create Equi-height buckets from a JSON array.
+   Make a clone of this histogram on a MEM_ROOT.
 
-    This function will add new buckets to the current histogram by going through
-    the provided JSON array. Contents are allocated as needed on the current
-    histograms MEM_ROOT.
+   @param mem_root the MEM_ROOT to allocate the new histogram contents on.
 
-    @param json_bucket a JSON array containing the histogram buckets
+   @return a copy of the histogram allocated on the provided MEM_ROOT.
+ */
+  Histogram *clone(MEM_ROOT *mem_root) const override;
+
+  Equi_height(const Equi_height<T> &other) = delete;
+
+  /**
+    Build the histogram.
+
+    This function will build a new histogram from a "value map". The function
+    will create at most num_buckets buckets, but may use less.
+
+    @param  value_map       a value map, where the map key is a value and the
+                            map value is the absolute frequency for that value
+    @param  num_buckets     maximum number of buckets to create
+
     @return true on error, false otherwise
   */
-  bool add_bucket_from_json(const Json_array *json_bucket);
+  bool build_histogram(const Value_map<T> &value_map, size_t num_buckets);
 
-  /**
-    Find the fraction of values that is less than or equal to 'value'.
-
-    This function will estimate the fraction of values that is less than or
-    equal to the provided value.
-
-    @param value The value to estimate the selectivity for.
-
-    @return the selectivity between 0.0 and 1.0 inclusive.
-  */
-  double get_less_than_equal_selectivity(const T &value) const;
-
- protected:
-  /**
-    Populate this histogram with contents from a JSON object.
-
-    @param json_object a JSON object that represents an Equi-height histogram
-
-    @return true on error, false otherwise.
-  */
-  bool json_to_histogram(const Json_object &json_object) override;
-
- public:
   /**
     Find the fraction of values equal to 'value'.
 
@@ -152,7 +156,7 @@ class Equi_height : public Histogram {
 
     @param value The value to estimate the selectivity for.
 
-    @return the selectivity between 0.0 and 1.0 inclusive.
+    @return The selectivity between 0.0 and 1.0 inclusive.
   */
   double get_equal_to_selectivity(const T &value) const;
 
@@ -181,48 +185,6 @@ class Equi_height : public Histogram {
   double get_greater_than_selectivity(const T &value) const;
 
   /**
-    Equi-height constructor.
-
-    This will not build the histogram, but only set its properties.
-
-    @param mem_root the mem_root where the histogram contents will be allocated
-    @param db_name  name of the database this histogram represents
-    @param tbl_name name of the table this histogram represents
-    @param col_name name of the column this histogram represents
-    @param data_type the type of data that this histogram contains
-  */
-  Equi_height(MEM_ROOT *mem_root, const std::string &db_name,
-              const std::string &tbl_name, const std::string &col_name,
-              Value_map_type data_type);
-
-  /**
-    Equi-height copy-constructor
-
-    This will take a copy of the histogram and all of its contents on the
-    provided MEM_ROOT.
-
-    @param mem_root the MEM_ROOT to allocate the new histogram on.
-    @param other    the histogram to take a copy of
-  */
-  Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other);
-
-  Equi_height(const Equi_height<T> &other) = delete;
-
-  /**
-    Build the histogram.
-
-    This function will build a new histogram from a "value map". The function
-    will create at most num_buckets buckets, but may use less.
-
-    @param  value_map       a value map, where the map key is a value and the
-                            map value is the absolute frequency for that value
-    @param  num_buckets     maximum number of buckets to create
-
-    @return true on error, false otherwise
-  */
-  bool build_histogram(const Value_map<T> &value_map, size_t num_buckets);
-
-  /**
     @return number of buckets in this histogram
   */
   size_t get_num_buckets() const override { return m_buckets.size(); }
@@ -248,20 +210,77 @@ class Equi_height : public Histogram {
   bool histogram_to_json(Json_object *json_object) const override;
 
   /**
+    Get the buckets of the histogram. Exposed for unit testing.
+
+    @return A const reference to the collection of buckets.
+  */
+  const Mem_root_array<equi_height::Bucket<T>> &get_buckets() const {
+    return m_buckets;
+  }
+
+  /**
     Returns the histogram type as a readable string.
 
     @return a readable string representation of the histogram type
   */
   std::string histogram_type_to_str() const override;
 
+ protected:
   /**
-    Make a clone of this histogram on a MEM_ROOT.
+    Populate this histogram with contents from a JSON object.
 
-    @param mem_root the MEM_ROOT to allocate the new histogram contents on.
+    @param json_object A JSON object that represents an Equi-height histogram.
 
-    @return a copy of the histogram allocated on the provided MEM_ROOT.
+    @return True on error, false otherwise.
   */
-  Histogram *clone(MEM_ROOT *mem_root) const override;
+  bool json_to_histogram(const Json_object &json_object) override;
+
+ private:
+  /// String representation of the histogram type EQUI-HEIGHT.
+  static constexpr const char *equi_height_str() { return "equi-height"; }
+
+  /**
+    Equi-height constructor.
+
+    This will not build the histogram, but only set its properties.
+
+    @param mem_root  the mem_root where the histogram contents will be allocated
+    @param db_name   name of the database this histogram represents
+    @param tbl_name  name of the table this histogram represents
+    @param col_name  name of the column this histogram represents
+    @param data_type the type of data that this histogram contains
+    @param[out] error is set to true if an error occurs
+  */
+  Equi_height(MEM_ROOT *mem_root, const std::string &db_name,
+              const std::string &tbl_name, const std::string &col_name,
+              Value_map_type data_type, bool *error);
+
+  /**
+    Equi-height copy-constructor
+
+    This will take a copy of the histogram and all of its contents on the
+    provided MEM_ROOT.
+
+    @param mem_root the MEM_ROOT to allocate the new histogram on.
+    @param other    the histogram to take a copy of
+    @param[out] error is set to true if an error occurs
+  */
+  Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other, bool *error);
+
+  /**
+    Create Equi-height buckets from a JSON array.
+
+    This function will add new buckets to the current histogram by going through
+    the provided JSON array. Contents are allocated as needed on the current
+    histograms MEM_ROOT.
+
+    @param json_bucket a JSON array containing the histogram buckets.
+    @return true on error, false otherwise.
+  */
+  bool add_bucket_from_json(const Json_array *json_bucket);
+
+  /// The buckets for this histogram.
+  Mem_root_array<equi_height::Bucket<T>> m_buckets;
 };
 
 }  // namespace histograms

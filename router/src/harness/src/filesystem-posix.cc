@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "mysql/harness/access_rights.h"
+#include "mysql/harness/stdx/expected.h"
 
 namespace {
 const std::string dirsep("/");
@@ -324,7 +327,7 @@ stdx::expected<void, std::error_code> delete_file(
 
 std::string get_tmp_dir(const std::string &name) {
   const size_t MAX_LEN = 256;
-  const std::string pattern_str = std::string(name + "-XXXXXX");
+  const std::string pattern_str = std::string("/tmp/" + name + "-XXXXXX");
   const char *pattern = pattern_str.c_str();
   if (strlen(pattern) >= MAX_LEN) {
     throw std::runtime_error(
@@ -334,7 +337,8 @@ std::string get_tmp_dir(const std::string &name) {
   strncpy(buf, pattern, sizeof(buf) - 1);
   const char *res = mkdtemp(buf);
   if (res == nullptr) {
-    throw std::runtime_error("Could not create temporary directory");
+    throw std::system_error(errno, std::generic_category(),
+                            "mkdtemp(" + pattern_str + ") failed");
   }
 
   return std::string(res);
@@ -346,58 +350,34 @@ int mkdir_wrapper(const std::string &dir, perm_mode mode) {
   return 0;
 }
 
-void check_file_access_rights(const std::string &file_name) {
-  struct stat status;
-
-  if (stat(file_name.c_str(), &status) != 0) {
-    if (errno == ENOENT) return;
-    throw std::system_error(errno, std::generic_category(),
-                            "stat() failed for " + file_name + "'");
-  }
-
-  static constexpr mode_t kFullAccessMask = (S_IRWXU | S_IRWXG | S_IRWXO);
-  static constexpr mode_t kRequiredAccessMask = (S_IRUSR | S_IWUSR);
-
-  if ((status.st_mode & kFullAccessMask) != kRequiredAccessMask) {
-    throw std::system_error(
-        make_error_code(std::errc::permission_denied),
-        "'" + file_name + "' has insecure permissions. Expected u+rw only.");
-  }
-}
-
-/**
- * Sets access permissions for a file.
- *
- * @param[in] file_name File name.
- * @param[in] mask Access permission mask.
- *
- * @throw std::exception Failed to change file permissions.
- */
-static void throwing_chmod(const std::string &file_name, mode_t mask) {
-  if (chmod(file_name.c_str(), mask) != 0) {
-    auto ec = std::error_code(errno, std::generic_category());
+void make_file_public(const std::string &file_name) {
+  const auto set_res =
+      access_rights_set(file_name, S_IRWXU | S_IRWXG | S_IRWXO);
+  if (!set_res) {
+    const auto ec = set_res.error();
     throw std::system_error(ec, "chmod() failed: " + file_name);
   }
 }
 
-void make_file_public(const std::string &file_name) {
-  throwing_chmod(file_name, S_IRWXU | S_IRWXG | S_IRWXO);
-}
-
 void make_file_private(const std::string &file_name,
-                       const bool read_only_for_local_service) {
-  (void)read_only_for_local_service;  // only relevant for Windows
-  try {
-    throwing_chmod(file_name, S_IRUSR | S_IWUSR);
-  } catch (std::runtime_error &e) {
-    throw std::runtime_error("Could not set permissions for file '" +
-                             file_name + "': " + e.what());
+                       const bool read_only_for_local_service
+                       [[maybe_unused]]) {
+  const auto set_res = access_rights_set(file_name, S_IRUSR | S_IWUSR);
+  if (!set_res) {
+    const auto ec = set_res.error();
+    throw std::system_error(
+        ec, "Could not set permissions for file '" + file_name + "'");
   }
 }
 
 void make_file_readonly(const std::string &file_name) {
-  throwing_chmod(file_name,
-                 S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+  const auto set_res =
+      access_rights_set(file_name, (S_IRUSR | S_IXUSR) | (S_IRGRP | S_IXGRP) |
+                                       (S_IROTH | S_IXOTH));
+  if (!set_res) {
+    const auto ec = set_res.error();
+    throw std::system_error(ec, "chmod() failed: " + file_name);
+  }
 }
 
 }  // namespace mysql_harness

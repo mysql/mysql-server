@@ -155,49 +155,6 @@ select count(*) from t2 x, t2ver y
 where x.a = y.a
 and (x.b = y.b or (x.b is null and y.b is null));
 
---echo # simple hidden-pk test
-
-perl;
-use strict;
-use Symbol;
-my $lt = !$ENV{IS_WINDOWS} ? "\n" : "\r\n";
-my $vardir = $ENV{MYSQLTEST_VARDIR}
-  or die "need MYSQLTEST_VARDIR";
-my $file = "$vardir/tmp/t3.csv";
-my $fh = gensym();
-open($fh, ">:raw", $file)
-  or die "$file: open for write failed: $!";
-for my $i (1..1000) {
-  print $fh 10*$i, $lt;
-}
-close($fh)
-  or die "$file: close after write failed: $!";
-exit(0);
-EOF
-
-create table t3 (
-  b int not null,
-  # unique key would turn into pk
-  key bx (b)
-) engine=ndb;
-
-create table t3ver like t3;
-
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
-     test $MYSQLTEST_VARDIR/tmp/t3.csv >> $NDB_TOOLS_OUTPUT 2>&1;
-
---disable_query_log
-eval load data infile '$MYSQLTEST_VARDIR/tmp/t3.csv'
-into table t3ver
-lines terminated by $lt_default;
---enable_query_log
-
-select count(*) from t3;
-select count(*) from t3ver;
-
-select count(*) from t3 x, t3ver y
-where x.b = y.b;
-
 --echo # test with rejects and no --keep-state
 
 perl;
@@ -707,10 +664,183 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --let $assert_count=1
 --source include/assert_grep.inc
 
+create table t10 (
+  a int primary key,
+  b int not null,
+  c varchar(16) not null
+) engine=ndb CHARACTER SET latin1;
+
+--write_file $MYSQLTEST_VARDIR/tmp/t10_no_match.csv
+1,180,"Maximilien"
+2,175,"Jean-Jacques"
+3,168,"Denis"
+4,175,"Georges"
+5,174,"William"
+EOF
+
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cn
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+# Look for the specific error message from ndb_import
+--let $assert_file=$NDB_TOOLS_OUTPUT
+--let $assert_text=No --table argument and csv filename does not match any table name
+--let $assert_select=No such table existed
+--let $assert_count=1
+--source include/assert_grep.inc
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv --table=t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+delete from t10;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+create table t10ver like t10;
+
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t10_no_match.csv'
+into table t10ver
+fields terminated by ',' enclosed by '"'
+lines terminated by $lt_unix;
+--enable_query_log
+
+select count(*) from t10 x, t10ver y
+where x.a = y.a and x.b = y.b and x.c = y.c;
+
+delete from t10;
+
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=r
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+--echo # check .rej file exists and match the input csv filename
+--file_exists $MYSQLTEST_VARDIR/tmp/t10_no_match.rej
+
+--echo # check .rej file matching the table name does not exists
+--error 1
+--file_exists $MYSQLTEST_VARDIR/tmp/t10.rej
+
+
+delete from t10;
+
+--echo # check order matters when using --csvopt and --fields-terminated-by
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cqn
+ --fields-terminated-by=':'
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --fields-terminated-by=':'
+ --csvopt=cqn
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+# Verify that different ways of specify an empty or null column in a csv file
+# for a single column table works.
+
+create table t11 (
+  a varchar(16) null
+) engine=ndb CHARACTER SET latin1;
+
+--write_file $MYSQLTEST_VARDIR/tmp/t11.csv
+
+,
+""
+"",
+\N
+\N,
+EOF
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq
+ test $MYSQLTEST_VARDIR/tmp/t11.csv --table=t11 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+# 6 total 2 null and 4 empty
+SELECT COUNT(*), SUM(a IS NULL), SUM(a = '') FROM t11 ORDER BY a;
+
+delete from t11;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq
+ test $MYSQLTEST_VARDIR/tmp/t11.csv -t t11 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+create table t11ver like t11;
+
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t11.csv'
+into table t11ver
+fields terminated by ',' enclosed by '"'
+lines terminated by $lt_unix;
+--enable_query_log
+
+# 6 total 2 null and 4 empty
+SELECT COUNT(*), SUM(a IS NULL), SUM(a = '') FROM t11ver ORDER BY a;
+
+# 20 total 2x2 null and 4x4 empty
+select count(*) from t11 x, t11ver y
+where ifnull(x.a,'NULL') = ifnull(y.a,'NULL');
+
+delete from t11;
+
+# Verify that the t11.csv produce the same result if one add a auto_increment
+# primary key column that both ndb_import and load data will generate values
+# for.
+
+create table t12 (
+  a int auto_increment primary key,
+  b varchar(16) null
+) engine=ndb CHARACTER SET latin1;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq --missing-ai-column
+ test $MYSQLTEST_VARDIR/tmp/t11.csv --table=t12 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+# 6 total 2 null and 4 empty
+SELECT COUNT(*), SUM(b IS NULL), SUM(b = '') FROM t12 ORDER BY b;
+
+delete from t12;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq --missing-ai-column
+ test $MYSQLTEST_VARDIR/tmp/t11.csv -t t12 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+create table t12ver like t12;
+
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t11.csv'
+into table t12ver
+fields terminated by ',' enclosed by '"'
+lines terminated by $lt_unix (b);
+--enable_query_log
+
+# 6 total 2 null and 4 empty
+SELECT COUNT(*), SUM(b IS NULL), SUM(b = '') FROM t12ver ORDER BY b;
+
+# 20 total 2x2 null and 4x4 empty
+select count(*) from t12 x, t12ver y
+where ifnull(x.b,'NULL') = ifnull(y.b,'NULL');
+
+delete from t12;
+
+# 20 total 2x2 null and 4x4 empty
+select count(*) from t11ver x, t12ver y
+where ifnull(x.a,'NULL') = ifnull(y.b,'NULL');
+
+# END t11
+
 drop table tpersons;
 
-drop table t1, t1ver, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
-           t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver;
+drop table t1, t1ver, t2, t2ver, t4, t5a, t5b, t5c,
+           t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver,
+           t11, t11ver, t12, t12ver;
+
+
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.csv
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.map

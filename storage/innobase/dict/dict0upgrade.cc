@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,6 +40,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0load.h"
 #include "ha_innodb.h"
 #include "ha_innopart.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "row0sel.h"
 #include "srv0start.h"
 
@@ -57,8 +59,8 @@ static std::vector<std::string> tables_with_fts;
 
 /** Fill foreign key information from InnoDB table to
 server table
-@param[in]	ib_table	InnoDB table object
-@param[in,out]	dd_table	DD table object
+@param[in]      ib_table        InnoDB table object
+@param[in,out]  dd_table        DD table object
 @return false on success, otherwise true */
 static bool dd_upgrade_table_fk(dict_table_t *ib_table, dd::Table *dd_table) {
   for (dict_foreign_set::iterator it = ib_table->foreign_set.begin();
@@ -167,13 +169,12 @@ static bool dd_upgrade_table_fk(dict_table_t *ib_table, dd::Table *dd_table) {
 /** Get Server Tablespace object for a InnoDB table. The tablespace is
 acquired with MDL and for modification, so the caller can update the
 dd::Tablespace object returned.
-@param[in]	thd		server thread object
-@param[in,out]	dd_client	dictionary client to retrieve tablespace
+@param[in,out]  dd_client       dictionary client to retrieve tablespace
                                 object
-@param[in]	ib_table	InnoDB table
+@param[in]      ib_table        InnoDB table
 @return dd::Tablespace object or nullptr */
 static dd::Tablespace *dd_upgrade_get_tablespace(
-    THD *thd, dd::cache::Dictionary_client *dd_client, dict_table_t *ib_table) {
+    dd::cache::Dictionary_client *dd_client, dict_table_t *ib_table) {
   std::string tablespace_name;
 
   dd::Tablespace *ts_obj = nullptr;
@@ -197,21 +198,21 @@ static dd::Tablespace *dd_upgrade_get_tablespace(
 
   /* MDL on tablespace name */
   if (dd_tablespace_get_mdl(tablespace_name.c_str())) {
-    ut_a(false);
+    ut_error;
   }
 
   /* For file per table tablespaces and general tablespaces, we will get
   the tablespace object and then get space_id. */
   if (dd_client->acquire_for_modification(tablespace_name.c_str(), &ts_obj)) {
-    ut_a(false);
+    ut_error;
   }
 
   return (ts_obj);
 }
 
 /** Get field from Server table object
-@param[in]	srv_table	server table object
-@param[in]	name		Field name
+@param[in]      srv_table       server table object
+@param[in]      name            Field name
 @return field object if found or null on failure. */
 static Field *dd_upgrade_get_field(const TABLE *srv_table, const char *name) {
   for (uint i = 0; i < srv_table->s->fields; i++) {
@@ -224,18 +225,18 @@ static Field *dd_upgrade_get_field(const TABLE *srv_table, const char *name) {
 }
 
 /** Return true if table has primary key given by user else false
-@param[in]	dd_table	Server table object
-@retval		true		Table has PK given by user
-@retval		false		Primary Key is hidden and generated */
+@param[in]      dd_table        Server table object
+@retval         true            Table has PK given by user
+@retval         false           Primary Key is hidden and generated */
 static bool dd_has_explicit_pk(const dd::Table *dd_table) {
   return (!dd_table->indexes().front()->is_hidden());
 }
 
 /** Match InnoDB column object and Server column object
-@param[in]	field	Server field object
-@param[in]	col	InnoDB column object
-@retval		false	column definition matches
-@retval		true	column definition mismatch */
+@param[in]      field   Server field object
+@param[in]      col     InnoDB column object
+@retval         false   column definition matches
+@retval         true    column definition mismatch */
 static bool dd_upgrade_match_single_col(const Field *field,
                                         const dict_col_t *col) {
   ulint unsigned_type;
@@ -340,12 +341,12 @@ static bool dd_upgrade_match_single_col(const Field *field,
 }
 
 /* Match defintion of all columns in InnoDB table and DD table
-@param[in]	srv_table	Server table object
-@param[in]	dd_table	New DD table object
-@param[in]	ib_table	InnoDB table object
-@param[in]	skip_fts_col	Skip FTS_DOC_ID column match
-@retval		true		failure
-@retval		false		success, all columns matched */
+@param[in]      srv_table       Server table object
+@param[in]      dd_table        New DD table object
+@param[in]      ib_table        InnoDB table object
+@param[in]      skip_fts_col    Skip FTS_DOC_ID column match
+@retval         true            failure
+@retval         false           success, all columns matched */
 static bool dd_upgrade_match_cols(const TABLE *srv_table,
                                   const dd::Table *dd_table,
                                   const dict_table_t *ib_table,
@@ -440,9 +441,9 @@ static bool dd_upgrade_match_cols(const TABLE *srv_table,
 }
 
 /** Find key number from a server table object
-@param[in]	srv_table	server table object
-@param[in]	name		index name
-@retval	UINT32_MAX if index not found, else key number */
+@param[in]      srv_table       server table object
+@param[in]      name            index name
+@retval UINT32_MAX if index not found, else key number */
 static uint32_t dd_upgrade_find_index(TABLE *srv_table, const char *name) {
   for (uint32_t i = 0; i < srv_table->s->keys; i++) {
     KEY *key = srv_table->key_info + i;
@@ -454,10 +455,10 @@ static uint32_t dd_upgrade_find_index(TABLE *srv_table, const char *name) {
 }
 
 /** Match InnoDB index definition from Server object
-@param[in]	srv_table	Server table object
-@param[in]	index		InnoDB index
-@retval		false		Index definition matches
-@retval		true		Index definition mismatch */
+@param[in]      srv_table       Server table object
+@param[in]      index           InnoDB index
+@retval         false           Index definition matches
+@retval         true            Index definition mismatch */
 static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
   uint32_t key_no = dd_upgrade_find_index(srv_table, index->name);
 
@@ -587,11 +588,11 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
 }
 
 /* Check if the table has auto inc field
-@param[in]	srv_tabl		server table object
-@param[in,out]	auto_inc_index_name	Index name on which auto inc exists
-@param[in,out]	auto_inc_col_name	Column name of the auto inc field
-@retval		true			if auto inc field exists
-@retval		false			if auot inc field doesn't exist */
+@param[in]      srv_tabl                server table object
+@param[in,out]  auto_inc_index_name     Index name on which auto inc exists
+@param[in,out]  auto_inc_col_name       Column name of the auto inc field
+@retval         true                    if auto inc field exists
+@retval         false                   if auot inc field doesn't exist */
 static bool dd_upgrade_check_for_autoinc(TABLE *srv_table,
                                          const char *&auto_inc_index_name,
                                          const char *&auto_inc_col_name) {
@@ -619,9 +620,9 @@ static bool dd_upgrade_check_for_autoinc(TABLE *srv_table,
 }
 
 /** Set auto-inc field value in dd::Table object
-@param[in]	srv_table	server table object
-@param[in,out]	dd_table	dd table object to be filled
-@param[in,out]	auto_inc_value	auto_inc value */
+@param[in]      srv_table       server table object
+@param[in,out]  dd_table        dd table object to be filled
+@param[in,out]  auto_inc_value  auto_inc value */
 static void dd_upgrade_set_auto_inc(const TABLE *srv_table, dd::Table *dd_table,
                                     uint64_t auto_inc_value) {
   ulonglong col_max_value;
@@ -641,14 +642,14 @@ static void dd_upgrade_set_auto_inc(const TABLE *srv_table, dd::Table *dd_table,
 
 /* Set DD Index se_private_data and also read auto_inc if it the index
 matches with auto_inc index name
-@param[in,out]	dd_index		dd::Index object
-@param[in]	index			InnoDB index object
-@param[in]	dd_space_id		Server space id for index
+@param[in,out]  dd_index                dd::Index object
+@param[in]      index                   InnoDB index object
+@param[in]      dd_space_id             Server space id for index
                                         (not InnoDB space id)
-@param[in]	has_auto_inc		true if table has auto inc field
-@param[in]	auto_inc_index_name	Index name on which auto_inc exists
-@param[in]	auto_inc_col_name	col name on which auto_inc exists
-@param[in,out]	read_auto_inc		auto inc value read */
+@param[in]      has_auto_inc            true if table has auto inc field
+@param[in]      auto_inc_index_name     Index name on which auto_inc exists
+@param[in]      auto_inc_col_name       col name on which auto_inc exists
+@param[in,out]  read_auto_inc           auto inc value read */
 template <typename Index>
 static void dd_upgrade_process_index(Index dd_index, dict_index_t *index,
                                      dd::Object_id dd_space_id,
@@ -672,7 +673,7 @@ static void dd_upgrade_process_index(Index dd_index, dict_index_t *index,
       dberr_t err =
           row_search_max_autoinc(index, auto_inc_col_name, read_auto_inc);
       if (err != DB_SUCCESS) {
-        ut_ad(0);
+        ut_d(ut_error);
       }
     }
   }
@@ -696,8 +697,7 @@ static bool dd_upgrade_ensure_has_dd_space_id(THD *thd,
   }
   dd::cache::Dictionary_client *dd_client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-  dd::Tablespace *dd_space =
-      dd_upgrade_get_tablespace(thd, dd_client, ib_table);
+  dd::Tablespace *dd_space = dd_upgrade_get_tablespace(dd_client, ib_table);
   if (dd_space == nullptr) {
     return false;
   }
@@ -706,10 +706,10 @@ static bool dd_upgrade_ensure_has_dd_space_id(THD *thd,
 }
 
 /** Migrate partitions to new dictionary
-@param[in]	thd		Server thread object
-@param[in]	norm_name	partition table name
-@param[in,out]	dd_table	Server new DD table object to be filled
-@param[in]	srv_table	Server table object
+@param[in]      thd             Server thread object
+@param[in]      norm_name       partition table name
+@param[in,out]  dd_table        Server new DD table object to be filled
+@param[in]      srv_table       Server table object
 @return false on success, true on error */
 static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
                                   dd::Table *dd_table, TABLE *srv_table) {
@@ -732,7 +732,7 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
     dict_name::build_table("", norm_name, part_str, false, false, table_name);
 
     dict_table_t *part_table = dict_table_open_on_name(
-        table_name.c_str(), FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+        table_name.c_str(), false, true, DICT_ERR_IGNORE_NONE);
 
     if (part_table == nullptr) {
       ib::error(ER_IB_MSG_DICT_PARTITION_NOT_FOUND, table_name.c_str());
@@ -778,8 +778,8 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
     ut_ad(!dict_table_is_discarded(part_table));
 
     if (!dd_upgrade_ensure_has_dd_space_id(thd, part_table)) {
-      ut_ad(false);
-      return true;
+      ut_d(ut_error);
+      ut_o(return true);
     }
 
     dd_set_table_options(part_obj, part_table);
@@ -826,8 +826,8 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
 }
 
 /* Set the ROW_FORMAT in dd_table based on InnoDB dictionary table
-@param[in]	ib_table	InnoDB table
-@param[in,out]	dd_table	Server table object */
+@param[in]      ib_table        InnoDB table
+@param[in,out]  dd_table        Server table object */
 static void dd_upgrade_set_row_type(dict_table_t *ib_table,
                                     dd::Table *dd_table) {
   if (ib_table) {
@@ -847,7 +847,7 @@ static void dd_upgrade_set_row_type(dict_table_t *ib_table,
         dd_table->set_row_format(dd::Table::RF_DYNAMIC);
         break;
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
   }
 }
@@ -855,8 +855,8 @@ static void dd_upgrade_set_row_type(dict_table_t *ib_table,
 /* Check Innodb table definition and add FTS_DOC_ID column and index to DD table
 if needed. This is required when all FTS index are dropped but Innodb still
 retains the FTS_DOC_ID column and FTS_DOC_ID_INDEX.
-@param[in,out]	dd_table	Server table object
-@param[in]	ib_table	Innodb table
+@param[in,out]  dd_table        Server table object
+@param[in]      ib_table        Innodb table
 @return true if fix FTS_DOC_ID column, false otherwise. */
 bool dd_upgrade_fix_fts_column(dd::Table *dd_table, dict_table_t *ib_table) {
   if (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID) &&
@@ -877,11 +877,11 @@ bool dd_upgrade_fix_fts_column(dd::Table *dd_table, dict_table_t *ib_table) {
 Dictionary. Since FTS tables contain table_id in their physical file name
 and during upgrade we reserve DICT_MAX_DD_TABLES for dictionary tables.
 So we rename FTS tablespace files
-@param[in]	thd		Server thread object
-@param[in]	db_name		database name
-@param[in]	table_name	table name
-@param[in,out]	dd_table	new dictionary table object to be filled
-@param[in]	srv_table	server table object
+@param[in]      thd             Server thread object
+@param[in]      db_name         database name
+@param[in]      table_name      table name
+@param[in,out]  dd_table        new dictionary table object to be filled
+@param[in]      srv_table       server table object
 @return false on success, true on failure. */
 bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
                       dd::Table *dd_table, TABLE *srv_table) {
@@ -898,8 +898,8 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
 
   if (truncated || !normalize_table_name(norm_name, buf)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (true);
+    ut_d(ut_error);
+    ut_o(return (true));
     /* purecov: end */
   }
 
@@ -910,7 +910,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
   }
 
   ib_table =
-      dict_table_open_on_name(norm_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+      dict_table_open_on_name(norm_name, false, true, DICT_ERR_IGNORE_NONE);
 
   if (ib_table == nullptr) {
     ib::error(ER_IB_MSG_258)
@@ -1058,9 +1058,9 @@ typedef struct {
 
 /** Register InnoDB tablespace to mysql
 dictionary table mysql.tablespaces
-@param[in]	dd_client	dictionary client
-@param[in]	dd_space	server tablespace object
-@param[in]	upgrade_space	upgrade tablespace object
+@param[in]      dd_client       dictionary client
+@param[in]      dd_space        server tablespace object
+@param[in]      upgrade_space   upgrade tablespace object
 @return 0 on success, non-zero on error */
 static uint32_t dd_upgrade_register_tablespace(
     dd::cache::Dictionary_client *dd_client, dd::Tablespace *dd_space,
@@ -1109,7 +1109,7 @@ static uint32_t dd_upgrade_register_tablespace(
 dictionary. FTS Tablespaces are not registered as they are handled differently.
 FTS tablespaces have table_id in their name and we increment table_id of each
 table by DICT_MAX_DD_TABLES
-@param[in,out]	thd		THD
+@param[in,out]  thd             THD
 @return MySQL error code */
 int dd_upgrade_tablespace(THD *thd) {
   DBUG_TRACE;
@@ -1123,7 +1123,7 @@ int dd_upgrade_tablespace(THD *thd) {
     return HA_ERR_TABLESPACE_MISSING;
   }
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
   dd::cache::Dictionary_client *dd_client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
   dict_sys_mutex_enter();
@@ -1212,7 +1212,7 @@ int dd_upgrade_tablespace(THD *thd) {
           df.set_filepath(orig_name.c_str());
           if (df.open_read_only(false) != DB_SUCCESS) {
             mem_heap_free(heap);
-            btr_pcur_close(&pcur);
+            pcur.close();
             return HA_ERR_TABLESPACE_MISSING;
           }
           df.close();
@@ -1282,10 +1282,10 @@ int dd_upgrade_tablespace(THD *thd) {
 }
 
 /** Add server and space version number to tablespace while upgrading.
-@param[in]	space_id		space id of tablespace
-@param[in]	server_version_only	leave space version unchanged
+@param[in]      space_id                space id of tablespace
+@param[in]      server_version_only     leave space version unchanged
 @return false on success, true on failure. */
-bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
+bool upgrade_space_version(const uint32_t space_id, bool server_version_only) {
   buf_block_t *block;
   page_t *page;
   mtr_t mtr;
@@ -1305,7 +1305,8 @@ bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
     mtr.set_log_mode(MTR_LOG_NO_REDO);
   }
 
-  block = buf_page_get(page_id_t(space_id, 0), page_size, RW_SX_LATCH, &mtr);
+  block = buf_page_get(page_id_t(space_id, 0), page_size, RW_SX_LATCH,
+                       UT_LOCATION_HERE, &mtr);
 
   page = buf_block_get_frame(block);
 
@@ -1325,23 +1326,18 @@ bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
 @param[in]      tablespace              dd::Tablespace
 @return false on success, true on failure. */
 bool upgrade_space_version(dd::Tablespace *tablespace) {
-  uint32 space_id;
+  uint32_t space_id;
 
   if (tablespace->se_private_data().get("id", &space_id)) {
     /* error, attribute not found */
-    ut_ad(0);
-    return (true);
+    ut_d(ut_error);
+    ut_o(return (true));
   }
   /* Upgrade both server and space version */
   return (upgrade_space_version(space_id, false));
 }
 
-/** Upgrade innodb undo logs after upgrade. Also increment the table_id
-offset by DICT_MAX_DD_TABLES. This offset increment is because the
-first 256 table_ids are reserved for dictionary.
-@param[in,out]	thd		THD
-@return MySQL error code */
-int dd_upgrade_logs(THD *thd) {
+int dd_upgrade_logs(THD *) {
   int error = 0; /* return zero for success */
   DBUG_TRACE;
 
@@ -1437,11 +1433,11 @@ static void dd_upgrade_drop_57_backup_spaces() {
 
 /** Rename back the FTS AUX tablespace names from 8.0 format to 5.7
 format on upgrade failure, else mark FTS aux tables evictable
-@param[in]	failed_upgrade		true on upgrade failure, else
+@param[in]      failed_upgrade          true on upgrade failure, else
                                         false */
 static void dd_upgrade_fts_rename_cleanup(bool failed_upgrade) {
   for (std::string &name : tables_with_fts) {
-    dict_table_t *ib_table = dict_table_open_on_name(name.c_str(), FALSE, TRUE,
+    dict_table_t *ib_table = dict_table_open_on_name(name.c_str(), false, true,
                                                      DICT_ERR_IGNORE_NONE);
     ut_ad(ib_table != nullptr);
     if (ib_table != nullptr) {
@@ -1460,13 +1456,7 @@ static void dd_upgrade_fts_rename_cleanup(bool failed_upgrade) {
   }
 }
 
-/** If upgrade is successful, this API is used to flush innodb
-dirty pages to disk. In case of server crash, this function
-sets storage engine for rollback any changes.
-@param[in,out]  thd             THD
-@param[in]	failed_upgrade	true when upgrade failed
-@return MySQL error code*/
-int dd_upgrade_finish(THD *thd, bool failed_upgrade) {
+int dd_upgrade_finish(THD *, bool failed_upgrade) {
   DBUG_TRACE;
 
   dd_upgrade_fts_rename_cleanup(failed_upgrade);

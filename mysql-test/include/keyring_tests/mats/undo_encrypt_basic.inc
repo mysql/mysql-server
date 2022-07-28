@@ -14,7 +14,7 @@ call mtr.add_suppression("\\[ERROR\\] .* Can't set undo tablespace 'innodb_undo_
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
 let $START_PAGE_SIZE= `select @@innodb_page_size`;
-let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
+let $LOG_SIZE= `select @@innodb_redo_log_capacity`;
 
 # Create path for ibdata* & undo* files both DBs
 --mkdir $MYSQL_TMP_DIR/innodb_undo_data_dir
@@ -41,14 +41,14 @@ EOF
 --source include/shutdown_mysqld.inc
 
 --echo # Test1: bootstrap with 2 undo tablespaces and with keyring.
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL --secure-file-priv="" $PLUGIN_DIR_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL --secure-file-priv="" $PLUGIN_DIR_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
 
 --echo # Run the bootstrap command with keyring
 --exec $NEW_CMD
 
 --echo # Start the DB server with undo log encryption disabled, and no keyring.
 --source include/keyring_tests/helper/binary_backup_manifest.inc
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR"
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR"
 --source include/start_mysqld_no_echo.inc
 
 --echo # Enable undo log encryption, should report error in server log, since keyring is not loaded.
@@ -59,7 +59,7 @@ CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 --echo # Start the DB server with undo log encryption disabled and keyring loaded. It should success.
 --source include/keyring_tests/helper/binary_restore_manifest.inc
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE"
 --source include/restart_mysqld_no_echo.inc
 
 --echo # Enable undo log encryption, shouldn't report error in server log.
@@ -93,7 +93,7 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 SELECT * FROM t2 ORDER BY c1 LIMIT 10;
 
 --echo # Start the DB server with undo log encryption enabled and keyring loaded. It should success.
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_log_encrypt=OFF"
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE --innodb_undo_log_encrypt=OFF"
 --source include/restart_mysqld_no_echo.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
@@ -129,7 +129,7 @@ INSERT INTO t1 VALUES(9, "jjjjj");
 
 --echo # Kill and restart to confirm the encryption info can be retrieved properly.
 --source include/kill_mysqld.inc
---exec echo "restart: $PLUGIN_DIR_OPT --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_log_encrypt=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: $PLUGIN_DIR_OPT --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE --innodb_undo_log_encrypt=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -151,7 +151,7 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 --echo # Start the DB server with undo log encryption disabled and keyring loaded. It should succeed.
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE"
 --source include/restart_mysqld_no_echo.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
@@ -173,8 +173,8 @@ INSERT INTO t1 VALUES(9, "jjjjj");
 FLUSH ENGINE LOGS;
 
 --echo # Start the DB server with undo log encryption and keyring loaded. It should success.
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_log_encrypt=ON"
---replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PATH $MYSQLD_HOME_DATA_DIR HOME_DIR $MYSQLD_UNDO_DATADIR UNDO_DIR $MYSQLD_DATADIR DATADIR $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE --innodb_undo_log_encrypt=ON"
+--replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PATH $MYSQLD_HOME_DATA_DIR HOME_DIR $MYSQLD_UNDO_DATADIR UNDO_DIR $MYSQLD_DATADIR DATADIR $START_PAGE_SIZE PAGE_SIZE $LOG_SIZE LOG_SIZE
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld_no_echo.inc
 

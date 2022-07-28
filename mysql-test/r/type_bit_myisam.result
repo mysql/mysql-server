@@ -416,11 +416,11 @@ create table t2 engine=heap select * from t1;
 select a+0, b+0 from t2;
 a+0	b+0
 1	0
-3	8
-200	6
 1000	10
-2303	2
 12345	4
+200	6
+2303	2
+3	8
 drop table t1;
 create table t1 select * from t2;
 select a+0, b+0 from t1;
@@ -613,12 +613,12 @@ select hex(a), b from t1;
 hex(a)	b
 1	2
 drop table t1;
-create table t1(bit_field bit(2), int_field int, key a(bit_field));
-insert into t1 values (1,2);
+create table t1(bit_field bit(8), int_field int, key a(bit_field));
+insert into t1 values (49,2);
 handler t1 open as t1;
-handler t1 read a=(1);
+handler t1 read a=(49);
 bit_field	int_field
-	2
+1	2
 handler t1 close;
 drop table t1;
 CREATE TABLE t1 (b BIT(2), a VARCHAR(5));

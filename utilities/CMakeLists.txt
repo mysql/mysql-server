@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
   --out_file=${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/comp_client_err.cc)
 
-ADD_CUSTOM_TARGET(GenClientError ALL
+MY_ADD_CUSTOM_TARGET(GenClientError ALL
   DEPENDS ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h)
 
 FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
@@ -80,7 +80,7 @@ ADD_CUSTOM_COMMAND(OUTPUT
   ${CMAKE_CURRENT_SOURCE_DIR}/comp_err.cc)
 
 
-ADD_CUSTOM_TARGET(GenError ALL
+MY_ADD_CUSTOM_TARGET(GenError ALL
   DEPENDS
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
   ${PROJECT_BINARY_DIR}/include/mysqld_ername.h

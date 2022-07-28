@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,23 +24,15 @@
 #define DD__RAW_RECORD_INCLUDED
 
 #include "my_config.h"
-
 #include "my_inttypes.h"
-#include "my_io.h"  // IWYU pragma: keep
-
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-#include <sys/types.h>
-
+#include "my_io.h"               // IWYU pragma: keep
+#include "my_time_t.h"           // my_time_t
 #include "sql/dd/object_id.h"    // dd::Object_id
 #include "sql/dd/string_type.h"  // dd::String_type
 
 class Json_wrapper;
 class Field;
 struct TABLE;
-
-typedef long my_time_t;
 
 namespace dd {
 
@@ -92,7 +84,7 @@ class Raw_record {
      true on failure
   */
 
-  bool store_timestamp(int field_no, const timeval &tv);
+  bool store_timestamp(int field_no, const my_timeval &tv);
 
   bool store_json(int field_no, const Json_wrapper &json);
 
@@ -129,7 +121,7 @@ class Raw_record {
       timeval stored at field_no.
   */
 
-  timeval read_timestamp(int field_no) const;
+  my_timeval read_timestamp(int field_no) const;
 
   bool read_json(int field_no, Json_wrapper *json_wrapper) const;
 

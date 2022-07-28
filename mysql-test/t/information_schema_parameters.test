@@ -39,10 +39,10 @@ USE INFORMATION_SCHEMA;
 SHOW CREATE TABLE INFORMATION_SCHEMA.PARAMETERS;
 
 # The below query results in two difference collations like
-# 'utf8_tolower_ci' or 'utf8_bin' depending on l_c_t_n for
+# 'utf8mb3_tolower_ci' or 'utf8_bin' depending on l_c_t_n for
 # 'mysql.schemata.name' column. In order to get consistent
 # results across platforms, we replace the results below.
---replace_result utf8_tolower_ci utf8_bin
+--replace_result utf8mb3_tolower_ci utf8_bin
 query_vertical SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
   AND table_name   = 'PARAMETERS'

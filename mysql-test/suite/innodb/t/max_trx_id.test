@@ -10,15 +10,16 @@
 --echo # This way we could collect enough connections in mtr test runner to fill
 --echo # concurrently the reservation interval (limit for mtr connections is 128).
 
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
 let $MYSQLD_DATADIR = $tmp_dir/max_trx_id;
 let $MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
-let $MYSQLD_EXTRA_ARGS = --debug="d,trx_sys_low_trx_id_write_margin" --innodb-log-file-size=4M;
+let $MYSQLD_EXTRA_ARGS = --debug="d,trx_sys_low_trx_id_write_margin" --innodb-redo-log-capacity=8M --innodb_page_size=$INNODB_PAGE_SIZE;
 --source include/initialize_datadir.inc
 
 --echo # Restart MySQL using the new data directory.
 let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG $MYSQLD_EXTRA_ARGS;
---replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/max_trx_id
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/max_trx_id $INNODB_PAGE_SIZE INNODB_PAGE_SIZE
 --source include/restart_mysqld.inc
 
 --disable_query_log
@@ -99,7 +100,7 @@ SET DEBUG_SYNC = "now SIGNAL con_go";
 
 --echo # Kill and restart MySQL to see if the database is not corrupted.
 
---replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/max_trx_id
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/max_trx_id $INNODB_PAGE_SIZE INNODB_PAGE_SIZE
 --source include/kill_and_restart_mysqld.inc
 
 --echo # Update rows using a new transaction. It would crash if the transaction
@@ -111,7 +112,7 @@ UPDATE t SET c = c + 1;
 --echo # Check if there is no corruption if MySQL instantly crashed after using
 --echo # the new transaction (after restart).
 
---replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/max_trx_id
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/max_trx_id $INNODB_PAGE_SIZE INNODB_PAGE_SIZE
 --source include/kill_and_restart_mysqld.inc
 
 --echo # Update all rows using a new transaction to see if there is no assertion

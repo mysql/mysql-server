@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,8 +47,9 @@ static inline void *ib_heap_malloc(ib_alloc_t *allocator, /* in: allocator */
 /********************************************************************
 The default ib_vector_t heap free. Does nothing. */
 static inline void ib_heap_free(ib_alloc_t *allocator
-                                    UNIV_UNUSED,       /* in: allocator */
-                                void *ptr UNIV_UNUSED) /* in: size in bytes */
+                                [[maybe_unused]], /* in: allocator */
+                                void *ptr
+                                [[maybe_unused]]) /* in: size in bytes */
 {
   /* We can't free individual elements. */
 }
@@ -281,8 +282,7 @@ static inline void ib_vector_free(ib_vector_t *vec) /* in, own: vector */
 /********************************************************************
 Test whether a vector is empty or not.
 @return true if empty */
-static inline ibool ib_vector_is_empty(
-    const ib_vector_t *vec) /*!< in: vector */
+static inline bool ib_vector_is_empty(const ib_vector_t *vec) /*!< in: vector */
 {
   return (ib_vector_size(vec) == 0);
 }

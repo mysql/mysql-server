@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -348,7 +348,7 @@ bool Test_udf_charset_base::validate_inputs(UDF_ARGS *args,
   @param [out] result The return value the UDF will return
   @param [out] result_len Length of the return value
 
-  @retval false UDF executed successully.
+  @retval false UDF executed successfully.
   @retval true  Otherwise.
 */
 bool Test_udf_charset_base::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
@@ -397,7 +397,7 @@ bool Test_udf_charset_base::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
   return false;
 }
 /**
-  A helper method to initialze the UDF return structure.
+  A helper method to initialize the UDF return structure.
 
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] args  A pointer to the UDF_ARGS structure

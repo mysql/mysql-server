@@ -2,12 +2,12 @@
 .\"     Title: ndbd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBD" "8" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBD" "8" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -114,18 +114,19 @@ T{
 .PP
 \fB \fR\fB--connect-delay=#\fR\fB \fR
 T}:T{
-Time to wait between attempts to contact a management server, in
-              seconds; 0 means do not wait between attempts
+Obsolete synonym for --connect-retry-delay, which should be used instead
+              of this option
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: NDB 8.0.28
 T}
 T{
 .PP
 \fB \fR\fB--connect-retries=#\fR\fB \fR
 T}:T{
 Set the number of times to retry a connection before giving up; 0 means
-              1 attempt only (and no retries)
+              1 attempt only (and no retries); -1 means continue
+              retrying indefinitely
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -142,9 +143,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -270,9 +271,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -283,9 +284,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -509,7 +510,7 @@ T}
 T{
 Deprecated
 T}:T{
-Yes
+Yes (removed in 8.0.28-ndb-8.0.28)
 T}
 T{
 Type
@@ -557,6 +558,9 @@ lB l
 lB l
 lB l
 lB l
+lB l
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
@@ -574,7 +578,22 @@ T}:T{
 12
 T}
 T{
+Minimum Value (≥ 8.0.28-ndb-8.0.28)
+T}:T{
+-1
+T}
+T{
 Minimum Value
+T}:T{
+-1
+T}
+T{
+Minimum Value
+T}:T{
+-1
+T}
+T{
+Minimum Value (≤ 8.0.27-ndb-8.0.27)
 T}:T{
 0
 T}
@@ -588,6 +607,8 @@ T}
 Set the number of times to retry a connection before giving up; 0 means 1 attempt only (and no retries)\&. The default is 12 attempts\&. The time to wait between attempts is controlled by the
 \fB\-\-connect\-retry\-delay\fR
 option\&.
+.sp
+Beginning with NDB 8\&.0\&.28, you can set this option to \-1, in which case, the data node process continues indefinitely to try to connect\&.
 .RE
 .sp
 .RS 4
@@ -640,6 +661,10 @@ option)\&. The default is 5 seconds\&.
 This option takes the place of the
 \fB\-\-connect\-delay\fR
 option, which is now deprecated and subject to removal in a future release of NDB Cluster\&.
+.sp
+The short form
+\fB\-r\fR
+for this option is deprecated as of NDB 8\&.0\&.28, and subject to removal in a future release of NDB Cluster\&. Use the long form instead\&.
 .RE
 .sp
 .RS 4
@@ -659,7 +684,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -711,23 +736,11 @@ Write core file on error; used in debugging\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --daemon
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -859,23 +872,11 @@ Also read groups with concat(group, suffix)\&.
 \fB\-\-foreground\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --foreground
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -927,23 +928,11 @@ Display help text and exit\&.
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --initial
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1068,23 +1057,11 @@ necessary to do so\&.
 \fB\-\-initial\-start\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --initial-start
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1097,9 +1074,9 @@ Suppose that you have a 4\-node cluster whose data nodes have the IDs 2, 3, 4, a
 .RS 4
 .\}
 .nf
-shell> \fBndbd \-\-ndb\-nodeid=2 \-\-nowait\-nodes=3 \-\-initial\-start\fR
-shell> \fBndbd \-\-ndb\-nodeid=4 \-\-nowait\-nodes=3 \-\-initial\-start\fR
-shell> \fBndbd \-\-ndb\-nodeid=5 \-\-nowait\-nodes=3 \-\-initial\-start\fR
+$> \fBndbd \-\-ndb\-nodeid=2 \-\-nowait\-nodes=3 \-\-initial\-start\fR
+$> \fBndbd \-\-ndb\-nodeid=4 \-\-nowait\-nodes=3 \-\-initial\-start\fR
+$> \fBndbd \-\-ndb\-nodeid=5 \-\-nowait\-nodes=3 \-\-initial\-start\fR
 .fi
 .if n \{\
 .RE
@@ -1291,7 +1268,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -1325,7 +1302,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type
@@ -1412,23 +1389,11 @@ to disable\&.
 \fB\-\-nodaemon\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --nodaemon
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1481,23 +1446,11 @@ Do not read default options from any option file other than login file\&.
 \fB\-n\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --nostart
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1846,7 +1799,7 @@ To start
 .RS 4
 .\}
 .nf
-shell> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\fR
+$> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\fR
 .fi
 .if n \{\
 .RE
@@ -1882,7 +1835,7 @@ Section\ \&23.2.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

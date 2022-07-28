@@ -3669,10 +3669,15 @@ let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.a', 'x'),
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-# View trace, but eliminating update_preparation block which is
-# not produced in -ps mode.
+# View trace, but extract only the parts we are interested in testing. The other
+# parts of the trace may vary depending on ps protocol mode and which optimizer
+# is used.
 let $show_trace=
-SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT JSON_PRETTY(JSON_OBJECT(
+          'json_partial_update', trace->'\$**.json_partial_update',
+          'rejected_columns', trace->'\$**.rejected_columns'))
+       AS json_trace
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 eval $show_trace;
 --eval $dump_table
 let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.a', 's'),

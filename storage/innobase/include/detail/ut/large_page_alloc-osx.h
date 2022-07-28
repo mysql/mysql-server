@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2021, Oracle and/or its affiliates.
+Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,7 +35,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/mman.h>
 #include <sys/types.h>
 
+#include "mysqld_error.h"
 #include "storage/innobase/include/detail/ut/helper.h"
+#include "storage/innobase/include/ut0log.h"
 
 extern const size_t large_page_default_size;
 
@@ -51,11 +53,18 @@ static constexpr auto SUPER_PAGE_SIZE = VM_FLAGS_SUPERPAGE_SIZE_2MB;
     @return Pointer to the allocated storage. nullptr if allocation failed.
 */
 inline void *large_page_aligned_alloc(size_t n_bytes) {
-  void *ptr =
-      mmap(0,
-           pow2_round(n_bytes + (large_page_default_size - 1),
-                      large_page_default_size),
-           PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, SUPER_PAGE_SIZE, 0);
+  // mmap on OSX requires for n_bytes to be a multiple of large-page size
+  size_t n_bytes_rounded = pow2_round(n_bytes + (large_page_default_size - 1),
+                                      large_page_default_size);
+  void *ptr = mmap(0, n_bytes_rounded, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANON, SUPER_PAGE_SIZE, 0);
+  if (unlikely(ptr == (void *)-1)) {
+    ib::log_warn(ER_IB_MSG_856)
+        << "large_page_aligned_alloc mmap(" << n_bytes_rounded
+        << " bytes) failed;"
+           " errno "
+        << errno;
+  }
   return (ptr != (void *)-1) ? ptr : nullptr;
 }
 
@@ -68,8 +77,16 @@ inline void *large_page_aligned_alloc(size_t n_bytes) {
 inline bool large_page_aligned_free(void *ptr, size_t n_bytes) {
   if (unlikely(!ptr)) return false;
   // Freeing huge-pages require size to be the multiple of huge-page size
-  auto ret = munmap(ptr, pow2_round(n_bytes + (large_page_default_size - 1),
-                                    large_page_default_size));
+  size_t n_bytes_rounded = pow2_round(n_bytes + (large_page_default_size - 1),
+                                      large_page_default_size);
+  auto ret = munmap(ptr, n_bytes_rounded);
+  if (unlikely(ret != 0)) {
+    ib::log_error(ER_IB_MSG_858)
+        << "large_page_aligned_free munmap(" << ptr << ", " << n_bytes_rounded
+        << ") failed;"
+           " errno "
+        << errno;
+  }
   return ret == 0;
 }
 

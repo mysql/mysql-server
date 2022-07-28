@@ -64,6 +64,7 @@ f58 numeric (64) not null DEFAULT 99
 ) charset latin1 engine = innodb;
 Warnings:
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
@@ -210,6 +211,7 @@ Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a futur
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	4095	Delimiter '/' in position 1 in datetime value '2/2/2' at row 1 is deprecated. Prefer the standard '-'.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb2.txt'
 into table tb2 CHARACTER SET latin1 ;
 drop table if exists tb3 ;
@@ -275,6 +277,7 @@ f175 numeric (64)
 ) charset latin1 engine = innodb;
 Warnings:
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
@@ -418,6 +421,7 @@ Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a futur
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb4.txt'
 into table tb4 CHARACTER SET latin1;
@@ -519,6 +523,7 @@ Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a futur
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	4095	Delimiter '/' in position 1 in datetime value '2/2/2' at row 1 is deprecated. Prefer the standard '-'.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb2.txt'
 into table tb2 CHARACTER SET latin1 ;
 USE test;

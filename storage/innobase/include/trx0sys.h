@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -63,7 +63,7 @@ class ReadView;
 extern trx_sys_t *trx_sys;
 
 /** Checks if a page address is the trx sys header page.
-@param[in]	page_id	page id
+@param[in]      page_id page id
 @return true if trx sys header page */
 static inline bool trx_sys_hdr_page(const page_id_t &page_id);
 
@@ -77,12 +77,12 @@ void trx_sys_create(void);
 void trx_sys_create_sys_pages(void);
 
 /** Find the page number in the TRX_SYS page for a given slot/rseg_id
-@param[in]	rseg_id		slot number in the TRX_SYS page rseg array
+@param[in]      rseg_id         slot number in the TRX_SYS page rseg array
 @return page number from the TRX_SYS page rseg array */
 page_no_t trx_sysf_rseg_find_page_no(ulint rseg_id);
 
 /** Look for a free slot for a rollback segment in the trx system file copy.
-@param[in,out]	mtr		mtr
+@param[in,out]  mtr             mtr
 @return slot index or ULINT_UNDEFINED if not found */
 ulint trx_sysf_rseg_find_free(mtr_t *mtr);
 
@@ -92,38 +92,38 @@ static inline trx_sysf_t *trx_sysf_get(mtr_t *mtr); /*!< in: mtr */
 
 /** Gets the space of the nth rollback segment slot in the trx system
 file copy.
-@param[in]	sys_header	trx sys file copy
-@param[in]	i		slot index == rseg id
-@param[in]	mtr		mtr
+@param[in]      sys_header      trx sys file copy
+@param[in]      i               slot index == rseg id
+@param[in]      mtr             mtr
 @return space id */
 static inline space_id_t trx_sysf_rseg_get_space(trx_sysf_t *sys_header,
                                                  ulint i, mtr_t *mtr);
 
 /** Gets the page number of the nth rollback segment slot in the trx system
 file copy.
-@param[in]	sys_header	trx sys file copy
-@param[in]	i		slot index == rseg id
-@param[in]	mtr		mtr
+@param[in]      sys_header      trx sys file copy
+@param[in]      i               slot index == rseg id
+@param[in]      mtr             mtr
 @return page number, FIL_NULL if slot unused */
 static inline page_no_t trx_sysf_rseg_get_page_no(trx_sysf_t *sys_header,
                                                   ulint i, mtr_t *mtr);
 
 /** Sets the space id of the nth rollback segment slot in the trx system
 file copy.
-@param[in]	sys_header	trx sys file copy
-@param[in]	i		slot index == rseg id
-@param[in]	space		space id
-@param[in]	mtr		mtr */
+@param[in]      sys_header      trx sys file copy
+@param[in]      i               slot index == rseg id
+@param[in]      space           space id
+@param[in]      mtr             mtr */
 static inline void trx_sysf_rseg_set_space(trx_sysf_t *sys_header, ulint i,
                                            space_id_t space, mtr_t *mtr);
 
 /** Set the page number of the nth rollback segment slot in the trx system
 file copy.
-@param[in]	sys_header	trx sys file copy
-@param[in]	i		slot index == rseg id
-@param[in]	page_no		page number, FIL_NULL if the slot is reset to
+@param[in]      sys_header      trx sys file copy
+@param[in]      i               slot index == rseg id
+@param[in]      page_no         page number, FIL_NULL if the slot is reset to
                                 unused
-@param[in]	mtr		mtr */
+@param[in]      mtr             mtr */
 static inline void trx_sysf_rseg_set_page_no(trx_sysf_t *sys_header, ulint i,
                                              page_no_t page_no, mtr_t *mtr);
 
@@ -150,8 +150,8 @@ extern uint trx_rseg_n_slots_debug;
 
 /** Writes a trx id to an index page. In case that the id size changes in some
 future version, this function should be used instead of mach_write_...
-@param[in]	ptr	pointer to memory where written
-@param[in]	id	id */
+@param[in]      ptr     pointer to memory where written
+@param[in]      id      id */
 static inline void trx_write_trx_id(byte *ptr, trx_id_t id);
 
 #ifndef UNIV_HOTBACKUP
@@ -162,13 +162,6 @@ static inline void trx_write_trx_id(byte *ptr, trx_id_t id);
 static inline trx_id_t trx_read_trx_id(
     const byte *ptr); /*!< in: pointer to memory from where to read */
 
-/** Returns the minimum trx id in rw trx list. This is the smallest id for which
-the rw trx can possibly be active. (But, you must look at the trx->state
-to find out if the minimum trx id transaction itself is active, or already
-committed.)
-@return the minimum trx id, or trx_sys->rw_max_trx_id+1 if the list is empty */
-static inline trx_id_t trx_rw_min_trx_id(void);
-
 /** Checks if a rw transaction with the given id is active.
 Please note, that positive result means only that the trx was active
 at some moment during the call, but it might have already become
@@ -178,35 +171,35 @@ impossible for the caller to hold any of these mutexes when calling this
 function as the function itself internally acquires Trx_shard's mutex which
 would cause recurrent mutex acquisition if caller already had the same mutex,
 or latching order violation in case of holding trx->mutex.
-@param[in]	trx_id		trx id of the transaction
-@param[in]	do_ref_count	if true then increment the trx_t::n_ref_count
+@param[in]      trx_id          trx id of the transaction
+@param[in]      do_ref_count    if true then increment the trx_t::n_ref_count
 @return transaction instance if active, or NULL; */
 static inline trx_t *trx_rw_is_active(trx_id_t trx_id, bool do_ref_count);
 
 /** Persist transaction number limit below which all transaction GTIDs
 are persisted to disk table.
-@param[in]	gtid_trx_no	transaction number */
+@param[in]      gtid_trx_no     transaction number */
 void trx_sys_persist_gtid_num(trx_id_t gtid_trx_no);
 
 /** @return oldest transaction number yet to be committed. */
 trx_id_t trx_sys_oldest_trx_no();
 
 /** Get a list of all binlog prepared transactions.
-@param[out]	trx_ids	all prepared transaction IDs. */
+@param[out]     trx_ids all prepared transaction IDs. */
 void trx_sys_get_binlog_prepared(std::vector<trx_id_t> &trx_ids);
 
 /** Get current binary log positions stored.
-@param[out]	file	binary log file name
-@param[out]	offset	binary log file offset */
+@param[out]     file    binary log file name
+@param[out]     offset  binary log file offset */
 void trx_sys_read_binlog_position(char *file, uint64_t &offset);
 
 /** Update binary log position if not already updated. This is called
 by clone to update any stale binary log position if any transaction
 is yet to update the binary log position in SE.
-@param[in]	last_file	last noted binary log file name
-@param[in]	last_offset	last noted binary log offset
-@param[in]	file		current binary log file name
-@param[in]	offset		current binary log file offset
+@param[in]      last_file       last noted binary log file name
+@param[in]      last_offset     last noted binary log offset
+@param[in]      file            current binary log file name
+@param[in]      offset          current binary log file offset
 @return true, if binary log position is updated with current. */
 bool trx_sys_write_binlog_position(const char *last_file, uint64_t last_offset,
                                    const char *file, uint64_t offset);
@@ -215,8 +208,8 @@ bool trx_sys_write_binlog_position(const char *last_file, uint64_t last_offset,
 which corresponds to the transaction being committed, external XA transaction
 being prepared or rolled back. In a MySQL replication slave updates the latest
 master binlog position up to which replication has proceeded.
-@param[in]	trx	Current transaction
-@param[in,out]	mtr	Mini-transaction for update */
+@param[in]      trx     Current transaction
+@param[in,out]  mtr     Mini-transaction for update */
 void trx_sys_update_mysql_binlog_offset(trx_t *trx, mtr_t *mtr);
 
 /** Shutdown/Close the transaction system. */
@@ -244,7 +237,7 @@ of InnoDB exited during shutdown of MySQL. */
 void trx_sys_after_background_threads_shutdown_validate();
 
 /** Add the transaction to the RW transaction set.
-@param trx		transaction instance to add */
+@param trx              transaction instance to add */
 static inline void trx_sys_rw_trx_add(trx_t *trx);
 
 #endif /* !UNIV_HOTBACKUP */
@@ -263,34 +256,22 @@ called once during thread de-initialization. */
 void trx_sys_undo_spaces_deinit();
 
 /** The automatically created system rollback segment has this id */
-#define TRX_SYS_SYSTEM_RSEG_ID 0
+constexpr uint32_t TRX_SYS_SYSTEM_RSEG_ID = 0;
 
 /** The offset of the transaction system header on the page */
-#define TRX_SYS FSEG_PAGE_DATA
+constexpr uint32_t TRX_SYS = FSEG_PAGE_DATA;
 
 /** Transaction system header */
 /*------------------------------------------------------------- @{ */
-#define TRX_SYS_TRX_ID_STORE       \
-  0 /*!< the maximum trx id or trx \
-    number modulo                  \
-    TRX_SYS_TRX_ID_UPDATE_MARGIN   \
-    written to a file page by any  \
-    transaction; the assignment of \
-    transaction ids continues from \
-    this number rounded up by      \
-    TRX_SYS_TRX_ID_UPDATE_MARGIN   \
-    plus                           \
-    TRX_SYS_TRX_ID_UPDATE_MARGIN   \
-    when the database is           \
-    started */
-#define TRX_SYS_FSEG_HEADER     \
-  8 /*!< segment header for the \
-    tablespace segment the trx  \
-    system is created into */
-#define TRX_SYS_RSEGS (8 + FSEG_HEADER_SIZE)
-/*!< the start of the array of
-rollback segment specification
-slots */
+/** the maximum trx id or trx number modulo TRX_SYS_TRX_ID_UPDATE_MARGIN written
+   to a file page by any  transaction; the assignment of transaction ids
+   continues from  this number rounded up by TRX_SYS_TRX_ID_UPDATE_MARGIN  plus
+   TRX_SYS_TRX_ID_UPDATE_MARGIN when the database is started */
+constexpr uint32_t TRX_SYS_TRX_ID_STORE = 0;
+/** segment header for the  tablespace segment the trx system is created into */
+constexpr uint32_t TRX_SYS_FSEG_HEADER = 8;
+/** the start of the array of rollback segment specification slots */
+constexpr uint32_t TRX_SYS_RSEGS = 8 + FSEG_HEADER_SIZE;
 /*------------------------------------------------------------- @} */
 
 /* Originally, InnoDB defined TRX_SYS_N_RSEGS as 256 but created only one
@@ -307,82 +288,59 @@ remains the same. */
 constexpr size_t TRX_SYS_OLD_TMP_RSEGS = 32;
 
 /** Maximum length of MySQL binlog file name, in bytes. */
-#define TRX_SYS_MYSQL_LOG_NAME_LEN 512
+constexpr uint32_t TRX_SYS_MYSQL_LOG_NAME_LEN = 512;
 /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
-#define TRX_SYS_MYSQL_LOG_MAGIC_N 873422344
+constexpr uint32_t TRX_SYS_MYSQL_LOG_MAGIC_N = 873422344;
 
-#if UNIV_PAGE_SIZE_MIN < 4096
-#error "UNIV_PAGE_SIZE_MIN < 4096"
-#endif
+static_assert(UNIV_PAGE_SIZE_MIN >= 4096, "UNIV_PAGE_SIZE_MIN < 4096");
 /** The offset of the MySQL binlog offset info in the trx system header */
 #define TRX_SYS_MYSQL_LOG_INFO (UNIV_PAGE_SIZE - 1000)
-#define TRX_SYS_MYSQL_LOG_MAGIC_N_FLD \
-  0 /*!< magic number which is        \
-    TRX_SYS_MYSQL_LOG_MAGIC_N         \
-    if we have valid data in the      \
-    MySQL binlog info */
-#define TRX_SYS_MYSQL_LOG_OFFSET_HIGH \
-  4 /*!< high 4 bytes of the offset   \
-    within that file */
-#define TRX_SYS_MYSQL_LOG_OFFSET_LOW                             \
-  8                               /*!< low 4 bytes of the offset \
-                                  within that file */
-#define TRX_SYS_MYSQL_LOG_NAME 12 /*!< MySQL log file name */
+/** magic number which is TRX_SYS_MYSQL_LOG_MAGIC_N if we have valid data in the
+ MySQL binlog info */
+constexpr uint32_t TRX_SYS_MYSQL_LOG_MAGIC_N_FLD = 0;
+/** high 4 bytes of the offset within that file */
+constexpr uint32_t TRX_SYS_MYSQL_LOG_OFFSET_HIGH = 4;
+/** low 4 bytes of the offset within that file */
+constexpr uint32_t TRX_SYS_MYSQL_LOG_OFFSET_LOW = 8;
+/** MySQL log file name */
+constexpr uint32_t TRX_SYS_MYSQL_LOG_NAME = 12;
 
 /** Reserve next 8 bytes for transaction number up to which GTIDs
 are persisted to table */
 #define TRX_SYS_TRX_NUM_GTID \
   (TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME + TRX_SYS_MYSQL_LOG_NAME_LEN)
-#define TRX_SYS_TRX_NUM_END = (TRX_SYS_TRX_NUM_GTID + 8)
-
+#define TRX_SYS_TRX_NUM_END (TRX_SYS_TRX_NUM_GTID + 8)
 /** Doublewrite buffer */
 /** @{ */
 /** The offset of the doublewrite buffer header on the trx system header page */
 #define TRX_SYS_DOUBLEWRITE (UNIV_PAGE_SIZE - 200)
 /*-------------------------------------------------------------*/
-#define TRX_SYS_DOUBLEWRITE_FSEG \
-  0 /*!< fseg header of the fseg \
-    containing the doublewrite   \
-    buffer */
-#define TRX_SYS_DOUBLEWRITE_MAGIC FSEG_HEADER_SIZE
-/*!< 4-byte magic number which
-shows if we already have
-created the doublewrite
-buffer */
-#define TRX_SYS_DOUBLEWRITE_BLOCK1 (4 + FSEG_HEADER_SIZE)
-/*!< page number of the
-first page in the first
-sequence of 64
-(= FSP_EXTENT_SIZE) consecutive
-pages in the doublewrite
-buffer */
-#define TRX_SYS_DOUBLEWRITE_BLOCK2 (8 + FSEG_HEADER_SIZE)
-/*!< page number of the
-first page in the second
-sequence of 64 consecutive
-pages in the doublewrite
-buffer */
-#define TRX_SYS_DOUBLEWRITE_REPEAT \
-  12 /*!< we repeat                \
-     TRX_SYS_DOUBLEWRITE_MAGIC,    \
-     TRX_SYS_DOUBLEWRITE_BLOCK1,   \
-     TRX_SYS_DOUBLEWRITE_BLOCK2    \
-     so that if the trx sys        \
-     header is half-written        \
-     to disk, we still may         \
-     be able to recover the        \
-     information */
+/** fseg header of the fseg containing the doublewrite buffer */
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_FSEG = 0;
+/** 4-byte magic number which shows if we already have created the doublewrite
+ buffer */
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_MAGIC = FSEG_HEADER_SIZE;
+/** page number of the first page in the first sequence of 64 (=
+ FSP_EXTENT_SIZE) consecutive pages in the doublewrite buffer */
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_BLOCK1 = 4 + FSEG_HEADER_SIZE;
+/** page number of the first page in the second sequence of 64 consecutive pages
+ in the doublewrite buffer */
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_BLOCK2 = 8 + FSEG_HEADER_SIZE;
+/** we repeat TRX_SYS_DOUBLEWRITE_MAGIC, TRX_SYS_DOUBLEWRITE_BLOCK1,
+ TRX_SYS_DOUBLEWRITE_BLOCK2 so that if the trx sys header is half-written to
+ disk, we still may be able to recover the information */
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_REPEAT = 12;
 /** If this is not yet set to TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
 we must reset the doublewrite buffer, because starting from 4.1.x the
 space id of a data page is stored into
 FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID. */
-#define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED (24 + FSEG_HEADER_SIZE)
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED = 24 + FSEG_HEADER_SIZE;
 
 /*-------------------------------------------------------------*/
 /** Contents of TRX_SYS_DOUBLEWRITE_MAGIC */
-#define TRX_SYS_DOUBLEWRITE_MAGIC_N 536853855
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_MAGIC_N = 536853855;
 /** Contents of TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED */
-#define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N 1783657386
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N = 1783657386;
 
 /** Size of the doublewrite block in pages */
 #define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE FSP_EXTENT_SIZE
@@ -592,9 +550,6 @@ struct trx_sys_t {
   releasing locks to ensure right order of removal and consistent snapshot. */
   trx_ids_t rw_trx_ids;
 
-  /** Max trx id of read-write transactions which exist or existed. */
-  std::atomic<trx_id_t> rw_max_trx_id;
-
   char pad7[ut::INNODB_CACHE_LINE_SIZE];
 
   /** Mapping from transaction id to transaction instance. */
@@ -639,36 +594,32 @@ two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
 constexpr trx_id_t TRX_SYS_TRX_ID_WRITE_MARGIN = 256;
 
-/** Test if trx_sys->mutex is owned. */
-#define trx_sys_mutex_own() (trx_sys->mutex.is_owned())
-
 /** Acquire the trx_sys->mutex. */
-#define trx_sys_mutex_enter()     \
-  do {                            \
-    mutex_enter(&trx_sys->mutex); \
-  } while (0)
+static inline void trx_sys_mutex_enter() { mutex_enter(&trx_sys->mutex); }
 
 /** Release the trx_sys->mutex. */
-#define trx_sys_mutex_exit() \
-  do {                       \
-    trx_sys->mutex.exit();   \
-  } while (0)
+static inline void trx_sys_mutex_exit() { trx_sys->mutex.exit(); }
+
+#ifdef UNIV_DEBUG
+
+/** Test if trx_sys->mutex is owned. */
+static inline bool trx_sys_mutex_own() { return trx_sys->mutex.is_owned(); }
 
 /** Test if trx_sys->serialisation_mutex is owned. */
-#define trx_sys_serialisation_mutex_own() \
-  (trx_sys->serialisation_mutex.is_owned())
+static inline bool trx_sys_serialisation_mutex_own() {
+  return trx_sys->serialisation_mutex.is_owned();
+}
+#endif
 
 /** Acquire the trx_sys->serialisation_mutex. */
-#define trx_sys_serialisation_mutex_enter()     \
-  do {                                          \
-    mutex_enter(&trx_sys->serialisation_mutex); \
-  } while (0)
+static inline void trx_sys_serialisation_mutex_enter() {
+  mutex_enter(&trx_sys->serialisation_mutex);
+}
 
 /** Release the trx_sys->serialisation_mutex. */
-#define trx_sys_serialisation_mutex_exit() \
-  do {                                     \
-    trx_sys->serialisation_mutex.exit();   \
-  } while (0)
+static inline void trx_sys_serialisation_mutex_exit() {
+  trx_sys->serialisation_mutex.exit();
+}
 
 #endif /* !UNIV_HOTBACKUP */
 

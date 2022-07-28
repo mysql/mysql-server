@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +148,8 @@ int Delayed_initialization_thread::initialization_thread_handler() {
       { is_server_engine_initialized = false; });
   if (is_server_engine_initialized) {
     // Protect this delayed start against other start/stop requests
-    MUTEX_LOCK(lock, get_plugin_running_lock());
+    Checkable_rwlock::Guard g(*get_plugin_running_lock(),
+                              Checkable_rwlock::WRITE_LOCK);
 
     set_plugin_is_setting_read_mode(true);
 

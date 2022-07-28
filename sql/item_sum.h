@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,8 +126,8 @@ class Aggregator {
   virtual bool setup(THD *) = 0;
 
   /**
-    Called when we need to wipe out all the data from the aggregator :
-    all the values acumulated and all the state.
+    Called when we need to wipe out all the data from the aggregator:
+    all the values accumulated and all the state.
     Cleans up the internal structures and resets them to their initial state.
   */
   virtual void clear() = 0;
@@ -583,6 +583,7 @@ class Item_sum : public Item_func {
                          Query_block *removed_query_block) override;
   void add_used_tables_for_aggr_func();
   bool is_null() override { return null_value; }
+
   void make_const() {
     // "forced_const" will make used_tables() return zero for this object
     forced_const = true;
@@ -764,6 +765,17 @@ class Item_sum : public Item_func {
     @return true if case two above holds, else false
   */
   bool wf_common_init();
+
+  /// Overridden by Item_rollup_sum_switcher.
+  virtual bool is_rollup_sum_wrapper() const { return false; }
+  /**
+   * In case we are an Item_rollup_sum_switcher,
+   * return the underlying Item_sum, otherwise, return this.
+   * Overridden by Item_rollup_sum_switcher.
+   */
+  virtual const Item_sum *unwrap_sum() const { return this; }
+  /// Non-const version
+  virtual Item_sum *unwrap_sum() { return this; }
 
  protected:
   /*
@@ -1422,8 +1434,9 @@ class Item_sum_variance : public Item_sum_num {
   /**
     Used in recurrence relation.
   */
-  double recurrence_m, recurrence_s;
-  double recurrence_s2;
+  double recurrence_m{0.0};
+  double recurrence_s{0.0};
+  double recurrence_s2{0.0};
   ulonglong count;
   uint sample;
   uint prec_increment;
@@ -2760,6 +2773,10 @@ class Item_rollup_sum_switcher final : public Item_sum {
   // Used by AggregateIterator.
   void set_current_rollup_level(int level) { m_current_rollup_level = level; }
   inline Item_sum *master() const { return child(0); }
+
+  bool is_rollup_sum_wrapper() const override { return true; }
+  const Item_sum *unwrap_sum() const override { return master(); }
+  Item_sum *unwrap_sum() override { return master(); }
 
  private:
   inline Item *current_arg() const;

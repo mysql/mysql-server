@@ -43,6 +43,6 @@ SELECT COUNT(@@GLOBAL.innodb_doublewrite_batch_size);
 COUNT(@@GLOBAL.innodb_doublewrite_batch_size)
 1
 1 Expected
-SELECT innodb_doublewrite_batch_size = @@SESSION.innodb_doublewrite_pages;
+SELECT innodb_doublewrite_batch_size;
 ERROR 42S22: Unknown column 'innodb_doublewrite_batch_size' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

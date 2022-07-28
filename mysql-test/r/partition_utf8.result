@@ -39,7 +39,7 @@ partition p1 values less than ('CH'),
 partition p2 values less than ('D'));
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('czz'),('chi'),('ci'),('cg');
 select * from t1 where a between 'cg' AND 'ci';
 a
@@ -50,6 +50,8 @@ create table t1 (a varchar(2) character set ucs2)
 partition by list columns (a)
 (partition p0 values in (0x2020),
 partition p1 values in (''));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -60,4 +62,6 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN ('') ENGINE = ENGINE) */
 insert into t1 values ('');
 insert into t1 values (_ucs2 0x2020);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;

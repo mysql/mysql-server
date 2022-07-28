@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef NDBD_MALLOC_IMPL_H
 #define NDBD_MALLOC_IMPL_H
 
+#include "util/require.h"
 #include <algorithm>
 #ifdef VM_TRACE
 #ifndef NDBD_RANDOM_START_PAGE

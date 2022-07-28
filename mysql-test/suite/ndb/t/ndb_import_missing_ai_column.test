@@ -1,0 +1,103 @@
+--source include/have_ndb.inc
+
+--echo --echo ndb_import tests with missing-ai-column option
+
+SET @session_ai_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set session ndb_autoincrement_prefetch_sz=16;
+
+--write_file $MYSQLTEST_VARDIR/tmp/t1.csv
+1288::10000
+2288::20000
+3288::30000
+4288::40000
+5288::50000
+6288::60000
+7288::70000
+8288::80000
+9288::90000
+10288::100000
+EOF
+
+--echo Test the auto inc column type with tinyint
+--let col_type = tinyint
+--source suite/ndb/t/ndb_import_util.inc
+
+--echo Test the auto inc column type with tinyint unsigned
+--let col_type = tinyint unsigned
+--source suite/ndb/t/ndb_import_util.inc
+
+--echo Test the auto inc column type with smallint
+--let col_type = smallint
+--source suite/ndb/t/ndb_import_util.inc
+
+--echo Test the auto inc column type with smallint unsigned
+--let col_type = smallint unsigned
+--source suite/ndb/t/ndb_import_util.inc
+
+set session ndb_autoincrement_prefetch_sz=@session_ai_prefetch_sz;
+
+--echo Test the auto inc column type with mediumint
+--let col_type = mediumint
+--source suite/ndb/t/ndb_import_util.inc
+
+--echo Test the auto inc column type with mediumint unsigned
+--let col_type = mediumint unsigned
+--source suite/ndb/t/ndb_import_util.inc
+
+--echo Test the auto inc column type with int
+--let col_type = int
+--source suite/ndb/t/ndb_import_util.inc
+
+--echo Test the auto inc column type with int unsigned
+--let col_type = int unsigned
+--source suite/ndb/t/ndb_import_util.inc
+
+--echo Test the auto inc column type with bigint
+--let col_type = bigint
+--source suite/ndb/t/ndb_import_util.inc
+
+--echo Test the auto inc column type with bigint unsigned
+--let col_type = bigint unsigned
+--source suite/ndb/t/ndb_import_util.inc
+
+--echo Test that missing-ai-column option requires an explicit auto increment column
+create table t1 (a int not null primary key, b int, c bigint) engine ndb;
+
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+      --keep-state --log-level=1 --missing-ai-column
+      --fields-terminated-by="::" --csvopt=n
+      test
+      $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+drop table t1;
+
+--echo Test that missing-ai-column option works with multiple tables
+
+--write_file $MYSQLTEST_VARDIR/tmp/t2.csv
+1288::10000
+2288::20000
+EOF
+
+create table t1 (a int not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t2 (a int not null auto_increment primary key, b int, c bigint) engine ndb;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+      --keep-state --log-level=1 --missing-ai-column
+      --fields-terminated-by="::" --csvopt=n
+      test
+      $MYSQLTEST_VARDIR/tmp/t1.csv $MYSQLTEST_VARDIR/tmp/t2.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+select count(*) from t1;
+select count(*) from t2;
+
+drop table t1;
+drop table t2;
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.csv
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.map
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.rej
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.res
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.sto
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.stt
+--remove_file $NDB_TOOLS_OUTPUT

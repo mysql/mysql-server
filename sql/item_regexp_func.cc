@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,8 +113,8 @@ bool Item_func_regexp::resolve_type(THD *thd) {
 
   if ((is_binary_string(subject()) && !is_binary_compatible(pattern())) ||
       (is_binary_string(pattern()) && !is_binary_compatible(subject()))) {
-    my_error(ER_CHARACTER_SET_MISMATCH, myf(0), subject_charset->name,
-             pattern_charset->name, func_name());
+    my_error(ER_CHARACTER_SET_MISMATCH, myf(0), subject_charset->m_coll_name,
+             pattern_charset->m_coll_name, func_name());
     return error_bool();
   }
 
@@ -208,7 +208,7 @@ longlong Item_func_regexp_like::val_int() {
   }
 
   /*
-    REGEXP_LIKE() does not take position and occurence arguments, so we trust
+    REGEXP_LIKE() does not take position and occurrence arguments, so we trust
     that the calls to their accessors below will return the default values.
   */
   std::optional<bool> result =
@@ -248,8 +248,8 @@ bool Item_func_regexp_replace::resolve_type(THD *thd) {
        !is_binary_compatible(replacement())) ||
       (is_binary_string(replacement()) && (!is_binary_compatible(subject()) ||
                                            !is_binary_compatible(pattern())))) {
-    my_error(ER_CHARACTER_SET_MISMATCH, myf(0), resolved_charset->name,
-             replacement_charset->name, func_name());
+    my_error(ER_CHARACTER_SET_MISMATCH, myf(0), resolved_charset->m_coll_name,
+             replacement_charset->m_coll_name, func_name());
     return error_bool();
   }
 

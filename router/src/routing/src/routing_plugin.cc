@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "mysqlrouter/routing_plugin_export.h"
+
 #include <atomic>
 #include <iostream>
 #include <mutex>
@@ -36,25 +38,23 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/tls_server_context.h"
-#include "mysql/harness/utility/string.h"  // join
+#include "mysql/harness/utility/string.h"  // join, string_format
 #include "mysql_routing.h"
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
-#include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
-#include "mysqlrouter/utils.h"           // string_format
 #include "plugin_config.h"
+#include "scope_guard.h"
 #include "ssl_mode.h"
 
 using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
-using std::string;
 IMPORT_LOG_FUNCTIONS()
 
 const mysql_harness::AppInfo *g_app_info;
-static const string kSectionName = "routing";
+static const std::string kSectionName = "routing";
 
 static void validate_socket_info(const std::string &err_prefix,
                                  const mysql_harness::ConfigSection *section,
@@ -148,7 +148,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
         if (section->name == kSectionName) {
           io_context_work_guards.emplace_back(IoComponent::get_instance());
 
-          const auto err_prefix = mysqlrouter::string_format(
+          const auto err_prefix = mysql_harness::utility::string_format(
               "in [%s%s%s]: ", section->name.c_str(),
               section->key.empty() ? "" : ":", section->key.c_str());
           // Check the configuration
@@ -247,7 +247,7 @@ static std::string get_default_ciphers() {
 static void start(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::ConfigSection *section = get_config_section(env);
 
-  string name;
+  std::string name;
   if (!section->key.empty()) {
     name = section->name + ":" + section->key;
   } else {
@@ -405,7 +405,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         config.named_socket, name, config.max_connections,
         destination_connect_timeout, config.max_connect_errors,
         client_connect_timeout, config.net_buffer_length,
-        config.thread_stack_size, config.source_ssl_mode,
+        config.source_ssl_mode,
         config.source_ssl_mode != SslMode::kDisabled ? &source_tls_ctx
                                                      : nullptr,
         config.dest_ssl_mode,
@@ -418,7 +418,13 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     } catch (const URIError &) {
       r->set_destinations_from_csv(config.destinations);
     }
-    MySQLRoutingComponent::get_instance().init(section->key, r);
+    MySQLRoutingComponent::get_instance().init(
+        section->key, r, config.unreachable_destination_refresh_interval);
+
+    Scope_guard guard{[section_key = section->key]() {
+      MySQLRoutingComponent::get_instance().erase(section_key);
+    }};
+
     r->start(env);
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -438,30 +444,36 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 }
 
 static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
+  MySQLRoutingComponent::get_instance().deinit();
   // release all that may still be taken
   io_context_work_guards.clear();
 }
 
-static const std::array<const char *, 4> required = {{
+static const std::array<const char *, 5> required = {{
     "logger",
     "router_protobuf",
     "router_openssl",
     "io",
+    "connection_pool",
 }};
 
-mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing = {
+mysql_harness::Plugin ROUTING_PLUGIN_EXPORT harness_plugin_routing = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
     mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
     "Routing MySQL connections between MySQL clients/connectors and "
     "servers",  // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    routing_supported_options.size(),
+    routing_supported_options.data(),
 };

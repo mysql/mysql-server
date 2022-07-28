@@ -2,7 +2,7 @@
 #define OPT_COSTMODEL_INCLUDED
 
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,17 @@
 #include <sys/types.h>
 
 #include "sql/opt_costconstants.h"
-#include "sql/sql_const.h"  // defines for cost constants
+
+/*
+  For sequential disk seeks the cost formula is:
+    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST * #blocks_to_skip
+
+  The cost of average seek
+    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
+*/
+constexpr const double DISK_SEEK_BASE_COST{0.9};
+constexpr const int BLOCKS_IN_AVG_SEEK{128};
+constexpr const double DISK_SEEK_PROP_COST{0.1 / BLOCKS_IN_AVG_SEEK};
 
 struct TABLE;
 
@@ -53,7 +63,7 @@ class Cost_model_server {
   }
 
   /**
-    Desctructor for Cost_model_server objects.
+    Destructor for Cost_model_server objects.
 
     @note This is declared virtual in order to make it easier to implement
     stubs for this class for use in unit tests.
@@ -129,7 +139,7 @@ class Cost_model_server {
   }
 
   /**
-    Cost of storing or retriving a row using a disk based storage engine.
+    Cost of storing or retrieving a row using a disk based storage engine.
   */
 
   double disk_tmptable_row_cost() const {
@@ -355,9 +365,7 @@ class Cost_model_table {
     disk head to the correct cylinder.
 
     @todo Check that the BLOCKS_IN_AV_SEEK is correct to include in the
-          DISK_SEEK_PROP_COST (@see sql_const.h).
-
-    See the comments for this constant in sql_const.h.
+          DISK_SEEK_PROP_COST
   */
 
   double disk_seek_prop_cost() const {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,7 @@ struct MYSQL_XID {
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x010A
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x010B
 
 /*
   The allowable types of plugins
@@ -170,63 +170,25 @@ struct MYSQL_XID {
 #define PLUGIN_OPT_NO_INSTALL 1UL   /* Not dynamically loadable */
 #define PLUGIN_OPT_NO_UNINSTALL 2UL /* Not dynamically unloadable */
 #define PLUGIN_OPT_ALLOW_EARLY 4UL  /* allow --early-plugin-load */
+#define PLUGIN_OPT_DEFAULT_OFF 8UL  /* Turned off by default */
+/*
+  All "extra" plugins declared together, same mysql_declare_plugin statement,
+  depends on the first "main" plugin.
+
+  This option is used to turn off the extra plugins if the main plugin is off,
+  even if extra option by default should be on or user specifies that some
+  extra plugin should be on.
+
+  Use it when it does not make sense to have the extra plugins on when the main
+  plugin is off.
+ */
+#define PLUGIN_OPT_DEPENDENT_EXTRA_PLUGINS 16UL
 
 /*
   declarations for server variables and command line options
 */
 
-#define PLUGIN_VAR_BOOL 0x0001
-#define PLUGIN_VAR_INT 0x0002
-#define PLUGIN_VAR_LONG 0x0003
-#define PLUGIN_VAR_LONGLONG 0x0004
-#define PLUGIN_VAR_STR 0x0005
-#define PLUGIN_VAR_ENUM 0x0006
-#define PLUGIN_VAR_SET 0x0007
-#define PLUGIN_VAR_DOUBLE 0x0008
-#define PLUGIN_VAR_UNSIGNED 0x0080
-#define PLUGIN_VAR_THDLOCAL 0x0100 /* Variable is per-connection */
-#define PLUGIN_VAR_READONLY 0x0200 /* Server variable is read only */
-#define PLUGIN_VAR_NOSYSVAR 0x0400 /* Configurable only by cmd-line */
-
-/**
-  plugin variable CAN'T be used through command line at all
-  neither "--option", nor "--option=value" will work
-  @note you should probably set a default variable value if you use this flag
-*/
-#define PLUGIN_VAR_NOCMDOPT 0x0800
-
-/**
-  plugin variable *value* CAN'T be set via command line
-  you can invoke it with "--option" only, but "--option=value" will not work
-  @note you should probably set a default variable value if you use this flag
-*/
-#define PLUGIN_VAR_NOCMDARG 0x1000
-
-/**
-  plugin variable CAN'T be used through command line without a value
-  "--option=value" must be used, only "--option" won't work
-*/
-#define PLUGIN_VAR_RQCMDARG 0x0000
-
-/**
-  plugin variable can be set via command line, both with or without value
-  either "--option=value", or "--option" will work
-  @note you should probably set a default variable value if you use this flag
-*/
-#define PLUGIN_VAR_OPCMDARG 0x2000
-#define PLUGIN_VAR_NODEFAULT 0x4000 /* SET DEFAULT is prohibited */
-#define PLUGIN_VAR_MEMALLOC 0x8000  /* String needs memory allocated */
-#define PLUGIN_VAR_NOPERSIST                \
-  0x10000 /* SET PERSIST_ONLY is prohibited \
-             for read only variables */
-
-/**
-  There can be some variables which needs to be set before plugin is loaded but
-  not after plugin is loaded. ex: GR specific variables. Below flag must be set
-  for these kind of variables.
-*/
-#define PLUGIN_VAR_PERSIST_AS_READ_ONLY 0x20000
-#define PLUGIN_VAR_INVISIBLE 0x40000 /* Variable should not be shown */
+#include <mysql/components/services/bits/system_variables_bits.h>
 
 struct SYS_VAR;
 struct st_mysql_value;
@@ -276,7 +238,8 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd, SYS_VAR *var,
   (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT |   \
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG |   \
    PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST | \
-   PLUGIN_VAR_PERSIST_AS_READ_ONLY | PLUGIN_VAR_INVISIBLE)
+   PLUGIN_VAR_PERSIST_AS_READ_ONLY | PLUGIN_VAR_INVISIBLE |            \
+   PLUGIN_VAR_SENSITIVE)
 
 #define MYSQL_PLUGIN_VAR_HEADER \
   int flags;                    \

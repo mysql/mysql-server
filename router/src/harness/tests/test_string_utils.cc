@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 ////////////////////////////////////////
 // Standard include files
 #include <fstream>
-#include <iostream>
 #include <stdexcept>
 #include <vector>
 
@@ -40,12 +39,10 @@
 #include "test/helpers.h"
 
 using mysql_harness::split_string;
-using std::string;
 using ::testing::ContainerEq;
 
 TEST(StringUtilsTests, SplitStringWithEmpty) {
-  std::vector<string> exp;
-  std::string tcase;
+  std::vector<std::string> exp;
 
   exp = {"val1", "val2"};
   EXPECT_THAT(exp, ContainerEq(split_string("val1;val2", ';')));
@@ -68,8 +65,7 @@ TEST(StringUtilsTests, SplitStringWithEmpty) {
 }
 
 TEST(StringUtilsTests, SplitStringWithoutEmpty) {
-  std::vector<string> exp;
-  std::string tcase;
+  std::vector<std::string> exp;
 
   exp = {"val1", "val2"};
   EXPECT_THAT(exp, ContainerEq(split_string("val1;val2", ';', false)));
@@ -89,6 +85,31 @@ TEST(StringUtilsTests, SplitStringWithoutEmpty) {
   // No trimming
   exp = {"  val1", "val2  "};
   EXPECT_THAT(exp, ContainerEq(split_string("  val1&val2  ", '&', false)));
+}
+
+TEST(StringUtilsTests, LimitLines) {
+  using mysql_harness::limit_lines;
+  using ::testing::StrEq;
+
+  EXPECT_THAT(limit_lines("", 0, ""), StrEq(""));
+  EXPECT_THAT(limit_lines("", 0, "-"), StrEq(""));
+  EXPECT_THAT(limit_lines("", 1, "-"), StrEq(""));
+
+  EXPECT_THAT(limit_lines("1\n", 1, "-"), StrEq("1\n"));
+  EXPECT_THAT(limit_lines("1\n", 2, "-"), StrEq("1\n"));
+  EXPECT_THAT(limit_lines("1\n", 0, "-"), StrEq("-"));
+
+  EXPECT_THAT(limit_lines("1\n2", 1, "-"), StrEq("1\n-"));
+  EXPECT_THAT(limit_lines("1\n2\n", 1, "-"), StrEq("1\n-"));
+  EXPECT_THAT(limit_lines("1\n2\n", 2, "-"), StrEq("1\n2\n"));
+
+  EXPECT_THAT(limit_lines("1\n2\n3", 1, "-"), StrEq("1\n-"));
+  EXPECT_THAT(limit_lines("1\n2\n3", 2, "-"), StrEq("1\n-3\n"));
+  EXPECT_THAT(limit_lines("1\n2\n3", 3, "-"), StrEq("1\n2\n3"));
+
+  EXPECT_THAT(limit_lines("1\n2\n3\n\4\n5\n6\n", 3, "-"), StrEq("1\n2\n-6\n"));
+  EXPECT_THAT(limit_lines("1\n2\n3\n\4\n5\n6\n", 4, "-"),
+              StrEq("1\n2\n-5\n6\n"));
 }
 
 int main(int argc, char **argv) {

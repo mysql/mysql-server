@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.innodb_rollback_on_timeout);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_rollback_on_timeout = @@SESSION.innodb_rollback_on_timeout;
---echo Expected error 'Readonly variable'
+SELECT innodb_rollback_on_timeout;
+--echo Expected error 'Unknown column'
 
 

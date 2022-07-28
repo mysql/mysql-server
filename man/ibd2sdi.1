@@ -2,12 +2,12 @@
 .\"     Title: ibd2sdi
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "IBD2SDI" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "IBD2SDI" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -39,7 +39,7 @@ is a utility for extracting
 serialized dictionary information
 (SDI) from
 InnoDB
-tablespace files\&. SDI data is present all persistent
+tablespace files\&. SDI data is present in all persistent
 InnoDB
 tablespace files\&.
 .PP
@@ -259,7 +259,7 @@ field values, which are primary keys for SDI records\&.
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-skip\-data \&.\&./data/test/t1\&.ibd\fR
+$> \fBibd2sdi \-\-skip\-data \&.\&./data/test/t1\&.ibd\fR
 ["ibd2sdi"
 ,
 {
@@ -301,7 +301,7 @@ Section\ \&14.1, \(lqData Dictionary Schema\(rq\&.
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-id=7 \&.\&./data/test/t1\&.ibd\fR
+$> \fBibd2sdi \-\-id=7 \&.\&./data/test/t1\&.ibd\fR
 ["ibd2sdi"
 ,
 {
@@ -352,7 +352,7 @@ Retrieves serialized dictionary information (SDI) matching the specified object 
 .RS 4
 .\}
 .nf
-shell> \fBibd2sdi \-\-type=2 \&.\&./data/test/t1\&.ibd\fR
+$> \fBibd2sdi \-\-type=2 \&.\&./data/test/t1\&.ibd\fR
 ["ibd2sdi"
 ,
 {
@@ -490,7 +490,7 @@ ibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,8 @@
 #endif
 
 #include <gmock/gmock.h>
+#include <gtest/gtest-matchers.h>
 #include <gtest/gtest.h>
-
-#include "common.h"
 
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"  // Path
@@ -1171,7 +1170,7 @@ TEST_P(RoutingConfigFailTest, section_option) {
   }
 }
 
-RoutingConfigFailParam routing_config_fail_params[] = {
+const RoutingConfigFailParam routing_config_fail_params[] = {
     // server-ssl-mode
     //
     {"server_ssl_mode_unknown",  // RT1_ARGS_BAD_04
@@ -1179,27 +1178,33 @@ RoutingConfigFailParam routing_config_fail_params[] = {
          {"server_ssl_mode", "unknown"},
      },
      [](const std::exception &e) {
-       ASSERT_STREQ(e.what(),
-                    "invalid value 'unknown' for server_ssl_mode. Allowed are: "
-                    "DISABLED,PREFERRED,REQUIRED,AS_CLIENT.");
+       ASSERT_THAT(e.what(),
+                   ::testing::ContainsRegex(
+                       "invalid value 'unknown' for option server_ssl_mode in "
+                       "\\[.+\\]\\. Allowed are: "
+                       "DISABLED,PREFERRED,REQUIRED,AS_CLIENT\\."));
      }},
     {"server_ssl_mode_quotes",  // RT1_ARGS_BAD_05
      {
          {"server_ssl_mode", "''"},
      },
      [](const std::exception &e) {
-       ASSERT_STREQ(e.what(),
-                    "invalid value '''' for server_ssl_mode. Allowed are: "
-                    "DISABLED,PREFERRED,REQUIRED,AS_CLIENT.");
+       ASSERT_THAT(e.what(),
+                   ::testing::ContainsRegex(
+                       "invalid value '''' for option server_ssl_mode in "
+                       "\\[.+\\]\\. Allowed are: "
+                       "DISABLED,PREFERRED,REQUIRED,AS_CLIENT\\."));
      }},
     {"server_ssl_mode_quotes_space",  // RT1_ARGS_BAD_06
      {
          {"server_ssl_mode", "' '"},
      },
      [](const std::exception &e) {
-       ASSERT_STREQ(e.what(),
-                    "invalid value '' '' for server_ssl_mode. Allowed are: "
-                    "DISABLED,PREFERRED,REQUIRED,AS_CLIENT.");
+       ASSERT_THAT(e.what(),
+                   ::testing::ContainsRegex(
+                       "invalid value '' '' for option server_ssl_mode in "
+                       "\\[.+\\]\\. Allowed are: "
+                       "DISABLED,PREFERRED,REQUIRED,AS_CLIENT\\."));
      }},
     {"server_ssl_mode_disabled",  // RT1_MODES_03, RT1_MODES_CERT_KEY_05
      {
@@ -1337,27 +1342,33 @@ RoutingConfigFailParam routing_config_fail_params[] = {
          {"client_ssl_mode", "unknown"},
      },
      [](const std::exception &e) {
-       ASSERT_STREQ(e.what(),
-                    "invalid value 'unknown' for client_ssl_mode. Allowed are: "
-                    "DISABLED,PREFERRED,REQUIRED,PASSTHROUGH.");
+       ASSERT_THAT(e.what(),
+                   ::testing::ContainsRegex(
+                       "invalid value 'unknown' for option client_ssl_mode in "
+                       "\\[.+\\]\\. Allowed are: "
+                       "DISABLED,PREFERRED,REQUIRED,PASSTHROUGH\\."));
      }},
     {"client_ssl_mode_quotes",  // RT1_ARGS_BAD_02
      {
          {"client_ssl_mode", "''"},
      },
      [](const std::exception &e) {
-       ASSERT_STREQ(e.what(),
-                    "invalid value '''' for client_ssl_mode. Allowed are: "
-                    "DISABLED,PREFERRED,REQUIRED,PASSTHROUGH.");
+       ASSERT_THAT(e.what(),
+                   ::testing::ContainsRegex(
+                       "invalid value '''' for option client_ssl_mode in "
+                       "\\[.+\\]\\. Allowed are: "
+                       "DISABLED,PREFERRED,REQUIRED,PASSTHROUGH\\."));
      }},
     {"client_ssl_mode_quotes_space",  // RT1_ARGS_BAD_03
      {
          {"client_ssl_mode", "' '"},
      },
      [](const std::exception &e) {
-       ASSERT_STREQ(e.what(),
-                    "invalid value '' '' for client_ssl_mode. Allowed are: "
-                    "DISABLED,PREFERRED,REQUIRED,PASSTHROUGH.");
+       ASSERT_THAT(e.what(),
+                   ::testing::ContainsRegex(
+                       "invalid value '' '' for option client_ssl_mode in "
+                       "\\[.+\\]\\. Allowed are: "
+                       "DISABLED,PREFERRED,REQUIRED,PASSTHROUGH\\."));
      }},
     {"client_ssl_mode_preferred_missing_cert",
      {
@@ -1404,28 +1415,34 @@ RoutingConfigFailParam routing_config_fail_params[] = {
          {"server_ssl_verify", "unknown"},
      },
      [](const std::exception &e) {
-       ASSERT_STREQ(
+       ASSERT_THAT(
            e.what(),
-           "invalid value 'unknown' for server_ssl_verify. Allowed are: "
-           "DISABLED,VERIFY_CA,VERIFY_IDENTITY.");
+           ::testing::ContainsRegex(
+               "invalid value 'unknown' for option server_ssl_verify in "
+               "\\[.+\\]\\. Allowed are: "
+               "DISABLED,VERIFY_CA,VERIFY_IDENTITY\\."));
      }},
     {"server_ssl_verify_quotes",  // RT1_ARGS_BAD_08
      {
          {"server_ssl_verify", "''"},
      },
      [](const std::exception &e) {
-       ASSERT_STREQ(e.what(),
-                    "invalid value '''' for server_ssl_verify. Allowed are: "
-                    "DISABLED,VERIFY_CA,VERIFY_IDENTITY.");
+       ASSERT_THAT(e.what(),
+                   ::testing::ContainsRegex(
+                       "invalid value '''' for option server_ssl_verify in "
+                       "\\[.+\\]\\. Allowed are: "
+                       "DISABLED,VERIFY_CA,VERIFY_IDENTITY\\."));
      }},
     {"server_ssl_verify_quotes_space",  // RT1_ARGS_BAD_09
      {
          {"server_ssl_verify", "' '"},
      },
      [](const std::exception &e) {
-       ASSERT_STREQ(e.what(),
-                    "invalid value '' '' for server_ssl_verify. Allowed are: "
-                    "DISABLED,VERIFY_CA,VERIFY_IDENTITY.");
+       ASSERT_THAT(e.what(),
+                   ::testing::ContainsRegex(
+                       "invalid value '' '' for option server_ssl_verify in "
+                       "\\[.+\\]\\. Allowed are: "
+                       "DISABLED,VERIFY_CA,VERIFY_IDENTITY\\."));
      }},
     {"server_ssl_verify_verify_ca_missing_ca",
      {

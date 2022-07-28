@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
   Note that we can't have assertion on file descriptors;  The reason for
   this is that during mysql shutdown, another thread can close a file
   we are working on.  In this case we should just return read errors from
-  the file descriptior.
+  the file descriptor.
 */
 
 #include <errno.h>
@@ -58,7 +58,7 @@
   after the data is compressed right before the data is written to
   the network layer.
 
-  The TLS suppport is announced in
+  The TLS support is announced in
   @ref page_protocol_connection_phase_packets_protocol_handshake sent by the
   server via ::CLIENT_SSL and is enabled if the client returns the same
   capability.
@@ -129,7 +129,11 @@ static void report_errors(SSL *ssl) {
 
   DBUG_TRACE;
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  while ((l = ERR_get_error_all(&file, &line, nullptr, &data, &flags))) {
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   while ((l = ERR_get_error_line_data(&file, &line, &data, &flags))) {
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l, buf),
                          file, line, (flags & ERR_TXT_STRING) ? data : ""));
   }
@@ -262,6 +266,11 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
 
   DBUG_TRACE;
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
+  // TODO: find out which of the openssl 3 functions makes this a requirement
+  ERR_clear_error();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
   while (true) {
     enum enum_vio_io_event event;
 
@@ -303,6 +312,11 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
   unsigned long ssl_errno_not_used;
 
   DBUG_TRACE;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
+  // TODO: find out which of the openssl 3 functions makes this a requirement
+  ERR_clear_error();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   while (true) {
     enum enum_vio_io_event event;
@@ -350,7 +364,7 @@ int vio_ssl_shutdown(Vio *vio) {
     alert on socket shutdown to avoid truncation attacks. However, this can
     cause problems since we often hold a lock during shutdown and this IO can
     take an unbounded amount of time to complete. Since our packets are self
-    describing with length, we aren't vunerable to these attacks. Therefore,
+    describing with length, we aren't vulnerable to these attacks. Therefore,
     we just shutdown by closing the socket (quiet shutdown).
     */
     SSL_set_quiet_shutdown(ssl, 1);
@@ -415,6 +429,11 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
   size_t ret = -1;
 
   vio->ssl_arg = ssl;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
+  // TODO: find out which of the openssl 3 functions makes this a requirement
+  ERR_clear_error();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   /* Initiate the SSL handshake. */
   while (true) {
@@ -602,9 +621,27 @@ static void pfs_ssl_setup_instrumentation(Vio *vio, const SSL *ssl) {
 }
 #endif /* HAVE_PSI_SOCKET_INTERFACE */
 
+#ifndef NDEBUG
+static void print_ssl_session_id(SSL_SESSION *sess, const char *action) {
+  unsigned int length;
+  const unsigned char *id = SSL_SESSION_get_id(sess, &length);
+  char tohex[1024], *w = &tohex[0];
+
+  if (id && length) {
+    for (unsigned inx = 0; inx < length && w < &tohex[1021]; inx++) {
+      sprintf(w, "%2.2X", id[inx]);
+      w += 2;
+    }
+    *w = 0;
+  } else
+    strcpy(tohex, "<empty>");
+  DBUG_PRINT("info", ("%sSSL session ID [%s]", action, tohex));
+}
+#endif  // !NDEBUG
+
 static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
-                  ssl_handshake_func_t func, unsigned long *ssl_errno_holder,
-                  SSL **sslptr) {
+                  SSL_SESSION *ssl_session, ssl_handshake_func_t func,
+                  unsigned long *ssl_errno_holder, SSL **sslptr) {
   SSL *ssl = nullptr;
   my_socket sd = mysql_socket_getfd(vio->mysql_socket);
 
@@ -625,6 +662,21 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
       DBUG_PRINT("error", ("SSL_new failure"));
       *ssl_errno_holder = ERR_get_error();
       return 1;
+    }
+
+    if (ssl_session != nullptr) {
+#ifndef NDEBUG
+      print_ssl_session_id(ssl_session, "Setting for reuse ");
+#endif
+      if (!SSL_set_session(ssl, ssl_session)) {
+#ifndef NDEBUG
+        DBUG_PRINT("error", ("SSL_set_session failed"));
+        report_errors(ssl);
+#endif
+        ERR_clear_error();
+      } else {
+        DBUG_PRINT("info", ("reused existing session"));
+      }
     }
 
     DBUG_PRINT("info", ("ssl: %p timeout: %ld", ssl, timeout));
@@ -667,6 +719,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   } else {
     ssl = *sslptr;
   }
+  ERR_clear_error();
 
   size_t loop_ret;
   if ((loop_ret = ssl_handshake_loop(vio, ssl, func, ssl_errno_holder))) {
@@ -679,6 +732,9 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     *sslptr = nullptr;
     return (int)VIO_SOCKET_ERROR;
   }
+#ifndef NDEBUG
+  print_ssl_session_id(SSL_get_session(ssl), "Connected ");
+#endif
 
   /*
     Connection succeeded. Install new function handlers,
@@ -722,14 +778,17 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
               unsigned long *ssl_errno_holder) {
   DBUG_TRACE;
-  int ret = ssl_do(ptr, vio, timeout, SSL_accept, ssl_errno_holder, nullptr);
+  int ret =
+      ssl_do(ptr, vio, timeout, nullptr, SSL_accept, ssl_errno_holder, nullptr);
   return ret;
 }
 
 int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
-               unsigned long *ssl_errno_holder, SSL **ssl) {
+               SSL_SESSION *session, unsigned long *ssl_errno_holder,
+               SSL **ssl) {
   DBUG_TRACE;
-  int ret = ssl_do(ptr, vio, timeout, SSL_connect, ssl_errno_holder, ssl);
+  int ret =
+      ssl_do(ptr, vio, timeout, session, SSL_connect, ssl_errno_holder, ssl);
   return ret;
 }
 

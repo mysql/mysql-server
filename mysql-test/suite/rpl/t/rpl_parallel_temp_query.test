@@ -196,7 +196,9 @@ while ($n)
 --source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 
+--disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

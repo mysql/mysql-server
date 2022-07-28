@@ -3814,6 +3814,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- ' at row 4 is superfluous and is deprecated. Please remove.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varbinary_1000` as time) AS `CAST(my_varbinary_1000 AS TIME)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -3831,6 +3832,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- ' at row 1 is superfluous and is deprecated. Please remove.
 DROP VIEW v1;
 
 
@@ -3850,6 +3852,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- ' at row 4 is superfluous and is deprecated. Please remove.
 Warning	1292	Truncated incorrect time value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect time value: '1 17:58\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 SHOW CREATE VIEW v1;
@@ -3869,6 +3872,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- ' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1292	Truncated incorrect time value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect time value: '1 17:58\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DROP VIEW v1;
@@ -3890,6 +3894,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- ' at row 4 is superfluous and is deprecated. Please remove.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varchar_1000` as time) AS `CAST(my_varchar_1000 AS TIME)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -3907,6 +3912,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- ' at row 1 is superfluous and is deprecated. Please remove.
 DROP VIEW v1;
 
 
@@ -3926,6 +3932,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--' at row 4 is superfluous and is deprecated. Please remove.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_char_30` as time) AS `CAST(my_char_30 AS TIME)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
@@ -3943,6 +3950,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--' at row 1 is superfluous and is deprecated. Please remove.
 DROP VIEW v1;
 
 

@@ -1,0 +1,14 @@
+##########################################################################
+# Test script to test ALTER TABLE ADD/DROP COLUMN ... ALGORITHM=INSTANT
+# for a table with
+#  - No key defined.
+#  - PK defined.
+#  - Secondary index defined.
+#
+# This test is to be run in debug mode only and with debug flag.
+##########################################################################
+
+--source include/have_debug.inc
+let $is_debug = 1;
+
+--source suite/innodb/t/instant_ddl_basic.test

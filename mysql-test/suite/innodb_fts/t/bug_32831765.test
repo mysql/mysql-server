@@ -4,6 +4,7 @@
 --echo #
 
 --source include/have_debug.inc
+--source include/not_valgrind.inc
 
 create table t1 ( `id` int unsigned NOT NULL AUTO_INCREMENT, `col01` text,
 `col02` text, `col03` text, `col04` text, `col05` text, `col06` text, `col07`

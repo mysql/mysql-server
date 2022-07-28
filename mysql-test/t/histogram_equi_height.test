@@ -88,7 +88,7 @@ EXPLAIN SELECT * FROM tbl_varchar WHERE "abcd" <= col1;
 EXPLAIN SELECT * FROM tbl_varchar WHERE col1 >= "";
 EXPLAIN SELECT * FROM tbl_varchar WHERE "" <= col1;
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "70.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_varchar WHERE col1 != "lorem ipsum";
 EXPLAIN SELECT * FROM tbl_varchar WHERE "lorem ipsum" != col1;
 EXPLAIN SELECT * FROM tbl_varchar WHERE col1 <> "lorem ipsum";
@@ -111,10 +111,10 @@ EXPLAIN SELECT * FROM tbl_varchar WHERE col1 BETWEEN "a" AND "b";
 --echo # Expect "76.72" in column "filtered"
 EXPLAIN SELECT * FROM tbl_varchar WHERE col1 NOT BETWEEN "a" AND "b";
 
---echo # Expect "10.0" in column "filtered"
+--echo # Expect "30.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_varchar WHERE col1 IN ("ag", "ef", "🍣");
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "50.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_varchar WHERE col1 NOT IN ("ag", "ef", "🍣");
 
 DROP TABLE tbl_varchar;
@@ -169,7 +169,7 @@ EXPLAIN SELECT * FROM tbl_double WHERE 3.3e0 <= col1;
 EXPLAIN SELECT * FROM tbl_double WHERE col1 >= -2.0e0;
 EXPLAIN SELECT * FROM tbl_double WHERE -2.0e0 <= col1;
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "70.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_double WHERE col1 != 0.0e0;
 EXPLAIN SELECT * FROM tbl_double WHERE 0.0e0 != col1;
 EXPLAIN SELECT * FROM tbl_double WHERE col1 <> 0.0e0;
@@ -192,10 +192,10 @@ EXPLAIN SELECT * FROM tbl_double WHERE col1 BETWEEN 1.1e0 AND 3.3e0;
 --echo # Expect "66.67" in column "filtered"
 EXPLAIN SELECT * FROM tbl_double WHERE col1 NOT BETWEEN 1.1e0 AND 3.3e0;
 
---echo # Expect "10.0" in column "filtered"
+--echo # Expect "40.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_double WHERE col1 IN (-1.1e0, 0.0e0, 1.1e0, 2.2e0);
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "40.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_double WHERE col1 NOT IN (-1.1e0, 0.0e0, 1.1e0, 2.2e0);
 
 DROP TABLE tbl_double;
@@ -231,7 +231,7 @@ EXPLAIN SELECT * FROM tbl_time WHERE "00:00:01" <= col1;
 EXPLAIN SELECT * FROM tbl_time WHERE col1 >= "-01:00:00";
 EXPLAIN SELECT * FROM tbl_time WHERE "-01:00:00" <= col1;
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "70.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_time WHERE col1 != "01:01:00";
 EXPLAIN SELECT * FROM tbl_time WHERE "01:01:00" != col1;
 EXPLAIN SELECT * FROM tbl_time WHERE col1 <> "01:01:00";
@@ -258,10 +258,10 @@ EXPLAIN SELECT * FROM tbl_time WHERE col1 BETWEEN "00:00:01" AND "02:00:00";
 --echo # each bucket this is actually correct.
 EXPLAIN SELECT * FROM tbl_time WHERE col1 NOT BETWEEN "00:00:01" AND "02:00:00";
 
---echo # Expect "10.0" in column "filtered"
+--echo # Expect "30.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_time WHERE col1 IN ("-01:00:00", "00:00:00", "03:00:00");
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "50.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_time WHERE col1 NOT IN ("-01:00:00", "00:00:00", "03:00:00");
 
 DROP TABLE tbl_time;
@@ -307,7 +307,7 @@ EXPLAIN SELECT * FROM tbl_date WHERE "2018-01-01" <= col1;
 EXPLAIN SELECT * FROM tbl_date WHERE col1 >= "1000-01-01";
 EXPLAIN SELECT * FROM tbl_date WHERE "1000-01-01" <= col1;
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "70.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_date WHERE col1 != "2017-01-02";
 EXPLAIN SELECT * FROM tbl_date WHERE "2017-01-02" != col1;
 EXPLAIN SELECT * FROM tbl_date WHERE col1 <> "2017-01-02";
@@ -334,10 +334,10 @@ EXPLAIN SELECT * FROM tbl_date WHERE col1 BETWEEN "2017-01-01" AND "3019-01-01";
 --echo # each bucket this is actually correct.
 EXPLAIN SELECT * FROM tbl_date WHERE col1 NOT BETWEEN "2017-01-01" AND "3019-01-01";
 
---echo # Expect "10.0" in column "filtered"
+--echo # Expect "30.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_date WHERE col1 IN ("1000-01-01", "2017-01-02", "2018-01-01");
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "50.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_date WHERE col1 NOT IN ("1000-01-01", "2017-01-02", "2018-01-01");
 
 DROP TABLE tbl_date;
@@ -375,7 +375,7 @@ EXPLAIN SELECT * FROM tbl_datetime WHERE "2018-01-01 00:00:00.999999" <= col1;
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 >= "1000-01-01 00:00:00.000000";
 EXPLAIN SELECT * FROM tbl_datetime WHERE "1000-01-01 00:00:00.000000" <= col1;
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "70.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 != "3019-01-01 10:10:10.101010";
 EXPLAIN SELECT * FROM tbl_datetime WHERE "3019-01-01 10:10:10.101010" != col1;
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 <> "3019-01-01 10:10:10.101010";
@@ -402,10 +402,10 @@ EXPLAIN SELECT * FROM tbl_datetime WHERE col1 BETWEEN "2017-01-01 00:00:00.00000
 --echo # each bucket this is actually correct.
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 NOT BETWEEN "2017-01-01 00:00:00.000001" AND "3019-01-01 10:10:10.101010";
 
---echo # Expect "10.0" in column "filtered"
+--echo # Expect "30.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 IN ("1000-01-01 00:00:00.000000", "2018-01-01 00:00:00.999999", "9999-12-31 23:59:59.999998");
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "50.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 NOT IN ("1000-01-01 00:00:00.000000", "2018-01-01 00:00:00.999999", "9999-12-31 23:59:59.999998");
 
 DROP TABLE tbl_datetime;
@@ -443,7 +443,7 @@ EXPLAIN SELECT * FROM tbl_decimal WHERE 4 <= col1;
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 >= -1;
 EXPLAIN SELECT * FROM tbl_decimal WHERE -1 <= col1;
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "70.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 != 2.0;
 EXPLAIN SELECT * FROM tbl_decimal WHERE 2.0 != col1;
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 <> 2.0;
@@ -470,11 +470,11 @@ EXPLAIN SELECT * FROM tbl_decimal WHERE col1 BETWEEN -1.0 AND 4.0;
 --echo # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 NOT BETWEEN -1.0 AND 4.0;
 
---echo # Expect "10.0" in column "filtered"
+--echo # Expect "30.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 IN
   (-99999999999999999999999999999999999.999999999999999999999999999999, 1.0, 2.0);
 
---echo # Expect "80.0" in column "filtered"
+--echo # Expect "50.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 NOT IN
   (-99999999999999999999999999999999999.999999999999999999999999999999, 1.0, 2.0);
 
@@ -560,11 +560,11 @@ INSERT INTO tbl_set VALUES ('red'), ('red,black'), ('black,green,blue'),
 ANALYZE TABLE tbl_set UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
 ANALYZE TABLE tbl_set;
 
---echo # Expect "9.09" in column "filtered"
+--echo # Expect "11.36" in column "filtered"
 EXPLAIN SELECT * FROM tbl_set WHERE col1 = 'red,green';
 EXPLAIN SELECT * FROM tbl_set WHERE 'red,green' = col1;
 
---echo # Expect "67.68" in column "filtered"
+--echo # Expect "61.36" in column "filtered"
 EXPLAIN SELECT * FROM tbl_set WHERE col1 != 'red';
 EXPLAIN SELECT * FROM tbl_set WHERE 'red' != col1;
 EXPLAIN SELECT * FROM tbl_set WHERE col1 <> 'red';
@@ -576,10 +576,10 @@ EXPLAIN SELECT * FROM tbl_set WHERE col1 != 0;
 EXPLAIN SELECT * FROM tbl_set WHERE col1 <> '';
 EXPLAIN SELECT * FROM tbl_set WHERE col1 <> 0;
 
---echo # Expect "32.32" in column "filtered"
+--echo # Expect "38.64" in column "filtered"
 EXPLAIN SELECT * FROM tbl_set WHERE col1 IN ('green', 'black,blue,green');
 
---echo # Expect "40.40" in column "filtered"
+--echo # Expect "34.09" in column "filtered"
 EXPLAIN SELECT * FROM tbl_set WHERE col1 NOT IN ('green', 'black,blue,green');
 
 --echo # Expect "27.27" in column "filtered"
@@ -592,11 +592,11 @@ EXPLAIN SELECT * FROM tbl_set WHERE col1 IS NOT NULL;
 --echo # Test that the numerical representation of set values also gives the
 --echo # correct result.
 
---echo # Expect "9.09" in column "filtered"
+--echo # Expect "11.36" in column "filtered"
 EXPLAIN SELECT * FROM tbl_set WHERE col1 = 9;
 EXPLAIN SELECT * FROM tbl_set WHERE 9 = col1;
 
---echo # Expect "67.68" in column "filtered"
+--echo # Expect "61.36" in column "filtered"
 EXPLAIN SELECT * FROM tbl_set WHERE col1 != 1;
 EXPLAIN SELECT * FROM tbl_set WHERE 1 != col1;
 EXPLAIN SELECT * FROM tbl_set WHERE col1 <> 1;
@@ -613,10 +613,10 @@ EXPLAIN SELECT * FROM tbl_set WHERE col1 <> 0;
 EXPLAIN SELECT * FROM tbl_set WHERE col1 = 100;
 EXPLAIN SELECT * FROM tbl_set WHERE 100 = col1;
 
---echo # Expect "32.32" in column "filtered"
+--echo # Expect "38.64" in column "filtered"
 EXPLAIN SELECT * FROM tbl_set WHERE col1 IN (8, 14);
 
---echo # Expect "40.40" in column "filtered"
+--echo # Expect "34.09" in column "filtered"
 EXPLAIN SELECT * FROM tbl_set WHERE col1 NOT IN (8, 14);
 
 DROP TABLE tbl_set;
@@ -672,3 +672,110 @@ ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE col1 < "00:00:00";
 EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN "00:00:00" AND "";
 DROP TABLE t1;
+
+--echo #
+--echo # Bug# 33302021 - Equi-height histogram is not equi-height
+--echo #
+
+# Histogram construction bug example:
+#
+# A data distribution with a few highly frequent largest values can cause
+# two distinct values that together account for almost the entire distribution
+# to end up in the same bucket, causing large potential errors in selectivity
+# estimates.
+
+# Explanation of the bug:
+#
+# If during histogram construction, we end up in a state with at least as many
+# buckets remaining as there are there are distinct values remaining, we begin
+# adding buckets indiscriminately. If many "light" buckets are added this way,
+# the target threshold is moved far ahead of the actual cumulative frequency of
+# the buckets. It might then happen that placing two "heavy" values in the same
+# bucket will bring us closer to the target than just adding one.
+
+delimiter //;
+
+CREATE PROCEDURE insert_repeat(IN value INT, IN num_insertions INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  SET i = 1;
+  WHILE i <= num_insertions DO
+    INSERT INTO t1 VALUES (value);
+    SET i = i + 1;
+  END WHILE;
+END//
+
+CREATE PROCEDURE insert_range(IN first INT, IN last INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  SET i = first;
+  WHILE i <= last DO
+    INSERT INTO t1 VALUES (i);
+    SET i = i + 1;
+  END WHILE;
+END//
+
+delimiter ;//
+
+CREATE TABLE t1(x INT);
+CALL insert_range(1, 10);
+CALL insert_repeat(11, 10);
+CALL insert_repeat(12, 20);
+
+# With the bug the value 11 (25% of values) and 12 (50% of values) end up in the
+# same bucket. They should be placed in singleton buckets.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
+
+# It seems that we have to call ANALYZE TABLE for the histogram to be used.
+# TODO(christiani): Investigate if this is a bug.
+ANALYZE TABLE t1;
+
+# Test that we get selectivity estimates that correspond to singleton buckets.
+EXPLAIN SELECT * FROM t1 WHERE x = 11;
+EXPLAIN SELECT * FROM t1 WHERE x = 12;
+
+TRUNCATE TABLE t1;
+
+# Create histograms for a couple of different data sets and verify manually that
+# the output looks reasonable.
+
+# Test case: Uniform data set.
+# Buckets should be evenly distributed and contain close to 10 values each.
+CALL insert_range(1, 100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
+SELECT JSON_PRETTY(JSON_REMOVE(histogram, '$."last-updated"'))
+FROM INFORMATION_SCHEMA.column_statistics
+WHERE table_name = 't1' AND column_name = 'x';
+TRUNCATE TABLE t1;
+
+# Test case: A few heavy hitters at the end.
+# The heavy values should be placed in singleton buckets and the remaining buckets
+# should be used efficiently, i.e, they should contain roughly 100/7 = 14.3
+# values each.
+CALL insert_range(1, 100);
+CALL insert_repeat(101, 100);
+CALL insert_repeat(102, 100);
+CALL insert_repeat(103, 100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
+SELECT JSON_PRETTY(JSON_REMOVE(histogram, '$."last-updated"'))
+FROM INFORMATION_SCHEMA.column_statistics
+WHERE table_name = 't1' AND column_name = 'x';
+TRUNCATE TABLE t1;
+
+# Test case: Heavy hitters with a few values in between.
+# The heavy values should be placed in singleton buckets. This will force the
+# values between them, e.g. 1, 3-4, and 6-9, to be placed in their own buckets.
+# The remaining 4 buckets should contain approximately 23 values each.
+CALL insert_range(1, 100);
+CALL insert_repeat(2, 100);
+CALL insert_repeat(5, 100);
+CALL insert_repeat(10, 100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
+SELECT JSON_PRETTY(JSON_REMOVE(histogram, '$."last-updated"'))
+FROM INFORMATION_SCHEMA.column_statistics
+WHERE table_name = 't1' AND column_name = 'x';
+TRUNCATE TABLE t1;
+
+DROP TABLE t1;
+DROP PROCEDURE insert_repeat;
+DROP PROCEDURE insert_range;

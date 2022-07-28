@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-
 
 #include <ndb_global.h>
 #include <NdbTCP.h>
@@ -628,12 +627,11 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
 {
 #ifdef HAVE_POLL
   struct pollfd pfd[1];
-  int r;
 
   pfd[0].fd= sock.fd; // FIXME: THIS IS A BUG
   pfd[0].events= POLLHUP | POLLIN | POLLOUT | POLLNVAL;
   pfd[0].revents= 0;
-  r= poll(pfd,1,0);
+  (void)poll(pfd, 1, 0);
   if(pfd[0].revents & (POLLHUP|POLLERR))
     return 1;
 

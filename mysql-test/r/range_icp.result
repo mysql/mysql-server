@@ -36,7 +36,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.
 explain format=tree select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 EXPLAIN
 -> Filter: ((t1.event_date >= DATE'1999-07-01') and (t1.event_date < DATE'1999-07-15') and ((t1.`type` = 100600) or (t1.`type` = 100100)))  (cost=1.46 rows=1)
-    -> Covering index range scan on t1 using PRIMARY  (cost=1.46 rows=6)
+    -> Covering index range scan on t1 using PRIMARY over ('1999-07-01' <= event_date <= '1999-07-15' AND 100100 <= type)  (cost=1.46 rows=6)
 
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 event_date	type	event_id
@@ -1250,7 +1250,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`b` AS `b`,
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 EXPLAIN
 -> Filter: (0 not between t1.b and t1.c)  (cost=2.15 rows=3)
-    -> Index range scan on t1 using sort_union(idx1,idx2)  (cost=2.15 rows=3)
+    -> Sort-deduplicate by row ID  (cost=2.15 rows=3)
+        -> Index range scan on t1 using idx1 over (0 < b)  (cost=0.46 rows=2)
+        -> Index range scan on t1 using idx2 over (c < 0)  (cost=0.36 rows=1)
 
 DROP TABLE t1;
 CREATE TABLE t1 (                                      
@@ -1597,11 +1599,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t1 WHERE a >= '2009/09/23';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '20090923';
 a
 2009-09-23
@@ -1622,11 +1627,15 @@ a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '2009:09:23';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23' at row 1 is deprecated. Prefer the standard '-'.
 # DATE vs DATETIME
 EXPLAIN
 SELECT * FROM t2 WHERE a >= '2009/09/23';
@@ -1634,16 +1643,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t2 WHERE a >= '2009/09/23';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '2009/09/23';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '20090923';
 a
 2009-09-23 12:00:00
@@ -1664,11 +1678,15 @@ a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '2009:09:23';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23' at row 1 is deprecated. Prefer the standard '-'.
 # DATETIME vs DATETIME
 EXPLAIN
 SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
@@ -1676,11 +1694,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23 12:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '20090923120000';
 a
 2009-09-23 12:00:00
@@ -1701,11 +1722,15 @@ a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23 12:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '2009:09:23 12:00:00';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23 12:00:00' at row 1 is deprecated. Prefer the standard '-'.
 # DATETIME vs DATE
 EXPLAIN
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
@@ -1713,16 +1738,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '20090923000000';
 a
 2009-09-23
@@ -1743,11 +1773,15 @@ a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '2009:09:23 00:00:00';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 # Test of the new get_date_from_str implementation
 # Behavior differs slightly between the trunk and mysql-pe.
 # The former may give errors for the truncated values, while the latter
@@ -1767,6 +1801,7 @@ str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
 1
 Warnings:
 Warning	1292	Truncated incorrect date value: ''
+Warning	4095	Delimiter '/' in position 4 in datetime value '2007/10/20' at row 1 is deprecated. Prefer the standard '-'.
 SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
 str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND ''
 NULL
@@ -2670,6 +2705,9 @@ b
 2001-01-01
 2001-01-01 00:00:00
 2001.01.01
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row # is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row # is deprecated. Prefer the standard '-'.
+Warnings:
 
 # range/ref access cannot be used for any of the queries below.
 # See BUG#13814468 about 'Range checked for each record'
@@ -2694,6 +2732,8 @@ a	b
 Warnings:
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 
 EXPLAIN SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2715,6 +2755,8 @@ a	b
 Warnings:
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 
 DROP TABLE t1,t2;
 #
@@ -3664,11 +3706,11 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (66136540), (68983250), (89627210), (77869520),
 (82543190), (67538270), (77282760), (77908170),
@@ -4006,5 +4048,16 @@ INSERT INTO t1 VALUES ('abcde', 10);
 SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
 MAX(col2)
 NULL
+DROP TABLE t1;
+#
+# Bug#33611112: Reverse index scan is not sorted on implicit InnoDB primary key
+#
+CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY (a), KEY (b));
+INSERT INTO t1 VALUES (1, NULL), (2, NULL), (3, 3), (4, NULL);
+SELECT a FROM t1 WHERE b IS NULL GROUP BY a ORDER BY a DESC;
+a
+4
+2
+1
 DROP TABLE t1;
 set optimizer_switch=default;

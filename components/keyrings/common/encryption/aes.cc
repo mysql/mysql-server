@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -113,11 +113,11 @@ bool aes_create_key(const unsigned char *key, unsigned int key_length,
   switch (*rkey_size) {
     case 32: /* 256 bit key */ {
       EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();
-      EVP_DigestInit_ex(md_ctx, EVP_sha256(), NULL);
+      EVP_DigestInit_ex(md_ctx, EVP_sha256(), nullptr);
       EVP_DigestUpdate(
           md_ctx, reinterpret_cast<void *>(const_cast<unsigned char *>(key)),
           (size_t)key_length);
-      EVP_DigestFinal_ex(md_ctx, rkey.get(), NULL);
+      EVP_DigestFinal_ex(md_ctx, rkey.get(), nullptr);
       EVP_MD_CTX_destroy(md_ctx);
       break;
     }

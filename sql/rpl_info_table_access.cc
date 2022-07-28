@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -182,7 +182,7 @@ enum enum_return_id Rpl_info_table_access::find_info(
   The code built on top of this function needs to ensure there is
   no concurrent threads trying to update the table. So if an error
   different from HA_ERR_END_OF_FILE is returned, we abort with an
-  error because this implies that someone has manualy and
+  error because this implies that someone has manually and
   concurrently changed something.
 
   @retval FOUND     The row was found.

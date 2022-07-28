@@ -46,6 +46,7 @@ struct MYSQL_XID {
   long bqual_length;
   char data[128];
 };
+#include <mysql/components/services/bits/system_variables_bits.h>
 struct SYS_VAR;
 struct st_mysql_value;
 typedef int (*mysql_var_check_func)(void * thd, SYS_VAR *var, void *save,

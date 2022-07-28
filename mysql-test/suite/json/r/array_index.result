@@ -885,10 +885,14 @@ t1	CREATE TABLE `t1` (
 insert into t1(f1) values(cast(cast('01-01-01' as date) as json));
 insert into t1(f1) values(cast(cast('01-02-03' as date) as json));
 insert into t1(f1) values(cast(cast('22.11.17' as date) as json));
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '22.11.17' at row 1 is deprecated. Prefer the standard '-'.
 insert into t1(f1) values(json_array(
 cast('01-02-03' as date),
 cast('03-03-03' as date),
 cast('01.01.17' as date)));
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '01.01.17' at row 1 is deprecated. Prefer the standard '-'.
 insert into t1(f1) values(json_array(
 cast('03-03-03' as date),
 cast('05-05-05' as date),
@@ -897,6 +901,8 @@ insert into t1(f1) values(json_array(
 cast('01-01-12' as date),
 cast('01-01-13' as date)));
 insert into t1(f1) values('["01-02-03","22.11.17"]');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '22.11.17' at row 1 is deprecated. Prefer the standard '-'.
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -906,6 +912,8 @@ id	f1
 4	["2001-02-03", "2003-03-03", "2001-01-17"]
 5	["2003-03-03", "2005-05-05", "2001-02-03"]
 7	["01-02-03", "22.11.17"]
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '22.11.17' at row 4 is deprecated. Prefer the standard '-'.
 explain select * from t1 where cast('01-02-03' as date) member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i1	i1	4	const	4	100.00	Using where
@@ -928,6 +936,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json'"2001-01-14"' member of (cast(json_extract(`f1`,_utf8mb4'$') as date array))
 delete from t1;
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '22.11.17' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '22.11.17' at row 1 is deprecated. Prefer the standard '-'.
 drop table t1;
 Test CAST( .. AS TIME ARRAY)
 create table t1 (id int not null key auto_increment, f1 json);
@@ -2398,7 +2409,7 @@ test.t	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
 EXPLAIN
 -> Filter: json_overlaps(json'[2, 3]',cast(j as unsigned array))  (cost=2.07 rows=5)
-    -> Index range scan on t using j_idx  (cost=2.07 rows=5)
+    -> Index range scan on t using j_idx over (3 MEMBER OF (j)) OR (2 MEMBER OF (j))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
 vc	j
@@ -2408,7 +2419,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
 EXPLAIN
 -> Filter: json_contains(cast(j as unsigned array),json'[2, 3]')  (cost=2.07 rows=5)
-    -> Index range scan on t using j_idx  (cost=2.07 rows=5)
+    -> Index range scan on t using j_idx over (3 MEMBER OF (j)) OR (2 MEMBER OF (j))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
 vc	j
@@ -2428,7 +2439,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
 EXPLAIN
 -> Filter: json_overlaps(json'[2, 3]',cast(vc as unsigned array))  (cost=2.07 rows=5)
-    -> Index range scan on t using vc_idx  (cost=2.07 rows=5)
+    -> Index range scan on t using vc_idx over (3 MEMBER OF (vc)) OR (2 MEMBER OF (vc))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
 vc	j
@@ -2438,7 +2449,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
 EXPLAIN
 -> Filter: json_contains(cast(vc as unsigned array),json'[2, 3]')  (cost=2.07 rows=5)
-    -> Index range scan on t using vc_idx  (cost=2.07 rows=5)
+    -> Index range scan on t using vc_idx over (3 MEMBER OF (vc)) OR (2 MEMBER OF (vc))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
 vc	j
@@ -3243,4 +3254,32 @@ bar	["xx", "yy"]	1	xx
 bar	["xx", "yy"]	2	yy
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#33343948: Multi-valued index ranges are printed as binary
+#
+CREATE TABLE t(doc JSON,
+KEY ((CAST(doc->'$[*].name' AS CHAR(3) ARRAY))),
+KEY ((CAST(doc->'$[*].date' AS DATE ARRAY))));
+INSERT INTO t VALUES (
+'[{"name": "abc", "date": "2021-01-01"}, {"name": "def", "date": "2021-01-02"},
+  {"name": "ghi", "date": "2021-01-03"}, {"name": "jkl", "date": "2021-01-04"}]'
+);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t
+WHERE JSON_OVERLAPS(doc->'$[*].name', '["abc", "xyz"]');
+EXPLAIN
+-> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].name') as char(3) array),json'["abc", "xyz"]')  (cost=1.10 rows=2)
+    -> Index range scan on t using functional_index over ('xyz' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name'))) OR ('abc' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name')))  (cost=1.10 rows=2)
+
+EXPLAIN FORMAT=TREE
+SELECT * FROM t
+WHERE JSON_OVERLAPS(doc->'$[*].date', '["2020-01-01", "2021-01-01"]');
+EXPLAIN
+-> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].date') as date array),json'["2020-01-01", "2021-01-01"]')  (cost=1.10 rows=2)
+    -> Index range scan on t using functional_index_2 over ('2021-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date'))) OR ('2020-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date')))  (cost=1.10 rows=2)
+
+DROP TABLE t;
 # restart:

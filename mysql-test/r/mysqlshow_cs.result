@@ -337,11 +337,11 @@ SET GLOBAL sql_mode = @OLD_SQL_MODE;
 CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
 GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
 Database: mysql  Table: user  Wildcard: user
-+-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
-| Field | Type     | Collation | Null | Key | Default | Extra | Privileges                      | Comment |
-+-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
-| User  | char(32) | utf8_bin  | NO   | PRI |         |       | select,insert,update,references |         |
-+-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
++-------+----------+-------------+------+-----+---------+-------+---------------------------------+---------+
+| Field | Type     | Collation   | Null | Key | Default | Extra | Privileges                      | Comment |
++-------+----------+-------------+------+-----+---------+-------+---------------------------------+---------+
+| User  | char(32) | utf8mb3_bin | NO   | PRI |         |       | select,insert,update,references |         |
++-------+----------+-------------+------+-----+---------+-------+---------------------------------+---------+
 DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
 
 End of tests

@@ -1,0 +1,151 @@
+##
+## WL#14317: Offline_mode: checks for SYSTEM_USER and CONNECTION_ADMIN privileges
+##
+## Each of the following clients can activate server OFFLINE_MODE:
+## - regular_session:  having SYSTEM_VARIABLES_ADMIN privilege
+## - power_session:    having SYSTEM_VARIABLES_ADMIN and SYSTEM_USER privileges
+## - super_session:    having SYSTEM_VARIABLES_ADMIN and CONNECTION_ADMIN privileges
+## - sysadmin_session: having SYSTEM_VARIABLES_ADMIN, CONNECTION_ADMIN, SYSTEM_USER privileges
+## Test that activating OFFLINE_MODE action performed by:
+## 1. regular_session only kills regular_sessions (including itself)
+## 2. power_session kills regular_sessions and power_sessions (including itself), but not super_session or sysadmin_session
+## 3. super_session kills regular_sessions, but not power_session or super_session or sysadmin_session
+## 4. sysadmin_session kills regular_sessions and power_sessions, but not super_session or sysadmin_session
+##
+SET @original_offline_mode = @@global.offline_mode;
+
+### Setup ###
+
+# Create regular_session user
+create user regular@localhost identified by 'regular';
+grant SYSTEM_VARIABLES_ADMIN on *.* to regular@localhost;
+
+# Create power_session user
+create user power@localhost identified by 'power';
+grant SYSTEM_USER, SYSTEM_VARIABLES_ADMIN on *.* to power@localhost;
+
+# Create super_session user (switches off OFFLINE_MODE)
+create user super@localhost identified by 'super';
+grant SYSTEM_VARIABLES_ADMIN, CONNECTION_ADMIN on *.* to super@localhost;
+
+# Create sysadmin_session user (max privileges)
+create user sysadmin@localhost identified by 'sysadmin';
+grant SYSTEM_VARIABLES_ADMIN, CONNECTION_ADMIN, SYSTEM_USER on *.* to sysadmin@localhost;
+
+flush privileges;
+
+## TEST 1: regular_session activates OFFLINE_MODE
+
+# Create power_session connection
+# Create regular_session connection
+# Create super_session connection (switches off OFFLINE_MODE)
+# Create sysadmin_session connection (max privileges)
+# Activate regular_session connection
+# Activate OFFLINE_MODE (with regular_session)
+SET GLOBAL OFFLINE_MODE=ON;
+# Verify that the regular_session killed itself
+SELECT USER();
+ERROR HY000: Lost connection to MySQL server during query
+# Verify that the power_session is kept alive
+SELECT USER();
+USER()
+power@localhost
+# Verify that the super_session is kept alive
+SELECT USER();
+USER()
+super@localhost
+# Verify that the sysadmin_session is kept alive
+SELECT USER();
+USER()
+sysadmin@localhost
+
+## TEST 2: power_session activates OFFLINE_MODE
+
+# Setup - activate super_session connection
+# Setup - deactivate OFFLINE_MODE
+SET GLOBAL OFFLINE_MODE=OFF;
+# Setup - create additional regular_session connection
+# Setup - create additional power_session connection
+# Activate power_session connection
+# Activate OFFLINE_MODE (with power_session)
+SET GLOBAL OFFLINE_MODE=ON;
+# Verify that the power_session killed itself
+SELECT USER();
+ERROR HY000: Lost connection to MySQL server during query
+# Verify that the regular_session has been killed
+SELECT USER();
+ERROR HY000: Lost connection to MySQL server during query
+# Verify that the additional power_session has been killed
+SELECT USER();
+ERROR HY000: Lost connection to MySQL server during query
+# Verify that the super_session is kept alive
+SELECT USER();
+USER()
+super@localhost
+# Verify that the sysadmin_session is kept alive
+SELECT USER();
+USER()
+sysadmin@localhost
+
+## TEST 3: super_session activates OFFLINE_MODE
+
+# Setup - activate super_session connection
+# Setup - deactivate OFFLINE_MODE
+SET GLOBAL OFFLINE_MODE=OFF;
+# Setup - create additional super_session connection
+# Setup - create additional regular_session connection
+# Setup - create additional power_session connection
+# Activate super_session connection
+# Activate OFFLINE_MODE (with super_session)
+SET GLOBAL OFFLINE_MODE=ON;
+# Verify that the regular_session has been killed
+SELECT USER();
+ERROR HY000: Lost connection to MySQL server during query
+# Verify that the power_session is kept alive
+SELECT USER();
+USER()
+power@localhost
+# Verify that the super_session is kept alive
+SELECT USER();
+USER()
+super@localhost
+# Verify that the additional super_session is kept alive
+SELECT USER();
+USER()
+super@localhost
+# Verify that the sysadmin_session is kept alive
+SELECT USER();
+USER()
+sysadmin@localhost
+
+## TEST 4: sysadmin_session activates OFFLINE_MODE
+
+# Setup - activate super_session connection
+# Setup - deactivate OFFLINE_MODE
+SET GLOBAL OFFLINE_MODE=OFF;
+# Setup - create additional regular_session connection
+# Activate sysadmin_session connection
+# Activate OFFLINE_MODE (with super_session)
+SET GLOBAL OFFLINE_MODE=ON;
+# Verify that the sysadmin_session did not kill itself
+SELECT USER();
+USER()
+sysadmin@localhost
+# Verify that the regular_session has been killed
+SELECT USER();
+ERROR HY000: Lost connection to MySQL server during query
+# Verify that the power_session has been killed
+SELECT USER();
+ERROR HY000: Lost connection to MySQL server during query
+# Verify that the super_session is kept alive
+SELECT USER();
+USER()
+super@localhost
+
+# CLEAN UP
+
+DROP USER regular@localhost;
+DROP USER power@localhost;
+DROP USER super@localhost;
+DROP USER sysadmin@localhost;
+SET @@global.offline_mode = @original_offline_mode;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -574,8 +574,8 @@ Copy_field::Copy_func *Copy_field::get_copy_func() {
     const Field_geom *from_geom = down_cast<const Field_geom *>(m_from_field);
 
     // If changing the SRID property of the field, we must do a full conversion.
-    if (to_geom->get_srid() != from_geom->get_srid() &&
-        to_geom->get_srid().has_value())
+    if (to_geom->get_srid().has_value() &&
+        to_geom->get_srid() != from_geom->get_srid())
       return do_conv_blob;
 
     // to is same as or a wider type than from
@@ -730,7 +730,7 @@ bool fields_are_memcpyable(const Field *to, const Field *from) {
   if (to->pack_length() != from->pack_length()) {
     return false;
   }
-  if (to->is_flag_set(UNSIGNED_FLAG) && !from->is_flag_set(UNSIGNED_FLAG)) {
+  if (to->is_flag_set(UNSIGNED_FLAG) != from->is_flag_set(UNSIGNED_FLAG)) {
     return false;
   }
   if (to->table->s->db_low_byte_first != from->table->s->db_low_byte_first) {

@@ -67,7 +67,7 @@ SELECT COUNT(@@GLOBAL.table_definition_cache);
 COUNT(@@GLOBAL.table_definition_cache)
 1
 1 Expected
-SELECT table_definition_cache = @@SESSION.table_definition_cache;
+SELECT table_definition_cache;
 ERROR 42S22: Unknown column 'table_definition_cache' in 'field list'
 Expected error 'Unknown column table_definition_cache in field list'
 '#---------------------WL6372_VAR_5_06----------------------#'

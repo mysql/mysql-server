@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ enum_binlog_checksum_alg Log_event_footer::get_checksum_alg(
 
    @return  the version-safe checksum alg descriptor where zero
             designates no checksum, 255 - the orginator is
-            checksum-unaware (effectively no checksum) and the actuall
+            checksum-unaware (effectively no checksum) and the actual
             [1-254] range alg descriptor.
 */
 enum_binlog_checksum_alg Log_event_footer::get_checksum_alg(const char *buf,
@@ -156,7 +156,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 #endif
       BAPI_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
       /*
-        Complile time guard to watch over  the max number of alg
+        Compile time guard to watch over the max number of alg
       */
       static_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80, "");
     }

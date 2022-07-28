@@ -107,7 +107,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_buffer_size);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_log_buffer_size = @@SESSION.innodb_log_buffer_size;
+SELECT innodb_log_buffer_size;
 
 ################################################################################
 #   Check simple modifications                                                 #

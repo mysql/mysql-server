@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,8 +25,11 @@
 
 #include <signaldata/TupCommit.hpp>
 
-bool
-printTUPCOMMITREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
+bool printTUPCOMMITREQ(FILE* output,
+                       const Uint32* theData,
+                       Uint32 len,
+                       Uint16 /*receiverBlockNo*/)
+{
   fprintf(output, "Signal data: ");
   Uint32 i = 0;
   while (i < len)

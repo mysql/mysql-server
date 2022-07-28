@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,7 +46,7 @@ ulint ut_strlcpy(char *dst,       /*!< in: destination buffer */
   ulint src_size = strlen(src);
 
   if (size != 0) {
-    ulint n = ut_min(src_size, size - 1);
+    ulint n = std::min(src_size, size - 1);
 
     memcpy(dst, src, n);
     dst[n] = '\0';

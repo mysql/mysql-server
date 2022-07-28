@@ -1,0 +1,73 @@
+--source include/have_debug_sync.inc
+
+# This test checks scenario of recovery executed on data directory with redo
+# file that has broken checkpoint_lsn (pointing outside the file)
+
+# According to perl's documentation, 'Q' in (un)pack() is supported only if perl
+# has been compiled with support for 64bit integers.
+# The log_file_get_checkpoint_lsn(), which is used in this test, uses unpack('Q>').
+# The log_file_get_start_lsn(), which is used in this test, uses unpack('Q>').
+--source include/have_perl_64bit_int.inc
+
+let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
+let MYSQLD_DATADIR = $tmp_dir/log_invalid_file;
+let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
+let MYSQLD_EXTRA_ARGS = ;
+let SEARCH_FILE = $MYSQLD_ERROR_LOG;
+
+--echo # Initialize new data directory...
+--source include/initialize_datadir.inc
+
+perl;
+    require 'include/ib_redo_log_files.inc';
+    my $fpath = '';
+    my $n = 0;
+    for my $f (log_get_non_tmp_files()) {
+        $fpath = $f;
+        $n++;
+    }
+    my $start_lsn = log_file_get_start_lsn($fpath);
+    my $end_lsn = $start_lsn + (-s $fpath) - 2048;
+    my $old_checkpoint_lsn = log_file_get_checkpoint_lsn($fpath);
+    my $new_checkpoint_lsn = $end_lsn + 12;
+    log_file_set_checkpoint_lsn($fpath, $new_checkpoint_lsn, $old_checkpoint_lsn+1);
+
+    my $result_file_path = "$ENV{'MYSQLD_DATADIR'}/found.inc";
+    open my $fh, '+>', $result_file_path or die "open failed: $!\n";
+    if ($n > 1) {
+        syswrite($fh, "--skip \"Initialized datadir with more than 1 redo file.\"\n") > 0 or die "write failed: $!\n";
+    }
+    syswrite($fh, "let REDO_OLD_CHECKPOINT_LSN=$old_checkpoint_lsn;\n") > 0 or die "write failed: $!\n";
+    syswrite($fh, "let REDO_NEW_CHECKPOINT_LSN=$new_checkpoint_lsn;\n") > 0 or die "write failed: $!\n";
+    syswrite($fh, "let REDO_FILE_START_LSN=$start_lsn;\n") > 0 or die "write failed: $!\n";
+    syswrite($fh, "let REDO_FILE_END_LSN=$end_lsn;\n") > 0 or die "write failed: $!\n";
+    close $fh or die "close failed: $!\n";
+EOF
+
+--source $MYSQLD_DATADIR/found.inc
+
+# The recovery would fail because of invalid checksum (after we corrupted checkpoint_lsn and did not update checksum)
+--error 1,42
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS --innodb-unknown-param=y
+let SEARCH_PATTERN = No valid checkpoint found \(corrupted redo log\). You can try --innodb-force-recovery=6 as a last resort;
+--source include/search_pattern.inc
+
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_file_invalid_checkpoint-1.err
+
+let MYSQLD_EXTRA_ARGS = --debug="d,log_header_checksum_disabled";
+
+# Now, let's assume that the invalid checkpoint_lsn was written by broken InnoDB instance (so header has valid checksum)
+--error 1,42
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS --innodb-unknown-param=y
+let SEARCH_PATTERN = Found checkpoint LSN $REDO_NEW_CHECKPOINT_LSN in a redo log file .*, but the file represents range of LSN values .*$REDO_FILE_START_LSN, $REDO_FILE_END_LSN.* so the file is corrupted.;
+--replace_result $REDO_NEW_CHECKPOINT_LSN REDO_NEW_CHECKPOINT_LSN $REDO_FILE_START_LSN REDO_FILE_START_LSN $REDO_FILE_END_LSN REDO_FILE_END_LSN
+--source include/search_pattern.inc
+
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_file_invalid_checkpoint-2.err
+
+--force-rmdir $MYSQLD_DATADIR
+
+let MYSQLD_ARGS=;
+let MYSQLD_EXTRA_ARGS=;
+let MYSQLD_DATADIR=;
+let MYSQLD_ERROR_LOG=;

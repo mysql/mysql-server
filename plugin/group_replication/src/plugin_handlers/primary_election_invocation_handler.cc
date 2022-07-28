@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ int Primary_election_handler::execute_primary_election(
   bool has_primary_changed;
   bool in_primary_mode;
   Group_member_info *primary_member_info = nullptr;
-  std::vector<Group_member_info *> *all_members_info =
+  Group_member_info_list *all_members_info =
       group_member_mgr->get_all_members();
 
   bool appointed_uuid = !primary_uuid.empty();
@@ -108,8 +108,11 @@ int Primary_election_handler::execute_primary_election(
       } else {
         // If the requested primary is not there, ignore the request.
         LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_APPOINTED_PRIMARY_NOT_PRESENT);
-        group_events_observation_manager->after_primary_election("", false,
-                                                                 mode);
+        group_events_observation_manager->after_primary_election(
+            "",
+            enum_primary_election_primary_change_status::
+                PRIMARY_DID_NOT_CHANGE_NO_CANDIDATE,
+            mode);
         goto end;
       }
       /* purecov: end */
@@ -130,7 +133,10 @@ int Primary_election_handler::execute_primary_election(
                    ER_GRP_RPL_NO_SUITABLE_PRIMARY_MEM); /* purecov: inspected */
     }
     group_events_observation_manager->after_primary_election(
-        "", false, mode, PRIMARY_ELECTION_NO_CANDIDATES_ERROR);
+        "",
+        enum_primary_election_primary_change_status::
+            PRIMARY_DID_NOT_CHANGE_NO_CANDIDATE,
+        mode, PRIMARY_ELECTION_NO_CANDIDATES_ERROR);
     if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_ENABLE_READ_ONLY_FAILED); /* purecov: inspected */
@@ -196,12 +202,14 @@ int Primary_election_handler::execute_primary_election(
       legacy_primary_election(primary_uuid);
     }
   } else {
-    group_events_observation_manager->after_primary_election("", false, mode);
+    group_events_observation_manager->after_primary_election(
+        "", enum_primary_election_primary_change_status::PRIMARY_DID_NOT_CHANGE,
+        mode);
   }
 
 end:
   // clean the members
-  std::vector<Group_member_info *>::iterator it;
+  Group_member_info_list_iterator it;
   for (it = all_members_info->begin(); it != all_members_info->end(); it++) {
     delete (*it);
   }
@@ -252,8 +260,7 @@ int Primary_election_handler::internal_primary_election(
     primary_election_handler
         .wait_on_election_process_termination(); /* purecov: inspected */
 
-  std::vector<Group_member_info *> *members_info =
-      group_member_mgr->get_all_members();
+  Group_member_info_list *members_info = group_member_mgr->get_all_members();
 
   /* Declare at this point that all members are in primary mode for switch
    * cases*/
@@ -317,16 +324,17 @@ int Primary_election_handler::legacy_primary_election(
                  primary_member_info->get_port());
   }
 
-  group_events_observation_manager->after_primary_election(primary_uuid, true,
-                                                           DEAD_OLD_PRIMARY);
+  group_events_observation_manager->after_primary_election(
+      primary_uuid,
+      enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
+      DEAD_OLD_PRIMARY);
   delete primary_member_info;
 
   return 0;
 }
 
 bool Primary_election_handler::pick_primary_member(
-    std::string &primary_uuid,
-    std::vector<Group_member_info *> *all_members_info) {
+    std::string &primary_uuid, Group_member_info_list *all_members_info) {
   DBUG_TRACE;
 
   bool am_i_leaving = true;
@@ -335,8 +343,8 @@ bool Primary_election_handler::pick_primary_member(
 #endif
   Group_member_info *the_primary = nullptr;
 
-  std::vector<Group_member_info *>::iterator it;
-  std::vector<Group_member_info *>::iterator lowest_version_end;
+  Group_member_info_list_iterator it;
+  Group_member_info_list_iterator lowest_version_end;
 
   /* sort members based on member_version and get first iterator position
      where member version differs
@@ -408,10 +416,9 @@ bool Primary_election_handler::pick_primary_member(
   return false;
 }
 
-std::vector<Group_member_info *>::iterator
-sort_and_get_lowest_version_member_position(
-    std::vector<Group_member_info *> *all_members_info) {
-  std::vector<Group_member_info *>::iterator it;
+Group_member_info_list_iterator sort_and_get_lowest_version_member_position(
+    Group_member_info_list *all_members_info) {
+  Group_member_info_list_iterator it;
 
   // sort in ascending order of lower member version
   std::sort(all_members_info->begin(), all_members_info->end(),
@@ -420,8 +427,7 @@ sort_and_get_lowest_version_member_position(
   /* if vector contains only single version then leader should be picked from
      all members
    */
-  std::vector<Group_member_info *>::iterator lowest_version_end =
-      all_members_info->end();
+  Group_member_info_list_iterator lowest_version_end = all_members_info->end();
 
   /* first member will have lowest version as members are already
      sorted above using member_version.
@@ -476,8 +482,8 @@ sort_and_get_lowest_version_member_position(
 }
 
 void sort_members_for_election(
-    std::vector<Group_member_info *> *all_members_info,
-    std::vector<Group_member_info *>::iterator lowest_version_end) {
+    Group_member_info_list *all_members_info,
+    Group_member_info_list_iterator lowest_version_end) {
   Group_member_info *first_member = *(all_members_info->begin());
   Member_version lowest_version = first_member->get_member_version();
 

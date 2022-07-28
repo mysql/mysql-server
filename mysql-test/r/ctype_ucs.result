@@ -6,7 +6,11 @@ SET @safe_collation_server= @@collation_server;
 SET @safe_character_set_client= @@character_set_client;
 SET @safe_character_set_results= @@character_set_results;
 SET character_set_server= @test_character_set;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET collation_server= @test_collation;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 CREATE DATABASE d1;
 USE d1;
 CREATE TABLE t1 (c CHAR(10), KEY(c));
@@ -97,6 +101,8 @@ SET character_set_results= @safe_character_set_results;
 SET NAMES latin1;
 SET CHARACTER SET koi8r;
 SET character_set_connection=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select 'a' = 'a', 'a' = 'a ', 'a ' = 'a';
 'a' = 'a'	'a' = 'a '	'a ' = 'a'
 1	1	1
@@ -123,6 +129,9 @@ Warning	1287	'BINARY expr' is deprecated and will be removed in a future release
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 create table t1 (a varchar(2) character set ucs2 collate ucs2_bin, key(a));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into t1 values ('A'),('A'),('B'),('C'),('D'),('A\t');
 insert into t1 values ('A\0'),('A\0'),('A\0'),('A\0'),('AZ');
 select hex(a) from t1 where a like 'A_' order by a;
@@ -143,6 +152,9 @@ hex(a)
 0041005A
 drop table t1;
 CREATE TABLE t1 (word VARCHAR(64) CHARACTER SET ucs2, word2 CHAR(64) CHARACTER SET ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (_koi8r'ò',_koi8r'ò'), (X'2004',X'2004');
 SELECT hex(word) FROM t1 ORDER BY word;
 hex(word)
@@ -166,30 +178,59 @@ DROP TABLE t1;
 SELECT LPAD(_ucs2 X'0420',10,_ucs2 X'0421');
 LPAD(_ucs2 X'0420',10,_ucs2 X'0421')
 óóóóóóóóóò
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT LPAD(_ucs2 X'0420',10,_ucs2 X'04210422');
 LPAD(_ucs2 X'0420',10,_ucs2 X'04210422')
 óôóôóôóôóò
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT LPAD(_ucs2 X'0420',10,_ucs2 X'042104220423');
 LPAD(_ucs2 X'0420',10,_ucs2 X'042104220423')
 óôõóôõóôõò
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT LPAD(_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
 LPAD(_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423')
 òóôõæèãþûý
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT RPAD(_ucs2 X'0420',10,_ucs2 X'0421');
 RPAD(_ucs2 X'0420',10,_ucs2 X'0421')
 òóóóóóóóóó
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT RPAD(_ucs2 X'0420',10,_ucs2 X'04210422');
 RPAD(_ucs2 X'0420',10,_ucs2 X'04210422')
 òóôóôóôóôó
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT RPAD(_ucs2 X'0420',10,_ucs2 X'042104220423');
 RPAD(_ucs2 X'0420',10,_ucs2 X'042104220423')
 òóôõóôõóôõ
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT RPAD(_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
 RPAD(_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423')
 òóôõæèãþûý
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 SELECT 
 LPAD(_ucs2 X'0420',10,_ucs2 X'0421') l,
 RPAD(_ucs2 X'0420',10,_ucs2 X'0421') r;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -206,6 +247,8 @@ SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp.txt';
 CREATE TABLE t1(a INT);
 LOAD DATA INFILE 'tmpp.txt' INTO TABLE t1 CHARACTER SET ucs2
 (@b) SET a=REVERSE(@b);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # should return 2 zeroes (as the value is truncated)
 SELECT * FROM t1;
 a
@@ -214,9 +257,13 @@ a
 DROP TABLE t1;
 # Problem # 2 : if you write and read ucs2 data to a file they're lost
 SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp2.txt' CHARACTER SET ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1(a INT);
 LOAD DATA INFILE 'tmpp2.txt' INTO TABLE t1 CHARACTER SET ucs2
 (@b) SET a=REVERSE(@b);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # should return 0 and 1 (10 reversed)
 SELECT * FROM t1;
 a
@@ -234,6 +281,8 @@ lpad(f1, 12, "-o-/")
 drop table t2;
 SET NAMES koi8r;
 SET character_set_connection=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select @@collation_connection;
 @@collation_connection
 ucs2_general_ci
@@ -359,6 +408,8 @@ select 'AMZ'like 'A%M%Z';
 'AMZ'like 'A%M%Z'
 1
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('ÆÙ×Á'),('æÙ×Á'),('Æù×Á'),('ÆÙ÷Á'),('ÆÙ×á'),('æù÷á');
 INSERT INTO t1 VALUES ('ÆÙ×ÁÐÒÏÌÄÖ'),('æÙ×ÁÐÒÏÌÄÖ'),('Æù×ÁÐÒÏÌÄÖ'),('ÆÙ÷ÁÐÒÏÌÄÖ');
 INSERT INTO t1 VALUES ('ÆÙ×áÐÒÏÌÄÖ'),('ÆÙ×ÁðÒÏÌÄÖ'),('ÆÙ×ÁÐòÏÌÄÖ'),('ÆÙ×ÁÐÒïÌÄÖ');
@@ -431,64 +482,108 @@ DROP TABLE t1;
 select insert(_ucs2 0x006100620063,10,2,_ucs2 0x006400650066);
 insert(_ucs2 0x006100620063,10,2,_ucs2 0x006400650066)
 abc
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select insert(_ucs2 0x006100620063,1,2,_ucs2 0x006400650066);
 insert(_ucs2 0x006100620063,1,2,_ucs2 0x006400650066)
 defc
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x0);
 HEX(_ucs2 0x0)
 0000
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x01);
 HEX(_ucs2 0x01)
 0001
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x012);
 HEX(_ucs2 0x012)
 0012
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x0123);
 HEX(_ucs2 0x0123)
 0123
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x01234);
 HEX(_ucs2 0x01234)
 00001234
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x012345);
 HEX(_ucs2 0x012345)
 00012345
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x0123456);
 HEX(_ucs2 0x0123456)
 00123456
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x01234567);
 HEX(_ucs2 0x01234567)
 01234567
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x012345678);
 HEX(_ucs2 0x012345678)
 000012345678
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x0123456789);
 HEX(_ucs2 0x0123456789)
 000123456789
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x0123456789A);
 HEX(_ucs2 0x0123456789A)
 00123456789A
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x0123456789AB);
 HEX(_ucs2 0x0123456789AB)
 0123456789AB
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x0123456789ABC);
 HEX(_ucs2 0x0123456789ABC)
 0000123456789ABC
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x0123456789ABCD);
 HEX(_ucs2 0x0123456789ABCD)
 000123456789ABCD
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x0123456789ABCDE);
 HEX(_ucs2 0x0123456789ABCDE)
 00123456789ABCDE
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(_ucs2 0x0123456789ABCDEF);
 HEX(_ucs2 0x0123456789ABCDEF)
 0123456789ABCDEF
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT hex(cast(0xAA as char character set ucs2));
 hex(cast(0xAA as char character set ucs2))
 00AA
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT hex(convert(0xAA using ucs2));
 hex(convert(0xAA using ucs2))
 00AA
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (a char(10) character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
 SELECT HEX(a) FROM t1;
 HEX(a)
@@ -499,6 +594,8 @@ AAAA
 000AAAAA
 DROP TABLE t1;
 CREATE TABLE t1 (a varchar(10) character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
 SELECT HEX(a) FROM t1;
 HEX(a)
@@ -509,6 +606,8 @@ AAAA
 000AAAAA
 DROP TABLE t1;
 CREATE TABLE t1 (a text character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
 SELECT HEX(a) FROM t1;
 HEX(a)
@@ -519,6 +618,8 @@ AAAA
 000AAAAA
 DROP TABLE t1;
 CREATE TABLE t1 (a mediumtext character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
 SELECT HEX(a) FROM t1;
 HEX(a)
@@ -529,6 +630,8 @@ AAAA
 000AAAAA
 DROP TABLE t1;
 CREATE TABLE t1 (a longtext character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
 SELECT HEX(a) FROM t1;
 HEX(a)
@@ -539,6 +642,9 @@ AAAA
 000AAAAA
 DROP TABLE t1;
 create table t1 (s1 char character set `ucs2` collate `ucs2_czech_ci`);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into t1 values ('0'),('1'),('2'),('a'),('b'),('c');
 select s1 from t1 where s1 > 'a' order by s1;
 s1
@@ -546,6 +652,8 @@ b
 c
 drop table t1;
 create table t1(a char(1)) default charset = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values ('a'),('b'),('c');
 alter table t1 modify a char(5);
 select a, hex(a) from t1;
@@ -558,12 +666,16 @@ set names latin1;
 set @ivar= 1234;
 set @str1 = 'select ?';
 set @str2 = convert(@str1 using ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 prepare stmt1 from @str2;
 execute stmt1 using @ivar;
 ?
 1234
 set names latin1;
 create table t1 (a enum('x','y','z') character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -578,6 +690,8 @@ x	0078
 y	0079
 z	007A
 alter table t1 change a a enum('x','y','z','d','e','ä','ö','ü') character set ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -600,6 +714,8 @@ e	0065
 ü	00FC
 drop table t1;
 create table t1 (a set ('x','y','z','ä','ö','ü') character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -619,6 +735,8 @@ z	007A
 x,y,z,ä,ö,ü	0078002C0079002C007A002C00E4002C00F6002C00FC
 drop table t1;
 create table t1(a enum('a','b','c')) default character set ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values('a'),('b'),('c');
 alter table t1 add b char(1);
 show warnings;
@@ -630,6 +748,8 @@ b	NULL
 c	NULL
 drop table t1;
 SET collation_connection='ucs2_general_ci';
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 create table t1 select repeat('a',4000) a;
 delete from t1;
 insert into t1 values ('a'), ('a '), ('a\t');
@@ -775,6 +895,8 @@ a	hex(b)	c
 DROP TABLE t1;
 SET NAMES latin1;
 SET collation_connection='ucs2_bin';
+Warnings:
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 create table t1 select repeat('a',4000) a;
 delete from t1;
 insert into t1 values ('a'), ('a '), ('a\t');
@@ -822,23 +944,37 @@ DROP TABLE t1;
 select hex(substr(_ucs2 0x00e400e50068,1));
 hex(substr(_ucs2 0x00e400e50068,1))
 00E400E50068
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(substr(_ucs2 0x00e400e50068,2));
 hex(substr(_ucs2 0x00e400e50068,2))
 00E50068
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(substr(_ucs2 0x00e400e50068,3));
 hex(substr(_ucs2 0x00e400e50068,3))
 0068
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(substr(_ucs2 0x00e400e50068,-1));
 hex(substr(_ucs2 0x00e400e50068,-1))
 0068
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(substr(_ucs2 0x00e400e50068,-2));
 hex(substr(_ucs2 0x00e400e50068,-2))
 00E50068
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(substr(_ucs2 0x00e400e50068,-3));
 hex(substr(_ucs2 0x00e400e50068,-3))
 00E400E50068
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET NAMES latin1;
 SET collation_connection='ucs2_swedish_ci';
+Warnings:
+Warning	4079	'ucs2_swedish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 CREATE TABLE t1 (Field1 int(10) default '0');
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -858,15 +994,23 @@ SET NAMES latin1;
 SELECT CONVERT(103, CHAR(50) UNICODE);
 CONVERT(103, CHAR(50) UNICODE)
 103
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SELECT CONVERT(103.0, CHAR(50) UNICODE);
 CONVERT(103.0, CHAR(50) UNICODE)
 103.0
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SELECT CONVERT(-103, CHAR(50) UNICODE);
 CONVERT(-103, CHAR(50) UNICODE)
 -103
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SELECT CONVERT(-103.0, CHAR(50) UNICODE);
 CONVERT(-103.0, CHAR(50) UNICODE)
 -103.0
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 create table t1(f1 varchar(5) CHARACTER SET ucs2 COLLATE ucs2_bin NOT NULL) engine=InnoDB;
 insert into t1 values('a');
 create index t1f1 on t1(f1);
@@ -875,6 +1019,8 @@ f1
 a
 drop table t1;
 create table t1 (utext varchar(20) character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values ("lily");
 insert into t1 values ("river");
 prepare stmt from 'select utext from t1 where utext like ?';
@@ -894,6 +1040,9 @@ river
 drop table t1;
 deallocate prepare stmt;
 CREATE TABLE t1 (id int, s char(5) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t1 VALUES (1, 'ZZZZZ'), (1, 'ZZZ'), (2, 'ZZZ'), (2, 'ZZZZZ');
 SELECT id, MIN(s) FROM t1 GROUP BY id;
 id	MIN(s)
@@ -904,6 +1053,8 @@ drop table if exists bug20536;
 set names latin1;
 create table bug20536 (id bigint not null auto_increment primary key, name
 varchar(255) character set ucs2 not null);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into `bug20536` (`id`,`name`) values (1, _latin1 x'7465737431'), (2, "'test\\_2'");
 select md5(name) from bug20536;
 md5(name)
@@ -939,6 +1090,8 @@ CREATE TABLE t2 (
 status enum('active','passive') collate ucs2_turkish_ci 
 NOT NULL default 'passive'
 );
+Warnings:
+Warning	4079	'ucs2_turkish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -961,6 +1114,8 @@ set character_set_client= concat('ucs', substr('2', 1));
 ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
 End of 4.1 tests
 CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
 update t1 set b=a;
 SELECT * FROM t1;
@@ -969,6 +1124,8 @@ a	b
 2.1	2.100
 DROP TABLE t1;
 create table t1 (utext varchar(20) character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values ("lily");
 insert into t1 values ("river");
 prepare stmt from 'select utext from t1 where utext like ?';
@@ -989,6 +1146,8 @@ drop table t1;
 deallocate prepare stmt;
 set names latin1;
 set character_set_connection=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
 soundex('')	soundex('he')	soundex('hello all folks')	soundex('#3556 in bugdb')
 	H000	H4142	I51231
@@ -1001,13 +1160,18 @@ select 'mood' sounds like 'mud';
 select hex(soundex(_ucs2 0x041004110412));
 hex(soundex(_ucs2 0x041004110412))
 0410003000300030
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(soundex(_ucs2 0x00BF00C0));
 hex(soundex(_ucs2 0x00BF00C0))
 00C0003000300030
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 set names latin1;
 create table t1(a blob, b text charset utf8, c text charset ucs2);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select data_type, character_octet_length, character_maximum_length
 from information_schema.columns where table_name='t1';
 DATA_TYPE	CHARACTER_OCTET_LENGTH	CHARACTER_MAXIMUM_LENGTH
@@ -1016,6 +1180,8 @@ text	65535	32767
 text	65535	65535
 drop table t1;
 create table t1 (a char(1) character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values ('a'),('b'),('c');
 select hex(group_concat(a)) from t1;
 hex(group_concat(a))
@@ -1028,6 +1194,8 @@ set names latin1;
 create table t1 (a char(1) character set latin1);
 insert into t1 values ('a'),('b'),('c');
 set character_set_connection=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(group_concat(a separator ',')) from t1;
 hex(group_concat(a separator ','))
 612C622C63
@@ -1037,6 +1205,8 @@ latin1_swedish_ci
 drop table t1;
 set names latin1;
 create table t1 (s1 char(1) character set ascii, s2 char(1) character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 (s1) values (0x7f);
 update t1 set s2 = s1;
 select hex(s2) from t1;
@@ -1051,14 +1221,26 @@ insert into t1 values ('a',1);
 select concat(a,if(b<10,_ucs2 0x0061,_ucs2 0x0062)) from t1;
 concat(a,if(b<10,_ucs2 0x0061,_ucs2 0x0062))
 aa
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select concat(a,if(b>10,_ucs2 0x0061,_ucs2 0x0062)) from t1;
 concat(a,if(b>10,_ucs2 0x0061,_ucs2 0x0062))
 ab
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select * from t1 where a=if(b<10,_ucs2 0x0061,_ucs2 0x0062);
 a	b
 a	1
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select * from t1 where a=if(b>10,_ucs2 0x0061,_ucs2 0x0062);
 a	b
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select concat(a,if(b<10,_ucs2 0x00C0,_ucs2 0x0062)) from t1;
 ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
 select concat(a,if(b>10,_ucs2 0x00C0,_ucs2 0x0062)) from t1;
@@ -1071,8 +1253,13 @@ select * from t1 where a=if(b<10,_ucs2 0x00C0,_ucs2 0x0062);
 ERROR HY000: Cannot convert string '\x00\xC0' from ucs2 to ascii
 select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
 a	b
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET UCS2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('a');
 SET @@sql_mode=pad_char_to_full_length;
 Warnings:
@@ -1086,6 +1273,8 @@ HEX(s1)
 0061
 DROP TABLE t1;
 set collation_connection=ucs2_general_ci;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 drop table if exists t1;
 create table t1 as
 select repeat(' ', 64) as s1, repeat(' ',64) as s2
@@ -1133,7 +1322,11 @@ set names latin1;
 select hex(char(0x41 using ucs2));
 hex(char(0x41 using ucs2))
 0041
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET character_set_connection=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT CHARSET(DAYNAME(19700101));
 CHARSET(DAYNAME(19700101))
 ucs2
@@ -1163,6 +1356,8 @@ SET NAMES utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET character_set_connection=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT CHARSET(DAYNAME(19700101));
 CHARSET(DAYNAME(19700101))
 ucs2
@@ -1202,10 +1397,13 @@ DROP TABLE t1;
 SELECT HEX(CHAR(COALESCE(NULL, CHAR(COUNT('%s') USING ucs2), 1, @@global.license, NULL) USING cp850));
 HEX(CHAR(COALESCE(NULL, CHAR(COUNT('%s') USING ucs2), 1, @@global.license, NULL) USING cp850))
 00
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT CONVERT(QUOTE(CHAR(0xf5 using ucs2)), SIGNED);
 CONVERT(QUOTE(CHAR(0xf5 using ucs2)), SIGNED)
 0
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1292	Truncated incorrect INTEGER value: ''Ãµ''
 End of 5.0 tests
 #
@@ -1213,6 +1411,8 @@ End of 5.0 tests
 #
 SET NAMES latin1;
 SET collation_connection=ucs2_general_ci;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 #
 # Start of WL#2649 Number-to-string conversions
 #
@@ -2009,7 +2209,7 @@ create table t1 as select concat(uuid()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(36) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(36) CHARACTER SET utf8mb3 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select coercibility(uuid()), coercibility(cast('a' as char character set latin1));
@@ -3372,6 +3572,8 @@ a	varchar(4)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0031
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a tinyint zerofill);
@@ -3387,6 +3589,8 @@ hex(a)
 003000300031
 003000310030
 003100300030
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a tinyint(30) zerofill);
@@ -3403,6 +3607,8 @@ hex(a)
 003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300031
 003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000310030
 003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003100300030
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a decimal(10,2));
@@ -3414,6 +3620,8 @@ a	varchar(12)	YES		NULL
 select hex(a) from v1;
 hex(a)
 003100320033002E00340035
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a smallint);
@@ -3425,6 +3633,8 @@ a	varchar(6)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0031
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a smallint zerofill);
@@ -3442,6 +3652,8 @@ hex(a)
 00300030003100300030
 00300031003000300030
 00310030003000300030
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a mediumint);
@@ -3453,6 +3665,8 @@ a	varchar(9)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0031
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a mediumint zerofill);
@@ -3470,6 +3684,8 @@ hex(a)
 00300030003000300030003100300030
 00300030003000300031003000300030
 00300030003000310030003000300030
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a int);
@@ -3481,6 +3697,8 @@ a	varchar(11)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0031
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a int zerofill);
@@ -3498,6 +3716,8 @@ hex(a)
 0030003000300030003000300030003100300030
 0030003000300030003000300031003000300030
 0030003000300030003000310030003000300030
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a bigint);
@@ -3509,6 +3729,8 @@ a	varchar(20)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0031
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a bigint zerofill);
@@ -3526,6 +3748,8 @@ hex(a)
 00300030003000300030003000300030003000300030003000300030003000300030003100300030
 00300030003000300030003000300030003000300030003000300030003000300031003000300030
 00300030003000300030003000300030003000300030003000300030003000310030003000300030
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a float);
@@ -3537,6 +3761,8 @@ a	varchar(12)	YES		NULL
 select hex(a) from v1;
 hex(a)
 003100320033002E003400350036
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a float zerofill);
@@ -3554,6 +3780,8 @@ hex(a)
 0030003000300030003000300030003100300030002E0031
 0030003000300030003000300031003000300030002E0031
 0030003000300030003000310030003000300030002E0031
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a double);
@@ -3568,6 +3796,8 @@ a	varchar(22)	YES		NULL
 select hex(a) from v1;
 hex(a)
 003100320033002E003400350036
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a double zerofill);
@@ -3585,6 +3815,8 @@ hex(a)
 00300030003000300030003000300030003000300030003000300030003000300030003100300030002E0031
 00300030003000300030003000300030003000300030003000300030003000300031003000300030002E0031
 00300030003000300030003000300030003000300030003000300030003000310030003000300030002E0031
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a year);
@@ -3596,6 +3828,8 @@ a	varchar(4)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0032003000300031
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a bit(64));
@@ -3626,6 +3860,8 @@ hex(a)
 0032003000300031002D00300032002D00300033002000300034003A00300035003A00300036
 0031003900380030002D00300032002D00300033002000300034003A00300035003A00300036
 0032003000300031002D00300032002D00300033002000300034003A00300035003A00300036
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a date);
@@ -3639,6 +3875,8 @@ select hex(a) from v1;
 hex(a)
 0032003000300031002D00300032002D00300033
 0032003000300031002D00300032002D00300033
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a time);
@@ -3652,6 +3890,8 @@ select hex(a) from v1;
 hex(a)
 00300030003A00300030003A00300031
 00300031003A00300032003A00300033
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a datetime);
@@ -3665,6 +3905,8 @@ select hex(a) from v1;
 hex(a)
 0032003000300031002D00300032002D00300033002000300034003A00300035003A00300036
 0032003000300031002D00300032002D00300033002000300034003A00300035003A00300036
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create function f1 (par1 int) returns int
@@ -3966,6 +4208,7 @@ SET NAMES latin1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (c1 SET('','') CHARACTER SET ucs2);
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Note	1291	Column 'c1' has duplicated value '' in SET
 INSERT INTO t1 VALUES ('');
 SELECT COALESCE(c1) FROM t1 ORDER BY 1;
@@ -3983,6 +4226,8 @@ SET sql_mode = default;
 # WL#3664 WEIGHT_STRING
 #
 set collation_connection=ucs2_general_ci;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 select @@collation_connection;
 @@collation_connection
 ucs2_general_ci
@@ -4131,6 +4376,8 @@ select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 20AC20AC20AC00200020002000200020002000200020002000
 set collation_connection=ucs2_bin;
+Warnings:
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 select @@collation_connection;
 @@collation_connection
 ucs2_bin
@@ -4284,19 +4531,29 @@ hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 select hex(char(0x01 using ucs2));
 hex(char(0x01 using ucs2))
 0001
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(char(0x0102 using ucs2));
 hex(char(0x0102 using ucs2))
 0102
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(char(0x010203 using ucs2));
 hex(char(0x010203 using ucs2))
 00010203
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(char(0x01020304 using ucs2));
 hex(char(0x01020304 using ucs2))
 01020304
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Bug#10094 Displays wrong error message for UNIQUE key index on CHAR(255) Unicode datatype
 #
 CREATE TABLE t1 (f1 CHAR(255) unicode);
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 INSERT INTO t1 values ('abc'),('bcd'),('abc');
 ALTER TABLE t1 ADD UNIQUE Index_1 (f1);
 ERROR 23000: Duplicate entry 'abc' for key 't1.Index_1'
@@ -4305,6 +4562,8 @@ DROP TABLE t1;
 # Test how character set works with date/time
 #
 SET collation_connection=ucs2_general_ci;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 CREATE TABLE t1 AS SELECT repeat('a',20) AS s1 LIMIT 0;
 SET timestamp=1216359724;
 INSERT INTO t1 VALUES (current_date);
@@ -4322,6 +4581,8 @@ SET NAMES latin1;
 # WL#4013 Unicode german2 collation
 #
 SET collation_connection=ucs2_german2_ci;
+Warnings:
+Warning	4079	'ucs2_german2_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 "BEGIN ctype_german.inc"
 drop table if exists t1;
 create table t1 as select repeat(' ', 64) as s1;
@@ -4430,10 +4691,14 @@ SELECT CONVERT(CHAR(NULL USING ucs2), UNSIGNED);
 CONVERT(CHAR(NULL USING ucs2), UNSIGNED)
 0
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1292	Truncated incorrect INTEGER value: ''
 DO IFNULL(CHAR(NULL USING ucs2), '');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DO CAST(CONVERT('' USING ucs2) AS UNSIGNED);
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1292	Truncated incorrect INTEGER value: ''
 #
 # Test error message for conversion using different charset
@@ -4444,6 +4709,7 @@ INSERT INTO t1 VALUES (CONVERT('9e99999999' USING ucs2));
 ERROR HY000: Incorrect decimal value: '9e99999999' for column 'a' at row 1
 INSERT IGNORE INTO t1 VALUES (CONVERT('aaa' USING ucs2));
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1366	Incorrect decimal value: 'aaa' for column 'a' at row 1
 DROP TABLE t1;
 #

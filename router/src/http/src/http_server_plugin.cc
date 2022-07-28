@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,8 @@
 
 #include <sys/types.h>  // timeval
 
-// Harness interface include files
-#include "common.h"  // rename_thread()
+#include "my_thread.h"  // my_thread_self_setname
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -49,7 +49,10 @@
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/utility/string.h"
+#include "scope_guard.h"
 
 #include "http_auth.h"
 #include "http_server_plugin.h"
@@ -57,7 +60,6 @@
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_common.h"
 #include "mysqlrouter/http_server_component.h"
-#include "mysqlrouter/plugin_config.h"
 #include "static_files.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -230,66 +232,53 @@ void HttpRequestThread::initialization_finished() {
 
 class HttpRequestMainThread : public HttpRequestThread {
  public:
-  void bind(const std::string &address, uint16_t port) {
-    net::io_context io_ctx;
-    net::ip::tcp::resolver resolver(io_ctx);
-    auto resolve_res = resolver.resolve(address, std::to_string(port));
-    if (!resolve_res) {
-      throw std::system_error(resolve_res.error(),
-                              "resolving " + address + " failed");
+  void bind(net::ip::tcp::acceptor &listen_sock, const std::string &address,
+            uint16_t port) {
+    auto bind_res = bind_acceptor(listen_sock, address, port);
+    if (!bind_res) throw std::system_error(bind_res.error());
+
+    accept_fd_ = listen_sock.native_handle();
+
+    auto handle = event_http_.accept_socket_with_handle(accept_fd_);
+    if (!handle.is_valid()) {
+      const auto ec = net::impl::socket::last_error_code();
+
+      throw std::system_error(ec, "evhttp_accept_socket_with_handle() failed");
     }
+  }
+
+ private:
+  static stdx::expected<void, std::error_code> bind_acceptor(
+      net::ip::tcp::acceptor &sock, const std::string &address, uint16_t port) {
+    net::ip::tcp::resolver resolver(sock.get_executor().context());
+    auto resolve_res = resolver.resolve(address, std::to_string(port));
+    if (!resolve_res) return stdx::make_unexpected(resolve_res.error());
 
     for (auto const &resolved : resolve_res.value()) {
-      net::ip::tcp::acceptor sock(io_ctx);
+      sock.close();
 
       auto open_res = sock.open(resolved.endpoint().protocol());
-      if (!open_res) {
-        throw std::system_error(open_res.error(), "socket() failed");
-      }
+      if (!open_res) return open_res.get_unexpected();
 
       sock.native_non_blocking(true);
       auto setop_res = sock.set_option(net::socket_base::reuse_address(true));
-      if (!setop_res) {
-        throw std::system_error(setop_res.error(),
-                                "setsockopt(SO_REUSEADDR) failed");
-      }
+      if (!setop_res) return setop_res.get_unexpected();
+
       setop_res = sock.set_option(net::socket_base::keep_alive(true));
-      if (!setop_res) {
-        throw std::system_error(setop_res.error(),
-                                "setsockopt(SO_KEEPALIVE) failed");
-      }
+      if (!setop_res) return setop_res.get_unexpected();
 
       auto bind_res = sock.bind(resolved.endpoint());
-      if (!bind_res) {
-        std::ostringstream ss;
-        ss << "bind(" << resolved.endpoint() << ") failed";
+      if (!bind_res) return bind_res.get_unexpected();
 
-        throw std::system_error(bind_res.error(), ss.str());
-      }
       auto listen_res = sock.listen(128);
-      if (!listen_res) {
-        throw std::system_error(setop_res.error(), "listen(128) failed");
-      }
+      if (!listen_res) return listen_res.get_unexpected();
 
-      auto sock_release_res = sock.release();
-      if (!sock_release_res) {
-        throw std::system_error(sock_release_res.error(), "release() failed");
-      }
-
-      accept_fd_ = sock_release_res.value();
-      auto handle =
-          event_http_.accept_socket_with_handle(sock_release_res.value());
-      if (!handle.is_valid()) {
-        const auto ec = net::impl::socket::last_error_code();
-
-        throw std::system_error(ec,
-                                "evhttp_accept_socket_with_handle() failed");
-      }
-
-      return;
+      return listen_res;
     }
 
-    throw std::invalid_argument("resolved to nothing?");
+    // no address
+    return stdx::make_unexpected(
+        make_error_code(std::errc::no_such_file_or_directory));
   }
 };
 
@@ -334,13 +323,15 @@ void HttpServer::join_all() {
     thr.join();
     sys_threads_.pop_back();
   }
+
   thread_contexts_.clear();
 }
 
 void HttpServer::start(size_t max_threads) {
   {
     auto main_thread = HttpRequestMainThread();
-    main_thread.bind(address_, port_);
+    main_thread.bind(listen_sock_, address_, port_);
+
     thread_contexts_.emplace_back(std::move(main_thread));
   }
 
@@ -354,7 +345,7 @@ void HttpServer::start(size_t max_threads) {
     auto &thr = thread_contexts_[ndx];
 
     sys_threads_.emplace_back([&]() {
-      mysql_harness::rename_thread("HttpSrv Worker");
+      my_thread_self_setname("HttpSrv Worker");
 
       thr.set_request_router(request_router_);
       thr.accept_socket();
@@ -387,7 +378,7 @@ class HttpsServer : public HttpServer {
 void HttpsServer::start(size_t max_threads) {
   {
     auto main_thread = HttpsRequestMainThread(&ssl_ctx_);
-    main_thread.bind(address_, port_);
+    main_thread.bind(listen_sock_, address_, port_);
     thread_contexts_.emplace_back(std::move(main_thread));
   }
 
@@ -402,7 +393,7 @@ void HttpsServer::start(size_t max_threads) {
     auto &thr = thread_contexts_[ndx];
 
     sys_threads_.emplace_back([&]() {
-      mysql_harness::rename_thread("HttpSrv Worker");
+      my_thread_self_setname("HttpSrv Worker");
 
       thr.set_request_router(request_router_);
       thr.accept_socket();
@@ -430,7 +421,10 @@ void HttpServer::remove_route(const std::string &url_regex) {
   }
 }
 
-class HttpServerPluginConfig : public mysqlrouter::BasePluginConfig {
+using mysql_harness::IntOption;
+using mysql_harness::StringOption;
+
+class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string static_basedir;
   std::string srv_address;
@@ -444,17 +438,17 @@ class HttpServerPluginConfig : public mysqlrouter::BasePluginConfig {
   uint16_t srv_port;
 
   explicit HttpServerPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        static_basedir(get_option_string(section, "static_folder")),
-        srv_address(get_option_string(section, "bind_address")),
-        require_realm(get_option_string(section, "require_realm")),
-        ssl_cert(get_option_string(section, "ssl_cert")),
-        ssl_key(get_option_string(section, "ssl_key")),
-        ssl_cipher(get_option_string(section, "ssl_cipher")),
-        ssl_dh_params(get_option_string(section, "ssl_dh_param")),
-        ssl_curves(get_option_string(section, "ssl_curves")),
-        with_ssl(get_uint_option<uint8_t>(section, "ssl", 0, 1)),
-        srv_port(get_uint_option<uint16_t>(section, "port")) {}
+      : mysql_harness::BasePluginConfig(section),
+        static_basedir(get_option(section, "static_folder", StringOption{})),
+        srv_address(get_option(section, "bind_address", StringOption{})),
+        require_realm(get_option(section, "require_realm", StringOption{})),
+        ssl_cert(get_option(section, "ssl_cert", StringOption{})),
+        ssl_key(get_option(section, "ssl_key", StringOption{})),
+        ssl_cipher(get_option(section, "ssl_cipher", StringOption{})),
+        ssl_dh_params(get_option(section, "ssl_dh_param", StringOption{})),
+        ssl_curves(get_option(section, "ssl_curves", StringOption{})),
+        with_ssl(get_option(section, "ssl", IntOption<bool>{})),
+        srv_port(get_option(section, "port", IntOption<uint16_t>{})) {}
 
   std::string get_default_ciphers() const {
     return mysql_harness::join(TlsServerContext::default_ciphers(), ":");
@@ -572,8 +566,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       has_started = true;
 
       Event::initialize_threads();
-      mysql_harness::ScopeGuard initialization_finished(
-          []() { Event::shutdown(); });
+      Scope_guard initialization_finished([]() { Event::shutdown(); });
 
       HttpServerPluginConfig config{section};
 
@@ -608,7 +601,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
                                config.static_basedir, config.require_realm));
       }
 
-      initialization_finished.dismiss();
+      initialization_finished.commit();
     }
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -642,7 +635,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   // - important log messages
   // - mismatch between group-membership and metadata
 
-  mysql_harness::rename_thread("HttpSrv Main");
+  my_thread_self_setname("HttpSrv Main");
 
   try {
     auto srv = http_servers.at(get_config_section(env)->name);
@@ -666,13 +659,17 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-const static std::array<const char *, 3> required = {{
+static const std::array<const char *, 3> required = {{
     "logger",
     "router_openssl",
     // as long as this plugin links against http_auth_backend_lib which links
     // against metadata_cache there is a need to cleanup protobuf
     "router_protobuf",
 }};
+
+static const std::array<const char *, 10> supported_options{
+    "static_folder", "bind_address", "require_realm", "ssl_cert", "ssl_key",
+    "ssl_cipher",    "ssl_dh_param", "ssl_curves",    "ssl",      "port"};
 
 extern "C" {
 mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
@@ -681,13 +678,17 @@ mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
     "HTTP_SERVER",                           // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

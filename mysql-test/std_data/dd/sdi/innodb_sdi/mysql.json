@@ -26761,17 +26761,17 @@
                     },
                     {
                         "ordinal_position": 2,
-                        "length": 192,
-                        "order": 2,
-                        "hidden": false,
-                        "column_opx": 1
-                    },
-                    {
-                        "ordinal_position": 3,
                         "length": 96,
                         "order": 2,
                         "hidden": false,
                         "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 192,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 4,
@@ -33880,17 +33880,17 @@
                     },
                     {
                         "ordinal_position": 2,
-                        "length": 192,
-                        "order": 2,
-                        "hidden": false,
-                        "column_opx": 1
-                    },
-                    {
-                        "ordinal_position": 3,
                         "length": 96,
                         "order": 2,
                         "hidden": false,
                         "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 192,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 4,
@@ -33979,14 +33979,14 @@
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 1
+                        "column_opx": 2
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 2
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 5,
@@ -34428,17 +34428,17 @@
                     },
                     {
                         "ordinal_position": 2,
-                        "length": 192,
-                        "order": 2,
-                        "hidden": false,
-                        "column_opx": 1
-                    },
-                    {
-                        "ordinal_position": 3,
                         "length": 96,
                         "order": 2,
                         "hidden": false,
                         "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 192,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 4,
@@ -36650,17 +36650,17 @@
                     },
                     {
                         "ordinal_position": 2,
-                        "length": 192,
-                        "order": 2,
-                        "hidden": false,
-                        "column_opx": 1
-                    },
-                    {
-                        "ordinal_position": 3,
                         "length": 96,
                         "order": 2,
                         "hidden": false,
                         "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 192,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 4,
@@ -36749,14 +36749,14 @@
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 1
+                        "column_opx": 2
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 2
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 5,
@@ -37398,7 +37398,7 @@
             },
             {
                 "name": "Channel_name",
-                "type": 29,
+                "type": 16,
                 "is_nullable": false,
                 "is_zerofill": false,
                 "is_unsigned": false,
@@ -37421,7 +37421,7 @@
                 "default_value_utf8": "",
                 "default_option": "",
                 "update_option": "",
-                "comment": "The channel on which the slave is connected to a source. Used in Multisource Replication",
+                "comment": "The channel on which the replica is connected to a source. Used in Multisource Replication",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
@@ -37429,14 +37429,14 @@
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 2,
-                "column_type_utf8": "char(64)",
+                "column_type_utf8": "varchar(64)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": true
             },
             {
                 "name": "Privilege_checks_username",
-                "type": 29,
+                "type": 16,
                 "is_nullable": true,
                 "is_zerofill": false,
                 "is_unsigned": false,
@@ -37467,14 +37467,14 @@
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "char(32)",
+                "column_type_utf8": "varchar(32)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": true
             },
             {
                 "name": "Privilege_checks_hostname",
-                "type": 29,
+                "type": 16,
                 "is_nullable": true,
                 "is_zerofill": false,
                 "is_unsigned": false,
@@ -37505,7 +37505,7 @@
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "char(255)",
+                "column_type_utf8": "varchar(255)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": true
@@ -38064,7 +38064,7 @@
             },
             {
                 "name": "Host",
-                "type": 29,
+                "type": 16,
                 "is_nullable": true,
                 "is_zerofill": false,
                 "is_unsigned": false,
@@ -38087,7 +38087,7 @@
                 "default_value_utf8": "",
                 "default_option": "",
                 "update_option": "",
-                "comment": "The host name of the master.",
+                "comment": "The host name of the source.",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
@@ -38095,7 +38095,7 @@
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "char(255)",
+                "column_type_utf8": "varchar(255)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": true
@@ -38824,7 +38824,7 @@
             },
             {
                 "name": "Channel_name",
-                "type": 29,
+                "type": 16,
                 "is_nullable": false,
                 "is_zerofill": false,
                 "is_unsigned": false,
@@ -38847,7 +38847,7 @@
                 "default_value_utf8": "",
                 "default_option": "",
                 "update_option": "",
-                "comment": "The channel on which the slave is connected to a source. Used in Multisource Replication",
+                "comment": "The channel on which the replica is connected to a source. Used in Multisource Replication",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
@@ -38855,7 +38855,7 @@
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 2,
-                "column_type_utf8": "char(64)",
+                "column_type_utf8": "varchar(64)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": true
@@ -39014,7 +39014,7 @@
             },
             {
                 "name": "Master_compression_algorithm",
-                "type": 29,
+                "type": 16,
                 "is_nullable": false,
                 "is_zerofill": false,
                 "is_unsigned": false,
@@ -39037,7 +39037,7 @@
                 "default_value_utf8": "",
                 "default_option": "",
                 "update_option": "",
-                "comment": "Compression algorithm supported for data transfer between master and slave.",
+                "comment": "Compression algorithm supported for data transfer between source and replica.",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
@@ -39045,7 +39045,7 @@
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "char(64)",
+                "column_type_utf8": "varchar(64)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": true
@@ -40046,7 +40046,7 @@
             },
             {
                 "name": "Channel_name",
-                "type": 29,
+                "type": 16,
                 "is_nullable": false,
                 "is_zerofill": false,
                 "is_unsigned": false,
@@ -40069,7 +40069,7 @@
                 "default_value_utf8": "",
                 "default_option": "",
                 "update_option": "",
-                "comment": "The channel on which the slave is connected to a source. Used in Multisource Replication",
+                "comment": "The channel on which the replica is connected to a source. Used in Multisource Replication",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
@@ -40077,7 +40077,7 @@
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 2,
-                "column_type_utf8": "char(64)",
+                "column_type_utf8": "varchar(64)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": true

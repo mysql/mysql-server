@@ -1,10 +1,6 @@
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 
-
-# Test requires TLSv1 and TLSv1.1
---source include/not_min_protocol_tlsv12.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -27,13 +23,16 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 let $MYSQL_SOCKET= `SELECT @@socket`;
 let $MYSQL_PORT= `SELECT @@port`;
 
---echo #T1: Setting TLS version TLSv1.1 from the client
+--echo #T1: Setting TLS version TLSv1.1 from the client should fail to connect
+--error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
 
---echo #T2: Setting TLS version TLSv1 from the client
+--echo #T2: Setting TLS version TLSv1 from the client should fail to connect
+--error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1 -e "SHOW STATUS like 'Ssl_version'"
 
---echo #T3: Setting TLS version TLSv1, TLSv1.1 from the client
+--echo #T3: Setting TLS version TLSv1, TLSv1.1 from the client should fail to connect
+--error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1,TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
 
 --exec echo "restart:--tls-version=TLSv1.2 --ssl-cipher=CAMELLIA256-SHA " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

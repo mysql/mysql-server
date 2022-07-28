@@ -1,3 +1,6 @@
+# When developing new tests, prefer using ndb_describe_table.inc
+# or running succinct queries from ndbinfo tables to including this file
+
 # Check ndb_desc_opts argument variable
 if (!$ndb_desc_opts)
 {

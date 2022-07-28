@@ -40,8 +40,8 @@ call mtr.add_suppression("Failed to set up SSL because of the following SSL libr
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Changing innodb_extend_and_initialize not supported on this platform.");
 call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 
-let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-let $total_persistent_vars=438;
+let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%' AND variable_name NOT LIKE 'debug_%'`;
+let $total_persistent_vars=448;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
@@ -121,6 +121,7 @@ SELECT * FROM performance_schema.global_variables
 WHERE variable_name NOT IN
 ('rbr_exec_mode')
 AND variable_name NOT LIKE 'ndb_%'
+AND variable_name NOT LIKE 'debug_%'
 ORDER BY variable_name;
 
 --let $count_vars= `SELECT COUNT(*) FROM all_vars;`

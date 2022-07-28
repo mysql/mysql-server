@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -78,31 +78,31 @@ enum mlog_id_t {
   MLOG_8BYTES = 8,
 
   /** Record insert */
-  MLOG_REC_INSERT = 9,
+  MLOG_REC_INSERT_8027 = 9,
 
   /** Mark clustered index record deleted */
-  MLOG_REC_CLUST_DELETE_MARK = 10,
+  MLOG_REC_CLUST_DELETE_MARK_8027 = 10,
 
   /** Mark secondary index record deleted */
   MLOG_REC_SEC_DELETE_MARK = 11,
 
   /** update of a record, preserves record field sizes */
-  MLOG_REC_UPDATE_IN_PLACE = 13,
+  MLOG_REC_UPDATE_IN_PLACE_8027 = 13,
 
   /*!< Delete a record from a page */
-  MLOG_REC_DELETE = 14,
+  MLOG_REC_DELETE_8027 = 14,
 
   /** Delete record list end on index page */
-  MLOG_LIST_END_DELETE = 15,
+  MLOG_LIST_END_DELETE_8027 = 15,
 
   /** Delete record list start on index page */
-  MLOG_LIST_START_DELETE = 16,
+  MLOG_LIST_START_DELETE_8027 = 16,
 
   /** Copy record list end to a new created index page */
-  MLOG_LIST_END_COPY_CREATED = 17,
+  MLOG_LIST_END_COPY_CREATED_8027 = 17,
 
   /** Reorganize an index page in ROW_FORMAT=REDUNDANT */
-  MLOG_PAGE_REORGANIZE = 18,
+  MLOG_PAGE_REORGANIZE_8027 = 18,
 
   /** Create an index page */
   MLOG_PAGE_CREATE = 19,
@@ -167,10 +167,10 @@ enum mlog_id_t {
   MLOG_COMP_PAGE_CREATE = 37,
 
   /** compact record insert */
-  MLOG_COMP_REC_INSERT = 38,
+  MLOG_COMP_REC_INSERT_8027 = 38,
 
   /** mark compact clustered index record deleted */
-  MLOG_COMP_REC_CLUST_DELETE_MARK = 39,
+  MLOG_COMP_REC_CLUST_DELETE_MARK_8027 = 39,
 
   /** mark compact secondary index record deleted; this log
   record type is redundant, as MLOG_REC_SEC_DELETE_MARK is
@@ -178,22 +178,22 @@ enum mlog_id_t {
   MLOG_COMP_REC_SEC_DELETE_MARK = 40,
 
   /** update of a compact record, preserves record field sizes */
-  MLOG_COMP_REC_UPDATE_IN_PLACE = 41,
+  MLOG_COMP_REC_UPDATE_IN_PLACE_8027 = 41,
 
   /** delete a compact record from a page */
-  MLOG_COMP_REC_DELETE = 42,
+  MLOG_COMP_REC_DELETE_8027 = 42,
 
   /** delete compact record list end on index page */
-  MLOG_COMP_LIST_END_DELETE = 43,
+  MLOG_COMP_LIST_END_DELETE_8027 = 43,
 
   /*** delete compact record list start on index page */
-  MLOG_COMP_LIST_START_DELETE = 44,
+  MLOG_COMP_LIST_START_DELETE_8027 = 44,
 
   /** copy compact record list end to a new created index page */
-  MLOG_COMP_LIST_END_COPY_CREATED = 45,
+  MLOG_COMP_LIST_END_COPY_CREATED_8027 = 45,
 
   /** reorganize an index page */
-  MLOG_COMP_PAGE_REORGANIZE = 46,
+  MLOG_COMP_PAGE_REORGANIZE_8027 = 46,
 
   /** write the node pointer of a record on a compressed
   non-leaf B-tree page */
@@ -210,10 +210,10 @@ enum mlog_id_t {
   MLOG_ZIP_PAGE_COMPRESS = 51,
 
   /** compress an index page without logging it's image */
-  MLOG_ZIP_PAGE_COMPRESS_NO_DATA = 52,
+  MLOG_ZIP_PAGE_COMPRESS_NO_DATA_8027 = 52,
 
   /** reorganize a compressed page */
-  MLOG_ZIP_PAGE_REORGANIZE = 53,
+  MLOG_ZIP_PAGE_REORGANIZE_8027 = 53,
 
   /** Create a R-Tree index page */
   MLOG_PAGE_CREATE_RTREE = 57,
@@ -247,8 +247,19 @@ enum mlog_id_t {
   /** Used in tests of redo log. It must never be used outside unit tests. */
   MLOG_TEST = 66,
 
+  MLOG_REC_INSERT = 67,
+  MLOG_REC_CLUST_DELETE_MARK = 68,
+  MLOG_REC_DELETE = 69,
+  MLOG_REC_UPDATE_IN_PLACE = 70,
+  MLOG_LIST_END_COPY_CREATED = 71,
+  MLOG_PAGE_REORGANIZE = 72,
+  MLOG_ZIP_PAGE_REORGANIZE = 73,
+  MLOG_ZIP_PAGE_COMPRESS_NO_DATA = 74,
+  MLOG_LIST_END_DELETE = 75,
+  MLOG_LIST_START_DELETE = 76,
+
   /** biggest value (used in assertions) */
-  MLOG_BIGGEST_TYPE = MLOG_TEST
+  MLOG_BIGGEST_TYPE = MLOG_LIST_START_DELETE
 };
 
 /** @} */
@@ -296,13 +307,13 @@ inline const char *mtr_memo_type(const ulint type) {
     case MTR_MEMO_SX_LOCK:
       return "MTR_MEMO_SX_LOCK";
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
-  return "MTR_MEMO_UNKNOWN";
+  ut_o(return "MTR_MEMO_UNKNOWN");
 }
 
 #ifdef UNIV_DEBUG
-#define MTR_MAGIC_N 54551
+constexpr uint32_t MTR_MAGIC_N = 54551;
 #endif /* UNIV_DEBUG */
 
 enum mtr_state_t {

@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,6 +309,16 @@ static int semi_sync_slave_plugin_init(void *p) {
   return 0;
 }
 
+static int semi_sync_replica_plugin_check_uninstall(void *) {
+  int ret = rpl_semi_sync_replica_status ? 1 : 0;
+  if (ret) {
+    my_error(
+        ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), SEMI_SYNC_PLUGIN_NAME,
+        "Stop any active semisynchronous I/O threads on this slave first.");
+  }
+  return ret;
+}
+
 static int semi_sync_slave_plugin_deinit(void *p) {
   if (unregister_binlog_relay_io_observer(&relay_io_observer, p)) return 1;
   delete repl_semisync;
@@ -331,9 +341,9 @@ mysql_declare_plugin(semi_sync_slave){
     PLUGIN_AUTHOR_ORACLE,
     "Replica-side semi-synchronous replication.",
     PLUGIN_LICENSE_GPL,
-    semi_sync_slave_plugin_init,   /* Plugin Init */
-    nullptr,                       /* Plugin Check uninstall */
-    semi_sync_slave_plugin_deinit, /* Plugin Deinit */
+    semi_sync_slave_plugin_init,              /* Plugin Init */
+    semi_sync_replica_plugin_check_uninstall, /* Plugin Check uninstall */
+    semi_sync_slave_plugin_deinit,            /* Plugin Deinit */
     0x0100 /* 1.0 */,
     semi_sync_slave_status_vars, /* status variables */
     semi_sync_slave_system_vars, /* system variables */

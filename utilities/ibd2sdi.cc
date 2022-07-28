@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -240,8 +240,9 @@ std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {
 @param[in]	expr	the failed assertion if not NULL
 @param[in]	file	source file containing the assertion
 @param[in]	line	line number of the assertion */
-void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line) {
-  fprintf(stderr, "ibd2sdi: Assertion failure in file %s line " ULINTPF "\n",
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          uint64_t line) {
+  fprintf(stderr, "ibd2sdi: Assertion failure in file %s line " UINT64PF "\n",
           file, line);
 
   if (expr != nullptr) {
@@ -405,10 +406,20 @@ error::~error() {
   std::cerr << "[ERROR] ibd2sdi: " << m_oss.str() << "." << std::endl;
 }
 
+/*
+MSVS complains: Warning C4722: destructor never returns, potential memory leak.
+But, the whole point of using ib::fatal temporary object is to cause an abort.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4722)
+
 fatal::~fatal() {
   std::cerr << "[FATAL] ibd2sdi: " << m_oss.str() << "." << std::endl;
   ut_error;
 }
+
+// Restore the MSVS checks for Warning C4722, silenced for ib::fatal::~fatal().
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /* TODO: Improve Object creation & destruction on NDEBUG */
 class dbug : public logger {
@@ -921,9 +932,8 @@ bool tablespace_creator::create() {
                        " root page numbers couldn't"
                        " be determined";
         return true;
-      } else {
-        m_tablespace->add_sdi(root);
       }
+      m_tablespace->add_sdi(root);
 
     } else {
       /* We found next file of system tablespace. */
@@ -1130,12 +1140,11 @@ bool tablespace_creator::determine_page_size(File file_in,
 
   if (min_corruption_ratio == 1.0) {
     ib::error() << "Page size couldn't be determined";
-    return (false);
-  } else {
-    ib::info() << "Page size determined is : " << final_page_size;
-    page_size.copy_from(final_page_size);
-    return (true);
+    return false;
   }
+  ib::info() << "Page size determined is : " << final_page_size;
+  page_size.copy_from(final_page_size);
+  return true;
 }
 
 /** Verify checksum of the page and return corruption ratio
@@ -1306,7 +1315,7 @@ class ibd2sdi {
   @return false on success, true on failure */
   bool process_sdi_from_copy(ib_tablespace *ts);
 
-  /** Iterate over record from a single SDI copy. There is no comparision
+  /** Iterate over record from a single SDI copy. There is no comparison
   involved with the records in other copy
   @param[in]	ts		tablespace structure
   @param[in]	root_page_num	SDI root page number
@@ -1448,7 +1457,7 @@ bool ibd2sdi::process_sdi_from_copy(ib_tablespace *ts) {
   return (dump_all_recs_in_leaf_level(ts, ts->get_sdi_root(), m_out_stream));
 }
 
-/** Iterate over record from a single SDI copy. There is no comparision
+/** Iterate over record from a single SDI copy. There is no comparison
 involved with the records in other copy
 @param[in]	ts		tablespace structure
 @param[in]	root_page_num	SDI root page number
@@ -1530,9 +1539,8 @@ uint64_t ibd2sdi::read_page_and_return_level(ib_tablespace *ts,
   if (fetch_page(ts, page_num, buf_len, buf) == IB_ERROR) {
     ib::error() << "Couldn't read page " << page_num;
     return UINT64_MAX;
-  } else {
-    ib::dbug() << "Read page number: " << page_num;
   }
+  ib::dbug() << "Read page number: " << page_num;
 
   ulint page_type = fil_page_get_type(buf);
 
@@ -1629,8 +1637,6 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
   DBUG_TRACE;
 
   byte page_buf[UNIV_PAGE_SIZE_MAX];
-  uint64_t calc_length = 0;
-  uint64_t part_len;
   page_no_t page_num = first_blob_page_num;
   z_stream d_stream;
   int err;
@@ -1644,7 +1650,7 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
 
   /* Zlib inflate needs 32KB for the default window size, plus
   a few KB for small objects */
-  mem_heap_t *heap = mem_heap_create(40000);
+  mem_heap_t *heap = mem_heap_create(40000, UT_LOCATION_HERE);
   page_zip_set_alloc(&d_stream, heap);
 
   ut_ad(page_size.is_compressed());
@@ -1667,16 +1673,12 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
       break;
     }
 
-    part_len =
-        mach_read_from_4(page_buf + FIL_PAGE_DATA + lob::LOB_HDR_PART_LEN);
-
     page_no_t next_page_num = mach_read_from_4(page_buf + FIL_PAGE_NEXT);
     space_id_t space_id =
         mach_read_from_4(page_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
     d_stream.next_in = page_buf + FIL_PAGE_DATA;
     d_stream.avail_in = static_cast<uInt>(page_size.physical() - FIL_PAGE_DATA);
-    calc_length += part_len;
     err = inflate(&d_stream, Z_NO_FLUSH);
     switch (err) {
       case Z_OK:
@@ -1783,9 +1785,8 @@ err_t ibd2sdi::reach_to_leftmost_leaf_level(ib_tablespace *ts, uint32_t buf_len,
     if (rec_type != REC_STATUS_INFIMUM) {
       ib::error() << "INFIMUM not found on index page " << cur_page_num;
       break;
-    } else {
-      ib::dbug() << "INFIMUM found";
     }
+    ib::dbug() << "INFIMUM found";
 
     ulint next_rec_off_t =
         mach_read_from_2(buf + PAGE_NEW_INFIMUM - REC_OFF_NEXT);
@@ -1817,10 +1818,9 @@ err_t ibd2sdi::reach_to_leftmost_leaf_level(ib_tablespace *ts, uint32_t buf_len,
     ib::error() << "Leftmost leaf level page not found"
                 << " or invalid";
     return FALIURE;
-  } else {
-    ib::dbug() << "Reached leaf level";
-    return SUCCESS;
   }
+  ib::dbug() << "Reached leaf level";
+  return SUCCESS;
 }
 
 /** Extract SDI record fields
@@ -2011,9 +2011,8 @@ byte *ibd2sdi::get_next_rec(ib_tablespace *ts, byte *current_rec_arg,
       ib::error() << "Couldn't read next page " << next_page_num;
       *corrupt = true;
       return nullptr;
-    } else {
-      ib::dbug() << "Read page number: " << next_page_num;
     }
+    ib::dbug() << "Read page number: " << next_page_num;
 
     ulint page_type = fil_page_get_type(buf);
 
@@ -2079,7 +2078,11 @@ void ibd2sdi::dump_sdi_rec(uint64_t sdi_type, uint64_t sdi_id, byte *sdi_data,
       d.Accept(writer);
       fprintf(out_stream, "%s", _b.GetString());
     } else {
-      fwrite(sdi_data, 1, static_cast<size_t>(sdi_data_len - 1), out_stream);
+      if (fwrite(sdi_data, 1, static_cast<size_t>(sdi_data_len - 1),
+                 out_stream) != static_cast<size_t>(sdi_data_len - 1)) {
+        std::cerr << "File write error: " << ferror(out_stream) << std::endl;
+        exit(1);
+      }
     }
   }
 
@@ -2286,7 +2289,7 @@ int main(int argc, char **argv) {
 
   if (!ret && opts.is_dump_file) {
     /* Rename file can fail if the source and destination
-    are across parititions. */
+    are across partitions. */
     if (my_rename(tmp_filename_buf, opts.dump_filename, MYF(0)) == -1) {
       if (my_copy(tmp_filename_buf, opts.dump_filename, MYF(0)) != 0) {
         ib::error() << "Copy failed: from: " << tmp_filename_buf
@@ -2297,9 +2300,8 @@ int main(int argc, char **argv) {
                     << " temporary file " << tmp_filename_buf
                     << " and delete it manually";
         return 1;
-      } else {
-        try_delete_temporary_filename(tmp_filename_buf);
       }
+      try_delete_temporary_filename(tmp_filename_buf);
     }
   } else if (opts.is_dump_file) {
     try_delete_temporary_filename(tmp_filename_buf);

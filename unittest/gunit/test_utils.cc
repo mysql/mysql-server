@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,8 +60,11 @@
 #include "sql/sql_locale.h"
 #include "sql/sql_plugin.h"
 #include "sql/xa.h"
+#include "sql/xa/transaction_cache.h"  // xa::Transaction_cache
 #include "unicode/uclean.h"
 #include "unittest/gunit/fake_table.h"
+
+void my_server_abort();
 
 namespace my_testing {
 
@@ -97,8 +100,10 @@ void setup_server_for_unit_tests() {
   test_flags |= TEST_NO_TEMP_TABLES;
   test_flags &= ~TEST_CORE_ON_SIGNAL;
   my_init_signals();
+  // Install server's abort handler to better represent server environment.
+  set_my_abort(my_server_abort);
   randominit(&sql_rand, 0, 0);
-  transaction_cache_init();
+  xa::Transaction_cache::initialize();
   delegates_init();
   gtid_server_init();
   error_handler_hook = test_error_handler_hook;
@@ -113,7 +118,7 @@ void teardown_server_for_unit_tests() {
   range_optimizer_free();
   sys_var_end();
   delegates_destroy();
-  transaction_cache_free();
+  xa::Transaction_cache::dispose();
   gtid_server_cleanup();
   query_logger.cleanup();
   item_func_sleep_free();
@@ -134,6 +139,8 @@ void teardown_server_for_unit_tests() {
   Global_THD_manager::destroy_instance();
   my_end(0);
   clean_up_mysqld_mutexes();
+  // Restore standard's abort.
+  set_my_abort(abort);
 }
 
 void Server_initializer::set_expected_error(uint val) { expected_error = val; }

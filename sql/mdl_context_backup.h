@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ class MDL_context_backup_manager {
 
     @retval     true          Error, e.g. There is no element in the
                               collection matching given key, fail
-                              to retore locks.
+                              to restore locks.
     @retval     false         Success
   */
 

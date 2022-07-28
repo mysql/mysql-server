@@ -149,7 +149,7 @@ SELECT i, j, MIN(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) min,
 MAX(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) max FROM t;
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t`.`i` AS `i`,`t`.`j` AS `j`,min((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `min`,max((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `max` from `t`	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t`.`i` AS `i`,`t`.`j` AS `j`,min((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `min`,max((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `max` from `t`	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 i	j	min	max
 1	4	5	5
@@ -644,7 +644,7 @@ WINDOW w AS (PARTITION BY sex ORDER BY id
 ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,sum(`t1`.`id`) OVER `w` AS `SUM(id) OVER w`,min(`t1`.`id`) OVER `w` AS `min`,max(`t1`.`id`) OVER `w` AS `max`,`t1`.`sex` AS `sex` from `t1` window `w` AS (PARTITION BY `t1`.`sex` ORDER BY `t1`.`id` ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,sum(`t1`.`id`) OVER `w` AS `SUM(id) OVER w`,min(`t1`.`id`) OVER `w` AS `min`,max(`t1`.`id`) OVER `w` AS `max`,`t1`.`sex` AS `sex` from `t1` window `w` AS (PARTITION BY `t1`.`sex` ORDER BY `t1`.`id` ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 id	SUM(id) OVER w	min	max	sex
 2	NULL	NULL	NULL	F

@@ -178,7 +178,7 @@ drop table bug16905;
 truncate table mysql.slow_log;
 set session long_query_time=1;
 select sleep(2);
---replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME 11 QUERY 12 THREAD_ID
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME 4 LOCK_TIME 11 QUERY 12 THREAD_ID
 select * from mysql.slow_log;
 set @@session.long_query_time = @saved_long_query_time;
 

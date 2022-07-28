@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,7 +45,7 @@ static inline trx_t *thr_get_trx(que_thr_t *thr) /*!< in: query thread */
  in crash recovery.
  @return true if thr is rolling back an incomplete transaction in crash
  recovery */
-static inline ibool thr_is_recv(const que_thr_t *thr) /*!< in: query thread */
+static inline bool thr_is_recv(const que_thr_t *thr) /*!< in: query thread */
 {
   return (trx_is_recv(thr->graph->trx));
 }
@@ -209,7 +209,7 @@ static inline que_node_t *que_node_get_parent(que_node_t *node) /*!< in: node */
  @return true if should be stopped; NOTE that if the peek is made
  without reserving the trx mutex, then another peek with the mutex
  reserved is necessary before deciding the actual stopping */
-static inline ibool que_thr_peek_stop(que_thr_t *thr) /*!< in: query thread */
+static inline bool que_thr_peek_stop(que_thr_t *thr) /*!< in: query thread */
 {
   trx_t *trx;
   que_t *graph;
@@ -221,20 +221,20 @@ static inline ibool que_thr_peek_stop(que_thr_t *thr) /*!< in: query thread */
       trx->lock.que_state == TRX_QUE_LOCK_WAIT ||
       (trx->lock.que_state != TRX_QUE_ROLLING_BACK &&
        trx->lock.que_state != TRX_QUE_RUNNING)) {
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
-/** Returns TRUE if the query graph is for a SELECT statement.
+/** Returns true if the query graph is for a SELECT statement.
  @return true if a select */
-static inline ibool que_graph_is_select(que_t *graph) /*!< in: graph */
+static inline bool que_graph_is_select(que_t *graph) /*!< in: graph */
 {
   if (graph->fork_type == QUE_FORK_SELECT_SCROLL ||
       graph->fork_type == QUE_FORK_SELECT_NON_SCROLL) {
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }

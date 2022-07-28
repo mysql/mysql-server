@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ class fido_make_cred {
 class fido_registration {
  public:
   bool make_credentials(const char *challenge);
-  bool make_challenge_response(unsigned char *buf);
+  bool make_challenge_response(unsigned char *&buf);
 
  private:
   fido_make_cred m_fido_make_cred;

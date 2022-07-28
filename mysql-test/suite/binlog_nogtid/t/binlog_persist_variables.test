@@ -62,7 +62,7 @@ INSERT INTO rplvars (varname, varvalue)
 # If this count differs, it means a variable has been added or removed.
 # In that case, this testcase needs to be updated accordingly.
 --echo
---let $expected = 113
+--let $expected = 114
 --let $assert_text = Expect $expected variables in the table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
 --source include/assert.inc
@@ -75,7 +75,7 @@ while ( $varid <= $countvars )
   --let $varnames = `SELECT varname FROM rplvars WHERE id=$varid;`
 
   # The following variables are either non persistent or read only variables.
-  if (`SELECT '$varnames' IN ('binlog_row_event_max_size', 'binlog_gtid_simple_recovery', 'gtid_executed', 'gtid_next', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'log_replica_updates', 'log_slave_updates', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_index', 'relay_log_info_file', 'relay_log_recovery', 'relay_log_space_limit', 'replica_load_tmpdir', 'slave_load_tmpdir', 'replica_skip_errors', 'slave_skip_errors', 'log_bin_use_v1_row_events', 'binlog_rotate_encryption_master_key_at_startup', 'skip_replica_start', 'skip_slave_start')`)
+  if (`SELECT '$varnames' IN ('binlog_row_event_max_size', 'binlog_gtid_simple_recovery', 'gtid_executed', 'gtid_next', 'gtid_owned', 'gtid_purged', 'log_bin', 'log_bin_basename', 'log_bin_index', 'log_replica_updates', 'log_slave_updates', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_index', 'relay_log_info_file', 'relay_log_recovery', 'relay_log_space_limit', 'replica_load_tmpdir', 'slave_load_tmpdir', 'replica_skip_errors', 'slave_skip_errors', 'log_bin_use_v1_row_events', 'binlog_rotate_encryption_master_key_at_startup', 'skip_replica_start', 'skip_slave_start')`)
   {
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
   }

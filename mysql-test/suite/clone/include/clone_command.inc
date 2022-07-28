@@ -71,6 +71,11 @@ if($remote_clone) {
     --enable_query_log
   }
 
+   if ($delay_after_data_drop) {
+    # Delay the clone process for 10 seconds
+    SET GLOBAL clone_delay_after_data_drop = 2;
+   }
+
   # Execute Remote Clone command with error
   if ($clone_remote_err) {
 
@@ -159,6 +164,10 @@ if($remote_clone) {
     SET LOCAL net_write_timeout = default;
     --enable_query_log
   }
+
+   if ($delay_after_data_drop) {
+    SET GLOBAL clone_delay_after_data_drop = 0;
+   }
 }
 
 if (!$remote_clone) {

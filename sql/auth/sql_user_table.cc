@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,61 +113,61 @@ static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
      {nullptr, 0}},
     {{STRING_WITH_LEN("Select_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Insert_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Update_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Delete_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Create_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Drop_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Grant_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("References_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Index_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Alter_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Create_tmp_table_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Lock_tables_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Create_view_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Show_view_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Create_routine_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Alter_routine_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Execute_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Event_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("Trigger_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
-     {STRING_WITH_LEN("utf8")}}};
+     {STRING_WITH_LEN("utf8mb3")}}};
 
 static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
     {{{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {nullptr, 0}},
@@ -176,94 +176,94 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
       {nullptr, 0}},
      {{STRING_WITH_LEN("Select_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Insert_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Update_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Delete_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Drop_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Reload_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Shutdown_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Process_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("File_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Grant_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("References_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Index_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Alter_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Show_db_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Super_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_tmp_table_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Lock_tables_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Execute_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Repl_slave_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Repl_client_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_view_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Show_view_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_routine_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Alter_routine_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_user_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Event_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Trigger_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_tablespace_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("ssl_type")},
       {STRING_WITH_LEN("enum('','ANY','X509','SPECIFIED')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("ssl_cipher")}, {STRING_WITH_LEN("blob")}, {nullptr, 0}},
      {{STRING_WITH_LEN("x509_issuer")},
       {STRING_WITH_LEN("blob")},
@@ -287,7 +287,7 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
       {nullptr, 0}},
      {{STRING_WITH_LEN("password_expired")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("password_last_changed")},
       {STRING_WITH_LEN("timestamp")},
       {nullptr, 0}},
@@ -296,13 +296,13 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
       {nullptr, 0}},
      {{STRING_WITH_LEN("account_locked")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Create_role_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Drop_role_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("Password_reuse_history")},
       {STRING_WITH_LEN("smallint")},
       {nullptr, 0}},
@@ -311,7 +311,7 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
       {nullptr, 0}},
      {{STRING_WITH_LEN("Password_require_current")},
       {STRING_WITH_LEN("enum('N','Y')")},
-      {STRING_WITH_LEN("utf8")}},
+      {STRING_WITH_LEN("utf8mb3")}},
      {{STRING_WITH_LEN("User_attributes")},
       {STRING_WITH_LEN("json")},
       {nullptr, 0}}};
@@ -351,7 +351,7 @@ static const TABLE_FIELD_TYPE
          {nullptr, 0}},
         {{STRING_WITH_LEN("Routine_name")},
          {STRING_WITH_LEN("char(64)")},
-         {STRING_WITH_LEN("utf8")}},
+         {STRING_WITH_LEN("utf8mb3")}},
         {{STRING_WITH_LEN("Routine_type")},
          {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
          {nullptr, 0}},
@@ -360,7 +360,7 @@ static const TABLE_FIELD_TYPE
          {nullptr, 0}},
         {{STRING_WITH_LEN("Proc_priv")},
          {STRING_WITH_LEN("set('Execute','Alter Routine','Grant')")},
-         {STRING_WITH_LEN("utf8")}},
+         {STRING_WITH_LEN("utf8mb3")}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
          {nullptr, 0}}};
@@ -385,7 +385,7 @@ static const TABLE_FIELD_TYPE
          {nullptr, 0}},
         {{STRING_WITH_LEN("Column_priv")},
          {STRING_WITH_LEN("set('Select','Insert','Update','References')")},
-         {STRING_WITH_LEN("utf8")}}};
+         {STRING_WITH_LEN("utf8mb3")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] = {
@@ -409,10 +409,10 @@ static const TABLE_FIELD_TYPE
          {STRING_WITH_LEN("set('Select','Insert','Update','Delete','Create',"
                           "'Drop','Grant','References','Index','Alter',"
                           "'Create View','Show view','Trigger')")},
-         {STRING_WITH_LEN("utf8")}},
+         {STRING_WITH_LEN("utf8mb3")}},
         {{STRING_WITH_LEN("Column_priv")},
          {STRING_WITH_LEN("set('Select','Insert','Update','References')")},
-         {STRING_WITH_LEN("utf8")}}};
+         {STRING_WITH_LEN("utf8mb3")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_role_edges_table_fields[MYSQL_ROLE_EDGES_FIELD_COUNT] = {
@@ -430,7 +430,7 @@ static const TABLE_FIELD_TYPE
          {nullptr, 0}},
         {{STRING_WITH_LEN("WITH_ADMIN_OPTION")},
          {STRING_WITH_LEN("enum('N','Y')")},
-         {STRING_WITH_LEN("utf8")}}};
+         {STRING_WITH_LEN("utf8mb3")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_default_roles_table_fields[MYSQL_DEFAULT_ROLES_FIELD_COUNT] = {
@@ -665,7 +665,7 @@ static bool acl_end_trans_and_close_tables(THD *thd,
   Effect : In case of rollback, acl caches will be reloaded.
 
   @param thd                    Handle to THD object.
-                                Requried for query rewriting
+                                Required for query rewriting
   @param transactional_table    Nature of ACL tables
   @param extra_users            Users which were not processed
   @param rewrite_params         Information required for query rewrite
@@ -798,7 +798,7 @@ void acl_print_ha_error(int handler_error) {
 
   @param thd          Current thread execution context.
   @param table        Pointer to a TABLE object for opened mysql.db table.
-  @param db           Database name of table for which column priviliges are
+  @param db           Database name of table for which column privileges are
                       modified.
   @param combo        Pointer to a LEX_USER object containing info about a user
                       being processed.
@@ -851,12 +851,16 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
       goto table_error;
 
     if (what == 'N') {  // no row, no revoke
-      my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
       /*
         Return 1 as an indication that expected error occurred during
         handling of REVOKE statement for an unknown user.
       */
-      return 1;
+      if (report_missing_user_grant_message(thd, true, combo.user.str,
+                                            combo.host.str, nullptr,
+                                            ER_NONEXISTING_GRANT))
+        return 1;
+      else
+        return 0;
     }
     old_row_exists = false;
     restore_record(table, s->default_values);
@@ -999,9 +1003,13 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
       goto table_error;
     DBUG_PRINT("info", ("Row not found"));
     if (revoke_grant) {  // no row, no revoke
-      my_error(ER_NONEXISTING_GRANT, MYF(0), user->user.str, user->host.str);
       table->file->ha_index_end();
-      return 1;
+      if (report_missing_user_grant_message(thd, true, user->user.str,
+                                            user->host.str, nullptr,
+                                            ER_NONEXISTING_GRANT))
+        return 1;
+      else
+        return 0;
     }
     old_row_exists = false;
     restore_record(table, s->default_values);
@@ -1087,9 +1095,9 @@ table_error:
   @param combo        Pointer to a LEX_USER object containing info about a user
                       being processed
   @param columns      List of columns to give/revoke grant
-  @param db           Database name of table for which column priviliges are
+  @param db           Database name of table for which column privileges are
                       modified
-  @param table_name   Name of table for which column priviliges are modified
+  @param table_name   Name of table for which column privileges are modified
   @param rights       Table level grant
   @param revoke_grant Set to true if this is a REVOKE command
 
@@ -1170,10 +1178,11 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
       }
 
       if (revoke_grant) {
-        my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0), combo.user.str,
-                 combo.host.str, table_name); /* purecov: inspected */
-        result = 1;                           /* purecov: inspected */
-        continue;                             /* purecov: inspected */
+        if (report_missing_user_grant_message(thd, true, combo.user.str,
+                                              combo.host.str, table_name,
+                                              ER_NONEXISTING_TABLE_GRANT))
+          result = 1;
+        continue; /* purecov: inspected */
       }
       old_row_exists = false;
       restore_record(table, s->default_values);  // Get empty record
@@ -1191,6 +1200,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
       old_row_exists = true;
       store_record(table, record[1]);  // copy original row
     }
+
+    my_timeval tm;
+    tm = thd->query_start_timeval_trunc(0);
+    table->field[5]->store_timestamp(&tm);
 
     table->field[6]->store((longlong)get_rights_for_column(privileges), true);
 
@@ -1426,9 +1439,12 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
       the user has modified the grant tables directly.
     */
     if (revoke_grant) {  // no row, no revoke
-      my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0), combo.user.str,
-               combo.host.str, table_name); /* purecov: deadcode */
-      return 1;                             /* purecov: deadcode */
+      if (report_missing_user_grant_message(thd, true, combo.user.str,
+                                            combo.host.str, table_name,
+                                            ER_NONEXISTING_TABLE_GRANT))
+        return 1;
+      else
+        return 0;
     }
     old_row_exists = 0;
     restore_record(table, record[1]);  // Get saved record
@@ -1452,6 +1468,11 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
 
   table->field[4]->store(grantor, strlen(grantor), system_charset_info);
+
+  my_timeval tm;
+  tm = thd->query_start_timeval_trunc(0);
+  table->field[5]->store_timestamp(&tm);
+
   table->field[6]->store((longlong)store_table_rights, true);
   table->field[7]->store((longlong)store_col_rights, true);
   rights = fix_rights_for_table(store_table_rights);
@@ -1541,6 +1562,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
   int error = 0;
   ulong store_proc_rights;
   Acl_table_intact table_intact(thd);
+  uchar user_key[MAX_KEY_LENGTH];
   DBUG_TRACE;
 
   if (!initialized) {
@@ -1569,10 +1591,11 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
                                   : to_longlong(enum_sp_type::FUNCTION)),
                          true);
   store_record(table, record[1]);  // store at pos 1
-
-  error = table->file->ha_index_read_idx_map(table->record[0], 0,
-                                             table->field[0]->field_ptr(),
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+  error = table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
                                              HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+
   assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
          error != HA_ERR_LOCK_DEADLOCK);
   assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
@@ -1588,9 +1611,12 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
       the user has modified the grant tables directly.
     */
     if (revoke_grant) {  // no row, no revoke
-      my_error(ER_NONEXISTING_PROC_GRANT, MYF(0), combo.user.str,
-               combo.host.str, routine_name);
-      return 1;
+      if (report_missing_user_grant_message(thd, true, combo.user.str,
+                                            combo.host.str, routine_name,
+                                            ER_NONEXISTING_PROC_GRANT))
+        return 1;
+      else
+        return 0;
     }
     old_row_exists = 0;
     restore_record(table, record[1]);  // Get saved record
@@ -1612,6 +1638,11 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
 
   table->field[5]->store(grantor, strlen(grantor), &my_charset_latin1);
   table->field[6]->store((longlong)store_proc_rights, true);
+
+  my_timeval tm;
+  tm = thd->query_start_timeval_trunc(0);
+  table->field[7]->store_timestamp(&tm);
+
   rights = fix_rights_for_procedure(store_proc_rights);
 
   if (old_row_exists) {
@@ -2025,10 +2056,6 @@ static int modify_grant_table(TABLE *table, Field *host_field,
            error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_modify_grant_table_1",
                     error = HA_ERR_LOCK_DEADLOCK;);
-    if (error && error != HA_ERR_RECORD_IS_THE_SAME)
-      acl_print_ha_error(error);
-    else
-      error = 0;
   } else {
     /* delete */
     error = table->file->ha_delete_row(table->record[0]);
@@ -2038,7 +2065,6 @@ static int modify_grant_table(TABLE *table, Field *host_field,
            error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_modify_grant_table_2",
                     error = HA_ERR_LOCK_DEADLOCK;);
-    if (error) acl_print_ha_error(error);
   }
 
   return error;
@@ -2046,7 +2072,6 @@ static int modify_grant_table(TABLE *table, Field *host_field,
 
 /**
   Handle a privilege table.
-  @param  thd                 The thead handler
   @param  tables              The array with the four open tables.
   @param  table_no            The number of the table to handle (0..4).
   @param  drop                If user_from is to be dropped.
@@ -2054,9 +2079,11 @@ static int modify_grant_table(TABLE *table, Field *host_field,
   @param  user_to             The new name for the user if to be renamed, NULL
                               otherwise.
 
-  Scan through all records in a grant table and apply the requested operation.
-  For the "user" table, a single index access is sufficient,
-  since there is an unique index on (host, user).
+  This function scans through following tables:
+  mysql.user, mysql.db, mysql.tables_priv, mysql.columns_priv,
+  mysql.procs_priv, mysql.proxies_priv.
+  For all above tables, we do an index scan and then iterate over the
+  found records do following:
   Delete from grant table if drop is true.
   Update in grant table if drop is false and user_to is not NULL.
   Search in grant table if drop is false and user_to is NULL.
@@ -2067,127 +2094,78 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     @retval  > 0  At least one record matched.
 */
 
-int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
+int handle_grant_table(THD *, TABLE_LIST *tables, ACL_TABLES table_no,
                        bool drop, LEX_USER *user_from, LEX_USER *user_to) {
   int result = 0;
   int error = 0;
   TABLE *table = tables[table_no].table;
   Field *host_field = table->field[0];
   Field *user_field = table->field[table_no && table_no != 5 ? 2 : 1];
-  const char *host;
-  const char *user;
+
   uchar user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   DBUG_TRACE;
 
   table->use_all_columns();
-  if (!table_no)  // mysql.user table
-  {
-    /*
-      The 'user' table has an unique index on (host, user).
-      Thus, we can handle everything with a single index access.
-      The host- and user fields are consecutive in the user table records.
-      So we set host- and user fields of table->record[0] and use the
-      pointer to the host field as key.
-      index_read_idx() will replace table->record[0] (its first argument)
-      by the searched record, if it exists.
-    */
-    DBUG_PRINT("info",
-               ("read table: '%s'  search: '%s'@'%s'", table->s->table_name.str,
-                user_from->user.str, user_from->host.str));
-    host_field->store(user_from->host.str, user_from->host.length,
-                      system_charset_info);
-    user_field->store(user_from->user.str, user_from->user.length,
-                      system_charset_info);
+  DBUG_PRINT("info",
+             ("read table: '%s'  search: '%s'@'%s'", table->s->table_name.str,
+              user_from->user.str, user_from->host.str));
+  host_field->store(user_from->host.str, user_from->host.length,
+                    system_charset_info);
+  user_field->store(user_from->user.str, user_from->user.length,
+                    system_charset_info);
 
-    key_prefix_length = (table->key_info->key_part[0].store_length +
-                         table->key_info->key_part[1].store_length);
-    key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
+  key_prefix_length = (table->key_info->key_part[0].store_length +
+                       table->key_info->key_part[1].store_length);
+  key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
 
-    error = table->file->ha_index_read_idx_map(
-        table->record[0], 0, user_key, (key_part_map)3, HA_READ_KEY_EXACT);
-    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-           error != HA_ERR_LOCK_DEADLOCK);
-    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-           error != HA_ERR_LOCK_WAIT_TIMEOUT);
-    DBUG_EXECUTE_IF("wl7158_handle_grant_table_1",
-                    error = HA_ERR_LOCK_DEADLOCK;);
-    if (error) {
-      if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE) {
-        acl_print_ha_error(error);
-        result = -1;
-      }
-    } else {
-      /* If requested, delete or update the record. */
-      result = ((drop || user_to) &&
-                modify_grant_table(table, host_field, user_field, user_to))
-                   ? -1
-                   : 1; /* Error or found. */
-    }
-    DBUG_PRINT("info", ("read result: %d", result));
-  } else {
-    /*
-      The non-'user' table do not have indexes on (host, user).
-      And their host- and user fields are not consecutive.
-      Thus, we need to do a table scan to find all matching records.
-    */
-    error = table->file->ha_rnd_init(true);
-    DBUG_EXECUTE_IF("wl7158_handle_grant_table_2", table->file->ha_rnd_end();
-                    error = HA_ERR_LOCK_DEADLOCK;);
+  if ((error = table->file->ha_index_init(0, true))) {
+    acl_print_ha_error(error);
+    table->file->ha_rnd_end();
+    result = -1;
+    return result;
+  }
 
-    if (error) {
+  error = table->file->ha_index_read_idx_map(
+      table->record[0], 0, user_key, (key_part_map)3, HA_READ_KEY_EXACT);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_DEADLOCK);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  DBUG_EXECUTE_IF("wl7158_handle_grant_table_1", error = HA_ERR_LOCK_DEADLOCK;);
+
+  if (error) {
+    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE) {
       acl_print_ha_error(error);
       result = -1;
-    } else {
-#ifdef EXTRA_DEBUG
-      DBUG_PRINT("info", ("scan table: '%s'  search: '%s'@'%s'",
-                          table->s->table_name.str, user_from->user.str,
-                          user_from->host.str));
-#endif
-      while (true) {
-        error = table->file->ha_rnd_next(table->record[0]);
-        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-               error != HA_ERR_LOCK_DEADLOCK);
-        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-               error != HA_ERR_LOCK_WAIT_TIMEOUT);
-        DBUG_EXECUTE_IF("wl7158_handle_grant_table_3",
-                        error = HA_ERR_LOCK_DEADLOCK;);
-        if (error) {
-          if (error != HA_ERR_END_OF_FILE) {
-            acl_print_ha_error(error);
-            result = -1;
-          }
-          break;
-        }
-
-        if (!(host = get_field(thd->mem_root, host_field))) host = "";
-        if (!(user = get_field(thd->mem_root, user_field))) user = "";
-
-#ifdef EXTRA_DEBUG
-        if (table_no != 5) {
-          DBUG_PRINT("loop",
-                     ("scan fields: '%s'@'%s' '%s' '%s' '%s'", user, host,
-                      get_field(thd->mem_root, table->field[1]) /*db*/,
-                      get_field(thd->mem_root, table->field[3]) /*table*/,
-                      get_field(thd->mem_root, table->field[4]) /*column*/));
-        }
-#endif
-        if (strcmp(user_from->user.str, user) ||
-            my_strcasecmp(system_charset_info, user_from->host.str, host))
-          continue;
-
-        /* If requested, delete or update the record. */
-        result = ((drop || user_to) &&
-                  modify_grant_table(table, host_field, user_field, user_to))
-                     ? -1
-                     : result ? result : 1; /* Error or keep result or found. */
-        /* If search is requested, we do not need to search further. */
-        if (!drop && !user_to) break;
+    }
+  } else {
+    /*
+      Iterate over range of records returned as part of index search done based
+      on user and host values.
+    */
+    while (!error) {
+      /* If requested, delete or update the record. */
+      if (drop || user_to)
+        error = modify_grant_table(table, host_field, user_field, user_to);
+      if (error) {
+        result = -1;
+        break;
+      } else {
+        result = 1;
       }
-      (void)table->file->ha_rnd_end();
-      DBUG_PRINT("info", ("scan result: %d", result));
+      DBUG_PRINT("info", ("read result: %d", result));
+      /* fetch next record */
+      error = table->file->ha_index_next_same(table->record[0], user_key,
+                                              key_prefix_length);
+    }
+    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE &&
+        error != HA_ERR_RECORD_IS_THE_SAME) {
+      acl_print_ha_error(error);
+      result = -1;
     }
   }
+  if (table->file->inited != handler::NONE) table->file->ha_index_end();
 
   return result;
 }
@@ -2216,7 +2194,7 @@ bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error) {
         my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
                  ha_resolve_storage_engine_name(t->table->file->ht), t->db,
                  t->table_name);
-        // No need to check futher.
+        // No need to check further.
         break;
       } else {
         LogErr(WARNING_LEVEL, ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE,

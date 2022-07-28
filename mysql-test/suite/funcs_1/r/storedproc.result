@@ -2320,7 +2320,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * from t1 where f2=f1' at line 1
 CREATE PROCEDURE if()
 SELECT * from t1 where f2=f1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'if()
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '()
 SELECT * from t1 where f2=f1' at line 1
 CREATE PROCEDURE ignore()
 SELECT * from t1 where f2=f1;
@@ -3184,6 +3184,9 @@ Warnings:
 Note	1305	FUNCTION db_storedproc.fn1 does not exist
 CREATE FUNCTION fn1(f1 char ascii ) returns char ascii
 return f1;
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 char not null ) returns char not null
 return f1;
@@ -7227,6 +7230,8 @@ BEGIN
 declare x, y, z char ascii default null;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 CALL sp1();
 x	y	z
 NULL	NULL	NULL
@@ -14338,6 +14343,8 @@ BEGIN
 declare x char ascii;
 SELECT f1 into x from t2 limit 1;
 END//
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 CALL sp1();
 Warnings:
 Warning	1265	Data truncated for column 'x' at row 1
@@ -17974,6 +17981,9 @@ BEGIN
 set f1 = concat('a', f1);
 return f1;
 END//
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SELECT fn95('h');
 fn95('h')
 a
@@ -19148,6 +19158,8 @@ BEGIN
 set f1 = concat('a', f1);
 SELECT f1;
 END//
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 CALL sp95( 'h');
 f1
 a

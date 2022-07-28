@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ Member_actions_handler_configuration::enable_disable_action(
     error |= table->file->ha_write_row(table->record[0]);
   }
 
-  error |= key_access.deinit();
+  error |= static_cast<int>(key_access.deinit());
 
   if (!error) {
     error = table_op.increment_version();
@@ -110,7 +110,7 @@ Member_actions_handler_configuration::enable_disable_action(
     }
   }
 
-  error |= table_op.close(error);
+  error |= static_cast<int>(table_op.close(error));
   if (error) {
     return std::make_pair<bool, std::string>(
         true, "Unable to persist the configuration.");
@@ -362,7 +362,7 @@ bool Member_actions_handler_configuration::update_all_actions_internal(
       key_access.init(table, Rpl_sys_key_access::enum_key_type::INDEX_NEXT);
   if (!key_error) {
     do {
-      error |= table->file->ha_delete_row(table->record[0]);
+      error |= table->file->ha_delete_row(table->record[0]) != 0;
       if (error) {
         return true;
       }
@@ -394,7 +394,7 @@ bool Member_actions_handler_configuration::update_all_actions_internal(
     field_store(fields[4], action.priority());
     field_store(fields[5], action.error_handling());
 
-    error |= table->file->ha_write_row(table->record[0]);
+    error |= table->file->ha_write_row(table->record[0]) != 0;
     if (error) {
       /* purecov: begin inspected */
       return true;

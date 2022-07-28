@@ -1264,11 +1264,12 @@ ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(-10 -9,-4 -4),POINT(0 -10),POINT(
 --echo # BUG#20133571 : ASSERTION `GRES->HAS_GEOM_HEADER_SPACE()' FAILED
 --echo ######################################################################################################
 
-SELECT ST_ASTEXT(ST_INTERSECTION(
-      ST_GEOMFROMTEXT('MULTILINESTRING((-10 3,-9 -4,-9 3,-1 3),'
-                                      '(3 10,7 9,-7 2,2 -9,7 10,7 8,3 -4,-9 -1,-5 -8,-7 5,4 9,-3 -6,9 1),'
-                                      '(4 4,-7 -3,1 -4,-10 -8),(10 6,1 -7),(0 1,1 -10,3 10,2 -10,-6 -2))'),
-      ST_GEOMFROMTEXT('MULTILINESTRING((-7 1,-5 -2,0 -10,-3 4,8 -10,-6 4,-5 3,9 10,2 10))')));
+# TODO Bug #33739281 Some gis functions give different results with gcc11 in optimized mode on ARM
+# SELECT ST_ASTEXT(ST_INTERSECTION(
+#       ST_GEOMFROMTEXT('MULTILINESTRING((-10 3,-9 -4,-9 3,-1 3),'
+#                                       '(3 10,7 9,-7 2,2 -9,7 10,7 8,3 -4,-9 -1,-5 -8,-7 5,4 9,-3 -6,9 1),'
+#                                       '(4 4,-7 -3,1 -4,-10 -8),(10 6,1 -7),(0 1,1 -10,3 10,2 -10,-6 -2))'),
+#       ST_GEOMFROMTEXT('MULTILINESTRING((-7 1,-5 -2,0 -10,-3 4,8 -10,-6 4,-5 3,9 10,2 10))')));
 
 --echo ######################################################################################################
 --echo # BUG#20120173 : ASSERTION FAILURE WITH GEOMETRY SET OPERATIONS IN ITEM_GEOFUNC.CC FILE
@@ -1998,6 +1999,7 @@ DO ST_ASTEXT(ST_SYMDIFFERENCE(
 --echo # BUG#20462962 : ASSERTION `GEOMETRY::IS_VALID_GEOTYPE(GT)' FAILED
 --echo ######################################################################################################
 
+--replace_numeric_round 10
 SELECT ST_ASTEXT(ST_INTERSECTION(
     ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
                        MULTIPOINT(POINT(8,-6.0), POINT(9,2), POINT(9,1), POINT(-0,6), POINT(8,6), POINT(4,3), POINT(.7,6)),
@@ -2322,6 +2324,7 @@ SELECT ST_ASTEXT(ST_BUFFER(0x000000000200000000000000000000000000000000, 1));
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10,10 0,0 10)'), 20, ST_BUFFER_STRATEGY('end_flat')));
 
+--replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10),(10 0,0 10))'), 50, ST_BUFFER_STRATEGY('end_flat')));
 
 --echo ######################################################################################################
@@ -6501,35 +6504,51 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10
 --echo # Bug #33290245 Item_func_st_distance_sphere::val_real():
 --echo #               Assertion `is_nullable()' failed.
 
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_astext( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_aswkb( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_centroid( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_contains( ( _utf32', ,*') regexp 13946, ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_convexhull( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_distance_sphere( ( ( _utf32', ,*') regexp 13946), 1, 42);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_envelope( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_geometrytype( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_geomfromtext( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_issimple( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_isvalid( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_latitude( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_makeenvelope( ( _utf32', ,*') regexp 13946, 'POINT(0 0)');
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_simplify( ( _utf32', ,*') regexp 13946, 'POINT(0 0)');
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_srid( st_pointfromtext(( _utf32', ,*') regexp 13946));
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_validate( ( _utf32', ,*') regexp 13946);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1998, 2021, Oracle and/or its affiliates.
+Copyright (c) 1998, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -51,8 +51,8 @@ que_thr_t *if_step(que_thr_t *thr) /*!< in: query thread */
 
     eval_exp(node->cond);
 
-    if (eval_node_get_ibool_val(node->cond)) {
-      /* The condition evaluated to TRUE: start execution
+    if (eval_node_get_bool_val(node->cond)) {
+      /* The condition evaluated to true: start execution
       from the first statement in the statement list */
 
       thr->run_node = node->stat_list;
@@ -66,8 +66,8 @@ que_thr_t *if_step(que_thr_t *thr) /*!< in: query thread */
       for (;;) {
         eval_exp(elsif_node->cond);
 
-        if (eval_node_get_ibool_val(elsif_node->cond)) {
-          /* The condition evaluated to TRUE:
+        if (eval_node_get_bool_val(elsif_node->cond)) {
+          /* The condition evaluated to true:
           start execution from the first
           statement in the statement list */
 
@@ -119,8 +119,8 @@ que_thr_t *while_step(que_thr_t *thr) /*!< in: query thread */
 
   eval_exp(node->cond);
 
-  if (eval_node_get_ibool_val(node->cond)) {
-    /* The condition evaluated to TRUE: start execution
+  if (eval_node_get_bool_val(node->cond)) {
+    /* The condition evaluated to true: start execution
     from the first statement in the statement list */
 
     thr->run_node = node->stat_list;

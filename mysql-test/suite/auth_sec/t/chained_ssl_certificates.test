@@ -1,0 +1,79 @@
+# This test verifies MySQL can handle chained ssl certificate
+# This test uses chained ssl certificates which is depicted as
+# below:-
+#
+#                      +---------+
+#                      | Root CA |
+#                      +---------+
+#                           |
+#              /------------+-----------\
+#              |                        |
+#     +------------------+     +------------------+
+#     | Intermediate CA1 |     | Intermediate CA2 |
+#     +------------------+     +------------------+
+#              |                        |
+#       +-------------+          +-------------+
+#       |   Server    |          |   Client    |
+#       | certificate |          | certificate |
+#       +-------------+          +-------------+
+#
+# From mysql-8.0+, server validates its own certificate and
+# throws a warning into the error log if the certificate
+# doesn't validate [see the function, verify_store_cert()].
+# The validation operation reads only one certificate, the
+# first one, from the server chain certificate file, and
+# checks for its validation aganist a set of certificates
+# serving as trust anchors, a list of non-trusted
+# certificates that may be helpful for chain construction.
+# In order to validate server cert correctly, we need to
+# provide the trusted root certificate and the untrusted
+# intermediate certificates as part of ssl-ca. Hence
+# root_intermediate_ca1.crt (trusted root certificate +
+# untrusted intermediate ca1 certificate) is passed as with
+# --ssl-ca option
+
+#Suppress warning by the server certificate verification check: unrelated CA
+call mtr.add_suppression("Server SSL certificate doesn't verify");
+
+--source include/allowed_ciphers.inc
+
+CREATE USER 'user1'@'%' REQUIRE SSL;
+
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=user1 --ssl-mode=REQUIRED --ssl-ca=$MYSQL_TEST_DIR/std_data/bug27491518/root.crt --ssl-cert=$MYSQL_TEST_DIR/std_data/bug27491518/client.cachain --ssl-key=$MYSQL_TEST_DIR/std_data/bug27491518/client.key -e "SHOW STATUS LIKE 'ssl_cipher'"
+
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=user1 --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/bug27491518/root.crt --ssl-cert=$MYSQL_TEST_DIR/std_data/bug27491518/client.cachain --ssl-key=$MYSQL_TEST_DIR/std_data/bug27491518/client.key -e "SHOW STATUS LIKE 'ssl_cipher'"
+
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=user1 --ssl-mode=VERIFY_IDENTITY --ssl-ca=$MYSQL_TEST_DIR/std_data/bug27491518/root.crt --ssl-cert=$MYSQL_TEST_DIR/std_data/bug27491518/client.cachain --ssl-key=$MYSQL_TEST_DIR/std_data/bug27491518/client.key -e "SHOW STATUS LIKE 'ssl_cipher'"
+
+#Restart server with same ssl-ca.
+--echo Restart server and provide same ssl-ca at server startup
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--ssl-ca=$MYSQL_TEST_DIR/std_data/bug27491518/root_intermediate_ca1.crt --ssl-key=$MYSQL_TEST_DIR/std_data/bug27491518/server.key --ssl-cert=$MYSQL_TEST_DIR/std_data/bug27491518/server_to_root.cachain " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=user1 --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/bug27491518/root.crt --ssl-cert=$MYSQL_TEST_DIR/std_data/bug27491518/client_to_root.cachain --ssl-key=$MYSQL_TEST_DIR/std_data/bug27491518/client.key -e "SHOW STATUS LIKE 'ssl_cipher'"
+
+#Restart server with unrelated ssl-ca
+--echo Restart server and provide same ssl-ca at server startup
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--ssl-ca=$MYSQL_TEST_DIR/std_data/bug27491518/unrelated_root.crt --ssl-key=$MYSQL_TEST_DIR/std_data/bug27491518/server.key --ssl-cert=$MYSQL_TEST_DIR/std_data/bug27491518/server_to_root.cachain " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--replace_regex /SSL connection error: error:.*:SSL routines:.*:certificate verify failed/SSL connection error: error:ERRCODE:SSL routines:ERRMSG:certificate verify failed/
+--error 1
+--exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=user1 --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/bug27491518/unrelated_root.crt --ssl-cert=$MYSQL_TEST_DIR/std_data/bug27491518/client_to_root.cachain --ssl-key=$MYSQL_TEST_DIR/std_data/bug27491518/client.key -e "SHOW STATUS LIKE 'ssl_cipher'" 2>&1
+
+# Cleanup
+DROP USER 'user1';

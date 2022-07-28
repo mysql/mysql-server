@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,14 @@
 
 #include <typeinfo>
 
+#include <gmock/gmock.h>
+
 #include "../src/metadata_cache.h"
 #include "../src/plugin_config.h"
 
+#include "mysqlrouter/utils.h"  // ms_to_second_string
 #include "router_test_helpers.h"
 #include "test/helpers.h"
-
-#include "gmock/gmock.h"
 
 using ::testing::ContainerEq;
 using ::testing::Eq;
@@ -270,7 +271,7 @@ INSTANTIATE_TEST_SUITE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
                               },
 
                               {
-                                  typeid(mysqlrouter::option_not_present),
+                                  typeid(mysql_harness::option_not_present),
                                   "option user in [metadata_cache] is required",
                               }},
                              // ttl is garbage
@@ -312,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
                               }},
                          })));
 
-using mysqlrouter::BasePluginConfig;
+using mysql_harness::BasePluginConfig;
 
 // Valid millisecond configuration values
 using GetOptionMillisecondsOkTestData =
@@ -326,7 +327,7 @@ TEST_P(GetOptionMillisecondsOkTest, StringToMilliseconds) {
   GetOptionMillisecondsOkTestData test_data = GetParam();
 
   ASSERT_EQ(test_data.second,
-            BasePluginConfig::get_option_milliseconds(test_data.first));
+            mysql_harness::MilliSecondsOption()(test_data.first, "someoption"));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -367,9 +368,9 @@ class GetOptionMillisecondsBadTest
 TEST_P(GetOptionMillisecondsBadTest, StringToMilliseconds) {
   GetOptionMillisecondsBadTestData test_data = GetParam();
 
-  ASSERT_THROW_LIKE(
-      BasePluginConfig::get_option_milliseconds(test_data.first, 0.0, 3600.0),
-      std::invalid_argument, test_data.second);
+  ASSERT_THROW_LIKE(mysql_harness::MilliSecondsOption(0.0, 3600.0)(
+                        test_data.first, "someoption"),
+                    std::invalid_argument, test_data.second);
 }
 
 INSTANTIATE_TEST_SUITE_P(

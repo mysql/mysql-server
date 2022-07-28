@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -101,13 +101,17 @@ mysql_harness::Plugin LIFECYCLE2_API
         "Lifecycle2 test plugin",                // name
         VERSION_NUMBER(1, 0, 0),
         // requires
-        required.size(), required.data(),
+        required.size(),
+        required.data(),
         // conflicts
-        0, nullptr,
+        0,
+        nullptr,
         init,    // init
         deinit,  // deinit
         start,   // start
         stop,    // stop
         false,   // declares_readiness
+        0,
+        nullptr,
 };
 }

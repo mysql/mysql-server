@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -297,6 +297,28 @@ class KEY {
                              rec_per_key_t *rec_per_key_float_arg) {
     rec_per_key = rec_per_key_arg;
     rec_per_key_float = rec_per_key_float_arg;
+  }
+
+  /**
+    Move rec_per_key arrays from old to new position.
+
+    Ignore if arrays have not been set up yet.
+
+    @param rec_per_key_arg       pointer to adjusted rec per key array
+    @param rec_per_key_float_arg pointer to adjusted rec per key array (float)
+  */
+
+  void move_rec_per_key(ulong *rec_per_key_arg,
+                        rec_per_key_t *rec_per_key_float_arg) {
+    if (rec_per_key_float == nullptr || rec_per_key == nullptr) return;
+
+    rec_per_key_t *old_rec_per_key_float = rec_per_key_float;
+    ulong *old_rec_per_key = rec_per_key;
+    set_rec_per_key_array(rec_per_key_arg, rec_per_key_float_arg);
+    for (uint i = 0; i < actual_key_parts; i++) {
+      rec_per_key[i] = old_rec_per_key[i];
+      rec_per_key_float[i] = old_rec_per_key_float[i];
+    }
   }
 
   /**

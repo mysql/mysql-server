@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -101,8 +101,10 @@ FUNCTION(ADD_LINUX_RPM_FLAGS)
     RESULT_VARIABLE RPM_EVAL_RESULT
     )
   IF(RPM_EVAL_RESULT EQUAL 0)
-    SET(CMAKE_C_FLAGS   "${RPM_EVAL_OPTFLAGS}" PARENT_SCOPE)
-    SET(CMAKE_CXX_FLAGS "${RPM_EVAL_OPTFLAGS}" PARENT_SCOPE)
+    STRING_APPEND(CMAKE_C_FLAGS " ${RPM_EVAL_OPTFLAGS}")
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${RPM_EVAL_OPTFLAGS}")
+    SET(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}" PARENT_SCOPE)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
   ELSE()
     MESSAGE(FATAL_ERROR
       "WITH_PACKAGE_FLAGS=on but rpm --eval %optflags failed")

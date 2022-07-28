@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -857,7 +857,7 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
       populate_tables(thd) ||
       update_properties(thd, nullptr, nullptr,
                         String_type(MYSQL_SCHEMA_NAME.str)) ||
-      verify_contents(thd) | update_versions(thd, is_dd_upgrade_57))
+      verify_contents(thd) || update_versions(thd, is_dd_upgrade_57))
     return true;
 
   DBUG_EXECUTE_IF(
@@ -1045,7 +1045,7 @@ void store_predefined_tablespace_metadata(THD *thd) {
       space_file->set_se_private_data(file->get_se_private_data());
     }
 
-    // All the predefined tablespace are unencrypted (atleast for now).
+    // All the predefined tablespace are unencrypted (at least for now).
     tablespace->options().set("encryption", "N");
 
     /*
@@ -1062,11 +1062,11 @@ void store_predefined_tablespace_metadata(THD *thd) {
 }
 
 bool create_dd_schema(THD *thd) {
-  return dd::execute_query(thd,
-                           dd::String_type("CREATE SCHEMA ") +
-                               dd::String_type(MYSQL_SCHEMA_NAME.str) +
-                               dd::String_type(" DEFAULT COLLATE ") +
-                               dd::String_type(default_charset_info->name)) ||
+  return dd::execute_query(
+             thd, dd::String_type("CREATE SCHEMA ") +
+                      dd::String_type(MYSQL_SCHEMA_NAME.str) +
+                      dd::String_type(" DEFAULT COLLATE ") +
+                      dd::String_type(default_charset_info->m_coll_name)) ||
          dd::execute_query(thd, dd::String_type("USE ") +
                                     dd::String_type(MYSQL_SCHEMA_NAME.str));
 }
@@ -1204,7 +1204,6 @@ bool initialize_dd_properties(THD *thd) {
     */
     if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade()) {
       LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE, actual_version, dd::DD_VERSION);
-      log_sink_buffer_check_timeout();
       sysd::notify("STATUS=Data Dictionary upgrade in progress\n");
     }
     if (bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade()) {
@@ -1365,7 +1364,7 @@ bool sync_meta_data(THD *thd) {
 
     // If the persisted meta data indicates that the DD tablespace is
     // encrypted, then we record this fact to make sure the DDL statements
-    // that are genereated during e.g. upgrade will have the correct
+    // that are generated during e.g. upgrade will have the correct
     // encryption option.
     String_type encryption("");
     Object_table_definition_impl::set_dd_tablespace_encrypted(
@@ -1405,6 +1404,56 @@ bool sync_meta_data(THD *thd) {
       if (thd->dd_client()->acquire((*it)->entity()->get_name(), &tspace))
         return dd::end_transaction(thd, true);
 
+      /*
+        There is a possibility of the InnoDB system tablespace being extended by
+        adding additional datafiles during server restart. Hence, we would need
+        to check the DD tables to verify which tablespace datafiles have been
+        persisted already and then add the extra datafiles to system tablespace
+        and persist the updated metadata.
+
+        The documentation mentions that datafiles can only be added to the sytem
+        tablespace and can not be removed.
+      */
+      Tablespace::Name_key predef_tspace_key;
+      tspace->update_name_key(&predef_tspace_key);
+      const Tablespace *predef_tspace = nullptr;
+
+      if (dd::cache::Storage_adapter::instance()->get(
+              thd, predef_tspace_key, ISO_READ_COMMITTED, true, &predef_tspace))
+        return dd::end_transaction(thd, true);
+
+      std::unique_ptr<Tablespace> predef_tspace_persist(
+          const_cast<Tablespace *>(predef_tspace));
+
+      size_t existing_datafiles, added_datafiles;
+      existing_datafiles = predef_tspace->files().size();
+      added_datafiles = tspace->files().size() - existing_datafiles;
+      if (added_datafiles) {
+        std::unordered_set<std::string> predef_tspace_files;
+        for (auto tspace_file_it = predef_tspace->files().begin();
+             tspace_file_it != predef_tspace->files().end(); ++tspace_file_it) {
+          predef_tspace_files.insert((*tspace_file_it)->filename().c_str());
+        }
+
+        List<const Plugin_tablespace::Plugin_tablespace_file> files =
+            (*it)->entity()->get_files();
+        List_iterator<const Plugin_tablespace::Plugin_tablespace_file> file_it(
+            files);
+        const Plugin_tablespace::Plugin_tablespace_file *file = nullptr;
+        while ((file = file_it++)) {
+          if (predef_tspace_files.find(file->get_name()) ==
+              predef_tspace_files.end()) {
+            Tablespace_file *space_file = predef_tspace_persist->add_file();
+            space_file->set_filename(file->get_name());
+            space_file->set_se_private_data(file->get_se_private_data());
+          }
+        }
+        dd::cache::Storage_adapter::instance()->store(
+            thd, predef_tspace_persist.get());
+        DBUG_PRINT("info", ("Persisted metadata for additional datafile(s) "
+                            "added to the predefined tablespace %s",
+                            predef_tspace_persist->name().c_str()));
+      }
       dd::cache::Storage_adapter::instance()->core_drop(thd, tspace);
     }
     /*

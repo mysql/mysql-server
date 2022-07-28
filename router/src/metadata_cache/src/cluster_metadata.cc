@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,10 +40,13 @@
 #include "group_replication_metadata.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/string.h"  // string_format
 #include "mysqld_error.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"  // string_format
 #include "mysqlrouter/utils_sqlstring.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "tcp_address.h"
 
 using mysql_harness::EventStateTracker;
@@ -51,8 +54,6 @@ using mysql_harness::logging::LogLevel;
 using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::sqlstring;
-using mysqlrouter::strtoi_checked;
-using mysqlrouter::strtoui_checked;
 using namespace std::string_literals;
 IMPORT_LOG_FUNCTIONS()
 
@@ -177,7 +178,7 @@ ClusterMetadata::get_and_check_metadata_schema_version(
 
   if (!metadata_schema_version_is_compatible(
           mysqlrouter::kRequiredRoutingMetadataSchemaVersion, version)) {
-    throw metadata_cache::metadata_error(mysqlrouter::string_format(
+    throw metadata_cache::metadata_error(mysql_harness::utility::string_format(
         "Unsupported metadata schema on %s. Expected Metadata Schema version "
         "compatible to %s, got %s",
         session.get_address().c_str(),
@@ -295,21 +296,7 @@ bool ClusterMetadata::update_router_attributes(
         << ra.rw_x_port << ra.ro_x_port << ra.metadata_user_name << router_id
         << sqlstring::end;
 
-  try {
-    connection->execute(query);
-  } catch (const MySQLSession::Error &e) {
-    if (e.code() == ER_TABLEACCESS_DENIED_ERROR) {
-      log_warning(
-          "Updating the router attributes in metadata failed: %s (%u)\n"
-          "Make sure to follow the correct steps to upgrade your metadata.\n"
-          "Run the dba.upgradeMetadata() then launch the new Router version "
-          "when prompted",
-          e.message().c_str(), e.code());
-    }
-  } catch (const std::exception &e) {
-    log_warning("Updating the router attributes in metadata failed: %s",
-                e.what());
-  }
+  connection->execute(query);
 
   transaction.commit();
 
@@ -457,40 +444,44 @@ ClusterMetadata::find_rw_server(
  *
  * @return value of the bool tag
  */
-static bool get_bool_tag(const std::string &attributes, const std::string &name,
-                         bool default_value, std::string &out_warning) {
+static bool get_bool_tag(const std::string_view &attributes,
+                         const std::string_view &name, bool default_value,
+                         std::string &out_warning) {
   out_warning = "";
   if (attributes.empty()) return default_value;
 
   rapidjson::Document json_doc;
-  json_doc.Parse(attributes.c_str(), attributes.length());
+  json_doc.Parse(attributes.data(), attributes.size());
 
   if (!json_doc.IsObject()) {
     out_warning = "not a valid JSON object";
     return default_value;
   }
 
-  if (!json_doc.HasMember("tags")) {
+  const auto tags_it = json_doc.FindMember("tags");
+  if (tags_it == json_doc.MemberEnd()) {
     return default_value;
   }
 
-  if (!json_doc["tags"].IsObject()) {
+  if (!tags_it->value.IsObject()) {
     out_warning = "tags - not a valid JSON object";
     return default_value;
   }
 
-  const auto tags = json_doc["tags"].GetObject();
+  const auto tags = tags_it->value.GetObject();
 
-  if (!tags.HasMember(name.c_str())) {
+  const auto it = tags.FindMember(rapidjson::Value{name.data(), name.size()});
+
+  if (it == tags.MemberEnd()) {
     return default_value;
   }
 
-  if (!tags[name.c_str()].IsBool()) {
-    out_warning = "tags." + name + " not a boolean";
+  if (!it->value.IsBool()) {
+    out_warning = "tags." + std::string(name) + " not a boolean";
     return default_value;
   }
 
-  return tags[name.c_str()].GetBool();
+  return it->value.GetBool();
 }
 
 bool get_hidden(const std::string &attributes, std::string &out_warning) {

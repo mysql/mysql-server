@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -171,13 +171,13 @@ dberr_t get_affected_index_entries(const ref_t &ref, dict_index_t *index,
 }
 
 /** Get information about the given LOB.
-@param[in]	ref	          LOB reference.
-@param[in]	index	        Clustered index to which LOB belongs.
-@param[out]	lob_version	  LOB version number.
-@param[out]	last_trx_id   trx_id that modified the lob last.
-@param[out]	last_undo_no  Trx undo no that modified the lob last.
-@param[out]	page_type	the Page type of first lob page.
-@param[in]	mtr		        Mini-transaction context.
+@param[in]      ref               LOB reference.
+@param[in]      index           Clustered index to which LOB belongs.
+@param[out]     lob_version       LOB version number.
+@param[out]     last_trx_id   trx_id that modified the lob last.
+@param[out]     last_undo_no  Trx undo no that modified the lob last.
+@param[out]     page_type       the Page type of first lob page.
+@param[in]      mtr                     Mini-transaction context.
 @return always returns DB_SUCCESS. */
 dberr_t get_info(ref_t &ref, dict_index_t *index, ulint &lob_version,
                  trx_id_t &last_trx_id, undo_no_t &last_undo_no,

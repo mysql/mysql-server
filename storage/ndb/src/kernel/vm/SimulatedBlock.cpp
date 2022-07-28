@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,9 @@
   macro not defined).
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include "SimulatedBlock.hpp"
 #include <NdbOut.hpp>
@@ -161,7 +163,7 @@ SimulatedBlock::addInstance(SimulatedBlock* b, Uint32 theInstance)
 void
 SimulatedBlock::initCommon()
 {
-  NDB_STATIC_ASSERT(RG_COUNT == MM_RG_COUNT + 1);
+  static_assert(RG_COUNT == MM_RG_COUNT + 1);
 
   Uint32 count = 10;
   this->getParam("FragmentSendPool", &count);
@@ -494,13 +496,13 @@ static void
 linkSegments(Uint32 head, Uint32 tail){
   
   Ptr<SectionSegment> headPtr;
-  g_sectionSegmentPool.getPtr(headPtr, head);
+  require(g_sectionSegmentPool.getPtr(headPtr, head));
   
   Ptr<SectionSegment> tailPtr;
-  g_sectionSegmentPool.getPtr(tailPtr, tail);
+  require(g_sectionSegmentPool.getPtr(tailPtr, tail));
   
   Ptr<SectionSegment> oldTailPtr;
-  g_sectionSegmentPool.getPtr(oldTailPtr, headPtr.p->m_lastSegment);
+  require(g_sectionSegmentPool.getPtr(oldTailPtr, headPtr.p->m_lastSegment));
   
   /* Can only efficiently link segments if linking to the end of a 
    * multiple-of-segment-size sized chunk
@@ -2160,26 +2162,42 @@ SimulatedBlock::freeBat(){
   }
 }
 
+/**
+ * Return pointer to a const NewVARIABLE object indexed by
+ * blockNo, instanceNo and varNo.
+ * Will return NULL if no such variable exists
+ */
 const NewVARIABLE *
-SimulatedBlock::getBat(Uint16 blockNo, Uint32 instanceNo){
+SimulatedBlock::getBatVar(Uint16 blockNo, Uint32 instanceNo, Uint32 varNo){
   assert(blockNo == blockToMain(blockNo));
+  /* Check blockNo in range */
+  if (unlikely(blockNo > MAX_BLOCK_NO ||
+               blockNo < MIN_BLOCK_NO))
+  {
+    assert(false);
+    return NULL;
+  }
   SimulatedBlock * sb = globalData.getBlock(blockNo);
-  if (sb != 0 && instanceNo != 0)
+  if (sb != NULL && instanceNo != 0)
+  {
+    /* Lookup instance within block type */
     sb = sb->getInstance(instanceNo);
-  if(sb == 0)
-    return 0;
-  return sb->NewVarRef;
-}
+  }
 
-Uint16
-SimulatedBlock::getBatSize(Uint16 blockNo, Uint32 instanceNo){
-  assert(blockNo == blockToMain(blockNo));
-  SimulatedBlock * sb = globalData.getBlock(blockNo);
-  if (sb != 0 && instanceNo != 0)
-    sb = sb->getInstance(instanceNo);
-  if(sb == 0)
-    return 0;
-  return sb->theBATSize;
+  /* Check block exists, Bat exists, Var exists */
+  if(unlikely(sb == NULL))
+  {
+    return NULL;
+  }
+  if (unlikely(sb->NewVarRef == NULL))
+  {
+    return NULL;
+  }
+  if (unlikely(varNo >= sb->theBATSize))
+  {
+    return NULL;
+  }
+  return &sb->NewVarRef[varNo];
 }
 
 void* SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, Uint32 paramId)
@@ -2290,6 +2308,30 @@ SimulatedBlock::allocChunks(AllocChunk dst[],
     m_ctx.m_mm.alloc_pages(rg, &dst[i].ptrI, &cnt, 1);
     if (unlikely(cnt == 0))
       goto fail;
+    // DBLQH error range since this function is only used there.
+    if (ERROR_INSERTED(5107))
+    {
+      /*
+       * Try chop up the allocation in chunks, with unused pages between the
+       * chunks.
+       *
+       * First allocation will typically succeed allocate all memory, we keep
+       * the last pages in the range.  Then the next allocation will also
+       * succeed to allocate all remaining pages (if there are enough page
+       * memory), we keep the last pages again, and there will be a gap between
+       * the chunks.  If there are too little page memory, allocation may
+       * succeed reusing the gaps and there might not be gaps between the
+       * chunks, if that happen try configure more page memory for test.
+       */
+      const Uint32 min_pages_per_chunk = pages / (arraysize - i) + 1;
+      if (cnt > min_pages_per_chunk)
+      {
+        const Uint32 gap_pages = cnt - min_pages_per_chunk;
+        m_ctx.m_mm.release_pages(rg, dst[i].ptrI, gap_pages);
+        dst[i].ptrI += gap_pages;
+        cnt -= gap_pages;
+      }
+    }
     pages -= cnt;
     dst[i].cnt = cnt;
   }
@@ -3312,10 +3354,10 @@ SimulatedBlock::doNodeFailureCleanup(Signal* signal,
   sig->cleanup.resource = resource;
   sig->cleanup.cursor = cursor;
   sig->cleanup.elementsCleaned= elementsCleaned;
-  Uint32 callbackWords = (sizeof(Callback) + 3) >> 2;
-  Uint32 sigLen = ContinueFragmented::CONTINUE_CLEANUP_FIXED_WORDS + 
+  constexpr Uint32 callbackWords = (sizeof(Callback) + 3) >> 2;
+  constexpr Uint32 sigLen = ContinueFragmented::CONTINUE_CLEANUP_FIXED_WORDS +
     callbackWords;
-  ndbassert(sigLen <= 25); // Should be STATIC_ASSERT
+  static_assert(sigLen <= 25);
   memcpy(&sig->cleanup.callbackStart, &cb, callbackWords << 2);
   
   sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, sigLen, JBB);
@@ -3862,7 +3904,7 @@ SimulatedBlock::sendNextLinearFragment(Signal* signal,
   
   enum { Unknown = 0, Full = 2 } loop = Unknown;
   for(; secNo >= 0 && secCount < 3; secNo--){
-    Uint32 * ptrP = info.m_sectionPtr[secNo].m_linear.p;
+    const Uint32* ptrP = info.m_sectionPtr[secNo].m_linear.p;
     if(ptrP == NULL)
       continue;
     
@@ -4856,9 +4898,13 @@ SimulatedBlock::execLOCAL_ROUTE_ORD(Signal* signal)
   }
 
   LocalRouteOrd* ord = (LocalRouteOrd*)signal->getDataPtr();
-  Uint32 pathcnt = ord->cnt >> 16;
-  Uint32 dstcnt = ord->cnt & 0xFFFF;
+  const Uint32 pathcnt = ord->cnt >> 16;
+  const Uint32 dstcnt = ord->cnt & 0xFFFF;
   Uint32 sigLen = signal->getLength();
+
+  ndbrequire(sigLen >= (LocalRouteOrd::StaticLen +
+                        (pathcnt * 2) +
+                        (dstcnt)));
 
   if (pathcnt == 0)
   {
@@ -4868,6 +4914,8 @@ SimulatedBlock::execLOCAL_ROUTE_ORD(Signal* signal)
     jam();
     Uint32 gsn = ord->gsn;
     Uint32 prio = ord->prio;
+    ndbrequire(dstcnt <= LocalRouteOrd::MaxDstCount);
+    static_assert(25 + LocalRouteOrd::MaxDstCount <= NDB_ARRAY_SIZE(signal->theData));
     memcpy(signal->theData+25, ord->path, 4*dstcnt);
     SectionHandle handle(this, signal);
     if (sigLen > LocalRouteOrd::StaticLen + dstcnt)
@@ -5070,7 +5118,7 @@ SimulatedBlock::execSYNC_THREAD_CONF(Signal* signal)
 {
   jamEntry();
   Ptr<SyncThreadRecord> ptr;
-  c_syncThreadPool.getPtr(ptr, signal->theData[1]);
+  ndbrequire(c_syncThreadPool.getPtr(ptr, signal->theData[1]));
 
   ndbrequire(ptr.p->m_cnt > 0);
   ptr.p->m_cnt--;
@@ -5167,8 +5215,11 @@ SimulatedBlock::synchronize_path(Signal * signal,
 void
 SimulatedBlock::execSYNC_PATH_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   SyncPathReq * req = CAST_PTR(SyncPathReq, signal->getDataPtrSend());
+  ndbrequire(req->pathlen >= 1 && req->pathlen <= SyncPathReq::MaxPathLen);
+  ndbrequire(signal->getLength() >= SyncPathReq::SignalLength + req->pathlen);
   if (req->pathlen == 1)
   {
     jam();
@@ -5198,7 +5249,7 @@ SimulatedBlock::execSYNC_PATH_CONF(Signal* signal)
   SyncPathConf conf = * CAST_CONSTPTR(SyncPathConf, signal->getDataPtr());
   Ptr<SyncThreadRecord> ptr;
 
-  c_syncThreadPool.getPtr(ptr, conf.senderData);
+  ndbrequire(c_syncThreadPool.getPtr(ptr, conf.senderData));
 
   if (ptr.p->m_cnt == 0)
   {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -23,18 +23,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <signaldata/GCP.hpp>
 #include <RefConvert.hpp>
 
-bool
-printGCPSaveReq(FILE * output, 
-		const Uint32 * theData, 
-		Uint32 len, 
-		Uint16 receiverBlockNo){
-  
-  GCPSaveReq * sr = (GCPSaveReq*)theData;
-  
+bool printGCPSaveReq(FILE* output,
+                     const Uint32* theData,
+                     Uint32 len,
+                     Uint16 /*receiverBlockNo*/)
+{
+  if (len < GCPSaveReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const GCPSaveReq* sr = (const GCPSaveReq*)theData;
+
   fprintf(output, " dihBlockRef = (%d, %d) dihPtr = %d gci = %d\n",
 	  refToBlock(sr->dihBlockRef), refToNode(sr->dihBlockRef),
 	  sr->dihPtr, sr->gci);
@@ -42,14 +46,19 @@ printGCPSaveReq(FILE * output,
   return true;
 }
 
-bool
-printGCPSaveRef(FILE * output, 
-		const Uint32 * theData, 
-		Uint32 len, 
-		Uint16 receiverBlockNo){
-  
-  GCPSaveRef * sr = (GCPSaveRef*)theData;
-  
+bool printGCPSaveRef(FILE* output,
+                     const Uint32* theData,
+                     Uint32 len,
+                     Uint16 /*receiverBlockNo*/)
+{
+  if (len < GCPSaveRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const GCPSaveRef* sr = (const GCPSaveRef*)theData;
+
   fprintf(output, " nodeId = %d dihPtr = %d gci = %d reason: ",
 	  sr->nodeId,
 	  sr->dihPtr, sr->gci);
@@ -69,19 +78,22 @@ printGCPSaveRef(FILE * output,
   return true;
 }
 
-bool
-printGCPSaveConf(FILE * output, 
-		 const Uint32 * theData, 
-		 Uint32 len, 
-		 Uint16 receiverBlockNo){
-  
-  GCPSaveConf * sr = (GCPSaveConf*)theData;
-  
+bool printGCPSaveConf(FILE* output,
+                      const Uint32* theData,
+                      Uint32 len,
+                      Uint16 /*receiverBlockNo*/)
+{
+  if (len < GCPSaveConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const GCPSaveConf* sr = (const GCPSaveConf*)theData;
+
   fprintf(output, " nodeId = %d dihPtr = %d gci = %d\n",
 	  sr->nodeId,
 	  sr->dihPtr, sr->gci);
   
   return true;
 }
-
-

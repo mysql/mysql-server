@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -366,6 +366,35 @@ void Expression_generator::generate_unquote_param(
   }
 }
 
+/**
+ * check if argument is a doc-path refering to '_id'.
+ */
+static bool is_id_docpath(const Mysqlx::Expr::Expr &arg) {
+  if (arg.type() == Mysqlx::Expr::Expr::IDENT &&
+      arg.identifier().document_path_size() == 1) {
+    const auto &p = arg.identifier().document_path(0);
+
+    return (p.has_type() && p.has_value() &&
+            p.type() == Mysqlx::Expr::DocumentPathItem_Type_MEMBER &&
+            p.value() == "_id");
+  }
+  return false;
+}
+
+static bool binary_operator_is_compare(std::string_view op) {
+  const std::array<std::string_view, 6> compare_ops{{
+      "==",
+      "!=",
+      "<",
+      "<=",
+      ">",
+      ">=",
+  }};
+
+  return std::find(compare_ops.begin(), compare_ops.end(), op) !=
+         compare_ops.end();
+}
+
 void Expression_generator::binary_operator(const Mysqlx::Expr::Operator &arg,
                                            const char *str) const {
   if (arg.param_size() != 2) {
@@ -374,10 +403,30 @@ void Expression_generator::binary_operator(const Mysqlx::Expr::Operator &arg,
         "Binary operations require exactly two operands in expression.");
   }
 
+  /* if the argument is a doc-path{"_id"} and the operator is a comparison,
+   * unquote the extracted doc-path to force a string-comparison that's resolved
+   * by the index on the '_id' field.
+   *
+   * index is:
+   *
+   *   _id VARBINARY(32) GENERATED ALWAYS AS
+   *        (json_unquote(json_extract(doc, _utf8mb4'$._id'))) STORED NOT NULL,
+   */
+  auto generate_unquoted_id_path = [this](const Mysqlx::Expr::Expr &param,
+                                          bool operator_is_compare) {
+    if (operator_is_compare && is_id_docpath(param)) {
+      generate_unquote_param(param);
+    } else {
+      generate(param);
+    }
+  };
+
+  const bool operator_is_compare = binary_operator_is_compare(arg.name());
+
   m_qb->put("(");
-  generate(arg.param(0));
+  generate_unquoted_id_path(arg.param(0), operator_is_compare);
   m_qb->put(str);
-  generate(arg.param(1));
+  generate_unquoted_id_path(arg.param(1), operator_is_compare);
   m_qb->put(")");
 }
 

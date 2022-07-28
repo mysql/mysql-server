@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,6 @@ class MemRootTest : public ::testing::Test {
   MemRootTest() : m_mem_root_p(&m_mem_root), m_array_std(m_mem_root_p) {}
 
   void SetUp() override {
-    init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     THR_MALLOC = &m_mem_root_p;
 
     m_array_std.reserve(num_elements);
@@ -95,7 +94,7 @@ class MemRootTest : public ::testing::Test {
 
   static void TearDownTestCase() { THR_MALLOC = nullptr; }
 
-  MEM_ROOT m_mem_root;
+  MEM_ROOT m_mem_root{PSI_NOT_INSTRUMENTED, 1024};
   MEM_ROOT *m_mem_root_p;
   Key_use_array m_array_std;
 

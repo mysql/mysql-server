@@ -978,112 +978,6 @@ WHERE variable_name LIKE "example_%" ORDER BY variable_name, variable_value;
 variable_name	variable_value
 
 ================================================================================
-TEST 4 - BUG#18008907: DEADLOCK WITH CHANGE_USER, SHOW VARIABLES, INSTALL PLUGIN
-================================================================================
-
-CREATE PROCEDURE install_no_such_plugin()
-BEGIN
-INSTALL PLUGIN no_such_plugin SONAME 'no_such_object';
-END|
-
-CREATE PROCEDURE show_vars()
-BEGIN
--- select on performance_schema.global_variables
--- will fail, still need to cover execution of the code
--- to verify potential dead locks.
-declare continue handler for sqlexception
-begin
-end;
-SELECT COUNT(*) FROM performance_schema.global_variables;
-SELECT COUNT(*) FROM performance_schema.global_variables;
-END|
-
-================================================================================
-4.1 - DEADLOCK SCENARIO 1:
-con1 - has LOCK_system_variables_hash and waits on LOCK_plugin AND
-default - has LOCK_plugin and waits on LOCK_system_variables_hash
-================================================================================
-connect con1, localhost, root,,;
-SET DEBUG_SYNC='acquired_LOCK_system_variables_hash SIGNAL install_plugin WAIT_FOR cont_show_vars';
-call show_vars();;
-connection default;
-SET DEBUG_SYNC='now WAIT_FOR install_plugin';
-SET DEBUG_SYNC='acquired_LOCK_plugin SIGNAL cont_show_vars';
-call install_no_such_plugin();;
-connection con1;
-
-# Without fix, reap will hang.
-COUNT(*)
-#
-COUNT(*)
-#
-SET DEBUG_SYNC='RESET';
-connection default;
-ERROR HY000: Can't open shared library
-
-SET DEBUG_SYNC='RESET';
-
-================================================================================
-4.2 - DEADLOCK SCENARIO 2:
-default - has LOCK_system_variables_hash, waits on LOCK_global_system_variables
-con1 - has LOCK_plugin, waits on LOCK_system_variables_hash AND
-con2 - has LOCK_global_system_variables, waits on LOCK_plugin
-================================================================================
-SET DEBUG_SYNC='acquired_LOCK_system_variables_hash SIGNAL install_plugin WAIT_FOR nothing TIMEOUT 10';
-call show_vars();;
-connection con1;
-SET DEBUG_SYNC='now WAIT_FOR install_plugin';
-SET DEBUG_SYNC='acquired_LOCK_plugin SIGNAL create_connection WAIT_FOR nothing TIMEOUT 10';
-call install_no_such_plugin();;
-connect con2, localhost, root,,;
-SET DEBUG_SYNC='now WAIT_FOR create_connection';
-
-# Without fix, deadlock situation will occur on timeout of debug_syncs in
-# default and con1.  Because of this, change_user operation hangs.
-change_user
-connection con1;
-ERROR HY000: Can't open shared library
-
-connection default;
-COUNT(*)
-#
-COUNT(*)
-#
-
-disconnect con2;
-
-================================================================================
-4.3 - DEADLOCK SCENARIO 3: CONCURRENT SHOW VARIABLES AND UNINSTALL PLUGIN
-================================================================================
-#
-# INSTALL PLUGIN
-#
-INSTALL PLUGIN example SONAME 'ha_example.so';
-connection con1;
-
-# Acquiring LOCK_system_variables_hash and LOCK_plugin_delete
-SET DEBUG_SYNC='acquired_LOCK_system_variables_hash SIGNAL uninstall_plugin WAIT_FOR go';
-call show_vars();;
-connect con2, localhost, root,,;
-#
-# UNINSTALL PLUGIN
-#
-SET DEBUG_SYNC='now WAIT_FOR uninstall_plugin';
-UNINSTALL PLUGIN example;;
-connection default;
-
-# Uninstall will wait until SHOW VARIABLES releases LOCK_plugin_delete.
-SET DEBUG_SYNC='now SIGNAL go';
-# Connect con1 - reap
-connection con1;
-COUNT(*)
-#
-COUNT(*)
-#
-# Connect con2 - reap
-connection con2;
-
-================================================================================
 TEST 5 - BUG#22225549 MYSQL_CHANGE_USER/MYSQL_RESET_CONNECTION + SET INNODB...
 Update to plugin-defined session variable triggers resync with global
 variables and deadlocks on THD::LOCK_thd_sysvar.
@@ -1112,11 +1006,6 @@ CLEAN UP
 ================================================================================
 connection default;
 
-DROP PROCEDURE show_vars;
-DROP PROCEDURE install_no_such_plugin;
-SET DEBUG_SYNC='RESET';
 
-disconnect con1;
-disconnect con2;
 
 # Wait till we reached the initial number of concurrent sessions

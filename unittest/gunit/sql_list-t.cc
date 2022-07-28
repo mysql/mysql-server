@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,19 +60,14 @@ class SqlListTest : public ::testing::Test {
   SqlListTest()
       : m_mem_root_p(&m_mem_root), m_int_list(), m_int_list_iter(m_int_list) {}
 
-  void SetUp() override {
-    init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
-    THR_MALLOC = &m_mem_root_p;
-  }
-
-  void TearDown() override { m_mem_root.Clear(); }
+  void SetUp() override { THR_MALLOC = &m_mem_root_p; }
 
   static void SetUpTestCase() {
     current_thd = nullptr;
     THR_MALLOC = nullptr;
   }
 
-  MEM_ROOT m_mem_root;
+  MEM_ROOT m_mem_root{PSI_NOT_INSTRUMENTED, 1024};
   MEM_ROOT *m_mem_root_p;
   List<int> m_int_list;
   List_iterator<int> m_int_list_iter;

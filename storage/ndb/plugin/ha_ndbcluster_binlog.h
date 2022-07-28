@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,8 @@ bool ndbcluster_binlog_init(struct handlerton *hton);
 
 int ndbcluster_binlog_setup_table(THD *thd, class Ndb *ndb, const char *db,
                                   const char *table_name,
-                                  const dd::Table *table_def);
+                                  const dd::Table *table_def,
+                                  const bool skip_error_handling = false);
 
 int ndbcluster_binlog_wait_synch_drop_table(THD *thd, const NDB_SHARE *share);
 
@@ -58,6 +59,8 @@ int ndbcluster_binlog_end();
   mode to avoid writes before the binlog is ready to record them.
  */
 bool ndb_binlog_is_read_only(void);
+
+bool ndb_binlog_is_initialized(void);
 
 /* Prints ndb binlog status string in buf */
 size_t ndbcluster_show_status_binlog(char *buf, size_t buf_size);

@@ -330,25 +330,6 @@ drop table t1;
 # Restore timezone to default
 set time_zone= @@global.time_zone;
 
-#
-# Bug#41370: TIMESTAMP field does not accepts NULL from FROM_UNIXTIME()
-#
-
-CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                  f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                  f3 TIMESTAMP NOT NULL default '0000-00-00 00:00:00');
-INSERT INTO t1 (f2,f3) VALUES (NOW(), "0000-00-00 00:00:00");
-if (!$explicit_defaults_for_timestamp)
-{
- INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
- INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));
- INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME('9999999999'));
- INSERT INTO t1 (f2,f3) VALUES (NOW(), TIME(NULL));
-}
-UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
-SELECT f1,f2-f3 FROM t1;
-DROP TABLE t1;
-
 --echo End of 5.0 tests
 
 --echo #

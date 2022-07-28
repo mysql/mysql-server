@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 /**
   @file storage/myisam/queues.h
   Code for handling of priority queues.
-  Implementation of queues from "Algoritms in C" by Robert Sedgewick.
+  Implementation of queues from "Algorithms in C" by Robert Sedgewick.
 */
 
 #include <stddef.h>

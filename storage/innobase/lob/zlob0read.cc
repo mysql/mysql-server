@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -180,13 +180,13 @@ ulint z_read(ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
 }
 
 /** Read one data chunk associated with one index entry.
-@param[in]	index	The clustered index containing the LOB.
-@param[in]	entry	Pointer to the index entry
-@param[in]	offset	The offset from which to read the chunk.
-@param[in,out]	len	The length of the output buffer. This length can
+@param[in]      index   The clustered index containing the LOB.
+@param[in]      entry   Pointer to the index entry
+@param[in]      offset  The offset from which to read the chunk.
+@param[in,out]  len     The length of the output buffer. This length can
                         be greater than the chunk size.
-@param[in,out]	buf	The output buffer.
-@param[in]	mtr	Mini-transaction context.
+@param[in,out]  buf     The output buffer.
+@param[in]      mtr     Mini-transaction context.
 @return number of bytes copied into the output buffer. */
 ulint z_read_chunk(dict_index_t *index, z_index_entry_t &entry, ulint offset,
                    ulint &len, byte *&buf, mtr_t *mtr) {
@@ -264,9 +264,9 @@ ulint z_read_strm(dict_index_t *index, z_index_entry_t &entry, byte *zbuf,
   ulint remain = zbuf_size;
 
   while (remain > 0 && page_no != FIL_NULL) {
-    buf_block_t *block =
-        buf_page_get(page_id_t(dict_index_get_space(index), page_no),
-                     dict_table_page_size(index->table), RW_X_LATCH, mtr);
+    buf_block_t *block = buf_page_get(
+        page_id_t(dict_index_get_space(index), page_no),
+        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     page_type_t ptype = block->get_page_type();
     byte *data = nullptr;
@@ -308,9 +308,9 @@ static bool z_validate_strm_low(dict_index_t *index, z_index_entry_t &entry,
   ulint remain = exp_zlen;
 
   while (remain > 0 && page_no != FIL_NULL) {
-    buf_block_t *block =
-        buf_page_get(page_id_t(dict_index_get_space(index), page_no),
-                     dict_table_page_size(index->table), RW_X_LATCH, mtr);
+    buf_block_t *block = buf_page_get(
+        page_id_t(dict_index_get_space(index), page_no),
+        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     page_type_t ptype = block->get_page_type();
     ulint data_size = 0;

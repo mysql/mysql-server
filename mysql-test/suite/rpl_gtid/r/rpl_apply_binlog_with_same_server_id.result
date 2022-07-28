@@ -1,0 +1,18 @@
+call mtr.add_suppression("using --replicate-same-server-id in conjunction with --log-replica-updates would lead to infinite loops in this server.");
+# restart: --replicate-same-server-id=1 --server_id=1 --relay-log=replicate-relay-bin
+SET GLOBAL RELAY_LOG_PURGE=OFF;
+CHANGE MASTER TO RELAY_LOG_FILE='replicate-relay-bin.000001', RELAY_LOG_POS=1, MASTER_HOST='dummy';
+Warnings:
+Warning	1287	'CHANGE MASTER' is deprecated and will be removed in a future release. Please use CHANGE REPLICATION SOURCE instead
+Warning	1287	'MASTER_HOST' is deprecated and will be removed in a future release. Please use SOURCE_HOST instead
+START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+SET GLOBAL RELAY_LOG_PURGE=ON;
+STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

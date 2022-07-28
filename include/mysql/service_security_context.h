@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ typedef char my_svc_bool;
   This service provides functions for plugins and storage engines to
   manipulate the thread's security context.
 
-  The service allows creation, copying, filling in by user accout and
+  The service allows creation, copying, filling in by user account and
   destruction of security context objects.
   It also allows getting and setting the security context for a thread.
   And it also allows reading and setting security context properties.

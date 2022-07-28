@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -357,10 +357,10 @@ void ib_interpreter_update(MYSQL_THD thd, SYS_VAR *var, void *var_ptr,
 
 /**Check whether given command is valid for the InnoDB interpreter
 Refer to mysql_var_check_func() for more details.
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	save		immediate result for update function
-@param[in]	value		incoming string
+@param[in]      thd             thread handle
+@param[in]      var             pointer to system variable
+@param[out]     save            immediate result for update function
+@param[in]      value           incoming string
 @return 0 for valid command. */
 int ib_interpreter_check(THD *thd, SYS_VAR *var, void *save,
                          struct st_mysql_value *value);

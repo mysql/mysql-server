@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -813,7 +813,11 @@ bool Group_member_info::has_greater_weight(Group_member_info *other) {
 
 Group_member_info_manager::Group_member_info_manager(
     Group_member_info *local_member_info, PSI_mutex_key psi_mutex_key) {
-  members = new map<string, Group_member_info *>();
+  members = new std::map<
+      std::string, Group_member_info *, std::less<std::string>,
+      Malloc_allocator<std::pair<const std::string, Group_member_info *>>>(
+      Malloc_allocator<std::pair<const std::string, Group_member_info *>>(
+          key_group_member_info));
   this->local_member_info = local_member_info;
 
   mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
@@ -974,10 +978,13 @@ Group_member_info_manager::get_group_member_status_by_member_id(
   return status;
 }
 
-vector<Group_member_info *> *Group_member_info_manager::get_all_members() {
+Group_member_info_list *Group_member_info_manager::get_all_members() {
   mysql_mutex_lock(&update_lock);
 
-  vector<Group_member_info *> *all_members = new vector<Group_member_info *>();
+  Group_member_info_list *all_members =
+      new std::vector<Group_member_info *,
+                      Malloc_allocator<Group_member_info *>>(
+          Malloc_allocator<Group_member_info *>(key_group_member_info));
   map<string, Group_member_info *>::iterator it;
   for (it = members->begin(); it != members->end(); it++) {
     Group_member_info *member_copy = new Group_member_info(*(*it).second);
@@ -1036,13 +1043,12 @@ void Group_member_info_manager::update(Group_member_info *update_local_member) {
   mysql_mutex_unlock(&update_lock);
 }
 
-void Group_member_info_manager::update(
-    std::vector<Group_member_info *> *new_members) {
+void Group_member_info_manager::update(Group_member_info_list *new_members) {
   mysql_mutex_lock(&update_lock);
 
   this->clear_members();
 
-  vector<Group_member_info *>::iterator new_members_it;
+  Group_member_info_list_iterator new_members_it;
   for (new_members_it = new_members->begin();
        new_members_it != new_members->end(); new_members_it++) {
     // If this bears the local member to be updated
@@ -1230,9 +1236,9 @@ void Group_member_info_manager::encode(vector<uchar> *to_encode) {
   delete group_info_message;
 }
 
-vector<Group_member_info *> *Group_member_info_manager::decode(
+Group_member_info_list *Group_member_info_manager::decode(
     const uchar *to_decode, size_t length) {
-  vector<Group_member_info *> *decoded_members = nullptr;
+  Group_member_info_list *decoded_members = nullptr;
 
   Group_member_info_manager_message *group_info_message =
       new Group_member_info_manager_message();
@@ -1363,7 +1369,9 @@ std::string Group_member_info_manager::get_string_current_view_active_hosts()
 Group_member_info_manager_message::Group_member_info_manager_message()
     : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE) {
   DBUG_TRACE;
-  members = new vector<Group_member_info *>();
+  members = new std::vector<Group_member_info *,
+                            Malloc_allocator<Group_member_info *>>(
+      Malloc_allocator<Group_member_info *>(key_group_member_info));
 }
 
 Group_member_info_manager_message::Group_member_info_manager_message(
@@ -1377,7 +1385,9 @@ Group_member_info_manager_message::Group_member_info_manager_message(
     Group_member_info *member_info)
     : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE), members(nullptr) {
   DBUG_TRACE;
-  members = new vector<Group_member_info *>();
+  members = new std::vector<Group_member_info *,
+                            Malloc_allocator<Group_member_info *>>(
+      Malloc_allocator<Group_member_info *>(key_group_member_info));
   members->push_back(member_info);
 }
 
@@ -1389,19 +1399,21 @@ Group_member_info_manager_message::~Group_member_info_manager_message() {
 
 void Group_member_info_manager_message::clear_members() {
   DBUG_TRACE;
-  std::vector<Group_member_info *>::iterator it;
+  Group_member_info_list_iterator it;
   for (it = members->begin(); it != members->end(); it++) {
     delete (*it);
   }
   members->clear();
 }
 
-std::vector<Group_member_info *>
-    *Group_member_info_manager_message::get_all_members() {
+Group_member_info_list *Group_member_info_manager_message::get_all_members() {
   DBUG_TRACE;
-  vector<Group_member_info *> *all_members = new vector<Group_member_info *>();
+  Group_member_info_list *all_members =
+      new std::vector<Group_member_info *,
+                      Malloc_allocator<Group_member_info *>>(
+          Malloc_allocator<Group_member_info *>(key_group_member_info));
 
-  std::vector<Group_member_info *>::iterator it;
+  Group_member_info_list_iterator it;
   for (it = members->begin(); it != members->end(); it++) {
     Group_member_info *member_copy = new Group_member_info(*(*it));
     all_members->push_back(member_copy);
@@ -1417,7 +1429,7 @@ void Group_member_info_manager_message::encode_payload(
   uint16 number_of_members = (uint16)members->size();
   encode_payload_item_int2(buffer, PIT_MEMBERS_NUMBER, number_of_members);
 
-  std::vector<Group_member_info *>::iterator it;
+  Group_member_info_list_iterator it;
   for (it = members->begin(); it != members->end(); it++) {
     std::vector<uchar> encoded_member;
     (*it)->encode(&encoded_member);

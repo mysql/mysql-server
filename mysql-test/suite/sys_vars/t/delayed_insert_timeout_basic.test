@@ -166,7 +166,9 @@ SET global.delayed_insert_timeout = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.delayed_insert_timeout;
 --Error ER_BAD_FIELD_ERROR
-SELECT delayed_insert_timeout = @@session.delayed_insert_timeout;
+SELECT delayed_insert_timeout;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.delayed_insert_timeout;
 # Restore initial value
 SET @@global.delayed_insert_timeout = @start_value;
 SELECT @@global.delayed_insert_timeout;

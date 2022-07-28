@@ -1231,3 +1231,34 @@ id	name
 60	aaa
 DROP TABLE t1;
 SET SESSION DEFAULT_STORAGE_ENGINE= DEFAULT;
+#------------------------------------------------------------------------
+# Bug#33781534 - I_S.KEY_COLUMN_USAGE does not lists invisible columns
+#                which has key constraints.
+#------------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT PRIMARY KEY INVISIBLE, f2 INT UNIQUE INVISIBLE,
+f3 INT, FOREIGN KEY (f2) REFERENCES t1(f1));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL /*!80023 INVISIBLE */,
+  `f2` int DEFAULT NULL /*!80023 INVISIBLE */,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  UNIQUE KEY `f2` (`f2`),
+  CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Columns with invisible attribute are listed by the INFORMATION_SCHEMA.COLUMNS.
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='t1';
+TABLE_NAME	COLUMN_NAME	EXTRA
+t1	f1	INVISIBLE
+t1	f2	INVISIBLE
+t1	f3	
+# Without fix, following query returns empty resultset. With fix, key columns
+# with invisible attribute should be listed.
+SELECT TABLE_NAME, CONSTRAINT_NAME, COLUMN_NAME, REFERENCED_COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME='t1';
+TABLE_NAME	CONSTRAINT_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
+t1	PRIMARY	f1	NULL
+t1	f2	f2	NULL
+t1	t1_ibfk_1	f2	f1
+DROP TABLE t1;

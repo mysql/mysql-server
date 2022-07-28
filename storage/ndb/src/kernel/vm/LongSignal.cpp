@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)
    */
   //assert(totalSize != 0);
 #ifdef VM_TRACE
-  assert(lastSegIVal != RNIL); /* Should never be == RNIL */
+  require(lastSegIVal != RNIL); /* Should never be == RNIL */
 #endif
   /* We ignore m_ownerRef */
 
@@ -100,7 +100,7 @@ verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)
      * Check that last segment is as stated in the first segment
      */
 #ifdef VM_TRACE
-    assert(currIVal == lastSegIVal);
+    require(currIVal == lastSegIVal);
 #endif
     // m_nextSegment not always set properly on last segment
     //assert(curr->m_nextSegment == RNIL);
@@ -277,8 +277,8 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
   else
   {
     /* Section has at least one segment with data already */
-    g_sectionSegmentPool.getPtr(firstPtr, firstSegmentIVal);
-    g_sectionSegmentPool.getPtr(currPtr, firstPtr.p->m_lastSegment);
+    require(g_sectionSegmentPool.getPtr(firstPtr, firstSegmentIVal));
+    require(g_sectionSegmentPool.getPtr(currPtr, firstPtr.p->m_lastSegment));
 
     Uint32 existingLen= firstPtr.p->m_sz;
     assert(existingLen > 0);
@@ -470,7 +470,7 @@ writeToSection(Uint32 firstSegmentIVal, Uint32 offset,
   else
   {
     /* Section has at least one segment with data already */
-    g_sectionSegmentPool.getPtr(segPtr, firstSegmentIVal);
+    require(g_sectionSegmentPool.getPtr(segPtr, firstSegmentIVal));
 
     Uint32 existingLen= segPtr.p->m_sz;
 
@@ -483,7 +483,7 @@ writeToSection(Uint32 firstSegmentIVal, Uint32 offset,
     /* Advance through segments to the one containing the start offset */
     while (offset >= SectionSegment::DataLength)
     {
-      g_sectionSegmentPool.getPtr(segPtr, segPtr.p->m_nextSegment);
+      require(g_sectionSegmentPool.getPtr(segPtr, segPtr.p->m_nextSegment));
       offset-= SectionSegment::DataLength;
     }
 
@@ -502,7 +502,7 @@ writeToSection(Uint32 firstSegmentIVal, Uint32 offset,
       }
 
       offset = 0;
-      g_sectionSegmentPool.getPtr(segPtr, segPtr.p->m_nextSegment);
+      require(g_sectionSegmentPool.getPtr(segPtr, segPtr.p->m_nextSegment));
     }
   }
 }

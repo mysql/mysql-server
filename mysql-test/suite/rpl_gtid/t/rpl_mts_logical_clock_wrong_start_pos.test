@@ -58,7 +58,9 @@ DROP TABLE t1;
 
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
+--disable_warnings
 SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
+--enable_warnings
 SET GLOBAL replica_parallel_type = @save_replica_parallel_type;
 SET GLOBAL replica_transaction_retries = @save_replica_transaction_retries;
 --source include/start_slave.inc

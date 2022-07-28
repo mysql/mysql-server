@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,24 @@ IF(MY_COMPILER_IS_CLANG)
     )
 ENDIF()
 
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  account_verification_handler_t.cc
+  admin_cmd_index_t.cc
+  admin_create_collection_t.cc
+  admin_get_collection_options_t.cc
+  admin_modify_collection_options_t.cc
+  broker_input_queue_task_t.cc
+  capabilities_configurator_t.cc
+  capabilities_handlers_t.cc
+  cursor_t.cc
+  insert_statement_builder_t.cc
+  listener_tcp_t.cc
+  listener_unix_socket_t.cc
+  protocol_decoder_t.cc
+  sql_data_context_t.cc
+  timeouts_t.cc
+  )
+
 IF(MYSQLX_ADDITIONAL_TESTS_ENABLE)
   INCLUDE(mysql_function_names.cmake)
   LIST(APPEND XPL_TEST_SRC "${MYSQLX_GENERATE_DIR}/mysql_function_names_t.cc")
@@ -67,11 +85,6 @@ SET_TESTS_PROPERTIES(xplugin PROPERTIES TIMEOUT 180)
 ADD_COMPILE_FLAGS(${XPL_TEST_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
-
-IF(DISABLE_MYSQLX_PROTOBUF_LITE)
-  MY_ADD_COMPILE_DEFINITIONS(${XPL_TEST_SRC}
-    COMPILE_DEFINITIONS USE_MYSQLX_FULL_PROTO)
-ENDIF()
 
 ADD_DEPENDENCIES(${XPL_UNIT_TESTS}
   mysqlx

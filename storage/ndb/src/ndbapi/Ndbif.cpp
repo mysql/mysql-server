@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 */
 
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include "API.hpp"
@@ -471,7 +472,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   case GSN_TCKEYCONF:
   case GSN_TCINDXCONF:
   {
-    const TcKeyConf * const keyConf = (TcKeyConf *)tDataPtr;
+    const TcKeyConf* const keyConf = (const TcKeyConf*)tDataPtr;
     if (tFirstData != RNIL)
     {
       tCon = void2con(tFirstDataPtr);
@@ -698,7 +699,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     Uint32 magicNumber = tCon->getMagicNumberFromObject();
     Uint32 num_sections = aSignal->m_noOfSections;
     Uint32 sz;
-    Uint32 *sig_ptr;
+    const Uint32* sig_ptr;
 
     if (unlikely(magicNumber != tCon->getMagicNumber()))
     {
@@ -711,7 +712,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     }
     else
     {
-      sig_ptr = (Uint32*)tDataPtr + ScanTabConf::SignalLength, 
+      sig_ptr = tDataPtr + ScanTabConf::SignalLength,
       sz = tLen - ScanTabConf::SignalLength;
     }
     tReturnCode = tCon->receiveSCAN_TABCONF(aSignal, sig_ptr, sz);
@@ -723,7 +724,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   }
   case GSN_TC_COMMITCONF:
   {
-    const TcCommitConf * const commitConf = (TcCommitConf *)tDataPtr;
+    const TcCommitConf* const commitConf = (const TcCommitConf*)tDataPtr;
     const BlockReference aTCRef = aSignal->theSendersBlockRef;
 
     if (tFirstDataPtr == 0)
@@ -1089,7 +1090,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   }
   case GSN_TCKEY_FAILCONF:
   {
-    const TcKeyFailConf * failConf = (TcKeyFailConf *)tDataPtr;
+    const TcKeyFailConf* failConf = (const TcKeyFailConf*)tDataPtr;
     const BlockReference aTCRef = aSignal->theSendersBlockRef;
     if (tFirstDataPtr != 0)
     {
@@ -1785,6 +1786,7 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
    */
   int waitTime = aMilliSecondsToWait;
   const NDB_TICKS start = NdbTick_getCurrentTicks();
+  NDB_TICKS wait_end;
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
   theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
   do {
@@ -1796,13 +1798,13 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
     }
 #endif
     poll_guard->wait_for_input(maxsleep);
+    wait_end = NdbTick_getCurrentTicks();
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;
     }//if
     theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
-    const NDB_TICKS now = NdbTick_getCurrentTicks();
-    waitTime = aMilliSecondsToWait - 
-      (int)NdbTick_Elapsed(start,now).milliSec();
+    waitTime = aMilliSecondsToWait -
+      (int)NdbTick_Elapsed(start, wait_end).milliSec();
 #ifndef NDEBUG
     if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
     {
@@ -1811,6 +1813,7 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
     }
 #endif
   } while (waitTime > 0);
+  theImpl->recordWaitTimeNanos(NdbTick_Elapsed(start, wait_end).nanoSec());
 }//Ndb::waitCompletedTransactions()
 
 /*****************************************************************************
@@ -2042,7 +2045,7 @@ NdbImpl::send_event_report(bool is_poll_owner,
   aSignal.theReceiversBlockNumber = CMVMI;
   aSignal.theVerId_signalNumber   = GSN_EVENT_REP;
   aSignal.theLength               = length;
-  memcpy((char *)aSignal.getDataPtrSend(), (char *)data, length*4);
+  memcpy(aSignal.getDataPtrSend(), data, length * 4);
 
   return send_to_nodes(&aSignal, is_poll_owner, false);
 }

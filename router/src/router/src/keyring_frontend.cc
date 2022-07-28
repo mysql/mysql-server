@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@
 #include "mysqlrouter/utils.h"
 #include "print_version.h"  // build_version
 #include "random_generator.h"
+#include "router_config.h"             // MYSQL_ROUTER_PACKAGE_NAME
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 using namespace std::string_literals;

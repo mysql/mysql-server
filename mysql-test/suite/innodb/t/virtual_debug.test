@@ -792,6 +792,7 @@ connection con1;
 connection default;
 --echo # Read [2, 10, 10] row using idx_vid index key.
 --sleep 1
+--skip_if_hypergraph  # Hits assertion. Bug#33888263.
 select * from t where VID=10;
 disconnect con1;
 DROP TABLE t;
@@ -816,6 +817,7 @@ connection con1;
 --reap
 connection default;
 --echo # Delete a record.
+--skip_if_hypergraph  # Hits assertion. Bug#33888263.
 delete from t limit 1;
 disconnect con1;
 DROP TABLE t;

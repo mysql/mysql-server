@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ class sp_rcontext {
   void operator=(sp_rcontext &);
 
  private:
-  /// This is an auxillary class to store entering instruction pointer for an
+  /// This is an auxiliary class to store entering instruction pointer for an
   /// SQL-handler.
   class sp_handler_entry {
    public:

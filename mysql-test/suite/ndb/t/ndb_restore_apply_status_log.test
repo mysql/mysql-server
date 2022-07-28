@@ -1,0 +1,128 @@
+################################################################################
+# Test new option --with-apply-status with ndb_restore to restore from log files
+################################################################################
+
+-- source include/have_multi_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+-- source suite/ndb/t/have_ndb_error_insert.inc
+
+CREATE TABLE t1 (
+    id int,
+    name varchar(255),
+    age int,
+    PRIMARY KEY(id)
+) engine=ndbcluster;
+
+INSERT INTO test.t1 VALUES
+(1, 'p1', 19), (2, 'p0', 11), (3, 'p2', 43),
+(4, 'p3', 99), (5, 'p4', 33), (6, 'p5', 45);
+
+INSERT INTO mysql.ndb_apply_status VALUES
+(1,12,_binary 'position',123,1234), (2,12,_binary 'position',123,1234),
+(3,12,_binary 'position',123,1234), (4,12,_binary 'position',123,1234),
+(5,12,_binary 'position',123,1234), (6,12,_binary 'position',123,1234),
+(7,12,_binary 'position',123,1234), (8,12,_binary 'position',123,1234),
+(9,12,_binary 'position',123,1234), (10,12,_binary 'position',123,1234);
+
+#Introduce error to ensure that backup halts
+--exec $NDB_MGM -e "ALL ERROR 10039" >> $NDB_TOOLS_OUTPUT
+
+--echo Run backup snapshotend
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make a set of changes which we expect to be logged
+
+--echo 4 new rows
+INSERT INTO mysql.ndb_apply_status VALUES
+(11,12,_binary 'position',123,1234), (12,12,_binary 'position',123,1234),
+(13,12,_binary 'position',123,1234), (14,12,_binary 'position',123,1234);
+
+#Remove error previously introduced
+--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+
+# Wait backup completed
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+--echo 4 new rows after backup is completed
+INSERT INTO mysql.ndb_apply_status VALUES
+(15,12,_binary 'position',123,1234), (16,12,_binary 'position',123,1234),
+(17,12,_binary 'position',123,1234), (18,12,_binary 'position',123,1234);
+
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+
+-- echo # Use case #1: Restore epoch along with replication status
+-- exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-meta --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-data --with-apply-status --print-sql-log $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --restore-data --with-apply-status --print-sql-log $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --restore-epoch --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+SELECT COUNT(*) FROM test.t1;
+-- echo # 14 rows will be restored to ndb_apply_status and another row will be generated with server_id = 0
+SELECT server_id FROM mysql.ndb_apply_status ORDER BY server_id;
+
+-- echo # cleanup
+TRUNCATE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+
+
+INSERT INTO test.t1 VALUES
+(1, 'p1', 19), (2, 'p0', 11), (3, 'p2', 43),
+(4, 'p3', 99), (5, 'p4', 33), (6, 'p5', 45);
+
+INSERT INTO mysql.ndb_apply_status VALUES
+(1,12,_binary 'position',123,1234), (2,12,_binary 'position',123,1234),
+(3,12,_binary 'position',123,1234), (4,12,_binary 'position',123,1234),
+(5,12,_binary 'position',123,1234), (6,12,_binary 'position',123,1234),
+(7,12,_binary 'position',123,1234), (8,12,_binary 'position',123,1234),
+(9,12,_binary 'position',123,1234), (10,12,_binary 'position',123,1234);
+
+#Introduce error to ensure that backup halts
+--exec $NDB_MGM -e "ALL ERROR 10039" >> $NDB_TOOLS_OUTPUT
+
+--echo Run backup snapshotstart
+let $start_backup_extra = SNAPSHOTSTART;
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Make a set of changes which we expect to be logged
+
+--echo 4 new rows
+
+INSERT INTO test.t1 VALUES
+(7, 'p1', 19), (8, 'p0', 11),
+(9, 'p2', 43), (10, 'p0', 11);
+
+INSERT INTO mysql.ndb_apply_status VALUES
+(11,12,_binary 'position',123,1234), (12,12,_binary 'position',123,1234),
+(13,12,_binary 'position',123,1234), (14,12,_binary 'position',123,1234);
+
+#Remove error previously introduced
+--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+
+# Wait backup completed
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+--echo 4 new rows after backup is completed
+INSERT INTO mysql.ndb_apply_status VALUES
+(15,12,_binary 'position',123,1234), (16,12,_binary 'position',123,1234),
+(17,12,_binary 'position',123,1234), (18,12,_binary 'position',123,1234);
+
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+
+-- echo # Use case #2: Restore epoch along with replication status
+-- exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-meta --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-data --with-apply-status --print-sql-log $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --restore-data --with-apply-status --print-sql-log $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --restore-epoch --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+SELECT COUNT(*) FROM test.t1;
+-- echo # 10 rows will be restored to ndb_apply_status and another row will be generated with server_id = 0
+SELECT server_id FROM mysql.ndb_apply_status ORDER BY server_id;
+
+-- echo # cleanup
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

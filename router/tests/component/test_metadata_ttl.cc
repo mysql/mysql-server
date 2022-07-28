@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,11 @@
 
 #include "my_config.h"
 
-#include "cluster_metadata.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
-#include "mysql_session.h"
+#include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -143,7 +143,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
   auto &launch_router(const std::string &metadata_cache_section,
                       const std::string &routing_section,
                       const int expected_exitcode,
-                      std::chrono::milliseconds wait_for_notify_ready = 5s) {
+                      std::chrono::milliseconds wait_for_notify_ready = 30s) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, get_test_temp_dir_name());
 
@@ -243,7 +243,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
+                    /*wait_for_notify_ready=*/30s);
 
   // the remaining is too time-dependent to hope it will pass with VALGRIND
   if (getenv("WITH_VALGRIND")) {
@@ -256,7 +256,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
                         ".*Finished refreshing the cluster metadata.*", 1, 2s);
   if (!first_refresh_stop_timestamp) {
     FAIL() << "Did not find first metadata refresh end log in the logfile.\n"
-           << router.get_full_logfile();
+           << router.get_logfile_content();
   }
 
   SCOPED_TRACE("// Wait for the second metadata refresh to start");
@@ -265,7 +265,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
       2, test_params.ttl_expected_max + 1s);
   if (!second_refresh_start_timestamp) {
     FAIL() << "Did not find second metadata refresh start log in the logfile.\n"
-           << router.get_full_logfile();
+           << router.get_logfile_content();
   }
 
   SCOPED_TRACE(
@@ -413,7 +413,7 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
 
   SCOPED_TRACE("// check it is not treated as a change");
   const std::string needle = "Potential changes detected in cluster";
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
   // 1 is expected, that comes from the inital reading of the metadata
   EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
@@ -511,7 +511,7 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
+                    /*wait_for_notify_ready=*/30s);
 
   // keep the router running for a while and change the metadata version
   EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
@@ -522,20 +522,20 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
   // let the router run a bit more
   EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
 
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
   SCOPED_TRACE(
       "// check that the router really saw the version upgrade at some point");
   std::string needle =
       "Metadata version change was discovered. New metadata version is 2.0.0";
-  EXPECT_GE(1, count_str_occurences(log_content, needle)) << log_content;
+  EXPECT_GE(1, count_str_occurences(log_content, needle));
 
   SCOPED_TRACE(
       "// there should be no cluster change reported caused by the version "
       "upgrade");
   needle = "Potential changes detected in cluster";
   // 1 is expected, that comes from the inital reading of the metadata
-  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+  EXPECT_EQ(1, count_str_occurences(log_content, needle));
 
   // router should exit noramlly
   ASSERT_THAT(router.kill(), testing::Eq(0));
@@ -580,7 +580,7 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE("// let the router run for 3 ttl periods");
   EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 3));
@@ -678,28 +678,29 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
-
-  SCOPED_TRACE("// let the router run for 3 ttl periods");
-  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 3));
+                    /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE(
-      "// we expect the error trying to update the attributes in the log");
-  const std::string log_content = router.get_full_logfile();
-  const std::string pattern =
-      "Updating the router attributes in metadata failed:.*\n"
+      "// wait for several Router transactions on the metadata server");
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 6));
+
+  SCOPED_TRACE(
+      "// we expect the error trying to update the attributes in the log "
+      "exactly once");
+  const std::string log_content = router.get_logfile_content();
+  const std::string needle =
       "Make sure to follow the correct steps to upgrade your metadata.\n"
-      "Run the dba.upgradeMetadata\\(\\) then launch the new Router version "
+      "Run the dba.upgradeMetadata() then launch the new Router version "
       "when prompted";
-  ASSERT_TRUE(pattern_found(log_content, pattern)) << log_content;
+  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
 
   SCOPED_TRACE(
-      "// we expect that the router attempted to update the version only once, "
-      "even tho it failed");
+      "// we expect that the router attempted to update the continuously "
+      "because of the missing access rights error");
   std::string server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   const int attributes_upd_count = get_update_attributes_count(server_globals);
-  EXPECT_EQ(1, attributes_upd_count);
+  EXPECT_GT(attributes_upd_count, 1);
 
   SCOPED_TRACE(
       "// It should still not be fatal, the router should accept the "
@@ -749,7 +750,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
+                    /*wait_for_notify_ready=*/30s);
   EXPECT_TRUE(wait_for_port_not_available(router_port));
 
   SCOPED_TRACE("// let us make some user connection via the router port");
@@ -793,7 +794,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
                                           "password", "", ""));
 
   SCOPED_TRACE("// Info about the update should be logged.");
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
   ASSERT_TRUE(log_content.find("Cluster metadata upgrade in progress, aborting "
                                "the metada refresh") != std::string::npos);
 }
@@ -851,7 +852,7 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
       router_port, "PRIMARY", "first-available");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   SCOPED_TRACE(
@@ -951,7 +952,7 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
     router =
         &launch_router(metadata_cache_section,
                        routing_rw_section + routing_ro_section, EXIT_SUCCESS,
-                       /*wait_for_notify_ready=*/5s);
+                       /*wait_for_notify_ready=*/30s);
 
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*router, read_only ? router_ro_port : router_rw_port));
@@ -1509,7 +1510,7 @@ TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
@@ -1555,7 +1556,7 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
@@ -1792,7 +1793,7 @@ class InvalidAttributesTagsTest
  protected:
   void check_log_contains(const std::string &expected_string,
                           size_t expected_occurences) {
-    const std::string log_content = router->get_full_logfile();
+    const std::string log_content = router->get_logfile_content();
     EXPECT_EQ(expected_occurences,
               count_str_occurences(log_content, expected_string))
         << log_content;

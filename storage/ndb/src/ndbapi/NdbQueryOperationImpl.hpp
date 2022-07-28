@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,11 +131,6 @@ public:
 //NdbQueryOperationDefImpl& getQueryOperationDef(Uint32 ident) const;
 //NdbQueryOperationDefImpl* getQueryOperationDef(const char* ident) const;
 
-  /** Return number of parameter operands in query.*/
-  Uint32 getNoOfParameters() const;
-  const NdbParamOperand* getParameter(const char* name) const;
-  const NdbParamOperand* getParameter(Uint32 num) const;
-
   /** Get the next tuple(s) from the global cursor on the query.
    * @param fetchAllowed If true, the method may block while waiting for more
    * results to arrive. Otherwise, the method will return immediately if no more
@@ -181,6 +176,13 @@ public:
 
   int setBound(const NdbRecord *keyRecord,
                const NdbIndexScanOperation::IndexBound *bound);
+
+  /**
+   * If multiple ranges/bounds were specified, getRangeNo will return the
+   * IndexBound::range_no specified for the 'bound' used to locate the
+   * current tuple.
+   */
+  int getRangeNo() const;
 
   /** Prepare for execution. 
    *  @return possible error code.
@@ -434,7 +436,8 @@ private:
   const NdbQueryDefImpl* m_queryDef;
 
   /** Possible error status of this query.*/
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
   /**
    * Possible error received from TC / datanodes.
@@ -575,6 +578,9 @@ private:
    */
   FetchResult awaitMoreResults(bool forceSend);
 
+  /** True of this query reads back the RANGE_NO - see getRangeNo() */
+  bool needRangeNo() const { return m_num_bounds > 1; }
+
   /** Check if we have received an error from TC, or datanodes.
    * @return 'true' if an error is pending, 'false' otherwise.
    */
@@ -667,9 +673,6 @@ public:
   NdbQuery::NextResultOutcome nextResult(bool fetchAllowed, bool forceSend);
 
   bool isRowNULL() const;    // Row associated with Operation is NULL value?
-
-  bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrieved a new
-                             // value for this NdbQueryOperation
 
   /** Process result data for this operation. Return true if batch complete.*/
   bool execTRANSID_AI(const Uint32* ptr, Uint32 len);
@@ -773,6 +776,14 @@ public:
   const NdbRecord* getNdbRecord() const
   { return m_ndbRecord; }
 
+  /**
+   * Returns true if this operation need to know which RANGE_NO any returned row
+   * originated from. Note that only the root operation will return a RANGE_NO.
+   * (As well as setBound's, which are the origin of the RANGE_NO)
+   */
+  bool needRangeNo() const
+  { return m_queryImpl.needRangeNo() && getInternalOpNo() == 0; }
+
 private:
 
   static constexpr Uint32 MAGIC = 0xfade1234;
@@ -855,7 +866,7 @@ private:
   ~NdbQueryOperationImpl();
 
   /** Copy NdbRecAttr and/or NdbRecord results from stream into appl. buffers */
-  void fetchRow(NdbResultStream& resultStream);
+  int fetchRow(NdbResultStream& resultStream);
 
   /** Set result for this operation and all its descendand child 
    *  operations to NULL.

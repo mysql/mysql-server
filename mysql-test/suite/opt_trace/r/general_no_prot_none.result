@@ -5817,7 +5817,7 @@ update t6 set d=5 where d is NULL	{
             {
               "index": "d",
               "ranges": [
-                "NULL <= d <= NULL"
+                "d = NULL"
               ] /* ranges */,
               "index_dives_for_eq_ranges": true,
               "rowid_ordered": true,
@@ -5840,7 +5840,7 @@ update t6 set d=5 where d is NULL	{
             "index": "d",
             "rows": 1,
             "ranges": [
-              "NULL <= d <= NULL"
+              "d = NULL"
             ] /* ranges */
           } /* range_access_plan */,
           "rows_for_plan": 1,
@@ -5919,7 +5919,7 @@ delete from t6 where d=5	{
             {
               "index": "d",
               "ranges": [
-                "5 <= d <= 5"
+                "d = 5"
               ] /* ranges */,
               "index_dives_for_eq_ranges": true,
               "rowid_ordered": true,
@@ -5938,7 +5938,7 @@ delete from t6 where d=5	{
             "index": "d",
             "rows": 1,
             "ranges": [
-              "5 <= d <= 5"
+              "d = 5"
             ] /* ranges */
           } /* range_access_plan */,
           "rows_for_plan": 1,
@@ -6379,20 +6379,6 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
             ] /* finalizing_table_conditions */
           },
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "columns": 2,
-                "row_length": 13,
-                "key_length": 9,
-                "unique_constraint": false,
-                "makes_grouped_rows": true,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              } /* tmp_table_info */
-            } /* creating_tmp_table */
-          },
-          {
             "refine_plan": [
               {
                 "table": "`t6`"
@@ -6401,6 +6387,20 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
           }
         ] /* steps */
       } /* join_optimization */
+    },
+    {
+      "creating_tmp_table": {
+        "tmp_table_info": {
+          "table": "intermediate_tmp_table",
+          "columns": 2,
+          "row_length": 13,
+          "key_length": 9,
+          "unique_constraint": false,
+          "makes_grouped_rows": true,
+          "cannot_insert_duplicates": false,
+          "location": "TempTable"
+        } /* tmp_table_info */
+      } /* creating_tmp_table */
     },
     {
       "join_execution": {

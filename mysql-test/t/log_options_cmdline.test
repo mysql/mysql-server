@@ -168,21 +168,67 @@ SET GLOBAL LOG_ERROR_SERVICES=@@GLOBAL.LOG_ERROR_SERVICES;
 # 4.2 Provide 'log_sink_json' to --log-error-services without
 #     installing the json writer component
 #-------------------------------------------------------------
-# Below check is to see that the server doesn't abort and that
-# log_error_services is reset to default
+# Below check is to see that the server doesn't abort.
+# Component will be implicitly loaded by listing it in
+# --log-error-services at start-up. (Before WL#14793,
+# the component, not having been INSTALL COMPONENTed,
+# would be absent, and setting --log-error-services=...
+# would fail, with the variable remaining at its default
+# value.)
+# This serves as test for WL#14793 FR-1.
 --let LOG_FILE10= $MYSQLTEST_VARDIR/tmp/test10.err
 --let restart_parameters="restart: --log-error=$LOG_FILE10 --log-error-verbosity=3 --log-error-services=log_sink_json "
 --replace_result $LOG_FILE10 LOG_FILE10
 --source include/restart_mysqld.inc
 
---let SEARCH_FILE= $LOG_FILE10
---let SEARCH_PATTERN= \[Warning\].*Cannot set services "log_sink_json" requested in --log-error-services, using defaults
---source include/search_pattern.inc
+
+# WL#14793 - FR-1.1.1
+# Show that the implicit loading of the JSON component from the command-line
+# above did not add it to the components table (as explicitly adding it to
+# the server with INSTALL COMPONENT would have done). Should produce empty set.
+--echo # Empty result expected:
+SELECT component_urn from mysql.component WHERE component_urn LIKE "log_%";
+
+--echo # Component was loaded implicitly and made active.
+--echo # Trying to UNINSTALL it while it is active will throw an error here.
+--error ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
+UNINSTALL COMPONENT "file://component_log_sink_json";
+
 
 # 4.3 Install the json writer component and provide its service
 #     to --log-error-services
 # -------------------------------------------------------------
+
+# INSTALLing will fail because the component was already implicitly loaded
+# by listing it in --log-error-services at start-up (WL#14793).
+--error ER_COMPONENTS_CANT_LOAD
 INSTALL COMPONENT "file://component_log_sink_json";
+
+# restart clean
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE10"
+--replace_result $LOG_FILE10 LOG_FILE10
+--source include/restart_mysqld.inc
+
+# WL#14793 - FR-2.1
+# Show interaction of explicit and implicit component-loading.
+# --------------------------------------------------------------
+
+# INSTALL the component, then restart with log_error_services on the
+# command-line. That way, the component will be loaded implicitly before
+# our INSTALL could be restored. Then, we'll show some interactions and
+# implications of mixing implicit and explicit loading (not because mixing
+# the modes is recommended practice, but to show how we are handling it).
+
+--echo # Previously component is not yet in the system table (empty result):
+SELECT component_urn FROM mysql.component;
+--echo # Component is not active in log_error_services:
+SELECT @@global.log_error_services;
+--echo # INSTALL the component.
+INSTALL COMPONENT "file://component_log_sink_json";
+--echo # No issues expected:
+SHOW WARNINGS;
+--echo # Component should now be in the system table:
+SELECT component_urn FROM mysql.component;
 
 --let LOG_FILE11= $MYSQLTEST_VARDIR/tmp/test11.err
 --let LOG_FILE11j= $MYSQLTEST_VARDIR/tmp/test11.err.00.json
@@ -194,8 +240,46 @@ INSTALL COMPONENT "file://component_log_sink_json";
 --error ER_ACCESS_DENIED_ERROR
 connect(con5,localhost,unknown_user,,*NO-ONE*);
 
-SET GLOBAL log_error_services= default;
+# command-line is processed before INSTALLs are restored, so component
+# was in fact implicitly loaded.
+# show that the component is still in the table from being INSTALLed though.
+--echo # Component should still be in the system table:
+SELECT component_urn FROM mysql.component;
+
+--echo # Component was loaded implicitly and made active.
+--echo # Trying to UNINSTALL it while it is active will throw an error here.
+--error ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
 UNINSTALL COMPONENT "file://component_log_sink_json";
+
+--echo # log_sink_json is not in DEFAULT -- the component will be implicitly unloaded.
+SET GLOBAL log_error_services= DEFAULT;
+
+--echo # Show the component is still in the system table however:
+SELECT component_urn FROM mysql.component;
+
+--echo # The component is neither implicitly not explicitly loaded now:
+--echo # Attempt to UNINSTALL the component:
+--echo # The component framework refuses to UNINSTALL what is not in memory.
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "file://component_log_sink_json";
+
+--echo # Its entry however is still in the system table.
+--echo # The correct way to handle this in production is to restart the server
+--echo # while *not* implicitly loading the component by setting
+--echo # --log-error-services=... from the command-line or a .cnf file,
+--echo # and by RESETting log_error_services if it was SET PERSISTed before.
+
+--echo # Show that we threw ER_COMPONENTS_CANT_LOAD during start-up
+--echo # when we tried to INSTALL COMPONENT a component that had already
+--echo # been loaded implicitly using --log-error-services=...
+--echo # This would be reported as MY-003529 if we had a client session
+--echo # attached, but since none is, we'll bounce the message to the
+--echo # error log with a ER_SERVER_NO_SESSION_TO_SEND_TO wrapper.
+SELECT error_code, data
+  FROM performance_schema.error_log
+ WHERE data LIKE "%'file://component_log_sink_json'%"
+   AND error_code="MY-013129" AND data LIKE "%MY-003529%";
+
 
 ##================================================================##
 # 5 - WL#9323: Logging services: log filter (configuration engine) #
@@ -222,14 +306,17 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
 #     error log and exceed the throttle limit
 # -------------------------------------------------------------
 
-INSTALL COMPONENT "file://component_log_filter_dragnet";
 --let $log_services="log_filter_internal;log_filter_dragnet;log_sink_internal"
 --let LOG_FILE13= $MYSQLTEST_VARDIR/tmp/test13.err
 --let restart_parameters="restart: --no-console --log-error=$LOG_FILE13 --log-error-services=$log_services --dragnet.log-error-filter-rules="
 --replace_result $LOG_FILE13 LOG_FILE13
 --source include/restart_mysqld.inc
 
-# Validate parameters passed through command line
+--echo # Clean up: The test case for 4.3 left the JSON component installed, which
+--echo # therefore got re-added to this instance on start-up. Let's remove it.
+UNINSTALL COMPONENT "file://component_log_sink_json";
+
+--echo # Validate parameters passed through command line
 SELECT @@log_error_services;
 SELECT @@dragnet.log_error_filter_rules;
 
@@ -275,14 +362,17 @@ SET PERSIST dragnet.log_error_filter_rules= "IF prio>INFORMATION THEN drop.";
 --replace_result $LOG_FILE14 LOG_FILE14
 --source include/restart_mysqld.inc
 
-# Verify value of the persisted variable
+--echo # Verify value of the persisted variable
 SELECT @@global.dragnet.log_error_filter_rules;
 
 RESET PERSIST `dragnet.log_error_filter_rules`;
 
-# Cleanup
+--echo # Remove the dragnet component from the active configuration:
 SET GLOBAL log_error_services= default;
-UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+
+--echo # Show that component was implictly unloaded and variable has gone.
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@global.dragnet.log_error_filter_rules;
 
 --let $MYSQLD_DATADIR= `select @@datadir`
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
@@ -408,23 +498,81 @@ INSTALL COMPONENT "file://component_log_filter_dragnet";
 
 SET PERSIST dragnet.log_error_filter_rules="IF EXISTS msg THEN drop.";
 
+UNINSTALL COMPONENT "file://component_log_sink_json";
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+
 --let $log_services="log_filter_dragnet;log_sink_json"
 --let restart_parameters="restart: --log-error-services=$log_services --log-error=$LOG_FILE19"
 
 --replace_result $LOG_FILE19 LOG_FILE19
 --source include/restart_mysqld.inc
 
---echo # JSON error log content - begin
+--echo # JSON-19 error log content - begin
 --cat_file $LOG_FILE19j
---echo # JSON error log content - end
+--echo # JSON-19 error log content - end
 
 RESET PERSIST `dragnet.log_error_filter_rules`;
 
 SET GLOBAL log_error_services= DEFAULT;
 
-UNINSTALL COMPONENT "file://component_log_sink_json";
-UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
+
+# WL#14793 - FR-1.2
+# Show that when we PERSIST log_error_services, the server will
+# attempt to restore the value at start-up and implicitly load
+# any listed logging components that are not yet present.
+# (With the current implementation this means "any components
+# that are not built in, as persists are restored before InnoDB
+# becomes are available, and thus before INSTALLed COMPONENTs
+# (which are persisted in an Inno table, mysql.components) have
+# been loaded.)
+# --------------------------------------------------------------
+
+# Load the filter component so we may configure it. Don't PERSIST yet.
+SET GLOBAL log_error_services="log_filter_dragnet;log_sink_json";
+
+# Persist the configuration of a component.
+# As an implementation detail, PERSISTs are timestamped and have
+# an order in the file that contains them. We specifically persist
+# the configuration of the component before we persist the instruction
+# to load said component (i.e., the assignment to log_error_services
+# which will attempt to implicitly load any missing components).
+SET PERSIST dragnet.log_error_filter_rules="IF err_code==ER_BASEDIR_SET_TO THEN SET cat:='meow-wl14793'.";
+
+# Show that we successfully assigned the value.
+SELECT @@global.dragnet.log_error_filter_rules;
+
+# Only now do we persist the error logging pipeline.
+SET PERSIST log_error_services="log_filter_dragnet;log_sink_json";
+
+# restart the server
+--let LOG_FILE20= $MYSQLTEST_VARDIR/tmp/test20.err
+--let LOG_FILE20j= $MYSQLTEST_VARDIR/tmp/test20.err.00.json
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE20"
+--replace_result $LOG_FILE20 LOG_FILE20
+--source include/restart_mysqld.inc
+
+# show that the pipeline is configured as expected
+SELECT @@global.log_error_services;
+
+# show that we successfully restored the component-variable
+SELECT @@global.dragnet.log_error_filter_rules;
+
+# show that dragnet was implicitly loaded and that its variables are present
+SET @@global.dragnet.log_error_filter_rules= DEFAULT;
+
+SELECT JSON_EXTRACT(data,'$.err_symbol'),JSON_EXTRACT(data,'$.cat')
+  FROM performance_schema.error_log
+ WHERE LEFT(data,1)='{'
+   AND JSON_EXTRACT(data,'$.err_symbol')="ER_BASEDIR_SET_TO"
+ ORDER BY logged DESC LIMIT 1;
+
+# clean up
+RESET PERSIST `log_error_services`;
+RESET PERSIST `dragnet.log_error_filter_rules`;
+SET GLOBAL dragnet.log_error_filter_rules=DEFAULT;
+SET GLOBAL log_error_services= DEFAULT;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
 
@@ -774,6 +922,10 @@ UNINSTALL COMPONENT "file://component_log_filter_dragnet";
 
 EOF
 
+# Restart server after this test since it enables binary
+# logging and may affect further tests
+--source include/force_restart.inc
+
 # Cleanup
 --remove_file $LOG_FILE1
 --remove_file $LOG_FILE2
@@ -797,7 +949,5 @@ EOF
 --remove_file $LOG_FILE18
 --remove_file $LOG_FILE19
 --remove_file $LOG_FILE19j
-
-# Restart server after this test since it enables binary 
-# logging and may affect further tests
---source include/force_restart.inc
+--remove_file $LOG_FILE20
+--remove_file $LOG_FILE20j

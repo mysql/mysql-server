@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ BEGIN_SERVICE_DEFINITION(keyring_writer)
   Examples: AES, SECRET
 
   Note: If components want to support aes_encryption service,
-  it must spport storing data of type AES.
+  it must support storing data of type AES.
 
   A success status implies that data is stored persistently on
   keyring backend and shall always be available for access unless

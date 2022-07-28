@@ -15,12 +15,12 @@ CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = ND
 #
 sync_slave_with_master;
 --connection slave
-STOP SLAVE;
+STOP REPLICA;
 --connection master
 RESET MASTER;
 --connection slave
-RESET SLAVE;
-START SLAVE;
+RESET REPLICA;
+START REPLICA;
 --connection master
 
 INSERT INTO t1 VALUES ("row1","will go away",1);
@@ -63,7 +63,7 @@ SELECT * FROM t1 ORDER BY c3;
 source include/check_slave_is_running.inc;
 
 # stop slave and reset position to before the last changes
-STOP SLAVE;
+STOP REPLICA;
 --disable_query_log
 --disable_result_log
 eval CHANGE REPLICATION SOURCE TO
@@ -83,14 +83,14 @@ call mtr.add_suppression("NDB Replica: At SQL thread start applying epoch .*");
 # e.g. inserting rows that already there
 #      deleting a row which is not there
 #      updating a row which is not there
-START SLAVE;
+START REPLICA;
 
 --connection master
 SELECT * FROM t1 ORDER BY c3;
 --sync_slave_with_master
 SELECT * FROM t1 ORDER BY c3;
 
-STOP SLAVE;
+STOP REPLICA;
 
 #
 # cleanup
@@ -100,9 +100,9 @@ DROP TABLE t1;
 RESET master;
 --connection slave
 DROP TABLE t1;
-RESET slave;
+RESET REPLICA;
 
-START SLAVE;
+START REPLICA;
 
 #
 # Test that we can handle update of a row that does not exist on the slave
@@ -139,12 +139,12 @@ DROP TABLE IF EXISTS t1;
 #
 --sync_slave_with_master
 --connection slave
-STOP SLAVE;
+STOP REPLICA;
 --connection master
 RESET MASTER;
 --connection slave
-RESET SLAVE;
-START SLAVE;
+RESET REPLICA;
+START REPLICA;
 --connection master
 
 --echo Let's interleave some DDL and DML in the Binlog
@@ -192,7 +192,7 @@ commit;
 source include/check_slave_is_running.inc;
 
 --echo   Stop slave and reset position to start of the applied epoch
-STOP SLAVE;
+STOP REPLICA;
 --disable_query_log
 --disable_result_log
 
@@ -206,26 +206,30 @@ eval CHANGE REPLICATION SOURCE TO
 source include/check_slave_no_error.inc;
 
 # Add a suppression for the warning that will appear in the
-# Slave's .err file
-call mtr.add_suppression("Slave: Table \'t2\' already exists .*");
-call mtr.add_suppression("Slave SQL for channel '': Error \'Table \'t2\' already exists\' .*");
+# replicas's .err file
+call mtr.add_suppression("Table \'t2\' already exists.*");
+call mtr.add_suppression("Worker 1 failed executing transaction.*");
 
-
-START SLAVE;
+START REPLICA;
 
 --let $slave_sql_errno= 1050
---let $show_slave_sql_error=1
+# Don't show error message, it varies for replica worker
+--let $show_slave_sql_error=0
 --source include/wait_for_slave_sql_error.inc
+# Check expected error message
+SELECT LAST_ERROR_MESSAGE
+  FROM performance_schema.replication_applier_status_by_worker
+    WHERE LAST_ERROR_NUMBER=1050 AND channel_name = '';
 
-STOP SLAVE;
+STOP REPLICA;
 
 # Cleanup
 --connection master
 RESET MASTER;
 
 --connection slave
-RESET SLAVE;
-START SLAVE;
+RESET REPLICA;
+START REPLICA;
 
 --connection master
 DROP TABLE t1;

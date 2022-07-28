@@ -1,5 +1,5 @@
 /***********************************************************************
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -64,13 +64,13 @@ const char *Compression::to_string(Type type) {
       return ("LZ4");
   }
 
-  ut_ad(0);
+  ut_d(ut_error);
 
-  return ("<UNKNOWN>");
+  ut_o(return ("<UNKNOWN>"));
 }
 
 /**
-@param[in]      meta		Page Meta data
+@param[in]      meta            Page Meta data
 @return the string representation */
 std::string Compression::to_string(const Compression::meta_t &meta) {
   std::ostringstream stream;
@@ -100,8 +100,8 @@ bool Compression::is_valid_page_version(uint8_t version) {
 }
 
 /** Deserizlise the page header compression meta-data
-@param[in]	page		Pointer to the page header
-@param[out]	control		Deserialised data */
+@param[in]      page            Pointer to the page header
+@param[out]     control         Deserialised data */
 void Compression::deserialize_header(const byte *page,
                                      Compression::meta_t *control) {
   ut_ad(is_compressed_page(page) || is_compressed_encrypted_page(page));
@@ -124,12 +124,12 @@ void Compression::deserialize_header(const byte *page,
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	dblwr_read	true if double write recovery in progress
-@param[in,out]	src		Data read from disk, decompressed data will be
+@param[in]      dblwr_read      true if double write recovery in progress
+@param[in,out]  src             Data read from disk, decompressed data will be
                                 copied to this page
-@param[in,out]	dst		Scratch area to use for decompression or
+@param[in,out]  dst             Scratch area to use for decompression or
                                 nullptr.
-@param[in]	dst_len		If dst is valid, size of the scratch area in
+@param[in]      dst_len         If dst is valid, size of the scratch area in
                                 bytes.
 @return DB_SUCCESS or error code */
 dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
@@ -265,12 +265,12 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	dblwr_read	true of double write recovery in progress
-@param[in,out]	src		Data read from disk, decompressed data will be
+@param[in]      dblwr_read      true of double write recovery in progress
+@param[in,out]  src             Data read from disk, decompressed data will be
                                 copied to this page
-@param[in,out]	dst		Scratch area to use for decompression or
+@param[in,out]  dst             Scratch area to use for decompression or
                                 nullptr.
-@param[in]	dst_len		If dst is valid, then size of the scratch area
+@param[in]      dst_len         If dst is valid, then size of the scratch area
                                 in bytes
 @return DB_SUCCESS or error code */
 dberr_t os_file_decompress_page(bool dblwr_read, byte *src, byte *dst,

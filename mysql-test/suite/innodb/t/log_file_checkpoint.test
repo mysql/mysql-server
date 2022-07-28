@@ -1,0 +1,58 @@
+# This test checks scenario of recovery executed on data directory with redo
+# file that has broken checkpoint_lsn (pointing outside the file)
+
+# According to perl's documentation, 'Q' in (un)pack() is supported only if perl
+# has been compiled with support for 64bit integers.
+# The log_file_get_checkpoint_lsn(), which is used in this test, uses
+# unpack('Q>').
+--source include/have_perl_64bit_int.inc
+
+let $MYSQLD_SOCKET= `SELECT @@socket`;
+--source include/stop_mysqld.inc
+
+let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
+let MYSQLD_DATADIR = $tmp_dir/log_invalid_file;
+let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
+let MYSQLD_EXTRA_ARGS = --socket=$MYSQLD_SOCKET;
+let SEARCH_FILE = $MYSQLD_ERROR_LOG;
+
+--echo # Initialize new data directory...
+--source include/initialize_datadir.inc
+
+perl;
+    require 'include/ib_redo_log_files.inc';
+    my $fpath = '';
+    my $max_checkpoint_lsn = 0;
+    for my $f (log_get_non_tmp_files()) {
+        $fpath = $f;
+        my $checkpoint_lsn = log_file_get_checkpoint_lsn($fpath);
+        if ($checkpoint_lsn > $max_checkpoint_lsn) {
+            $max_checkpoint_lsn = $checkpoint_lsn;
+        }
+    }
+    my $result_file_path = "$ENV{'MYSQLD_DATADIR'}/found.inc";
+    open my $fh, '>', $result_file_path or die "open failed: $!\n";
+    syswrite($fh, "let REDO_CHECKPOINT_LSN=$max_checkpoint_lsn;\n") > 0 or die "write failed: $!\n";
+    close $fh or die "close failed: $!\n";
+EOF
+
+--source $MYSQLD_DATADIR/found.inc
+
+--error 1,42
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS --innodb-unknown-param=y
+let SEARCH_PATTERN = The latest found checkpoint is at lsn = $REDO_CHECKPOINT_LSN in redo log file;
+--replace_result $REDO_CHECKPOINT_LSN REDO_CHECKPOINT_LSN
+--source include/search_pattern.inc
+let SEARCH_PATTERN = innodb-unknown-param;
+--source include/search_pattern.inc
+
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_file_checkpoint.err
+
+--force-rmdir $MYSQLD_DATADIR
+
+let MYSQLD_ARGS=;
+let MYSQLD_EXTRA_ARGS=;
+let MYSQLD_DATADIR=;
+let MYSQLD_ERROR_LOG=;
+
+--source include/start_mysqld.inc

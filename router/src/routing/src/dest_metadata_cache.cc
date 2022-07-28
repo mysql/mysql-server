@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <system_error>
 
 #include "mysql/harness/logging/logging.h"
@@ -42,6 +43,7 @@
 #include "tcp_address.h"
 
 using namespace std::chrono_literals;
+using namespace std::string_view_literals;
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -56,39 +58,61 @@ static const std::set<std::string> supported_params{
 
 namespace {
 
+const constexpr std::array<
+    std::pair<std::string_view, DestMetadataCacheGroup::ServerRole>, 3>
+    known_roles{{
+        {"PRIMARY", DestMetadataCacheGroup::ServerRole::Primary},
+        {"SECONDARY", DestMetadataCacheGroup::ServerRole::Secondary},
+        {"PRIMARY_AND_SECONDARY",
+         DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary},
+    }};
+
 DestMetadataCacheGroup::ServerRole get_server_role_from_uri(
     const mysqlrouter::URIQuery &uri) {
-  if (uri.find("role") == uri.end())
+  const auto it = uri.find("role");
+  if (it == uri.end()) {
     throw std::runtime_error(
         "Missing 'role' in routing destination specification");
+  }
 
-  const std::string name = uri.at("role");
-  std::string name_uc = name;
+  const std::string name = it->second;
+  std::string name_uc;
+  name_uc.resize(name.size());
   std::transform(name.begin(), name.end(), name_uc.begin(), ::toupper);
 
-  if (name_uc == "PRIMARY")
-    return DestMetadataCacheGroup::ServerRole::Primary;
-  else if (name_uc == "SECONDARY")
-    return DestMetadataCacheGroup::ServerRole::Secondary;
-  else if (name_uc == "PRIMARY_AND_SECONDARY")
-    return DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary;
+  auto role_it =
+      std::find_if(known_roles.begin(), known_roles.end(),
+                   [name = name_uc](const auto &p) { return p.first == name; });
 
-  throw std::runtime_error("Invalid server role in metadata cache routing '" +
-                           name + "'");
+  if (role_it == known_roles.end()) {
+    std::string valid_names;
+    for (auto role : known_roles) {
+      if (!valid_names.empty()) {
+        valid_names += ", ";
+      }
+
+      valid_names += role.first;
+    }
+
+    throw std::runtime_error(
+        "The role in '?role=" + name +
+        "' does not contain one of the valid role names: " + valid_names);
+  }
+
+  return role_it->second;
 }
 
 std::string get_server_role_name(
     const DestMetadataCacheGroup::ServerRole role) {
-  switch (role) {
-    case DestMetadataCacheGroup::ServerRole::Primary:
-      return "PRIMARY";
-    case DestMetadataCacheGroup::ServerRole::Secondary:
-      return "SECONDARY";
-    case DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary:
-      return "PRIMARY_AND_SECONDARY";
+  auto role_it =
+      std::find_if(known_roles.begin(), known_roles.end(),
+                   [role](const auto &p) { return p.second == role; });
+
+  if (role_it == known_roles.end()) {
+    return "unknown";
   }
 
-  return "unknown";
+  return std::string{role_it->first};
 }
 
 routing::RoutingStrategy get_default_routing_strategy(
@@ -203,20 +227,26 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(
 }
 #endif
 
-std::pair<DestMetadataCacheGroup::AvailableDestinations, bool>
-DestMetadataCacheGroup::get_available(
+std::pair<AllowedNodes, bool> DestMetadataCacheGroup::get_available(
     const metadata_cache::LookupResult &managed_servers,
     bool for_new_connections) const {
-  DestMetadataCacheGroup::AvailableDestinations result;
+  AllowedNodes result;
 
   bool primary_fallback{false};
   const auto &managed_servers_vec = managed_servers.instance_vector;
   if (routing_strategy_ == routing::RoutingStrategy::kRoundRobinWithFallback) {
     // if there are no secondaries available we fall-back to primaries
+    std::lock_guard<std::mutex> lock(
+        query_quarantined_destinations_callback_mtx_);
     auto secondary = std::find_if(
         managed_servers_vec.begin(), managed_servers_vec.end(),
-        [](const metadata_cache::ManagedInstance &i) {
-          return i.mode == metadata_cache::ServerMode::ReadOnly && !i.hidden;
+        [&](const metadata_cache::ManagedInstance &i) {
+          if (for_new_connections && query_quarantined_destinations_callback_) {
+            return i.mode == metadata_cache::ServerMode::ReadOnly &&
+                   !i.hidden && !query_quarantined_destinations_callback_(i);
+          } else {
+            return i.mode == metadata_cache::ServerMode::ReadOnly && !i.hidden;
+          }
         });
 
     primary_fallback = secondary == managed_servers_vec.end();
@@ -271,10 +301,9 @@ DestMetadataCacheGroup::get_available(
   return {result, primary_fallback};
 }
 
-DestMetadataCacheGroup::AvailableDestinations
-DestMetadataCacheGroup::get_available_primaries(
+AllowedNodes DestMetadataCacheGroup::get_available_primaries(
     const metadata_cache::LookupResult &managed_servers) const {
-  DestMetadataCacheGroup::AvailableDestinations result;
+  AllowedNodes result;
   const auto &managed_servers_vec = managed_servers.instance_vector;
 
   for (const auto &it : managed_servers_vec) {
@@ -380,10 +409,15 @@ void DestMetadataCacheGroup::subscribe_for_acceptor_handler() {
   cache_api_->add_acceptor_handler_listener(this);
 }
 
+void DestMetadataCacheGroup::subscribe_for_md_refresh_handler() {
+  cache_api_->add_md_refresh_listener(this);
+}
+
 DestMetadataCacheGroup::~DestMetadataCacheGroup() {
   if (subscribed_for_metadata_cache_changes_) {
     cache_api_->remove_state_listener(this);
     cache_api_->remove_acceptor_handler_listener(this);
+    cache_api_->remove_md_refresh_listener(this);
   }
 }
 
@@ -400,9 +434,6 @@ class MetadataCacheDestination : public Destination {
     last_ec_ = ec;
 
     if (ec != std::error_code{}) {
-      balancer_->cache_api()->mark_instance_reachability(
-          server_uuid_, metadata_cache::InstanceStatus::Unreachable);
-
       // the tests
       //
       // - NodeUnavailable/NodeUnavailableTest.NodeUnavailable/1, where
@@ -431,7 +462,7 @@ class MetadataCacheDestination : public Destination {
 // the first round of destinations didn't succeed.
 //
 // try to fallback.
-stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
+std::optional<Destinations> DestMetadataCacheGroup::refresh_destinations(
     const Destinations &previous_dests) {
   if (cache_api_->cluster_type() == mysqlrouter::ClusterType::RS_V2) {
     // ReplicaSet
@@ -452,11 +483,11 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
              "previous destinations MUST be primary destinations");
 
       if (previous_dests.empty()) {
-        return stdx::make_unexpected();
+        return std::nullopt;
       }
 
       if (!previous_dests.is_primary_destination()) {
-        return stdx::make_unexpected();
+        return std::nullopt;
       }
 
       // if connecting to the primary failed differentiate between:
@@ -475,7 +506,7 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
 
       if (primary_member->last_error_code() ==
           make_error_condition(std::errc::timed_out)) {
-        return stdx::make_unexpected();
+        return std::nullopt;
       }
 
       if (cache_api_->wait_primary_failover(primary_member->server_uuid(),
@@ -485,7 +516,7 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
     }
   }
 
-  return stdx::make_unexpected();
+  return std::nullopt;
 }
 
 void DestMetadataCacheGroup::advance(size_t n) {
@@ -494,8 +525,8 @@ void DestMetadataCacheGroup::advance(size_t n) {
   start_pos_ += n;
 }
 
-Destinations DestMetadataCacheGroup::balance(
-    const AvailableDestinations &available, bool primary_fallback) {
+Destinations DestMetadataCacheGroup::balance(const AllowedNodes &available,
+                                             bool primary_fallback) {
   Destinations dests;
 
   std::lock_guard<std::mutex> lk(mutex_update_);
@@ -593,7 +624,7 @@ Destinations DestMetadataCacheGroup::balance(
 Destinations DestMetadataCacheGroup::destinations() {
   if (!cache_api_->is_initialized()) return {};
 
-  AvailableDestinations available;
+  AllowedNodes available;
   bool primary_failover;
   const auto &all_replicaset_nodes =
       cache_api_->get_cluster_nodes().instance_vector;
@@ -648,24 +679,16 @@ void DestMetadataCacheGroup::on_instances_change(
   const auto &nodes_for_new_connections =
       get_available(instances, /*for_new_connections=*/true).first;
 
-  AllowedNodes new_addresses;
-  for (const auto &dest : nodes_for_new_connections) {
-    new_addresses.emplace_back(dest.address.str());
-  }
-
   const auto &nodes_for_existing_connections =
       get_available(instances, /*for_new_connections=*/false).first;
-  AllowedNodes addresses;
-  for (const auto &dest : nodes_for_existing_connections) {
-    addresses.emplace_back(dest.address.str());
-  }
 
   std::lock_guard<std::mutex> lock(allowed_nodes_change_callbacks_mtx_);
 
   // notify all the registered listeners about the list of available nodes
   // change
   for (auto &clb : allowed_nodes_change_callbacks_) {
-    clb(addresses, new_addresses, disconnect, reason);
+    clb(nodes_for_existing_connections, nodes_for_new_connections, disconnect,
+        reason);
   }
 }
 
@@ -681,25 +704,31 @@ bool DestMetadataCacheGroup::update_socket_acceptor_state(
   const auto &nodes_for_new_connections =
       get_available(instances, /*for_new_connections=*/true).first;
 
-  AllowedNodes new_addresses;
-  for (const auto &dest : nodes_for_new_connections) {
-    new_addresses.emplace_back(dest.address.str());
-  }
-
   {
     std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
-    if (!new_addresses.empty() && start_router_socket_acceptor_callback_) {
+    if (!nodes_for_new_connections.empty() &&
+        start_router_socket_acceptor_callback_) {
       const auto &start_acceptor_res = start_router_socket_acceptor_callback_();
       return start_acceptor_res ? true : false;
     }
 
-    if (new_addresses.empty() && stop_router_socket_acceptor_callback_) {
+    if (nodes_for_new_connections.empty() &&
+        stop_router_socket_acceptor_callback_) {
       stop_router_socket_acceptor_callback_();
       return true;
     }
   }
 
   return true;
+}
+
+void DestMetadataCacheGroup::on_md_refresh(
+    const bool nodes_changed, const metadata_cache::LookupResult &instances) {
+  const auto &available_nodes =
+      get_available(instances, /*for_new_connections=*/true).first;
+  std::lock_guard<std::mutex> lock(md_refresh_callback_mtx_);
+  if (md_refresh_callback_)
+    md_refresh_callback_(nodes_changed, available_nodes);
 }
 
 void DestMetadataCacheGroup::start(const mysql_harness::PluginFuncEnv *env) {
@@ -711,5 +740,6 @@ void DestMetadataCacheGroup::start(const mysql_harness::PluginFuncEnv *env) {
   if (!env || is_running(env)) {
     subscribe_for_metadata_cache_changes();
     subscribe_for_acceptor_handler();
+    subscribe_for_md_refresh_handler();
   }
 }

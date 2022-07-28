@@ -1355,8 +1355,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('ä','ö','ü') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'ü',
-  `b` enum('one','two') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `a` enum('ä','ö','ü') CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL DEFAULT 'ü',
+  `b` enum('one','two') CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `c` enum('one','two') DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
@@ -1523,7 +1523,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
 show create table t2;
 Table	Create Table
@@ -1533,7 +1533,7 @@ t2	CREATE TABLE `t2` (
   `f3` binary(1) DEFAULT NULL,
   `f4` binary(5) DEFAULT NULL,
   `f5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `f6` varchar(1) CHARACTER SET utf8 DEFAULT NULL,
+  `f6` varchar(1) CHARACTER SET utf8mb3 DEFAULT NULL,
   `f7` mediumtext,
   `f8` mediumtext
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2769,10 +2769,9 @@ DROP TABLE t1, t2;
 # Bug #21156155 UNION GEOMETRY TYPE: UNITIALIZED VALUE IN
 # ITEM_TYPE_HOLDER::JOIN_TYPES
 #
-SELECT NULL UNION SELECT POINT(1,1);
-NULL
-NULL
-             ð?      ð?
+SELECT COUNT(*) FROM (SELECT NULL UNION SELECT POINT(1,1)) AS dt;
+COUNT(*)
+2
 #
 # Bug#22602381 FOUND_ROWS() IS NOT WORKING AS EXPECTED WITHOUT
 #              SQL_CALC_FOUND_ROWS
@@ -3167,6 +3166,8 @@ foo
 foo
 BAR
 SET @param = CONVERT('foo' USING ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 EXECUTE stmt USING @param;
 foo
 foo
@@ -3471,3 +3472,14 @@ DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
 c	varchar(5)	NO			
 DROP TABLE t1;
+#
+# Bug#33066455: REGRESSION: ACCESSPATH*
+#               MOVECOMPOSITEITERATORSFROMTABLEPATH(ACCESSPATH*):
+#               ASSERTION `FALSE' FAILED.
+#
+EXPLAIN FORMAT=TREE SELECT 1 UNION SELECT 1 LIMIT 0;
+EXPLAIN
+-> Zero rows (Zero limit)  (cost=0.00..0.00 rows=0)
+
+SELECT 1 UNION SELECT 1 LIMIT 0;
+1

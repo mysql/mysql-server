@@ -69,172 +69,47 @@ PRIMARY(a, b) - OrderedIndex
 c(c) - OrderedIndex
 c$unique(c) - UniqueHashIndex
 b(b) - OrderedIndex
+
 -- t1/PRIMARY --
-Version: Any
-Base table: t1
-Number of attributes: 2
-Logging: 0
-Index type: OrderedIndex
-Index status: Retrieved
--- Attributes --
-a Int NOT NULL AT=FIXED ST=MEMORY
-b Varchar(255;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
--- IndexTable XX/PRIMARY --
-Version: Any
-Fragment type: FragUndefined
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: yes
-Number of attributes: 3
-Number of primary keys: 1
-Length of frm data: XXX
-Max Rows: 0
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 2
-ForceVarPart: 0
-PartitionCount: 2
-FragmentCount: 2
-PartitionBalance: FOR_RP_BY_LDM
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
-Table options:
--- Attributes --
-a Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Varchar(255;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
-NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
--- Indexes -- 
-PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
-
--- t1/b --
-Version: Any
-Base table: t1
-Number of attributes: 1
-Logging: 0
-Index type: OrderedIndex
-Index status: Retrieved
--- Attributes --
-b Varchar(255;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
--- IndexTable XX/b --
-Version: Any
-Fragment type: FragUndefined
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: yes
-Number of attributes: 2
-Number of primary keys: 1
-Length of frm data: XXX
-Max Rows: 0
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 2
-ForceVarPart: 0
-PartitionCount: 2
-FragmentCount: 2
-PartitionBalance: FOR_RP_BY_LDM
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
-Table options:
--- Attributes --
-b Varchar(255;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
-NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
--- Indexes -- 
-PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
-
+Attributes: a,b
+Index Type: Ordered index
+Index Status: retrieved
+Partitions: 1
+Fragments: 2
 -- t1/c --
-Version: Any
-Base table: t1
-Number of attributes: 1
-Logging: 0
-Index type: OrderedIndex
-Index status: Retrieved
--- Attributes --
-c Int NULL AT=FIXED ST=MEMORY
--- IndexTable XX/c --
-Version: Any
-Fragment type: FragUndefined
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: yes
-Number of attributes: 2
-Number of primary keys: 1
-Length of frm data: XXX
-Max Rows: 0
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 2
-ForceVarPart: 0
-PartitionCount: 2
-FragmentCount: 2
-PartitionBalance: FOR_RP_BY_LDM
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
-Table options:
--- Attributes --
-c Int NULL AT=FIXED ST=MEMORY
-NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
--- Indexes -- 
-PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
-
+Attributes: c
+Index Type: Ordered index
+Index Status: retrieved
+Partitions: 1
+Fragments: 2
 -- t1/c$unique --
-Version: Any
-Base table: t1
-Number of attributes: 1
-Logging: 1
-Index type: UniqueHashIndex
-Index status: Retrieved
--- Attributes --
-c Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
--- IndexTable XX/c$unique --
-Version: Any
-Fragment type: HashMapPartition
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: no
-Number of attributes: 2
-Number of primary keys: 1
-Length of frm data: XXX
-Max Rows: 0
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 2
-ForceVarPart: 0
-PartitionCount: 1
-FragmentCount: 2
-PartitionBalance: FOR_RA_BY_NODE
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
-Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-1
--- Attributes --
-c Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-NDB$PK Unsigned [66] NOT NULL AT=3? ST=MEMORY
--- Indexes -- 
-PRIMARY KEY(c) - UniqueHashIndex
+Attributes: c
+Index Type: Unique hash index
+Index Status: retrieved
+Partitions: 1
+Fragments: 2
+-- t1/b --
+Attributes: b
+Index Type: Ordered index
+Index Status: retrieved
+Partitions: 1
+Fragments: 2
 
--- NDB$BLOB_XX_3 --
-Version: Any
+-- Blob Tables --
+Column name: d
+Inline size: 256
+Part size: 2000
+Stipe size: 0
+Blob Table Name: NDB$BLOB_XX_3
 Fragment type: HashMapPartition
-K Value: 6
-Min load factor: 78
-Max load factor: 80
 Temporary table: no
 Number of attributes: 5
-Number of primary keys: 3
-Length of frm data: XXX
+Primary key: a,b,NDB$PART
 Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
-ForceVarPart: 0
+Dynamic: 0
 PartitionCount: 1
 FragmentCount: 2
 PartitionBalance: FOR_RA_BY_NODE
@@ -243,14 +118,6 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
 HashMap: DEFAULT-HASHMAP-3840-1
--- Attributes --
-a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Varchar(255;latin1_swedish_ci) PRIMARY KEY AT=SHORT_VAR ST=MEMORY
-NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
-NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
-NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
--- Indexes -- 
-PRIMARY KEY(a, b, NDB$PART) - UniqueHashIndex
 
 
 NDBT_ProgramExit: 0 - OK

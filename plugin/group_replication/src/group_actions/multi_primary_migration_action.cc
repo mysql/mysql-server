@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,7 +314,8 @@ int Multi_primary_migration_action::after_view_change(
 }
 
 int Multi_primary_migration_action::after_primary_election(
-    std::string, bool, enum_primary_election_mode, int) {
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0; /* purecov: inspected */
 }
 

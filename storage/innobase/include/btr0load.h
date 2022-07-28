@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -74,9 +74,9 @@ class Btree_load : private ut::Non_copyable {
   using Page_loaders = std::vector<Page_load *, ut::allocator<Page_load *>>;
 
   /** Constructor
-  @param[in]	index		          B-tree index.
-  @param[in]	trx_id		        Transaction id.
-  @param[in]	observer	        Flush observer */
+  @param[in]    index                     B-tree index.
+  @param[in]    trx_id                  Transaction id.
+  @param[in]    observer                Flush observer */
   Btree_load(dict_index_t *index, trx_id_t trx_id,
              Flush_observer *observer) noexcept;
 
@@ -91,19 +91,19 @@ class Btree_load : private ut::Non_copyable {
   /** Btree bulk load finish. We commit the last page in each level
   and copy the last page in top level to the root page of the index
   if no error occurs.
-  @param[in]	err	              Whether bulk load was successful until now
+  @param[in]    err                   Whether bulk load was successful until now
   @return error code  */
   [[nodiscard]] dberr_t finish(dberr_t err) noexcept;
 
-  /** Release all latches. */
+  /** Release latch on the rightmost leaf page in the index tree. */
   void release() noexcept;
 
-  /** Re-latch all latches. */
+  /** Re-latch latch on the rightmost leaf page in the index tree. */
   void latch() noexcept;
 
   /** Insert a tuple to a page in a level
   @param[in] dtuple             Tuple to insert
-  @param[in] level	            B-tree level
+  @param[in] level                  B-tree level
   @return error code */
   [[nodiscard]] dberr_t insert(dtuple_t *dtuple, size_t level) noexcept;
 
@@ -114,19 +114,19 @@ class Btree_load : private ut::Non_copyable {
   dberr_t load_root_page(page_no_t last_page_no) noexcept;
 
   /** Split a page
-  @param[in]	page_load	        Page to split
-  @param[in]	next_page_load	  Next page
-  @return	error code */
+  @param[in]    page_load               Page to split
+  @param[in]    next_page_load    Next page
+  @return       error code */
   [[nodiscard]] dberr_t page_split(Page_load *page_load,
                                    Page_load *next_page_load) noexcept;
 
   /** Commit(finish) a page. We set next/prev page no, compress a page of
   compressed table and split the page if compression fails, insert a node
   pointer to father page if needed, and commit mini-transaction.
-  @param[in]	page_load	        Page to commit
-  @param[in]	next_page_load    Next page
-  @param[in]	insert_father	    Flag whether need to insert node ptr
-  @return	error code */
+  @param[in]    page_load               Page to commit
+  @param[in]    next_page_load    Next page
+  @param[in]    insert_father       Flag whether need to insert node ptr
+  @return       error code */
   [[nodiscard]] dberr_t page_commit(Page_load *page_load,
                                     Page_load *next_page_load,
                                     bool insert_father) noexcept;

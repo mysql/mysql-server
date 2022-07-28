@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,6 @@
 #include <utility>  // move
 
 #include "classic_mock_session.h"
-#include "common.h"  // ScopeGuard
 #include "duktape_statement_reader.h"
 #include "mock_session.h"
 #include "mysql/harness/logging/logging.h"
@@ -50,6 +49,7 @@
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "router/src/mock_server/src/statement_reader.h"
+#include "scope_guard.h"
 #include "x_mock_session.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -186,7 +186,7 @@ class Acceptor {
 
     sock_.async_accept(client_ep_, [this](std::error_code ec,
                                           protocol_type::socket client_sock) {
-      mysql_harness::ScopeGuard guard([&]() {
+      Scope_guard guard([&]() {
         work_.serialize_with_cv([](auto &work, auto &cv) {
           // leaving acceptor.
           //

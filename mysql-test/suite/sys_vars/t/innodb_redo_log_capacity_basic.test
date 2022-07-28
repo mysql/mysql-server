@@ -1,0 +1,116 @@
+
+
+################## mysql-test\t\innodb_redo_log_capacity_basic.test ###########
+#                                                                             #
+# Variable Name: innodb_redo_log_capacity                                     #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2020-05-19                                                   #
+# Author : Paweł Olchawa                                                      #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable innodb_redo_log_capacity  #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/8.0/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+
+let $wait_condition =
+  SELECT variable_value = 'OK'
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_redo_log_resize_status';
+
+SET @start_log_capacity = @@GLOBAL.innodb_redo_log_capacity;
+
+--echo '#---------------------BS_STVARS_022_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.innodb_redo_log_capacity);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_022_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+SET @@GLOBAL.innodb_redo_log_capacity=15728640;
+--echo Expected succeeded
+--source include/wait_condition.inc
+
+SELECT COUNT(@@GLOBAL.innodb_redo_log_capacity);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_022_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.innodb_redo_log_capacity = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_redo_log_capacity';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_redo_log_capacity);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_redo_log_capacity';
+--enable_warnings
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_022_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_redo_log_capacity = @@GLOBAL.innodb_redo_log_capacity;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_022_05----------------------#'
+################################################################################
+#   Check if innodb_redo_log_capacity can be accessed with and without @@ sign #
+################################################################################
+
+SELECT COUNT(@@innodb_redo_log_capacity);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_redo_log_capacity);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_redo_log_capacity);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_redo_log_capacity);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_redo_log_capacity;
+--echo Expected error 'Readonly variable'
+SET @@GLOBAL.innodb_redo_log_capacity = @start_log_capacity;
+--source include/wait_condition.inc
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let MYSQLD_IB_REDO_LOG_PHYSICAL_CAPACITY = `SELECT @@innodb_redo_log_capacity`;
+--source include/ib_redo_log_capacity_check.inc

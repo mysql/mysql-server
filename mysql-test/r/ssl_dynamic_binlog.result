@@ -1,9 +1,6 @@
 ################## FR1.6 ALTER INSTANCE RELOAD TLS not binlogged
 CREATE TABLE t1(a INT);
 ALTER INSTANCE RELOAD TLS;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 DROP TABLE t1;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -251,7 +251,7 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
   int ret = 0;
 
   /* Mecab supports utf8mb4/utf8mb3, eucjpms(ujis) and cp932(sjis). */
-  std::string param_csname = replace_utf8_utf8mb3(param->cs->csname);
+  std::string param_csname = param->cs->csname;
   if (param_csname == "eucjpms") {
     param_csname = "ujis";
   } else if (param_csname == "cp932") {

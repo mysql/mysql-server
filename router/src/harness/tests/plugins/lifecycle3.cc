@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,13 +57,17 @@ mysql_harness::Plugin LIFECYCLE3_API
         "Logging functions",                     // anme
         VERSION_NUMBER(0, 0, 1),
         // requires
-        0, nullptr,
+        0,
+        nullptr,
         // conflicts
-        0, nullptr,
+        0,
+        nullptr,
         init,     // init
         deinit,   // deinit
         nullptr,  // start
         nullptr,  // stop
         false,    // declares_readiness
+        0,
+        nullptr,
 };
 }

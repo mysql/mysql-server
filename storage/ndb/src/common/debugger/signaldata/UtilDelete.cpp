@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -30,7 +30,7 @@ printUTIL_DELETE_REQ(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
   (void)l;  // Don't want compiler warning
   (void)b;  // Don't want compiler warning
 
-  UtilDeleteReq* sig = (UtilDeleteReq*)data;
+  const UtilDeleteReq* sig = (const UtilDeleteReq*)data;
   fprintf(out, " senderData: %d prepareId: %d totalDataLen: %d\n",
 	  sig->senderData,
 	  sig->prepareId,
@@ -57,7 +57,7 @@ printUTIL_DELETE_CONF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
   (void)l;  // Don't want compiler warning
   (void)b;  // Don't want compiler warning
 
-  UtilDeleteConf* sig = (UtilDeleteConf*)data;
+  const UtilDeleteConf* sig = (const UtilDeleteConf*)data;
   fprintf(out, " senderData: %d\n", sig->senderData);
   return true;
 }
@@ -67,7 +67,7 @@ printUTIL_DELETE_REF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
   (void)l;  // Don't want compiler warning
   (void)b;  // Don't want compiler warning
 
-  UtilDeleteRef* sig = (UtilDeleteRef*)data;
+  const UtilDeleteRef* sig = (const UtilDeleteRef*)data;
   fprintf(out, " senderData: %d\n", sig->senderData);
   fprintf(out, " errorCode: %d\n", sig->errorCode);
   return true;

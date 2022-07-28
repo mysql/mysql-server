@@ -1,0 +1,855 @@
+#
+# WL#1756
+#
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+--let $CURGLOB_xa_detach_on_prepare = `SELECT @@GLOBAL.xa_detach_on_prepare`
+--let $CURSESS_xa_detach_on_prepare = `SELECT @@SESSION.xa_detach_on_prepare`
+SET GLOBAL xa_detach_on_prepare = false;
+SET SESSION xa_detach_on_prepare = false;
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (a int) engine=innodb;
+xa start 'test1';
+insert t1 values (10);
+xa end 'test1';
+xa prepare 'test1';
+xa rollback 'test1';
+select * from t1;
+
+xa start 'test2';
+--error ER_XAER_RMFAIL
+xa start 'test-bad';
+insert t1 values (20);
+--error ER_XAER_RMFAIL
+xa prepare 'test2';
+xa end 'test2';
+xa prepare 'test2';
+xa commit 'test2';
+select * from t1;
+
+xa start 'testa','testb';
+insert t1 values (30);
+
+--error ER_XAER_RMFAIL
+commit;
+
+xa end 'testa','testb';
+
+--error ER_XAER_RMFAIL
+begin;
+--error ER_XAER_RMFAIL
+create table t2 (a int);
+
+connect (con1,localhost,root,,);
+connection con1;
+
+--error ER_XAER_DUPID
+xa start 'testa','testb';
+--error ER_XAER_DUPID
+xa start 'testa','testb', 123;
+
+#        gtrid [ , bqual [ , formatID ] ]
+xa start 0x7465737462, 0x2030405060, 0xb;
+insert t1 values (40);
+xa end 'testb',' 0@P`',11;
+xa prepare 'testb',0x2030405060,11;
+
+--error ER_XAER_RMFAIL
+start transaction;
+
+--sorted_result
+xa recover;
+
+# uncomment the line below when binlog will be able to prepare
+#disconnect con1;
+connection default;
+
+xa prepare 'testa','testb';
+
+--sorted_result
+xa recover;
+
+# When this connection has already started an own XA transaction
+# it cannot execute XA COMMIT for another XA.
+--error ER_XAER_RMFAIL
+xa commit 'testb',0x2030405060,11;
+# nor XA ROLLBACK on "foreign" XA.
+--error ER_XAER_RMFAIL
+xa rollback 'testb',0x2030405060,11;
+xa rollback 'testa','testb';
+
+# "Foreign" XA is not in an allowed state to be committed
+--error ER_XAER_NOTA
+xa commit 'testb',0x2030405060,11;
+# nor be rolled back
+--error ER_XAER_NOTA
+xa rollback 'testb',0x2030405060,11;
+
+--error ER_PARSE_ERROR
+xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
+
+select * from t1;
+
+--connection con1
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+xa recover;
+xa rollback 'testb',0x2030405060,11;
+drop table t1;
+
+#
+# Bug#28323: Server crashed in xid cache operations
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(a int, b int, c varchar(20), primary key(a)) engine = innodb;
+insert into t1 values(1, 1, 'a');
+insert into t1 values(2, 2, 'b');
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+--connection con1
+xa start 'a','b';
+update t1 set c = 'aa' where a = 1;
+--connection con2
+xa start 'a','c';
+update t1 set c = 'bb' where a = 2;
+--connection con1
+--send update t1 set c = 'bb' where a = 2
+--connection con2
+--sleep 1
+--error ER_LOCK_DEADLOCK
+update t1 set c = 'aa' where a = 1;
+--error ER_XA_RBDEADLOCK
+select count(*) from t1;
+--error ER_XA_RBDEADLOCK
+xa end 'a','c';
+xa rollback 'a','c';
+--disconnect con2
+
+connect (con3,localhost,root,,);
+--connection con3
+xa start 'a','c';
+--connection con1
+--reap
+--disconnect con1
+--disconnect con3
+--connection default
+drop table t1;
+
+--echo #
+--echo # BUG#51342 - more xid crashing
+--echo #
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+XA START 'x';
+SET SESSION autocommit=0;
+INSERT INTO t1 VALUES(1);
+--error ER_XAER_RMFAIL
+SET SESSION autocommit=1;
+SELECT @@autocommit;
+INSERT INTO t1 VALUES(1);
+XA END 'x';
+XA COMMIT 'x' ONE PHASE;
+DROP TABLE t1;
+SET SESSION autocommit=1;
+
+--echo End of 5.0 tests
+
+#
+# Bug#44672: Assertion failed: thd->transaction.xid_state.xid.is_null()
+#
+
+xa start 'a';
+xa end 'a';
+xa rollback 'a';
+xa start 'a';
+xa end 'a';
+xa rollback 'a';
+
+#
+# Bug#45548: XA transaction without access to InnoDB tables crashes the server
+#
+
+xa start 'a';
+xa end 'a';
+xa prepare 'a';
+xa commit 'a';
+
+xa start 'a';
+xa end 'a';
+xa prepare 'a';
+xa commit 'a';
+
+#
+# BUG#43171 - Assertion failed: thd->transaction.xid_state.xid.is_null()
+#
+CREATE TABLE t1(a INT, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1),(2);
+connect(con1,localhost,root,,);
+
+# Part 1: Prepare to test XA START after regular transaction deadlock
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+
+connection default;
+BEGIN;
+UPDATE t1 SET a=4 WHERE a=2;
+
+connection con1;
+let $conn_id= `SELECT CONNECTION_ID()`;
+SEND UPDATE t1 SET a=5 WHERE a=2;
+
+connection default;
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=$conn_id AND STATE='Searching rows for update';
+--source include/wait_condition.inc
+
+--error ER_LOCK_DEADLOCK
+UPDATE t1 SET a=5 WHERE a=1;
+ROLLBACK;
+
+# Part 2: Prepare to test XA START after XA transaction deadlock
+connection con1;
+REAP;
+ROLLBACK;
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+
+connection default;
+XA START 'xid1';
+UPDATE t1 SET a=4 WHERE a=2;
+
+connection con1;
+SEND UPDATE t1 SET a=5 WHERE a=2;
+
+connection default;
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=$conn_id AND STATE='Searching rows for update';
+--source include/wait_condition.inc
+
+--error ER_LOCK_DEADLOCK
+UPDATE t1 SET a=5 WHERE a=1;
+--error ER_XA_RBDEADLOCK
+XA END 'xid1';
+XA ROLLBACK 'xid1';
+
+XA START 'xid1';
+XA END 'xid1';
+XA ROLLBACK 'xid1';
+
+connection con1;
+REAP;
+disconnect con1;
+
+connection default;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#56448 Assertion failed: ! is_set() with second xa end
+--echo #
+
+XA START 'x';
+XA END 'x';
+# Second XA END caused an assertion.
+--error ER_XAER_RMFAIL
+XA END 'x';
+XA PREPARE 'x';
+# Second XA PREPARE also caused an assertion.
+--error ER_XAER_RMFAIL
+XA PREPARE 'x';
+XA ROLLBACK 'x';
+
+
+--echo #
+--echo # Bug#59986 Assert in Diagnostics_area::set_ok_status() for XA COMMIT
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a)) engine=InnoDB;
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+
+--echo # Connection con1
+connect (con1, localhost, root);
+XA START 'a';
+UPDATE t1 SET b= 3 WHERE a=1;
+
+--echo # Connection default
+connection default;
+XA START 'b';
+UPDATE t1 SET b=4 WHERE a=2;
+--echo # Sending:
+--send UPDATE t1 SET b=5 WHERE a=1
+
+--echo # Connection con1
+connection con1;
+--sleep 1
+--error ER_LOCK_DEADLOCK
+UPDATE t1 SET b=6 WHERE a=2;
+# This used to trigger the assert
+--error ER_XA_RBDEADLOCK
+XA COMMIT 'a';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: UPDATE t1 SET b=5 WHERE a=1
+--reap
+XA END 'b';
+XA ROLLBACK 'b';
+DROP TABLE t1;
+disconnect con1;
+
+
+--echo #
+--echo # Bug#11766752 59936: multiple xa assertions - transactional
+--echo #              statement fuzzer
+--echo #
+
+CREATE TABLE t1 (a INT) engine=InnoDB;
+XA START 'a';
+INSERT INTO t1 VALUES (1);
+
+SAVEPOINT savep;
+
+XA END 'a';
+--error ER_XAER_RMFAIL
+SELECT * FROM t1;
+--error ER_XAER_RMFAIL
+INSERT INTO t1 VALUES (2);
+--error ER_XAER_RMFAIL
+SAVEPOINT savep;
+--error ER_XAER_RMFAIL
+SET @a=(SELECT * FROM t1);
+
+XA PREPARE 'a';
+--error ER_XAER_RMFAIL
+SELECT * FROM t1;          # used to cause InnoDB assert
+--error ER_XAER_RMFAIL
+INSERT INTO t1 VALUES (2); # used to cause InnoDB assert
+--error ER_XAER_RMFAIL
+SAVEPOINT savep;
+--error ER_XAER_RMFAIL
+SET @a=(SELECT * FROM t1); # used to cause InnoDB assert
+--error ER_XAER_RMFAIL
+UPDATE t1 SET a=1 WHERE a=2;
+
+XA COMMIT 'a';
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#12352846 - TRANS_XA_START(THD*):
+--echo #                ASSERTION THD->TRANSACTION.XID_STATE.XID.IS_NULL()
+--echo #                FAILED
+--echo #
+
+# We need to create a deadlock in which xa transaction will be chosen as
+# a victim and rolled back. We will use this scenario:
+# 1. connection default obtains LOCK_X on t1 record
+# 2. connection con2 obtains LOCK_X on t2 and waits for LOCK_X on t1
+# 3. connection default tries to obtain LOCK_X on t2 which causes
+#    a cycle, which is resolved by choosing con2 as a victim, because
+#    default is "heavier" due to writes made in t1
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1);
+
+START TRANSACTION;
+
+# Step 1.
+DELETE FROM t1;
+
+--echo # Connection con2
+--connect (con2,localhost,root)
+XA START 'xid1';
+--echo # Sending:
+
+# Step 2.
+SELECT a FROM t2 WHERE a=1 FOR SHARE;
+--send SELECT a FROM t1 WHERE a=1 FOR UPDATE
+
+--echo # Connection default
+--connection default
+--echo # Waiting for until a transaction with 'SELECT...FOR UPDATE'
+--echo # will be locked inside innodb subsystem.
+
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.innodb_trx
+  WHERE trx_query = 'SELECT a FROM t1 WHERE a=1 FOR UPDATE' AND
+  trx_operation_state = 'starting index read' AND
+  trx_state = 'LOCK WAIT';
+--source include/wait_condition.inc
+
+# Step 3.
+SELECT a FROM t2 WHERE a=1 FOR UPDATE;
+
+--echo # Connection con2
+--connection con2
+--echo # Reaping: SELECT a FROM t1 WHERE a=1 FOR UPDATE
+--error ER_LOCK_DEADLOCK
+--reap
+--error ER_XA_RBDEADLOCK
+XA COMMIT 'xid1';
+
+--echo # Connection default
+connection default;
+
+COMMIT;
+
+--echo # Connection con2
+connection con2;
+# This caused the assert to be triggered
+XA START 'xid1';
+
+XA END 'xid1';
+XA PREPARE 'xid1';
+XA ROLLBACK 'xid1';
+
+--echo # Connection default
+connection default;
+DROP TABLE t1;
+DROP TABLE t2;
+disconnect con2;
+
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#14670465 PLEASE PRINT HUMAN READABLE, ESCAPED
+--echo #              XID DATA IN XA RECOVER OUTPUT
+--echo #
+--echo #
+--echo # xa Recover command was not diplaying non printable ASCII
+--echo # characters in the XID previosuly. Now there is another column
+--echo # in the result set which is a Hex Encoded String of the XID.
+--echo #
+
+--echo # Check that XIDs which are not normally printable are displayed
+--echo # in readable format when CONVERT XID clause is used.
+xa start 0xABCDEF1234567890, 0x01, 0x02 ;
+xa end 0xABCDEF1234567890, 0x01, 0x02 ;
+xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
+--sorted_result
+xa recover convert xid;
+xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
+
+--echo # Check that XID which has only printable characters are displayed
+--echo # correctly without using of CONVERT XID clause
+xa start 0x4142434445, 0x46, 0x02 ;
+xa end 0x4142434445, 0x46, 0x02 ;
+xa prepare 0x4142434445, 0x46, 0x02 ;
+--sorted_result
+xa recover;
+xa rollback 0x4142434445, 0x46, 0x02 ;
+
+--disable_query_log
+call mtr.add_suppression("Found 1 prepared XA transactions");
+--enable_query_log
+
+--echo #
+--echo # WL#7155: Test 1: check that if a thread of control terminates then
+--echo # the Resource Manager dissociate and rollback any associated
+--echo # transaction branch (see ref. 3.6 on page 18 of XA spec)
+--echo #
+
+connect (con1,localhost,root,,);
+
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # WL#7155: Test 2: Check that if the Resource Manager is doing work outside
+--echo # any global transaction on behalf of the application,
+--echo # xa_start() returns XAER_OUTSIDE (see xa_start description on page 52 of XA spec)
+--echo #
+
+connect (con1,localhost,root,,);
+
+SET SESSION autocommit=0;
+START TRANSACTION;
+--error ER_XAER_OUTSIDE
+XA START 'xid1';
+COMMIT;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 3: Check that the Resource Manager returns error
+--echo # if the Transaction Manager tries to resume non-existent transaction.
+--echo #
+
+--error ER_XAER_INVAL
+XA START 'xid1' RESUME;
+
+--echo #
+--echo # WL#7155: Test 4: Check that the Resource Manager returns ok
+--echo # if the Transaction Manager tries to resume transaction
+--echo # that has been ended before.
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+XA END 'xid1';
+XA START 'xid1' RESUME;
+XA END 'xid1';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 5: Check that the Resource Manager returns error
+--echo # if the Transaction Manager ends some XA transaction and
+--echo # starts another one with RESUME clause right after that.
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+XA END 'xid1';
+--error ER_XAER_NOTA
+XA START 'xid2' RESUME;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 6: Check that the SUSPEND clause isn't supported for XA END.
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+--error ER_XAER_INVAL
+XA END 'xid1' SUSPEND;
+XA END 'xid1';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 7: Check that attempt to end non-existent XA transaction
+--echo # while another XA transaction is active leads to an error
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+--error ER_XAER_NOTA
+XA END 'xid2';
+XA END 'xid1';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 8: Check that XA ROLLBACK can't be called for active XA transaction
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+--error ER_XAER_RMFAIL
+XA ROLLBACK 'xid1';
+XA END 'xid1';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 9: Check that XA PREPARE returns error for unknown xid
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+XA END 'xid1';
+--error ER_XAER_NOTA
+XA PREPARE 'xid2';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 10: Check that rollback of XA transaction with unknown xid
+--echo # leads to an error when there is other prepared XA transaction.
+--echo #
+
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+--error ER_XAER_RMFAIL
+XA ROLLBACK 'xid2';
+XA ROLLBACK 'xid1';
+
+--echo #
+--echo # Bug#18107853 - XA LIST GETS CORRUPT, CRASH AND/OR HANG AND/OR ASSERTION
+--echo #
+
+--echo # Check that the server reports an error in case of too long input value of
+--echo # format ID overflows the type of unsigned long
+
+--error ER_PARSE_ERROR
+XA START '1', 0x01, 18446744073709551615;
+
+--echo #
+--echo # Bug#25364178 - XA PREPARE INCONSISTENT WITH XTRABACKUP
+--echo #
+
+--echo # Check XA state when lock_wait_timeout happens
+--echo # More tests added to flush_read_lock.test
+connect (con_tmp,localhost,root,,);
+set session lock_wait_timeout=1;
+create table asd (a int);
+xa start 'test1';
+insert into asd values(1);
+xa end 'test1';
+connection default;
+flush table with read lock;
+connection con_tmp;
+--echo # PREPARE error will do auto rollback.
+--ERROR ER_LOCK_WAIT_TIMEOUT
+xa prepare 'test1';
+show errors;
+connection default;
+unlock tables;
+
+connection con_tmp;
+xa start 'test1';
+insert into asd values(1);
+xa end 'test1';
+xa prepare 'test1';
+connection default;
+flush tables with read lock;
+connection con_tmp;
+--echo # LOCK error during ROLLBACK will not alter transaction state.
+--ERROR ER_LOCK_WAIT_TIMEOUT
+xa rollback 'test1';
+show errors;
+--sorted_result
+xa recover;
+--echo # LOCK error during COMMIT will not alter transaction state.
+--ERROR ER_LOCK_WAIT_TIMEOUT
+xa commit 'test1';
+show errors;
+--sorted_result
+xa recover;
+connection default;
+unlock tables;
+connection con_tmp;
+xa rollback 'test1';
+--sorted_result
+xa recover;
+drop table asd;
+disconnect con_tmp;
+--source include/wait_until_disconnected.inc
+connection default;
+
+# Finish off  disconnected survived transaction
+--echo There should be practically no error, but in theory
+--echo XAER_NOTA: Unknown XID can be returned if con1 disconnection
+--echo took for too long.
+--echo todo: consider to make this test dependent on P_S if
+--echo todo: such case will be ever registered.
+
+# There should be no prepared transactions left.
+XA RECOVER;
+
+
+--echo #
+--echo # WL#7194 -- Define and implement authorization model to manage XA-transactions
+--echo #
+
+CREATE USER u1;
+GRANT XA_RECOVER_ADMIN ON *.* TO u1;
+
+CREATE USER u2;
+
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--echo # Connect as user u1
+--echo # Since the privilege XA_RECOVER_ADMIN was granted to the user u1
+--echo # it is allowed to execute the statement XA RECOVER to get a list of
+--echo # xids for prepared XA transactions.
+--connect(con1,localhost,u1,'',)
+--sorted_result
+XA RECOVER;
+
+--echo # Connect as user u2
+--echo # The privilege XA_RECOVER_ADMIN wasn't granted to the user u2.
+--echo # It leads to issuing the error ER_XAER_RMERR on attempt to run
+--echo # the statement XA RECOVER.
+--connect(con2,localhost,u2,'',)
+--error ER_XAER_RMERR
+XA RECOVER;
+SHOW WARNINGS;
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--echo # The default connection was established on behalf the user root@localhost
+--echo # who has the XA_RECOVER_ADMIN privilege assigned by default.
+--echo # So for the user root@localhost the statement XA RECOVER
+--echo # can be executed successfully.
+--sorted_result
+XA RECOVER;
+XA COMMIT 'xid1';
+
+--echo # Connect as the user u2 who wasn't granted privilege XA_RECOVER_ADMIN.
+--echo # Initiates a new XA transaction on behalf the user u2 and shows that
+--echo # call XA RECOVER made by the user u2 is failed with error ER_XAER_RMERR.
+
+--connection con2
+XA START 'xid2';
+XA END 'xid2';
+XA PREPARE 'xid2';
+--error ER_XAER_RMERR
+XA RECOVER;
+SHOW WARNINGS;
+--echo # Although the user u2 can't get a list of prepared XA transaction this user
+--echo # can finalize a prepared XA transaction knowing its XID value.
+XA COMMIT 'xid2';
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP USER u1, u2;
+
+--echo # Check that a user who has the privilege SUPER and hasn't the privilege
+--echo # XA_RECOVER_ADMIN isn't allowed to run the statement XA RECOVER
+CREATE USER u1;
+GRANT SUPER ON *.* TO u1;
+SHOW GRANTS FOR u1;
+
+--connect(con1,localhost,u1,'',)
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--error ER_XAER_RMERR
+XA RECOVER;
+XA COMMIT 'xid1';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP USER u1;
+
+--echo # End of tests fro WL#7194
+
+--echo #
+--echo # Bug #26848877 -- XA COMMIT/ROLLBACK REJECTED BY NON-AUTOCOMMIT SESSION
+--echo #                  WITH NO ACTIVE TRANSACTION
+--echo #
+
+--connect(con1,localhost,root,'',)
+
+--echo # Check that XA COMMIT finalizes XA transaction branch in case
+--echo # XA transaction was prepared successfully and after session reconnect
+--echo # a user turned off autocommit before running XA COMMIT
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+SET autocommit = 0;
+XA RECOVER;
+# Without patch the following statement would fail with error message:
+# 'XA COMMIT 'xid1'' failed: 1399: XAER_RMFAIL: The command can't be executed
+# when global transaction is in the  NON-EXISTING state
+XA COMMIT 'xid1';
+
+--echo # Check that XA ROLLBACK finalizes XA transaction branch in case
+--echo # XA transaction was prepared successfully and after reconnect
+--echo # a user turned off autocommit before running XA ROLLBACK
+
+--connect(con1,localhost,root,'',)
+
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+SET autocommit = 0;
+XA RECOVER;
+# Without patch the following statement would fail with error message:
+# 'XA ROLLBACK 'xid1'' failed: 1399: XAER_RMFAIL: The command cannot be
+# executed when global transaction is in the  NON-EXISTING state
+XA ROLLBACK 'xid1';
+
+--echo #
+--echo # BUG 31030205 - XA PREPARED TXN WILL STAY AS "RECOVERED TRX" IF ROLLBACK
+--echo #                XID HAS WRONG FORMATID
+--echo #
+--echo #
+
+--connect(con1,localhost,root,'',)
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+INSERT INTO t1 VALUES (1);
+XA END X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+XA PREPARE X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connect(con2, localhost, root, '',)
+--error ER_XAER_NOTA
+XA ROLLBACK X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',2;
+XA RECOVER CONVERT XID;
+XA ROLLBACK X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+DROP TABLE t1;
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+connection default;
+--replace_result $CURGLOB_xa_detach_on_prepare OLD_VALUE_xa_detach_on_prepare
+--eval SET GLOBAL xa_detach_on_prepare = $CURGLOB_xa_detach_on_prepare
+--replace_result $CURSESS_xa_detach_on_prepare OLD_VALUE_xa_detach_on_prepare
+--eval SET SESSION xa_detach_on_prepare = $CURSESS_xa_detach_on_prepare
+

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,12 +51,12 @@
 ////////////////////////////////////////
 // Package include files
 #include "builtin_plugins.h"
-#include "common.h"  // mysql_harness::rename_thread()
 #include "designator.h"
 #include "dim.h"
 #include "exception.h"
 #include "harness_assert.h"
 #include "my_stacktrace.h"
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/dynamic_loader.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
@@ -64,7 +64,8 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/sd_notify.h"
 #include "mysql/harness/stdx/monitor.h"
-#include "utilities.h"
+#include "mysql/harness/utility/string.h"  // join
+#include "utilities.h"                     // make_range
 IMPORT_LOG_FUNCTIONS()
 
 #include "my_compiler.h"
@@ -76,7 +77,6 @@ using mysql_harness::utility::reverse;
 using mysql_harness::Config;
 using mysql_harness::Path;
 
-using std::ostringstream;
 using namespace std::chrono_literals;
 
 #if !defined(_WIN32)
@@ -89,6 +89,38 @@ static const char kLogReopenServiceName[] = "log_reopen";
 #if defined(USE_POSIX_SIGNALS)
 static const char kSignalHandlerServiceName[] = "signal_handler";
 #endif
+
+#ifdef _WIN32
+static constexpr size_t supported_global_options_size = 21;
+#else
+static constexpr size_t supported_global_options_size = 20;
+#endif
+
+static const std::array<const char *, supported_global_options_size>
+    supported_global_options{"origin",
+                             "program",
+                             "logging_folder",
+                             "runtime_folder",
+                             "data_folder",
+                             "plugin_folder",
+                             "config_folder",
+                             "keyring_path",
+                             "master_key_path",
+                             "connect_timeout",
+                             "read_timeout",
+                             "dynamic_state",
+                             "client_ssl_cert",
+                             "client_ssl_key",
+                             "client_ssl_mode",
+                             "server_ssl_mode",
+                             "server_ssl_verify",
+                             "max_total_connections",
+                             "pid_file",
+                             "unknown_config_option",
+#ifdef _WIN32
+                             "event_source_name"
+#endif
+    };
 
 /**
  * @defgroup Loader Plugin loader
@@ -109,9 +141,9 @@ std::condition_variable we_might_shutdown_cond;
 // condition occurred
 static std::atomic<ShutdownReason> g_shutdown_pending{SHUTDOWN_NONE};
 
-// the thread that is setting the g_shutdown_pending to SHUTDOWN_FATAL_ERROR is
-// supposed to set this error message so that it bubbles up and ends up on the
-// console
+// the thread that is setting the g_shutdown_pending to SHUTDOWN_FATAL_ERROR
+// is supposed to set this error message so that it bubbles up and ends up on
+// the console
 static std::string shutdown_fatal_error_message;
 
 std::mutex log_reopen_cond_mutex;
@@ -203,7 +235,8 @@ static void block_all_nonfatal_signals() {
 
 // GCC defines __SANITIZE_ADDRESS
 // clang has __has_feature and 'address_sanitizer'
-#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer))
+#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer)) || \
+    (__has_feature(thread_sanitizer))
 #define HAS_FEATURE_ASAN
 #endif
 
@@ -494,7 +527,7 @@ void Loader::spawn_signal_handler_thread() {
 #ifdef USE_POSIX_SIGNALS
   std::promise<void> signal_handler_thread_setup_done;
   signal_thread_ = std::thread([this] {
-    mysql_harness::rename_thread("sig handler");
+    my_thread_self_setname("sig handler");
 
     sigset_t ss;
     sigemptyset(&ss);
@@ -629,7 +662,7 @@ const Plugin *Loader::load_from(const std::string &plugin_name,
   auto plugin = info.plugin();
   if ((plugin->abi_version & 0xFF00) != (PLUGIN_ABI_VERSION & 0xFF00) ||
       (plugin->abi_version & 0xFF) > (PLUGIN_ABI_VERSION & 0xFF)) {
-    ostringstream buffer;
+    std::ostringstream buffer;
     buffer.setf(std::ios::hex, std::ios::basefield);
     buffer.setf(std::ios::showbase);
     buffer << "Bad ABI version - plugin version: " << plugin->abi_version
@@ -834,6 +867,14 @@ T value_or(T a, T b) {
 std::exception_ptr Loader::run() {
   // initialize plugins
   std::exception_ptr first_eptr = init_all();
+
+  if (!first_eptr) {
+    try {
+      check_config_options_supported();
+    } catch (std::exception &) {
+      first_eptr = std::current_exception();
+    }
+  }
 
   // run plugins if initialization didn't fail
   if (!first_eptr) {
@@ -1345,6 +1386,79 @@ bool Loader::visit(const std::string &designator,
     }
   }
   return true;
+}
+
+static void report_unsupported_option(const std::string &section,
+                                      const std::string &option,
+                                      const bool error_out) {
+  const std::string msg =
+      "option '" + section + "." + option + "' is not supported";
+  if (error_out) {
+    throw std::runtime_error(msg);
+  } else {
+    log_warning("%s", msg.c_str());
+  }
+}
+
+void Loader::check_config_options_supported() {
+  check_default_config_options_supported();
+
+  const bool error_out = config_.error_on_unsupported_option;
+
+  for (const ConfigSection *section : config_.sections()) {
+    const auto &plugin = plugins_.at(section->name).plugin();
+    for (const auto &option : section->get_options()) {
+      if (option.first == "library") continue;
+
+      bool is_supported{false};
+      for (auto supported_option : make_range(
+               plugin->supported_options, plugin->supported_options_length)) {
+        if (supported_option != nullptr) {
+          if (option.first == supported_option) {
+            is_supported = true;
+            break;
+          }
+        }
+      }
+
+      if (!is_supported) {
+        report_unsupported_option(section->name, option.first, error_out);
+      }
+    }
+  }
+}
+
+void Loader::check_default_config_options_supported() {
+  const auto &defult_section = config_.get_default_section();
+  const bool error_out = config_.error_on_unsupported_option;
+
+  for (const auto &option : defult_section.get_options()) {
+    if (std::find(supported_global_options.begin(),
+                  supported_global_options.end(),
+                  option.first) != supported_global_options.end()) {
+      continue;
+    }
+
+    bool option_supported{false};
+    for (const mysql_harness::ConfigSection *section : config_.sections()) {
+      const auto &plugin = plugins_.at(section->name).plugin();
+      for (auto supported_option : make_range(
+               plugin->supported_options, plugin->supported_options_length)) {
+        if (supported_option != nullptr) {
+          if (option.first == supported_option) option_supported = true;
+        }
+      }
+      if (option_supported) {
+        // go to the outer loop to check next option
+        break;
+      }
+      // else check next plugin section
+    }
+
+    if (!option_supported) {
+      report_unsupported_option("DEFAULT", option.first, error_out);
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

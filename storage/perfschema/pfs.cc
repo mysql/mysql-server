@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_thread.h"
+#include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
 #include "pfs_error_provider.h"
 /* Make sure exported prototypes match the implementation. */
@@ -497,7 +498,7 @@ static void report_memory_accounting_error(const char *api_name,
   The instrumentation interface consist of two layers:
   - a raw ABI (Application Binary Interface) layer, that exposes the primitive
   instrumentation functions exported by the performance schema instrumentation
-  - an API (Application Programing Interface) layer,
+  - an API (Application Programming Interface) layer,
   that provides many helpers for a developer instrumenting some code,
   to make the instrumentation as easy as possible.
 
@@ -1894,12 +1895,12 @@ PSI_TLS_CHANNEL_CALL(unregister_tls_channel)(...)
 @endverbatim
 
   Implemented as:
-  - [1] #pfs_start_statement_v2(), #pfs_end_statement_v2()
+  - [1] #pfs_start_statement_vc(), #pfs_end_statement_vc()
        (1a, 1b) is an aggregation by EVENT_NAME,
         (1c, 1d, 1e) is an aggregation by TIME,
         (1f) is an aggregation by DIGEST
         all of these are orthogonal,
-        and implemented in #pfs_end_statement_v2().
+        and implemented in #pfs_end_statement_vc().
   - [2] #pfs_delete_thread_v1(), #aggregate_thread_statements()
   - [3] @c PFS_account::aggregate_statements()
   - [4] @c PFS_host::aggregate_statements()
@@ -2489,7 +2490,7 @@ void pfs_register_stage_v1(const char *category, PSI_stage_info_v1 **info_array,
   return;
 }
 
-void pfs_register_statement_v2(const char *category, PSI_statement_info *info,
+void pfs_register_statement_vc(const char *category, PSI_statement_info *info,
                                int count) {
   char formatted_name[PFS_MAX_INFO_NAME_LENGTH];
   size_t prefix_length;
@@ -2887,10 +2888,8 @@ void pfs_create_file_vc(PSI_file_key key, const char *name, File file) {
 */
 struct PFS_spawn_thread_arg {
   ulonglong m_thread_internal_id;
-  char m_username[USERNAME_LENGTH];
-  uint m_username_length;
-  char m_hostname[HOSTNAME_LENGTH];
-  uint m_hostname_length;
+  PFS_user_name m_user_name;
+  PFS_host_name m_host_name;
 
   PSI_thread_key m_child_key;
   PSI_thread_seqnum m_child_seqnum;
@@ -2918,11 +2917,8 @@ static void *pfs_spawn_thread(void *arg) {
 
       pfs->m_parent_thread_internal_id = typed_arg->m_thread_internal_id;
 
-      memcpy(pfs->m_username, typed_arg->m_username, sizeof(pfs->m_username));
-      pfs->m_username_length = typed_arg->m_username_length;
-
-      memcpy(pfs->m_hostname, typed_arg->m_hostname, sizeof(pfs->m_hostname));
-      pfs->m_hostname_length = typed_arg->m_hostname_length;
+      pfs->m_user_name = typed_arg->m_user_name;
+      pfs->m_host_name = typed_arg->m_host_name;
 
       set_thread_account(pfs);
     }
@@ -2981,17 +2977,12 @@ int pfs_spawn_thread_vc(PSI_thread_key key, PSI_thread_seqnum seqnum,
     */
     psi_arg->m_thread_internal_id = parent->m_thread_internal_id;
 
-    memcpy(psi_arg->m_username, parent->m_username,
-           sizeof(psi_arg->m_username));
-    psi_arg->m_username_length = parent->m_username_length;
-
-    memcpy(psi_arg->m_hostname, parent->m_hostname,
-           sizeof(psi_arg->m_hostname));
-    psi_arg->m_hostname_length = parent->m_hostname_length;
+    psi_arg->m_user_name = parent->m_user_name;
+    psi_arg->m_host_name = parent->m_host_name;
   } else {
     psi_arg->m_thread_internal_id = 0;
-    psi_arg->m_username_length = 0;
-    psi_arg->m_hostname_length = 0;
+    psi_arg->m_user_name.reset();
+    psi_arg->m_host_name.reset();
   }
 
   int result = my_thread_create(thread, attr, pfs_spawn_thread, psi_arg);
@@ -3090,6 +3081,21 @@ void pfs_set_thread_THD_vc(PSI_thread *thread, THD *thd) {
     return;
   }
   pfs->m_thd = thd;
+  pfs->m_cnt_thd = thd;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::set_mem_cnt_THD.
+*/
+void pfs_set_mem_cnt_THD_vc(THD *thd, THD **backup_thd) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+  if (unlikely(pfs == nullptr)) {
+    *backup_thd = nullptr;
+    return;
+  }
+  *backup_thd = pfs->m_cnt_thd;
+  pfs->m_cnt_thd = thd;
 }
 
 /**
@@ -3121,10 +3127,6 @@ void pfs_set_thread_user_vc(const char *user, int user_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  assert((user != nullptr) || (user_len == 0));
-  assert(user_len >= 0);
-  assert((uint)user_len <= sizeof(pfs->m_username));
-
   if (unlikely(pfs == nullptr)) {
     return;
   }
@@ -3135,10 +3137,7 @@ void pfs_set_thread_user_vc(const char *user, int user_len) {
 
   clear_thread_account(pfs);
 
-  if (user_len > 0) {
-    memcpy(pfs->m_username, user, user_len);
-  }
-  pfs->m_username_length = user_len;
+  pfs->m_user_name.set(user, user_len);
 
   set_thread_account(pfs);
 
@@ -3148,9 +3147,8 @@ void pfs_set_thread_user_vc(const char *user, int user_len) {
     enabled = pfs->m_account->m_enabled;
     history = pfs->m_account->m_history;
   } else {
-    if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0)) {
-      lookup_setup_actor(pfs, pfs->m_username, pfs->m_username_length,
-                         pfs->m_hostname, pfs->m_hostname_length, &enabled,
+    if ((pfs->m_user_name.length() > 0) && (pfs->m_host_name.length() > 0)) {
+      lookup_setup_actor(pfs, &pfs->m_user_name, &pfs->m_host_name, &enabled,
                          &history);
     } else {
       /* There is no setting for background threads */
@@ -3173,14 +3171,6 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  assert((user != nullptr) || (user_len == 0));
-  assert(user_len >= 0);
-  assert((uint)user_len <= sizeof(pfs->m_username));
-  assert((host != nullptr) || (host_len == 0));
-  assert(host_len >= 0);
-
-  host_len = min<size_t>(host_len, sizeof(pfs->m_hostname));
-
   if (unlikely(pfs == nullptr)) {
     return;
   }
@@ -3189,15 +3179,8 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
 
   clear_thread_account(pfs);
 
-  if (host_len > 0) {
-    memcpy(pfs->m_hostname, host, host_len);
-  }
-  pfs->m_hostname_length = host_len;
-
-  if (user_len > 0) {
-    memcpy(pfs->m_username, user, user_len);
-  }
-  pfs->m_username_length = user_len;
+  pfs->m_user_name.set(user, user_len);
+  pfs->m_host_name.set(host, host_len);
 
   set_thread_account(pfs);
 
@@ -3207,9 +3190,8 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
     enabled = pfs->m_account->m_enabled;
     history = pfs->m_account->m_history;
   } else {
-    if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0)) {
-      lookup_setup_actor(pfs, pfs->m_username, pfs->m_username_length,
-                         pfs->m_hostname, pfs->m_hostname_length, &enabled,
+    if ((pfs->m_user_name.length() > 0) && (pfs->m_host_name.length() > 0)) {
+      lookup_setup_actor(pfs, &pfs->m_user_name, &pfs->m_host_name, &enabled,
                          &history);
     } else {
       /* There is no setting for background threads */
@@ -3230,17 +3212,10 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
 void pfs_set_thread_db_vc(const char *db, int db_len) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  assert((db != nullptr) || (db_len == 0));
-  assert(db_len >= 0);
-  assert((uint)db_len <= sizeof(pfs->m_dbname));
-
   if (likely(pfs != nullptr)) {
     pfs_dirty_state dirty_state;
     pfs->m_stmt_lock.allocated_to_dirty(&dirty_state);
-    if (db_len > 0) {
-      memcpy(pfs->m_dbname, db, db_len);
-    }
-    pfs->m_dbname_length = db_len;
+    pfs->m_db_name.set(db, db_len);
     pfs->m_stmt_lock.dirty_to_allocated(&dirty_state);
   }
 }
@@ -3316,6 +3291,18 @@ void pfs_set_thread_info_vc(const char *info, uint info_len) {
 }
 
 /**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v6::set_thread_secondary_engine.
+*/
+void pfs_set_thread_secondary_engine_vc(bool secondary) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+
+  if (likely(pfs != nullptr)) {
+    pfs->m_secondary = secondary;
+  }
+}
+
+/**
   Set the resource group name for a given thread.
   @param pfs Thread instrumentation
   @param group_name Group name
@@ -3384,6 +3371,7 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
                           PSI_thread_attrs *thread_attrs)
 
 {
+  size_t len;
   int result = 0;
   pfs_optimistic_state lock = pfs_optimistic_state();
   pfs_optimistic_state session_lock = pfs_optimistic_state();
@@ -3417,16 +3405,18 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
     memcpy(&thread_attrs->m_sock_addr, &pfs->m_sock_addr, pfs->m_sock_addr_len);
   }
 
-  assert(pfs->m_username_length <= sizeof(PSI_thread_attrs::m_username));
-  thread_attrs->m_username_length = pfs->m_username_length;
-  if (pfs->m_username_length > 0) {
-    memcpy(thread_attrs->m_username, pfs->m_username, pfs->m_username_length);
+  len = pfs->m_user_name.length();
+  assert(len <= sizeof(PSI_thread_attrs::m_username));
+  thread_attrs->m_username_length = len;
+  if (len > 0) {
+    memcpy(thread_attrs->m_username, pfs->m_user_name.ptr(), len);
   }
 
-  assert(pfs->m_hostname_length <= sizeof(PSI_thread_attrs::m_hostname));
-  thread_attrs->m_hostname_length = pfs->m_hostname_length;
-  if (pfs->m_hostname_length > 0) {
-    memcpy(thread_attrs->m_hostname, pfs->m_hostname, pfs->m_hostname_length);
+  len = pfs->m_host_name.length();
+  assert(len <= sizeof(PSI_thread_attrs::m_hostname));
+  thread_attrs->m_hostname_length = len;
+  if (len > 0) {
+    memcpy(thread_attrs->m_hostname, pfs->m_host_name.ptr(), len);
   }
 
   assert(pfs->m_groupname_length <= sizeof(PSI_thread_attrs::m_groupname));
@@ -5909,7 +5899,7 @@ void pfs_end_stage_v1() {
   }
 }
 
-PSI_statement_locker *pfs_get_thread_statement_locker_v2(
+PSI_statement_locker *pfs_get_thread_statement_locker_vc(
     PSI_statement_locker_state *state, PSI_statement_key key,
     const void *charset, PSI_sp_share *sp_share) {
   assert(state != nullptr);
@@ -5940,6 +5930,10 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
 
     if (klass->m_timed) {
       flags |= STATE_FLAG_TIMED;
+
+      if (flag_events_statements_cpu) {
+        flags |= STATE_FLAG_CPU;
+      }
     }
 
     if (flag_events_statements_current) {
@@ -5963,7 +5957,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
       pfs->m_timer_start = 0;
       pfs->m_timer_end = 0;
       pfs->m_lock_time = 0;
-      pfs->m_current_schema_name_length = 0;
+      pfs->m_current_schema_name.reset();
       pfs->m_sqltext_length = 0;
       pfs->m_sqltext_truncated = false;
       pfs->m_sqltext_cs_number = system_charset_info->number; /* default */
@@ -5990,6 +5984,8 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
       pfs->m_sort_scan = 0;
       pfs->m_no_index_used = 0;
       pfs->m_no_good_index_used = 0;
+      pfs->m_cpu_time = 0;
+      pfs->m_secondary = false;
       pfs->m_digest_storage.reset();
 
       /* New stages will have this statement as parent */
@@ -6030,17 +6026,13 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
       /* Set parent Stored Procedure information for this statement. */
       if (sp_share) {
         PFS_program *parent_sp = reinterpret_cast<PFS_program *>(sp_share);
-        pfs->m_sp_type = parent_sp->m_type;
-        memcpy(pfs->m_schema_name, parent_sp->m_schema_name,
-               parent_sp->m_schema_name_length);
-        pfs->m_schema_name_length = parent_sp->m_schema_name_length;
-        memcpy(pfs->m_object_name, parent_sp->m_object_name,
-               parent_sp->m_object_name_length);
-        pfs->m_object_name_length = parent_sp->m_object_name_length;
+        pfs->m_sp_type = parent_sp->m_key.m_type;
+        pfs->m_schema_name = parent_sp->m_key.m_schema_name;
+        pfs->m_object_name = parent_sp->m_key.m_object_name;
       } else {
         pfs->m_sp_type = NO_OBJECT_TYPE;
-        pfs->m_schema_name_length = 0;
-        pfs->m_object_name_length = 0;
+        pfs->m_schema_name.reset();
+        pfs->m_object_name.reset();
       }
 
       state->m_statement = pfs;
@@ -6085,6 +6077,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
   state->m_sort_scan = 0;
   state->m_no_index_used = 0;
   state->m_no_good_index_used = 0;
+  state->m_cpu_time_start = 0;
 
   state->m_digest = nullptr;
   state->m_cs_number = static_cast<const CHARSET_INFO *>(charset)->number;
@@ -6100,7 +6093,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
   return reinterpret_cast<PSI_statement_locker *>(state);
 }
 
-PSI_statement_locker *pfs_refine_statement_v2(PSI_statement_locker *locker,
+PSI_statement_locker *pfs_refine_statement_vc(PSI_statement_locker *locker,
                                               PSI_statement_key key) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -6148,7 +6141,7 @@ PSI_statement_locker *pfs_refine_statement_v2(PSI_statement_locker *locker,
   return reinterpret_cast<PSI_statement_locker *>(state);
 }
 
-void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
+void pfs_start_statement_vc(PSI_statement_locker *locker, const char *db,
                             uint db_len, const char *src_file, uint src_line) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -6156,10 +6149,16 @@ void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
 
   uint flags = state->m_flags;
   ulonglong timer_start = 0;
+  ulonglong cpu_time_start = 0;
 
   if (flags & STATE_FLAG_TIMED) {
     timer_start = get_statement_timer();
     state->m_timer_start = timer_start;
+  }
+
+  if (flags & STATE_FLAG_CPU) {
+    cpu_time_start = get_thread_cpu_timer();
+    state->m_cpu_time_start = cpu_time_start;
   }
 
   static_assert(PSI_SCHEMA_NAME_LEN == NAME_LEN, "");
@@ -6179,11 +6178,7 @@ void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
     pfs->m_source_file = src_file;
     pfs->m_source_line = src_line;
 
-    assert(db_len <= sizeof(pfs->m_current_schema_name));
-    if (db_len > 0) {
-      memcpy(pfs->m_current_schema_name, db, db_len);
-    }
-    pfs->m_current_schema_name_length = db_len;
+    pfs->m_current_schema_name.set(db, db_len);
   }
 
   state->m_query_sample = nullptr;
@@ -6191,7 +6186,7 @@ void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
   state->m_query_sample_truncated = false;
 }
 
-void pfs_set_statement_text_v2(PSI_statement_locker *locker, const char *text,
+void pfs_set_statement_text_vc(PSI_statement_locker *locker, const char *text,
                                uint text_len) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -6261,7 +6256,7 @@ void pfs_set_statement_text_v2(PSI_statement_locker *locker, const char *text,
   }                                                                      \
   return;
 
-void pfs_set_statement_query_id_v2(PSI_statement_locker *locker,
+void pfs_set_statement_query_id_vc(PSI_statement_locker *locker,
                                    ulonglong query_id) {
   PSI_statement_locker_state *state;
   state = reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -6280,83 +6275,117 @@ void pfs_set_statement_query_id_v2(PSI_statement_locker *locker,
   return;
 }
 
-void pfs_set_statement_lock_time_v2(PSI_statement_locker *locker,
+void pfs_set_statement_lock_time_vc(PSI_statement_locker *locker,
                                     ulonglong count) {
   SET_STATEMENT_ATTR_BODY(locker, m_lock_time, count);
 }
 
-void pfs_set_statement_rows_sent_v2(PSI_statement_locker *locker,
+void pfs_set_statement_rows_sent_vc(PSI_statement_locker *locker,
                                     ulonglong count) {
   SET_STATEMENT_ATTR_BODY(locker, m_rows_sent, count);
 }
 
-void pfs_set_statement_rows_examined_v2(PSI_statement_locker *locker,
+void pfs_set_statement_rows_examined_vc(PSI_statement_locker *locker,
                                         ulonglong count) {
   SET_STATEMENT_ATTR_BODY(locker, m_rows_examined, count);
 }
 
-void pfs_inc_statement_created_tmp_disk_tables_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_created_tmp_disk_tables_vc(PSI_statement_locker *locker,
                                                   ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_created_tmp_disk_tables, count);
 }
 
-void pfs_inc_statement_created_tmp_tables_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_created_tmp_tables_vc(PSI_statement_locker *locker,
                                              ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_created_tmp_tables, count);
 }
 
-void pfs_inc_statement_select_full_join_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_select_full_join_vc(PSI_statement_locker *locker,
                                            ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_full_join, count);
 }
 
-void pfs_inc_statement_select_full_range_join_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_select_full_range_join_vc(PSI_statement_locker *locker,
                                                  ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_full_range_join, count);
 }
 
-void pfs_inc_statement_select_range_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_select_range_vc(PSI_statement_locker *locker,
                                        ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_range, count);
 }
 
-void pfs_inc_statement_select_range_check_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_select_range_check_vc(PSI_statement_locker *locker,
                                              ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_range_check, count);
 }
 
-void pfs_inc_statement_select_scan_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_select_scan_vc(PSI_statement_locker *locker,
                                       ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_scan, count);
 }
 
-void pfs_inc_statement_sort_merge_passes_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_sort_merge_passes_vc(PSI_statement_locker *locker,
                                             ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_merge_passes, count);
 }
 
-void pfs_inc_statement_sort_range_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_sort_range_vc(PSI_statement_locker *locker,
                                      ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_range, count);
 }
 
-void pfs_inc_statement_sort_rows_v2(PSI_statement_locker *locker, ulong count) {
+void pfs_inc_statement_sort_rows_vc(PSI_statement_locker *locker, ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_rows, count);
 }
 
-void pfs_inc_statement_sort_scan_v2(PSI_statement_locker *locker, ulong count) {
+void pfs_inc_statement_sort_scan_vc(PSI_statement_locker *locker, ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_scan, count);
 }
 
-void pfs_set_statement_no_index_used_v2(PSI_statement_locker *locker) {
+void pfs_set_statement_no_index_used_vc(PSI_statement_locker *locker) {
   SET_STATEMENT_ATTR_BODY(locker, m_no_index_used, 1);
 }
 
-void pfs_set_statement_no_good_index_used_v2(PSI_statement_locker *locker) {
+void pfs_set_statement_no_good_index_used_vc(PSI_statement_locker *locker) {
   SET_STATEMENT_ATTR_BODY(locker, m_no_good_index_used, 1);
 }
 
-void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
+void pfs_set_statement_secondary_engine_vc(PSI_statement_locker *locker,
+                                           bool secondary) {
+  PSI_statement_locker_state *state;
+  state = reinterpret_cast<PSI_statement_locker_state *>(locker);
+
+  if (unlikely(state == nullptr)) {
+    return;
+  }
+  if (state->m_discarded) {
+    return;
+  }
+
+  /*
+    No dedicated attribute in PSI_statement_locker_state,
+    we use flags for storage.
+  */
+  if (secondary) {
+    /* Set the secondary engine flag */
+    state->m_flags |= STATE_FLAG_SECONDARY;
+  } else {
+    /* Clear the secondary engine flag */
+    state->m_flags &= ~STATE_FLAG_SECONDARY;
+  }
+
+  if (state->m_flags & STATE_FLAG_EVENT) {
+    PFS_events_statements *pfs;
+    pfs = reinterpret_cast<PFS_events_statements *>(state->m_statement);
+    assert(pfs != nullptr);
+    /* Here there is a dedicated attribute. */
+    pfs->m_secondary = secondary;
+  }
+  return;
+}
+
+void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
   Diagnostics_area *da = reinterpret_cast<Diagnostics_area *>(stmt_da);
@@ -6371,9 +6400,16 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
       reinterpret_cast<PFS_statement_class *>(state->m_class);
   assert(klass != nullptr);
 
+  ulonglong cpu_time_end;
   ulonglong timer_end = 0;
+  ulonglong cpu_time = 0;
   ulonglong wait_time = 0;
   uint flags = state->m_flags;
+
+  if (flags & STATE_FLAG_CPU) {
+    cpu_time_end = get_thread_cpu_timer();
+    cpu_time = cpu_time_end - state->m_cpu_time_start;
+  }
 
   if (flags & STATE_FLAG_TIMED) {
     timer_end = get_statement_timer();
@@ -6444,6 +6480,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
       }
 
       pfs->m_timer_end = timer_end;
+      pfs->m_cpu_time = cpu_time;
       pfs->m_end_event_id = thread->m_event_id;
 
       pfs_program = reinterpret_cast<PFS_program *>(state->m_parent_sp_share);
@@ -6488,6 +6525,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
   if (flags & STATE_FLAG_TIMED) {
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_..._BY_EVENT_NAME (timed) */
     stat->aggregate_value(wait_time);
+    stat->m_cpu_time += cpu_time;
   } else {
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_..._BY_EVENT_NAME (counted) */
     stat->aggregate_counted();
@@ -6509,12 +6547,16 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
   stat->m_sort_scan += state->m_sort_scan;
   stat->m_no_index_used += state->m_no_index_used;
   stat->m_no_good_index_used += state->m_no_good_index_used;
+  if (flags & STATE_FLAG_SECONDARY) {
+    stat->m_count_secondary++;
+  }
 
   if (digest_stat != nullptr) {
     bool new_max_wait = false;
 
     if (flags & STATE_FLAG_TIMED) {
       digest_stat->m_stat.aggregate_value(wait_time);
+      digest_stat->m_stat.m_cpu_time += cpu_time;
 
       /* Update the digest sample if it's a new maximum. */
       if (wait_time > digest_stat->get_sample_timer_wait()) {
@@ -6589,6 +6631,9 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
     digest_stat->m_stat.m_sort_scan += state->m_sort_scan;
     digest_stat->m_stat.m_no_index_used += state->m_no_index_used;
     digest_stat->m_stat.m_no_good_index_used += state->m_no_good_index_used;
+    if (flags & STATE_FLAG_SECONDARY) {
+      digest_stat->m_stat.m_count_secondary++;
+    }
   } else {
     if (flags & STATE_FLAG_TIMED) {
       time_normalizer *normalizer = time_normalizer::get_statement();
@@ -6605,6 +6650,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
     if (sub_stmt_stat != nullptr) {
       if (flags & STATE_FLAG_TIMED) {
         sub_stmt_stat->aggregate_value(wait_time);
+        sub_stmt_stat->m_cpu_time += cpu_time;
       } else {
         sub_stmt_stat->aggregate_counted();
       }
@@ -6627,6 +6673,9 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
       sub_stmt_stat->m_sort_scan += state->m_sort_scan;
       sub_stmt_stat->m_no_index_used += state->m_no_index_used;
       sub_stmt_stat->m_no_good_index_used += state->m_no_good_index_used;
+      if (flags & STATE_FLAG_SECONDARY) {
+        sub_stmt_stat->m_count_secondary++;
+      }
     }
   }
 
@@ -6647,6 +6696,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
       if (prepared_stmt_stat != nullptr) {
         if (flags & STATE_FLAG_TIMED) {
           prepared_stmt_stat->aggregate_value(wait_time);
+          prepared_stmt_stat->m_cpu_time += cpu_time;
         } else {
           prepared_stmt_stat->aggregate_counted();
         }
@@ -6669,6 +6719,9 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
         prepared_stmt_stat->m_sort_scan += state->m_sort_scan;
         prepared_stmt_stat->m_no_index_used += state->m_no_index_used;
         prepared_stmt_stat->m_no_good_index_used += state->m_no_good_index_used;
+        if (pfs_prepared_stmt->m_secondary) {
+          prepared_stmt_stat->m_count_secondary++;
+        }
       }
     }
   }
@@ -6757,7 +6810,7 @@ static inline enum_object_type sp_type_to_object_type(uint sp_type) {
   Implementation of the stored program instrumentation interface.
   @sa PSI_v1::get_sp_share.
 */
-static PSI_sp_share *pfs_get_sp_share_v2(uint sp_type, const char *schema_name,
+static PSI_sp_share *pfs_get_sp_share_vc(uint sp_type, const char *schema_name,
                                          uint schema_name_length,
                                          const char *object_name,
                                          uint object_name_length) {
@@ -6781,12 +6834,12 @@ static PSI_sp_share *pfs_get_sp_share_v2(uint sp_type, const char *schema_name,
   return reinterpret_cast<PSI_sp_share *>(pfs_program);
 }
 
-static void pfs_release_sp_share_v2(PSI_sp_share *) {
+static void pfs_release_sp_share_vc(PSI_sp_share *) {
   /* Unused */
   return;
 }
 
-static PSI_sp_locker *pfs_start_sp_v2(PSI_sp_locker_state *state,
+static PSI_sp_locker *pfs_start_sp_vc(PSI_sp_locker_state *state,
                                       PSI_sp_share *sp_share) {
   assert(state != nullptr);
   if (!flag_global_instrumentation) {
@@ -6824,7 +6877,7 @@ static PSI_sp_locker *pfs_start_sp_v2(PSI_sp_locker_state *state,
   return reinterpret_cast<PSI_sp_locker *>(state);
 }
 
-static void pfs_end_sp_v2(PSI_sp_locker *locker) {
+static void pfs_end_sp_vc(PSI_sp_locker *locker) {
   PSI_sp_locker_state *state = reinterpret_cast<PSI_sp_locker_state *>(locker);
   assert(state != nullptr);
 
@@ -6845,7 +6898,7 @@ static void pfs_end_sp_v2(PSI_sp_locker *locker) {
   }
 }
 
-static void pfs_drop_sp_v2(uint sp_type, const char *schema_name,
+static void pfs_drop_sp_vc(uint sp_type, const char *schema_name,
                            uint schema_name_length, const char *object_name,
                            uint object_name_length) {
   PFS_thread *pfs_thread = my_thread_get_THR_PFS();
@@ -7298,7 +7351,7 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket) {
   }
 }
 
-struct PSI_digest_locker *pfs_digest_start_v2(PSI_statement_locker *locker) {
+struct PSI_digest_locker *pfs_digest_start_vc(PSI_statement_locker *locker) {
   PSI_statement_locker_state *statement_state;
   statement_state = reinterpret_cast<PSI_statement_locker_state *>(locker);
   assert(statement_state != nullptr);
@@ -7314,7 +7367,7 @@ struct PSI_digest_locker *pfs_digest_start_v2(PSI_statement_locker *locker) {
   return nullptr;
 }
 
-void pfs_digest_end_v2(PSI_digest_locker *locker,
+void pfs_digest_end_vc(PSI_digest_locker *locker,
                        const sql_digest_storage *digest) {
   PSI_statement_locker_state *state;
   state = reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -7360,7 +7413,7 @@ void pfs_digest_end_v2(PSI_digest_locker *locker,
   }
 }
 
-PSI_prepared_stmt *pfs_create_prepared_stmt_v2(void *identity, uint stmt_id,
+PSI_prepared_stmt *pfs_create_prepared_stmt_vc(void *identity, uint stmt_id,
                                                PSI_statement_locker *locker,
                                                const char *stmt_name,
                                                size_t stmt_name_length,
@@ -7392,7 +7445,7 @@ PSI_prepared_stmt *pfs_create_prepared_stmt_v2(void *identity, uint stmt_id,
   return reinterpret_cast<PSI_prepared_stmt *>(pfs);
 }
 
-void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
+void pfs_execute_prepared_stmt_vc(PSI_statement_locker *locker,
                                   PSI_prepared_stmt *ps) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -7402,14 +7455,14 @@ void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
   state->m_in_prepare = false;
 }
 
-void pfs_destroy_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void pfs_destroy_prepared_stmt_vc(PSI_prepared_stmt *prepared_stmt) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   delete_prepared_stmt(pfs_prepared_stmt);
   return;
 }
 
-void pfs_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void pfs_reprepare_prepared_stmt_vc(PSI_prepared_stmt *prepared_stmt) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   PFS_single_stat *prepared_stmt_stat = &pfs_prepared_stmt->m_reprepare_stat;
@@ -7420,7 +7473,7 @@ void pfs_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
   return;
 }
 
-void pfs_set_prepared_stmt_text_v2(PSI_prepared_stmt *prepared_stmt,
+void pfs_set_prepared_stmt_text_vc(PSI_prepared_stmt *prepared_stmt,
                                    const char *text, uint text_len) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
@@ -7433,6 +7486,17 @@ void pfs_set_prepared_stmt_text_v2(PSI_prepared_stmt *prepared_stmt,
 
   memcpy(pfs_prepared_stmt->m_sqltext, text, text_len);
   pfs_prepared_stmt->m_sqltext_length = text_len;
+
+  return;
+}
+
+void pfs_set_prepared_stmt_secondary_engine_vc(PSI_prepared_stmt *prepared_stmt,
+                                               bool secondary) {
+  PFS_prepared_stmt *pfs_prepared_stmt =
+      reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
+  assert(pfs_prepared_stmt != nullptr);
+
+  pfs_prepared_stmt->m_secondary = secondary;
 
   return;
 }
@@ -7558,6 +7622,7 @@ void pfs_register_memory_vc(const char *category, PSI_memory_info_v1 *info,
 
 PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
                                    PSI_thread **owner) {
+  PSI_memory_key result_key = key;
   PFS_thread **owner_thread = reinterpret_cast<PFS_thread **>(owner);
   assert(owner_thread != nullptr);
 
@@ -7590,6 +7655,14 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
       return PSI_NOT_INSTRUMENTED;
     }
 
+    if (klass->has_memory_cnt()) {
+#ifndef NDEBUG
+      pfs_thread->current_key_name = klass->m_name.str();
+#endif
+      if (pfs_thread->m_cnt_thd != nullptr && pfs_thread->mem_cnt_alloc(size))
+        result_key |= PSI_MEM_CNT_BIT;
+    }
+
     PFS_memory_safe_stat *event_name_array;
     PFS_memory_safe_stat *stat;
     PFS_memory_stat_alloc_delta delta_buffer;
@@ -7618,7 +7691,7 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
     *owner_thread = nullptr;
   }
 
-  return key;
+  return result_key;
 }
 
 PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
@@ -7626,7 +7699,7 @@ PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
   PFS_thread **owner_thread_hdl = reinterpret_cast<PFS_thread **>(owner);
   assert(owner != nullptr);
 
-  PFS_memory_class *klass = find_memory_class(key);
+  PFS_memory_class *klass = find_memory_class(PSI_REAL_MEM_KEY(key));
   if (klass == nullptr) {
     *owner_thread_hdl = nullptr;
     return PSI_NOT_INSTRUMENTED;
@@ -7703,7 +7776,7 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
   PFS_thread **owner_thread = reinterpret_cast<PFS_thread **>(owner);
   assert(owner_thread != nullptr);
 
-  PFS_memory_class *klass = find_memory_class(key);
+  PFS_memory_class *klass = find_memory_class(PSI_REAL_MEM_KEY(key));
   if (klass == nullptr) {
     *owner_thread = nullptr;
     return PSI_NOT_INSTRUMENTED;
@@ -7760,7 +7833,7 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
       local_stat = &event_name_local_array[index];
       free_delta = local_stat->count_free(size, &free_delta_buffer);
 
-      if (free_delta != NULL) {
+      if (free_delta != nullptr) {
         old_thread->carry_memory_stat_free_delta(free_delta, index);
       }
 
@@ -7816,7 +7889,8 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
 
 void pfs_memory_free_vc(PSI_memory_key key, size_t size,
                         PSI_thread *owner [[maybe_unused]]) {
-  PFS_memory_class *klass = find_memory_class(key);
+  PFS_memory_class *klass = find_memory_class(PSI_REAL_MEM_KEY(key));
+
   if (klass == nullptr) {
     return;
   }
@@ -7836,6 +7910,11 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size,
     PFS_thread *pfs_thread = my_thread_get_THR_PFS();
     PFS_thread *owner_thread = reinterpret_cast<PFS_thread *>(owner);
     if (likely(pfs_thread != nullptr)) {
+      if (pfs_thread->m_cnt_thd != nullptr && (key & PSI_MEM_CNT_BIT)) {
+        assert(klass->has_memory_cnt());
+        pfs_thread->mem_cnt_free(size);
+      }
+
       if (pfs_thread == owner_thread) {
         /*
           Do not check pfs_thread->m_enabled.
@@ -8299,7 +8378,8 @@ PSI_thread_service_v5 pfs_thread_service_v5 = {
     pfs_unregister_notification_vc,
     pfs_notify_session_connect_vc,
     pfs_notify_session_disconnect_vc,
-    pfs_notify_session_change_user_vc};
+    pfs_notify_session_change_user_vc,
+    pfs_set_mem_cnt_THD_vc};
 
 SERVICE_TYPE(psi_thread_v5)
 SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v5) = {
@@ -8321,6 +8401,86 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v5) = {
     pfs_set_connection_type_vc,
     pfs_set_thread_start_time_vc,
     pfs_set_thread_info_vc,
+    pfs_set_thread_vc,
+    pfs_set_thread_peer_port_vc,
+    pfs_aggregate_thread_status_vc,
+    pfs_delete_current_thread_vc,
+    pfs_delete_thread_vc,
+    pfs_set_thread_connect_attrs_vc,
+    pfs_get_current_thread_event_id_vc,
+    pfs_get_thread_event_id_vc,
+    pfs_get_thread_system_attrs_vc,
+    pfs_get_thread_system_attrs_by_id_vc,
+    pfs_register_notification_vc,
+    pfs_unregister_notification_vc,
+    pfs_notify_session_connect_vc,
+    pfs_notify_session_disconnect_vc,
+    pfs_notify_session_change_user_vc};
+
+/**
+  Implementation of the instrumentation interface.
+  @sa PSI_thread_service_v6
+*/
+PSI_thread_service_v6 pfs_thread_service_v6 = {
+    /* Old interface, for plugins. */
+    pfs_register_thread_vc,
+    pfs_spawn_thread_vc,
+    pfs_new_thread_vc,
+    pfs_set_thread_id_vc,
+    pfs_get_current_thread_internal_id_vc,
+    pfs_get_thread_internal_id_vc,
+    pfs_get_thread_by_id_vc,
+    pfs_set_thread_THD_vc,
+    pfs_set_thread_os_id_vc,
+    pfs_get_thread_vc,
+    pfs_set_thread_user_vc,
+    pfs_set_thread_account_vc,
+    pfs_set_thread_db_vc,
+    pfs_set_thread_command_vc,
+    pfs_set_connection_type_vc,
+    pfs_set_thread_start_time_vc,
+    pfs_set_thread_info_vc,
+    pfs_set_thread_secondary_engine_vc,
+    pfs_set_thread_resource_group_vc,
+    pfs_set_thread_resource_group_by_id_vc,
+    pfs_set_thread_vc,
+    pfs_set_thread_peer_port_vc,
+    pfs_aggregate_thread_status_vc,
+    pfs_delete_current_thread_vc,
+    pfs_delete_thread_vc,
+    pfs_set_thread_connect_attrs_vc,
+    pfs_get_current_thread_event_id_vc,
+    pfs_get_thread_event_id_vc,
+    pfs_get_thread_system_attrs_vc,
+    pfs_get_thread_system_attrs_by_id_vc,
+    pfs_register_notification_vc,
+    pfs_unregister_notification_vc,
+    pfs_notify_session_connect_vc,
+    pfs_notify_session_disconnect_vc,
+    pfs_notify_session_change_user_vc,
+    pfs_set_mem_cnt_THD_vc};
+
+SERVICE_TYPE(psi_thread_v6)
+SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v6) = {
+    /* New interface, for components. */
+    pfs_register_thread_vc,
+    pfs_spawn_thread_vc,
+    pfs_new_thread_vc,
+    pfs_set_thread_id_vc,
+    pfs_get_current_thread_internal_id_vc,
+    pfs_get_thread_internal_id_vc,
+    pfs_get_thread_by_id_vc,
+    pfs_set_thread_THD_vc,
+    pfs_set_thread_os_id_vc,
+    pfs_get_thread_vc,
+    pfs_set_thread_user_vc,
+    pfs_set_thread_account_vc,
+    pfs_set_thread_db_vc,
+    pfs_set_thread_command_vc,
+    pfs_set_connection_type_vc,
+    pfs_set_thread_start_time_vc,
+    pfs_set_thread_info_vc,
+    pfs_set_thread_secondary_engine_vc,
     pfs_set_thread_vc,
     pfs_set_thread_peer_port_vc,
     pfs_aggregate_thread_status_vc,
@@ -8493,120 +8653,163 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_stage_v1) = {
     pfs_register_stage_v1, pfs_start_stage_v1,
     pfs_get_current_stage_progress_v1, pfs_end_stage_v1};
 
-PSI_statement_service_v2 pfs_statement_service_v2 = {
+PSI_statement_service_v3 pfs_statement_service_v3 = {
     /* Old interface, for plugins. */
-    pfs_register_statement_v2,
-    pfs_get_thread_statement_locker_v2,
-    pfs_refine_statement_v2,
-    pfs_start_statement_v2,
-    pfs_set_statement_text_v2,
-    pfs_set_statement_query_id_v2,
-    pfs_set_statement_lock_time_v2,
-    pfs_set_statement_rows_sent_v2,
-    pfs_set_statement_rows_examined_v2,
-    pfs_inc_statement_created_tmp_disk_tables_v2,
-    pfs_inc_statement_created_tmp_tables_v2,
-    pfs_inc_statement_select_full_join_v2,
-    pfs_inc_statement_select_full_range_join_v2,
-    pfs_inc_statement_select_range_v2,
-    pfs_inc_statement_select_range_check_v2,
-    pfs_inc_statement_select_scan_v2,
-    pfs_inc_statement_sort_merge_passes_v2,
-    pfs_inc_statement_sort_range_v2,
-    pfs_inc_statement_sort_rows_v2,
-    pfs_inc_statement_sort_scan_v2,
-    pfs_set_statement_no_index_used_v2,
-    pfs_set_statement_no_good_index_used_v2,
-    pfs_end_statement_v2,
-    pfs_create_prepared_stmt_v2,
-    pfs_destroy_prepared_stmt_v2,
-    pfs_reprepare_prepared_stmt_v2,
-    pfs_execute_prepared_stmt_v2,
-    pfs_set_prepared_stmt_text_v2,
-    pfs_digest_start_v2,
-    pfs_digest_end_v2,
-    pfs_get_sp_share_v2,
-    pfs_release_sp_share_v2,
-    pfs_start_sp_v2,
-    pfs_end_sp_v2,
-    pfs_drop_sp_v2};
+    pfs_register_statement_vc,
+    pfs_get_thread_statement_locker_vc,
+    pfs_refine_statement_vc,
+    pfs_start_statement_vc,
+    pfs_set_statement_text_vc,
+    pfs_set_statement_query_id_vc,
+    pfs_set_statement_lock_time_vc,
+    pfs_set_statement_rows_sent_vc,
+    pfs_set_statement_rows_examined_vc,
+    pfs_inc_statement_created_tmp_disk_tables_vc,
+    pfs_inc_statement_created_tmp_tables_vc,
+    pfs_inc_statement_select_full_join_vc,
+    pfs_inc_statement_select_full_range_join_vc,
+    pfs_inc_statement_select_range_vc,
+    pfs_inc_statement_select_range_check_vc,
+    pfs_inc_statement_select_scan_vc,
+    pfs_inc_statement_sort_merge_passes_vc,
+    pfs_inc_statement_sort_range_vc,
+    pfs_inc_statement_sort_rows_vc,
+    pfs_inc_statement_sort_scan_vc,
+    pfs_set_statement_no_index_used_vc,
+    pfs_set_statement_no_good_index_used_vc,
+    pfs_set_statement_secondary_engine_vc,
+    pfs_end_statement_vc,
+    pfs_create_prepared_stmt_vc,
+    pfs_destroy_prepared_stmt_vc,
+    pfs_reprepare_prepared_stmt_vc,
+    pfs_execute_prepared_stmt_vc,
+    pfs_set_prepared_stmt_text_vc,
+    pfs_set_prepared_stmt_secondary_engine_vc,
+    pfs_digest_start_vc,
+    pfs_digest_end_vc,
+    pfs_get_sp_share_vc,
+    pfs_release_sp_share_vc,
+    pfs_start_sp_vc,
+    pfs_end_sp_vc,
+    pfs_drop_sp_vc};
 
 SERVICE_TYPE(psi_statement_v1)
 SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v1) = {
     /* New interface, for components. */
-    pfs_register_statement_v2,
-    pfs_get_thread_statement_locker_v2,
-    pfs_refine_statement_v2,
-    pfs_start_statement_v2,
-    pfs_set_statement_text_v2,
-    pfs_set_statement_lock_time_v2,
-    pfs_set_statement_rows_sent_v2,
-    pfs_set_statement_rows_examined_v2,
-    pfs_inc_statement_created_tmp_disk_tables_v2,
-    pfs_inc_statement_created_tmp_tables_v2,
-    pfs_inc_statement_select_full_join_v2,
-    pfs_inc_statement_select_full_range_join_v2,
-    pfs_inc_statement_select_range_v2,
-    pfs_inc_statement_select_range_check_v2,
-    pfs_inc_statement_select_scan_v2,
-    pfs_inc_statement_sort_merge_passes_v2,
-    pfs_inc_statement_sort_range_v2,
-    pfs_inc_statement_sort_rows_v2,
-    pfs_inc_statement_sort_scan_v2,
-    pfs_set_statement_no_index_used_v2,
-    pfs_set_statement_no_good_index_used_v2,
-    pfs_end_statement_v2,
-    pfs_create_prepared_stmt_v2,
-    pfs_destroy_prepared_stmt_v2,
-    pfs_reprepare_prepared_stmt_v2,
-    pfs_execute_prepared_stmt_v2,
-    pfs_set_prepared_stmt_text_v2,
-    pfs_digest_start_v2,
-    pfs_digest_end_v2,
-    pfs_get_sp_share_v2,
-    pfs_release_sp_share_v2,
-    pfs_start_sp_v2,
-    pfs_end_sp_v2,
-    pfs_drop_sp_v2};
+    pfs_register_statement_vc,
+    pfs_get_thread_statement_locker_vc,
+    pfs_refine_statement_vc,
+    pfs_start_statement_vc,
+    pfs_set_statement_text_vc,
+    pfs_set_statement_lock_time_vc,
+    pfs_set_statement_rows_sent_vc,
+    pfs_set_statement_rows_examined_vc,
+    pfs_inc_statement_created_tmp_disk_tables_vc,
+    pfs_inc_statement_created_tmp_tables_vc,
+    pfs_inc_statement_select_full_join_vc,
+    pfs_inc_statement_select_full_range_join_vc,
+    pfs_inc_statement_select_range_vc,
+    pfs_inc_statement_select_range_check_vc,
+    pfs_inc_statement_select_scan_vc,
+    pfs_inc_statement_sort_merge_passes_vc,
+    pfs_inc_statement_sort_range_vc,
+    pfs_inc_statement_sort_rows_vc,
+    pfs_inc_statement_sort_scan_vc,
+    pfs_set_statement_no_index_used_vc,
+    pfs_set_statement_no_good_index_used_vc,
+    pfs_end_statement_vc,
+    pfs_create_prepared_stmt_vc,
+    pfs_destroy_prepared_stmt_vc,
+    pfs_reprepare_prepared_stmt_vc,
+    pfs_execute_prepared_stmt_vc,
+    pfs_set_prepared_stmt_text_vc,
+    pfs_digest_start_vc,
+    pfs_digest_end_vc,
+    pfs_get_sp_share_vc,
+    pfs_release_sp_share_vc,
+    pfs_start_sp_vc,
+    pfs_end_sp_vc,
+    pfs_drop_sp_vc};
 
 SERVICE_TYPE(psi_statement_v2)
 SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v2) = {
     /* New interface, for components. */
-    pfs_register_statement_v2,
-    pfs_get_thread_statement_locker_v2,
-    pfs_refine_statement_v2,
-    pfs_start_statement_v2,
-    pfs_set_statement_text_v2,
-    pfs_set_statement_query_id_v2,
-    pfs_set_statement_lock_time_v2,
-    pfs_set_statement_rows_sent_v2,
-    pfs_set_statement_rows_examined_v2,
-    pfs_inc_statement_created_tmp_disk_tables_v2,
-    pfs_inc_statement_created_tmp_tables_v2,
-    pfs_inc_statement_select_full_join_v2,
-    pfs_inc_statement_select_full_range_join_v2,
-    pfs_inc_statement_select_range_v2,
-    pfs_inc_statement_select_range_check_v2,
-    pfs_inc_statement_select_scan_v2,
-    pfs_inc_statement_sort_merge_passes_v2,
-    pfs_inc_statement_sort_range_v2,
-    pfs_inc_statement_sort_rows_v2,
-    pfs_inc_statement_sort_scan_v2,
-    pfs_set_statement_no_index_used_v2,
-    pfs_set_statement_no_good_index_used_v2,
-    pfs_end_statement_v2,
-    pfs_create_prepared_stmt_v2,
-    pfs_destroy_prepared_stmt_v2,
-    pfs_reprepare_prepared_stmt_v2,
-    pfs_execute_prepared_stmt_v2,
-    pfs_set_prepared_stmt_text_v2,
-    pfs_digest_start_v2,
-    pfs_digest_end_v2,
-    pfs_get_sp_share_v2,
-    pfs_release_sp_share_v2,
-    pfs_start_sp_v2,
-    pfs_end_sp_v2,
-    pfs_drop_sp_v2};
+    pfs_register_statement_vc,
+    pfs_get_thread_statement_locker_vc,
+    pfs_refine_statement_vc,
+    pfs_start_statement_vc,
+    pfs_set_statement_text_vc,
+    pfs_set_statement_query_id_vc,
+    pfs_set_statement_lock_time_vc,
+    pfs_set_statement_rows_sent_vc,
+    pfs_set_statement_rows_examined_vc,
+    pfs_inc_statement_created_tmp_disk_tables_vc,
+    pfs_inc_statement_created_tmp_tables_vc,
+    pfs_inc_statement_select_full_join_vc,
+    pfs_inc_statement_select_full_range_join_vc,
+    pfs_inc_statement_select_range_vc,
+    pfs_inc_statement_select_range_check_vc,
+    pfs_inc_statement_select_scan_vc,
+    pfs_inc_statement_sort_merge_passes_vc,
+    pfs_inc_statement_sort_range_vc,
+    pfs_inc_statement_sort_rows_vc,
+    pfs_inc_statement_sort_scan_vc,
+    pfs_set_statement_no_index_used_vc,
+    pfs_set_statement_no_good_index_used_vc,
+    pfs_end_statement_vc,
+    pfs_create_prepared_stmt_vc,
+    pfs_destroy_prepared_stmt_vc,
+    pfs_reprepare_prepared_stmt_vc,
+    pfs_execute_prepared_stmt_vc,
+    pfs_set_prepared_stmt_text_vc,
+    pfs_digest_start_vc,
+    pfs_digest_end_vc,
+    pfs_get_sp_share_vc,
+    pfs_release_sp_share_vc,
+    pfs_start_sp_vc,
+    pfs_end_sp_vc,
+    pfs_drop_sp_vc};
+
+SERVICE_TYPE(psi_statement_v3)
+SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v3) = {
+    /* New interface, for components. */
+    pfs_register_statement_vc,
+    pfs_get_thread_statement_locker_vc,
+    pfs_refine_statement_vc,
+    pfs_start_statement_vc,
+    pfs_set_statement_text_vc,
+    pfs_set_statement_query_id_vc,
+    pfs_set_statement_lock_time_vc,
+    pfs_set_statement_rows_sent_vc,
+    pfs_set_statement_rows_examined_vc,
+    pfs_inc_statement_created_tmp_disk_tables_vc,
+    pfs_inc_statement_created_tmp_tables_vc,
+    pfs_inc_statement_select_full_join_vc,
+    pfs_inc_statement_select_full_range_join_vc,
+    pfs_inc_statement_select_range_vc,
+    pfs_inc_statement_select_range_check_vc,
+    pfs_inc_statement_select_scan_vc,
+    pfs_inc_statement_sort_merge_passes_vc,
+    pfs_inc_statement_sort_range_vc,
+    pfs_inc_statement_sort_rows_vc,
+    pfs_inc_statement_sort_scan_vc,
+    pfs_set_statement_no_index_used_vc,
+    pfs_set_statement_no_good_index_used_vc,
+    pfs_set_statement_secondary_engine_vc,
+    pfs_end_statement_vc,
+    pfs_create_prepared_stmt_vc,
+    pfs_destroy_prepared_stmt_vc,
+    pfs_reprepare_prepared_stmt_vc,
+    pfs_execute_prepared_stmt_vc,
+    pfs_set_prepared_stmt_text_vc,
+    pfs_set_prepared_stmt_secondary_engine_vc,
+    pfs_digest_start_vc,
+    pfs_digest_end_vc,
+    pfs_get_sp_share_vc,
+    pfs_release_sp_share_vc,
+    pfs_start_sp_vc,
+    pfs_end_sp_vc,
+    pfs_drop_sp_vc};
 
 PSI_transaction_service_v1 pfs_transaction_service_v1 = {
     /* Old interface, for plugins. */
@@ -8688,6 +8891,8 @@ static void *get_thread_interface(int version) {
       return &pfs_thread_service_v4;
     case PSI_THREAD_VERSION_5:
       return &pfs_thread_service_v5;
+    case PSI_THREAD_VERSION_6:
+      return &pfs_thread_service_v6;
     default:
       return nullptr;
   }
@@ -8781,6 +8986,7 @@ static void *get_stage_interface(int version) {
 static void *get_statement_interface(int version) {
   switch (version) {
     case PSI_STATEMENT_VERSION_1:
+    case PSI_STATEMENT_VERSION_2:
       /*
         Obsolete.
 
@@ -8817,8 +9023,8 @@ static void *get_statement_interface(int version) {
         For COMPONENTS, the service is properly versioned.
       */
       return nullptr;
-    case PSI_STATEMENT_VERSION_2:
-      return &pfs_statement_service_v2;
+    case PSI_STATEMENT_VERSION_3:
+      return &pfs_statement_service_v3;
     default:
       return nullptr;
   }
@@ -8937,6 +9143,7 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v3), */
     PROVIDES_SERVICE(performance_schema, psi_thread_v4),
     PROVIDES_SERVICE(performance_schema, psi_thread_v5),
+    PROVIDES_SERVICE(performance_schema, psi_thread_v6),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
     /* Deprecated, use pfs_plugin_table_v1. */
     PROVIDES_SERVICE(performance_schema, pfs_plugin_table),

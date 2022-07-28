@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -150,7 +150,7 @@ DECLARE_BOOL_METHOD(get_length,
 /**
   Fetch metadata for current key pointed by iterator
 
-  Out buffers should be big enough to accomodate data + null terminating
+  Out buffers should be big enough to accommodate data + null terminating
   character
 
   @param [in]  forward_iterator forward_iterator metadata iterator

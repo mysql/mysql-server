@@ -1,4 +1,4 @@
--- Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+-- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 --                  state: alter table (flush)
 --                   time: 18
 --      current_statement: alter table t1 add column g int
+--       execution_engine: PRIMARY
 --      statement_latency: 18.45 s
 --               progress: 98.84
 --           lock_latency: 265.43 ms
@@ -66,9 +67,11 @@ VIEW processlist (
   state,
   time,
   current_statement,
+  execution_engine,
   statement_latency,
   progress,
   lock_latency,
+  cpu_latency,
   rows_examined,
   rows_sent,
   rows_affected,
@@ -97,6 +100,7 @@ SELECT pps.thread_id AS thd_id,
        pps.processlist_state AS state,
        pps.processlist_time AS time,
        sys.format_statement(pps.processlist_info) AS current_statement,
+       pps.execution_engine AS execution_engine,
        IF(esc.end_event_id IS NULL,
           format_pico_time(esc.timer_wait),
           NULL) AS statement_latency,
@@ -104,6 +108,7 @@ SELECT pps.thread_id AS thd_id,
           ROUND(100 * (estc.work_completed / estc.work_estimated), 2),
           NULL) AS progress,
        format_pico_time(esc.lock_time) AS lock_latency,
+       format_pico_time(esc.cpu_time) AS cpu_latency,
        esc.rows_examined AS rows_examined,
        esc.rows_sent AS rows_sent,
        esc.rows_affected AS rows_affected,

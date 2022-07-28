@@ -89,6 +89,7 @@ CREATE USER 'ndb_u5'@'localhost' IDENTIFIED by 'pass5';
 GRANT NDB_STORED_USER ON *.* to 'ndb_u5'@'localhost';
 GRANT SELECT ON t1 TO 'ndb_u5'@'localhost';
 INSERT INTO t1 VALUES(3,3);
+SET sql_log_bin=1;
 ERROR 28000: Access denied for user 'ndb_u5'@'localhost' (using password: YES)
 
 Test 6:
@@ -98,7 +99,26 @@ CREATE USER 'ndb_u6'@'localhost' IDENTIFIED by 'pass6';
 GRANT NDB_STORED_USER ON *.* to 'ndb_u6'@'localhost';
 GRANT SELECT ON t1 TO 'ndb_u6'@'localhost';
 INSERT INTO t1 VALUES(4,4);
+SET sql_log_bin=1;
 ERROR 28000: Access denied for user 'ndb_u6'@'localhost' (using password: YES)
+
+Test 7:
+[Server A]
+Creating user u7 with random password
+GRANT SELECT ON t1 TO 'u7'@'127.%';
+[Server C]
+select current_user(), @@server_id;
+current_user()	@@server_id
+u7@127.%	3
+[Server A]
+GRANT ndb_stored_user on *.* to u7@'127.%';
+select current_user(), @@server_id;
+current_user()	@@server_id
+root@localhost	1
+[Server B]
+select current_user(), @@server_id;
+current_user()	@@server_id
+u7@127.%	2
 
 Cleanup:
 SET sql_log_bin=1;
@@ -107,6 +127,7 @@ drop user ndb_u1@localhost;
 drop user ndb_u2@localhost;
 drop user if exists ndb_u5@localhost;
 drop user if exists ndb_u6@localhost;
+drop user if exists u7@'127.%';
 drop table t1;
 drop database auth_test_db;
 drop user local_user_2@b;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,12 +31,12 @@ using service_type_t = SERVICE_TYPE_NO_CONST(registry);
 
 class registry : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_FALSE(minimal_chassis_init(&reg, NULL)); }
+  void SetUp() override { ASSERT_FALSE(minimal_chassis_init(&reg, nullptr)); }
 
   void TearDown() override {
     ASSERT_FALSE(reg->release(
         reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg))));
-    ASSERT_FALSE(minimal_chassis_deinit(reg, NULL));
+    ASSERT_FALSE(minimal_chassis_deinit(reg, nullptr));
   }
   SERVICE_TYPE_NO_CONST(registry) * reg;
 };
@@ -47,7 +47,7 @@ TEST_F(registry, basic_operations) {
   my_h_service hreg, hreg2;
 
   ASSERT_FALSE(reg->acquire("registry", &hreg));
-  ASSERT_TRUE(hreg != NULL);
+  ASSERT_TRUE(hreg != nullptr);
   ASSERT_FALSE(reg->acquire("registry.mysql_minimal_chassis", &hreg2));
   ASSERT_TRUE(hreg == hreg2);
   ASSERT_TRUE(hreg == reinterpret_cast<my_h_service>(

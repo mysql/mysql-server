@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ BEGIN_SERVICE_DEFINITION(mysql_runtime_error)
   It calls the server SQL error generation function and adds the error
   into the THD's error context.
 
-  @param error_id mysql server error number, used to get the error discription.
+  @param error_id mysql server error number, used to get the error description.
   @param flags this will tell, whether the error is a fatal statement error or
                write the error to error log file.
   @param args  variable argument list which has the error message details.

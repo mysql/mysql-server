@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -167,7 +167,7 @@ static bool innodb_read_cache_policy(
   ib_err_t err = DB_SUCCESS;
   int n_cols [[maybe_unused]];
   int i;
-  ib_ulint_t data_len;
+  uint64_t data_len;
   ib_col_meta_t col_meta;
 
   ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED, true, false, thd);
@@ -281,7 +281,7 @@ static bool innodb_read_config_option(
   ib_err_t err = DB_SUCCESS;
   int n_cols [[maybe_unused]];
   int i;
-  ib_ulint_t data_len;
+  uint64_t data_len;
   ib_col_meta_t col_meta;
   int current_option = -1;
 
@@ -402,7 +402,7 @@ static meta_cfg_info_t *innodb_config_add_item(
   ib_err_t err = DB_SUCCESS;
   int n_cols;
   int i;
-  ib_ulint_t data_len;
+  uint64_t data_len;
   meta_cfg_info_t *item = NULL;
   ib_col_meta_t col_meta;
   int fold;
@@ -592,13 +592,13 @@ static meta_cfg_info_t *innodb_config_container(
   ib_err_t err = DB_SUCCESS;
   int n_cols;
   int i;
-  ib_ulint_t data_len;
+  uint64_t data_len;
   ib_col_meta_t col_meta;
   ib_tpl_t read_tpl = NULL;
   meta_cfg_info_t *item = NULL;
 
   if (name != NULL) {
-    ib_ulint_t fold;
+    uint64_t fold;
 
     assert(meta_hash);
 
@@ -745,7 +745,7 @@ func_exit:
     free(item);
     item = NULL;
   } else {
-    ib_ulint_t fold;
+    uint64_t fold;
 
     fold = ut_fold_string(item->col_info[0].col_name);
     HASH_INSERT(meta_cfg_info_t, name_hash, meta_hash, fold, item);
@@ -1181,7 +1181,7 @@ meta_cfg_info_t *innodb_config(
   if (!name) {
     item = innodb_config_meta_hash_init(*meta_hash, thd);
   } else {
-    ib_ulint_t fold;
+    uint64_t fold;
 
     fold = ut_fold_string(name);
     HASH_SEARCH(name_hash, *meta_hash, fold, meta_cfg_info_t *, item,

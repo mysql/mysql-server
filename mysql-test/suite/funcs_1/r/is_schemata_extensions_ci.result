@@ -33,7 +33,7 @@ SCHEMA_NAME	varchar(64)	YES		NULL
 OPTIONS	varchar(256)	YES		NULL	
 SHOW CREATE TABLE information_schema.SCHEMATA_EXTENSIONS;
 View	Create View	character_set_client	collation_connection
-SCHEMATA_EXTENSIONS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`SCHEMATA_EXTENSIONS` AS select (`cat`.`name` collate utf8_tolower_ci) AS `CATALOG_NAME`,(`sch`.`name` collate utf8_tolower_ci) AS `SCHEMA_NAME`,get_dd_schema_options(`sch`.`options`) AS `OPTIONS` from (`mysql`.`schemata` `sch` join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) where (0 <> can_access_database(`sch`.`name`))	utf8	utf8_general_ci
+SCHEMATA_EXTENSIONS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`SCHEMATA_EXTENSIONS` AS select (`cat`.`name` collate utf8mb3_tolower_ci) AS `CATALOG_NAME`,(`sch`.`name` collate utf8mb3_tolower_ci) AS `SCHEMA_NAME`,get_dd_schema_options(`sch`.`options`) AS `OPTIONS` from (`mysql`.`schemata` `sch` join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) where (0 <> can_access_database(`sch`.`name`))	utf8mb3	utf8mb3_general_ci
 SHOW COLUMNS FROM information_schema.SCHEMATA_EXTENSIONS;
 Field	Type	Null	Key	Default	Extra
 CATALOG_NAME	varchar(64)	YES		NULL	

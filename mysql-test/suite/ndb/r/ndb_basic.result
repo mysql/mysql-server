@@ -101,6 +101,8 @@ Ndb_conflict_fn_epoch2_trans	#
 Ndb_conflict_fn_epoch_trans	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_max_del_win	#
+Ndb_conflict_fn_max_del_win_ins	#
+Ndb_conflict_fn_max_ins	#
 Ndb_conflict_fn_old	#
 Ndb_conflict_last_conflict_epoch	#
 Ndb_conflict_last_stable_epoch	#
@@ -142,6 +144,7 @@ SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and
 Variable_name NOT LIKE 'ndb_dbg\_%';
 Variable_name	Value
 ndb_allow_copying_alter_table	#
+ndb_applier_allow_skip_epoch	#
 ndb_applier_conflict_role	#
 ndb_autoincrement_prefetch_sz	#
 ndb_batch_size	#
@@ -185,6 +188,8 @@ ndb_optimized_node_selection	#
 ndb_read_backup	#
 ndb_recv_thread_activation_threshold	#
 ndb_recv_thread_cpu_mask	#
+ndb_replica_batch_size	#
+ndb_replica_blob_write_batch_bytes	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
 ndb_row_checksum	#

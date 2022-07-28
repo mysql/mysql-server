@@ -133,8 +133,10 @@ while ($j > 0) {
 --eval SET @@global.innodb_lock_wait_timeout= $saved_innodb_lock_wait_timeout
 --replace_result $saved_binlog_transaction_compression SAVED
 --eval SET @@global.binlog_transaction_compression = $saved_binlog_transaction_compression
+--disable_warnings
 --replace_result $saved_replica_parallel_workers SAVED
 --eval SET @@global.replica_parallel_workers = $saved_replica_parallel_workers
+--enable_warnings
 --replace_result $saved_replica_parallel_type SAVED
 --eval SET @@global.replica_parallel_type = '$saved_replica_parallel_type'
 --replace_result $saved_replica_preserve_commit_order SAVED

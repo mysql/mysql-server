@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -51,8 +51,8 @@ void opt_search_plan(sel_node_t *sel_node); /*!< in: parsed select node */
  column occurrence we are looking at is in the column list, in which case
  nothing is done. */
 void opt_find_all_cols(
-    ibool copy_val,            /*!< in: if TRUE, new found columns are
-                               added as columns to copy */
+    bool copy_val,             /*!< in: if true, new found columns are
+                                added as columns to copy */
     dict_index_t *index,       /*!< in: index to use */
     sym_node_list_t *col_list, /*!< in: base node of a list where
                                to add new found columns */

@@ -1183,8 +1183,6 @@ DROP TABLE t1;
 
 CREATE TABLE t1 ( a TIME );
 
---skip_if_hypergraph  # Adds a warning (on every row) instead of an error.
---error ER_CANT_AGGREGATE_NCOLLATIONS
 SELECT
   t1.a
 FROM
@@ -1229,3 +1227,30 @@ GROUP BY
 WITH ROLLUP;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #33149402: SELECT'S GROUPING() NOT TAKEN IN ACCOUNT IN HAVING WHEN JOIN USED
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (2020, 2);
+
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (2);
+
+SELECT a, GROUPING(a) AS ga
+  FROM t1 JOIN t2 USING (b)
+  GROUP BY a WITH ROLLUP
+  HAVING ga = 0;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#33729162: Hypergraph misses rows for SELECT DISTINCT ... GROUP BY WITH ROLLUP
+--echo #
+
+CREATE TABLE t (x INTEGER);
+INSERT INTO t VALUES (NULL), (0), (1), (2), (3);
+--sorted_result
+SELECT DISTINCT x AS a, x AS b FROM t GROUP BY a, b WITH ROLLUP;
+DROP TABLE t;

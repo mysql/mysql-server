@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,7 @@ enum class Ssl_acceptor_context_property_type {
   session_cache_size,
   session_cache_timeouts,
   used_session_cache_entries,
+  session_cache_timeout,
   last
 };
 /**
@@ -207,6 +208,8 @@ class Ssl_acceptor_context_data final {
   OptionalString current_ca_, current_capath_, current_version_, current_cert_,
       current_cipher_, current_ciphersuites_, current_key_, current_crl_,
       current_crlpath_;
+  long current_tls_session_cache_timeout_;
+  bool current_tls_session_cache_mode_;
 
   /* F.R.I.E.N.D.S. */
   friend class Ssl_acceptor_context_container;

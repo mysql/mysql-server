@@ -106,8 +106,8 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_size);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_buffer_pool_size = @@SESSION.innodb_buffer_pool_size;
---echo Expected error 'Readonly variable'
+SELECT innodb_buffer_pool_size;
+--echo Expected error 'Unknown column'
 
 
 SET @@GLOBAL.innodb_buffer_pool_size = @start_buffer_pool_size;

@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.have_rtree_keys);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT have_rtree_keys = @@SESSION.have_rtree_keys;
---echo Expected error 'Readonly variable'
+SELECT have_rtree_keys;
+--echo Expected error 'Unknown column'
 
 

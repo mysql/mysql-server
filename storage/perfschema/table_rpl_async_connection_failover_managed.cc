@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,8 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "sql-common/json_dom.h"
 #include "sql/field.h"
-#include "sql/json_dom.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
@@ -54,12 +54,16 @@ Plugin_table table_rpl_async_connection_failover_managed::m_table_def(
     /* Name */
     "replication_asynchronous_connection_failover_managed",
     /* Definition */
-    " CHANNEL_NAME CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci "
+    " CHANNEL_NAME CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci "
     "NOT NULL COMMENT 'The replication channel name that connects source and "
     "replica.',\n"
-    " MANAGED_NAME CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL"
+    " MANAGED_NAME CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci "
+    "NOT "
+    "NULL"
     " DEFAULT '' COMMENT 'The name of the source which needs to be managed.',\n"
-    " MANAGED_TYPE CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL"
+    " MANAGED_TYPE CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci "
+    "NOT "
+    "NULL"
     " DEFAULT '' COMMENT 'Determines the managed type.',\n"
     " CONFIGURATION JSON DEFAULT NULL COMMENT 'The data to help manage group. "
     "For Managed_type = GroupReplication, Configuration value should contain "
@@ -130,8 +134,10 @@ int table_rpl_async_connection_failover_managed::rnd_init(bool) {
     json_str << "{\"Primary_weight\": " << std::get<3>(source_detail)
              << ", \"Secondary_weight\": " << std::get<4>(source_detail) << "}";
 
-    auto res_dom = Json_dom::parse(json_str.str().c_str(),
-                                   json_str.str().length(), nullptr, nullptr);
+    auto res_dom = Json_dom::parse(
+        json_str.str().c_str(), json_str.str().length(),
+        [](const char *, size_t) {},
+        [] { my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0)); });
 
     if (res_dom == nullptr ||
         res_dom->json_type() != enum_json_type::J_OBJECT) {

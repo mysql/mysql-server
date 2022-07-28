@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -421,15 +421,12 @@ bool migrate_table_to_dd(THD *thd, Ndb_dd_client *dd_client,
     return false;
   }
 
-  uint i = 0;
-  KEY *key_info = share.key_info;
-
   /*
     Mark all the keys visible and supported algorithm explicit.
     Unsupported algorithms will get fixed by prepare_key() call.
   */
-  key_info = share.key_info;
-  for (i = 0; i < share.keys; i++, key_info++) {
+  for (uint i = 0; i < share.keys; i++) {
+    KEY *key_info = &share.key_info[i];
     key_info->is_visible = true;
     /*
       Fulltext and Spatical indexes will get fixed by
@@ -475,7 +472,8 @@ bool migrate_table_to_dd(THD *thd, Ndb_dd_client *dd_client,
   List_iterator<Create_field> it_create(alter_info.create_list);
 
   for (int field_no = 0; (sql_field = it_create++); field_no++) {
-    if (prepare_create_field(thd, &create_info, &alter_info.create_list,
+    if (prepare_create_field(thd, schema_name.c_str(), table_name.c_str(),
+                             &create_info, &alter_info.create_list,
                              &select_field_pos, table.file, sql_field,
                              field_no))
       return false;

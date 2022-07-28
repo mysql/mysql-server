@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ template <typename T>
 class mpmc_bq {
  public:
   /** Constructor
-  @param[in]	n_elems		Max number of elements allowed */
+  @param[in]    n_elems         Max number of elements allowed */
   explicit mpmc_bq(size_t n_elems)
       : m_ring(reinterpret_cast<Cell *>(ut::new_arr_withkey<Aligned>(
             UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n_elems}))),
@@ -57,7 +57,7 @@ class mpmc_bq {
   ~mpmc_bq() { ut::delete_arr(m_ring); }
 
   /** Enqueue an element
-  @param[in]	data		Element to insert, it will be copied
+  @param[in]    data            Element to insert, it will be copied
   @return true on success */
   [[nodiscard]] bool enqueue(T const &data) {
     /* m_enqueue_pos only wraps at MAX(m_enqueue_pos), instead
@@ -112,7 +112,7 @@ class mpmc_bq {
   }
 
   /** Dequeue an element
-  @param[out]	data		Element read from the queue
+  @param[out]   data            Element read from the queue
   @return true on success */
   [[nodiscard]] bool dequeue(T &data) {
     Cell *cell;
@@ -178,8 +178,6 @@ class mpmc_bq {
         pos = m_dequeue_pos.load(std::memory_order_relaxed);
       }
     }
-
-    return (false);
   }
 
  private:

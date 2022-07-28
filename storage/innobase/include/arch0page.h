@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -155,9 +155,9 @@ constexpr uint ARCH_PAGE_RESET_THRESHOLD =
     (ARCH_PAGE_BLK_SIZE - ARCH_PAGE_BLK_HEADER_LENGTH) / ARCH_BLK_PAGE_ID_SIZE;
 
 /** Callback for retrieving archived page IDs
-@param[in]	ctx		context passed by caller
-@param[in]	buff		buffer with page IDs
-@param[in]	num_pages	number of page IDs in buffer
+@param[in]      ctx             context passed by caller
+@param[in]      buff            buffer with page IDs
+@param[in]      num_pages       number of page IDs in buffer
 @return error code */
 using Page_Arch_Cbk = int(void *ctx, byte *buff, uint num_pages);
 
@@ -169,7 +169,7 @@ using Page_Wait_Flush_Archiver_Cbk = std::function<bool(void)>;
 class Page_Arch_Client_Ctx {
  public:
   /** Constructor: Initialize elements
-  @param[in]	is_durable	true if the client requires durability, else
+  @param[in]    is_durable      true if the client requires durability, else
   false */
   Page_Arch_Client_Ctx(bool is_durable) : m_is_durable(is_durable) {
     m_start_pos.init();
@@ -181,14 +181,14 @@ class Page_Arch_Client_Ctx {
   ~Page_Arch_Client_Ctx() { mutex_free(&m_mutex); }
 
   /** Start dirty page tracking and archiving
-  @param[in]	recovery	true if the tracking is being started as part of
+  @param[in]    recovery        true if the tracking is being started as part of
   recovery process
   @param[out]   start_id    fill the start lsn
   @return error code. */
   int start(bool recovery, uint64_t *start_id);
 
   /** Stop dirty page tracking and archiving
-  @param[out]	stop_id	fill the stop lsn
+  @param[out]   stop_id fill the stop lsn
   @return error code. */
   int stop(uint64_t *stop_id);
 
@@ -196,8 +196,8 @@ class Page_Arch_Client_Ctx {
   void release();
 
   /** Initialize context during recovery.
-  @param[in]	group		Group which needs to be attached to the client
-  @param[in]	last_lsn	last reset lsn
+  @param[in]    group           Group which needs to be attached to the client
+  @param[in]    last_lsn        last reset lsn
   @return error code. */
   int init_during_recovery(Arch_Group *group, lsn_t last_lsn);
 
@@ -208,10 +208,10 @@ class Page_Arch_Client_Ctx {
   /** Get archived page Ids.
   Attempt to read blocks directly from in memory buffer. If overwritten,
   copy from archived files.
-  @param[in]	cbk_func	called repeatedly with page ID buffer
-  @param[in]	cbk_ctx		callback function context
-  @param[in,out]	buff		buffer to fill page IDs
-  @param[in]	buf_len		buffer length in bytes
+  @param[in]    cbk_func        called repeatedly with page ID buffer
+  @param[in]    cbk_ctx         callback function context
+  @param[in,out]        buff            buffer to fill page IDs
+  @param[in]    buf_len         buffer length in bytes
   @return error code */
   int get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx, byte *buff,
                 uint buf_len);

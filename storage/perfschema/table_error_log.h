@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,8 @@ enum enum_prio {
 */
 class PFS_key_error_log_logged : public PFS_key_ulonglong {
  public:
-  PFS_key_error_log_logged(const char *name) : PFS_key_ulonglong(name) {}
+  explicit PFS_key_error_log_logged(const char *name)
+      : PFS_key_ulonglong(name) {}
 
   ~PFS_key_error_log_logged() override = default;
 
@@ -98,7 +99,8 @@ class PFS_index_error_log_by_logged : public PFS_index_error_log {
 /// key for the THREAD_ID column
 class PFS_key_error_log_thread_id : public PFS_key_ulonglong {
  public:
-  PFS_key_error_log_thread_id(const char *name) : PFS_key_ulonglong(name) {}
+  explicit PFS_key_error_log_thread_id(const char *name)
+      : PFS_key_ulonglong(name) {}
 
   ~PFS_key_error_log_thread_id() = default;
 
@@ -122,7 +124,7 @@ class PFS_index_error_log_by_thread_id : public PFS_index_error_log {
 /// key for the PRIO column
 class PFS_key_error_log_prio : public PFS_key_object_type_enum {
  public:
-  PFS_key_error_log_prio(const char *name)
+  explicit PFS_key_error_log_prio(const char *name)
       : PFS_key_object_type_enum(name), m_prio(PS_ERROR_LOG_PRIO_ERROR) {}
 
   ~PFS_key_error_log_prio() override = default;
@@ -207,8 +209,8 @@ class table_error_log : public cursor_by_error_log {
   static Plugin_table m_table_def;
 
   /** Current row. */
-  log_sink_pfs_event m_header;   //< event-header copied from ring-buffer
-  char m_message[LOG_BUFF_MAX];  //< message (DATA column) from ring-buffer
+  log_sink_pfs_event m_header;   ///< event-header copied from ring-buffer
+  char m_message[LOG_BUFF_MAX];  ///< message (DATA column) from ring-buffer
 };
 
 /** @} */

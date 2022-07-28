@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,10 +40,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <atomic>
 #include <list>
 
-#include "os0numa.h"  /* os_numa_*() */
-#include "ut0mutex.h" /* ib_mutex_t */
-#include "ut0new.h"   /* UT_NEW*(), ut::delete_*() */
-#include "ut0rnd.h"   /* ut_fold_ull() */
+#include "os0numa.h"      /* os_getcpu() */
+#include "os0thread.h"    /* ut::this_thread_hash */
+#include "ut0cpu_cache.h" /* Cache_aligned<T> */
+#include "ut0mutex.h"     /* ib_mutex_t */
+#include "ut0new.h"       /* UT_NEW*(), ut::delete_*() */
+#include "ut0rnd.h"       /* ut::hash_uint64() */
 
 /** An interface class to a basic hash table, that ut_lock_free_hash_t is. */
 class ut_hash_interface_t {
@@ -56,28 +58,28 @@ class ut_hash_interface_t {
   virtual ~ut_hash_interface_t() = default;
 
   /** Get the value mapped to a given key.
-  @param[in]	key	key to look for
+  @param[in]    key     key to look for
   @return the value that corresponds to key or NOT_FOUND. */
   virtual int64_t get(uint64_t key) const = 0;
 
   /** Set the value for a given key, either inserting a new (key, val)
   tuple or overwriting an existent value.
-  @param[in]	key	key whose value to set
-  @param[in]	val	value to be set */
+  @param[in]    key     key whose value to set
+  @param[in]    val     value to be set */
   virtual void set(uint64_t key, int64_t val) = 0;
 
   /** Delete a (key, val) pair from the hash.
-  @param[in]	key	key whose pair to delete */
+  @param[in]    key     key whose pair to delete */
   virtual void del(uint64_t key) = 0;
 
   /** Increment the value for a given key with 1 or insert a new tuple
   (key, 1).
-  @param[in]	key	key whose value to increment or insert as 1 */
+  @param[in]    key     key whose value to increment or insert as 1 */
   virtual void inc(uint64_t key) = 0;
 
   /** Decrement the value of a given key with 1 or insert a new tuple
   (key, -1).
-  @param[in]	key	key whose value to decrement */
+  @param[in]    key     key whose value to decrement */
   virtual void dec(uint64_t key) = 0;
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
@@ -87,98 +89,58 @@ class ut_hash_interface_t {
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 };
 
-/** Lock free counter. A counter class that uses a few counter variables
-internally to improve performance on machines with lots of CPUs. The get()
-method sums all the internal counters without taking any locks, so due to
-concurrent modification of the counter, get() may return a number which
-never was the sum of all the internal counters. */
+/** Lock free ref counter. It uses a few counter variables internally to improve
+performance on machines with lots of CPUs.  */
 class ut_lock_free_cnt_t {
  public:
   /** Constructor. */
   ut_lock_free_cnt_t() {
-    /* It is possible that the machine has NUMA available for use.  But the
-    process/thread might not have sufficient permissions to use the same.
-    Hence, we need to check whether the current thread has permissions to
-    use them. Currently, disabling the use of numa here.  */
-    m_numa_available = false;
-
-    if (m_numa_available) {
-      m_cnt_size = os_numa_num_configured_cpus();
-    } else {
-      /* Just pick up some number that is supposedly larger
-      than the number of CPUs on the system or close to it.
-      That many pointers and 64 bit integers will be
-      allocated once in the hash table lifetime.
-      Ie 256 * 8 * 8 = 16 KiB. */
-      m_cnt_size = 256;
-    }
-
-    m_cnt = ut::new_arr_withkey<std::atomic<int64_t> *>(
-        ut::make_psi_memory_key(mem_key_ut_lock_free_hash_t),
-        ut::Count{m_cnt_size});
-
-    for (size_t i = 0; i < m_cnt_size; i++) {
-      const size_t s = sizeof(std::atomic<int64_t>);
-      void *mem;
-
-      if (m_numa_available) {
-        const int node = os_numa_node_of_cpu(static_cast<int>(i));
-
-        mem = os_numa_alloc_onnode(s, node);
-      } else {
-        mem = ut::malloc_withkey(
-            ut::make_psi_memory_key(mem_key_ut_lock_free_hash_t), s);
-      }
-
-      ut_a(mem != nullptr);
-
-      m_cnt[i] = new (mem) std::atomic<int64_t>;
-
-      m_cnt[i]->store(0, std::memory_order_relaxed);
+    /* The initial value of std::atomic depends on C++ standard and the way
+    the containing object was initialized, so make sure it's always zero. */
+    for (size_t i = 0; i < m_cnt.size(); i++) {
+      m_cnt[i].store(0);
     }
   }
 
-  /** Destructor. */
-  ~ut_lock_free_cnt_t() {
-    using namespace std;
+  class handle_t {
+   public:
+    handle_t() : m_counter{nullptr} {}
 
-    for (size_t i = 0; i < m_cnt_size; i++) {
-      m_cnt[i]->~atomic<int64_t>();
+    handle_t(std::atomic<uint64_t> *counter) : m_counter{counter} {
+      m_counter->fetch_add(1);
+    }
 
-      if (m_numa_available) {
-        os_numa_free(m_cnt[i], sizeof(std::atomic<int64_t>));
-      } else {
-        ut::free(m_cnt[i]);
+    handle_t(handle_t &&other) noexcept : m_counter{other.m_counter} {
+      other.m_counter = nullptr;
+    }
+
+    explicit operator bool() const noexcept { return m_counter != nullptr; }
+
+    ~handle_t() {
+      if (m_counter != nullptr) {
+        m_counter->fetch_sub(1);
       }
     }
 
-    ut::delete_arr(m_cnt);
-  }
+   private:
+    std::atomic<uint64_t> *m_counter;
+  };
 
   /** Increment the counter. */
-  void inc() {
-    const size_t i = n_cnt_index();
+  handle_t reference() { return handle_t{&m_cnt[n_cnt_index()]}; }
 
-    m_cnt[i]->fetch_add(1, std::memory_order_relaxed);
-  }
-
-  /** Decrement the counter. */
-  void dec() {
-    const size_t i = n_cnt_index();
-
-    m_cnt[i]->fetch_sub(1, std::memory_order_relaxed);
-  }
-
-  /** Get the value of the counter.
-  @return counter's value */
-  int64_t get() const {
-    int64_t ret = 0;
-
-    for (size_t i = 0; i < m_cnt_size; i++) {
-      ret += m_cnt[i]->load(std::memory_order_relaxed);
+  /** Wait until all previously existing references get released.
+  This function assumes that the caller ensured that no new references
+  should appear (or rather: no long-lived references - there can be treads which
+  call reference(), realize the object should no longer be referenced and
+  immediately release it)
+  */
+  void await_release_of_old_references() const {
+    for (size_t i = 0; i < m_cnt.size(); i++) {
+      while (m_cnt[i].load()) {
+        std::this_thread::yield();
+      }
     }
-
-    return (ret);
   }
 
  private:
@@ -189,26 +151,23 @@ class ut_lock_free_cnt_t {
 
 #ifdef HAVE_OS_GETCPU
     cpu = static_cast<size_t>(os_getcpu());
-
-    if (cpu >= m_cnt_size) {
-      /* Could happen (rarely) if more CPUs get
-      enabled after m_cnt_size is initialized. */
-      cpu %= m_cnt_size;
-    }
 #else  /* HAVE_OS_GETCPU */
-    cpu = static_cast<size_t>(ut_rnd_gen_ulint() % m_cnt_size);
+    cpu = ut::this_thread_hash;
 #endif /* HAVE_OS_GETCPU */
 
-    return (cpu);
+    return cpu % m_cnt.size();
   }
 
-  /** Designate whether os_numa_*() functions can be used. */
-  bool m_numa_available;
-
-  /** The sum of all the counters in m_cnt[] designates the overall
-  count. */
-  std::atomic<int64_t> **m_cnt;
-  size_t m_cnt_size;
+  /** The shards of the counter.
+  We've just picked up some number that is supposedly larger than the number of
+  CPUs on the system or close to it, but small enough that
+  await_release_of_old_references() finishes in reasonable time, and that the
+  size (256 * 64B = 16 KiB) is not too large.
+  We pad the atomics to avoid false sharing. In particular, we hope that on
+  platforms which HAVE_OS_GETCPU the same CPU will always fetch the same counter
+  and thus will store it in its local cache. This should also help on NUMA
+  architectures by avoiding the cost of synchronizing caches between CPUs.*/
+  std::array<ut::Cacheline_aligned<std::atomic<uint64_t>>, 256> m_cnt;
 };
 
 /** A node in a linked list of arrays. The pointer to the next node is
@@ -219,27 +178,34 @@ class ut_lock_free_list_node_t {
   typedef ut_lock_free_list_node_t<T> *next_t;
 
   /** Constructor.
-  @param[in]	n_elements	number of elements to create */
+  @param[in]    n_elements      number of elements to create */
   explicit ut_lock_free_list_node_t(size_t n_elements)
-      : m_n_base_elements(n_elements), m_pending_free(false), m_next(nullptr) {
-    m_base = ut::new_arr_withkey<T>(
-        ut::make_psi_memory_key(mem_key_ut_lock_free_hash_t),
-        ut::Count{m_n_base_elements});
-
+      : m_base{ut::make_unique<T[]>(
+            ut::make_psi_memory_key(mem_key_ut_lock_free_hash_t), n_elements)},
+        m_n_base_elements{n_elements},
+        m_pending_free{false},
+        m_next{nullptr} {
     ut_ad(n_elements > 0);
   }
 
-  /** Destructor. */
-  ~ut_lock_free_list_node_t() { ut::delete_arr(m_base); }
+  static ut_lock_free_list_node_t *alloc(size_t n_elements) {
+    return ut::aligned_new_withkey<ut_lock_free_list_node_t<T>>(
+        ut::make_psi_memory_key(mem_key_ut_lock_free_hash_t),
+        alignof(ut_lock_free_list_node_t<T>), n_elements);
+  }
+
+  static void dealloc(ut_lock_free_list_node_t *ptr) {
+    ut::aligned_delete(ptr);
+  }
 
   /** Create and append a new array to this one and store a pointer
   to it in 'm_next'. This is done in a way that multiple threads can
   attempt this at the same time and only one will succeed. When this
   method returns, the caller can be sure that the job is done (either
   by this or another thread).
-  @param[in]	deleted_val	the constant that designates that
+  @param[in]    deleted_val     the constant that designates that
   a value is deleted
-  @param[out]	grown_by_this_thread	set to true if the next
+  @param[out]   grown_by_this_thread    set to true if the next
   array was created and appended by this thread; set to false if
   created and appended by another thread.
   @return the next array, appended by this or another thread */
@@ -255,17 +221,15 @@ class ut_lock_free_list_node_t {
       new_size = m_n_base_elements * 2;
     }
 
-    next_t new_arr = ut::new_withkey<ut_lock_free_list_node_t<T>>(
-        ut::make_psi_memory_key(mem_key_ut_lock_free_hash_t), new_size);
+    next_t new_arr = alloc(new_size);
 
     /* Publish the allocated entry. If somebody did this in the
     meantime then just discard the allocated entry and do
     nothing. */
     next_t expected = nullptr;
-    if (!m_next.compare_exchange_strong(expected, new_arr,
-                                        std::memory_order_relaxed)) {
+    if (!m_next.compare_exchange_strong(expected, new_arr)) {
       /* Somebody just did that. */
-      ut::delete_(new_arr);
+      dealloc(new_arr);
 
       /* 'expected' has the current value which
       must be != NULL because the CAS failed. */
@@ -286,48 +250,32 @@ class ut_lock_free_list_node_t {
   to zero. */
 
   /** Mark the beginning of an access to this object. Used to prevent a
-  destruction of this object while some threads may be accessing it.
-  @retval true	access is granted, the caller should invoke
-  end_access() when done
-  @retval false	access is denied, this object is to be removed from
-  the list and thus new access to it is not allowed. The caller should
-  retry from the head of the list and need not to call end_access(). */
-  bool begin_access() {
-    m_n_ref.inc();
+  destruction of an array pointed by m_base while our thread is accessing it.
+  @return A handle which protects the m_base as long as the handle is not
+  destructed. If the handle is {} (==false), the access was denied, this object
+  is to be removed from the list and thus new access to it is not allowed.
+  The caller should retry from the head of the list. */
+  ut_lock_free_cnt_t::handle_t begin_access() {
+    auto handle = m_n_ref.reference();
 
-    std::atomic_thread_fence(std::memory_order_acq_rel);
-
-    if (m_pending_free.load(std::memory_order_acquire)) {
+    if (m_pending_free.load()) {
       /* Don't allow access if freeing is pending. Ie if
       another thread is waiting for readers to go away
       before it can free the m_base's member of this
       object. */
-      m_n_ref.dec();
-      return (false);
+      return {};
     }
 
-    return (true);
+    return handle;
   }
 
-  /** Mark the ending of an access to this object. */
-  void end_access() {
-    std::atomic_thread_fence(std::memory_order_release);
-
-    m_n_ref.dec();
-  }
-
-  /** Get the number of threads that are accessing this object now.
-  @return number of users (threads) of this object */
-  int64_t n_ref() {
-    int64_t ret = m_n_ref.get();
-
-    std::atomic_thread_fence(std::memory_order_acq_rel);
-
-    return (ret);
+  /** Wait until all previously held references are released */
+  void await_release_of_old_references() {
+    m_n_ref.await_release_of_old_references();
   }
 
   /** Base array. */
-  T *m_base;
+  ut::unique_ptr<T[]> m_base;
 
   /** Number of elements in 'm_base'. */
   size_t m_n_base_elements;
@@ -344,7 +292,7 @@ class ut_lock_free_list_node_t {
  private:
   /** Count the number of deleted elements. The value returned could
   be inaccurate because it is obtained without any locks.
-  @param[in]	deleted_val	the constant that designates that
+  @param[in]    deleted_val     the constant that designates that
   a value is deleted
   @return the number of deleted elements */
   size_t n_deleted(int64_t deleted_val) const {
@@ -425,9 +373,9 @@ and the value are of integer type.
 class ut_lock_free_hash_t : public ut_hash_interface_t {
  public:
   /** Constructor. Not thread safe.
-  @param[in]	initial_size	number of elements to allocate
+  @param[in]    initial_size    number of elements to allocate
   initially. Must be a power of 2, greater than 0.
-  @param[in]	del_when_zero	if true then automatically delete a
+  @param[in]    del_when_zero   if true then automatically delete a
   tuple from the hash if due to increment or decrement its value becomes
   zero. */
   explicit ut_lock_free_hash_t(size_t initial_size, bool del_when_zero)
@@ -441,10 +389,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
     ut_a(initial_size > 0);
     ut_a(ut_is_2pow(initial_size));
 
-    m_data.store(
-        ut::new_withkey<arr_node_t>(
-            ut::make_psi_memory_key(mem_key_ut_lock_free_hash_t), initial_size),
-        std::memory_order_relaxed);
+    m_data.store(arr_node_t::alloc(initial_size));
 
     mutex_create(LATCH_ID_LOCK_FREE_HASH, &m_optimize_latch);
 
@@ -457,34 +402,35 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   ~ut_lock_free_hash_t() override {
     mutex_destroy(&m_optimize_latch);
 
-    arr_node_t *arr = m_data.load(std::memory_order_relaxed);
+    arr_node_t *arr = m_data.load();
 
     do {
-      arr_node_t *next = arr->m_next.load(std::memory_order_relaxed);
+      arr_node_t *next = arr->m_next.load();
 
-      ut::delete_(arr);
+      arr_node_t::dealloc(arr);
 
       arr = next;
     } while (arr != nullptr);
 
     while (!m_hollow_objects->empty()) {
-      ut::delete_(m_hollow_objects->front());
+      arr_node_t::dealloc(m_hollow_objects->front());
       m_hollow_objects->pop_front();
     }
     ut::delete_(m_hollow_objects);
   }
 
   /** Get the value mapped to a given key.
-  @param[in]	key	key to look for
+  @param[in]    key     key to look for
   @return the value that corresponds to key or NOT_FOUND. */
   int64_t get(uint64_t key) const override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
-    arr_node_t *arr = m_data.load(std::memory_order_relaxed);
+    arr_node_t *arr = m_data.load();
 
     for (;;) {
-      const key_val_t *tuple = get_tuple(key, &arr);
+      auto handle_and_tuple{get_tuple(key, &arr)};
+      const auto tuple = handle_and_tuple.second;
 
       if (tuple == nullptr) {
         return (NOT_FOUND);
@@ -499,32 +445,17 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
       int64_t v = tuple->m_val.load(std::memory_order_relaxed);
 
       if (v == DELETED) {
-        arr->end_access();
         return (NOT_FOUND);
       } else if (v != GOTO_NEXT_ARRAY) {
-        arr->end_access();
         return (v);
       }
 
       /* Prevent reorder of the below m_next.load() with
       the above m_val.load().
       We want to be sure that if m_val is GOTO_NEXT_ARRAY,
-      then the next array exists. It would be the same to
-      m_val.load(memory_order_acquire)
-      but that would impose the more expensive
-      memory_order_acquire in all cases, whereas in the most
-      common execution path m_val is not GOTO_NEXT_ARRAY and
-      we return earlier, only using the cheaper
-      memory_order_relaxed. */
-      std::atomic_thread_fence(std::memory_order_acquire);
+      then the next array exists. */
 
-      arr_node_t *next = arr->m_next.load(std::memory_order_relaxed);
-
-      ut_a(next != nullptr);
-
-      arr->end_access();
-
-      arr = next;
+      arr = arr->m_next.load();
     }
   }
 
@@ -537,8 +468,8 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   Thread 2: set(key, val_b)
   when both have finished, then a tuple with the given key will be
   present with value either val_a or val_b.
-  @param[in]	key	key whose value to set
-  @param[in]	val	value to be set */
+  @param[in]    key     key whose value to set
+  @param[in]    val     value to be set */
   void set(uint64_t key, int64_t val) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
@@ -546,7 +477,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
     ut_ad(val != DELETED);
     ut_ad(val != GOTO_NEXT_ARRAY);
 
-    insert_or_update(key, val, false, m_data.load(std::memory_order_relaxed));
+    insert_or_update(key, val, false, m_data.load());
   }
 
   /** Delete a (key, val) pair from the hash.
@@ -566,15 +497,16 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   (key == 5, value == 1).
   It is undefined which one of [1] or [2] will happen. It is up to the
   caller to accept this behavior or prevent it at a higher level.
-  @param[in]	key	key whose pair to delete */
+  @param[in]    key     key whose pair to delete */
   void del(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
-    arr_node_t *arr = m_data.load(std::memory_order_relaxed);
+    arr_node_t *arr = m_data.load();
 
     for (;;) {
-      key_val_t *tuple = get_tuple(key, &arr);
+      auto handle_and_tuple{get_tuple(key, &arr)};
+      const auto tuple = handle_and_tuple.second;
 
       if (tuple == nullptr) {
         /* Nothing to delete. */
@@ -588,9 +520,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
           break;
         }
 
-        if (tuple->m_val.compare_exchange_strong(v, DELETED,
-                                                 std::memory_order_relaxed)) {
-          arr->end_access();
+        if (tuple->m_val.compare_exchange_strong(v, DELETED)) {
           return;
         }
 
@@ -602,23 +532,9 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
       above m_val.load() or the load from
       m_val.compare_exchange_strong().
       We want to be sure that if m_val is GOTO_NEXT_ARRAY,
-      then the next array exists. It would be the same to
-      m_val.load(memory_order_acquire) or
-      m_val.compare_exchange_strong(memory_order_acquire)
-      but that would impose the more expensive
-      memory_order_acquire in all cases, whereas in the most
-      common execution path m_val is not GOTO_NEXT_ARRAY and
-      we return earlier, only using the cheaper
-      memory_order_relaxed. */
-      std::atomic_thread_fence(std::memory_order_acquire);
+      then the next array exists. */
 
-      arr_node_t *next = arr->m_next.load(std::memory_order_relaxed);
-
-      ut_a(next != nullptr);
-
-      arr->end_access();
-
-      arr = next;
+      arr = arr->m_next.load();
     }
   }
 
@@ -636,12 +552,12 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   Thread 1: inc(key)
   Thread 2: set(key, val)
   when both have finished the value will be either val or val + 1.
-  @param[in]	key	key whose value to increment or insert as 1 */
+  @param[in]    key     key whose value to increment or insert as 1 */
   void inc(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
-    insert_or_update(key, 1, true, m_data.load(std::memory_order_relaxed));
+    insert_or_update(key, 1, true, m_data.load());
   }
 
   /** Decrement the value of a given key with 1 or insert a new tuple
@@ -650,12 +566,12 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   same applies as with inc(), see its comment. The only guarantee is
   that the calls will execute in isolation, but the order in which they
   will execute is undeterministic.
-  @param[in]	key	key whose value to decrement */
+  @param[in]    key     key whose value to decrement */
   void dec(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
-    insert_or_update(key, -1, true, m_data.load(std::memory_order_relaxed));
+    insert_or_update(key, -1, true, m_data.load());
   }
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
@@ -715,8 +631,8 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   array. A linear search to the right is done after this position to find
   the tuple with the given key or find a tuple with key == UNUSED or
   AVOID which means that the key is not present in the array.
-  @param[in]	key		key to map into a position
-  @param[in]	arr_size	number of elements in the array
+  @param[in]    key             key to map into a position
+  @param[in]    arr_size        number of elements in the array
   @return a position (index) in the array where the tuple is guessed
   to be */
   size_t guess_position(uint64_t key, size_t arr_size) const {
@@ -725,13 +641,13 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
     out to generate too many collisions. */
 
     /* arr_size is a power of 2. */
-    return (static_cast<size_t>(ut_fold_ull(key) & (arr_size - 1)));
+    return (static_cast<size_t>(ut::hash_uint64(key) & (arr_size - 1)));
   }
 
   /** Get the array cell of a key from a given array.
-  @param[in]	arr		array to search into
-  @param[in]	arr_size	number of elements in the array
-  @param[in]	key		search for a tuple with this key
+  @param[in]    arr             array to search into
+  @param[in]    arr_size        number of elements in the array
+  @param[in]    key             search for a tuple with this key
   @return pointer to the array cell or NULL if not found */
   key_val_t *get_tuple_from_array(key_val_t *arr, size_t arr_size,
                                   uint64_t key) const {
@@ -765,45 +681,43 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   }
 
   /** Get the array cell of a key.
-  @param[in]	key	key to search for
-  @param[in,out]	arr	start the search from this array; when this
+  @param[in]    key     key to search for
+  @param[in,out]        arr     start the search from this array; when this
   method ends, *arr will point to the array in which the search
   ended (in which the returned key_val resides)
-  @return pointer to the array cell or NULL if not found */
-  key_val_t *get_tuple(uint64_t key, arr_node_t **arr) const {
+  @return If key was found: handle to the (updated) arr which contains the tuple
+  and pointer to the array cell with the tuple. Otherwise an empty handle, and
+  nullptr. */
+  std::pair<ut_lock_free_cnt_t::handle_t, key_val_t *> get_tuple(
+      uint64_t key, arr_node_t **arr) const {
     for (;;) {
-      while (!(*arr)->begin_access()) {
-        /* The array has been garbaged, restart
-        the search from the beginning. */
-        *arr = m_data.load(std::memory_order_relaxed);
+      auto handle = (*arr)->begin_access();
+      if (!handle) {
+        /* The array has been garbaged, restart the search from the beginning.*/
+        *arr = m_data.load();
+        continue;
       }
 
-      key_val_t *t =
-          get_tuple_from_array((*arr)->m_base, (*arr)->m_n_base_elements, key);
+      key_val_t *t = get_tuple_from_array((*arr)->m_base.get(),
+                                          (*arr)->m_n_base_elements, key);
 
       if (t != nullptr) {
-        /* end_access() will be invoked by the
-        caller. */
-        return (t);
+        return {std::move(handle), t};
       }
 
-      arr_node_t *next = (*arr)->m_next.load(std::memory_order_relaxed);
+      *arr = (*arr)->m_next.load();
 
-      (*arr)->end_access();
-
-      if (next == nullptr) {
-        return (nullptr);
+      if (*arr == nullptr) {
+        return {};
       }
-
-      *arr = next;
     }
   }
 
   /** Insert the given key into a given array or return its cell if
   already present.
-  @param[in]	arr		array into which to search and insert
-  @param[in]	arr_size	number of elements in the array
-  @param[in]	key		key to insert or whose cell to retrieve
+  @param[in]    arr             array into which to search and insert
+  @param[in]    arr_size        number of elements in the array
+  @param[in]    key             key to insert or whose cell to retrieve
   @return a pointer to the inserted or previously existent tuple or NULL
   if a tuple with this key is not present in the array and the array is
   full, without any unused cells and thus insertion cannot be done into
@@ -835,8 +749,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
 
       if (cur_key == UNUSED) {
         uint64_t expected = UNUSED;
-        if (cur_tuple->m_key.compare_exchange_strong(
-                expected, key, std::memory_order_relaxed)) {
+        if (cur_tuple->m_key.compare_exchange_strong(expected, key)) {
           return (cur_tuple);
         }
 
@@ -862,8 +775,8 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
 
   /** Copy all used elements from one array to another. Flag the ones
   in the old array as 'go to the next array'.
-  @param[in,out]	src_arr	array to copy from
-  @param[in,out]	dst_arr	array to copy to */
+  @param[in,out]        src_arr array to copy from
+  @param[in,out]        dst_arr array to copy to */
   void copy_to_another_array(arr_node_t *src_arr, arr_node_t *dst_arr) {
     for (size_t i = 0; i < src_arr->m_n_base_elements; i++) {
       key_val_t *t = &src_arr->m_base[i];
@@ -871,8 +784,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
       uint64_t k = t->m_key.load(std::memory_order_relaxed);
 
       /* Prevent further inserts into empty cells. */
-      if (k == UNUSED && t->m_key.compare_exchange_strong(
-                             k, AVOID, std::memory_order_relaxed)) {
+      if (k == UNUSED && t->m_key.compare_exchange_strong(k, AVOID)) {
         continue;
       }
 
@@ -908,15 +820,13 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
         next arrays (ie that insert_or_update() has
         completed and that its effects are visible to
         other threads). */
-        std::atomic_thread_fence(std::memory_order_release);
 
         /* Now that we know (k, v) is present in some
         of the next arrays, try to CAS the tuple
         (k, v) to (k, GOTO_NEXT_ARRAY) in the current
         array. */
 
-        if (t->m_val.compare_exchange_strong(v, GOTO_NEXT_ARRAY,
-                                             std::memory_order_relaxed)) {
+        if (t->m_val.compare_exchange_strong(v, GOTO_NEXT_ARRAY)) {
           break;
         }
 
@@ -931,12 +841,12 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   }
 
   /** Update the value of a given tuple.
-  @param[in,out]	t		tuple whose value to update
-  @param[in]	val_to_set	value to set or delta to apply
-  @param[in]	is_delta	if true then set the new value to
+  @param[in,out]        t               tuple whose value to update
+  @param[in]    val_to_set      value to set or delta to apply
+  @param[in]    is_delta        if true then set the new value to
   old + val, otherwise just set to val
-  @retval		true		update succeeded
-  @retval		false		update failed due to GOTO_NEXT_ARRAY
+  @retval               true            update succeeded
+  @retval               false           update failed due to GOTO_NEXT_ARRAY
   @return whether the update succeeded or not */
   bool update_tuple(key_val_t *t, int64_t val_to_set, bool is_delta) {
     int64_t cur_val = t->m_val.load(std::memory_order_relaxed);
@@ -958,8 +868,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
         new_val = val_to_set;
       }
 
-      if (t->m_val.compare_exchange_strong(cur_val, new_val,
-                                           std::memory_order_relaxed)) {
+      if (t->m_val.compare_exchange_strong(cur_val, new_val)) {
         return (true);
       }
 
@@ -980,44 +889,37 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
     mutex_enter(&m_optimize_latch);
 
     for (;;) {
-      arr_node_t *arr = m_data.load(std::memory_order_relaxed);
+      arr_node_t *arr = m_data.load();
 
-      arr_node_t *next = arr->m_next.load(std::memory_order_relaxed);
+      arr_node_t *next = arr->m_next.load();
 
       if (next == nullptr) {
         break;
       }
 
-      /* begin_access() / end_access() for 'arr' and 'next'
+      /* begin_access() (ref counting) for 'arr' and 'next'
       around copy_to_another_array() is not needed here
       because the only code that frees memory is below,
       serialized with a mutex. */
 
       copy_to_another_array(arr, next);
 
-      arr->m_pending_free.store(true, std::memory_order_release);
+      arr->m_pending_free.store(true);
 
       arr_node_t *expected = arr;
 
       /* Detach 'arr' from the list. Ie move the head of the
       list 'm_data' from 'arr' to 'arr->m_next'. */
-      ut_a(m_data.compare_exchange_strong(expected, next,
-                                          std::memory_order_relaxed));
+      ut_a(m_data.compare_exchange_strong(expected, next));
 
       /* Spin/wait for all threads to stop looking at
       this array. If at some point this turns out to be
       sub-optimal (ie too long busy wait), then 'arr' could
       be added to some lazy deletion list
       arrays-awaiting-destruction-once-no-readers. */
-      while (arr->n_ref() > 0) {
-        ;
-      }
+      arr->await_release_of_old_references();
 
-      ut::delete_arr(arr->m_base);
-      /* The destructor of arr will call ut::delete_arr()
-      on m_base again. Make sure it is a noop and avoid
-      double free. */
-      arr->m_base = nullptr;
+      arr->m_base.reset();
 
       m_hollow_objects->push_back(arr);
     }
@@ -1030,15 +932,15 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   is ignored. If a tuple with this key exists and is_delta is true, then
   the current value is changed to be current value + val, otherwise it
   is overwritten to be val.
-  @param[in]	key			key to insert or whose value
+  @param[in]    key                     key to insert or whose value
   to update
-  @param[in]	val			value to set; if the tuple
+  @param[in]    val                     value to set; if the tuple
   does not exist or if is_delta is false, then the new value is set
   to val, otherwise it is set to old + val
-  @param[in]	is_delta		if true then set the new
+  @param[in]    is_delta                if true then set the new
   value to old + val, otherwise just set to val.
-  @param[in]	arr			array to start the search from
-  @param[in]	optimize_allowed	if true then call optimize()
+  @param[in]    arr                     array to start the search from
+  @param[in]    optimize_allowed        if true then call optimize()
   after an eventual grow(), if false, then never call optimize(). Used
   to prevent recursive optimize() call by insert_or_update() ->
   optimize() -> copy_to_another_array() -> insert_or_update() ->
@@ -1051,14 +953,15 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
     or until we find a tuple with the specified key and manage to
     update it. */
     for (;;) {
-      while (!arr->begin_access()) {
-        /* The array has been garbaged, try the next
-        one. */
-        arr = arr->m_next.load(std::memory_order_relaxed);
+      auto handle = arr->begin_access();
+      if (!handle) {
+        /* The array has been garbaged, try the next one. */
+        arr = arr->m_next.load();
+        continue;
       }
 
       key_val_t *t = insert_or_get_position_in_array(
-          arr->m_base, arr->m_n_base_elements, key);
+          arr->m_base.get(), arr->m_n_base_elements, key);
 
       /* t == NULL means that the array is full, must expand
       and go to the next array. */
@@ -1068,34 +971,27 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
       next array. */
 
       if (t != nullptr && update_tuple(t, val, is_delta)) {
-        arr->end_access();
         break;
       }
 
-      arr_node_t *next = arr->m_next.load(std::memory_order_relaxed);
+      arr_node_t *next = arr->m_next.load();
 
       if (next != nullptr) {
-        arr->end_access();
         arr = next;
         /* Prevent any subsequent memory operations
         (the reads from the next array in particular)
         to be reordered before the m_next.load()
         above. */
-        std::atomic_thread_fence(std::memory_order_acquire);
         continue;
       }
 
       bool grown_by_this_thread;
 
-      next = arr->grow(DELETED, &grown_by_this_thread);
+      arr = arr->grow(DELETED, &grown_by_this_thread);
 
       if (grown_by_this_thread) {
         call_optimize = true;
       }
-
-      arr->end_access();
-
-      arr = next;
     }
 
     if (optimize_allowed && call_optimize) {

@@ -70,7 +70,7 @@ a
 explain select * from t2 where t2.a in (select a from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	#	Using where; Using index
-2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10157	#	Using index
+2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10004	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
@@ -80,7 +80,7 @@ a
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	#	Using where; Using index
-2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10157	#	Using where; Using index
+2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10004	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
@@ -91,7 +91,7 @@ explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	#	Using where; Using index
 2	SUBQUERY	t3	NULL	index	a	a	5	NULL	3	#	Using index
-2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10157	#	Using where; Using index; Using join buffer (hash join)
+2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10004	#	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`b` = `test`.`t3`.`a`) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 insert into t1 values (3,31);
@@ -110,7 +110,7 @@ a
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	#	Using where; Using index
-2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10157	#	Using where; Using index
+2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10005	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 drop table t0, t1, t2, t3;
@@ -4288,7 +4288,7 @@ EXPLAIN
                     -> Materialize with deduplication  (cost=36.26..36.26 rows=40)
                         -> Nested loop inner join  (cost=32.26 rows=40)
                             -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=18.26 rows=40)
-                                -> Index range scan on t1 using kp1  (cost=18.26 rows=40)
+                                -> Index range scan on t1 using kp1 over (NULL < kp1 < 20)  (cost=18.26 rows=40)
                             -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.25 rows=1)
 
 select * from t3 where a in 
@@ -8296,7 +8296,7 @@ The following must use loose index scan over t3, key a:
 explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	1000	100.00	Using where; Using index
-2	SUBQUERY	t3	NULL	index	a	a	5	NULL	30360	100.00	Using index
+2	SUBQUERY	t3	NULL	index	a	a	5	NULL	30000	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t2`.`a`) AS `count(a)` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t3`.`a` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 select count(a) from t2 where a in ( SELECT  a FROM t3);
@@ -10138,24 +10138,6 @@ ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
-EXPLAIN SELECT t1a.*
-FROM t1 AS t1a
-JOIN t1 AS t1b USING ( col_int_nokey )
-WHERE t1a.col_int_key IN (
-SELECT pk
-FROM t2
-WHERE col_int_key IN (
-SELECT col_int_nokey
-FROM t1
-)
-);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1a	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	PRIMARY	t1b	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
-2	SUBQUERY	t2	NULL	index	PRIMARY	col_int_key	4	NULL	1	100.00	Using where; Using index
-3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1a`.`pk` AS `pk`,`test`.`t1a`.`col_int_nokey` AS `col_int_nokey`,`test`.`t1a`.`col_int_key` AS `col_int_key` from `test`.`t1` `t1a` join `test`.`t1` `t1b` where ((`test`.`t1b`.`col_int_nokey` = `test`.`t1a`.`col_int_nokey`) and <in_optimizer>(`test`.`t1a`.`col_int_key`,`test`.`t1a`.`col_int_key` in ( <materialize> (/* select#2 */ select `test`.`t2`.`pk` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`col_int_key`,`test`.`t2`.`col_int_key` in ( <materialize> (/* select#3 */ select `test`.`t1`.`col_int_nokey` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`col_int_key` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`col_int_key` = `<materialized_subquery>`.`col_int_nokey`))))) ), <primary_index_lookup>(`test`.`t1a`.`col_int_key` in <temporary table> on <auto_distinct_key> where ((`test`.`t1a`.`col_int_key` = `<materialized_subquery>`.`pk`))))))
 SELECT t1a.*
 FROM t1 AS t1a
 JOIN t1 AS t1b USING ( col_int_nokey )
@@ -12710,7 +12692,7 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (123,1,1,'1',NULL),
@@ -13157,21 +13139,21 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 EXPLAIN
--> Sort: t4.col_int_key  (cost=0.85 rows=6)
-    -> Filter: <in_optimizer>(t4.col_int_key,t4.col_int_key in (select #2))  (cost=0.85 rows=6)
-        -> Table scan on t4  (cost=0.85 rows=6)
+-> Sort: t4.col_int_key (rows=6)
+    -> Filter: <in_optimizer>(t4.col_int_key,t4.col_int_key in (select #2)) (rows=6)
+        -> Table scan on t4 (rows=6)
         -> Select #2 (subquery in condition; run only once)
-            -> Filter: ((t4.col_int_key = `<materialized_subquery>`.col_int_key))  (cost=4.10..4.10 rows=7)
+            -> Filter: ((t4.col_int_key = `<materialized_subquery>`.col_int_key)) (rows=7)
                 -> Limit: 1 row(s)
                     -> Index lookup on <materialized_subquery> using <auto_distinct_key> (col_int_key=t4.col_int_key)
-                        -> Materialize with deduplication  (cost=4.10..4.10 rows=7)
-                            -> Filter: (t3.col_int is null)  (cost=3.40 rows=7)
-                                -> Nested loop left join  (cost=3.40 rows=7)
-                                    -> Index scan on t1 using col_int_key  (cost=0.95 rows=7)
-                                    -> Nested loop inner join  (cost=1.21 rows=1)
-                                        -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.26 rows=1)
-                                        -> Filter: (t3.col_int_key = t2.col_int)  (cost=0.09 rows=1)
-                                            -> Table scan on t3  (cost=0.09 rows=4)
+                        -> Materialize with deduplication (rows=7)
+                            -> Filter: (t3.col_int is null) (rows=7)
+                                -> Nested loop left join (rows=7)
+                                    -> Index scan on t1 using col_int_key (rows=7)
+                                    -> Nested loop inner join (rows=1)
+                                        -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk) (rows=1)
+                                        -> Filter: (t3.col_int_key = t2.col_int) (rows=1)
+                                            -> Table scan on t3 (rows=4)
 
 SELECT *
 FROM t4

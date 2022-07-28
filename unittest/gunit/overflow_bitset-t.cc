@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,11 +66,12 @@ TEST(OverflowBitsetTest, MutateInline) {
     }
   }
   s.ClearBits(2, 9);
+  s.ClearBit(27);
 
   OverflowBitset cs = move(s);
   for (int i = 0; i < 30; ++i) {
     SCOPED_TRACE(i);
-    EXPECT_EQ(i % 3 == 0 && (i < 2 || i >= 9), IsBitSet(i, cs));
+    EXPECT_EQ(i % 3 == 0 && (i < 2 || i >= 9) && (i != 27), IsBitSet(i, cs));
   }
 }
 
@@ -84,12 +85,14 @@ TEST(OverflowBitsetTest, MutateOverflow) {
   }
   s.ClearBits(2, 9);
   s.ClearBits(60, 150);
+  s.ClearBit(42);
 
   OverflowBitset cs = move(s);
   for (int i = 0; i < 200; ++i) {
     SCOPED_TRACE(i);
-    EXPECT_EQ(i % 3 == 0 && (i < 2 || i >= 9) && (i < 60 || i >= 150),
-              IsBitSet(i, cs));
+    EXPECT_EQ(
+        i % 3 == 0 && (i < 2 || i >= 9) && (i < 60 || i >= 150) && (i != 42),
+        IsBitSet(i, cs));
   }
 }
 
@@ -152,6 +155,33 @@ TEST(OverflowBitsetTest, BitsSetInOverflow) {
   EXPECT_THAT(ret, testing::ElementsAre(100, 180, 181, 199));
 }
 
+TEST(OverflowBitsetTest, BitsSetInBothInline) {
+  OverflowBitset s{0x1005}, t{0x1204};
+  vector<int> ret;
+  for (int bit_num : BitsSetInBoth(s, t)) {
+    ret.push_back(bit_num);
+  }
+  EXPECT_THAT(ret, testing::ElementsAre(2, 12));
+}
+
+TEST(OverflowBitsetTest, BitsSetInBothOverflow) {
+  MEM_ROOT mem_root;
+  MutableOverflowBitset s{&mem_root, 200};
+  s.SetBit(100);
+  s.SetBit(180);
+  s.SetBit(181);
+  s.SetBit(199);
+  MutableOverflowBitset t{&mem_root, 200};
+  t.SetBit(100);
+  t.SetBit(181);
+
+  vector<int> ret;
+  for (int bit_num : BitsSetInBoth(move(s), move(t))) {
+    ret.push_back(bit_num);
+  }
+  EXPECT_THAT(ret, testing::ElementsAre(100, 181));
+}
+
 TEST(OverflowBitsetTest, OverlapsInline) {
   OverflowBitset s1{0x1005};
   OverflowBitset s2{0x0150};
@@ -190,16 +220,58 @@ TEST(OverflowBitsetTest, OverlapsOverflow) {
   EXPECT_FALSE(Overlaps(s1, s2));
   EXPECT_TRUE(Overlaps(s2, s3));
   EXPECT_TRUE(Overlaps(s1, s3));
+}
 
-  // Nothing overlaps with the empty set, but it's allowed
-  // to test against it even though it's not the same size.
-  OverflowBitset s4{0};
-  EXPECT_FALSE(Overlaps(s1, s4));
-  EXPECT_FALSE(Overlaps(s2, s4));
-  EXPECT_FALSE(Overlaps(s3, s4));
-  EXPECT_FALSE(Overlaps(s4, s1));
-  EXPECT_FALSE(Overlaps(s4, s2));
-  EXPECT_FALSE(Overlaps(s4, s3));
+TEST(OverflowBitsetTest, IsSubsetInline) {
+  OverflowBitset s1{0x1005};
+  OverflowBitset s2{0x0150};
+  OverflowBitset s3{0xffff};
+
+  EXPECT_TRUE(IsSubset(s1, s1));
+  EXPECT_FALSE(IsSubset(s1, s2));
+  EXPECT_TRUE(IsSubset(s1, s3));
+
+  EXPECT_FALSE(IsSubset(s2, s1));
+  EXPECT_TRUE(IsSubset(s2, s2));
+  EXPECT_TRUE(IsSubset(s2, s3));
+
+  EXPECT_FALSE(IsSubset(s3, s1));
+  EXPECT_FALSE(IsSubset(s3, s2));
+  EXPECT_TRUE(IsSubset(s3, s3));
+}
+
+TEST(OverflowBitsetTest, IsSubsetOverflow) {
+  MEM_ROOT mem_root;
+  MutableOverflowBitset s1_tmp{&mem_root, 200};
+  MutableOverflowBitset s2_tmp{&mem_root, 200};
+  MutableOverflowBitset s3_tmp{&mem_root, 200};
+
+  s1_tmp.SetBit(1);
+  s1_tmp.SetBit(100);
+
+  s2_tmp.SetBit(60);
+  s2_tmp.SetBit(160);
+
+  s3_tmp.SetBit(1);
+  s3_tmp.SetBit(60);
+  s3_tmp.SetBit(100);
+  s3_tmp.SetBit(160);
+
+  OverflowBitset s1 = move(s1_tmp);
+  OverflowBitset s2 = move(s2_tmp);
+  OverflowBitset s3 = move(s3_tmp);
+
+  EXPECT_TRUE(IsSubset(s1, s1));
+  EXPECT_FALSE(IsSubset(s1, s2));
+  EXPECT_TRUE(IsSubset(s1, s3));
+
+  EXPECT_FALSE(IsSubset(s2, s1));
+  EXPECT_TRUE(IsSubset(s2, s2));
+  EXPECT_TRUE(IsSubset(s2, s3));
+
+  EXPECT_FALSE(IsSubset(s3, s1));
+  EXPECT_FALSE(IsSubset(s3, s2));
+  EXPECT_TRUE(IsSubset(s3, s3));
 }
 
 TEST(OverflowBitsetTest, IsEmptyInline) {
@@ -216,4 +288,27 @@ TEST(OverflowBitsetTest, IsEmptyOverflow) {
   MutableOverflowBitset s2{&mem_root, 200};
   s2.SetBit(186);
   EXPECT_FALSE(IsEmpty(move(s2)));
+}
+
+TEST(OverflowBitsetTest, PopulationCountInline) {
+  MEM_ROOT mem_root;
+  MutableOverflowBitset s{&mem_root, 30};
+  for (int i = 0; i < 30; ++i) {
+    if (i % 3 == 0) {
+      s.SetBit(i);
+    }
+  }
+
+  EXPECT_EQ(10, PopulationCount(move(s)));
+}
+
+TEST(OverflowBitsetTest, PopulationCountOverflow) {
+  MEM_ROOT mem_root;
+  MutableOverflowBitset s{&mem_root, 200};
+  for (int i = 0; i < 200; ++i) {
+    if (i % 3 == 0) {
+      s.SetBit(i);
+    }
+  }
+  EXPECT_EQ(67, PopulationCount(move(s)));
 }

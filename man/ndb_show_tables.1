@@ -2,12 +2,12 @@
 .\"     Title: ndb_show_tables
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_SHOW_TABLES" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_SHOW_TABLES" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -115,9 +115,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -135,9 +135,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--database=string\fR,
+\fB--database=name\fR,
 .PP
-\fB \fR\fB-d\fR\fB \fR
+\fB \fR\fB-d name\fR\fB \fR
 T}:T{
 Specifies database in which table is found; database name must be
               followed by table name
@@ -185,7 +185,7 @@ T{
 .PP
 \fB--loops=#\fR,
 .PP
-\fB \fR\fB-l\fR\fB \fR
+\fB \fR\fB-l #\fR\fB \fR
 T}:T{
 Number of times to repeat output
 T}:T{
@@ -205,9 +205,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -218,9 +218,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -289,7 +289,7 @@ T{
 .PP
 \fB--type=#\fR,
 .PP
-\fB \fR\fB-t\fR\fB \fR
+\fB \fR\fB-t #\fR\fB \fR
 T}:T{
 Limit output to objects of this type
 T}:T{
@@ -474,7 +474,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -721,7 +721,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -755,7 +755,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type
@@ -1042,7 +1042,7 @@ testing library\&. This dependency has been removed, eliminating the extraneous 
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

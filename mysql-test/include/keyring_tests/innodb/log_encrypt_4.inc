@@ -6,15 +6,17 @@
 --disable_query_log
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
 call mtr.add_suppression("Resizing redo log from");
-call mtr.add_suppression("Starting to delete and rewrite log files.");
-call mtr.add_suppression("New log files created, LSN=");
-call mtr.add_suppression("Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("Redo log has been requested to resize");
+call mtr.add_suppression("Starting to delete and rewrite redo log files.");
+call mtr.add_suppression("New redo log files created, LSN=");
+call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log files to be encrypted.");
 --enable_query_log
 
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
 let $START_PAGE_SIZE= `select @@innodb_page_size`;
-let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
+let $LOG_SIZE= `select @@innodb_redo_log_capacity`;
+let $LOG_SIZE_SCALED_UP= `select @@innodb_redo_log_capacity * 3 div 2`;
 let $MYSQLD_BASEDIR= `select @@basedir`;
 
 --mkdir $MYSQL_TMP_DIR/log_encrypt_dir1
@@ -34,13 +36,13 @@ EOF
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
 
-let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=ON </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap1.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=ON </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap1.log 2>&1;
 
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
 
 --echo # Start the DB server with datadir1
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE"
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
@@ -80,13 +82,13 @@ let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OF
 # Restore global manifest file
 --source include/keyring_tests/helper/binary_restore_manifest.inc
 
-let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR2 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_log_files_in_group=3 --innodb_redo_log_encrypt=ON </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_SIZE_SCALED_UP --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR2 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=ON </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
 
 --echo # Run the bootstrap command of datadir2
 --exec $NEW_CMD
 
 --echo # Start the DB server with datadir2
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --datadir=$MYSQLD_DATADIR2 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_log_files_in_group=3"
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --datadir=$MYSQLD_DATADIR2 --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE_SCALED_UP"
 --source include/start_mysqld_no_echo.inc
 
 SELECT @@global.innodb_redo_log_encrypt ;
@@ -108,13 +110,13 @@ DROP TABLE tab1,tab2;
 --source include/keyring_tests/helper/local_keyring_file_remove.inc
 #------------------------------------------------------------------------------
 
-let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR3 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=ON </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap3.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR3 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=ON </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap3.log 2>&1;
 
 --echo # Run the bootstrap command of datadir3
 --exec $NEW_CMD
 
 --echo # Start the DB server with datadir3 and keyring loaded.
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --datadir=$MYSQLD_DATADIR3 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --datadir=$MYSQLD_DATADIR3 --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_SIZE"
 --source include/start_mysqld_no_echo.inc
 
 SELECT @@global.innodb_redo_log_encrypt ;

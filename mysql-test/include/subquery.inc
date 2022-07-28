@@ -8,6 +8,17 @@
 #       as possible.
 #
 
+-- disable_query_log
+-- disable_result_log
+# High values set for sampling scanning, effectively forcing full scan for
+# statistics.
+SET @innodb_stats_transient_sample_pages= @@GLOBAL.innodb_stats_transient_sample_pages;
+SET @@global.innodb_stats_transient_sample_pages=5000000000;
+SET @innodb_stats_persistent_sample_pages= @@GLOBAL.innodb_stats_persistent_sample_pages;
+SET @@global.innodb_stats_persistent_sample_pages=5000000000;
+-- enable_result_log
+-- enable_query_log
+
 # This portion of the file vas developed when subquery materialization
 # was rule-based; to preserve the intended test scenarios, we switch
 # off cost-based choice for them.
@@ -2494,6 +2505,7 @@ insert into t1 (a) select FLOOR(rand() * 100) from t1;
 insert into t1 (a) select FLOOR(rand() * 100) from t1;
 insert into t1 (a) select FLOOR(rand() * 100) from t1;
 ANALYZE TABLE t1;
+--skip_if_hypergraph  # Takes a long time due to bug#33583337.
 --replace_column 1 #
 SELECT a,
        (SELECT REPEAT(' ',250) FROM t1 i1
@@ -6843,6 +6855,14 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1,t2;
+
+-- disable_query_log
+-- disable_result_log
+SET @@GLOBAL.innodb_stats_transient_sample_pages= @innodb_stats_transient_sample_pages;
+SET @@GLOBAL.innodb_stats_persistent_sample_pages= @innodb_stats_persistent_sample_pages;
+-- enable_result_log
+-- enable_query_log
+
 #
 # BUG#33245 "Crash on VIEW referencing FROM table in an IN clause"
 # (this is a second copy of testcase that uses disconnect/connect commands

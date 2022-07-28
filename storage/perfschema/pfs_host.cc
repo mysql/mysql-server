@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -73,9 +73,46 @@ static const uchar *host_hash_get_key(const uchar *entry, size_t *length) {
   assert(typed_entry != nullptr);
   host = *typed_entry;
   assert(host != nullptr);
-  *length = host->m_key.m_key_length;
-  result = host->m_key.m_hash_key;
+  *length = sizeof(host->m_key);
+  result = &host->m_key;
   return reinterpret_cast<const uchar *>(result);
+}
+
+static uint host_hash_func(const LF_HASH *, const uchar *key,
+                           size_t key_len [[maybe_unused]]) {
+  const PFS_host_key *host_key;
+  uint64 nr1;
+  uint64 nr2;
+
+  assert(key_len == sizeof(PFS_host_key));
+  host_key = reinterpret_cast<const PFS_host_key *>(key);
+  assert(host_key != nullptr);
+
+  nr1 = 0;
+  nr2 = 0;
+
+  host_key->m_host_name.hash(&nr1, &nr2);
+
+  return nr1;
+}
+
+static int host_hash_cmp_func(const uchar *key1,
+                              size_t key_len1 [[maybe_unused]],
+                              const uchar *key2,
+                              size_t key_len2 [[maybe_unused]]) {
+  const PFS_host_key *host_key1;
+  const PFS_host_key *host_key2;
+  int cmp;
+
+  assert(key_len1 == sizeof(PFS_host_key));
+  assert(key_len2 == sizeof(PFS_host_key));
+  host_key1 = reinterpret_cast<const PFS_host_key *>(key1);
+  host_key2 = reinterpret_cast<const PFS_host_key *>(key2);
+  assert(host_key1 != nullptr);
+  assert(host_key2 != nullptr);
+
+  cmp = host_key1->m_host_name.sort(&host_key2->m_host_name);
+  return cmp;
 }
 
 /**
@@ -84,8 +121,9 @@ static const uchar *host_hash_get_key(const uchar *entry, size_t *length) {
 */
 int init_host_hash(const PFS_global_param *param) {
   if ((!host_hash_inited) && (param->m_host_sizing != 0)) {
-    lf_hash_init(&host_hash, sizeof(PFS_host *), LF_HASH_UNIQUE, 0, 0,
-                 host_hash_get_key, &my_charset_bin);
+    lf_hash_init3(&host_hash, sizeof(PFS_host *), LF_HASH_UNIQUE,
+                  host_hash_get_key, host_hash_func, host_hash_cmp_func,
+                  nullptr /* ctor */, nullptr /* dtor */, nullptr /* init */);
     host_hash_inited = true;
   }
   return 0;
@@ -109,22 +147,11 @@ static LF_PINS *get_host_hash_pins(PFS_thread *thread) {
   return thread->m_host_hash_pins;
 }
 
-static void set_host_key(PFS_host_key *key, const char *host,
-                         uint host_length) {
-  assert(host_length <= HOSTNAME_LENGTH);
-
-  char *ptr = &key->m_hash_key[0];
-  if (host_length > 0) {
-    memcpy(ptr, host, host_length);
-    ptr += host_length;
-  }
-  ptr[0] = 0;
-  ptr++;
-  key->m_key_length = ptr - &key->m_hash_key[0];
+static void set_host_key(PFS_host_key *key, const PFS_host_name *host) {
+  key->m_host_name = *host;
 }
 
-PFS_host *find_or_create_host(PFS_thread *thread, const char *hostname,
-                              uint hostname_length) {
+PFS_host *find_or_create_host(PFS_thread *thread, const PFS_host_name *host) {
   LF_PINS *pins = get_host_hash_pins(thread);
   if (unlikely(pins == nullptr)) {
     global_host_container.m_lost++;
@@ -132,7 +159,7 @@ PFS_host *find_or_create_host(PFS_thread *thread, const char *hostname,
   }
 
   PFS_host_key key;
-  set_host_key(&key, hostname, hostname_length);
+  set_host_key(&key, host);
 
   PFS_host **entry;
   PFS_host *pfs;
@@ -142,7 +169,7 @@ PFS_host *find_or_create_host(PFS_thread *thread, const char *hostname,
 
 search:
   entry = reinterpret_cast<PFS_host **>(
-      lf_hash_search(&host_hash, pins, key.m_hash_key, key.m_key_length));
+      lf_hash_search(&host_hash, pins, &key, sizeof(key)));
   if (entry && (entry != MY_LF_ERRPTR)) {
     PFS_host *pfs;
     pfs = *entry;
@@ -156,12 +183,6 @@ search:
   pfs = global_host_container.allocate(&dirty_state);
   if (pfs != nullptr) {
     pfs->m_key = key;
-    if (hostname_length > 0) {
-      pfs->m_hostname = &pfs->m_key.m_hash_key[0];
-    } else {
-      pfs->m_hostname = nullptr;
-    }
-    pfs->m_hostname_length = hostname_length;
 
     pfs->init_refcount();
     pfs->reset_stats();
@@ -334,13 +355,12 @@ static void purge_host(PFS_thread *thread, PFS_host *host) {
   }
 
   PFS_host **entry;
-  entry = reinterpret_cast<PFS_host **>(lf_hash_search(
-      &host_hash, pins, host->m_key.m_hash_key, host->m_key.m_key_length));
+  entry = reinterpret_cast<PFS_host **>(
+      lf_hash_search(&host_hash, pins, &host->m_key, sizeof(host->m_key)));
   if (entry && (entry != MY_LF_ERRPTR)) {
     assert(*entry == host);
     if (host->get_refcount() == 0) {
-      lf_hash_delete(&host_hash, pins, host->m_key.m_hash_key,
-                     host->m_key.m_key_length);
+      lf_hash_delete(&host_hash, pins, &host->m_key, sizeof(host->m_key));
       host->aggregate(false);
       global_host_container.deallocate(host);
     }
@@ -351,7 +371,7 @@ static void purge_host(PFS_thread *thread, PFS_host *host) {
 
 class Proc_purge_host : public PFS_buffer_processor<PFS_host> {
  public:
-  Proc_purge_host(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_purge_host(PFS_thread *thread) : m_thread(thread) {}
 
   void operator()(PFS_host *pfs) override {
     pfs->aggregate(true);

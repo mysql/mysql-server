@@ -87,7 +87,7 @@
 
 --let $db=db_0
 --let $collate_old=latin1_general_ci
---let $collate_new=utf8_general_ci
+--let $collate_new=utf8mb3_general_ci
 
 --let $ddl_query=CREATE DATABASE $db DEFAULT COLLATE $collate_old
 --let $pre_binlog_crash_check= SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = '$db'

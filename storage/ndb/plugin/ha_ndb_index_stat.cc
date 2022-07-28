@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_thread.h>
 #include <time.h>
+#include <atomic>
 
 #include "my_dbug.h"
 #include "sql/field.h"
@@ -50,7 +51,7 @@ typedef NdbDictionary::Index NDBINDEX;
 
 /** ndb_index_stat_thread */
 Ndb_index_stat_thread::Ndb_index_stat_thread()
-    : Ndb_component("Index Stat"), client_waiting(false) {}
+    : Ndb_component("Index Stat", "ndb_index_stat"), client_waiting(false) {}
 
 int Ndb_index_stat_thread::do_init() {
   mysql_mutex_init(PSI_INSTRUMENT_ME, &LOCK_client_waiting, MY_MUTEX_INIT_FAST);
@@ -126,20 +127,30 @@ struct Ndb_index_stat {
   struct Ndb_index_stat *list_next;
   struct Ndb_index_stat *list_prev;
   struct NDB_SHARE *share;
-  uint ref_count;     /* from client requests */
   bool to_delete;     /* detached from share and marked for delete */
   bool abort_request; /* abort all requests and allow no more */
   Ndb_index_stat();
+
+ private:
+  std::atomic<uint> m_ref_count{0}; /* from client requests */
+ public:
+  void acquire_client_ref() { m_ref_count++; }
+  void release_client_ref() {
+    const uint prev_count [[maybe_unused]] = m_ref_count--;
+    // Detect decrement from zero, indicates mismatch
+    assert(prev_count > 0);
+  }
+  bool has_client_ref() const { return m_ref_count != 0; }
 };
 
 struct Ndb_index_stat_list {
-  const char *const name;                    /* name of list */
-  const Ndb_index_stat::List_type list_type; /* type of list */
+  const char *const name; /* name of list */
   struct Ndb_index_stat *head{nullptr};
   struct Ndb_index_stat *tail{nullptr};
+  const Ndb_index_stat::List_type list_type; /* type of list */
   uint count{0}; /* number of entries in list, i.e between "head" and "tail" */
-  Ndb_index_stat_list(Ndb_index_stat::List_type the_list_type,
-                      const char *the_name);
+  Ndb_index_stat_list(Ndb_index_stat::List_type _list_type, const char *_name)
+      : name(_name), list_type(_list_type) {}
 };
 
 extern Ndb_index_stat_list ndb_index_stat_list[];
@@ -696,7 +707,6 @@ Ndb_index_stat::Ndb_index_stat() {
   list_next = 0;
   list_prev = 0;
   share = 0;
-  ref_count = 0;
   to_delete = false;
   abort_request = false;
 }
@@ -735,10 +745,6 @@ static void ndb_index_stat_clear_error(Ndb_index_stat *st) {
 }
 
 /* Lists across shares */
-
-Ndb_index_stat_list::Ndb_index_stat_list(
-    Ndb_index_stat::List_type the_list_type, const char *the_name)
-    : name(the_name), list_type(the_list_type) {}
 
 Ndb_index_stat_list ndb_index_stat_list[Ndb_index_stat::LT_Count] = {
     Ndb_index_stat_list(Ndb_index_stat::LT_Undef, nullptr),
@@ -836,19 +842,6 @@ static void ndb_index_stat_no_stats(Ndb_index_stat *st, bool flag) {
     }
     glob.set_status();
   }
-}
-
-static void ndb_index_stat_ref_count(Ndb_index_stat *st, bool flag) {
-  uint old_count = st->ref_count;
-  (void)old_count;  // USED
-  if (flag) {
-    st->ref_count++;
-  } else {
-    assert(st->ref_count != 0);
-    st->ref_count--;
-  }
-  DBUG_PRINT("index_stat",
-             ("st %s ref_count:%u->%u", st->id, old_count, st->ref_count));
 }
 
 /* Find or add entry under the share */
@@ -965,8 +958,7 @@ static Ndb_index_stat *ndb_index_stat_get_share(NDB_SHARE *share,
   } while (0);
 
   if (err_out == 0) {
-    assert(st != 0);
-    ndb_index_stat_ref_count(st, true);
+    st->acquire_client_ref();
   } else
     st = 0;
 
@@ -1630,12 +1622,12 @@ static void ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr) {
 
     /*
       Do not wait for requests to terminate since this could
-      risk stats thread hanging.  Instead try again next time.
+      risk stats thread hanging. Instead try again next time.
       Presumably clients will eventually notice abort_request.
     */
-    if (st->ref_count != 0) {
-      DBUG_PRINT("index_stat", ("st %s proc %s: ref_count:%u", st->id,
-                                list.name, st->ref_count));
+    if (st->has_client_ref()) {
+      DBUG_PRINT("index_stat",
+                 ("st %s proc %s: referenced by client", st->id, list.name));
       continue;
     }
 
@@ -1971,63 +1963,25 @@ void ndb_index_stat_end() {
 
 /* Index stats thread */
 
-int Ndb_index_stat_thread::check_or_create_systables(
+int Ndb_index_stat_thread::check_systables(
     const Ndb_index_stat_proc &pr) const {
   DBUG_TRACE;
 
-  NdbIndexStat *is = pr.is_util;
-  Ndb *ndb = pr.ndb;
-
-  if (is->check_systables(ndb) == 0) {
+  if (pr.is_util->check_systables(pr.ndb) == 0) {
     DBUG_PRINT("index_stat", ("using existing index stats tables"));
     return 0;
   }
-
-  if (is->create_systables(ndb) == 0) {
-    DBUG_PRINT("index_stat", ("created index stats tables"));
-    return 0;
-  }
-
-  if (is->getNdbError().code == 4009) {
-    // No connection
-    DBUG_PRINT("index_stat",
-               ("create index stats tables failed: error %d line %d",
-                is->getNdbError().code, is->getNdbError().line));
-    return -1;
-  }
-
-  log_info("create tables failed, error: %d, line: %d", is->getNdbError().code,
-           is->getNdbError().line);
   return -1;
 }
 
-int Ndb_index_stat_thread::check_or_create_sysevents(
+int Ndb_index_stat_thread::check_sysevents(
     const Ndb_index_stat_proc &pr) const {
   DBUG_TRACE;
 
-  NdbIndexStat *is = pr.is_util;
-  Ndb *ndb = pr.ndb;
-
-  if (is->check_sysevents(ndb) == 0) {
+  if (pr.is_util->check_sysevents(pr.ndb) == 0) {
     DBUG_PRINT("index_stat", ("using existing index stats events"));
     return 0;
   }
-
-  if (is->create_sysevents(ndb) == 0) {
-    DBUG_PRINT("index_stat", ("created index stats events"));
-    return 0;
-  }
-
-  if (is->getNdbError().code == 746) {
-    // Probably race between mysqlds
-    DBUG_PRINT("index_stat",
-               ("create index stats events failed: error %d line %d",
-                is->getNdbError().code, is->getNdbError().line));
-    return -1;
-  }
-
-  log_info("create events failed, error: %d, line: %d", is->getNdbError().code,
-           is->getNdbError().line);
   return -1;
 }
 
@@ -2141,8 +2095,8 @@ void Ndb_index_stat_thread::do_run() {
   /*
     Wait for cluster to start
   */
-  while (!ndbcluster_is_connected(1)) {
-    /* ndb not connected yet */
+  while (!ndb_connection_is_ready(g_ndb_cluster_connection, 1)) {
+    /* NDB not connected yet */
     if (is_stop_requested()) {
       /* Terminated with a stop_request */
       mysql_mutex_lock(&LOCK_client_waiting);
@@ -2167,33 +2121,10 @@ void Ndb_index_stat_thread::do_run() {
   bool enable_ok;
   enable_ok = false;
 
-  // Set up Ndb object, stats tables and events, and the listener. This is done
-  // as an initial step. They could be re-created later after an initial start.
-  // See the check_sys flag used below
-  if (create_ndb(&pr, g_ndb_cluster_connection) == -1) {
-    log_error("Could not create Ndb object");
-    mysql_mutex_lock(&LOCK_client_waiting);
-    goto ndb_index_stat_thread_end;
-  }
-
-  // Check or create stats tables and events
-  if (check_or_create_systables(pr) == -1 ||
-      check_or_create_sysevents(pr) == -1) {
-    log_error("Could not create index stat system tables");
-    mysql_mutex_lock(&LOCK_client_waiting);
-    goto ndb_index_stat_thread_end;
-  }
-
-  // Listener is not critical. There's a reattempt to start it as part of the
-  // normal processing below should it fail here
-  if (start_listener(pr) == -1) {
-    log_info("Could not start listener");
-  }
-
   // Flag used to indicate if there's a need to check for creation of index
-  // stat tables and events. Initially off since they've just been created
+  // stat tables and events
   bool check_sys;
-  check_sys = false;
+  check_sys = true;
 
   struct timespec abstime;
   set_timespec(&abstime, 0);
@@ -2228,7 +2159,6 @@ void Ndb_index_stat_thread::do_run() {
     do {
       // An initial restart may have occurred while this mysqld was left running
       if (ndb_index_stat_restart_flag) {
-        log_info("Restart flag is true inside do_run()");
         ndb_index_stat_restart_flag = false;
         ndb_index_stat_set_allow(false);
         // Stop the listener thus enforcing that it's started again further
@@ -2265,9 +2195,7 @@ void Ndb_index_stat_thread::do_run() {
       // sys objects
       if (check_sys) {
         // at enable check or create stats tables and events
-        if (check_or_create_systables(pr) == -1 ||
-            check_or_create_sysevents(pr) == -1)
-          break;
+        if (check_systables(pr) == -1 || check_sysevents(pr) == -1) break;
       }
 
       // listener is not critical but error means something is wrong
@@ -2534,9 +2462,8 @@ int ha_ndbcluster::ndb_index_stat_query(uint inx, const key_range *min_key,
   } while (0);
 
   /* Release reference to st */
-  mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-  ndb_index_stat_ref_count(st, false);
-  mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  st->release_client_ref();
+
   return err;
 }
 
@@ -2727,9 +2654,7 @@ int ha_ndbcluster::ndb_index_stat_analyze(uint *inx_list, uint inx_count) {
       DBUG_PRINT("index_stat", ("wait for update: %s", index->getName()));
       r.err = ndb_index_stat_wait_analyze(r.st, r.snap);
       /* Release reference to r.st */
-      mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-      ndb_index_stat_ref_count(r.st, false);
-      mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+      r.st->release_client_ref();
     }
   }
 

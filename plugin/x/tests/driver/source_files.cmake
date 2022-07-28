@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,6 @@ SET(XTEST_SRC
   formatters/console.cc
   formatters/message_formatter.cc
   json_to_any_handler.cc
-  mysqlx_charset.cc
   mysqlxtest.cc
   parsers/message_parser.cc
   processor/command_multiline_processor.cc

@@ -158,7 +158,7 @@ sleep(2)
 0
 select * from mysql.slow_log;
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text	thread_id
-TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00.000000	1	1	mysql	0	0	1	QUERY	THREAD_ID
+TIMESTAMP	USER_HOST	QUERY_TIME	LOCK_TIME	1	1	mysql	0	0	1	QUERY	THREAD_ID
 set @@session.long_query_time = @saved_long_query_time;
 flush tables with read lock;
 unlock tables;

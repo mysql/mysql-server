@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,6 +46,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <string.h>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <iomanip>
 #include <iterator>
@@ -75,26 +76,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Index name prefix in fast index creation, as a string constant */
 #define TEMP_INDEX_PREFIX_STR "\377"
-
-/** Get the format string for the logger.
-@param[in]	errcode		The error code from share/errmsg-*.txt
-@return the message string or nullptr */
-const char *srv_get_server_errmsgs(int errcode);
-
-/** Time stamp */
-typedef time_t ib_time_t;
-
-/** Time stamp read from the monotonic clock (returned by ut_time_monotonic()).
- */
-typedef int64_t ib_time_monotonic_t;
-
-/** Number of milliseconds read from the monotonic clock (returned by
- ut_time_monotonic_ms()). */
-typedef int64_t ib_time_monotonic_ms_t;
-
-/** Number of microseconds read from the monotonic clock (returned by
- ut_time_monotonic_us()). */
-typedef int64_t ib_time_monotonic_us_t;
 
 #ifndef UNIV_HOTBACKUP
 #if defined(HAVE_PAUSE_INSTRUCTION)
@@ -131,70 +112,34 @@ performance. */
 #define UT_RESUME_PRIORITY_CPU() ((void)0)
 #endif
 
-/** Delays execution for at most max_wait_us microseconds or returns earlier
- if cond becomes true.
- @param cond in: condition to wait for; evaluated every 2 ms
- @param max_wait_us in: maximum delay to wait, in microseconds */
-#define UT_WAIT_FOR(cond, max_wait_us)                                        \
-  do {                                                                        \
-    const auto start_us = ut_time_monotonic_us();                             \
-    while (!(cond)) {                                                         \
-      const auto diff = ut_time_monotonic_us() - start_us;                    \
-      const auto limit = max_wait_us;                                         \
-      if (limit <= 0 || (diff > 0 && ((uint64_t)diff) > ((uint64_t)limit))) { \
-        break;                                                                \
-      }                                                                       \
-      std::this_thread::sleep_for(std::chrono::milliseconds(2));              \
-    }                                                                         \
-  } while (0)
 #else                  /* !UNIV_HOTBACKUP */
 #define UT_RELAX_CPU() /* No op */
 #endif                 /* !UNIV_HOTBACKUP */
 
-namespace ut {
-struct Location {
-  const char *filename;
-  size_t line;
-  std::ostream &print(std::ostream &out) const {
-    out << "[Location: file=" << filename << ", line=" << line << "]";
-    return out;
-  }
-};
-}  // namespace ut
-
-inline std::ostream &operator<<(std::ostream &out, const ut::Location &obj) {
-  return obj.print(out);
-}
-
-#define UT_LOCATION_HERE (ut::Location{__FILE__, __LINE__})
-
-#define ut_max std::max
-#define ut_min std::min
-
 #ifndef UNIV_HOTBACKUP
 
 /** Calculate the minimum of two pairs.
-@param[out]	min_hi	MSB of the minimum pair
-@param[out]	min_lo	LSB of the minimum pair
-@param[in]	a_hi	MSB of the first pair
-@param[in]	a_lo	LSB of the first pair
-@param[in]	b_hi	MSB of the second pair
-@param[in]	b_lo	LSB of the second pair */
+@param[out]     min_hi  MSB of the minimum pair
+@param[out]     min_lo  LSB of the minimum pair
+@param[in]      a_hi    MSB of the first pair
+@param[in]      a_lo    LSB of the first pair
+@param[in]      b_hi    MSB of the second pair
+@param[in]      b_lo    LSB of the second pair */
 static inline void ut_pair_min(ulint *min_hi, ulint *min_lo, ulint a_hi,
                                ulint a_lo, ulint b_hi, ulint b_lo);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Compares two ulints.
-@param[in]	a	ulint
-@param[in]	b	ulint
+@param[in]      a       ulint
+@param[in]      b       ulint
 @return 1 if a > b, 0 if a == b, -1 if a < b */
 static inline int ut_ulint_cmp(ulint a, ulint b);
 
 /** Compare two pairs of integers.
-@param[in]	a_h	more significant part of first pair
-@param[in]	a_l	less significant part of first pair
-@param[in]	b_h	more significant part of second pair
-@param[in]	b_l	less significant part of second pair
+@param[in]      a_h     more significant part of first pair
+@param[in]      a_l     less significant part of first pair
+@param[in]      b_h     more significant part of second pair
+@param[in]      b_l     less significant part of second pair
 @return comparison result of (a_h,a_l) and (b_h,b_l)
 @retval -1 if (a_h,a_l) is less than (b_h,b_l)
 @retval 0 if (a_h,a_l) is equal to (b_h,b_l)
@@ -227,10 +172,10 @@ static inline int ut_ulint_cmp(ulint a, ulint b);
 /** Calculates fast the 2-logarithm of a number, rounded upward to an
  integer.
  @return logarithm in the base 2, rounded upward */
-static inline ulint ut_2_log(ulint n); /*!< in: number */
+constexpr ulint ut_2_log(ulint n); /*!< in: number */
 
 /** Calculates 2 to power n.
-@param[in]	n	power of 2
+@param[in]      n       power of 2
 @return 2 to power n */
 static inline uint32_t ut_2_exp(uint32_t n);
 
@@ -245,30 +190,8 @@ store the given number of bits.
 @return number of bytes (octets) needed to represent b */
 #define UT_BITS_IN_BYTES(b) (((b) + 7UL) / 8UL)
 
-/** Returns system time. We do not specify the format of the time returned:
- the only way to manipulate it is to use the function ut_difftime.
- @return system time */
-ib_time_t ut_time(void);
-
-/** Returns the number of microseconds since epoch. Uses the monotonic clock.
- @return us since epoch or 0 if failed to retrieve */
-ib_time_monotonic_us_t ut_time_monotonic_us(void);
-
-/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
- @return ms since epoch */
-ib_time_monotonic_ms_t ut_time_monotonic_ms(void);
-
-/** Returns the number of seconds since epoch. Uses the monotonic clock.
- @return us since epoch or 0 if failed to retrieve */
-ib_time_monotonic_t ut_time_monotonic(void);
-
-/** Returns the difference of two times in seconds.
- @return time2 - time1 expressed in seconds */
-double ut_difftime(ib_time_t time2,  /*!< in: time */
-                   ib_time_t time1); /*!< in: time */
-
 /** Determines if a number is zero or a power of two.
-@param[in]	n	number
+@param[in]      n       number
 @return nonzero if n is zero or a power of two; zero otherwise */
 #define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n)-1)))
 
@@ -307,9 +230,9 @@ struct trx_t;
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier.
- @param		[in]	trx		transaction (NULL=no quotes).
- @param		[in]	name		table name.
- @retval	String quoted as an SQL identifier.
+ @param         [in]    trx             transaction (NULL=no quotes).
+ @param         [in]    name            table name.
+ @retval        String quoted as an SQL identifier.
 */
 std::string ut_get_name(const trx_t *trx, const char *name);
 
@@ -326,9 +249,9 @@ If the name contains a slash '/', the result will contain two
 identifiers separated by a period (.), as in SQL
 database_name.table_name.
 @see table_name_t
-@param[in]	name		table or index name
-@param[out]	formatted	formatted result, will be NUL-terminated
-@param[in]	formatted_size	size of the buffer in bytes
+@param[in]      name            table or index name
+@param[out]     formatted       formatted result, will be NUL-terminated
+@param[in]      formatted_size  size of the buffer in bytes
 @return pointer to 'formatted' */
 char *ut_format_name(const char *name, char *formatted, ulint formatted_size);
 
@@ -370,517 +293,6 @@ const char *ut_strerr(dberr_t num); /*!< in: error number */
 
 namespace ib {
 
-#ifdef UNIV_DEBUG
-/** Finds the first format specifier in `fmt` format string
-@param[in]   fmt  The format string
-@return Either the longest suffix of `fmt` which starts with format specifier,
-or `nullptr` if could not find any format specifier inside `fmt`.
-*/
-static inline const char *get_first_format(const char *fmt) {
-  const char *pos = strchr(fmt, '%');
-  if (pos != nullptr && pos[1] == '%') {
-    return (get_first_format(pos + 2));
-  }
-  return (pos);
-}
-
-/** Verifies that the `fmt` format string does not require any arguments
-@param[in]   fmt  The format string
-@return true if and only if there is no format specifier inside `fmt` which
-requires passing an argument */
-static inline bool verify_fmt_match(const char *fmt) {
-  return (get_first_format(fmt) == nullptr);
-}
-
-/** Verifies that the `fmt` format string contains format specifiers which match
-the type and order of the arguments
-@param[in]  fmt   The format string
-@param[in]  head  The first argument
-@param[in]  tail  Others (perhaps none) arguments
-@return true if and only if the format specifiers found in `fmt` correspond to
-types of head, tail...
-*/
-template <typename Head, typename... Tail>
-static bool verify_fmt_match(const char *fmt, Head &&head, Tail &&... tail) {
-  using H =
-      typename std::remove_cv<typename std::remove_reference<Head>::type>::type;
-  const char *pos = get_first_format(fmt);
-  if (pos == nullptr) {
-    return (false);
-  }
-  /* We currently only handle :
-  %[-0-9.*]*(d|ld|lld|u|lu|llu|zu|zx|zd|s|x|i|f|c|X|p|lx|llx|lf)
-  Feel free to extend the parser, if you need something more, as the parser is
-  not intended to be any stricter than real printf-format parser, and if it does
-  not handle something, it is only to keep the code simpler. */
-  const std::string skipable("-+ #0123456789.*");
-
-  pos++;
-  while (*pos != '\0' && skipable.find_first_of(*pos) != std::string::npos) {
-    pos++;
-  }
-  if (*pos == '\0') {
-    return (false);
-  }
-  bool is_ok = true;
-  if (pos[0] == 'l') {
-    if (pos[1] == 'l') {
-      if (pos[2] == 'd') {
-        is_ok = std::is_same<H, long long int>::value;
-      } else if (pos[2] == 'u' || pos[2] == 'x') {
-        is_ok = std::is_same<H, unsigned long long int>::value;
-      } else {
-        is_ok = false;
-      }
-    } else if (pos[1] == 'd') {
-      is_ok = std::is_same<H, long int>::value;
-    } else if (pos[1] == 'u') {
-      is_ok = std::is_same<H, unsigned long int>::value;
-    } else if (pos[1] == 'x') {
-      is_ok = std::is_same<H, unsigned long int>::value;
-    } else if (pos[1] == 'f') {
-      is_ok = std::is_same<H, double>::value;
-    } else {
-      is_ok = false;
-    }
-  } else if (pos[0] == 'd') {
-    is_ok = std::is_same<H, int>::value;
-  } else if (pos[0] == 'u') {
-    is_ok = std::is_same<H, unsigned int>::value;
-  } else if (pos[0] == 'x') {
-    is_ok = std::is_same<H, unsigned int>::value;
-  } else if (pos[0] == 'X') {
-    is_ok = std::is_same<H, unsigned int>::value;
-  } else if (pos[0] == 'i') {
-    is_ok = std::is_same<H, int>::value;
-  } else if (pos[0] == 'f') {
-    is_ok = std::is_same<H, float>::value;
-  } else if (pos[0] == 'c') {
-    is_ok = std::is_same<H, char>::value;
-  } else if (pos[0] == 'p') {
-    is_ok = std::is_pointer<H>::value;
-  } else if (pos[0] == 's') {
-    is_ok = (std::is_same<H, char *>::value ||
-             std::is_same<H, char const *>::value ||
-             (std::is_array<H>::value &&
-              std::is_same<typename std::remove_cv<
-                               typename std::remove_extent<H>::type>::type,
-                           char>::value));
-  } else if (pos[0] == 'z') {
-    if (pos[1] == 'u') {
-      is_ok = std::is_same<H, size_t>::value;
-    } else if (pos[1] == 'x') {
-      is_ok = std::is_same<H, size_t>::value;
-    } else if (pos[1] == 'd') {
-      is_ok = std::is_same<H, ssize_t>::value;
-    } else {
-      is_ok = false;
-    }
-  } else {
-    is_ok = false;
-  }
-  return (is_ok && verify_fmt_match(pos + 1, std::forward<Tail>(tail)...));
-}
-#endif /* UNIV_DEBUG */
-
-/** This is a wrapper class, used to print any unsigned integer type
-in hexadecimal format.  The main purpose of this data type is to
-overload the global operator<<, so that we can print the given
-wrapper value in hex. */
-struct hex {
-  explicit hex(uintmax_t t) : m_val(t) {}
-  const uintmax_t m_val;
-};
-
-/** This is an overload of the global operator<< for the user defined type
-ib::hex.  The unsigned value held in the ib::hex wrapper class will be printed
-into the given output stream in hexadecimal format.
-@param[in,out]	lhs	the output stream into which rhs is written.
-@param[in]	rhs	the object to be written into lhs.
-@retval	reference to the output stream. */
-inline std::ostream &operator<<(std::ostream &lhs, const hex &rhs) {
-  std::ios_base::fmtflags ff = lhs.flags();
-  lhs << std::showbase << std::hex << rhs.m_val;
-  lhs.setf(ff);
-  return (lhs);
-}
-
-/** The class logger is the base class of all the error log related classes.
-It contains a std::ostringstream object.  The main purpose of this class is
-to forward operator<< to the underlying std::ostringstream object.  Do not
-use this class directly, instead use one of the derived classes. */
-class logger {
- public:
-  /** Destructor */
-  virtual ~logger();
-
-#ifndef UNIV_NO_ERR_MSGS
-
-  /** Format an error message.
-  @param[in]	err		Error code from errmsg-*.txt.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  logger &log(int err, Args &&... args) {
-    ut_a(m_err == ER_IB_MSG_0);
-
-    m_err = err;
-
-    m_oss << msg(err, std::forward<Args>(args)...);
-
-    return (*this);
-  }
-
-#endif /* !UNIV_NO_ERR_MSGS */
-
-  template <typename T>
-  logger &operator<<(const T &rhs) {
-    m_oss << rhs;
-    return (*this);
-  }
-
-  /** Write the given buffer to the internal string stream object.
-  @param[in]	buf		the buffer contents to log.
-  @param[in]	count		the length of the buffer buf.
-  @return the output stream into which buffer was written. */
-  std::ostream &write(const char *buf, std::streamsize count) {
-    return (m_oss.write(buf, count));
-  }
-
-  /** Write the given buffer to the internal string stream object.
-  @param[in]	buf		the buffer contents to log
-  @param[in]	count		the length of the buffer buf.
-  @return the output stream into which buffer was written. */
-  std::ostream &write(const byte *buf, std::streamsize count) {
-    return (m_oss.write(reinterpret_cast<const char *>(buf), count));
-  }
-
- public:
-  /** For converting the message into a string. */
-  std::ostringstream m_oss;
-
-#ifndef UNIV_NO_ERR_MSGS
-  /** Error code in errmsg-*.txt */
-  int m_err{};
-
-  /** Error logging level. */
-  loglevel m_level{INFORMATION_LEVEL};
-#endif /* !UNIV_NO_ERR_MSGS */
-
-#ifdef UNIV_HOTBACKUP
-  /** For MEB trace infrastructure. */
-  int m_trace_level{};
-#endif /* UNIV_HOTBACKUP */
-
- protected:
-#ifndef UNIV_NO_ERR_MSGS
-  /** Format an error message.
-  @param[in]	err	Error code from errmsg-*.txt.
-  @param[in]	args	Variable length argument list */
-  template <class... Args>
-  static std::string msg(int err, Args &&... args) {
-    const char *fmt = srv_get_server_errmsgs(err);
-
-    int ret;
-    char buf[LOG_BUFF_MAX];
-#ifdef UNIV_DEBUG
-    if (get_first_format(fmt) != nullptr) {
-      if (!verify_fmt_match(fmt, std::forward<Args>(args)...)) {
-        fprintf(stderr, "The format '%s' does not match arguments\n", fmt);
-        ut_error;
-      }
-    }
-#endif
-    ret = snprintf(buf, sizeof(buf), fmt, std::forward<Args>(args)...);
-
-    std::string str;
-
-    if (ret > 0 && (size_t)ret < sizeof(buf)) {
-      str.append(buf);
-    }
-
-    return (str);
-  }
-
- protected:
-  /** Uses LogEvent to report the log entry, using provided message
-  @param[in]    msg    message to be logged
-  */
-  void log_event(std::string msg);
-
-  /** Constructor.
-  @param[in]	level		Logging level
-  @param[in]	err		Error message code. */
-  logger(loglevel level, int err) : m_err(err), m_level(level) {
-    /* Note: Dummy argument to avoid the warning:
-
-    "format not a string literal and no format arguments"
-    "[-Wformat-security]"
-
-    The warning only kicks in if the call is of the form:
-
-       snprintf(buf, sizeof(buf), str);
-    */
-
-    m_oss << msg(err, "");
-  }
-
-  /** Constructor.
-  @param[in]	level		Logging level
-  @param[in]	err		Error message code.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  explicit logger(loglevel level, int err, Args &&... args)
-      : m_err(err), m_level(level) {
-    m_oss << msg(err, std::forward<Args>(args)...);
-  }
-
-  /** Constructor
-  @param[in]	level		Log error level */
-  explicit logger(loglevel level) : m_err(ER_IB_MSG_0), m_level(level) {}
-
-#endif /* !UNIV_NO_ERR_MSGS */
-};
-
-/** The class info is used to emit informational log messages.  It is to be
-used similar to std::cout.  But the log messages will be emitted only when
-the dtor is called.  The preferred usage of this class is to make use of
-unnamed temporaries as follows:
-
-info() << "The server started successfully.";
-
-In the above usage, the temporary object will be destroyed at the end of the
-statement and hence the log message will be emitted at the end of the
-statement.  If a named object is created, then the log message will be emitted
-only when it goes out of scope or destroyed. */
-class info : public logger {
- public:
-#ifndef UNIV_NO_ERR_MSGS
-
-  /** Default constructor uses ER_IB_MSG_0 */
-  info() : logger(INFORMATION_LEVEL) {}
-
-  /** Constructor.
-  @param[in]	err		Error code from errmsg-*.txt.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  explicit info(int err, Args &&... args)
-      : logger(INFORMATION_LEVEL, err, std::forward<Args>(args)...) {}
-#else
-  /** Destructor */
-  ~info() override;
-#endif /* !UNIV_NO_ERR_MSGS */
-};
-
-/** The class warn is used to emit warnings.  Refer to the documentation of
-class info for further details. */
-class warn : public logger {
- public:
-#ifndef UNIV_NO_ERR_MSGS
-  /** Default constructor uses ER_IB_MSG_0 */
-  warn() : logger(WARNING_LEVEL) {}
-
-  /** Constructor.
-  @param[in]	err		Error code from errmsg-*.txt.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  explicit warn(int err, Args &&... args)
-      : logger(WARNING_LEVEL, err, std::forward<Args>(args)...) {}
-
-#else
-  /** Destructor */
-  ~warn() override;
-#endif /* !UNIV_NO_ERR_MSGS */
-};
-
-/** The class error is used to emit error messages.  Refer to the
-documentation of class info for further details. */
-class error : public logger {
- public:
-#ifndef UNIV_NO_ERR_MSGS
-  /** Default constructor uses ER_IB_MSG_0 */
-  error() : logger(ERROR_LEVEL) {}
-
-  /** Constructor.
-  @param[in]	err		Error code from errmsg-*.txt.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  explicit error(int err, Args &&... args)
-      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...) {}
-
-#else
-  /** Destructor */
-  ~error() override;
-#endif /* !UNIV_NO_ERR_MSGS */
-};
-
-/** The class fatal is used to emit an error message and stop the server
-by crashing it.  Use this class when MySQL server needs to be stopped
-immediately.  Refer to the documentation of class info for usage details. */
-class fatal : public logger {
- public:
-#ifndef UNIV_NO_ERR_MSGS
-  /** Default constructor uses ER_IB_MSG_0
-  @param[in]	location		Location that creates the fatal message.
-*/
-  fatal(ut::Location location) : logger(ERROR_LEVEL), m_location(location) {}
-
-  /** Constructor.
-  @param[in]	location		Location that creates the fatal message.
-  @param[in]	err		Error code from errmsg-*.txt.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  explicit fatal(ut::Location location, int err, Args &&... args)
-      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...),
-        m_location(location) {}
-#else
-  /** Constructor
-  @param[in]	location		Location that creates the fatal message.
-  */
-  fatal(ut::Location location) : m_location(location) {}
-#endif /* !UNIV_NO_ERR_MSGS */
-
-  /** Destructor. */
-  ~fatal() override;
-
- private:
-  /** Location of the original caller to report to assertion failure */
-  ut::Location m_location;
-};
-
-/** Emit an error message if the given predicate is true, otherwise emit a
-warning message */
-class error_or_warn : public logger {
- public:
-#ifndef UNIV_NO_ERR_MSGS
-
-  /** Default constructor uses ER_IB_MSG_0
-  @param[in]	pred		True if it's a warning. */
-  error_or_warn(bool pred) : logger(pred ? ERROR_LEVEL : WARNING_LEVEL) {}
-
-  /** Constructor.
-  @param[in]	pred		True if it's a warning.
-  @param[in]	err		Error code from errmsg-*.txt.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  explicit error_or_warn(bool pred, int err, Args &&... args)
-      : logger(pred ? ERROR_LEVEL : WARNING_LEVEL, err,
-               std::forward<Args>(args)...) {}
-
-#endif /* !UNIV_NO_ERR_MSGS */
-};
-
-/** Emit a fatal message if the given predicate is true, otherwise emit a
-error message. */
-class fatal_or_error : public logger {
- public:
-#ifndef UNIV_NO_ERR_MSGS
-  /** Default constructor uses ER_IB_MSG_0
-  @param[in]	fatal		true if it's a fatal message
-  @param[in] location Location that creates the fatal */
-  fatal_or_error(bool fatal, ut::Location location)
-      : logger(ERROR_LEVEL), m_fatal(fatal), m_location(location) {}
-
-  /** Constructor.
-  @param[in]	fatal		true if it's a fatal message
-  @param[in] location Location that creates the fatal
-  @param[in]	err		Error code from errmsg-*.txt.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  explicit fatal_or_error(bool fatal, ut::Location location, int err,
-                          Args &&... args)
-      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...),
-        m_fatal(fatal),
-        m_location(location) {}
-
-  /** Destructor */
-  ~fatal_or_error() override;
-#else
-  /** Constructor
-  @param[in] location Location that creates the fatal */
-  fatal_or_error(bool fatal, ut::Location location)
-      : m_fatal(fatal), m_location(location) {}
-
-  /** Destructor */
-  ~fatal_or_error() override;
-
-#endif /* !UNIV_NO_ERR_MSGS */
- private:
-  /** If true then assert after printing an error message. */
-  const bool m_fatal;
-  /** Location of the original caller to report to assertion failure */
-  ut::Location m_location;
-};
-
-#ifdef UNIV_HOTBACKUP
-/**  The class trace is used to emit informational log messages. only when
-trace level is set in the MEB code */
-class trace_1 : public logger {
- public:
-#ifndef UNIV_NO_ERR_MSGS
-  /** Default constructor uses ER_IB_MSG_0 */
-  trace_1() : logger(INFORMATION_LEVEL) { m_trace_level = 1; }
-
-  /** Constructor.
-  @param[in]	err		Error code from errmsg-*.txt.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  explicit trace_1(int err, Args &&... args)
-      : logger(INFORMATION_LEVEL, err, std::forward<Args>(args)...) {
-    m_trace_level = 1;
-  }
-
-#else
-  /** Constructor */
-  trace_1();
-#endif /* !UNIV_NO_ERR_MSGS */
-};
-
-/**  The class trace_2 is used to emit informational log messages only when
-trace level 2 is set in the MEB code */
-class trace_2 : public logger {
- public:
-#ifndef UNIV_NO_ERR_MSGS
-  /** Default constructor uses ER_IB_MSG_0 */
-  trace_2() : logger(INFORMATION_LEVEL) { m_trace_level = 2; }
-
-  /** Constructor.
-  @param[in]	err		Error code from errmsg-*.txt.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  explicit trace_2(int err, Args &&... args)
-      : logger(INFORMATION_LEVEL, err, std::forward<Args>(args)...) {
-    m_trace_level = 2;
-  }
-#else
-  /** Destructor. */
-  trace_2();
-#endif /* !UNIV_NO_ERR_MSGS */
-};
-
-/**  The class trace_3 is used to emit informational log messages only when
-trace level 3 is set in the MEB code */
-class trace_3 : public logger {
- public:
-#ifndef UNIV_NO_ERR_MSGS
-  /** Default constructor uses ER_IB_MSG_0 */
-  trace_3() : logger(INFORMATION_LEVEL) { m_trace_level = 3; }
-
-  /** Constructor.
-  @param[in]	err		Error code from errmsg-*.txt.
-  @param[in]	args		Variable length argument list */
-  template <class... Args>
-  explicit trace_3(int err, Args &&... args)
-      : logger(INFORMATION_LEVEL, err, std::forward<Args>(args)...) {
-    m_trace_level = 3;
-  }
-
-#else
-  /** Destructor. */
-  trace_3();
-#endif /* !UNIV_NO_ERR_MSGS */
-};
-#endif /* UNIV_HOTBACKUP */
-
 /** For measuring time elapsed. Since std::chrono::high_resolution_clock
 may be influenced by a change in system time, it might not be steady.
 So we use std::chrono::steady_clock for ellapsed time. */
@@ -921,7 +333,7 @@ class Timer {
 #ifdef UNIV_HOTBACKUP
 /** Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'.
-@param[in]	buf	buffer where to sprintf */
+@param[in]      buf     buffer where to sprintf */
 void meb_sprintf_timestamp_without_extra_chars(char *buf);
 #endif /* UNIV_HOTBACKUP */
 

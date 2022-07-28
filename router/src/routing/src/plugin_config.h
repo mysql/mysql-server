@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,20 +25,25 @@
 #ifndef PLUGIN_CONFIG_ROUTING_INCLUDED
 #define PLUGIN_CONFIG_ROUTING_INCLUDED
 
+#include "mysqlrouter/routing_plugin_export.h"
+
 #include <string>
 
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/filesystem.h"  // Path
-#include "mysqlrouter/routing.h"       // RoutingStrategy, AccessMode
-#include "mysqlrouter/routing_export.h"
-#include "protocol/protocol.h"  // Protocol::Type
+#include "mysql/harness/plugin_config.h"
+#include "mysqlrouter/routing.h"  // RoutingStrategy, AccessMode
+#include "protocol/protocol.h"    // Protocol::Type
 #include "ssl_mode.h"
 #include "tcp_address.h"
+
+extern const std::array<const char *, 29> routing_supported_options;
 
 /**
  * route specific configuration.
  */
-class ROUTING_EXPORT RoutingPluginConfig {
+class ROUTING_PLUGIN_EXPORT RoutingPluginConfig
+    : public mysql_harness::BasePluginConfig {
  private:
   // is this [routing] entry for static routing or metadata-cache ?
   // it's mutable because we discover it while calling getter for
@@ -51,6 +56,12 @@ class ROUTING_EXPORT RoutingPluginConfig {
    * @param section from configuration file provided as ConfigSection
    */
   RoutingPluginConfig(const mysql_harness::ConfigSection *section);
+
+  std::string get_default(const std::string &option) const override;
+  bool is_required(const std::string &option) const override;
+
+  uint16_t get_option_max_connections(
+      const mysql_harness::ConfigSection *section);
 
   const Protocol::Type protocol;                 //!< protocol (classic, x)
   const std::string destinations;                //!< destinations
@@ -87,6 +98,8 @@ class ROUTING_EXPORT RoutingPluginConfig {
       dest_ssl_crl_file;  //!< CRL file used to check revoked certificates
   const std::string dest_ssl_crl_dir;  //!< directory of CRL files
   const std::string dest_ssl_curves;   //!< allowed TLS curves
+
+  const std::chrono::seconds unreachable_destination_refresh_interval;
 };
 
 #endif  // PLUGIN_CONFIG_ROUTING_INCLUDED

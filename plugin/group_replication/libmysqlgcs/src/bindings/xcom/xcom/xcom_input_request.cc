@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ xcom_input_request_ptr xcom_input_request_new(
     void *reply_arg) {
   xcom_input_request_ptr request = (xcom_input_request_ptr)xcom_calloc(
       (size_t)1, sizeof(xcom_input_request));
-  if (request != NULL) {
+  if (request != nullptr) {
     request->a = a;
     request->reply_function = reply_function;
     request->reply_arg = reply_arg;
@@ -49,9 +49,9 @@ xcom_input_request_ptr xcom_input_request_new(
 
 void xcom_input_request_free(xcom_input_request_ptr request) {
   /* We own the app_data we point to, so it's our job to free it. */
-  if (request->a != NULL) {
+  if (request->a != nullptr) {
     /* The app_data is supposed to be unlinked. */
-    assert(request->a->next == NULL);
+    assert(request->a->next == nullptr);
     /* Because the app_data_ptr is allocated on the heap and not on the stack.
      */
     xdr_free((xdrproc_t)xdr_app_data_ptr, (char *)&request->a);
@@ -67,14 +67,14 @@ void xcom_input_request_set_next(xcom_input_request_ptr request,
 xcom_input_request_ptr xcom_input_request_extract_next(
     xcom_input_request_ptr request) {
   xcom_input_request_ptr next = request->next;
-  request->next = NULL;
+  request->next = nullptr;
   return next;
 }
 
 app_data_ptr xcom_input_request_extract_app_data(
     xcom_input_request_ptr request) {
   app_data_ptr a = request->a;
-  request->a = NULL;
+  request->a = nullptr;
   return a;
 }
 

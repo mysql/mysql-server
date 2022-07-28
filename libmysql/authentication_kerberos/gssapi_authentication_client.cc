@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,9 +54,9 @@ bool Gssapi_client::authenticate() {
   gss_ctx_id_t ctxt{GSS_C_NO_CONTEXT};
   gss_name_t service_name{GSS_C_NO_NAME};
   /* Import principal from plain text */
-  gss_buffer_desc principal_name_buf{0, 0};
-  gss_buffer_desc input{0, 0};
-  gss_buffer_desc output{0, 0};
+  gss_buffer_desc principal_name_buf{0, nullptr};
+  gss_buffer_desc input{0, nullptr};
+  gss_buffer_desc output{0, nullptr};
   gss_cred_id_t cred_id{GSS_C_NO_CREDENTIAL};
   OM_uint32 req_flag{0};
   Kerberos_client_io m_io{m_vio};
@@ -73,7 +73,7 @@ bool Gssapi_client::authenticate() {
     return false;
   }
   do {
-    output = {0, 0};
+    output = {0, nullptr};
     major = gss_init_sec_context(
         &minor, cred_id, &ctxt, service_name, GSS_C_NO_OID, req_flag, 0,
         GSS_C_NO_CHANNEL_BINDINGS, &input, nullptr, &output, nullptr, nullptr);
@@ -121,7 +121,7 @@ void Gssapi_client::set_upn_info(const std::string &upn,
   log_client_dbg("Set UPN.");
   m_user_principal_name = {upn};
   m_password = {pwd};
-  /* Kerberos core uses UPN for all other operations. UPN has changed, relases
+  /* Kerberos core uses UPN for all other operations. UPN has changed, releases
    * current object and create */
   if (m_kerberos.get()) {
     m_kerberos.release();

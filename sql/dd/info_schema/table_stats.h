@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -374,6 +374,10 @@ class Table_statistics {
 
   /// Set open table in progress.
   void set_read_stats_by_open(bool status) { m_read_stats_by_open = status; }
+
+ public:
+  /// Predicate for determinig if cache is valid
+  bool is_valid() const { return !m_key.empty(); }
 
  private:
   // The cache key

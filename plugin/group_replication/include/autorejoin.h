@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,9 +129,9 @@ class Autorejoin_thread {
 
     @param[in] arg a pointer to an Autorejoin_thread instance.
 
-    @return nullptr, since the return value is not used.
+    @return Does not return.
   */
-  [[noreturn]] static void *launch_thread(void *arg);
+  static void *launch_thread(void *arg);
 
   /**
     The thread handle, i.e. setups and tearsdown the infrastructure for this

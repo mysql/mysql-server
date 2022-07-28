@@ -19,9 +19,25 @@
 #       start libevent.sln
 #
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wdangling-pointer" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
 IF(HAS_MISSING_PROFILE)
   STRING_APPEND(CMAKE_C_FLAGS " ${HAS_MISSING_PROFILE}")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wdocumentation" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
+#TODO(Bug#33986250): fix the deprecation for libevent
+IF(WIN32)
+  STRING_APPEND(CMAKE_C_FLAGS " /wd4996")
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4996")
 ENDIF()
 
 
@@ -968,7 +984,7 @@ ENDIF()
 
 if (CMAKE_USE_PTHREADS_INIT)
   set(SRC_PTHREADS evthread_pthread.c)
-  add_library(event_pthreads ${SRC_PTHREADS})
+  add_library(event_pthreads STATIC ${SRC_PTHREADS})
   SET_TARGET_PROPERTIES(event_pthreads
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 endif()

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -60,12 +60,12 @@ class ReadView {
 
     /** Try and increase the size of the array. Old elements are copied across.
     It is a no-op if n is < current size.
-    @param n 		Make space for n elements */
+    @param n            Make space for n elements */
     void reserve(ulint n);
 
     /**
     Resize the array, sets the current element count.
-    @param n		new size of the array, in elements */
+    @param n            new size of the array, in elements */
     void resize(ulint n) {
       ut_ad(n <= capacity());
 
@@ -83,8 +83,8 @@ class ReadView {
     /**
     Copy and overwrite the current array contents
 
-    @param start		Source array
-    @param end		Pointer to end of array */
+    @param start                Source array
+    @param end          Pointer to end of array */
     void assign(const value_type *start, const value_type *end);
 
     /**
@@ -110,7 +110,7 @@ class ReadView {
 
     /**
     Append a value to the array.
-    @param value		the value to append */
+    @param value                the value to append */
     void push_back(value_type value);
 
     /**
@@ -151,13 +151,13 @@ class ReadView {
   ReadView();
   ~ReadView();
   /** Check whether transaction id is valid.
-  @param[in]	id		transaction id to check
-  @param[in]	name		table name */
+  @param[in]    id              transaction id to check
+  @param[in]    name            table name */
   static void check_trx_id_sanity(trx_id_t id, const table_name_t &name);
 
   /** Check whether the changes by id are visible.
-  @param[in]	id	transaction id to check against the view
-  @param[in]	name	table name
+  @param[in]    id      transaction id to check against the view
+  @param[in]    name    table name
   @return whether the view sees the modifications of id. */
   [[nodiscard]] bool changes_visible(trx_id_t id,
                                      const table_name_t &name) const {
@@ -182,7 +182,7 @@ class ReadView {
   }
 
   /**
-  @param id		transaction to check
+  @param id             transaction to check
   @return true if view sees transaction id */
   bool sees(trx_id_t id) const { return (id < m_up_limit_id); }
 
@@ -199,7 +199,7 @@ class ReadView {
 
   /**
   Write the limits to the file.
-  @param file		file to write to */
+  @param file           file to write to */
   void print_limits(FILE *file) const {
     fprintf(file,
             "Trx read view will not see trx with"
@@ -209,7 +209,7 @@ class ReadView {
 
   /** Check and reduce low limit number for read view. Used to
   block purge till GTID is persisted on disk table.
-  @param[in]	trx_no	transaction number to check with */
+  @param[in]    trx_no  transaction number to check with */
   void reduce_low_limit(trx_id_t trx_no) {
     if (trx_no < m_low_limit_no) {
       /* Save low limit number set for Read View for MVCC. */
@@ -236,7 +236,7 @@ class ReadView {
   trx_id_t view_low_limit_no() const { return (m_view_low_limit_no); }
 
   /**
-  @param rhs		view to compare with
+  @param rhs            view to compare with
   @return truen if this view is less than or equal rhs */
   bool le(const ReadView *rhs) const {
     return (m_low_limit_no <= rhs->m_low_limit_no);
@@ -250,12 +250,12 @@ class ReadView {
   /**
   Opens a read view where exactly the transactions serialized before this
   point in time are seen in the view.
-  @param id		Creator transaction id */
+  @param id             Creator transaction id */
   inline void prepare(trx_id_t id);
 
   /**
   Copy state from another view. Must call copy_complete() to finish.
-  @param other		view to copy from */
+  @param other          view to copy from */
   inline void copy_prepare(const ReadView &other);
 
   /**

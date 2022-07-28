@@ -48,15 +48,6 @@ INSERT IGNORE INTO t1 (ts) VALUES ('2003-03-30 01:59:59'),
                            ('2003-03-30 03:00:00');
 DROP TABLE t1;
 
-#
-# Test for fix for Bug#2523 Check that boundary dates are processed
-# correctly.
-#
-select unix_timestamp('1970-01-01 01:00:00'), 
-       unix_timestamp('1970-01-01 01:00:01'),
-       unix_timestamp('2038-01-19 04:14:07'),
-       unix_timestamp('2038-01-19 04:14:08');
-
 # End of 4.1 tests
 
 #

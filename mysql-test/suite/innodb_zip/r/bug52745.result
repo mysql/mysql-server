@@ -1,5 +1,7 @@
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
 SET GLOBAL innodb_file_per_table=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET SESSION innodb_strict_mode=OFF;
 CREATE TABLE bug52745 (
 a2 int(10) unsigned DEFAULT NULL,
 col37 time DEFAULT NULL,
@@ -76,7 +78,7 @@ Warning	1681	UNSIGNED for decimal and floating point data types is deprecated an
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -96,6 +98,7 @@ Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a futur
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Note	1291	Column 'col82' has duplicated value '' in ENUM
 Note	1291	Column 'col82' has duplicated value '' in ENUM
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
 SET sql_mode = (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
 INSERT IGNORE INTO bug52745 SET
 col40='0000-00-00 00:00:00',

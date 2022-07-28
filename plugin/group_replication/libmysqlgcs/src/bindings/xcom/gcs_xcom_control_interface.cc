@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -296,11 +296,12 @@ enum_gcs_error Gcs_xcom_control::do_join(bool retry) {
     retry_join_count--;
     if (retry && m_join_attempts != 0 && ret == GCS_NOK &&
         retry_join_count >= 1) {
-      MYSQL_GCS_LOG_DEBUG(
-          "Sleeping for %u seconds before retrying to join the group. There "
-          "are "
-          " %u more attempt(s) before giving up.",
-          m_join_sleep_time, retry_join_count);
+      MYSQL_GCS_LOG_INFO("Sleeping for "
+                         << m_join_sleep_time
+                         << " seconds before retrying to join the group. There "
+                            "are "
+                         << retry_join_count
+                         << " more attempt(s) before giving up.");
       My_xp_util::sleep_seconds(m_join_sleep_time);
     } else {
       break;
@@ -335,6 +336,35 @@ static bool skip_own_peer_address(
   }
 
   return false;
+}
+
+static constexpr const char *get_signaling_error() {
+  return "The group communication engine could not set up its internal event "
+         "notification mechanism. This may be due to one or more invalid "
+         "configuration settings. Double-check your group replication local "
+         "address, firewall"
+#if !defined(_WIN32)
+         ", SE Linux"
+#endif
+         " and TLS configurations and try "
+         "restarting Group Replication on this server.";
+}
+
+static const std::string get_connection_test_error(const std::string &address,
+                                                   int port) {
+  std::stringstream retval;
+  retval << "The group communication engine failed to test connectivity to the "
+            "local group communication engine on "
+         << address << ":" << port
+         << ". This may be due to one or more invalid configuration settings. "
+            "Double-check your group replication local address, firewall";
+#if !defined(_WIN32)
+  retval << ", SE Linux";
+#endif
+  retval << " and TLS configurations and try restarting Group Replication on "
+            "this server.";
+
+  return retval.str();
 }
 
 enum_gcs_error Gcs_xcom_control::retry_do_join() {
@@ -382,8 +412,7 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
      * Tested by the TEST_F(XComControlTest,
      * JoinTestFailedToConnectToXComQueueSignallingMechanism) GCS smoke test.
      */
-    MYSQL_GCS_LOG_ERROR("Error connecting to the local group communication"
-                        << " engine instance.")
+    MYSQL_GCS_LOG_ERROR(get_signaling_error());
     goto err;
     /* purecov: end */
   }
@@ -402,15 +431,18 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
       m_local_node_address->get_member_ip(),
       m_local_node_address->get_member_port());
   if (!could_connect_to_local_xcom) {
-    MYSQL_GCS_LOG_ERROR("Error testing to the local group communication"
-                        << " engine instance.")
-    MYSQL_GCS_LOG_DEBUG(
-        "Error testing the connection to the local group communication engine "
-        "instance.")
+    MYSQL_GCS_LOG_ERROR(
+        get_connection_test_error(m_local_node_address->get_member_ip(),
+                                  m_local_node_address->get_member_port())
+            .c_str());
     goto err;
   }
 
   if (m_boot) {
+    MYSQL_GCS_LOG_INFO(
+        "Booting a group: "
+        << m_local_node_info->get_member_uuid().actual_value.c_str() << ":"
+        << local_port)
     MYSQL_GCS_LOG_TRACE(
         "::join():: I am the boot node. %d - %s. Calling xcom_client_boot.",
         local_port, m_local_node_info->get_member_uuid().actual_value.c_str())
@@ -463,8 +495,8 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
   }
 
   m_xcom_running = true;
-  MYSQL_GCS_LOG_DEBUG("The member has joined the group. Local port: %d",
-                      local_port);
+  MYSQL_GCS_LOG_INFO(
+      "The member has joined the group. Local port: " << local_port);
 
   m_suspicions_manager->set_groupid_hash(m_gid_hash);
   m_suspicions_manager->set_my_info(m_local_node_info);
@@ -530,6 +562,11 @@ bool Gcs_xcom_control::try_send_add_node_request_to_seeds(
     std::tie(connected, con) = connect_to_peer(peer, my_addresses);
 
     if (connected) {
+      MYSQL_GCS_LOG_INFO("Sucessfully connected to peer "
+                         << peer.get_member_ip().c_str() << ":"
+                         << peer.get_member_port()
+                         << ". Sending a request to be added to the group");
+
       MYSQL_GCS_LOG_TRACE(
           "::join():: Calling xcom_client_add_node %d_%s connected to "
           "%s:%d "
@@ -584,8 +621,9 @@ std::pair<bool, connection_descriptor *> Gcs_xcom_control::connect_to_peer(
   con = m_xcom_proxy->xcom_client_open_connection(addr, port);
   if (con->fd == -1) {
     // Could not connect to the peer.
-    MYSQL_GCS_LOG_ERROR("Error on opening a connection to "
-                        << addr << ":" << port << " on local port: "
+    MYSQL_GCS_LOG_ERROR("Error on opening a connection to peer node "
+                        << addr << ":" << port
+                        << " when joining a group. My local port is: "
                         << m_local_node_address->get_member_port() << ".");
     goto end;
   }
@@ -2112,7 +2150,7 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
   }
 
   // List of nodes to remove
-  Gcs_xcom_nodes nodes_to_remove;
+  Gcs_xcom_nodes nodes_to_remove, nodes_to_remember_expel;
 
   bool force_remove = false;
 
@@ -2152,6 +2190,9 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
       }
 
       nodes_to_remove.add_node(*susp_it);
+      if ((*susp_it).is_member()) {
+        nodes_to_remember_expel.add_node(*susp_it);
+      }
       m_suspicions.remove_node(*susp_it);
       /* purecov: end */
     } else {
@@ -2185,9 +2226,9 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
           "process_suspicions: Expelling suspects that timed out!");
       bool const removed =
           m_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
-      if (removed) {
+      if (removed && !nodes_to_remember_expel.empty()) {
         m_expels_in_progress.remember_expels_issued(m_config_id,
-                                                    nodes_to_remove);
+                                                    nodes_to_remember_expel);
       }
     } else if (force_remove) {
       assert(!m_is_killer_node);

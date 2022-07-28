@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -149,6 +149,10 @@ using std::string;
 
 typedef std::vector<SHOW_VAR> Status_var_array;
 
+/* Number of system variable elements to preallocate. */
+#define SYSTEM_VARIABLE_PREALLOC 200
+typedef Prealloced_array<SHOW_VAR, SYSTEM_VARIABLE_PREALLOC> Show_var_array;
+
 /* Global array of all server and plugin-defined status variables. */
 extern Status_var_array all_status_vars;
 extern bool status_vars_inited;
@@ -239,7 +243,7 @@ class Status_variable {
 class Find_THD_variable : public Find_THD_Impl {
  public:
   Find_THD_variable() : m_unsafe_thd(nullptr) {}
-  Find_THD_variable(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
+  explicit Find_THD_variable(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
 
   bool operator()(THD *thd) override;
   void set_unsafe_thd(THD *unsafe_thd) { m_unsafe_thd = unsafe_thd; }
@@ -254,9 +258,9 @@ class Find_THD_variable : public Find_THD_Impl {
 template <class Var_type>
 class PFS_variable_cache {
  public:
-  typedef Prealloced_array<Var_type, SHOW_VAR_PREALLOC> Variable_array;
+  typedef Prealloced_array<Var_type, SYSTEM_VARIABLE_PREALLOC> Variable_array;
 
-  PFS_variable_cache(bool external_init);
+  explicit PFS_variable_cache(bool external_init);
 
   virtual ~PFS_variable_cache() = 0;
 
@@ -432,8 +436,11 @@ class PFS_variable_cache {
   /* True when cache is complete. */
   bool m_materialized;
 
-  /* Array of variables to be materialized. Last element must be null. */
+  /* Array of status variables to be materialized. Last element must be null. */
   Show_var_array m_show_var_array;
+
+  /* Array of system variable descriptors. */
+  System_variable_tracker::Array m_sys_var_tracker_array;
 
   /* Version of global hash/array. Changes when vars added/removed. */
   ulonglong m_version;
@@ -599,7 +606,7 @@ int PFS_variable_cache<Var_type>::materialize_session(PFS_thread *pfs_thread,
 */
 class PFS_system_variable_cache : public PFS_variable_cache<System_variable> {
  public:
-  PFS_system_variable_cache(bool external_init);
+  explicit PFS_system_variable_cache(bool external_init);
   bool match_scope(int scope);
   ulonglong get_sysvar_hash_version(void) { return m_version; }
   ~PFS_system_variable_cache() override { free_mem_root(); }
@@ -643,7 +650,7 @@ class PFS_system_variable_cache : public PFS_variable_cache<System_variable> {
 */
 class PFS_system_variable_info_cache : public PFS_system_variable_cache {
  public:
-  PFS_system_variable_info_cache(bool external_init)
+  explicit PFS_system_variable_info_cache(bool external_init)
       : PFS_system_variable_cache(external_init) {}
   ~PFS_system_variable_info_cache() override = default;
 
@@ -657,7 +664,7 @@ class PFS_system_variable_info_cache : public PFS_system_variable_cache {
 */
 class PFS_system_persisted_variables_cache : public PFS_system_variable_cache {
  public:
-  PFS_system_persisted_variables_cache(bool external_init)
+  explicit PFS_system_persisted_variables_cache(bool external_init)
       : PFS_system_variable_cache(external_init) {}
   ~PFS_system_persisted_variables_cache() override = default;
 
@@ -671,7 +678,7 @@ class PFS_system_persisted_variables_cache : public PFS_system_variable_cache {
 */
 class PFS_status_variable_cache : public PFS_variable_cache<Status_variable> {
  public:
-  PFS_status_variable_cache(bool external_init);
+  explicit PFS_status_variable_cache(bool external_init);
 
   int materialize_user(PFS_user *pfs_user);
   int materialize_host(PFS_host *pfs_host);

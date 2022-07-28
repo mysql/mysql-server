@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,9 @@
 */
 
 #include "router_component_clusterset.h"
-#include "mock_server_rest_client.h"
+
 #include "mock_server_testutils.h"
+#include "mysqlrouter/mock_server_rest_client.h"
 
 void RouterComponentClusterSetTest::create_clusterset(
     uint64_t view_id, int target_cluster_id, int primary_cluster_id,

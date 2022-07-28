@@ -6,6 +6,11 @@
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 
+# Test requires --xa_detach_on_prepare
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 1
+--source include/only_with_option.inc
+
 --disable_query_log
 call mtr.add_suppression("Found 1 prepared XA transactions");
 --enable_query_log
@@ -187,6 +192,8 @@ XA START 'trx_another_one';
 --echo #
 --echo # Bug#20488921 - ERROR PROPAGATION DOES NOT FULLY WORK IN XA
 --echo #
+--let $CURSESS_xa_detach_on_prepare = `SELECT @@SESSION.xa_detach_on_prepare`
+SET SESSION xa_detach_on_prepare = OFF;
 XA START 'xid1';
 INSERT INTO t1 VALUES (1);
 XA END 'xid1';
@@ -202,6 +209,8 @@ SET @@session.debug= '-d,simulate_xa_commit_log_failure';
 INSERT INTO t1 VALUES (2);
 
 DROP TABLE t1;
+--replace_result $CURSESS_xa_detach_on_prepare OLD_VALUE_xa_detach_on_prepare
+--eval SET SESSION xa_detach_on_prepare = $CURSESS_xa_detach_on_prepare
 
 --echo #
 --echo # Bug#23264552 - XA: ASSERT `m_status == da_error' IN mysql_errno:sql_error.h:385
@@ -249,12 +258,12 @@ XA PREPARE 'xid1';
 --enable_connect_log
 connect (con2,localhost,root,,);
 
-set debug_sync='external_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+set debug_sync='detached_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
 --send XA COMMIT 'xid1'
 
 --connection default
 set debug_sync='now WAIT_FOR parked';
-set debug_sync='external_xa_commit_before_acquire_xa_lock SIGNAL go';
+set debug_sync='detached_xa_commit_before_acquire_xa_lock SIGNAL go';
 --error ER_XAER_NOTA
 XA COMMIT 'xid1';
 
@@ -299,3 +308,68 @@ SET DEBUG_SYNC="now SIGNAL proceed_check_xid_state";
 
 --connection default
 DROP TABLE t1;
+
+# Uses DBUG_EVALUATE_IF to simulate errors in various functions called during
+# XA PREPARE, to verify that transaction handling works as expected.
+
+--echo # Test error handling in XA PREPARE.
+
+CREATE TABLE t1(d VARCHAR(128));
+
+XA START 'xid1';
+INSERT INTO t1 VALUES ('I: The first string'), ('I: The second string');
+
+--echo # Test errors which leave the XA transaction in place
+--error ER_XAER_RMFAIL
+XA PREPARE 'xid1';
+XA END 'xid1';
+--error ER_XAER_NOTA
+XA PREPARE 'xidX';
+XA ROLLBACK 'xid1';
+
+SELECT * FROM t1;
+XA START 'xid2';
+INSERT INTO t1 VALUES ('II: The first string'), ('II: The second string');
+XA END 'xid2';
+
+SET DEBUG = "+d,xaprep_mdl_fail";
+--error ER_XA_RBROLLBACK
+XA PREPARE 'xid2';
+SET DEBUG = "-d,xaprep_mdl_fail";
+SELECT * FROM t1;
+
+XA START 'xid3';
+INSERT INTO t1 VALUES ('III: The first string'), ('III: The second string');
+XA END 'xid3';
+
+SET DEBUG = "+d,xaprep_ha_xa_prepare_fail";
+--error ER_XA_RBROLLBACK
+XA PREPARE 'xid3';
+SET DEBUG = "-d,xaprep_ha_xa_prepare_fail";
+SELECT * FROM t1;
+
+XA START 'xid4';
+INSERT INTO t1 VALUES ('IV: The first string'), ('IV: The second string');
+XA END 'xid4';
+
+SET DEBUG = "+d,xaprep_create_mdl_backup_fail";
+--error ER_OUT_OF_RESOURCES
+XA PREPARE 'xid4';
+SHOW ERRORS;
+SET DEBUG = "-d,xaprep_create_mdl_backup_fail";
+SELECT * FROM t1;
+
+XA START 'xid5';
+INSERT INTO t1 VALUES ('V: The first string'), ('V: The second string');
+XA END 'xid5';
+
+SET DEBUG = "+d,xaprep_trans_detach_fail";
+--error ER_XA_RBROLLBACK
+XA PREPARE 'xid5';
+SET DEBUG = "-d,xaprep_trans_detach_fail";
+SELECT * FROM t1;
+
+--echo # Cleanup
+XA RECOVER;
+DROP TABLE t1;
+

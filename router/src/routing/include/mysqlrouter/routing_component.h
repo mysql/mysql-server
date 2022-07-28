@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "mysql/harness/config_parser.h"
+#include "routing_common_unreachable_destinations.h"
 #include "tcp_address.h"
 
 class MySQLRoutingBase;
@@ -91,7 +92,13 @@ class ROUTING_EXPORT MySQLRoutingAPI {
 
   std::vector<mysql_harness::TCPAddress> get_destinations() const;
 
+  void start_accepting_connections();
+
   bool is_accepting_connections() const;
+
+  void stop_socket_acceptors();
+
+  bool is_running() const;
 
  private:
   std::shared_ptr<MySQLRoutingBase> r_;
@@ -101,9 +108,14 @@ class ROUTING_EXPORT MySQLRoutingComponent {
  public:
   static MySQLRoutingComponent &get_instance();
 
+  void deinit();
+
   void init(const mysql_harness::Config &config);
 
-  void init(const std::string &name, std::shared_ptr<MySQLRoutingBase> srv);
+  void init(const std::string &name, std::shared_ptr<MySQLRoutingBase> srv,
+            std::chrono::seconds quarantine_refresh_interval);
+
+  void erase(const std::string &name);
 
   MySQLRoutingAPI api(const std::string &name);
 
@@ -125,6 +137,8 @@ class ROUTING_EXPORT MySQLRoutingComponent {
   uint64_t max_total_connections_{0};
 
   MySQLRoutingComponent() = default;
+
+  RoutingCommonUnreachableDestinations routing_common_unreachable_destinations_;
 };
 
 #endif

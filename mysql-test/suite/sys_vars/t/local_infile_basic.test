@@ -161,7 +161,9 @@ SET global.local_infile = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.local_infile;
 --Error ER_BAD_FIELD_ERROR
-SELECT local_infile = @@session.local_infile;
+SELECT local_infile;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.local_infile;
 
 ##############################  
 #   Restore initial value    #

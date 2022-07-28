@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,15 +64,15 @@ bool Raw_record::update() {
 
   /**
     We ignore HA_ERR_RECORD_IS_THE_SAME here for following reason.
-    If in case we are updating childrens of some DD object,
+    If in case we are updating children of some DD object,
     and only one of the children has really changed and other have
     not. Then we get HA_ERR_RECORD_IS_THE_SAME for children (rows)
     which has not really been modified.
 
-    Currently DD framework creates/updates *all* childrens at once
+    Currently DD framework creates/updates *all* children at once
     and we don't have machinism to update only required child.
-    May be this is part of task which will implement inplace
-    alter in better way, updating only the changed child (or row)
+    Maybe this is part of a task which will implement inplace
+    alter in a better way, updating only the changed child (or row)
     and ignore others. Then we can remove the below check which
     ignores HA_ERR_RECORD_IS_THE_SAME.
   */
@@ -206,7 +206,7 @@ bool Raw_record::store_time(int field_no, my_time_t val, bool is_null) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Raw_record::store_timestamp(int field_no, const timeval &tv) {
+bool Raw_record::store_timestamp(int field_no, const my_timeval &tv) {
   field(field_no)->store_timestamp(&tv);
   return false;
 }
@@ -266,9 +266,9 @@ my_time_t Raw_record::read_time(int field_no) const {
 
 ///////////////////////////////////////////////////////////////////////////
 
-timeval Raw_record::read_timestamp(int field_no) const {
+my_timeval Raw_record::read_timestamp(int field_no) const {
   int warnings = 0;
-  timeval tv;
+  my_timeval tv;
   if (field(field_no)->get_timestamp(&tv, &warnings)) {
     assert(false);
     return {0, 0};

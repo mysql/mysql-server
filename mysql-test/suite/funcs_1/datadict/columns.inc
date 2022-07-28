@@ -25,7 +25,7 @@
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
---replace_result utf8_tolower_ci utf8_bin
+--replace_result utf8mb3_tolower_ci utf8_bin
 eval
 SELECT * FROM information_schema.columns
 $my_where
@@ -73,7 +73,7 @@ ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 echo --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values;
 echo --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
---replace_result utf8_tolower_ci utf8_bin
+--replace_result utf8mb3_tolower_ci utf8_bin
 eval
 SELECT CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
        TABLE_SCHEMA,

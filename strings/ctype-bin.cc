@@ -1,5 +1,5 @@
 /* Copyright (c) 2002, tommy@valley.ne.jp
-   Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -118,7 +118,7 @@ static size_t my_lengthsp_binary(const CHARSET_INFO *cs [[maybe_unused]],
 
   SYNOPSIS
     my_strnncollsp_binary()
-    cs			Chararacter set
+    cs			Character set
     s			String to compare
     slen		Length of 's'
     t			String to compare
@@ -154,7 +154,7 @@ static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
 
   SYNOPSIS
     my_strnncollsp_8bit_bin()
-    cs			Chararacter set
+    cs			Character set
     s			String to compare
     slen		Length of 's'
     t			String to compare
@@ -513,7 +513,7 @@ CHARSET_INFO my_charset_bin = {
     0,                                              /* number        */
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_PRIMARY, /* state */
     "binary",                                       /* cs name    */
-    "binary",                                       /* name          */
+    "binary",                                       /* m_coll_name   */
     "Binary pseudo charset",                        /* comment       */
     nullptr,                                        /* tailoring     */
     nullptr,                                        /* coll_param    */

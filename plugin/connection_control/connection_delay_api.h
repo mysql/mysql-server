@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 #ifndef CONNECTION_DELAY_API_H
 #define CONNECTION_DELAY_API_H
 
-/* Structures/Functions requried for information schema table */
+/* Structures/Functions required for information schema table */
 
 extern struct st_mysql_information_schema
     connection_control_failed_attempts_view;

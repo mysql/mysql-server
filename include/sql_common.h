@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -185,6 +185,7 @@ struct st_mysql_options_extention {
   bool connection_compressed;
   char *load_data_dir;
   struct client_authentication_info client_auth_info[MAX_AUTHENTICATION_FACTOR];
+  void *ssl_session_data; /** the session serialization to use */
 };
 
 struct MYSQL_METHODS {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,9 +39,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql_base.h"
 
 /** Get the explicit dd::Tablespace::id of a partition.
-@param[in]	partition	partition or subpartition
-@return	the explicit dd::Tablespace::id
-@retval	dd::INVALID_OBJECT_ID	if there is no explicit tablespace */
+@param[in]      partition       partition or subpartition
+@return the explicit dd::Tablespace::id
+@retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */
 inline dd::Object_id dd_get_space_id(const dd::Partition &partition) {
   ut_ad(dd_part_is_stored(&partition));
   ut_ad(dd_table_is_partitioned(partition.table()));
@@ -66,8 +66,8 @@ inline dd::Object_id dd_get_space_id(const dd::Partition &partition) {
 }
 
 /** Look up a column in a table using the system_charset_info collation.
-@param[in]	dd_table	data dictionary table
-@param[in]	name		column name
+@param[in]      dd_table        data dictionary table
+@param[in]      name            column name
 @return the column
 @retval nullptr if not found */
 inline const dd::Column *dd_find_column(const dd::Table *dd_table,
@@ -81,10 +81,10 @@ inline const dd::Column *dd_find_column(const dd::Table *dd_table,
 }
 
 /** Add a hidden column when creating a table.
-@param[in,out]	dd_table	table containing user columns and indexes
-@param[in]	name		hidden column name
-@param[in]	length		length of the column, in bytes
-@param[in]	type		column type
+@param[in,out]  dd_table        table containing user columns and indexes
+@param[in]      name            hidden column name
+@param[in]      length          length of the column, in bytes
+@param[in]      type            column type
 @return the added column, or NULL if there already was a column by that name */
 inline dd::Column *dd_add_hidden_column(dd::Table *dd_table, const char *name,
                                         uint length,
@@ -105,9 +105,18 @@ inline dd::Column *dd_add_hidden_column(dd::Table *dd_table, const char *name,
   return (col);
 }
 
+inline bool dd_drop_hidden_column(dd::Table *dd_table, const char *name) {
+#ifdef UNIV_DEBUG
+  const dd::Column *col = dd_find_column(dd_table, name);
+  ut_ad(col != nullptr);
+  ut_ad(dd_column_is_dropped(col));
+#endif
+  return dd_table->drop_column(name);
+}
+
 /** Add a hidden index element at the end.
-@param[in,out]	index	created index metadata
-@param[in]	column	column of the index */
+@param[in,out]  index   created index metadata
+@param[in]      column  column of the index */
 inline void dd_add_hidden_element(dd::Index *index, const dd::Column *column) {
   dd::Index_element *e = index->add_element(const_cast<dd::Column *>(column));
   e->set_hidden(true);
@@ -115,9 +124,9 @@ inline void dd_add_hidden_element(dd::Index *index, const dd::Column *column) {
 }
 
 /** Initialize a hidden unique B-tree index.
-@param[in,out]	index	created index metadata
-@param[in]	name	name of the index
-@param[in]	column	column of the index
+@param[in,out]  index   created index metadata
+@param[in]      name    name of the index
+@param[in]      column  column of the index
 @return the initialized index */
 inline dd::Index *dd_set_hidden_unique_index(dd::Index *index, const char *name,
                                              const dd::Column *column) {
@@ -131,8 +140,8 @@ inline dd::Index *dd_set_hidden_unique_index(dd::Index *index, const char *name,
 }
 
 /** Returns a cached table object based on table id.
-@param[in]	table_id	table id
-@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]      table_id        table id
+@param[in]      dict_locked     true=data dictionary locked
 @return table, NULL if does not exist */
 inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
                                                 bool dict_locked) {
@@ -145,10 +154,11 @@ inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
   ut_ad(dict_sys_mutex_own());
 
   /* Look for the table ID in the hash table */
-  ulint fold = ut_fold_ull(table_id);
+  const auto table_id_hash_value = ut::hash_uint64(table_id);
 
-  HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, dict_table_t *, table,
-              ut_ad(table->cached), table->id == table_id);
+  HASH_SEARCH(id_hash, dict_sys->table_id_hash, table_id_hash_value,
+              dict_table_t *, table, ut_ad(table->cached),
+              table->id == table_id);
 
   ut_ad(table == nullptr || table->cached);
 
@@ -168,11 +178,11 @@ inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
 }
 
 /** Returns a cached table object based on table name.
-@param[in]	name		table name
-@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]      name            table name
+@param[in]      dict_locked     true=data dictionary locked
 @return table, NULL if does not exist */
 inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
-                                                  ibool dict_locked) {
+                                                  bool dict_locked) {
   dict_table_t *table = nullptr;
 
   if (!dict_locked) {
@@ -188,7 +198,7 @@ inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
       dict_move_to_mru(table);
     }
 
-    table->acquire();
+    table->acquire_with_lock();
   }
 
   if (!dict_locked) {
@@ -200,10 +210,10 @@ inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
 
 /** Check whether there exist a column named as "FTS_DOC_ID", which is
 reserved for InnoDB FTS Doc ID
-@param[in]	thd		MySQL thread handle
-@param[in]	form		information on table
+@param[in]      thd             MySQL thread handle
+@param[in]      form            information on table
                                 columns and indexes
-@param[out]	doc_id_col	Doc ID column number if
+@param[out]     doc_id_col      Doc ID column number if
                                 there exist a FTS_DOC_ID column,
                                 ULINT_UNDEFINED if column is of the
                                 wrong type/name/size
@@ -273,10 +283,10 @@ inline const char *get_row_format_name(enum row_type row_format) {
 }
 
 /** Acquire a shared metadata lock.
-@param[in,out]	thd	current thread
-@param[out]	mdl	metadata lock
-@param[in]	db	schema name
-@param[in]	table	table name
+@param[in,out]  thd     current thread
+@param[out]     mdl     metadata lock
+@param[in]      db      schema name
+@param[in]      table   table name
 @retval false if acquired
 @retval true if failed (my_error() will have been called) */
 [[nodiscard]] static inline bool dd_mdl_acquire(THD *thd, MDL_ticket **mdl,
@@ -325,7 +335,7 @@ inline const char *get_row_format_name(enum row_type row_format) {
 }
 
 /** Get the version attribute.
-@param[in]	dd_table	dd::Table
+@param[in]      dd_table        dd::Table
 @return table dynamic metadata version if exists, otherwise 0 */
 inline uint64_t dd_get_version(const dd::Table *dd_table) {
   uint64_t version = 0;
@@ -333,7 +343,7 @@ inline uint64_t dd_get_version(const dd::Table *dd_table) {
 
   if (!p.exists(dd_table_key_strings[DD_TABLE_VERSION]) ||
       p.get(dd_table_key_strings[DD_TABLE_VERSION],
-            reinterpret_cast<uint64 *>(&version))) {
+            reinterpret_cast<uint64_t *>(&version))) {
     return (0);
   }
 

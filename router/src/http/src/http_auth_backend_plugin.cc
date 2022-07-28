@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,15 +37,16 @@
 #include <sys/types.h>
 
 // Harness interface include files
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 
 #include "mysqlrouter/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_backend_export.h"
 #include "mysqlrouter/metadata_cache.h"
-#include "mysqlrouter/plugin_config.h"
 
 #include "http_auth_backend.h"
 #include "http_auth_backend_metadata_cache.h"
@@ -55,14 +56,16 @@ IMPORT_LOG_FUNCTIONS()
 static constexpr const char kSectionName[]{"http_auth_backend"};
 static std::vector<std::string> registered_backends;
 
+using StringOption = mysql_harness::StringOption;
+
 namespace {
-class HtpasswdPluginConfig : public mysqlrouter::BasePluginConfig {
+class HtpasswdPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string filename;
 
   explicit HtpasswdPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        filename(get_option_string(section, "filename")) {}
+      : mysql_harness::BasePluginConfig(section),
+        filename(get_option(section, "filename", StringOption{})) {}
 
   std::string get_default(const std::string &option) const override {
     if (option == "filename") return "users";
@@ -100,14 +103,14 @@ class HttpAuthBackendFactory {
   }
 };
 
-class PluginConfig : public mysqlrouter::BasePluginConfig {
+class PluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string backend;
   std::string filename;
 
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        backend(get_option_string(section, "backend")) {}
+      : mysql_harness::BasePluginConfig(section),
+        backend(get_option(section, "backend", StringOption{})) {}
 
   std::string get_default(const std::string & /* option */) const override {
     return std::string();
@@ -208,6 +211,8 @@ static const std::array<const char *, 2> required = {{
     "router_protobuf",
 }};
 
+const std::array<const char *, 2> supported_options{"backend", "filename"};
+
 extern "C" {
 mysql_harness::Plugin HTTP_AUTH_BACKEND_EXPORT
     harness_plugin_http_auth_backend = {
@@ -216,13 +221,17 @@ mysql_harness::Plugin HTTP_AUTH_BACKEND_EXPORT
         "HTTP_AUTH_BACKEND",                     // name
         VERSION_NUMBER(0, 0, 1),
         // requires
-        required.size(), required.data(),
+        required.size(),
+        required.data(),
         // conflicts
-        0, nullptr,
+        0,
+        nullptr,
         init,     // init
         deinit,   // deinit
         start,    // start
         nullptr,  // stop
         false,    // declares_readiness
+        supported_options.size(),
+        supported_options.data(),
 };
 }

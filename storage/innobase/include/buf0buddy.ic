@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,19 +34,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0buf.h"
 
 /** Allocate a block.
-@param[in,out]	buf_pool	buffer pool instance
-@param[in]	i		index of buf_pool->zip_free[]
+@param[in,out]  buf_pool        buffer pool instance
+@param[in]      i               index of buf_pool->zip_free[]
                                 or BUF_BUDDY_SIZES
 @return allocated block, never NULL */
 void *buf_buddy_alloc_low(buf_pool_t *buf_pool, ulint i) MY_ATTRIBUTE((malloc));
 
 /** Deallocate a block.
-@param[in]	buf_pool	buffer pool instance
-@param[in]	buf		block to be freed, must not be pointed to
+@param[in]      buf_pool        buffer pool instance
+@param[in]      buf             block to be freed, must not be pointed to
                                 by the buffer pool
-@param[in]	i		index of buf_pool->zip_free[],
+@param[in]      i               index of buf_pool->zip_free[],
                                 or BUF_BUDDY_SIZES
-@param[in]	has_zip_free	whether has zip_free_mutex */
+@param[in]      has_zip_free    whether has zip_free_mutex */
 void buf_buddy_free_low(buf_pool_t *buf_pool, void *buf, ulint i,
                         bool has_zip_free);
 
@@ -70,8 +70,8 @@ static inline ulint buf_buddy_get_slot(ulint size) /*!< in: block size */
 compressed page frames. The thread calling this function must hold
 buf_pool->LRU_list_mutex and must not hold buf_pool->zip_mutex or any
 block->mutex.
-@param[in,out]	buf_pool	buffer pool in which the page resides
-@param[in]	size		compressed page size, between
+@param[in,out]  buf_pool        buffer pool in which the page resides
+@param[in]      size            compressed page size, between
                                 UNIV_ZIP_SIZE_MIN and UNIV_PAGE_SIZE
 @return allocated block, never NULL */
 static inline byte *buf_buddy_alloc(buf_pool_t *buf_pool, ulint size) {
@@ -84,10 +84,10 @@ static inline byte *buf_buddy_alloc(buf_pool_t *buf_pool, ulint size) {
 }
 
 /** Deallocate a block.
-@param[in,out]	buf_pool	buffer pool in which the block resides
-@param[in]	buf		block to be freed, must not be pointed to
+@param[in,out]  buf_pool        buffer pool in which the block resides
+@param[in]      buf             block to be freed, must not be pointed to
                                 by the buffer pool
-@param[in]	size		block size, up to UNIV_PAGE_SIZE */
+@param[in]      size            block size, up to UNIV_PAGE_SIZE */
 static inline void buf_buddy_free(buf_pool_t *buf_pool, void *buf, ulint size) {
   ut_ad(ut_is_2pow(size));
   ut_ad(size >= UNIV_ZIP_SIZE_MIN);

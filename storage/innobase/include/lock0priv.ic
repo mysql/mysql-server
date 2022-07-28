@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,29 +48,20 @@ static inline uint32_t lock_get_type_low(const lock_t *lock) /*!< in: lock */
   return (lock->type_mode & LOCK_TYPE_MASK);
 }
 
-/** Checks if some transaction has an implicit x-lock on a record in a clustered
- index.
- @return transaction id of the transaction which has the x-lock, or 0 */
-static inline trx_id_t lock_clust_rec_some_has_impl(
-    const rec_t *rec,          /*!< in: user record */
-    const dict_index_t *index, /*!< in: clustered index */
-    const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
-{
+static inline trx_id_t lock_clust_rec_some_has_impl(const rec_t *rec,
+                                                    const dict_index_t *index,
+                                                    const ulint *offsets) {
   ut_ad(index->is_clustered());
   ut_ad(page_rec_is_user_rec(rec));
 
   return (row_get_rec_trx_id(rec, index, offsets));
 }
 
-/** Gets the number of bits in a record lock bitmap.
- @return	number of bits */
-static inline ulint lock_rec_get_n_bits(
-    const lock_t *lock) /*!< in: record lock */
-{
+static inline uint32_t lock_rec_get_n_bits(const lock_t *lock) {
   return (lock->rec_lock.n_bits);
 }
 
-/** Sets the nth bit of a record lock to TRUE. */
+/** Sets the nth bit of a record lock to true. */
 static inline void lock_rec_set_nth_bit(lock_t *lock, /*!< in: record lock */
                                         ulint i) /*!< in: index of the bit */
 {
@@ -91,7 +82,7 @@ static inline void lock_rec_set_nth_bit(lock_t *lock, /*!< in: record lock */
 }
 
 /** Gets the first or next record lock on a page.
- @return	next lock, NULL if none exists */
+ @return        next lock, NULL if none exists */
 static inline lock_t *lock_rec_get_next_on_page(
     lock_t *lock) /*!< in: a record lock */
 {
@@ -102,8 +93,9 @@ static inline lock_t *lock_rec_get_first_on_page_addr(
     hash_table_t *lock_hash, const page_id_t &page_id) {
   ut_ad(locksys::owns_page_shard(page_id));
 
-  for (lock_t *lock = static_cast<lock_t *>(
-           HASH_GET_FIRST(lock_hash, lock_rec_hash(page_id)));
+  for (lock_t *lock = static_cast<lock_t *>(hash_get_first(
+           lock_hash,
+           hash_calc_cell_id(lock_rec_hash_value(page_id), lock_hash)));
        lock != nullptr;
        lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
     if (page_id == lock->rec_lock.page_id) {
@@ -116,7 +108,7 @@ static inline lock_t *lock_rec_get_first_on_page_addr(
 
 /** Gets the first record lock on a page, where the page is identified by a
  pointer to it.
- @return	first lock, NULL if none exists */
+ @return        first lock, NULL if none exists */
 static inline lock_t *lock_rec_get_first_on_page(
     hash_table_t *lock_hash,  /*!< in: lock hash table */
     const buf_block_t *block) /*!< in: buffer block */
@@ -125,7 +117,7 @@ static inline lock_t *lock_rec_get_first_on_page(
 }
 
 /** Gets the next explicit lock request on a record.
- @return	next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED
+ @return        next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED
  */
 static inline lock_t *lock_rec_get_next(
     ulint heap_no, /*!< in: heap number of the record */
@@ -142,7 +134,7 @@ static inline lock_t *lock_rec_get_next(
 }
 
 /** Gets the next explicit lock request on a record.
- @return	next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED
+ @return        next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED
  */
 static inline const lock_t *lock_rec_get_next_const(
     ulint heap_no,      /*!< in: heap number of the record */
@@ -152,7 +144,7 @@ static inline const lock_t *lock_rec_get_next_const(
 }
 
 /** Gets the first explicit lock request on a record.
- @return	first lock, NULL if none exists */
+ @return        first lock, NULL if none exists */
 static inline lock_t *lock_rec_get_first(
     hash_table_t *hash,       /*!< in: hash chain the lock on */
     const buf_block_t *block, /*!< in: block containing the record */
@@ -171,8 +163,8 @@ static inline lock_t *lock_rec_get_first(
 }
 
 /** Gets the nth bit of a record lock.
-@param[in]	lock		Record lock
-@param[in]	i		Index of the bit to check
+@param[in]      lock            Record lock
+@param[in]      i               Index of the bit to check
 @return true if bit set also if i == ULINT_UNDEFINED return false */
 static inline bool lock_rec_get_nth_bit(const lock_t *lock, ulint i) {
   const byte *b;
@@ -298,7 +290,7 @@ static inline bool lock_table_has(const trx_t *trx, const dict_table_t *table,
 }
 
 /* Check if the rec id matches the lock instance.
-@param[i]	lock		Lock to compare with
+@param[i]       lock            Lock to compare with
 @return true if <space, page_no, heap_no> matches the lock. */
 bool RecID::matches(const lock_t *lock) const {
   return (lock->rec_lock.page_id == get_page_id() &&

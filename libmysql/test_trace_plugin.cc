@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -182,7 +182,7 @@ class Logger {
 
  public:
   Logger() : connection_id(0), end(buffer) {}
-  Logger(MYSQL *conn);
+  explicit Logger(MYSQL *conn);
   void log(const char *format, ...) MY_ATTRIBUTE((format(printf, 2, 3)));
   void dump(const char *key, const void *data, size_t len);
 };

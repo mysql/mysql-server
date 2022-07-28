@@ -1,0 +1,56 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+include/suppress_messages.inc
+# Connection 1 suppresses message <Found .* prepared XA transactions>.
+# Connection 1 suppresses message <.*Checksum mismatch in datafile.*>.
+# Connection 2 suppresses message <Found .* prepared XA transactions>.
+# Connection 2 suppresses message <.*Checksum mismatch in datafile.*>.
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+XA START X'78696431',X'',1;
+INSERT INTO t1 VALUES (2);
+XA END X'78696431',X'',1;
+XA PREPARE X'78696431',X'',1;
+XA COMMIT X'78696431',X'',1;
+include/sync_slave_sql_with_master.inc
+include/save_binlog_position.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master1]
+XA START X'78696431',X'',1;
+INSERT INTO t1 VALUES (1);
+XA END X'78696431',X'',1;
+XA PREPARE X'78696431',X'',1;
+[connection master]
+include/sync_slave_sql_with_master.inc
+FLUSH LOGS;
+PURGE BINARY LOGS TO 'BINLOG_FILE';
+include/save_binlog_position.inc
+include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_xa_trx]
+XA ROLLBACK X'78696431',X'',1;
+[connection slave]
+# Kill the server
+# restart:--skip-replica-start
+include/rpl_reconnect.inc
+include/assert.inc [Found 1 log message(s) for "Successfully prepared 1 XA transaction"]
+[connection slave]
+include/assert_binlog_events.inc [()]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction X'78696431',X'',1 is in PREPARED state]
+include/assert.inc [Table 'test.t1' record count must be 1]
+# restart:--skip-replica-start
+include/rpl_reconnect.inc
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction X'78696431',X'',1 is in PREPARED state]
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Table 'test.t1' record count must be 1]
+include/assert.inc [No XA transactions in PREPARED state]
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

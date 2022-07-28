@@ -10,7 +10,8 @@ The following options may be given as the first argument:
 
  --abort-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
- replication.
+ replication.This option is deprecated and will be removed
+ in a future version. 
  --activate-all-roles-on-login 
  Automatically set all granted roles as active after the
  user has authenticated successfully.
@@ -40,9 +41,6 @@ The following options may be given as the first argument:
  --admin-ssl-crlpath=name 
  --admin-ssl-key=name 
  --admin-tls-ciphersuites=name 
- --admin-tls-version=name 
- TLS version for --admin-port, permitted values are TLSv1,
- TLSv1.1, TLSv1.2, TLSv1.3
  --allow-suspicious-udfs 
  Allows use of UDFs consisting of only one symbol xxx()
  without corresponding xxx_init() or xxx_deinit(). That
@@ -127,6 +125,12 @@ The following options may be given as the first argument:
  to a fatal error, this option determines whether the
  server ignores the error and closes the binary log, or
  aborts.
+ --binlog-expire-logs-auto-purge 
+ Controls whether the server shall automatically purge
+ binary log files or not. If this variable is set to FALSE
+ then the server will not purge binary log files
+ automatically.
+ (Defaults to on; use --skip-binlog-expire-logs-auto-purge to disable.)
  --binlog-expire-logs-seconds=# 
  If non-zero, binary logs will be purged after
  binlog_expire_logs_seconds seconds; If both this option
@@ -275,6 +279,11 @@ The following options may be given as the first argument:
  NEVER, AUTO, ALWAYS
  --connect-timeout=# The number of seconds the mysqld server is waiting for a
  connect packet before responding with 'Bad handshake'
+ --connection-memory-chunk-size=# 
+ Chunk size regulating frequency of updating the global
+ memory counter
+ --connection-memory-limit=# 
+ Maximum amount of memory connection can consume
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
@@ -330,7 +339,8 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-disconnect-on-expired-password to disable.)
  --disconnect-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
- replication.
+ replication.This option is deprecated and will be removed
+ in a future version.
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
@@ -404,6 +414,11 @@ The following options may be given as the first argument:
  --generated-random-password-length=# 
  Determines the length randomly generated passwords in
  CREATE USER-,SET PASSWORD- or ALTER USER statements
+ --global-connection-memory-limit=# 
+ Maximum amount of memory all connections can consume
+ --global-connection-memory-tracking 
+ Enable updating the global memory counter and checking
+ the global connection memory limit exceeding
  --group-concat-max-len=# 
  The maximum length of the result of function 
  GROUP_CONCAT()
@@ -717,10 +732,6 @@ The following options may be given as the first argument:
  --myisam-recover-options[=name] 
  Syntax: myisam-recover-options[=option[,option...]],
  where option can be DEFAULT, BACKUP, FORCE, QUICK, or OFF
- --myisam-repair-threads=# 
- If larger than 1, when repairing a MyISAM table all
- indexes will be created in parallel, with one thread per
- index. The value of 1 disables parallel repair
  --myisam-sort-buffer-size=# 
  The buffer that is allocated when sorting the index when
  doing a REPAIR or when creating indexes with CREATE INDEX
@@ -763,13 +774,23 @@ The following options may be given as the first argument:
  --old-style-user-limits 
  Enable old-style user limits (before 5.0.3, user
  resources were counted for each user + host vs. per
- account).
+ account). This option is deprecated and will be removed
+ in a future version.
  --open-files-limit=# 
  If this is not 0, then mysqld will use this value to
  reserve file descriptors to use with setrlimit(). If this
  value is 0 then mysqld will reserve max_connections*5 or
  max_connections + table_open_cache*2 (whichever is
  larger) number of file descriptors
+ --optimizer-max-subgraph-pairs=# 
+ Maximum depth of subgraph pairs a query can have before
+ the hypergraph join optimizer starts reducing the search
+ space heuristically. Larger values may result in better
+ query plans for large queries, but also more time and
+ memory spent during planning. Increasing this larger than
+ the actual number of subgraph pairs in the query will
+ have no further effect. Ignored by the old
+ (non-hypergraph) join optimizer
  --optimizer-prune-level=# 
  Controls the heuristic(s) applied during query
  optimization to prune less-promising partial plans from
@@ -843,6 +864,9 @@ The following options may be given as the first argument:
  consumer.
  --performance-schema-consumer-events-stages-history-long 
  Default startup value for the events_stages_history_long
+ consumer.
+ --performance-schema-consumer-events-statements-cpu 
+ Default startup value for the events_statements_cpu
  consumer.
  --performance-schema-consumer-events-statements-current 
  Default startup value for the events_statements_current
@@ -1011,6 +1035,11 @@ The following options may be given as the first argument:
  --persist-only-admin-x509-subject[=name] 
  The client peer certificate name required to enable
  setting all system variables via SET PERSIST[_ONLY]
+ --persist-sensitive-variables-in-plaintext 
+ If set to FALSE, server will refuse to persist SENSITIVE
+ variables in plaintext and refuse to start if encrypted
+ part of persited file cannot be processed.
+ (Defaults to on; use --skip-persist-sensitive-variables-in-plaintext to disable.)
  --persisted-globals-load 
  When this option is enabled, config file mysqld-auto.cnf
  is read and applied to server, else this file is ignored
@@ -1109,6 +1138,7 @@ The following options may be given as the first argument:
  --replica-allow-batching 
  Allow this replica to batch requests when using the NDB
  storage engine.
+ (Defaults to on; use --skip-replica-allow-batching to disable.)
  --replica-checkpoint-group=# 
  When using multi-threaded applier
  (replica_parallel_workers>0), it will update the worker
@@ -1349,6 +1379,11 @@ The following options may be given as the first argument:
  --show-create-table-verbosity 
  When this option is enabled, it increases the verbosity
  of 'SHOW CREATE TABLE'.
+ --show-gipk-in-create-table-and-information-schema 
+ When set, if a primary key is generated for a table then
+ SHOW commands and INFORMATION_SCHEMA tables shows
+ generated invisible primary key definition.
+ (Defaults to on; use --skip-show-gipk-in-create-table-and-information-schema to disable.)
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1378,6 +1413,7 @@ The following options may be given as the first argument:
  --slave-allow-batching 
  This option is deprecated. Use replica_allow_batching
  instead.
+ (Defaults to on; use --skip-slave-allow-batching to disable.)
  --slave-checkpoint-group=# 
  This option is deprecated. Use replica_checkpoint_group
  instead.
@@ -1458,6 +1494,10 @@ The following options may be given as the first argument:
  --sporadic-binlog-dump-fail 
  Option used by mysql-test for debugging and testing of
  replication.
+ --sql-generate-invisible-primary-key 
+ When set, if a table is created without a primary key
+ then server generates invisible auto-increment column as
+ a primary key for the table.
  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
  for the complete list of valid sql modes
  --sql-require-primary-key 
@@ -1546,11 +1586,9 @@ The following options may be given as the first argument:
  one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
  --tls-ciphersuites=name 
- --tls-version=name  TLS version, permitted values are TLSv1, TLSv1.1,
- TLSv1.2, TLSv1.3
- --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY
- storage engine exceeds this size, MySQL will
- automatically convert it to an on-disk table
+ --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY or
+ TempTable storage engine exceeds this size, MySQL will
+ automatically convert it to an on-disk table 
  -t, --tmpdir=name   Path for temporary files. Several paths may be specified,
  separated by a semicolon (;), in this case they are used
  in a round-robin fashion
@@ -1596,6 +1634,18 @@ The following options may be given as the first argument:
  inversion optimization for moving window frames also for
  floating values.
  (Defaults to on; use --skip-windowing-use-high-precision to disable.)
+ --xa-detach-on-prepare 
+ When set, XA transactions will be detached (AKA
+ dissociated or disconnected) from connection as part of
+ XA PREPARE. This means that the XA transaction can be
+ committed/rolled back by any connection, even if the
+ starting connection has not terminated, and the starting
+ connection can start new transactions. As a side effect,
+ temporary tables cannot be used inside XA transactions.
+ When disabled, XA transactions are associated with the
+ same connection until the session disconnects. ON is the
+ only safe choice for replication.
+ (Defaults to on; use --skip-xa-detach-on-prepare to disable.)
 
 Variables (--variable-name=value)
 abort-slave-event-count 0
@@ -1626,6 +1676,7 @@ binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
 binlog-encryption FALSE
 binlog-error-action ABORT_SERVER
+binlog-expire-logs-auto-purge TRUE
 binlog-expire-logs-seconds 2592000
 binlog-format ROW
 binlog-group-commit-sync-delay 0
@@ -1659,6 +1710,8 @@ collation-server utf8mb4_0900_ai_ci
 completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10
+connection-memory-chunk-size 8912
+connection-memory-limit 18446744073709551615
 console FALSE
 create-admin-listener-thread FALSE
 cte-max-recursion-depth 1000
@@ -1694,6 +1747,8 @@ ft-stopword-file (No default value)
 gdb FALSE
 general-log FALSE
 generated-random-password-length 20
+global-connection-memory-limit 18446744073709551615
+global-connection-memory-tracking FALSE
 group-concat-max-len 1024
 group-replication-consistency EVENTUAL
 gtid-executed-compression-period 0
@@ -1787,7 +1842,6 @@ myisam-data-pointer-size 6
 myisam-max-sort-file-size 9223372036853727232
 myisam-mmap-size 18446744073709551615
 myisam-recover-options OFF
-myisam-repair-threads 1
 myisam-sort-buffer-size 8388608
 myisam-stats-method nulls_unequal
 myisam-use-mmap FALSE
@@ -1805,6 +1859,7 @@ offline-mode FALSE
 old FALSE
 old-alter-table FALSE
 old-style-user-limits FALSE
+optimizer-max-subgraph-pairs 100000
 optimizer-prune-level 1
 optimizer-search-depth 62
 optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
@@ -1823,6 +1878,7 @@ performance-schema-accounts-size -1
 performance-schema-consumer-events-stages-current FALSE
 performance-schema-consumer-events-stages-history FALSE
 performance-schema-consumer-events-stages-history-long FALSE
+performance-schema-consumer-events-statements-cpu FALSE
 performance-schema-consumer-events-statements-current TRUE
 performance-schema-consumer-events-statements-history TRUE
 performance-schema-consumer-events-statements-history-long FALSE
@@ -1880,6 +1936,7 @@ performance-schema-setup-objects-size -1
 performance-schema-show-processlist FALSE
 performance-schema-users-size -1
 persist-only-admin-x509-subject 
+persist-sensitive-variables-in-plaintext TRUE
 persisted-globals-load TRUE
 port ####
 port-open-timeout 0
@@ -1903,7 +1960,7 @@ relay-log-info-repository TABLE
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
-replica-allow-batching FALSE
+replica-allow-batching TRUE
 replica-checkpoint-group 512
 replica-checkpoint-period 300
 replica-compressed-protocol FALSE
@@ -1946,6 +2003,7 @@ sha256-password-proxy-users FALSE
 shared-memory FALSE
 shared-memory-base-name MYSQL
 show-create-table-verbosity FALSE
+show-gipk-in-create-table-and-information-schema TRUE
 show-old-temporals FALSE
 show-replica-auth-info FALSE
 show-slave-auth-info FALSE
@@ -1955,7 +2013,7 @@ skip-networking FALSE
 skip-replica-start FALSE
 skip-show-database FALSE
 skip-slave-start FALSE
-slave-allow-batching FALSE
+slave-allow-batching TRUE
 slave-checkpoint-group 512
 slave-checkpoint-period 300
 slave-compressed-protocol FALSE
@@ -1977,6 +2035,7 @@ slow-start-timeout 15000
 sort-buffer-size 262144
 source-verify-checksum FALSE
 sporadic-binlog-dump-fail FALSE
+sql-generate-invisible-primary-key FALSE
 sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 sql-require-primary-key FALSE
 stored-program-cache 256
@@ -2014,6 +2073,7 @@ validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800
 windowing-use-high-precision TRUE
+xa-detach-on-prepare TRUE
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.

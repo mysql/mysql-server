@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -219,6 +219,22 @@ ADD_LIBRARY(mysqlgcs STATIC ${XCOM_SOURCES} ${GCS_SOURCES})
 # Dependency on mysys from gcs_logging_system.cc
 # but pick up symbols from the server:
 # TARGET_LINK_LIBRARIES(mysqlgcs mysys)
+
+IF(CMAKE_VERSION VERSION_GREATER "3.19" AND NOT APPLE_XCODE)
+  # New in version 3.19:
+  # An interface library target may be created with source files.
+  ADD_LIBRARY(xcom_rpcgen_headers INTERFACE ${GEN_RPC_H_FILES})
+  SET_PROPERTY(TARGET xcom_rpcgen_headers PROPERTY EXCLUDE_FROM_ALL TRUE)
+  ADD_DEPENDENCIES(clang_tidy_prerequisites xcom_rpcgen_headers)
+ELSE()
+  # Older cmake version? Generate the full libraries instead.
+  ADD_DEPENDENCIES(clang_tidy_prerequisites mysqlgcs)
+ENDIF()
+
+IF(WIN32)
+  # UINT8_MAX: macro redefinition
+  TARGET_COMPILE_OPTIONS(mysqlgcs PRIVATE "/wd4005")
+ENDIF()
 
 IF(TIRPC_LIBRARIES)
   TARGET_LINK_LIBRARIES(mysqlgcs ${TIRPC_LIBRARIES})

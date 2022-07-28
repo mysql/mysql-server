@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef MYSQL_ROUTER_CHANNEL_INCLUDED
 #define MYSQL_ROUTER_CHANNEL_INCLUDED
 
+#include <memory>
+#include <system_error>
+#include <vector>
+
 #ifdef _WIN32
 // include winsock2.h before openssl/ssl.h
 #include <windows.h>
@@ -34,8 +38,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <openssl/ssl.h>
 
+#include "mysql/harness/default_init_allocator.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_types.h"
 #include "mysqlrouter/classic_protocol.h"
 
 /**
@@ -54,6 +60,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 class Channel {
  public:
+  Channel() = default;
+
+  using recv_buffer_type =
+      std::vector<uint8_t, default_init_allocator<uint8_t>>;
+  using Ssl = mysql_harness::Ssl;
+
+  explicit Channel(Ssl ssl) : ssl_{std::move(ssl)} {}
+
   /**
    * initialize the SSL session.
    */
@@ -61,6 +75,16 @@ class Channel {
     ssl_.reset(SSL_new(ssl_ctx));
     // the BIOs are owned by the SSL
     SSL_set_bio(ssl_.get(), BIO_new(BIO_s_mem()), BIO_new(BIO_s_mem()));
+
+    const size_t max_record_size{16 * 1024};
+    const size_t max_header_size{5};
+    const size_t max_mac_size{32};
+    const size_t max_padding_size{256};
+
+    const size_t max_tls_frame_size{max_record_size + max_header_size +
+                                    max_mac_size + max_padding_size};
+
+    recv_buffer_.reserve(max_tls_frame_size);
   }
 
   /**
@@ -125,9 +149,10 @@ class Channel {
    * the data is appending to the recv_plain_buf()
    */
   template <class DynamicBuffer>
-  stdx::expected<size_t, std::error_code> read(DynamicBuffer &dyn_buf) {
+  stdx::expected<size_t, std::error_code> read(DynamicBuffer &dyn_buf,
+                                               size_t sz) {
     auto orig_size = dyn_buf.size();
-    auto grow_size = 16 * 1024;
+    auto grow_size = sz;
     size_t transferred{};
 
     dyn_buf.grow(grow_size);
@@ -143,6 +168,8 @@ class Channel {
 
     return transferred;
   }
+
+  stdx::expected<size_t, std::error_code> read_to_plain(size_t sz);
 
   /**
    * write raw data from a net::const_buffer to the channel.
@@ -212,33 +239,33 @@ class Channel {
    *
    * written into by write(), write_plain(), write_encrypted().
    */
-  std::vector<uint8_t> &recv_buffer() { return recv_buffer_; }
+  recv_buffer_type &recv_buffer() { return recv_buffer_; }
 
   /**
    * buffer of data to be sent to the socket.
    *
    * written into by write(), write_plain(), write_encrypted().
    */
-  std::vector<uint8_t> &send_buffer() { return send_buffer_; }
+  recv_buffer_type &send_buffer() { return send_buffer_; }
 
   /**
    * buffer of data that was received from the socket.
    *
    * written into by write(), write_plain(), write_encrypted().
    */
-  const std::vector<uint8_t> &recv_buffer() const { return recv_buffer_; }
+  const recv_buffer_type &recv_buffer() const { return recv_buffer_; }
 
   /**
    * buffer of data to be sent to the socket.
    *
    * written into by write(), write_plain(), write_encrypted().
    */
-  const std::vector<uint8_t> &send_buffer() const { return send_buffer_; }
+  const recv_buffer_type &send_buffer() const { return send_buffer_; }
 
   /**
    * unencrypted data after a recv().
    */
-  std::vector<uint8_t> &recv_plain_buffer() { return recv_plain_buffer_; }
+  recv_buffer_type &recv_plain_buffer() { return recv_plain_buffer_; }
 
   /**
    * mark channel as containing TLS data in the recv_buffer().
@@ -266,89 +293,21 @@ class Channel {
    */
   SSL *ssl() const { return ssl_.get(); }
 
+  /**
+   *
+   */
+  Ssl release_ssl() { return std::exchange(ssl_, {}); }
+
  private:
   size_t want_recv_{};
 
-  std::vector<uint8_t> recv_buffer_;
-  std::vector<uint8_t> recv_plain_buffer_;
-  std::vector<uint8_t> send_buffer_;
+  recv_buffer_type recv_buffer_;
+  recv_buffer_type recv_plain_buffer_;
+  recv_buffer_type send_buffer_;
 
   bool is_tls_{false};
 
-  class Deleter_SSL {
-   public:
-    void operator()(SSL *v) { SSL_free(v); }
-  };
-
-  std::unique_ptr<SSL, Deleter_SSL> ssl_{};
-};
-
-/**
- * protocol state of a classic protocol connection.
- */
-class ClassicProtocolState {
- public:
-  void server_capabilities(classic_protocol::capabilities::value_type caps) {
-    server_caps_ = caps;
-  }
-
-  void client_capabilities(classic_protocol::capabilities::value_type caps) {
-    client_caps_ = caps;
-  }
-
-  classic_protocol::capabilities::value_type client_capabilities() const {
-    return client_caps_;
-  }
-
-  classic_protocol::capabilities::value_type server_capabilities() const {
-    return server_caps_;
-  }
-
-  classic_protocol::capabilities::value_type shared_capabilities() const {
-    return server_caps_ & client_caps_;
-  }
-
-  stdx::expected<classic_protocol::message::client::Greeting, void>
-  client_greeting() const {
-    return client_greeting_;
-  }
-
-  void client_greeting(
-      stdx::expected<classic_protocol::message::client::Greeting, void> msg) {
-    client_greeting_ = std::move(msg);
-  }
-
-  void server_greeting(
-      stdx::expected<classic_protocol::message::server::Greeting, void> msg) {
-    server_greeting_ = std::move(msg);
-  }
-
-  uint8_t &seq_id() { return seq_id_; }
-  uint8_t seq_id() const { return seq_id_; }
-
-  void seq_id(uint8_t id) { seq_id_ = id; }
-
- private:
-  classic_protocol::capabilities::value_type server_caps_{};
-  classic_protocol::capabilities::value_type client_caps_{};
-
-  stdx::expected<classic_protocol::message::client::Greeting, void>
-      client_greeting_{stdx::make_unexpected()};
-  stdx::expected<classic_protocol::message::server::Greeting, void>
-      server_greeting_{stdx::make_unexpected()};
-
-  uint8_t seq_id_{};
-};
-
-/**
- * protocol state of a xproto connection.
- */
-class XProtocolState {
- public:
-  XProtocolState() = default;
-
- private:
-  int _;
+  Ssl ssl_{};
 };
 
 #endif

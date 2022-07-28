@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -34,8 +35,8 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
@@ -351,13 +352,15 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
   res = post_init_event_thread(thd);
 
   DBUG_TRACE;
-  DBUG_PRINT("info", ("Time is %ld, THD: %p", (long)my_time(0), thd));
+  DBUG_PRINT("info", ("Time is %ld, THD: %p", (long)time(nullptr), thd));
 
   if (res) {
     delete event;
     deinit_event_thread(thd);
     return;
   }
+
+  mysql_thread_set_secondary_engine(false);
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;

@@ -243,8 +243,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	1
 1	1
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	1
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -1112,8 +1112,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	3
 3	3
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	3
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -2052,9 +2052,9 @@ HEX(c1)	HEX(c2)
 5	F
 9	F
 F	F
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-5	0	15
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+5	0	F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 SELECT bin(c1) FROM t5;
@@ -3106,9 +3106,9 @@ HEX(c1)	HEX(c2)
 7B	FF
 7F	FF
 9	FF
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 377
@@ -4593,9 +4593,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -6670,9 +6670,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -9846,9 +9846,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -10816,8 +10816,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	1
 1	1
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	1
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -11685,8 +11685,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	3
 3	3
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	3
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -12625,9 +12625,9 @@ HEX(c1)	HEX(c2)
 5	F
 9	F
 F	F
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-5	0	15
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+5	0	F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 SELECT bin(c1) FROM t5;
@@ -13679,9 +13679,9 @@ HEX(c1)	HEX(c2)
 7B	FF
 7F	FF
 9	FF
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 377
@@ -15166,9 +15166,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -17243,9 +17243,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -20419,9 +20419,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -21395,8 +21395,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	1
 1	1
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	1
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -22264,8 +22264,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	3
 3	3
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	3
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -23204,9 +23204,9 @@ HEX(c1)	HEX(c2)
 5	F
 9	F
 F	F
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-5	0	15
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+5	0	F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 SELECT bin(c1) FROM t5;
@@ -24258,9 +24258,9 @@ HEX(c1)	HEX(c2)
 7B	FF
 7F	FF
 9	FF
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 377
@@ -25745,9 +25745,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -27822,9 +27822,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -30998,9 +30998,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -31974,8 +31974,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	1
 1	1
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	1
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -32849,8 +32849,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	3
 3	3
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	3
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -33789,9 +33789,9 @@ HEX(c1)	HEX(c2)
 5	F
 9	F
 F	F
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-5	0	15
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+5	0	F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 SELECT bin(c1) FROM t5;
@@ -34843,9 +34843,9 @@ HEX(c1)	HEX(c2)
 7B	FF
 7F	FF
 9	FF
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 377
@@ -36330,9 +36330,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -38407,9 +38407,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -41583,9 +41583,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -42559,8 +42559,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	1
 1	1
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	1
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -43434,8 +43434,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	3
 3	3
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	3
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -44380,9 +44380,9 @@ HEX(c1)	HEX(c2)
 5	F
 9	F
 F	F
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-5	0	15
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+5	0	F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 SELECT bin(c1) FROM t5;
@@ -45440,9 +45440,9 @@ HEX(c1)	HEX(c2)
 7B	FF
 7F	FF
 9	FF
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 377
@@ -46927,9 +46927,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -49004,9 +49004,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -52180,9 +52180,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -53158,8 +53158,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	1
 1	1
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	1
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -54035,8 +54035,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	3
 3	3
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	3
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -54983,9 +54983,9 @@ HEX(c1)	HEX(c2)
 5	F
 9	F
 F	F
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-5	0	15
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+5	0	F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 SELECT bin(c1) FROM t5;
@@ -56045,9 +56045,9 @@ HEX(c1)	HEX(c2)
 7B	FF
 7F	FF
 9	FF
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 377
@@ -57540,9 +57540,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -59619,9 +59619,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -62797,9 +62797,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -63772,8 +63772,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	1
 1	1
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	1
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -64646,8 +64646,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	3
 3	3
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	3
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -65591,9 +65591,9 @@ HEX(c1)	HEX(c2)
 5	F
 9	F
 F	F
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-5	0	15
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+5	0	F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 SELECT bin(c1) FROM t5;
@@ -66650,9 +66650,9 @@ HEX(c1)	HEX(c2)
 7B	FF
 7F	FF
 9	FF
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 377
@@ -68142,9 +68142,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -70224,9 +70224,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -73399,9 +73399,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -74374,8 +74374,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	1
 1	1
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	1
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -75248,8 +75248,8 @@ SELECT HEX(c1),HEX(c2) FROM t5;
 HEX(c1)	HEX(c2)
 0	3
 3	3
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
 2	0	3
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
@@ -76193,9 +76193,9 @@ HEX(c1)	HEX(c2)
 5	F
 9	F
 F	F
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-5	0	15
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+5	0	F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 SELECT bin(c1) FROM t5;
@@ -77252,9 +77252,9 @@ HEX(c1)	HEX(c2)
 7B	FF
 7F	FF
 9	FF
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 377
@@ -78744,9 +78744,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -80826,9 +80826,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706
@@ -84007,9 +84007,9 @@ HEX(c1)	HEX(c2)
 7B	19B
 7F	193
 9	16B
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
-total_rows	min_value	max(c1)
-39	0	127
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
+total_rows	min_value	HEX(MAX(c1))
+39	0	7F
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 OCT(c2)
 706

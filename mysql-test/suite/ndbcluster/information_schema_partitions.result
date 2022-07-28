@@ -159,3 +159,9 @@ t1_fully_replicated	p5	6	AUTO	default
 t1_fully_replicated	p6	7	AUTO	default
 t1_fully_replicated	p7	8	AUTO	default
 DROP TABLE t1_fully_replicated;
+#
+# Bug#33643512 Missing check for Thd_ndb in information_schema.partitions
+# - Run I_S.partition query on new connection
+#
+CREATE TABLE t1 (a int primary key) engine = NDB;
+DROP TABLE t1;

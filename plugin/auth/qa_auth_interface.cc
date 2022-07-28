@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ static int qa_auth_interface(MYSQL_PLUGIN_VIO *vio,
   /* fail if the password is wrong */
   if (strcmp((const char *)pkt, info->auth_string)) return CR_ERROR;
 
-  /* Check the contens of components of info */
+  /* Check the contents of components of info */
   if (strcmp(info->user_name, "qa_test_1_user") == 0) {
     if (info->user_name_length != 14) err = CR_ERROR;
     if (strcmp(info->auth_string, "qa_test_1_dest")) err = CR_ERROR;

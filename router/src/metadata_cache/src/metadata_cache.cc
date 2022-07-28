@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,13 @@
 #include <stdexcept>
 #include <vector>
 
-#include "common.h"
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysqld_error.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
+#include "mysqlrouter/mysql_session.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
@@ -82,7 +84,7 @@ void *MetadataCache::run_thread(void *context) {
 }
 
 void MetadataCache::refresh_thread() {
-  mysql_harness::rename_thread("MDC Refresh");
+  my_thread_self_setname("MDC Refresh");
   log_info("Starting metadata cache refresh thread");
 
   // this will be only useful if the TTL is set to some value that is more than
@@ -95,7 +97,7 @@ void MetadataCache::refresh_thread() {
   while (!terminated_) {
     bool refresh_ok{false};
     const bool needs_writable_node =
-        !version_updated_ || last_check_in_updated_ % 10 == 0;
+        update_router_attributes_ || last_check_in_updated_ % 10 == 0;
     try {
       // Component tests are using this log message as a indicator of metadata
       // refresh start
@@ -134,9 +136,6 @@ void MetadataCache::refresh_thread() {
     }
 
     auto ttl_left = ttl_config_.ttl;
-    // wait for up to TTL until next refresh, unless cluster loses an
-    // online (primary or secondary) server - in that case, "emergency mode" is
-    // enabled and we refresh every 1s until "emergency mode" is called off.
     while (ttl_left > 0ms) {
       auto sleep_for =
           std::min(ttl_left, kTerminateOrForcedRefreshCheckInterval);
@@ -177,12 +176,10 @@ void MetadataCache::refresh_thread() {
       }
 
       {
-        if (has_unreachable_nodes)
-          break;  // we're in "emergency mode", don't wait until TTL expires
-
+        std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
         // if the metadata is not consistent refresh it at a higher rate (if the
         // ttl>1s) until it becomes consistent again
-        if (cluster_data_.md_discrepancy) {
+        if (cluster_topology_.cluster_data.md_discrepancy) {
           break;
         }
       }
@@ -221,7 +218,7 @@ void MetadataCache::stop() noexcept {
  */
 metadata_cache::cluster_nodes_list_t MetadataCache::get_cluster_nodes() {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-  return cluster_data_.members;
+  return cluster_topology_.cluster_data.members;
 }
 
 bool metadata_cache::ManagedInstance::operator==(
@@ -253,14 +250,19 @@ metadata_cache::ManagedInstance::operator TCPAddress() const {
   return result;
 }
 
+namespace metadata_cache {
+
 bool operator==(const metadata_cache::ManagedCluster &cluster_a,
                 const metadata_cache::ManagedCluster &cluster_b) {
-  if (cluster_a.md_discrepancy != cluster_b.md_discrepancy) return false;
+  if (cluster_a.md_discrepancy != cluster_b.md_discrepancy ||
+      cluster_a.id != cluster_b.id || cluster_a.name != cluster_b.name ||
+      cluster_a.is_invalidated != cluster_b.is_invalidated ||
+      cluster_a.is_primary != cluster_b.is_primary)
+    return false;
   // we need to compare 2 vectors if their content is the same
   // but order of their elements can be different as we use
   // SQL with no "ORDER BY" to fetch them from different nodes
   if (cluster_a.members.size() != cluster_b.members.size()) return false;
-  if (cluster_a.view_id != cluster_b.view_id) return false;
   if (!std::is_permutation(cluster_a.members.begin(), cluster_a.members.end(),
                            cluster_b.members.begin())) {
     return false;
@@ -273,6 +275,28 @@ bool operator!=(const metadata_cache::ManagedCluster &cluster_a,
                 const metadata_cache::ManagedCluster &cluster_b) {
   return !(cluster_a == cluster_b);
 }
+
+bool operator==(const metadata_cache::ClusterTopology &a,
+                const metadata_cache::ClusterTopology &b) {
+  if (a.cluster_data != b.cluster_data) {
+    return false;
+  }
+
+  if (!std::is_permutation(a.metadata_servers.begin(), a.metadata_servers.end(),
+                           b.metadata_servers.begin(),
+                           b.metadata_servers.end())) {
+    return false;
+  }
+
+  return a.view_id == b.view_id;
+}
+
+bool operator!=(const metadata_cache::ClusterTopology &a,
+                const metadata_cache::ClusterTopology &b) {
+  return !(a == b);
+}
+
+}  // namespace metadata_cache
 
 std::string to_string(metadata_cache::ServerMode mode) {
   switch (mode) {
@@ -325,8 +349,8 @@ void MetadataCache::on_refresh_failed(bool terminated,
     bool clearing;
     {
       std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      clearing = !cluster_data_.empty();
-      if (clearing) cluster_data_.clear();
+      clearing = !cluster_topology_.cluster_data.members.empty();
+      if (clearing) cluster_topology_.cluster_data.members.clear();
     }
     if (clearing) {
       const auto log_level =
@@ -389,6 +413,15 @@ void MetadataCache::on_handle_sockets_acceptors() {
   }
 }
 
+void MetadataCache::on_md_refresh(
+    const bool cluster_nodes_changed,
+    const metadata_cache::cluster_nodes_list_t &cluster_nodes) {
+  std::lock_guard<std::mutex> lock(md_refresh_callbacks_mtx_);
+  for (auto &each : md_refresh_listeners_) {
+    each->on_md_refresh(cluster_nodes_changed, cluster_nodes);
+  }
+}
+
 void MetadataCache::on_refresh_requested() {
   {
     std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
@@ -398,52 +431,6 @@ void MetadataCache::on_refresh_requested() {
 }
 
 void MetadataCache::on_refresh_completed() { refresh_completed_.notify_one(); }
-
-void MetadataCache::mark_instance_reachability(
-    const std::string &instance_id, metadata_cache::InstanceStatus status) {
-  // If the status is that the primary or secondary instance is physically
-  // unreachable, we enable "emergency mode" (temporarily increase the refresh
-  // rate to 1/s if currently lower) until the GR routing table
-  // reflects this reality (or at least that is the the intent; in practice
-  // this mechanism is buggy - see Metadata Cache module documentation in
-  // Doxygen, section "Emergency mode")
-
-  std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-  metadata_cache::ManagedInstance *instance = nullptr;
-  for (auto &inst : cluster_data_.members) {
-    if (inst.mysql_server_uuid == instance_id) {
-      instance = &inst;
-      break;
-    }
-  }
-
-  // If the instance got marked as invalid we want to trigger metadata-cache
-  // update ASAP to aviod keeping try to route to that instance
-  if (instance) {
-    switch (status) {
-      case metadata_cache::InstanceStatus::Reachable:
-        break;
-      case metadata_cache::InstanceStatus::InvalidHost:
-        log_warning(
-            "Instance '%s:%i' [%s] of cluster '%s' is invalid. Increasing "
-            "metadata cache refresh frequency.",
-            instance->host.c_str(), instance->port, instance_id.c_str(),
-            target_cluster_.c_str());
-        has_unreachable_nodes = true;
-        break;
-      case metadata_cache::InstanceStatus::Unreachable:
-        log_warning(
-            "Instance '%s:%i' [%s] of cluster '%s' is unreachable. "
-            "Increasing metadata cache refresh frequency.",
-            instance->host.c_str(), instance->port, instance_id.c_str(),
-            target_cluster_.c_str());
-        has_unreachable_nodes = true;
-        break;
-      case metadata_cache::InstanceStatus::Unusable:
-        break;
-    }
-  }
-}
 
 /**
  * check if primary has changed.
@@ -523,6 +510,18 @@ void MetadataCache::remove_acceptor_handler_listener(
     metadata_cache::AcceptorUpdateHandlerInterface *listener) {
   std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
   acceptor_update_listeners_.erase(listener);
+}
+
+void MetadataCache::add_md_refresh_listener(
+    metadata_cache::MetadataRefreshListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(md_refresh_callbacks_mtx_);
+  md_refresh_listeners_.insert(listener);
+}
+
+void MetadataCache::remove_md_refresh_listener(
+    metadata_cache::MetadataRefreshListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(md_refresh_callbacks_mtx_);
+  md_refresh_listeners_.erase(listener);
 }
 
 void MetadataCache::check_auth_metadata_timers() const {
@@ -605,35 +604,64 @@ bool MetadataCache::update_auth_cache() {
 }
 
 void MetadataCache::update_router_attributes() {
-  if (!version_updated_) {
-    if (cluster_data_.writable_server) {
-      const auto &rw_server = cluster_data_.writable_server.value();
-      try {
-        meta_data_->update_router_attributes(rw_server, router_id_,
-                                             router_attributes_);
-        version_updated_ = true;
-      } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
-      } catch (...) {
-        // we only attempt it once, if it fails we will not try again
-        version_updated_ = true;
-      }
+  if (!update_router_attributes_) {
+    return;
+  }
+
+  if (cluster_topology_.cluster_data.writable_server) {
+    const auto &rw_server =
+        cluster_topology_.cluster_data.writable_server.value();
+    try {
+      meta_data_->update_router_attributes(rw_server, router_id_,
+                                           router_attributes_);
       log_debug(
-          "Successfully updated the Router version in the metadata using "
+          "Successfully updated the Router attributes in the metadata using "
           "instance %s",
           rw_server.str().c_str());
-    } else {
-      log_debug(
-          "Did not find writable instance to update the Router version in "
-          "the metadata.");
+      update_router_attributes_ = false;
+    } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      if (e.code() == ER_TABLEACCESS_DENIED_ERROR) {
+        // if the update fails because of the lack of the access rights that
+        // most likely means that the Router has been upgraded, we need to
+        // keep retrying it untill the metadata gets upgraded too and our db
+        // user gets missing access rights
+
+        // we log it only once
+        const bool first_time = EventStateTracker::instance().state_changed(
+            true, EventStateTracker::EventId::NoRightsToUpdateRouterAttributes);
+        if (first_time) {
+          log_warning(
+              "Updating the router attributes in metadata failed: %s (%u)\n"
+              "Make sure to follow the correct steps to upgrade your "
+              "metadata.\n"
+              "Run the dba.upgradeMetadata() then launch the new Router "
+              "version when prompted",
+              e.message().c_str(), e.code());
+        }
+      } else {
+        log_warning("Updating the router attributes in metadata failed: %s",
+                    e.what());
+        update_router_attributes_ = false;
+      }
+    } catch (const std::exception &e) {
+      log_warning("Updating the router attributes in metadata failed: %s",
+                  e.what());
+      update_router_attributes_ = false;
     }
+  } else {
+    log_debug(
+        "Did not find writable instance to update the Router attributes in "
+        "the metadata.");
   }
 }
 
 void MetadataCache::update_router_last_check_in() {
   if (last_check_in_updated_ % 10 == 0) {
     last_check_in_updated_ = 0;
-    if (cluster_data_.writable_server) {
-      const auto &rw_server = cluster_data_.writable_server.value();
+    if (cluster_topology_.cluster_data.writable_server) {
+      const auto &rw_server =
+          cluster_topology_.cluster_data.writable_server.value();
       try {
         meta_data_->update_router_last_check_in(rw_server, router_id_);
       } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {

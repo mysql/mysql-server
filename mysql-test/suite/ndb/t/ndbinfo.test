@@ -32,10 +32,10 @@ SELECT node_id, block_number, block_instance, pool_name,
 
 SHOW CREATE TABLE ndb$tables;
 
-SELECT * FROM ndb$tables;
+SELECT table_id, table_name, comment FROM ndb$tables;
 SELECT COUNT(*) FROM ndb$tables;
 SELECT * FROM ndb$tables WHERE table_id = 2;
-SELECT * FROM ndb$tables WHERE table_id > 5;
+SELECT table_id, table_name, comment FROM ndb$tables WHERE table_id > 5;
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 # Show a simple join is working
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -179,9 +179,11 @@ SHOW WARNINGS;
 DROP TABLE ndb$test;
 
 
-## 4) Table with primary key/indexes not supported
+## 4) Primary key is supported after the fix for bug#28658625,
+##    but tables are still limited to a single index.
 --error ER_TOO_MANY_KEYS
-CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY) ENGINE = ndbinfo;
+CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY,
+                       index(node_id)) ENGINE = ndbinfo;
 
 ## 5) Table with blobs not supported
 --error ER_TABLE_CANT_HANDLE_BLOB
@@ -861,7 +863,7 @@ drop table t2;
 #   for those tabes which was changed to prefix ndb$
 
 ## Check that the new tables return data and exists.
-select count(*) > 10 from ndb$blocks;
+select count(*) > 10 from blocks;
 select param_number, param_name, param_description, param_default,
        param_min, param_max from ndb$config_params
   where param_name = "DataMemory";

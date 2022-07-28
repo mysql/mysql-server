@@ -1,4 +1,4 @@
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/mysql_upgrade_preparation.inc

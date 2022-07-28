@@ -220,29 +220,31 @@ drop function if exists pi;
 --error ER_NATIVE_FCT_NAME_COLLISION
 CREATE FUNCTION pi RETURNS STRING SONAME "should_not_parse.so";
 
-# Verify that Stored Functions and UDF are mutually exclusive
+--echo
+--echo # Bug#33301931 LOADABLE AND STORED FUNCTIONS SHARE NAMESPACE INCONSISTENTLY
+--echo
+--echo # Verify that UDF and Stored function can be created with the same name.
+
+--echo
+--echo # UDF can be created with the same name as SF. UDF eclipses the stored function when used without schema qualifier
 DROP FUNCTION IF EXISTS metaphon;
-
-CREATE FUNCTION metaphon(a int) RETURNS int
-return 0;
-
-# this currently passes, and eclipse the stored function
+CREATE FUNCTION metaphon(a int) RETURNS int return 0;
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+SELECT metaphon('a');
+SELECT test.metaphon(0);
+DROP FUNCTION test.metaphon;
 
-DROP FUNCTION metaphon;
-DROP FUNCTION metaphon;
-
+--echo
+--echo # SF can be created with the same name as UDF. UDF eclipses the stored function when used without schema qualifier
+DROP FUNCTION IF EXISTS metaphon;
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
-
---error ER_UDF_EXISTS
-CREATE FUNCTION metaphon(a int) RETURNS int
-return 0;
-
---error ER_UDF_EXISTS
-CREATE FUNCTION test.metaphon(a int) RETURNS int
-return 0;
+CREATE FUNCTION metaphon(a int) RETURNS int return 0;
+SELECT metaphon('a');
+SELECT test.metaphon(0);
+DROP FUNCTION test.metaphon;
+# End of Bug#33301931
 
 # End of Bug#18239
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,15 +68,13 @@ Table_map_event::Table_map_event(const char *buf,
 
   /* Read the variable part of the event */
 
-  READER_TRY_SET(m_dblen, read<uint8_t>);
-  if (m_dblen > 64 /* NAME_CHAR_LEN */)
-    READER_THROW("Database name length too long.")
+  READER_TRY_SET(m_dblen, net_field_length_ll);
+
   ptr_dbnam = READER_TRY_CALL(ptr, m_dblen + 1);
   m_dbnam = std::string(ptr_dbnam, m_dblen);
 
-  READER_TRY_SET(m_tbllen, read<uint8_t>);
-  if (m_tbllen > 64 /* NAME_CHAR_LEN */)
-    READER_THROW("Table name length too long.")
+  READER_TRY_SET(m_tbllen, net_field_length_ll);
+
   ptr_tblnam = READER_TRY_CALL(ptr, m_tbllen + 1);
   m_tblnam = std::string(ptr_tblnam, m_tbllen);
 

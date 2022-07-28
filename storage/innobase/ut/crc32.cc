@@ -1,7 +1,7 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2010 Facebook, Inc. All Rights Reserved.
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2009, 2010 Facebook, Inc.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,20 +69,20 @@ Copyright (c) 2011, 2021, Oracle and/or its affiliates.
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* The below CRC32 implementation is based on the implementation included with
- * zlib with modifications to process 8 bytes at a time and using SSE 4.2
- * extensions when available.  The polynomial constant has been changed to
- * match the one used by SSE 4.2 and does not return the same value as the
- * version used by zlib.  The original zlib copyright notice follows. */
+zlib with modifications to process 8 bytes at a time and using SSE 4.2
+extensions when available.  The polynomial constant has been changed to
+match the one used by SSE 4.2 and does not return the same value as the
+version used by zlib.  The original zlib copyright notice follows. */
 
 /* crc32.c -- compute the CRC-32 of a buf stream
- * Copyright (C) 1995-2005 Mark Adler
- * For conditions of distribution and use, see copyright notice in zlib.h
- *
- * Thanks to Rodney Brown <rbrown64@csc.com.au> for his contribution of faster
- * CRC methods: exclusive-oring 32 bits of buf at a time, and pre-computing
- * tables for updating the shift register in one step with three exclusive-ors
- * instead of four steps with four exclusive-ors.  This results in about a
- * factor of two increase in speed on a Power PC G4 (PPC7455) using gcc -O3.
+Copyright (C) 1995-2005 Mark Adler
+For conditions of distribution and use, see copyright notice in zlib.h
+
+Thanks to Rodney Brown <rbrown64@csc.com.au> for his contribution of faster
+CRC methods: exclusive-oring 32 bits of buf at a time, and pre-computing
+tables for updating the shift register in one step with three exclusive-ors
+instead of four steps with four exclusive-ors.  This results in about a
+factor of two increase in speed on a Power PC G4 (PPC7455) using gcc -O3.
  */
 
 /** NOTE: The functions in this file should only use functions from
@@ -134,7 +134,7 @@ bool ut_poly_mul_cpu_enabled = false;
 namespace software {
 
 /** Swap the byte order of an 8 byte integer.
-@param[in]	i	8-byte integer
+@param[in]      i       8-byte integer
 @return 8-byte integer */
 inline uint64_t swap_byteorder(uint64_t i) {
   return (i << 56 | (i & 0x000000000000FF00ULL) << 40 |
@@ -182,11 +182,11 @@ static void crc32_slice8_table_init() {
 }
 
 /** Calculate CRC32 over 8-bit data using a software implementation.
-@param[in,out]	crc	crc32 checksum so far when this function is called,
+@param[in,out]  crc     crc32 checksum so far when this function is called,
 when the function ends it will contain the new checksum
-@param[in,out]	data	data to be checksummed, the pointer will be advanced
+@param[in,out]  data    data to be checksummed, the pointer will be advanced
 with 1 byte
-@param[in,out]	len	remaining bytes, it will be decremented with 1 */
+@param[in,out]  len     remaining bytes, it will be decremented with 1 */
 inline void crc32_8(uint32_t *crc, const byte **data, size_t *len) {
   const uint8_t i = (*crc ^ (*data)[0]) & 0xFF;
 
@@ -197,8 +197,8 @@ inline void crc32_8(uint32_t *crc, const byte **data, size_t *len) {
 }
 
 /** Calculate CRC32 over a 64-bit integer using a software implementation.
-@param[in]	crc	crc32 checksum so far
-@param[in]	data	data to be checksummed
+@param[in]      crc     crc32 checksum so far
+@param[in]      data    data to be checksummed
 @return resulting checksum of crc + crc(data) */
 inline uint32_t crc32_64_low(uint32_t crc, uint64_t data) {
   const uint64_t i = crc ^ data;
@@ -214,11 +214,11 @@ inline uint32_t crc32_64_low(uint32_t crc, uint64_t data) {
 }
 
 /** Calculate CRC32 over 64-bit byte string using a software implementation.
-@param[in,out]	crc	crc32 checksum so far when this function is called,
+@param[in,out]  crc     crc32 checksum so far when this function is called,
 when the function ends it will contain the new checksum
-@param[in,out]	data	data to be checksummed, the pointer will be advanced
+@param[in,out]  data    data to be checksummed, the pointer will be advanced
 with 8 bytes
-@param[in,out]	len	remaining bytes, it will be decremented with 8 */
+@param[in,out]  len     remaining bytes, it will be decremented with 8 */
 static inline void crc32_64(uint32_t *crc, const byte **data, size_t *len) {
   uint64_t data_int = *reinterpret_cast<const uint64_t *>(*data);
 
@@ -234,11 +234,11 @@ static inline void crc32_64(uint32_t *crc, const byte **data, size_t *len) {
 
 /** Calculate CRC32 over 64-bit byte string using a software implementation.
 The byte string is converted to a 64-bit integer using big endian byte order.
-@param[in,out]	crc	crc32 checksum so far when this function is called,
+@param[in,out]  crc     crc32 checksum so far when this function is called,
 when the function ends it will contain the new checksum
-@param[in,out]	data	data to be checksummed, the pointer will be advanced
+@param[in,out]  data    data to be checksummed, the pointer will be advanced
 with 8 bytes
-@param[in,out]	len	remaining bytes, it will be decremented with 8 */
+@param[in,out]  len     remaining bytes, it will be decremented with 8 */
 static inline void crc32_64_legacy_big_endian(uint32_t *crc, const byte **data,
                                               size_t *len) {
   uint64_t data_int = *reinterpret_cast<const uint64_t *>(*data);
@@ -303,8 +303,8 @@ uint32_t crc32_processing_64bit_chunks(const byte *buf, size_t len) {
 It's non-static so it can be unit-tested, but otherwise should not be used
 directly, and thus is not exposed in the header file - use ut_crc32 to benefit
 from hardware acceleration available.
-@param[in]	buf	data over which to calculate CRC32
-@param[in]	len	data length
+@param[in]      buf     data over which to calculate CRC32
+@param[in]      len     data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
 uint32_t crc32(const byte *buf, size_t len) {
   return crc32_processing_64bit_chunks<crc32_64>(buf, len);
@@ -387,7 +387,7 @@ struct Loop {
 template <>
 struct Loop<0> {
   template <typename Step_executor, typename... Args>
-  static void run(Args &&... args) {}
+  static void run(Args &&...) {}
 };
 
 /** Computes x^(len*8) modulo CRC32-C polynomial, which is useful, when you need
@@ -555,8 +555,8 @@ struct use_unrolled_loop_poly_mul : crc32_impl {
   template <uint32_t x_to_len_8>
   struct Polynomial_mul_rev_step_executor {
     template <size_t i>
-    static void run(uint64_t &acc, const uint32_t hash_1) {
-      if (x_to_len_8 >> ((uint32_t)i) & 1) {
+    static void run(uint64_t &acc, const uint32_t hash_1 [[maybe_unused]]) {
+      if constexpr (x_to_len_8 >> ((uint32_t)i) & 1) {
         acc ^= uint64_t{hash_1} << (32 - i);
       }
     }
@@ -571,7 +571,7 @@ struct use_unrolled_loop_poly_mul : crc32_impl {
 
 /** Rolls the crc forward by len bytes, that is updates it as if 8*len zero bits
 were processed.
-@param[in]	crc	initial value of the hash
+@param[in]      crc     initial value of the hash
 @return Updated value of the hash: rev(rev(crc)*(x^{8*len} mod CRC32-C)) */
 template <size_t len, typename algo_to_use>
 inline static uint64_t roll(uint32_t crc) {
@@ -621,8 +621,8 @@ struct Combination_step_executor {
 /** Updates the crc checksum by processing slices_count*slice_len bytes of data.
 The chunk is processed as slice_count independent slices of length slice_len,
 and the results are combined together at the end to compute correct result.
-@param[in]	crc0	initial value of the hash
-@param[in]	data	data over which to calculate CRC32-C
+@param[in]      crc0    initial value of the hash
+@param[in]      data    data over which to calculate CRC32-C
 @return The value of _crc updated by processing the range
         data[0]...data[slices_count*slice_len-1]. */
 template <size_t slice_len, size_t slices_count, typename algo_to_use>
@@ -663,7 +663,7 @@ static inline uint32_t consume_chunk(uint32_t crc0, const unsigned char *data) {
     return crc[n-1]
   as the inputs to roll()s are independent, but now fold_64_to_32 is only needed
   conditionally, when slices_count > 1. */
-  if (1 < slices_count) {
+  if constexpr (1 < slices_count) {
     Loop<slices_count - 1>::template run<
         Combination_step_executor<algo_to_use, slice_len, slices_count>>(
         combined_crc, crc);
@@ -677,12 +677,12 @@ The data is consumed in chunks of size slice_len*slices_count, and stops when
 no more full chunks can be fit into len bytes.
 Each chunk is processed as slice_count independent slices of length slice_len,
 and the results are combined together at the end to compute correct result.
-@param[in,out]	crc	initial value of the hash. Updated by this function by
+@param[in,out]  crc     initial value of the hash. Updated by this function by
                         processing data[0]...data[B*(slice_len * slices_count)],
                         where B = floor(len / (slice_len * slices_count)).
-@param[in,out]	data	data over which to calculate CRC32-C. Advanced by this
+@param[in,out]  data    data over which to calculate CRC32-C. Advanced by this
                         function to point to unprocessed part of the buffer.
-@param[in,out]	len	data length to be processed. Updated by this function
+@param[in,out]  len     data length to be processed. Updated by this function
                         to be len % (slice_len * slices_count). */
 template <size_t slice_len, size_t slices_count, typename algo_to_use>
 static inline void consume_chunks(uint32_t &crc, const byte *&data,
@@ -698,11 +698,11 @@ but only when the len of the data provided, when decomposed into powers of two,
 has a Chunk of this length. This is used to process the prefix of the buffer to
 get to the position which is aligned mod 8, and to process the remaining suffix
 which starts at position aligned  mod 8, but has less than 8 bytes.
-@param[in,out]	crc	initial value of the hash. Updated by this function by
+@param[in,out]  crc     initial value of the hash. Updated by this function by
                         processing Chunk pointed by data.
-@param[in,out]	data	data over which to calculate CRC32-C. Advanced by this
+@param[in,out]  data    data over which to calculate CRC32-C. Advanced by this
                         function to point to unprocessed part of the buffer.
-@param[in,out]	len	data length, allowed to be processed. */
+@param[in,out]  len     data length, allowed to be processed. */
 template <typename Chunk, typename algo_to_use>
 static inline void consume_pow2(uint32_t &crc, const byte *&data, size_t len) {
   if (len & sizeof(Chunk)) {
@@ -715,10 +715,10 @@ parallelism on reordering processors, by consuming the data in large chunks
 split into 3 independent slices each. It's optimized for handling buffers of
 length typical for 16kb pages and redo log blocks, but it works correctly for
 any len and alignment.
-@param[in]	crc	initial value of the hash (0 for first block, or the
+@param[in]      crc     initial value of the hash (0 for first block, or the
                         result of CRC32-C for the data processed so far)
-@param[in]	data	data over which to calculate CRC32-C
-@param[in]	len	data length
+@param[in]      data    data over which to calculate CRC32-C
+@param[in]      len     data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
 template <typename algo_to_use>
 static uint32_t crc32(uint32_t crc, const byte *data, size_t len) {
@@ -767,8 +767,8 @@ static uint32_t crc32(uint32_t crc, const byte *data, size_t len) {
 value of the hash. Used on platforms which support hardware accelerated
 polynomial multiplication.
 It's non-static so it can be unit-tested.
-@param[in]	data	data over which to calculate CRC32-C
-@param[in]	len	data length
+@param[in]      data    data over which to calculate CRC32-C
+@param[in]      len     data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
 #ifdef CRC32_x86_64_DEFAULT
 MY_ATTRIBUTE((target("sse4.2,pclmul"), flatten))
@@ -787,8 +787,8 @@ uint32_t crc32_using_pclmul(const byte *data, size_t len) {
 as initial value of the hash. Used on platforms which do not support hardware
 accelerated polynomial multiplication.
 It's non-static so it can be unit-tested.
-@param[in]	data	data over which to calculate CRC32-C
-@param[in]	len	data length
+@param[in]      data    data over which to calculate CRC32-C
+@param[in]      len     data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
 #ifdef CRC32_x86_64_DEFAULT
 MY_ATTRIBUTE((target("sse4.2"), flatten))

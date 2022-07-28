@@ -81,7 +81,7 @@ SELECT @@innodb_api_enable_mdl = @@GLOBAL.innodb_api_enable_mdl;
 
 --echo '#---------------------BS_STVARS_035_05----------------------#'
 ################################################################################
-#   Check if innodb_log_file_size can be accessed with and without @@ sign     #
+#   Check if innodb_api_enable_mdl can be accessed with and without @@ sign     #
 ################################################################################
 
 SELECT COUNT(@@innodb_api_enable_mdl);
@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.innodb_api_enable_mdl);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_api_enable_mdl = @@SESSION.innodb_api_enable_mdl;
---echo Expected error 'Readonly variable'
+SELECT innodb_api_enable_mdl;
+--echo Expected error 'Unknown column'
 
 

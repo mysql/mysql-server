@@ -1,0 +1,50 @@
+--source include/have_64bit.inc
+--source include/load_sysvars.inc
+--source include/have_nodebug.inc
+
+SELECT @@global.connection_memory_limit;
+SELECT @@session.connection_memory_limit;
+
+SET @@global.connection_memory_limit = 25666777;
+SELECT @@global.connection_memory_limit;
+
+SET @@session.connection_memory_limit = 25666777;
+SELECT @@session.connection_memory_limit;
+
+SET @@global.connection_memory_limit = -5666777;
+SELECT @@global.connection_memory_limit;
+
+SET @@session.connection_memory_limit = -5666777;
+SELECT @@session.connection_memory_limit;
+
+SET @@global.connection_memory_limit = -1;
+SELECT @@global.connection_memory_limit;
+
+SET @@session.connection_memory_limit = -1;
+SELECT @@session.connection_memory_limit;
+
+SET @@global.connection_memory_limit = 0;
+SELECT @@global.connection_memory_limit;
+
+SET @@session.connection_memory_limit = 0;
+SELECT @@session.connection_memory_limit;
+
+SET @@global.connection_memory_limit = default;
+SET @@session.connection_memory_limit = default;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET @@global.connection_memory_limit = NULL;
+SELECT @@global.connection_memory_limit;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET @@session.connection_memory_limit = NULL;
+SELECT @@session.connection_memory_limit;
+
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET @@global.connection_memory_limit = 'foo';
+SELECT @@global.connection_memory_limit;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET @@session.connection_memory_limit = 'foo';
+SELECT @@session.connection_memory_limit;

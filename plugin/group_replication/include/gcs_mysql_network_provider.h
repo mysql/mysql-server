@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -372,12 +372,12 @@ class Gcs_mysql_network_provider : public Network_provider {
   /**
    * @brief See @see Network_provider#start
    */
-  int start() override;
+  std::pair<bool, int> start() override;
 
   /**
    * @brief See @see Network_provider#stop
    */
-  int stop() override;
+  std::pair<bool, int> stop() override;
 
   /**
    * @brief Get the communication stack implemented by this class
@@ -399,20 +399,8 @@ class Gcs_mysql_network_provider : public Network_provider {
   bool configure_secure_connections(
       const Network_configuration_parameters &params) override;
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
   bool cleanup_secure_connections_context() override;
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
   bool finalize_secure_connections_context() override;
 
   /**

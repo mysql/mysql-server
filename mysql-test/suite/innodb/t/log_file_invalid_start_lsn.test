@@ -1,0 +1,49 @@
+--source include/have_debug_sync.inc
+
+# This test checks recovery executed on data directory with a redo file that has invalid metadata.
+# Scenario-1: Make start_lsn not divisible by 512.
+
+let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
+let MYSQLD_DATADIR = $tmp_dir/log_invalid_file;
+let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
+let MYSQLD_EXTRA_ARGS = ;
+let SEARCH_FILE = $MYSQLD_ERROR_LOG;
+
+--echo # Initialize new data directory...
+--source include/initialize_datadir.inc
+
+perl;
+    require 'include/ib_redo_log_files.inc';
+    my $fpath = '';
+    for my $f (log_get_non_tmp_files()) {
+        $fpath = $f;
+        last;
+    }
+    open my $fh, '+<:raw', $fpath or die "open failed: $!\n";
+    seek $fh, 8+7, 0;
+    syswrite($fh, 123, 1) == 1 or die "write failed: $!\n";
+    close $fh or die "close failed: $!\n";
+EOF
+
+# The recovery would fail because of invalid checksum (after we corrupted start_lsn and did not update checksum)
+--error 1,42
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS
+let SEARCH_PATTERN = Invalid redo log header checksum;
+--source include/search_pattern.inc
+
+let MYSQLD_EXTRA_ARGS = --debug="d,log_header_checksum_disabled";
+
+# Now, let's assume that the invalid start_lsn was written by broken InnoDB instance (so header has valid checksum)
+--error 1,42
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS
+let SEARCH_PATTERN = The redo log file .* has invalid start_lsn;
+--source include/search_pattern.inc
+
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_file_invalid_start_lsn.err
+
+--force-rmdir $MYSQLD_DATADIR
+
+let MYSQLD_ARGS=;
+let MYSQLD_EXTRA_ARGS=;
+let MYSQLD_DATADIR=;
+let MYSQLD_ERROR_LOG=;

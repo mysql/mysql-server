@@ -66,14 +66,20 @@ SET @@global.log_error_services="log_filter_internal log_sink_internal";
 SHOW WARNINGS;
 
 --echo # unknown component
---error ER_WRONG_VALUE_FOR_VAR
+# We'll have to regex down output of the form
+# ERROR HY000: Can't open shared library '/home/user/git/branch/plugin_output_directory/component_azundris.so' (errno: 0 /home/user/git/branch/plugin_output_directory/component_azundris.so: cannot open shared object file: No such)
+replace_regex /(.* ').*\\(comp.*)\..*\' \(errno: .*/\1\2'/ /(.* ').*\/(comp.*)\..*\' \(errno: .*/\1\2'/;
+--error ER_CANT_OPEN_LIBRARY
 SET @@global.log_error_services="azundris";
+replace_regex /(.* ').*\\(comp.*)\..*\' \(errno: .*/\1\2'/ /(.* ').*\/(comp.*)\..*\' \(errno: .*/\1\2'/;
 SHOW WARNINGS;
 
---echo # disallowed. this component exists, but only for internal use during
---echo # start-up; it may not be set by the user
---error ER_WRONG_VALUE_FOR_VAR
+--echo # Internal component no longer exists and is therefore looked for
+--echo # as a loadable component (which also does not exist).
+replace_regex /(.* ').*\\(comp.*)\..*\' \(errno: .*/\1\2'/ /(.* ').*\/(comp.*)\..*\' \(errno: .*/\1\2'/;
+--error ER_CANT_OPEN_LIBRARY
 SET @@global.log_error_services="log_sink_buffer";
+replace_regex /(.* ').*\\(comp.*)\..*\' \(errno: .*/\1\2'/ /(.* ').*\/(comp.*)\..*\' \(errno: .*/\1\2'/;
 SHOW WARNINGS;
 
 SELECT "logging as JSON";
@@ -147,7 +153,7 @@ perl;
      if ($stime == 0) {
        print "$line";
      }
-     elsif ($line =~ /$pattern/) {
+     elsif (($line =~ /$pattern/) and not ($line =~ /redo log/)) {
        $line =~ /([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])T([0-9][0-9]):([0-9][0-9]):([0-9][0-9])\.([0-9][0-9][0-9][0-9][0-9][0-9])[-+Z][0-9:]* *[0-9]* *?(\[.*)/;
        $ts=$1.$2.$3.$4.$5.$6.$7;
        if ($ts >= $stime) {

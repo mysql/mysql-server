@@ -2,12 +2,12 @@
 .\"     Title: ndb_blob_tool
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_BLOB_TOOL" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_BLOB_TOOL" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -186,9 +186,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -206,9 +206,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--database=db_name\fR,
+\fB--database=name\fR,
 .PP
-\fB \fR\fB-d\fR\fB \fR
+\fB \fR\fB-d name\fR\fB \fR
 T}:T{
 Database to find the table in
 T}:T{
@@ -282,9 +282,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -295,9 +295,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -390,8 +390,6 @@ T}
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -402,16 +400,6 @@ T{
 Introduced
 T}:T{
 8.0.20-ndb-8.0.20
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -452,8 +440,6 @@ Directory containing character sets\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -464,16 +450,6 @@ T{
 Introduced
 T}:T{
 8.0.20-ndb-8.0.20
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -491,23 +467,11 @@ Check for inline parts in NDB Cluster tables which have no corresponding BLOB pa
 \fB\-\-check\-orphans\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --check-orphans
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -623,7 +587,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -681,7 +645,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---database=db_name
+--database=name
 T}
 T{
 Type
@@ -811,23 +775,11 @@ Also read groups with concat(group, suffix)\&.
 \fB\-\-delete\-orphans\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --delete-orphans
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -942,7 +894,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -976,7 +928,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type
@@ -1129,23 +1081,11 @@ Display help text and exit; same as \-\-help\&.
 \fB\-\-verbose\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --verbose
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1220,7 +1160,7 @@ generates the following output:
 .RS 4
 .\}
 .nf
-shell> \fBndb_blob_tool \-\-check\-orphans \-\-verbose \-d test btest\fR
+$> \fBndb_blob_tool \-\-check\-orphans \-\-verbose \-d test btest\fR
 connected
 processing 2 blobs
 processing blob #0 c1 NDB$BLOB_19_1
@@ -1270,7 +1210,7 @@ Section\ \&11.7, \(lqData Type Storage Requirements\(rq, for more information\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -112,18 +112,66 @@ uint16_t MySQLRoutingAPI::get_bind_port() const {
 }
 
 std::vector<std::string> MySQLRoutingAPI::get_blocked_client_hosts() const {
-  return r_->get_context().get_blocked_client_hosts();
+  return r_->get_context().blocked_endpoints().get_blocked_client_hosts();
 }
 
 std::chrono::milliseconds MySQLRoutingAPI::get_client_connect_timeout() const {
   return r_->get_context().get_client_connect_timeout();
 }
 
-void MySQLRoutingComponent::init(const std::string &name,
-                                 std::shared_ptr<MySQLRoutingBase> srv) {
+void MySQLRoutingAPI::start_accepting_connections() {
+  r_->start_accepting_connections();
+}
+
+void MySQLRoutingAPI::stop_socket_acceptors() { r_->stop_socket_acceptors(); }
+
+bool MySQLRoutingAPI::is_running() const { return r_->is_running(); }
+
+void MySQLRoutingComponent::deinit() {
+  routing_common_unreachable_destinations_.stop_quarantine();
+  for (auto &route : routes_) {
+    if (auto routing_plugin = route.second.lock()) {
+      routing_plugin->get_context().shared_quarantine().reset();
+    }
+  }
+}
+
+void MySQLRoutingComponent::init(
+    const std::string &name, std::shared_ptr<MySQLRoutingBase> srv,
+    std::chrono::seconds quarantine_refresh_interval) {
+  auto &quarantine = srv->get_context().shared_quarantine();
+
+  quarantine.on_update([&](const mysql_harness::TCPAddress &addr) {
+    routing_common_unreachable_destinations_
+        .add_destination_candidate_to_quarantine(addr);
+  });
+
+  quarantine.on_is_quarantined([&](const mysql_harness::TCPAddress &addr) {
+    return routing_common_unreachable_destinations_.is_quarantined(addr);
+  });
+
+  quarantine.on_stop(
+      [&]() { routing_common_unreachable_destinations_.stop_quarantine(); });
+
+  quarantine.on_refresh([&](const std::string &instance_name,
+                            const bool nodes_changed_on_md_refresh,
+                            const AllowedNodes &available_destinations) {
+    routing_common_unreachable_destinations_.refresh_quarantine(
+        instance_name, nodes_changed_on_md_refresh, available_destinations);
+  });
+
+  routing_common_unreachable_destinations_.init(
+      name, std::move(quarantine_refresh_interval));
+
   std::lock_guard<std::mutex> lock(routes_mu_);
 
   routes_.emplace(name, std::move(srv));
+}
+
+void MySQLRoutingComponent::erase(const std::string &name) {
+  std::lock_guard<std::mutex> lock(routes_mu_);
+
+  routes_.erase(name);
 }
 
 MySQLRoutingComponent &MySQLRoutingComponent::get_instance() {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include <vector>
 
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/psi/mysql_socket.h"  // MYSQL_SOCKET
 #ifdef HAVE_POLL_H
 #include <poll.h>
@@ -95,12 +95,12 @@ struct Bind_address_info {
 };
 
 /**
-  This class represents the Mysqld_socket_listener which prepare the
-  listener sockets to recieve connection events from the client. The
+  This class represents the Mysqld_socket_listener which prepares the
+  listener sockets to receive connection events from the client. The
   Mysqld_socket_listener may be composed of either or both a tcp socket
-  which listen on a default mysqld tcp port or a user specified  port
-  via mysqld command-line  and a unix socket which is bind to a mysqld
-  defaul pathname.
+  which listens on a default mysqld tcp port or a user specified  port
+  via mysqld command-line and a unix socket which is bound to a mysqld
+  default pathname.
 */
 class Mysqld_socket_listener {
   /*

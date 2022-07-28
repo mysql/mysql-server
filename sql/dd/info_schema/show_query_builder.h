@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,7 +163,7 @@ class Select_lex_builder {
   Item *prepare_like_item(const LEX_CSTRING &field_name, const String *wild);
 
   /**
-    Prepare item representing a equal to comparision condition,
+    Prepare item representing a equal to comparison condition,
     @code
     SELECT ... WHERE <field_name> = <value> ...
     @endcode

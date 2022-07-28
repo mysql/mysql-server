@@ -1270,3 +1270,39 @@ LAST_VALUE(0) OVER (ORDER BY (@f:='x'))
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t1;
+#
+# Bug#33399696: Switch slice before reaching execution end
+#
+CREATE TABLE t(a INT, b DOUBLE);
+INSERT INTO t VALUES(1, 2.1);
+INSERT INTO t VALUES(2, 1.4);
+INSERT INTO t VALUES(1, 2.56);
+INSERT INTO t VALUES(2, 2.23);
+SELECT a, SUM(b)+1 AS cnt,
+ROW_NUMBER() OVER (ORDER BY SUM(b) DESC) AS rn
+FROM t GROUP BY a ORDER BY rn;
+a	cnt	rn
+1	5.66	1
+2	4.63	2
+SELECT a, ROUND(SUM(b), 2) AS cnt,
+ROW_NUMBER() OVER (ORDER BY SUM(b) DESC) AS rn
+FROM t GROUP BY a ORDER BY rn DESC;
+a	cnt	rn
+2	3.63	2
+1	4.66	1
+DROP TABLE t;
+#
+# Bug#33415082:Hypergraph: Query with window function crashes in do_add()
+#
+CREATE TABLE v0 (v1 INTEGER);
+INSERT INTO v0 VALUES (1);
+SELECT v1, (SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2) FROM v0;
+v1	(SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2)
+1	1
+SELECT v1, (SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2) FROM v0;
+v1	(SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2)
+1	1
+SELECT v1, (SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2) FROM v0;
+v1	(SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2)
+1	1
+DROP TABLE v0;

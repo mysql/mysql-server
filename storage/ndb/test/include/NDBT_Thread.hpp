@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,7 @@
 #ifndef NDB_THREAD_HPP
 #define NDB_THREAD_HPP
 
+#include "util/require.h"
 #include <NdbMutex.h>
 #include <NdbCondition.h>
 #include <NdbThread.h>

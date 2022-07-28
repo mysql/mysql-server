@@ -1619,7 +1619,7 @@ t1	CREATE TABLE `t1` (
 select count(*) from t1;
 count(*)
 270
-insert into t1 values(concat('a',char(1)),concat('a',char(1)),concat('a',char(1)));
+insert into t1 values(concat('a','!'),concat('a','!'),concat('a','!'));
 select count(*) from t1 where v='a';
 count(*)
 10
@@ -1710,8 +1710,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
 select TRIM(v),count(*) from t1 group by TRIM(v) order by TRIM(v) limit 10;
 TRIM(v)	count(*)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1722,8 +1722,8 @@ h	10
 i	10
 select TRIM(v),count(t) from t1 group by TRIM(v) order by TRIM(v) limit 10;
 TRIM(v)	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1734,8 +1734,8 @@ h	10
 i	10
 select TRIM(v),count(c) from t1 group by TRIM(v) order by TRIM(v) limit 10;
 TRIM(v)	count(c)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1746,8 +1746,8 @@ h	10
 i	10
 select sql_big_result TRIM(v),count(t) from t1 group by TRIM(v) order by TRIM(v) limit 10;
 TRIM(v)	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1758,8 +1758,8 @@ h	10
 i	10
 select sql_big_result TRIM(v),count(c) from t1 group by TRIM(v) order by TRIM(v) limit 10;
 TRIM(v)	count(c)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1770,8 +1770,8 @@ h	10
 i	10
 select c,count(*) from t1 group by c order by c limit 10;
 c	count(*)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1782,8 +1782,8 @@ h	10
 i	10
 select c,count(t) from t1 group by c order by c limit 10;
 c	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1794,8 +1794,8 @@ h	10
 i	10
 select sql_big_result c,count(t) from t1 group by c limit 10;
 c	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1806,8 +1806,8 @@ h	10
 i	10
 select TRIM(t),count(*) from t1 group by TRIM(t) order by TRIM(t) limit 10;
 TRIM(t)	count(*)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1818,8 +1818,8 @@ h	10
 i	10
 select TRIM(t),count(t) from t1 group by TRIM(t) order by TRIM(t) limit 10;
 TRIM(t)	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1830,8 +1830,8 @@ h	10
 i	10
 select sql_big_result TRIM(t),count(t) from t1 group by TRIM(t) order by TRIM(t) limit 10;
 TRIM(t)	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1896,8 +1896,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
 select v,count(*) from t1 group by v order by v limit 10;
 v	count(*)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1908,8 +1908,8 @@ h	10
 i	10
 select TRIM(v),count(t) from t1 group by v order by v limit 10;
 TRIM(v)	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1920,8 +1920,8 @@ h	10
 i	10
 select sql_big_result TRIM(v),count(t) from t1 group by v order by v limit 10;
 TRIM(v)	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1986,8 +1986,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
 select TRIM(v),count(*) from t1 group by v order by v limit 10;
 TRIM(v)	count(*)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -1998,8 +1998,8 @@ h	10
 i	10
 select TRIM(v),count(t) from t1 group by v order by v limit 10;
 TRIM(v)	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -2010,8 +2010,8 @@ h	10
 i	10
 select sql_big_result TRIM(v),count(t) from t1 group by v order by v limit 10;
 TRIM(v)	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -2033,8 +2033,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 select TRIM(v),count(*) from t1 group by v order by v limit 10;
 TRIM(v)	count(*)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -2045,8 +2045,8 @@ h	10
 i	10
 select TRIM(v),count(t) from t1 group by v order by v limit 10;
 TRIM(v)	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -2057,8 +2057,8 @@ h	10
 i	10
 select sql_big_result TRIM(v),count(t) from t1 group by v order by v limit 10;
 TRIM(v)	count(t)
-a	1
 a	10
+a!	1
 b	10
 c	10
 d	10
@@ -2118,7 +2118,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
+  `v` char(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
@@ -2172,7 +2172,7 @@ Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` mediumtext CHARACTER SET utf8 COLLATE utf8_general_ci
+  `v` mediumtext CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = default;

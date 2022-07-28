@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/AllocMem.hpp>
+#include "util/require.h"
 #include "Ndbfs.hpp"
 #include <NdbSleep.h>
 
@@ -123,6 +124,7 @@ void
 AsyncIoThread::dispatch(Request *request)
 {
   assert(m_current_file);
+  require(m_current_file->thread_bound());
   assert(m_current_file->getThread() == this);
   assert(theMemoryChannelPtr == &theMemoryChannel);
   theMemoryChannelPtr->writeChannel(request);
@@ -138,8 +140,8 @@ AsyncIoThread::run()
   // Create theMemoryChannel in the thread that will wait for it
   NdbMutex_Lock(theStartMutexPtr);
   theStartFlag = true;
-  NdbMutex_Unlock(theStartMutexPtr);
   NdbCondition_Signal(theStartConditionPtr);
+  NdbMutex_Unlock(theStartMutexPtr);
 
   EmulatedJamBuffer jamBuffer;
   jamBuffer.theEmulatedJamIndex = 0;
@@ -191,11 +193,16 @@ AsyncIoThread::run()
     }//if
 
     AsyncFile * file = request->file;
+    /*
+     * Associate request with thread to be able to reuse encryption context
+     * m_openssl_evp_op.
+     */
+    request->thread = this;
     m_current_request= request;
     switch (request->action) {
     case Request::open:
       file->openReq(request);
-      if (request->error == 0 && request->m_do_bind)
+      if (request->error.code == 0 && request->m_do_bind)
         attach(file);
       break;
     case Request::close:
@@ -282,7 +289,7 @@ AsyncIoThread::allocMemReq(Request* request)
     bool memlock = !!(request->par.alloc.requestInfo & AllocMemReq::RT_MEMLOCK);
     request->par.alloc.ctx->m_mm.map(&watchDog, memlock);
     request->par.alloc.bytes = 0;
-    request->error = 0;
+    NDBFS_SET_REQUEST_ERROR(request, 0);
     break;
   }
   case AllocMemReq::RT_EXTEND:
@@ -291,7 +298,7 @@ AsyncIoThread::allocMemReq(Request* request)
      */
     assert(false);
     request->par.alloc.bytes = 0;
-    request->error = 1;
+    NDBFS_SET_REQUEST_ERROR(request, 1);
     break;
   }
 }
@@ -309,9 +316,14 @@ AsyncIoThread::buildIndxReq(Request* request)
 
   mt_BuildIndxReq req;
   memcpy(&req, &request->par.build.m_req, sizeof(req));
-  req.mem_buffer = request->file->m_page_ptr.p;
-  req.buffer_size = request->file->m_page_cnt * sizeof(GlobalPage);
-  request->error = (* req.func_ptr)(&req);
+  Uint32 rg;
+  Ptr<GlobalPage> ptr;
+  Uint32 cnt;
+  bool has_buffer = request->file->get_buffer(rg, ptr, cnt);
+  require(has_buffer);
+  req.mem_buffer = ptr.p;
+  req.buffer_size = cnt * sizeof(GlobalPage);
+  NDBFS_SET_REQUEST_ERROR(request, (* req.func_ptr)(&req));
 }
 
 void
@@ -329,7 +341,7 @@ AsyncIoThread::detach(AsyncFile* file)
 {
   if (m_current_file == 0)
   {
-    assert(file->getThread() == 0);
+    assert(!file->thread_bound());
   }
   else
   {

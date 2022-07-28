@@ -27,13 +27,13 @@ show grants for user1@localhost;
 Grants for user1@localhost
 GRANT USAGE ON *.* TO `user1`@`localhost`
 
-# Connect (con_user0, localhost, user0, , )
+# Connect (con_user0, 127.0.0.1, user0, , , MASTER_MYPORT, )
 
 select connection_id() into @con_user0_id;
-# Connect (con_user1, localhost, user1, , )
-# Connect (con_user2, localhost, user2, , )
-# Connect (con_user3, localhost, user3, , )
-# Connect (con_user4, localhost, user4, , )
+# Connect (con_user1, 127.0.0.1, user1, , , MASTER_MYPORT, )
+# Connect (con_user2, 127.0.0.1, user2, , , MASTER_MYPORT, )
+# Connect (con_user3, 127.0.0.1, user3, , , MASTER_MYPORT, )
+# Connect (con_user4, 127.0.0.1, user4, , , MASTER_MYPORT, )
 # Connection user0
 
 ### Compare the SHOW PROCESSLIST Host column between the new and old implementations
@@ -54,14 +54,14 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
 
 # Information Schema processlist table
 
@@ -94,14 +94,14 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
 
 # Information Schema processlist table
 

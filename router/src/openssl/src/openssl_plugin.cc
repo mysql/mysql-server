@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,6 @@
 
 #include <memory>
 
-#include <openssl/conf.h>
-#include <openssl/engine.h>
-#include <openssl/err.h>
-#include <openssl/opensslv.h>
-#include <openssl/ssl.h>
-
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/tls_context.h"
 
@@ -41,7 +35,7 @@ std::unique_ptr<TlsLibraryContext> tls_library_context;
 
 static void init(mysql_harness::PluginFuncEnv *) {
   // let the TlsLibraryContext constructor do the SSL initialization
-  tls_library_context.reset(new TlsLibraryContext());
+  tls_library_context = std::make_unique<TlsLibraryContext>();
 }
 
 static void deinit(mysql_harness::PluginFuncEnv *) {
@@ -50,16 +44,22 @@ static void deinit(mysql_harness::PluginFuncEnv *) {
 }
 
 mysql_harness::Plugin ROUTER_OPENSSL_EXPORT harness_plugin_router_openssl = {
-    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "openssl init plugin", VERSION_NUMBER(0, 0, 1),
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "openssl init plugin",
+    VERSION_NUMBER(0, 0, 1),
     // requires
-    0, nullptr,
+    0,
+    nullptr,
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     nullptr,  // start
     nullptr,  // stop
-    false     // declare_readiness
+    false,    // declare_readiness
+    0,
+    nullptr,
 };
 }

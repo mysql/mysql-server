@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -32,14 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "read0read.h"
 
-/** Determines if a transaction is in the given state.
- The caller must hold trx_sys->mutex, or it must be the thread
- that is serving a running transaction.
- A running RW transaction must be in trx_sys->rw_trx_list.
- @return true if trx->state == state */
-static inline bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
-                                trx_state_t state) /*!< in: state */
-{
+static inline bool trx_state_eq(const trx_t *trx, trx_state_t state) {
   const auto trx_state = trx->state.load(std::memory_order_relaxed);
 #ifdef UNIV_DEBUG
   switch (trx_state) {
@@ -76,7 +69,7 @@ static inline bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
 }
 
 /** Retrieves the index causing error from a trx.
-@param[in]	trx	trx object
+@param[in]      trx     trx object
 @return the error index */
 static inline const dict_index_t *trx_get_error_index(const trx_t *trx) {
   return (trx->error_index);
@@ -109,7 +102,7 @@ transactions are unique. The values returned by this function for readonly
 transactions may be reused, so a subsequent RO transaction may get the same ID
 as a RO transaction that existed in the past. The values returned by this
 function should be used for printing purposes only.
-@param[in]	trx	transaction whose id to retrieve
+@param[in]      trx     transaction whose id to retrieve
 @return transaction id */
 static inline trx_id_t trx_get_id_for_print(const trx_t *trx) {
   /* Readonly and transactions whose intentions are unknown (whether
@@ -156,8 +149,9 @@ static inline enum trx_dict_op_t trx_get_dict_operation(
       return (op);
   }
   ut_error;
-#endif /* UNIV_DEBUG */
+#else /* UNIV_DEBUG */
   return (op);
+#endif
 }
 /** Flag a transaction a dictionary operation. */
 static inline void trx_set_dict_operation(
@@ -242,21 +236,21 @@ static inline void trx_release_reference(trx_t *trx) {
 }
 
 /**
-@param trx		Get the active view for this transaction, if one exists
+@param trx              Get the active view for this transaction, if one exists
 @return the transaction's read view or NULL if one not assigned. */
 static inline ReadView *trx_get_read_view(trx_t *trx) {
   return (!MVCC::is_view_active(trx->read_view) ? nullptr : trx->read_view);
 }
 
 /**
-@param trx		Get the active view for this transaction, if one exists
+@param trx              Get the active view for this transaction, if one exists
 @return the transaction's read view or NULL if one not assigned. */
 static inline const ReadView *trx_get_read_view(const trx_t *trx) {
   return (!MVCC::is_view_active(trx->read_view) ? nullptr : trx->read_view);
 }
 
 /**
-@param[in] trx		Transaction to check
+@param[in] trx          Transaction to check
 @return true if the transaction is a high priority transaction.*/
 static inline bool trx_is_high_priority(const trx_t *trx) {
   if (trx->mysql_thd == nullptr) {
@@ -267,8 +261,8 @@ static inline bool trx_is_high_priority(const trx_t *trx) {
 }
 
 /**
-@param[in] requestor	Transaction requesting the lock
-@param[in] holder	Transaction holding the lock
+@param[in] requestor    Transaction requesting the lock
+@param[in] holder       Transaction holding the lock
 @return the transaction that will be rolled back, null don't care */
 static inline const trx_t *trx_arbitrate(const trx_t *requestor,
                                          const trx_t *holder) {

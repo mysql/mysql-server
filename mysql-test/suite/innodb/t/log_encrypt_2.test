@@ -11,7 +11,7 @@ call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master k
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Function 'keyring_file' already exists");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
 call mtr.add_suppression("Plugin keyring_file reported");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set redo log files to be encrypted.");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 --enable_query_log
 

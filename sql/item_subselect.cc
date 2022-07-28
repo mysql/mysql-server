@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,17 +52,20 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"
-#include "sql/basic_row_iterators.h"  // ZeroRowsIterator
 #include "sql/check_stack.h"
-#include "sql/composite_iterators.h"  // FilterIterator
-#include "sql/current_thd.h"          // current_thd
-#include "sql/debug_sync.h"           // DEBUG_SYNC
-#include "sql/derror.h"               // ER_THD
+#include "sql/current_thd.h"  // current_thd
+#include "sql/debug_sync.h"   // DEBUG_SYNC
+#include "sql/derror.h"       // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
-#include "sql/item_sum.h"  // Item_sum_max
+#include "sql/item_sum.h"                       // Item_sum_max
+#include "sql/iterators/basic_row_iterators.h"  // ZeroRowsIterator
+#include "sql/iterators/composite_iterators.h"  // FilterIterator
+#include "sql/iterators/ref_row_iterators.h"
+#include "sql/iterators/row_iterator.h"  // RowIterator
+#include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
@@ -74,9 +77,7 @@
 #include "sql/parse_tree_nodes.h"  // PT_subquery
 #include "sql/query_options.h"
 #include "sql/query_result.h"
-#include "sql/ref_row_iterators.h"
-#include "sql/row_iterator.h"  // RowIterator
-#include "sql/sql_class.h"     // THD
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
@@ -92,7 +93,6 @@
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "sql/thd_raii.h"
-#include "sql/timing_iterator.h"
 #include "sql/window.h"
 #include "sql_string.h"
 #include "template_utils.h"
@@ -274,7 +274,7 @@ void Item_subselect::accumulate_properties(Query_block *select) {
 void Item_subselect::accumulate_expression(Item *item) {
   if (item->used_tables() & ~OUTER_REF_TABLE_BIT)
     used_tables_cache |= INNER_TABLE_BIT;
-  set_nullable(is_nullable() | item->is_nullable());
+  set_nullable(is_nullable() || item->is_nullable());
 }
 
 /**
@@ -365,7 +365,7 @@ void Item_singlerow_subselect::cleanup() {
                       operator
 
   @param[in] col      The column number of the expression in the left operand
-                      to possibly mark as dependant of the outer select
+                      to possibly mark as dependent of the outer select
 
   @returns true if we should mark the injected left expression "outer"
                 relative to the subquery
@@ -807,7 +807,9 @@ bool Item_subselect::resolve_type(THD *) {
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg) {
   DBUG_TRACE;
-  if (!has_aggregation() && !const_item()) {
+  if (!has_aggregation() && !(const_for_execution() &&
+                              evaluate_during_optimization(
+                                  this, thd_arg->lex->current_query_block()))) {
     Item *result = new Item_field(result_field);
     return result;
   }
@@ -961,7 +963,7 @@ bool Query_result_max_min_subquery::send_data(
           break;
         case ROW_RESULT:
         case INVALID_RESULT:
-          // This case should never be choosen
+          // This case should never be chosen
           assert(0);
           op = nullptr;
       }
@@ -980,7 +982,7 @@ bool Query_result_max_min_subquery::send_data(
   maximum/minimum number seen this far. If fmax==true, this is a
   comparison for MAX, otherwise it is a comparison for MIN.
 
-  val1 is the new numer to compare against the current
+  val1 is the new number to compare against the current
   maximum/minimum. val2 is the current maximum/minimum.
 
   ignore_nulls is used to control behavior when comparing with a NULL
@@ -1101,7 +1103,7 @@ void Item_singlerow_subselect::reset() {
 
 /**
   @todo
-  - We cant change name of Item_field or Item_ref, because it will
+  - We can't change name of Item_field or Item_ref, because it will
   prevent it's correct resolving, but we should save name of
   removed item => we do not make optimization if top item of
   list is field or reference.
@@ -1902,7 +1904,7 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
     @param select Query block of the subquery
     @param func   Subquery comparison creator
 
-    @retval RES_OK     Either subquery was transformed, or appopriate
+    @retval RES_OK     Either subquery was transformed, or appropriate
                        predicates where injected into it.
     @retval RES_REDUCE The subquery was reduced to non-subquery
     @retval RES_ERROR  Error
@@ -2178,7 +2180,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_transformer(
 }
 
 /**
-  Tranform a (possibly non-correlated) IN subquery into a correlated EXISTS.
+  Transform a (possibly non-correlated) IN subquery into a correlated EXISTS.
 
   @todo
   The IF-ELSE below can be refactored so that there is no duplication of the
@@ -2291,7 +2293,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
                                 is_not_null_test(v3))
       where is_not_null_test register NULLs values but reject rows
 
-      in case when we do not need correct NULL, we have simplier construction:
+      in case when we do not need correct NULL, we have a simpler construction:
       EXISTS (SELECT ... WHERE where and
                                (l1 = v1) and
                                (l2 = v2) and
@@ -2329,7 +2331,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
         item->set_created_by_in2exists();
         /*
           TODO: why we create the above for cases where the right part
-                cant be NULL?
+                can't be NULL?
         */
         if (left_expr->element_index(i)->is_nullable()) {
           if (!(item = new Item_func_trig_cond(
@@ -2437,7 +2439,7 @@ Item_subselect::trans_res Item_in_subselect::select_in_like_transformer(
   /*
     In some optimisation cases we will not need this Item_in_optimizer
     object, but we can't know it here, but here we need address correct
-    reference on left expresion.
+    reference on left expression.
 
     //psergey: he means confluent cases like "... IN (SELECT 1)"
   */
@@ -2559,7 +2561,7 @@ bool Item_in_subselect::init_left_expr_cache(THD *thd) {
   /*
     Check if the left operand is a subquery that yields an empty set of rows.
     If so, skip initializing a cache; for an empty set the subquery
-    exec won't read any rows and so lead to uninitalized reads if attempted.
+    exec won't read any rows and so lead to uninitialized reads if attempted.
   */
   if (left_expr->type() == SUBSELECT_ITEM && left_expr->null_value) {
     return false;
@@ -2653,15 +2655,14 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
     in the SELECT list via an alias.
     In that case, do not remove this subselect.
   */
-  auto *ctx = pointer_cast<Cleanup_after_removal_context *>(arg);
-  Query_block *root = nullptr;
+  Query_block *const root =
+      pointer_cast<Cleanup_after_removal_context *>(arg)->get_root();
 
-  if (ctx != nullptr) {
-    if ((ctx->m_root->resolve_place != Query_block::RESOLVE_SELECT_LIST) &&
-        ctx->m_root->is_in_select_list(this))
-      return false;
-    root = ctx->m_root;
+  if ((root->resolve_place != Query_block::RESOLVE_SELECT_LIST) &&
+      root->is_in_select_list(this)) {
+    return false;
   }
+
   Query_block *sl = unit->outer_query_block();
 
   // Notify flatten_subqueries() that subquery has been removed.

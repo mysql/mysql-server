@@ -19,20 +19,20 @@ SELECT collation_connection;
 ERROR 42S22: Unknown column 'collation_connection' in 'field list'
 SET collation_connection=utf8_unicode_ci;
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_unicode_ci
+utf8mb3_unicode_ci
 SET global.collation_connection=utf8_unicode_ci;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.collation_connection=utf8_unicode_ci' at line 1
 SET session collation_connection=utf8_unicode_ci;
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT session collation_connection;
 ERROR 42S22: Unknown column 'session' in 'field list'
 SET global collation_connection=utf8_unicode_ci;
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT global collation_connection;
 ERROR 42S22: Unknown column 'global' in 'field list'
 '#--------------------FN_DYNVARS_015_02-------------------------#'
@@ -40,7 +40,7 @@ SET @@collation_connection = latin1_bin;
 SET @@collation_connection = DEFAULT;
 SELECT @@collation_connection AS DEFAULT_VALUE;
 DEFAULT_VALUE
-utf8_unicode_ci
+utf8mb3_unicode_ci
 SET @@global.collation_connection = latin1_bin;
 SET @@global.collation_connection = DEFAULT;
 SELECT @@global.collation_connection;
@@ -49,17 +49,17 @@ utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_015_03-------------------------#'
 SET @@session.collation_connection = utf8_polish_ci;
 Warnings:
-Warning	3778	'utf8_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_polish_ci
+utf8mb3_polish_ci
 SET @@global.collation_connection = latin7_general_ci;
 SELECT @@global.collation_connection;
 @@global.collation_connection
 latin7_general_ci
 SELECT @@session.collation_connection AS res_is_utf8_polish_ci;
 res_is_utf8_polish_ci
-utf8_polish_ci
+utf8mb3_polish_ci
 SET @@session.collation_connection = latin7_bin;
 SELECT @@session.collation_connection;
 @@session.collation_connection
@@ -91,10 +91,14 @@ SELECT @@session.collation_connection;
 @@session.collation_connection
 big5_bin
 SET @@session.collation_connection = dec8_swedish_ci;
+Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 dec8_swedish_ci
 SET @@session.collation_connection = dec8_bin;
+Warnings:
+Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 dec8_bin
@@ -107,10 +111,14 @@ SELECT @@session.collation_connection;
 @@session.collation_connection
 cp850_bin
 SET @@session.collation_connection = hp8_english_ci;
+Warnings:
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 hp8_english_ci
 SET @@session.collation_connection = hp8_bin;
+Warnings:
+Warning	4079	'hp8_bin' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 hp8_bin
@@ -308,221 +316,265 @@ SELECT @@session.collation_connection;
 armscii8_bin
 SET @@session.collation_connection = utf8_general_ci;
 Warnings:
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_general_ci
+utf8mb3_general_ci
 SET @@session.collation_connection = utf8_bin;
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_bin
+utf8mb3_bin
 SET @@session.collation_connection = utf8_unicode_ci;
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_unicode_ci
+utf8mb3_unicode_ci
 SET @@session.collation_connection = utf8_icelandic_ci;
 Warnings:
-Warning	3778	'utf8_icelandic_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_icelandic_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_icelandic_ci
+utf8mb3_icelandic_ci
 SET @@session.collation_connection = utf8_latvian_ci;
 Warnings:
-Warning	3778	'utf8_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_latvian_ci
+utf8mb3_latvian_ci
 SET @@session.collation_connection = utf8_romanian_ci;
 Warnings:
-Warning	3778	'utf8_romanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_romanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_romanian_ci
+utf8mb3_romanian_ci
 SET @@session.collation_connection = utf8_slovenian_ci;
 Warnings:
-Warning	3778	'utf8_slovenian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_slovenian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_slovenian_ci
+utf8mb3_slovenian_ci
 SET @@session.collation_connection = utf8_polish_ci;
 Warnings:
-Warning	3778	'utf8_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_polish_ci
+utf8mb3_polish_ci
 SET @@session.collation_connection = utf8_estonian_ci;
 Warnings:
-Warning	3778	'utf8_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_estonian_ci
+utf8mb3_estonian_ci
 SET @@session.collation_connection = utf8_spanish_ci;
 Warnings:
-Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_spanish_ci
+utf8mb3_spanish_ci
 SET @@session.collation_connection = utf8_swedish_ci;
 Warnings:
-Warning	3778	'utf8_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_swedish_ci
+utf8mb3_swedish_ci
 SET @@session.collation_connection = utf8_turkish_ci;
 Warnings:
-Warning	3778	'utf8_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_turkish_ci
+utf8mb3_turkish_ci
 SET @@session.collation_connection = utf8_czech_ci;
 Warnings:
-Warning	3778	'utf8_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_czech_ci
+utf8mb3_czech_ci
 SET @@session.collation_connection = utf8_danish_ci;
 Warnings:
-Warning	3778	'utf8_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_danish_ci
+utf8mb3_danish_ci
 SET @@session.collation_connection = utf8_lithuanian_ci;
 Warnings:
-Warning	3778	'utf8_lithuanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_lithuanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_lithuanian_ci
+utf8mb3_lithuanian_ci
 SET @@session.collation_connection = utf8_slovak_ci;
 Warnings:
-Warning	3778	'utf8_slovak_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_slovak_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_slovak_ci
+utf8mb3_slovak_ci
 SET @@session.collation_connection = utf8_spanish2_ci;
 Warnings:
-Warning	3778	'utf8_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_spanish2_ci
+utf8mb3_spanish2_ci
 SET @@session.collation_connection = utf8_roman_ci;
 Warnings:
-Warning	3778	'utf8_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_roman_ci
+utf8mb3_roman_ci
 SET @@session.collation_connection = utf8_persian_ci;
 Warnings:
-Warning	3778	'utf8_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_persian_ci
+utf8mb3_persian_ci
 SET @@session.collation_connection = utf8_esperanto_ci;
 Warnings:
-Warning	3778	'utf8_esperanto_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_esperanto_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_esperanto_ci
+utf8mb3_esperanto_ci
 SET @@session.collation_connection = utf8_hungarian_ci;
 Warnings:
-Warning	3778	'utf8_hungarian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_hungarian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_hungarian_ci
+utf8mb3_hungarian_ci
 SET @@session.collation_connection = utf8_unicode_520_ci;
 Warnings:
-Warning	3778	'utf8_unicode_520_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_520_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_unicode_520_ci
+utf8mb3_unicode_520_ci
 SET @@session.collation_connection = ucs2_general_ci;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_general_ci
 SET @@session.collation_connection = ucs2_bin;
+Warnings:
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_bin
 SET @@session.collation_connection = ucs2_unicode_ci;
+Warnings:
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_unicode_ci
 SET @@session.collation_connection = ucs2_icelandic_ci;
+Warnings:
+Warning	4079	'ucs2_icelandic_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_icelandic_ci
 SET @@session.collation_connection = ucs2_latvian_ci;
+Warnings:
+Warning	4079	'ucs2_latvian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_latvian_ci
 SET @@session.collation_connection = ucs2_romanian_ci;
+Warnings:
+Warning	4079	'ucs2_romanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_romanian_ci
 SET @@session.collation_connection = ucs2_slovenian_ci;
+Warnings:
+Warning	4079	'ucs2_slovenian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_slovenian_ci
 SET @@session.collation_connection = ucs2_polish_ci;
+Warnings:
+Warning	4079	'ucs2_polish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_polish_ci
 SET @@session.collation_connection = ucs2_estonian_ci;
+Warnings:
+Warning	4079	'ucs2_estonian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_estonian_ci
 SET @@session.collation_connection = ucs2_spanish_ci;
+Warnings:
+Warning	4079	'ucs2_spanish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_spanish_ci
 SET @@session.collation_connection = ucs2_swedish_ci;
+Warnings:
+Warning	4079	'ucs2_swedish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_swedish_ci
 SET @@session.collation_connection = ucs2_turkish_ci;
+Warnings:
+Warning	4079	'ucs2_turkish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_turkish_ci
 SET @@session.collation_connection = ucs2_czech_ci;
+Warnings:
+Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_czech_ci
 SET @@session.collation_connection = ucs2_danish_ci;
+Warnings:
+Warning	4079	'ucs2_danish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_danish_ci
 SET @@session.collation_connection = ucs2_lithuanian_ci;
+Warnings:
+Warning	4079	'ucs2_lithuanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_lithuanian_ci
 SET @@session.collation_connection = ucs2_slovak_ci;
+Warnings:
+Warning	4079	'ucs2_slovak_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_slovak_ci
 SET @@session.collation_connection = ucs2_spanish2_ci;
+Warnings:
+Warning	4079	'ucs2_spanish2_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_spanish2_ci
 SET @@session.collation_connection = ucs2_roman_ci;
+Warnings:
+Warning	4079	'ucs2_roman_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_roman_ci
 SET @@session.collation_connection = ucs2_persian_ci;
+Warnings:
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_persian_ci
 SET @@session.collation_connection = ucs2_esperanto_ci;
+Warnings:
+Warning	4079	'ucs2_esperanto_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_esperanto_ci
 SET @@session.collation_connection = ucs2_hungarian_ci;
+Warnings:
+Warning	4079	'ucs2_hungarian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_hungarian_ci
 SET @@session.collation_connection = ucs2_unicode_520_ci;
+Warnings:
+Warning	4079	'ucs2_unicode_520_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 ucs2_unicode_520_ci
@@ -543,18 +595,26 @@ SELECT @@session.collation_connection;
 @@session.collation_connection
 keybcs2_bin
 SET @@session.collation_connection = macce_general_ci;
+Warnings:
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 macce_general_ci
 SET @@session.collation_connection = macce_bin;
+Warnings:
+Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 macce_bin
 SET @@session.collation_connection = macroman_general_ci;
+Warnings:
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 macroman_general_ci
 SET @@session.collation_connection = macroman_bin;
+Warnings:
+Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 macroman_bin
@@ -664,10 +724,14 @@ SELECT @@global.collation_connection;
 @@global.collation_connection
 big5_bin
 SET @@global.collation_connection = dec8_swedish_ci;
+Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 dec8_swedish_ci
 SET @@global.collation_connection = dec8_bin;
+Warnings:
+Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 dec8_bin
@@ -680,10 +744,14 @@ SELECT @@global.collation_connection;
 @@global.collation_connection
 cp850_bin
 SET @@global.collation_connection = hp8_english_ci;
+Warnings:
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 hp8_english_ci
 SET @@global.collation_connection = hp8_bin;
+Warnings:
+Warning	4079	'hp8_bin' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 hp8_bin
@@ -881,221 +949,265 @@ SELECT @@global.collation_connection;
 armscii8_bin
 SET @@global.collation_connection = utf8_general_ci;
 Warnings:
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_general_ci
+utf8mb3_general_ci
 SET @@global.collation_connection = utf8_bin;
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_bin
+utf8mb3_bin
 SET @@global.collation_connection = utf8_unicode_ci;
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_unicode_ci
+utf8mb3_unicode_ci
 SET @@global.collation_connection = utf8_icelandic_ci;
 Warnings:
-Warning	3778	'utf8_icelandic_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_icelandic_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_icelandic_ci
+utf8mb3_icelandic_ci
 SET @@global.collation_connection = utf8_latvian_ci;
 Warnings:
-Warning	3778	'utf8_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_latvian_ci
+utf8mb3_latvian_ci
 SET @@global.collation_connection = utf8_romanian_ci;
 Warnings:
-Warning	3778	'utf8_romanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_romanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_romanian_ci
+utf8mb3_romanian_ci
 SET @@global.collation_connection = utf8_slovenian_ci;
 Warnings:
-Warning	3778	'utf8_slovenian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_slovenian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_slovenian_ci
+utf8mb3_slovenian_ci
 SET @@global.collation_connection = utf8_polish_ci;
 Warnings:
-Warning	3778	'utf8_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_polish_ci
+utf8mb3_polish_ci
 SET @@global.collation_connection = utf8_estonian_ci;
 Warnings:
-Warning	3778	'utf8_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_estonian_ci
+utf8mb3_estonian_ci
 SET @@global.collation_connection = utf8_spanish_ci;
 Warnings:
-Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_spanish_ci
+utf8mb3_spanish_ci
 SET @@global.collation_connection = utf8_swedish_ci;
 Warnings:
-Warning	3778	'utf8_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_swedish_ci
+utf8mb3_swedish_ci
 SET @@global.collation_connection = utf8_turkish_ci;
 Warnings:
-Warning	3778	'utf8_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_turkish_ci
+utf8mb3_turkish_ci
 SET @@global.collation_connection = utf8_czech_ci;
 Warnings:
-Warning	3778	'utf8_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_czech_ci
+utf8mb3_czech_ci
 SET @@global.collation_connection = utf8_danish_ci;
 Warnings:
-Warning	3778	'utf8_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_danish_ci
+utf8mb3_danish_ci
 SET @@global.collation_connection = utf8_lithuanian_ci;
 Warnings:
-Warning	3778	'utf8_lithuanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_lithuanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_lithuanian_ci
+utf8mb3_lithuanian_ci
 SET @@global.collation_connection = utf8_slovak_ci;
 Warnings:
-Warning	3778	'utf8_slovak_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_slovak_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_slovak_ci
+utf8mb3_slovak_ci
 SET @@global.collation_connection = utf8_spanish2_ci;
 Warnings:
-Warning	3778	'utf8_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_spanish2_ci
+utf8mb3_spanish2_ci
 SET @@global.collation_connection = utf8_roman_ci;
 Warnings:
-Warning	3778	'utf8_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_roman_ci
+utf8mb3_roman_ci
 SET @@global.collation_connection = utf8_persian_ci;
 Warnings:
-Warning	3778	'utf8_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_persian_ci
+utf8mb3_persian_ci
 SET @@global.collation_connection = utf8_esperanto_ci;
 Warnings:
-Warning	3778	'utf8_esperanto_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_esperanto_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_esperanto_ci
+utf8mb3_esperanto_ci
 SET @@global.collation_connection = utf8_hungarian_ci;
 Warnings:
-Warning	3778	'utf8_hungarian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_hungarian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_hungarian_ci
+utf8mb3_hungarian_ci
 SET @@global.collation_connection = utf8_unicode_520_ci;
 Warnings:
-Warning	3778	'utf8_unicode_520_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_520_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_unicode_520_ci
+utf8mb3_unicode_520_ci
 SET @@global.collation_connection = ucs2_general_ci;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_general_ci
 SET @@global.collation_connection = ucs2_bin;
+Warnings:
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_bin
 SET @@global.collation_connection = ucs2_unicode_ci;
+Warnings:
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_unicode_ci
 SET @@global.collation_connection = ucs2_icelandic_ci;
+Warnings:
+Warning	4079	'ucs2_icelandic_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_icelandic_ci
 SET @@global.collation_connection = ucs2_latvian_ci;
+Warnings:
+Warning	4079	'ucs2_latvian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_latvian_ci
 SET @@global.collation_connection = ucs2_romanian_ci;
+Warnings:
+Warning	4079	'ucs2_romanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_romanian_ci
 SET @@global.collation_connection = ucs2_slovenian_ci;
+Warnings:
+Warning	4079	'ucs2_slovenian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_slovenian_ci
 SET @@global.collation_connection = ucs2_polish_ci;
+Warnings:
+Warning	4079	'ucs2_polish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_polish_ci
 SET @@global.collation_connection = ucs2_estonian_ci;
+Warnings:
+Warning	4079	'ucs2_estonian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_estonian_ci
 SET @@global.collation_connection = ucs2_spanish_ci;
+Warnings:
+Warning	4079	'ucs2_spanish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_spanish_ci
 SET @@global.collation_connection = ucs2_swedish_ci;
+Warnings:
+Warning	4079	'ucs2_swedish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_swedish_ci
 SET @@global.collation_connection = ucs2_turkish_ci;
+Warnings:
+Warning	4079	'ucs2_turkish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_turkish_ci
 SET @@global.collation_connection = ucs2_czech_ci;
+Warnings:
+Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_czech_ci
 SET @@global.collation_connection = ucs2_danish_ci;
+Warnings:
+Warning	4079	'ucs2_danish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_danish_ci
 SET @@global.collation_connection = ucs2_lithuanian_ci;
+Warnings:
+Warning	4079	'ucs2_lithuanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_lithuanian_ci
 SET @@global.collation_connection = ucs2_slovak_ci;
+Warnings:
+Warning	4079	'ucs2_slovak_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_slovak_ci
 SET @@global.collation_connection = ucs2_spanish2_ci;
+Warnings:
+Warning	4079	'ucs2_spanish2_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_spanish2_ci
 SET @@global.collation_connection = ucs2_roman_ci;
+Warnings:
+Warning	4079	'ucs2_roman_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_roman_ci
 SET @@global.collation_connection = ucs2_persian_ci;
+Warnings:
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_persian_ci
 SET @@global.collation_connection = ucs2_esperanto_ci;
+Warnings:
+Warning	4079	'ucs2_esperanto_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_esperanto_ci
 SET @@global.collation_connection = ucs2_hungarian_ci;
+Warnings:
+Warning	4079	'ucs2_hungarian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_hungarian_ci
 SET @@global.collation_connection = ucs2_unicode_520_ci;
+Warnings:
+Warning	4079	'ucs2_unicode_520_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 ucs2_unicode_520_ci
@@ -1116,18 +1228,26 @@ SELECT @@global.collation_connection;
 @@global.collation_connection
 keybcs2_bin
 SET @@global.collation_connection = macce_general_ci;
+Warnings:
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 macce_general_ci
 SET @@global.collation_connection = macce_bin;
+Warnings:
+Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 macce_bin
 SET @@global.collation_connection = macroman_general_ci;
+Warnings:
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 macroman_general_ci
 SET @@global.collation_connection = macroman_bin;
+Warnings:
+Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 macroman_bin
@@ -1250,6 +1370,8 @@ SELECT @@collation_connection;
 @@collation_connection
 latin2_czech_cs
 SET @@collation_connection = 3;
+Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@collation_connection;
 @@collation_connection
 dec8_swedish_ci
@@ -1268,6 +1390,8 @@ SELECT @@global.collation_connection;
 @@global.collation_connection
 latin2_czech_cs
 SET @@global.collation_connection = 3;
+Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 dec8_swedish_ci

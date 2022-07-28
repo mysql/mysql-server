@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,7 @@
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
+#include "sql/malloc_allocator.h"
 
 /*
   Encoding of the group_replication_enforce_update_everywhere_checks
@@ -176,6 +177,64 @@ class Group_member_info : public Plugin_gcs_message {
     MEMBER_ROLE_SECONDARY,
     MEMBER_ROLE_END
   } Group_member_role;
+
+  /*
+    Allocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] size    memory size to be allocated
+    @param[in] nothrow When the nothrow constant is passed as second parameter
+                       to operator new, operator new returns a null-pointer on
+                       failure instead of throwing a bad_alloc exception.
+
+    @return pointer to the allocated memory, or NULL if memory could not
+            be allocated.
+  */
+  void *operator new(size_t size, const std::nothrow_t &) noexcept {
+    /*
+      Call my_malloc() with the MY_WME flag to make sure that it will
+      write an error message if the memory could not be allocated.
+    */
+    return my_malloc(key_group_member_info, size, MYF(MY_WME));
+  }
+
+  /*
+    Deallocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] ptr     pointer to the allocated memory
+    @param[in] nothrow When the nothrow constant is passed as second parameter
+                       to operator new, operator new returns a null-pointer on
+                       failure instead of throwing a bad_alloc exception.
+  */
+  void operator delete(void *ptr, const std::nothrow_t &) noexcept {
+    my_free(ptr);
+  }
+
+  /**
+    Allocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] size    memory size to be allocated
+
+    @return pointer to the allocated memory, or NULL if memory could not
+            be allocated.
+  */
+  void *operator new(size_t size) noexcept {
+    /*
+      Call my_malloc() with the MY_WME flag to make sure that it will
+      write an error message if the memory could not be allocated.
+    */
+    return my_malloc(key_group_member_info, size, MYF(MY_WME));
+  }
+
+  /**
+    Deallocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] ptr     pointer to the allocated memory
+  */
+  void operator delete(void *ptr) noexcept { my_free(ptr); }
 
   /**
     Group_member_info constructor
@@ -624,6 +683,16 @@ class Group_member_info : public Plugin_gcs_message {
   PSI_mutex_key psi_mutex_key;
 };
 
+typedef std::vector<Group_member_info *, Malloc_allocator<Group_member_info *>>
+    Group_member_info_list;
+typedef Group_member_info_list::iterator Group_member_info_list_iterator;
+
+typedef std::map<
+    std::string, Group_member_info *, std::less<std::string>,
+    Malloc_allocator<std::pair<const std::string, Group_member_info *>>>
+    Group_member_info_map;
+typedef Group_member_info_map::iterator Group_member_info_map_iterator;
+
 /*
   @interface Group_member_info_manager_interface
 
@@ -710,7 +779,7 @@ class Group_member_info_manager_interface {
 
     @return a vector with copies to all managed Group_member_info
    */
-  virtual std::vector<Group_member_info *> *get_all_members() = 0;
+  virtual Group_member_info_list *get_all_members() = 0;
 
   /**
     Retrieves all ONLINE Group members managed by this site, or
@@ -746,7 +815,7 @@ class Group_member_info_manager_interface {
 
     @param[in] new_members new Group members
    */
-  virtual void update(std::vector<Group_member_info *> *new_members) = 0;
+  virtual void update(Group_member_info_list *new_members) = 0;
 
   /**
     Updates the status of a single member
@@ -844,8 +913,8 @@ class Group_member_info_manager_interface {
     @param[in] length    raw encoded data length
     @return a vector of Group_member_info references
    */
-  virtual std::vector<Group_member_info *> *decode(const uchar *to_decode,
-                                                   size_t length) = 0;
+  virtual Group_member_info_list *decode(const uchar *to_decode,
+                                         size_t length) = 0;
 
   /**
     Check if some member of the group has the conflict detection enable
@@ -935,6 +1004,64 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   ~Group_member_info_manager() override;
 
+  /*
+    Allocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] size    memory size to be allocated
+    @param[in] nothrow When the nothrow constant is passed as second parameter
+                       to operator new, operator new returns a null-pointer on
+                       failure instead of throwing a bad_alloc exception.
+
+    @return pointer to the allocated memory, or NULL if memory could not
+            be allocated.
+  */
+  void *operator new(size_t size, const std::nothrow_t &) noexcept {
+    /*
+      Call my_malloc() with the MY_WME flag to make sure that it will
+      write an error message if the memory could not be allocated.
+    */
+    return my_malloc(key_group_member_info, size, MYF(MY_WME));
+  }
+
+  /*
+    Deallocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] ptr     pointer to the allocated memory
+    @param[in] nothrow When the nothrow constant is passed as second parameter
+                       to operator new, operator new returns a null-pointer on
+                       failure instead of throwing a bad_alloc exception.
+  */
+  void operator delete(void *ptr, const std::nothrow_t &) noexcept {
+    my_free(ptr);
+  }
+
+  /**
+    Allocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] size    memory size to be allocated
+
+    @return pointer to the allocated memory, or NULL if memory could not
+            be allocated.
+  */
+  void *operator new(size_t size) noexcept {
+    /*
+      Call my_malloc() with the MY_WME flag to make sure that it will
+      write an error message if the memory could not be allocated.
+    */
+    return my_malloc(key_group_member_info, size, MYF(MY_WME));
+  }
+
+  /**
+    Deallocate memory on the heap with instrumented memory allocation, so
+    that memory consumption can be tracked.
+
+    @param[in] ptr     pointer to the allocated memory
+  */
+  void operator delete(void *ptr) noexcept { my_free(ptr); }
+
   size_t get_number_of_members() override;
 
   size_t get_number_of_members_online() override;
@@ -953,7 +1080,7 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   Group_member_info::Group_member_status get_group_member_status_by_member_id(
       const Gcs_member_identifier &id) override;
 
-  std::vector<Group_member_info *> *get_all_members() override;
+  Group_member_info_list *get_all_members() override;
 
   std::list<Gcs_member_identifier> *get_online_members_with_guarantees(
       const Gcs_member_identifier &exclude_member) override;
@@ -962,7 +1089,7 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   void update(Group_member_info *update_local_member) override;
 
-  void update(std::vector<Group_member_info *> *new_members) override;
+  void update(Group_member_info_list *new_members) override;
 
   void update_member_status(const std::string &uuid,
                             Group_member_info::Group_member_status new_status,
@@ -992,8 +1119,8 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   void encode(std::vector<uchar> *to_encode) override;
 
-  std::vector<Group_member_info *> *decode(const uchar *to_decode,
-                                           size_t length) override;
+  Group_member_info_list *decode(const uchar *to_decode,
+                                 size_t length) override;
 
   bool is_conflict_detection_enabled() override;
 
@@ -1017,7 +1144,7 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   Group_member_info *get_group_member_info_by_member_id_internal(
       const Gcs_member_identifier &id);
 
-  std::map<std::string, Group_member_info *> *members;
+  Group_member_info_map *members;
   Group_member_info *local_member_info;
 
   mysql_mutex_t update_lock;
@@ -1113,7 +1240,7 @@ class Group_member_info_manager_message : public Plugin_gcs_message {
 
     @return a vector with copies to all members.
    */
-  std::vector<Group_member_info *> *get_all_members();
+  Group_member_info_list *get_all_members();
 
   /**
     Adds a already serialized member actions configuration
@@ -1170,7 +1297,7 @@ class Group_member_info_manager_message : public Plugin_gcs_message {
   */
   void clear_members();
 
-  std::vector<Group_member_info *> *members;
+  Group_member_info_list *members;
 };
 
 #endif /* MEMBER_INFO_INCLUDE */

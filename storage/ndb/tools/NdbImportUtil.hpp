@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,9 @@
 #ifndef NDB_IMPORT_UTIL_HPP
 #define NDB_IMPORT_UTIL_HPP
 
+#include "util/require.h"
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include <stdint.h>
 #include <ndb_limits.h>
 #include <mgmapi.h>
@@ -210,6 +212,7 @@ public:
     const uchar* get_value(const Row* row) const;
     void get_value(const Row* row, uint32& value) const;
     void get_value(const Row* row, uint64& value) const;
+    bool ai_value_not_provided(const Row* row) const;
     void get_value(const Row* row, char* buf, uint bufsz) const;
     bool get_null(const Row* row) const;
     uint get_blob_parts(uint len) const;
@@ -258,6 +261,7 @@ public:
     const NdbRecord* m_keyrec;
     uint m_recsize;     // size of main record
     bool m_has_hidden_pk;
+    uint m_autoIncAttrId;
     Attrs m_attrs;
     std::vector<uint> m_blobids;
     // map fragid to nodeid

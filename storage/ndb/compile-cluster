@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -173,9 +173,13 @@ if(! -d "$opt_srcdir/libmysqld")
     push(@args, "-DWITH_ROUTER=0"); # No MySQL Router
     push(@args, "-DWITH_MEB=0"); # No MEB
     push(@args, "-DWITH_RAPID=0"); # No RAPID
+    push(@args, "-DWITH_GROUP_REPLICATION=0"); # No GR
 
-    # Also removing Unit tests - not unrelated
-    push(@args, "-DWITH_UNIT_TESTS=0"); # No Unit tests
+    # To speed up build it's possible to skip building the
+    # unittests with "-DWITH_UNIT_TESTS=0", however those
+    # are important and certainly well worth the time spent
+    # to detect problems early and should thus not be skipped
+    # by default.
   }
 
   if ($opt_autotest)

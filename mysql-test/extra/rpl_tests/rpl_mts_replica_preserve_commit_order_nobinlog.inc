@@ -328,8 +328,8 @@ if ($mts_spco_save_gtid_executed)
   {
     --source include/rpl_connection_slave.inc
     --let $gtid_executed_internal_val2= `SELECT @@GLOBAL.GTID_EXECUTED`
-    --let $_tmp_log_bin= query_get_value(SHOW GLOBAL VARIABLES LIKE 'log_bin', Value, 1)
-    --let $_tmp_log_replica_updates= query_get_value(SHOW GLOBAL VARIABLES LIKE 'log_replica_updates', Value, 1)
+    --let $_tmp_log_bin= `SELECT @@global.log_bin`
+    --let $_tmp_log_replica_updates= `SELECT @@global.log_replica_updates`
 
     if ($_tmp_log_bin == ON)
     {
@@ -389,7 +389,9 @@ if ($mts_spco_cleanup_statement)
   --source include/stop_slave.inc
 
   SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
+  --disable_warnings
   SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
+  --enable_warnings
   SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
   --source include/start_slave.inc
 

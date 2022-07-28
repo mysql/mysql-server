@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,11 @@ connection_descriptor *Gcs_xcom_proxy_impl::xcom_client_open_connection(
 
 bool Gcs_xcom_proxy_impl::xcom_client_add_node(connection_descriptor *fd,
                                                node_list *nl, uint32_t gid) {
+  MYSQL_GCS_LOG_INFO("Sending add_node request to a peer XCom node");
   bool const successful = (::xcom_client_add_node(fd, nl, gid) == 1);
+  if (!successful) {
+    MYSQL_GCS_LOG_INFO("Failed to send add_node request to a peer XCom node.");
+  }
   return successful;
 }
 

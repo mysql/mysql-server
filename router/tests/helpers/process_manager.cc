@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstdlib>
+#include <fstream>
 #include <iterator>
 #include <stdexcept>
 #include <string_view>
@@ -36,6 +38,7 @@
 #ifndef _WIN32
 #include <sys/file.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #else
 #define USE_STD_REGEX
@@ -55,7 +58,8 @@
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysql_session.h"
+#include "mysql/harness/string_utils.h"  // split_string
+#include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "mysqlrouter/utils.h"
 #include "process_launcher.h"
@@ -123,7 +127,6 @@ ProcessManager::Spawner::wait_for_notified(
   const auto end_time = start_time + timeout;
 
   sock.native_non_blocking(true);
-
   do {
     auto accept_res = accept_until<clock_type>(sock, end_time);
     if (!accept_res) {
@@ -245,11 +248,12 @@ static std::string generate_notify_socket_path(const std::string &tmp_dir) {
 ProcessWrapper &ProcessManager::Spawner::launch_command(
     const std::string &command, const std::vector<std::string> &params,
     const std::vector<std::pair<std::string, std::string>> &env_vars) {
-  ProcessWrapper process(command, params, env_vars, catch_stderr_);
+  std::unique_ptr<ProcessWrapper> pw{new ProcessWrapper(
+      command, params, env_vars, catch_stderr_, output_responder_)};
 
-  processes_.emplace_back(std::move(process), expected_exit_code_);
+  processes_.emplace_back(std::move(pw), expected_exit_status_);
 
-  return std::get<0>(processes_.back());
+  return *std::get<0>(processes_.back()).get();
 }
 
 ProcessWrapper &ProcessManager::Spawner::launch_command_and_wait(
@@ -269,6 +273,7 @@ ProcessWrapper &ProcessManager::Spawner::launch_command_and_wait(
   const std::string socket_node = notify_socket_path_;
 
   EXPECT_NO_ERROR(notify_socket.open());
+  notify_socket.native_non_blocking(true);
   EXPECT_NO_ERROR(notify_socket.bind({socket_node}));
 
   env_vars.emplace_back("NOTIFY_SOCKET", socket_node);
@@ -276,15 +281,23 @@ ProcessWrapper &ProcessManager::Spawner::launch_command_and_wait(
   auto &result = launch_command(command, params, env_vars);
 
   switch (sync_point_) {
-    case SyncPoint::READY:
-      EXPECT_TRUE(wait_for_notified_ready(notify_socket, sync_point_timeout_))
-          << "socket: " << socket_node;
-      break;
-    case SyncPoint::RUNNING:
-      EXPECT_TRUE(wait_for_notified(notify_socket, "STATUS=running",
-                                    sync_point_timeout_))
-          << "socket: " << socket_node;
-      break;
+    case SyncPoint::READY: {
+      result.wait_for_sync_point_result(
+          wait_for_notified_ready(notify_socket, sync_point_timeout_));
+
+      EXPECT_TRUE(result.wait_for_sync_point_result())
+          << "waited " << sync_point_timeout_.count()
+          << "ms for READY on socket: " << socket_node;
+    } break;
+    case SyncPoint::RUNNING: {
+      result.wait_for_sync_point_result(wait_for_notified(
+          notify_socket, "STATUS=running", sync_point_timeout_));
+
+      EXPECT_TRUE(result.wait_for_sync_point_result())
+          << "waited " << sync_point_timeout_.count()
+          << "ms for RUNNING on socket: " << socket_node;
+
+    } break;
     case SyncPoint::NONE:
       // nothing to do.
       break;
@@ -366,34 +379,40 @@ ProcessManager::wait_for_notified_stopping(wait_socket_t &sock,
 ProcessWrapper &ProcessManager::launch_command(
     const std::string &command, const std::vector<std::string> &params,
     int expected_exit_code, bool catch_stderr,
-    std::vector<std::pair<std::string, std::string>> env_vars) {
+    std::vector<std::pair<std::string, std::string>> env_vars,
+    OutputResponder output_resp) {
   return spawner(command)
       .catch_stderr(catch_stderr)
       .expected_exit_code(expected_exit_code)
       .wait_for_notify_ready(-1s)
+      .output_responder(std::move(output_resp))
       .spawn(params, env_vars);
 }
 
 ProcessWrapper &ProcessManager::launch_command(
     const std::string &command, const std::vector<std::string> &params,
     int expected_exit_code, bool catch_stderr,
-    std::chrono::milliseconds wait_for_notify_ready) {
+    std::chrono::milliseconds wait_for_notify_ready,
+    OutputResponder output_resp) {
   return spawner(command)
       .catch_stderr(catch_stderr)
       .expected_exit_code(expected_exit_code)
       .wait_for_notify_ready(wait_for_notify_ready)
+      .output_responder(std::move(output_resp))
       .spawn(params);
 }
 
 ProcessWrapper &ProcessManager::launch_router(
     const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
     bool catch_stderr /*= true*/, bool with_sudo /*= false*/,
-    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
+    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/,
+    OutputResponder output_resp) {
   return router_spawner()
       .with_sudo(with_sudo)
       .catch_stderr(catch_stderr)
       .expected_exit_code(expected_exit_code)
       .wait_for_notify_ready(wait_for_notify_ready)
+      .output_responder(std::move(output_resp))
       .spawn(params);
 }
 
@@ -431,7 +450,7 @@ std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
 ProcessWrapper &ProcessManager::launch_mysql_server_mock(
     const std::vector<std::string> &server_params, unsigned port,
     int expected_exit_code,
-    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
+    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/) {
   auto &result = spawner(mysqlserver_mock_exec_.str())
                      .expected_exit_code(expected_exit_code)
                      .wait_for_notify_ready(wait_for_notify_ready)
@@ -449,7 +468,7 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
     bool debug_mode, uint16_t http_port, uint16_t x_port,
     const std::string &module_prefix /* = "" */,
     const std::string &bind_address /*= "127.0.0.1"*/,
-    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
+    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/) {
   if (mysqlserver_mock_exec_.str().empty())
     throw std::logic_error("path to mysql-server-mock must not be empty");
 
@@ -540,11 +559,14 @@ std::string ProcessManager::create_config_file(
   }
 
   ofs_config << make_DEFAULT_section(default_section);
+  // overwrite the default bahavior (which is a warning) to make the Router
+  // fail if unknown option is used
+  ofs_config << "unknown_config_option=error" << std::endl;
   ofs_config << extra_defaults << std::endl;
   ofs_config << sections << std::endl;
   if (enable_debug_logging) {
-    ofs_config
-        << "[logger]\nlevel = DEBUG\ntimestamp_precision=millisecond\n\n";
+    ofs_config << mysql_harness::ConfigBuilder::build_section(
+        "logger", {{"level", "debug"}, {"timestamp_precision", "millisecond"}});
   }
   ofs_config.close();
 
@@ -567,56 +589,91 @@ std::string ProcessManager::create_state_file(const std::string &dir_name,
   return file_path.str();
 }
 
-void ProcessManager::shutdown_all() {
+void ProcessManager::shutdown_all(
+    mysql_harness::ProcessLauncher::ShutdownEvent event) {
   // stop all the processes
-  for (auto &proc : processes_) {
-    std::get<0>(proc).send_shutdown_event();
+  for (const auto &proc_and_exit_code : processes_) {
+    auto &proc = std::get<0>(proc_and_exit_code);
+
+    if (!proc->has_exit_code()) {
+      proc->send_shutdown_event(event);
+    }
   }
 }
 
 void ProcessManager::dump_all() {
   std::stringstream ss;
-  for (auto &proc : processes_) {
-    ss << "# Process: \n"
-       << std::get<0>(proc).get_command_line() << "\n"
-       << "PID:\n"
-       << std::get<0>(proc).get_pid() << "\n"
-       << "Console output:\n"
-       << std::get<0>(proc).get_current_output() + "\n"
-       << "Log content:\n"
-       << std::get<0>(proc).get_full_logfile() + "\n";
+  for (const auto &proc_and_exit_code : processes_) {
+    const auto &proc = std::get<0>(proc_and_exit_code);
+    ss << "# Process: (pid=" << proc->get_pid() << ")\n"
+       << proc->get_command_line() << "\n\n";
+
+    auto output = proc->get_current_output();
+    if (!output.empty()) {
+      ss << "## Console output:\n\n" << output << "\n";
+    }
+
+    auto log_content = proc->get_logfile_content("", "", 500);
+    if (!log_content.empty()) {
+      ss << "## Log content:\n\n" << log_content << "\n";
+    }
   }
 
   FAIL() << ss.str();
 }
 
+void ProcessManager::ensure_clean_exit(ProcessWrapper &process) {
+  for (auto &proc : processes_) {
+    if ((*std::get<0>(proc)).get_pid() == process.get_pid()) {
+      check_exit_code(*std::get<0>(proc), std::get<1>(proc));
+      break;
+    }
+  }
+}
+
 void ProcessManager::ensure_clean_exit() {
   for (auto &proc : processes_) {
     try {
-      check_exit_code(std::get<0>(proc), std::get<1>(proc));
+      check_exit_code(*std::get<0>(proc), std::get<1>(proc));
     } catch (const std::exception &) {
-      FAIL() << "PID: " << std::get<0>(proc).get_pid()
+      FAIL() << "PID: " << std::get<0>(proc)->get_pid()
              << " didn't exit as expected";
     }
   }
 }
 
 void ProcessManager::check_exit_code(ProcessWrapper &process,
-                                     int expected_exit_code,
+                                     exit_status_type expected_exit_status,
                                      std::chrono::milliseconds timeout) {
   if (getenv("WITH_VALGRIND")) {
     timeout *= 10;
   }
 
-  int result{0};
+  exit_status_type result{0};
   try {
-    result = process.wait_for_exit(timeout);
+    result = process.native_wait_for_exit(timeout);
   } catch (const std::exception &e) {
     FAIL() << "waiting for " << timeout.count() << "ms for PID "
            << process.get_pid() << " to exit failed: " << e.what();
   }
 
-  ASSERT_EQ(expected_exit_code, result);
+  if (auto code = result.exited()) {
+    ASSERT_EQ(expected_exit_status, result)
+        << "Process " << process.get_pid() << " exited with " << result;
+  } else if (auto sig = result.terminated()) {
+    ASSERT_EQ(expected_exit_status, result)
+        << "Process " << process.get_pid() << " terminated with " << result;
+  } else if (auto sig = result.stopped()) {
+    ASSERT_EQ(expected_exit_status, result)
+        << "Process " << process.get_pid() << " stopped with " << result;
+  } else if (result.continued()) {
+    ASSERT_EQ(expected_exit_status, result)
+        << "Process " << process.get_pid() << " continued";
+  } else {
+    ASSERT_EQ(expected_exit_status, result)
+        << "Process " << process.get_pid()
+        << " exited with unexpected exit-condition";
+  }
 }
 
 void ProcessManager::check_port(bool should_be_ready, ProcessWrapper &process,
@@ -636,9 +693,10 @@ void ProcessManager::check_port(bool should_be_ready, ProcessWrapper &process,
   }
 #endif
 
-  ASSERT_EQ(ready, should_be_ready) << process.get_full_output() << "\n"
-                                    << process.get_full_logfile() << "\n"
-                                    << "port: " << std::to_string(port) << "\n"
+  ASSERT_EQ(ready, should_be_ready)
+      << process.get_full_output() << "\n"
+      << process.get_logfile_content("", "", 500) << "\n"
+      << "port: " << std::to_string(port) << "\n"
 #if 0
                                     << "netstat output: " << netstat_info
 #endif
@@ -682,3 +740,6 @@ void ProcessManager::set_origin(const Path &dir) {
 
   data_dir_ = COMPONENT_TEST_DATA_DIR;
 }
+
+const ProcessManager::OutputResponder ProcessManager::kEmptyResponder{
+    [](const std::string &) -> std::string { return ""; }};

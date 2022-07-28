@@ -1,0 +1,137 @@
+################################################################################
+# This test validates primary server goes in error state if transaction monitor
+# thread is not created.
+# If UDF is executed on the primary member error is shown in the client.
+# If UDF is executed from the secondary member error is present in the logs.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+# 2. Add debug point to fail transaction monitor thread creation.
+#    Execute change primary from server1(primary). It will fail.
+# 3. Assert M1 old primary is in ERROR state.
+#    Assert primary changed.
+#    Assert error is logged indicating ongoing transactions were not stopped.
+# 4. Add debug point to fail transaction monitor thread creation.
+#    Restarted M1. Execute change primary from M1(secondary).
+# 5. Assert M2 old primary is in ERROR state.
+#    Assert primary changed since old PRIMARY left the group.
+#    Assert error is logged indicating ongoing transactions were not stopped.
+# 6. Cleanup.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. A critical error occurred during the local execution of this action. This operation ended in error as it was not possible to stop the ongoing transactions. The member will now leave the group.");
+SET SESSION sql_log_bin= 1;
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Error while executing a group configuration operation: A critical error occurred during the local execution of this action. This operation ended in error as it was not possible to stop the ongoing transactions. The member will now leave the group.");
+SET SESSION sql_log_bin= 1;
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Add debug point to fail transaction monitor thread creation.
+--echo #    Execute change primary from server1(primary). It will fail.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_transaction_monitor_thread_creation_failed';
+
+--replace_result $server2_uuid SERVER2_UUID
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_set_as_primary("$server2_uuid", 1);
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_thread_creation_failed';
+
+--echo
+--echo # 3. Assert M1 old primary is in ERROR state.
+--echo #    Assert primary changed.
+--echo #    Assert error is logged indicating ongoing transactions were not stopped.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state = ERROR
+--source include/gr_wait_for_member_state.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-013223' AND data LIKE "%A critical error occurred during the local execution of this action. This operation ended in error as it was not possible to stop the ongoing transactions. The member will now leave the group.%"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_expected_uuid=query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/gr_wait_primary_member_uuid.inc
+
+--echo
+--echo # 4. Add debug point to fail transaction monitor thread creation.
+--echo #    Restarted M1. Execute change primary from M1(secondary).
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_transaction_monitor_thread_creation_failed';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+--replace_result $server1_uuid SERVER1_UUID
+--eval SELECT group_replication_set_as_primary("$server1_uuid", 1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_thread_creation_failed';
+
+--echo
+--echo # 5. Assert M2 old primary is in ERROR state.
+--echo #    Assert primary changed since old PRIMARY left the group.
+--echo #    Assert error is logged indicating ongoing transactions were not stopped.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state = ERROR
+--source include/gr_wait_for_member_state.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-013212' AND data LIKE "%A critical error occurred during the local execution of this action. This operation ended in error as it was not possible to stop the ongoing transactions. The member will now leave the group.%"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_expected_uuid=query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/gr_wait_primary_member_uuid.inc
+
+--echo
+--echo # 6. Cleanup.
+
+--source include/group_replication_end.inc

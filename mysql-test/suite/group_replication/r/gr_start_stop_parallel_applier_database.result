@@ -7,6 +7,8 @@ include/assert.inc [Default slave parallel type must be LOGICAL_CLOCK]
 include/assert.inc [Default slave parallel workers must be 4]
 include/assert.inc [Default slave preserve commit order 1]
 SET @replica_parallel_type_saved= @@GLOBAL.REPLICA_PARALLEL_TYPE;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @replica_parallel_workers_saved= @@GLOBAL.REPLICA_PARALLEL_WORKERS;
 SET @slave_preserver_commit_order_saved= @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER;
 SET GLOBAL REPLICA_PRESERVE_COMMIT_ORDER= OFF;
@@ -29,6 +31,8 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "DATABASE";
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 ERROR HY000: START SLAVE SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK or REPLICA_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
@@ -41,6 +45,8 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 ERROR HY000: START SLAVE SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK or REPLICA_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
@@ -54,6 +60,8 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 SET GLOBAL REPLICA_PRESERVE_COMMIT_ORDER= ON;
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
@@ -67,7 +75,11 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -79,6 +91,8 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
 SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";

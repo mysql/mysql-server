@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,9 +173,9 @@ class Table {
       return;
     } else {
       WRITE_VAL("\t[meta][charset result] number: %d\n", cs_info->number);
-      WRITE_VAL("\t[meta][charset result] name: %s\n",
-                replace_utf8_utf8mb3(cs_info->csname));
-      WRITE_VAL("\t[meta][charset result] collation: %s\n", cs_info->name);
+      WRITE_VAL("\t[meta][charset result] name: %s\n", cs_info->csname);
+      WRITE_VAL("\t[meta][charset result] collation: %s\n",
+                cs_info->m_coll_name);
       WRITE_VAL("\t[meta][charset result] sort order: %s\n",
                 cs_info->sort_order);
       WRITE_STR("\n");
@@ -314,9 +314,8 @@ static int handle_start_column_metadata(void *pctx, uint num_cols, uint,
   WRITE_STR("handle_start_column_metadata\n");
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info",
-             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
-  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
+  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info", ("resultcs->m_coll_name: %s", resultcs->m_coll_name));
 
   ctx->tables.push_back(Table(num_cols, resultcs));
   ctx->current_col = 0;

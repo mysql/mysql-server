@@ -58,29 +58,23 @@ drop table t1;
 # Test like with non-default character set
 #
 
-SET NAMES koi8r;
-
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET koi8r);
 
---character_set koi8r
-INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
+INSERT INTO t1 VALUES ('я└я▀п╡п╟'),('п╓я▀п╡п╟'),('я└п╚п╡п╟'),('я└я▀п▓п╟'),('я└я▀п╡п░'),('п╓п╚п▓п░');
 
-INSERT INTO t1 VALUES ('фывапролдж'),('Фывапролдж'),('фЫвапролдж'),('фыВапролдж');
-INSERT INTO t1 VALUES ('фывАпролдж'),('фываПролдж'),('фывапРолдж'),('фывапрОлдж');
-INSERT INTO t1 VALUES ('фывапроЛдж'),('фывапролДж'),('фывапролдЖ'),('ФЫВАПРОЛДЖ');
+INSERT INTO t1 VALUES ('я└я▀п╡п╟п©я─п╬п╩п╢п╤'),('п╓я▀п╡п╟п©я─п╬п╩п╢п╤'),('я└п╚п╡п╟п©я─п╬п╩п╢п╤'),('я└я▀п▓п╟п©я─п╬п╩п╢п╤');
+INSERT INTO t1 VALUES ('я└я▀п╡п░п©я─п╬п╩п╢п╤'),('я└я▀п╡п╟п÷я─п╬п╩п╢п╤'),('я└я▀п╡п╟п©п═п╬п╩п╢п╤'),('я└я▀п╡п╟п©я─п·п╩п╢п╤');
+INSERT INTO t1 VALUES ('я└я▀п╡п╟п©я─п╬п⌡п╢п╤'),('я└я▀п╡п╟п©я─п╬п╩п■п╤'),('я└я▀п╡п╟п©я─п╬п╩п╢п√'),('п╓п╚п▓п░п÷п═п·п⌡п■п√');
 
-SELECT * FROM t1 WHERE a LIKE '%фЫва%';
-SELECT * FROM t1 WHERE a LIKE '%фЫв%';
-SELECT * FROM t1 WHERE a LIKE 'фЫва%';
+SELECT * FROM t1 WHERE a LIKE '%я└п╚п╡п╟%';
+SELECT * FROM t1 WHERE a LIKE '%я└п╚п╡%';
+SELECT * FROM t1 WHERE a LIKE 'я└п╚п╡п╟%';
 
 DROP TABLE t1;
-
---character_set utf8mb4
 
 # Bug #2547 Strange "like" behaviour in tables with default charset=cp1250
 # Test like with non-default character set using TurboBM
 #
-SET NAMES cp1250;
 CREATE TABLE t1 (a varchar(250) NOT NULL) DEFAULT CHARACTER SET=cp1250;
 INSERT INTO t1 VALUES
 ('Techni Tapes Sp. z o.o.'),
@@ -102,21 +96,19 @@ DROP TABLE t1;
 select _cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin;
 
 #
-# Check 8bit escape character
+# Check multi-byte escape character
 #
-set names koi8r;
-select 'andre%' like 'andreй%' escape 'й';
+select 'andre%' like 'andreп╧%' escape 'п╧';
 
-# Check 8bit escape character with charset conversion:
+# Check multi-byte escape character with charset conversion:
 # For "a LIKE b ESCAPE c" expressions,
 # escape character is converted into the operation character set,
 # which is result of aggregation  of character sets of "a" and "b".
 # "c" itself doesn't take part in aggregation, because its collation
 # doesn't matter, escape character is always compared binary.
-# In the example below, escape character is converted from koi8r into cp1251:
+# In the example below, escape character is converted from utf8mb4 into cp1251:
 #
-select _cp1251'andre%' like convert('andreй%' using cp1251)  escape 'й';
-
+select _cp1251 'andre%' like convert('andreп╧%' using cp1251)  escape 'п╧';
 
 --echo End of 4.1 tests
 
@@ -390,3 +382,15 @@ SET sql_mode = CONCAT(@@sql_mode, ',NO_BACKSLASH_ESCAPES');
 SELECT _latin1'a\bc' LIKE _latin1'a\%' AS col1,
        _utf8mb4'a\bc' LIKE _utf8mb4'a\%' AS col2;
 SET sql_mode = DEFAULT;
+
+--echo # Bug#33852756: ESCAPE keyword with non-string values
+
+CREATE TABLE t1(c1 VARCHAR(20) NOT NULL);
+INSERT INTO t1 VALUES ('100'), ('abc\\d');
+SELECT * FROM t1 WHERE c1 LIKE c1;
+SELECT c1 LIKE c1 AS l FROM t1;
+SELECT * FROM t1 WHERE c1 LIKE c1 ESCAPE '1';
+SELECT c1 LIKE c1 ESCAPE '1' AS l FROM t1;
+SELECT * FROM t1 WHERE c1 LIKE c1 ESCAPE 1;
+SELECT c1 LIKE c1 ESCAPE 1 AS l FROM t1;
+DROP TABLE t1;

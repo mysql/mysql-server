@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -247,7 +247,7 @@ void Trix::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy(readNodes->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -319,7 +319,7 @@ void Trix::execNODE_FAILREP(Signal* signal)
         getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
     copy(nodeFail->theNodes, ptr);
     releaseSections(handle);
@@ -591,7 +591,9 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
 
     const size_t num_config_params =
       sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
+    const Uint32 numPools = NDB_ARRAY_SIZE(pools);
     Uint32 pool = cursor->data[0];
+    ndbrequire(pool < numPools);
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
     {
@@ -696,14 +698,14 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
   if (noOfSections > 0) {
     jam();
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, BuildIndxImplReq::INDEX_COLUMNS);
+    ndbrequire(handle.getSection(ptr, BuildIndxImplReq::INDEX_COLUMNS));
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfIndexColumns = ptr.sz;
   }
   if (noOfSections > 1) {
     jam();
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, BuildIndxImplReq::KEY_COLUMNS);
+    ndbrequire(handle.getSection(ptr, BuildIndxImplReq::KEY_COLUMNS));
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfKeyColumns = ptr.sz;
   }
@@ -1260,8 +1262,8 @@ void Trix::executeBuildInsertTransaction(Signal* signal,
   SectionHandle handle(this, signal);
   SegmentedSectionPtr headerPtr, dataPtr;
 
-  handle.getSection(headerPtr, 0);
-  handle.getSection(dataPtr, 1);
+  ndbrequire(handle.getSection(headerPtr, 0));
+  ndbrequire(handle.getSection(dataPtr, 1));
 
   Uint32* headerBuffer = signal->theData + 25;
   Uint32* dataBuffer = headerBuffer + headerPtr.sz;
@@ -1685,7 +1687,7 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
   if (noOfSections > 0) {
     jam();
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfIndexColumns = ptr.sz;
   }
@@ -1693,7 +1695,7 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
   if (noOfSections > 1) {
     jam();
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 1);
+    ndbrequire(handle.getSection(ptr, 1));
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfKeyColumns = ptr.sz;
   }
@@ -1810,7 +1812,7 @@ Trix::execBUILD_FK_IMPL_REQ(Signal* signal)
   // Get parent columns...
   {
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfKeyColumns = ptr.sz;
   }
@@ -1818,7 +1820,7 @@ Trix::execBUILD_FK_IMPL_REQ(Signal* signal)
   {
     // Get child columns...
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 1);
+    ndbrequire(handle.getSection(ptr, 1));
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfIndexColumns = ptr.sz;
   }
@@ -1878,8 +1880,8 @@ Trix::executeBuildFKTransaction(Signal* signal,
   SectionHandle handle(this, signal);
   SegmentedSectionPtr headerPtr, dataPtr;
 
-  handle.getSection(headerPtr, 0);
-  handle.getSection(dataPtr, 1);
+  ndbrequire(handle.getSection(headerPtr, 0));
+  ndbrequire(handle.getSection(dataPtr, 1));
 
   Uint32* headerBuffer = signal->theData + 25;
   Uint32* dataBuffer = headerBuffer + headerPtr.sz;
@@ -2495,12 +2497,12 @@ Trix::statUtilExecuteConf(Signal* signal, Uint32 statPtrI)
     attr.m_dataSize = 0;
     {
       SegmentedSectionPtr ssPtr;
-      handle.getSection(ssPtr, 0);
+      ndbrequire(handle.getSection(ssPtr, 0));
       ::copy(rattr, ssPtr);
     }
     {
       SegmentedSectionPtr ssPtr;
-      handle.getSection(ssPtr, 1);
+      ndbrequire(handle.getSection(ssPtr, 1));
       ::copy(rdata, ssPtr);
     }
     releaseSections(handle);
@@ -2798,7 +2800,7 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   // ATTR_INFO
   AttributeHeader ah[4];
   SegmentedSectionPtr ptr0;
-  handle.getSection(ptr0, SubTableData::ATTR_INFO);
+  ndbrequire(handle.getSection(ptr0, SubTableData::ATTR_INFO));
   ndbrequire(ptr0.sz == 4);
   ::copy((Uint32*)ah, ptr0);
   ndbrequire(ah[0].getAttributeId() == 0 && ah[0].getDataSize() == 1);
@@ -2813,7 +2815,7 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   const Uint32 avmax = 3 + 1 + MAX_INDEX_STAT_KEY_SIZE;
   Uint32 av[avmax];
   SegmentedSectionPtr ptr1;
-  handle.getSection(ptr1, SubTableData::AFTER_VALUES);
+  ndbrequire(handle.getSection(ptr1, SubTableData::AFTER_VALUES));
   ndbrequire(ptr1.sz <= avmax);
   ::copy(av, ptr1);
   ndbrequire(data.m_indexId == av[0]);
@@ -2974,7 +2976,7 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   // ATTR_INFO
   AttributeHeader ah[2];
   SegmentedSectionPtr ptr0;
-  handle.getSection(ptr0, SubTableData::ATTR_INFO);
+  ndbrequire(handle.getSection(ptr0, SubTableData::ATTR_INFO));
   ndbrequire(ptr0.sz == 2);
   ::copy((Uint32*)ah, ptr0);
   ndbrequire(ah[0].getAttributeId() == AttributeHeader::INDEX_STAT_KEY);
@@ -2989,7 +2991,7 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   const Uint32 avmax = 2 + MAX_INDEX_STAT_KEY_SIZE + MAX_INDEX_STAT_VALUE_SIZE;
   Uint32 av[avmax];
   SegmentedSectionPtr ptr1;
-  handle.getSection(ptr1, SubTableData::AFTER_VALUES);
+  ndbrequire(handle.getSection(ptr1, SubTableData::AFTER_VALUES));
   ndbrequire(ptr1.sz <= avmax);
   ::copy(av, ptr1);
   data.m_statKey = &av[0];

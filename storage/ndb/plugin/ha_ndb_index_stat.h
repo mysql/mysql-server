@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ class Ndb_index_stat_thread : public Ndb_component {
   void wakeup();
 
   /* are we setup */
-  static bool is_setup_complete();
+  bool is_setup_complete();
 
  private:
   int do_init() override;
@@ -65,8 +65,8 @@ class Ndb_index_stat_thread : public Ndb_component {
   // Wakeup for stop
   void do_wakeup() override;
 
-  int check_or_create_systables(const Ndb_index_stat_proc &pr) const;
-  int check_or_create_sysevents(const Ndb_index_stat_proc &pr) const;
+  int check_systables(const Ndb_index_stat_proc &pr) const;
+  int check_sysevents(const Ndb_index_stat_proc &pr) const;
   void drop_ndb(Ndb_index_stat_proc *const pr) const;
   int start_listener(const Ndb_index_stat_proc &pr) const;
   int create_ndb(Ndb_index_stat_proc *const pr,

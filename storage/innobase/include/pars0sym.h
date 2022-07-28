@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -145,10 +145,10 @@ struct sym_node_t {
                                  columns or a list of
                                  input variables for an
                                  explicit cursor */
-  ibool copy_val;                /*!< TRUE if a column
-                                 and its value should
-                                 be copied to dynamic
-                                 memory when fetched */
+  bool copy_val;                 /*!< true if a column
+                                  and its value should
+                                  be copied to dynamic
+                                  memory when fetched */
   ulint field_nos[2];            /*!< if a column, in
                                  the position
                                  SYM_CLUST_FIELD_NO is
@@ -161,11 +161,11 @@ struct sym_node_t {
                                  use first; if not found
                                  from the index, then
                                  ULINT_UNDEFINED */
-  ibool resolved;                /*!< TRUE if the
-                                 meaning of a variable
-                                 or a column has been
-                                 resolved; for literals
-                                 this is always TRUE */
+  bool resolved;                 /*!< true if the
+                                  meaning of a variable
+                                  or a column has been
+                                  resolved; for literals
+                                  this is always true */
   enum sym_tab_entry token_type; /*!< type of the
                                  parsed token */
   const char *name;              /*!< name of an id */

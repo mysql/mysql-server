@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTS_INCLUDED
 
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -336,7 +336,7 @@ class Cost_model_se_info {
   Cost_model_se_info();
 
   /**
-    Desctructor. Deletes the allocated cost constant objects.
+    Destructor. Deletes the allocated cost constant objects.
   */
   ~Cost_model_se_info();
 

@@ -43,3 +43,9 @@ SELECT * FROM v1;
 a
 drop view v1;
 drop table t1;
+#
+# Bug#33773799: recent regression: TABLE::set_keyread(bool):
+#               Assertion `file' failed.
+#
+SELECT * FROM (SELECT ST_EXTERIORRING(1)) AS t1, (SELECT 1) AS t2;
+ERROR 22023: Invalid GIS data provided to function st_exteriorring.

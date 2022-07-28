@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef _ROUTER_MYSQL_SESSION_H_
 #define _ROUTER_MYSQL_SESSION_H_
+
+#include "mysqlrouter/router_export.h"
 
 #include <functional>
 #include <memory>
@@ -149,10 +151,10 @@ class Option<Opt, std::nullptr_t> {
 
 // mysql_options() may be used with MYSQL * == nullptr to get global values.
 
-class MySQLSession {
+class ROUTER_LIB_EXPORT MySQLSession {
  public:
-  static const int kDefaultConnectTimeout = 15;
-  static const int kDefaultReadTimeout = 30;
+  static constexpr int kDefaultConnectTimeout = 5;
+  static constexpr int kDefaultReadTimeout = 30;
   typedef std::vector<const char *> Row;
   typedef std::function<bool(const Row &)> RowProcessor;
   typedef std::function<void(unsigned, MYSQL_FIELD *)> FieldValidator;
@@ -325,16 +327,16 @@ class MySQLSession {
     Row row_;
   };
 
-  struct LoggingStrategy {
+  struct ROUTER_LIB_EXPORT LoggingStrategy {
     virtual void log(const std::string &msg) = 0;
     virtual ~LoggingStrategy() = default;
   };
 
-  struct LoggingStrategyNone : public LoggingStrategy {
+  struct ROUTER_LIB_EXPORT LoggingStrategyNone : public LoggingStrategy {
     virtual void log(const std::string & /*msg*/) override {}
   };
 
-  struct LoggingStrategyDebugLogger : public LoggingStrategy {
+  struct ROUTER_LIB_EXPORT LoggingStrategyDebugLogger : public LoggingStrategy {
     virtual void log(const std::string &msg) override;
   };
 
@@ -397,12 +399,12 @@ class MySQLSession {
    * @retval false if option is not known.
    */
   template <class GettableMysqlOption>
-  stdx::expected<void, void> get_option(GettableMysqlOption &opt) {
+  bool get_option(GettableMysqlOption &opt) {
     if (0 != mysql_get_option(connection_, opt.option(), opt.data())) {
-      return stdx::make_unexpected();
+      return false;
     }
 
-    return {};
+    return true;
   }
 
   virtual void connect(const std::string &host, unsigned int port,

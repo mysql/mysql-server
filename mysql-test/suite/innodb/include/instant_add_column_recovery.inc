@@ -46,7 +46,7 @@ SELECT * FROM t1;
 
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 
-let $new_cols = 1;
+let $new_cols = 2;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc

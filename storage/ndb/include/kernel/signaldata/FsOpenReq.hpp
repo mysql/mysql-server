@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,25 @@
 #ifndef FS_OPEN_REQ_H
 #define FS_OPEN_REQ_H
 
+#include "util/ndb_math.h"
 #include "SignalData.hpp"
 
 #define JAM_FILE_ID 148
 
+struct EncryptionKeyMaterial
+{
+  static constexpr Uint32 MAX_LENGTH = 512;
+  static_assert(MAX_LENGTH >= MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 4);
+
+  Uint32 length = 0;
+  alignas(Uint32) unsigned char data[MAX_LENGTH];
+
+  Uint32 get_needed_words() const
+  {
+    return ndb_ceil_div<Uint32>(sizeof(length) + length, 4);
+  }
+};
+static_assert(sizeof(EncryptionKeyMaterial) % 4 == 0);
 
 /**
  * 
@@ -75,10 +90,11 @@ public:
    */
   static constexpr Uint32 SignalLength = 11;
   SECTION( FILENAME = 0 );
-  SECTION( PASSWORD = 1 );
+  SECTION(ENCRYPT_KEY_MATERIAL = 1);
 
-private:
+  static constexpr EncryptionKeyMaterial DUMMY_KEY = {5, "DUMMY"};
 
+ private:
   /**
    * DATA VARIABLES
    */
@@ -113,9 +129,19 @@ public:
   static constexpr Uint32 OM_WRITE_BUFFER = 0x20000;
   static constexpr Uint32 OM_READ_SIZE = 0x40000;
   static constexpr Uint32 OM_DIRECT_SYNC = 0x80000;
-  static constexpr Uint32 OM_ENCRYPT = 0x100000;
-  static constexpr Uint32 OM_PASSWORD = 0x200000; // Not really needed, implicit by section PASSWORD
-  
+  static constexpr Uint32 OM_ENCRYPT_CBC = 0x100000;
+  static constexpr Uint32 OM_ENCRYPT_PASSWORD = 0x200000;
+  static constexpr Uint32 OM_READ_FORWARD = 0x400000;
+  static constexpr Uint32 OM_SPARSE_INIT = 0x800000;
+  static constexpr Uint32 OM_ZEROS_ARE_SPARSE = 0x1000000;
+  static constexpr Uint32 OM_ENCRYPT_KEY = 0x2000000;
+  static constexpr Uint32 OM_ENCRYPT_XTS = 0x4000000;
+
+  static constexpr Uint32 OM_ENCRYPT_KEY_MATERIAL_MASK =
+      OM_ENCRYPT_PASSWORD | OM_ENCRYPT_KEY;
+  static constexpr Uint32 OM_ENCRYPT_CIPHER_MASK =
+      OM_ENCRYPT_CBC | OM_ENCRYPT_XTS;
+
   enum Suffixes {
     S_DATA = 0,
     S_FRAGLOG = 1,

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,7 @@ ADD_SUBDIRECTORY(plugins)
 SET(TEST_MODULE harness)
 
 SET(TESTS
+  test_access_rights.cc
   test_utility_string.cc
   test_loader.cc
   test_loader_lifecycle.cc
@@ -75,6 +76,7 @@ SET(TESTS
   test_tcp_address.cc
   test_config_builder.cc
   test_event_state_tracker.cc
+  test_config_option.cc
 )
 
 FOREACH(TEST ${TESTS})
@@ -101,8 +103,10 @@ SET(TESTS
   test_net_ts_buffer.cc
   test_net_ts_executor.cc
   test_net_ts_impl_file.cc
-  test_net_ts_impl_linux_epoll_io_service.cc
+  test_net_ts_impl_io_service_base.cc
   test_net_ts_impl_kqueue_io_service.cc
+  test_net_ts_impl_linux_epoll_io_service.cc
+  test_net_ts_impl_netif.cc
   test_net_ts_impl_resolver.cc
   test_net_ts_impl_socket.cc
   test_net_ts_internet.cc
@@ -121,13 +125,14 @@ ENDFOREACH()
 ADD_GOOGLETEST_FILE(test_net_ts_local.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS harness_net_ts
-  # TmpDir
+  # TempDirectory
   LIB_DEPENDS test-helpers
   )
 
 SET(TESTS
   test_stdx_bit.cc
   test_stdx_expected.cc
+  test_stdx_flags.cc
   test_stdx_monitor.cc
   test_stdx_io_file_handle.cc
 )
@@ -167,3 +172,7 @@ ADD_DEPENDENCIES(mysqlrouter_all net_ts_accept)
 MYSQL_ADD_EXECUTABLE(net_ts_forward net_ts_forward.cc SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(net_ts_forward harness_net_ts)
 ADD_DEPENDENCIES(mysqlrouter_all net_ts_forward)
+
+MYSQL_ADD_EXECUTABLE(acl_cli acl_cli.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(acl_cli harness-library)
+ADD_DEPENDENCIES(mysqlrouter_all acl_cli)

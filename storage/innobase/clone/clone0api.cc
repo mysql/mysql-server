@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "dict0dd.h"
 #include "ha_innodb.h"
+#include "log0files_io.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dictionary.h"
 #include "sql/dd/impl/dictionary_impl.h"  // dd::dd_tablespace_id()
@@ -60,7 +61,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 THD *thd_get_current_thd();
 
 /** Check if clone status file exists.
-@param[in]	file_name	file name
+@param[in]      file_name       file name
 @return true if file exists. */
 static bool file_exists(const std::string &file_name) {
   std::ifstream file(file_name.c_str());
@@ -74,9 +75,10 @@ static bool file_exists(const std::string &file_name) {
 
 /** Rename clone status file. The operation is expected to be atomic
 when the files belong to same directory.
-@param[in]	from_file	name of current file
-@param[in]	to_file		name of new file */
-static void rename_file(std::string &from_file, std::string &to_file) {
+@param[in]      from_file       name of current file
+@param[in]      to_file         name of new file */
+static void rename_file(const std::string &from_file,
+                        const std::string &to_file) {
   auto ret = std::rename(from_file.c_str(), to_file.c_str());
 
   if (ret != 0) {
@@ -87,7 +89,7 @@ static void rename_file(std::string &from_file, std::string &to_file) {
 }
 
 /** Create clone status file.
-@param[in]	file_name	file name */
+@param[in]      file_name       file name */
 static void create_file(std::string &file_name) {
   std::ofstream file(file_name.c_str());
 
@@ -99,25 +101,49 @@ static void create_file(std::string &file_name) {
       << "Error creating file : " << file_name.c_str();
 }
 
-/** Delete clone status file.
-@param[in]	file	name of file */
+/** Delete clone status file or directory.
+@param[in]      file    name of file */
 static void remove_file(const std::string &file) {
-  /* Allow non existent file, as the server could have crashed or returned with
-  error before creating the file. This is needed during error cleanup. */
-  if (!file_exists(file)) {
+  os_file_type_t file_type;
+
+  if (!os_file_status(file.c_str(), nullptr, &file_type)) {
+    ib::error(ER_IB_CLONE_STATUS_FILE)
+        << "Error checking a file to remove : " << file.c_str();
     return;
   }
 
-  auto ret = std::remove(file.c_str());
+  /* In C++17 there will be std::filesystem::remove_all and the
+  code below will no longer be required. */
+  if (file_type == OS_FILE_TYPE_DIR) {
+    auto scan_cbk = [](const char *path, const char *file_name) {
+      if (strcmp(file_name, ".") == 0 || strcmp(file_name, "..") == 0) {
+        return;
+      }
+      const auto to_remove = std::string{path} + OS_PATH_SEPARATOR + file_name;
+      remove_file(to_remove);
+    };
+    if (!os_file_scan_directory(file.c_str(), scan_cbk, true)) {
+      ib::error(ER_IB_CLONE_STATUS_FILE)
+          << "Error removing directory : " << file.c_str();
+    }
+  } else {
+    /* Allow non existent file, as the server could have crashed or returned
+    with error before creating the file. This is needed during error cleanup. */
+    if (!file_exists(file)) {
+      return;
+    }
 
-  if (ret != 0) {
-    ib::error(ER_IB_CLONE_STATUS_FILE)
-        << "Error removing file : " << file.c_str();
+    auto ret = std::remove(file.c_str());
+
+    if (ret != 0) {
+      ib::error(ER_IB_CLONE_STATUS_FILE)
+          << "Error removing file : " << file.c_str();
+    }
   }
 }
 
 /** Create clone in progress file and error file.
-@param[in]	clone	clone handle */
+@param[in]      clone   clone handle */
 static void create_status_file(const Clone_Handle *clone) {
   const char *path = clone->get_datadir();
   std::string file_name;
@@ -140,7 +166,7 @@ static void create_status_file(const Clone_Handle *clone) {
 }
 
 /** Drop clone in progress file and error file.
-@param[in]	clone	clone handle */
+@param[in]      clone   clone handle */
 static void drop_status_file(const Clone_Handle *clone) {
   const char *path = clone->get_datadir();
   std::string file_name;
@@ -226,57 +252,52 @@ int clone_add_to_list_file(const char *list_file_name, const char *file_name) {
   return (ER_ERROR_ON_WRITE);
 }
 
-/** Add all existing redo files to old file list. */
+/** Add redo log directory to the old file list. */
 static void track_redo_files() {
-  std::string log_file;
-  for (uint32_t index = 0; index < srv_n_log_files; ++index) {
-    /* Build redo log file name. */
-    char file_name[MAX_LOG_FILE_NAME + 1];
-    snprintf(file_name, MAX_LOG_FILE_NAME, "%s%u", ib_logfile_basename, index);
+  const auto path = log_directory_path(log_sys->m_files_ctx);
 
-    log_file.assign(srv_log_group_home_dir);
-    if (!log_file.empty() && log_file.back() != OS_PATH_SEPARATOR) {
-      log_file.append(OS_PATH_SEPARATOR_STR);
-    }
-    log_file.append(file_name);
-    clone_add_to_list_file(CLONE_INNODB_OLD_FILES, log_file.c_str());
-  }
+  /* Skip the path separator which is at the end. */
+  ut_ad(!path.empty());
+  ut_ad(path.back() == OS_PATH_SEPARATOR);
+  const auto str = path.substr(0, path.size() - 1);
+
+  clone_add_to_list_file(CLONE_INNODB_OLD_FILES, str.c_str());
 }
 
 /** Execute sql statement.
-@param[in,out]	thd		current THD
-@param[in]	sql_stmt	SQL statement
-@param[in]	thread_number	executing thread number
-@param[in]	skip_error	skip statement on error
+@param[in,out]  thd             current THD
+@param[in]      sql_stmt        SQL statement
+@param[in]      thread_number   executing thread number
+@param[in]      skip_error      skip statement on error
 @return false, if successful. */
 static bool clone_execute_query(THD *thd, const char *sql_stmt,
                                 size_t thread_number, bool skip_error);
 
 /** Delete all binary logs before clone.
-@param[in]	thd	current THD
+@param[in]      thd     current THD
 @return error code */
 static int clone_drop_binary_logs(THD *thd);
 
 /** Drop all user data before starting clone.
-@param[in,out]	thd		current THD
-@param[in]	allow_threads	allow multiple threads
+@param[in,out]  thd             current THD
+@param[in]      allow_threads   allow multiple threads
 @return error code */
 static int clone_drop_user_data(THD *thd, bool allow_threads);
 
 /** Initialize transparent page compression in innodb space by checking
 all innodb tables in DD. Usually this initialization is done later when
 user opens a table. Clone needs to read this from innodb space object.
-@param[in,out]	thd	session THD */
+@param[in,out]  thd     session THD */
 static void clone_init_compression(THD *thd);
 
 /** Open all Innodb tablespaces.
-@param[in,out]	thd	session THD
+@param[in,out]  thd     session THD
 @return error code. */
 static int clone_init_tablespaces(THD *thd);
 
 /** Set security context to skip privilege check.
-@param[in,out]	thd	session THD
-@param[in,out]	sctx	security context */
+@param[in,out]  thd     session THD
+@param[in,out]  sctx    security context */
 static void skip_grants(THD *thd, Security_context &sctx) {
   /* Take care of the possible side effect of skipping grant i.e.
   setting SYSTEM_USER privilege flag. */
@@ -295,7 +316,7 @@ void innodb_clone_get_capability(Ha_clone_flagset &flags) {
 }
 
 /** Check if clone can be started.
-@param[in,out]	thd	session THD
+@param[in,out]  thd     session THD
 @return error code. */
 static int clone_begin_check(THD *thd) {
   ut_ad(mutex_own(clone_sys->get_mutex()));
@@ -315,9 +336,9 @@ static int clone_begin_check(THD *thd) {
 }
 
 /** Get clone timeout configuration value.
-@param[in,out]	thd		server thread handle
-@param[in]	config_name	timeout configuration name
-@param[out]	timeout		timeout value
+@param[in,out]  thd             server thread handle
+@param[in]      config_name     timeout configuration name
+@param[out]     timeout         timeout value
 @return true iff successful. */
 static bool get_clone_timeout_config(THD *thd, const std::string &config_name,
                                      int &timeout) {
@@ -349,15 +370,15 @@ static bool get_clone_timeout_config(THD *thd, const std::string &config_name,
     err_str.append(" Exception: ");
     err_str.append(e.what());
     ib::error(ER_IB_CLONE_INTERNAL) << err_str;
-    ut_ad(false);
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
   }
 
   return true;
 }
 
 /** Timeout while waiting for DDL commands.
-@param[in,out]	thd	server thread handle
+@param[in,out]  thd     server thread handle
 @return donor timeout in seconds. */
 static int get_ddl_timeout(THD *thd) {
   int timeout = 0;
@@ -370,9 +391,8 @@ static int get_ddl_timeout(THD *thd) {
   return timeout;
 }
 
-int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
-                       uint &loc_len, uint &task_id, Ha_clone_type type,
-                       Ha_clone_mode mode) {
+int innodb_clone_begin(handlerton *, THD *thd, const byte *&loc, uint &loc_len,
+                       uint &task_id, Ha_clone_type type, Ha_clone_mode mode) {
   /* Check if reference locator is valid */
   if (loc != nullptr && !clone_validate_locator(loc, loc_len)) {
     int err = ER_CLONE_PROTOCOL;
@@ -382,7 +402,7 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
 
   /* Acquire clone system mutex which would automatically get released
   when we return from the function [RAII]. */
-  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex(), UT_LOCATION_HERE);
 
   /* Check if concurrent ddl has marked abort. */
   int err = clone_begin_check(thd);
@@ -449,10 +469,10 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
     case HA_CLONE_MODE_VERSION:
     case HA_CLONE_MODE_MAX:
     default:
-      ut_ad(false);
       my_error(ER_INTERNAL_ERROR, MYF(0), "Innodb Clone Begin Invalid Mode");
 
-      return (ER_INTERNAL_ERROR);
+      ut_d(ut_error);
+      ut_o(return (ER_INTERNAL_ERROR));
   }
 
   if (clone_hdl == nullptr) {
@@ -499,7 +519,7 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
     err = clone_hdl->add_task(thd, nullptr, 0, task_id);
 
     /* 1. Open all tablespaces in Innodb if not done during bootstrap.
-       2. Initialize compression option for all compressed tablesapces. */
+       2. Initialize compression option for all compressed tablespaces. */
     if (err == 0 && task_id == 0) {
       err = clone_init_tablespaces(thd);
 
@@ -538,7 +558,7 @@ int innodb_clone_copy(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   }
 
   /* Start data copy. */
-  err = clone_hdl->copy(thd, task_id, cbk);
+  err = clone_hdl->copy(task_id, cbk);
   clone_hdl->save_error(err);
 
   return (err);
@@ -599,7 +619,7 @@ int innodb_clone_ack(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
 }
 
 /** Timeout while waiting for recipient after network failure.
-@param[in,out]	thd	server thread handle
+@param[in,out]  thd     server thread handle
 @return donor timeout in minutes. */
 static Clone_Min get_donor_timeout(THD *thd) {
   int timeout = 0;
@@ -612,11 +632,11 @@ static Clone_Min get_donor_timeout(THD *thd) {
   return Clone_Min(timeout);
 }
 
-int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
+int innodb_clone_end(handlerton *, THD *thd, const byte *loc, uint loc_len,
                      uint task_id, int in_err) {
   /* Acquire clone system mutex which would automatically get released
   when we return from the function [RAII]. */
-  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex(), UT_LOCATION_HERE);
 
   /* Get clone handle by locator index. */
   auto clone_hdl = clone_sys->get_clone_by_index(loc, loc_len);
@@ -631,7 +651,7 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
 
   /* Drop current task. */
   bool is_master = false;
-  auto wait_reconnect = clone_hdl->drop_task(thd, task_id, in_err, is_master);
+  auto wait_reconnect = clone_hdl->drop_task(thd, task_id, is_master);
   auto is_copy = clone_hdl->is_copy_clone();
   auto is_init = clone_hdl->is_init();
   auto is_abort = clone_hdl->is_abort();
@@ -759,7 +779,7 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   return (0);
 }
 
-int innodb_clone_apply_begin(handlerton *hton, THD *thd, const byte *&loc,
+int innodb_clone_apply_begin(handlerton *, THD *thd, const byte *&loc,
                              uint &loc_len, uint &task_id, Ha_clone_mode mode,
                              const char *data_dir) {
   /* Check if reference locator is valid */
@@ -771,7 +791,7 @@ int innodb_clone_apply_begin(handlerton *hton, THD *thd, const byte *&loc,
 
   /* Acquire clone system mutex which would automatically get released
   when we return from the function [RAII]. */
-  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex(), UT_LOCATION_HERE);
 
   /* Check if clone is already in progress for the reference locator. */
   auto clone_hdl = clone_sys->find_clone(loc, loc_len, CLONE_HDL_APPLY);
@@ -793,11 +813,11 @@ int innodb_clone_apply_begin(handlerton *hton, THD *thd, const byte *&loc,
     case HA_CLONE_MODE_START:
 
       if (clone_hdl != nullptr) {
-        ut_ad(false);
         clone_sys->drop_clone(clone_hdl);
         ib::error(ER_IB_CLONE_INTERNAL)
             << "Clone Apply Begin Master found duplicate clone";
         clone_hdl = nullptr;
+        ut_d(ut_error);
       }
 
       /* Check if the locator is from current mysqld server. */
@@ -833,12 +853,11 @@ int innodb_clone_apply_begin(handlerton *hton, THD *thd, const byte *&loc,
 
     case HA_CLONE_MODE_MAX:
     default:
-      ut_ad(false);
-
       my_error(ER_INTERNAL_ERROR, MYF(0),
                "Innodb Clone Appply Begin Invalid Mode");
 
-      return (ER_INTERNAL_ERROR);
+      ut_d(ut_error);
+      ut_o(return (ER_INTERNAL_ERROR));
   }
 
   if (clone_hdl == nullptr) {
@@ -881,10 +900,10 @@ int innodb_clone_apply_begin(handlerton *hton, THD *thd, const byte *&loc,
       not reachable as we would get error much earlier while dropping user
       tables. */
       if (srv_read_only_mode) {
-        ut_ad(false);
         err = ER_INTERNAL_ERROR;
         my_error(err, MYF(0),
                  "Clone cannot replace data with innodb_read_only = ON");
+        ut_d(ut_error);
       } else {
         track_redo_files();
         err = clone_drop_user_data(thd, false);
@@ -1005,12 +1024,12 @@ const int FILE_STATE_REPLACED = FILE_SAVED + FILE_DATA;
 */
 
 /** Get current state of a clone file.
-@param[in]	data_file	data file name
+@param[in]      data_file       data file name
 @return current file state. */
-static int get_file_state(std::string data_file) {
+static int get_file_state(const std::string &data_file) {
   int state = 0;
   /* Check if data file is there. */
-  if (file_exists(data_file)) {
+  if (os_file_exists(data_file.c_str())) {
     state += FILE_DATA;
   }
 
@@ -1018,7 +1037,7 @@ static int get_file_state(std::string data_file) {
   saved_file.append(CLONE_INNODB_SAVED_FILE_EXTN);
 
   /* Check if saved old file is there. */
-  if (file_exists(saved_file)) {
+  if (os_file_exists(saved_file.c_str())) {
     state += FILE_SAVED;
   }
 
@@ -1026,17 +1045,17 @@ static int get_file_state(std::string data_file) {
   cloned_file.append(CLONE_INNODB_REPLACED_FILE_EXTN);
 
   /* Check if cloned file is there. */
-  if (file_exists(cloned_file)) {
+  if (os_file_exists(cloned_file.c_str())) {
     state += FILE_CLONED;
   }
   return (state);
 }
 
 /** Roll forward clone file state till final state.
-@param[in]	data_file	data file name
-@param[in]	final_state	data file state to forward to
+@param[in]      data_file       data file name
+@param[in]      final_state     data file state to forward to
 @return previous file state before roll forward. */
-static int file_roll_forward(std::string &data_file, int final_state) {
+static int file_roll_forward(const std::string &data_file, int final_state) {
   auto cur_state = get_file_state(data_file);
 
   switch (cur_state) {
@@ -1094,8 +1113,8 @@ static int file_roll_forward(std::string &data_file, int final_state) {
 }
 
 /** Roll back clone file state to normal state.
-@param[in]	data_file	data file name */
-static void file_rollback(std::string &data_file) {
+@param[in]      data_file       data file name */
+static void file_rollback(const std::string &data_file) {
   auto cur_state = get_file_state(data_file);
 
   switch (cur_state) {
@@ -1160,9 +1179,10 @@ undo tablespace could be expensive as we need to wait for purge to finish.
 */
 
 /** Roll forward old data file state till final state.
-@param[in]	data_file	data file name
-@param[in]	final_state	data file state to forward to */
-static void old_file_roll_forward(std::string &data_file, int final_state) {
+@param[in]      data_file       data file name
+@param[in]      final_state     data file state to forward to */
+static void old_file_roll_forward(const std::string &data_file,
+                                  int final_state) {
   auto cur_state = get_file_state(data_file);
 
   switch (cur_state) {
@@ -1177,8 +1197,8 @@ static void old_file_roll_forward(std::string &data_file, int final_state) {
       break;
     case FILE_STATE_NORMAL: {
       if (final_state == FILE_STATE_NORMAL) {
-        ut_ad(false);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
       }
       /* Save data file */
       std::string saved_file(data_file);
@@ -1215,8 +1235,8 @@ static void old_file_roll_forward(std::string &data_file, int final_state) {
 }
 
 /** Roll back old data file state to normal state.
-@param[in]	data_file	data file name */
-static void old_file_rollback(std::string &data_file) {
+@param[in]      data_file       data file name */
+static void old_file_rollback(const std::string &data_file) {
   auto cur_state = get_file_state(data_file);
 
   switch (cur_state) {
@@ -1281,9 +1301,9 @@ static void clone_files_fatal_error() {
 }
 
 /** Update recovery status file at end of clone recovery.
-@param[in]	finished	true if finishing clone recovery
-@param[in]	is_error	if recovery error
-@param[in]	is_replace	true, if replacing current directory */
+@param[in]      finished        true if finishing clone recovery
+@param[in]      is_error        if recovery error
+@param[in]      is_replace      true, if replacing current directory */
 static void clone_update_recovery_status(bool finished, bool is_error,
                                          bool is_replace) {
   /* true, when we are recovering a cloned database. */
@@ -1382,7 +1402,7 @@ static void clone_update_recovery_status(bool finished, bool is_error,
 }
 
 /** Initialize recovery status for cloned recovery.
-@param[in]	replace		we are replacing current directory. */
+@param[in]      replace         we are replacing current directory. */
 static void clone_init_recovery_status(bool replace) {
   std::string file_name;
   file_name.assign(CLONE_INNODB_RECOVERY_FILE);
@@ -1408,8 +1428,8 @@ void clone_update_gtid_status(std::string &gtids) {
   /* Return if status file is not created. */
   std::string recovery_file(CLONE_INNODB_RECOVERY_FILE);
   if (!file_exists(recovery_file)) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
   /* Open status file to append GTID. */
   std::ofstream status_file;
@@ -1435,24 +1455,38 @@ void clone_update_gtid_status(std::string &gtids) {
   remove_file(replace_files);
 }
 
-/** Callback to process entries before removing status file. */
-using Remove_cbk = std::function<void(std::string &)>;
+/** Type of function which is supposed to handle a single file during
+Clone operations, accepting the file's name (string).
+@see clone_files_for_each_file */
+typedef std::function<void(const std::string &)> Clone_file_handler;
+
+/** Processes each file name listed in the given status file, executing a given
+function for each of them.
+@param[in]  status_file_name    status file name
+@param[in]  process             the given function, accepting file name string
+@return true iff status file was successfully opened */
+static bool clone_files_for_each_file(const char *status_file_name,
+                                      const Clone_file_handler &process) {
+  std::ifstream files;
+  files.open(status_file_name);
+  if (!files.is_open()) {
+    return false;
+  }
+  std::string data_file;
+  /* Extract and process all files listed in file with name=status_file_name */
+  while (std::getline(files, data_file)) {
+    process(data_file);
+  }
+  files.close();
+  return true;
+}
 
 /** Process all entries and remove status file.
-@param[in]	file_name	status file name
-@param[in]	process		callback to process entries */
-static void process_remove_file(const char *file_name, Remove_cbk &process) {
-  std::ifstream files;
-  std::string data_file;
-
-  /* Open file to get all file entries. */
-  files.open(file_name);
-  if (files.is_open()) {
-    /* Extract and process all files. */
-    while (std::getline(files, data_file)) {
-      process(data_file);
-    }
-    files.close();
+@param[in]      file_name       status file name
+@param[in]      process         callback to process entries */
+static void process_remove_file(const char *file_name,
+                                const Clone_file_handler &process) {
+  if (clone_files_for_each_file(file_name, process)) {
     std::string file_str(file_name);
     remove_file(file_str);
   }
@@ -1472,7 +1506,7 @@ void clone_files_error() {
   }
 
   /* Process all old files to be moved. */
-  Remove_cbk cbk = old_file_rollback;
+  Clone_file_handler cbk = old_file_rollback;
   process_remove_file(CLONE_INNODB_OLD_FILES, cbk);
 
   /* Process all files to be replaced. */
@@ -1524,12 +1558,10 @@ void clone_files_recovery(bool finished) {
     std::string replace_files(CLONE_INNODB_REPLACED_FILES);
     std::string old_files(CLONE_INNODB_OLD_FILES);
     if (!file_exists(replace_files) && file_exists(old_files)) {
-      ut_ad(false);
       remove_file(old_files);
+      ut_d(ut_error);
     }
   }
-
-  std::ifstream files;
 
   /* Open files to get all old files to be saved or removed. Must handle
   the old files before cloned files. This is because during old file
@@ -1537,14 +1569,12 @@ void clone_files_recovery(bool finished) {
   the cloned state is reset then these files would be considered as old
   files and removed. */
   int end_state = finished ? FILE_STATE_NONE : FILE_STATE_SAVED;
-  files.open(CLONE_INNODB_OLD_FILES);
-  if (files.is_open()) {
-    /* Extract and process all files to be saved or removed */
-    while (std::getline(files, file_name)) {
-      old_file_roll_forward(file_name, end_state);
-    }
-    files.close();
 
+  auto old_file_handler = [end_state](const std::string &fname) {
+    old_file_roll_forward(fname, end_state);
+  };
+
+  if (clone_files_for_each_file(CLONE_INNODB_OLD_FILES, old_file_handler)) {
     /* Remove clone file after successful recovery. */
     if (finished) {
       std::string old_files(CLONE_INNODB_OLD_FILES);
@@ -1554,6 +1584,9 @@ void clone_files_recovery(bool finished) {
 
   /* Open file to get all files to be replaced. */
   end_state = finished ? FILE_STATE_NORMAL : FILE_STATE_REPLACED;
+
+  std::ifstream files;
+
   files.open(CLONE_INNODB_REPLACED_FILES);
 
   if (files.is_open()) {
@@ -1658,16 +1691,16 @@ C. Drop all user tablespaces.  */
 class Fixup_data {
  public:
   /** Constructor.
-  @param[in]	concurrent	spawn multiple threads
-  @param[in]	is_drop		the operation is drop */
+  @param[in]    concurrent      spawn multiple threads
+  @param[in]    is_drop         the operation is drop */
   Fixup_data(bool concurrent, bool is_drop)
       : m_num_tasks(), m_concurrent(concurrent), m_drop(is_drop) {
     m_num_errors.store(0);
   }
 
   /** Fix tables for which data is not cloned.
-  @param[in,out]	thd		current	THD
-  @param[in]		dd_objects	table/schema/tablespace from DD
+  @param[in,out]        thd             current THD
+  @param[in]            dd_objects      table/schema/tablespace from DD
   @return true if error */
   template <typename T>
   bool fix(THD *thd, const DD_Objs<T> &dd_objects) {
@@ -1684,7 +1717,7 @@ class Fixup_data {
 
   /** Remove data cloned from configuration tables which are not relevant
   in recipient.
-  @param[in,out]	thd	current	THD
+  @param[in,out]        thd     current THD
   @return true if error */
   bool fix_config_tables(THD *thd);
 
@@ -1696,17 +1729,17 @@ class Fixup_data {
 
  private:
   /** Check and fix specific DD object.
-  @param[in,out]	thd		current	THD
-  @param[in]		object		DD object
-  @param[in]		thread_number	current thread number. */
+  @param[in,out]        thd             current THD
+  @param[in]            object          DD object
+  @param[in]            thread_number   current thread number. */
   template <typename T>
   bool fix_one_object(THD *thd, const T *object, size_t thread_number);
 
   /** Check and fix a rangle of DD objects
-  @param[in,out]	thd		current	THD
-  @param[in]		begin		first element in current slice
-  @param[in]		end		last element in current slice
-  @param[in]		thread_number	current thread number. */
+  @param[in,out]        thd             current THD
+  @param[in]            begin           first element in current slice
+  @param[in]            end             last element in current slice
+  @param[in]            thread_number   current thread number. */
   template <typename T>
   void fix_objects(THD *thd, const DD_Objs_Iter<T> &begin,
                    const DD_Objs_Iter<T> &end, size_t thread_number);
@@ -1715,7 +1748,7 @@ class Fixup_data {
   size_t get_num_tasks() const { return (m_num_tasks); }
 
   /** Calculate and set number of new tasks to spawn.
-  @param[in]	num_entries	number of entries to handle */
+  @param[in]    num_entries     number of entries to handle */
   void set_num_tasks(size_t num_entries) {
     /* Check if we are allowed to spawn multiple threads. Disable
     multithreading while dropping objects for now. We need more
@@ -1758,7 +1791,7 @@ class Fixup_data {
   }
 
   /** Check if the current SE type should be skipped.
-  @param[in]	type	SE type
+  @param[in]    type    SE type
   @return true iff the SE needs to be skipped. */
   bool skip_se_tables(enum legacy_db_type type) {
     /* Don't skip any specific DB during drop operation. All existing
@@ -1775,14 +1808,14 @@ class Fixup_data {
   }
 
   /** Check if the schema is performance schema.
-  @param[in]	schema_name	schema name
+  @param[in]    schema_name     schema name
   @return true iff performance schema. */
   bool is_performance_schema(const char *schema_name) const {
     return (0 == strcmp(schema_name, PERFORMANCE_SCHEMA_DB_NAME.str));
   }
 
   /** Check if the current schema is system schema
-  @param[in]	schema_name	schema name
+  @param[in]    schema_name     schema name
   @return true iff system schema. */
   bool is_system_schema(const char *schema_name) const {
     if (0 == strcmp(schema_name, MYSQL_SCHEMA_NAME.str) ||
@@ -1795,9 +1828,9 @@ class Fixup_data {
   }
 
   /** Check if the current schema tables needs to be skipped.
-  @param[in]	table		DD table
-  @param[in]	table_name	table name
-  @param[in]	schema_name	schema name
+  @param[in]    table           DD table
+  @param[in]    table_name      table name
+  @param[in]    schema_name     schema name
   @return true iff table needs to be skipped. */
   bool skip_schema_tables(const dd::Table *table, const char *table_name,
                           const char *schema_name) {
@@ -1846,7 +1879,7 @@ class Fixup_data {
   }
 
   /** Check if the current schema needs to be skipped.
-  @param[in]	schema_name	schema name
+  @param[in]    schema_name     schema name
   @return true iff schema needs to be skipped. */
   bool skip_schema(const char *schema_name) {
     /* Don't drop system schema. */
@@ -1861,8 +1894,8 @@ class Fixup_data {
   }
 
   /** Check if the current tablespace needs to be skipped.
-  @param[in,out]	thd		current	THD
-  @param[in]		dd_space	dd tablespace
+  @param[in,out]        thd             current THD
+  @param[in]            dd_space        dd tablespace
   @return true iff tablespace needs to be skipped. */
   bool skip_tablespace(THD *thd, const dd::Tablespace *dd_space) {
     /* System tablespaces are in Innodb. Skip other engines. */
@@ -1890,8 +1923,8 @@ class Fixup_data {
 
     if (se_data.get(dd_space_key_strings[DD_SPACE_ID], &space_id) ||
         space_id == SPACE_UNKNOWN) {
-      ut_ad(false);
-      return (false);
+      ut_d(ut_error);
+      ut_o(return (false));
     }
     bool is_undo = fsp_is_undo_tablespace(space_id);
 
@@ -1919,8 +1952,8 @@ class Fixup_data {
     /* Check and skip file per table tablespace. */
     uint32_t flags = 0;
     if (se_data.get(dd_space_key_strings[DD_SPACE_FLAGS], &flags)) {
-      ut_ad(false);
-      return (false);
+      ut_d(ut_error);
+      ut_o(return (false));
     }
 
     if (fsp_is_file_per_table(space_id, flags)) {
@@ -1930,11 +1963,11 @@ class Fixup_data {
   }
 
   /** Form and execute sql command.
-  @param[in,out]	thd		current	THD
-  @param[in]		schema_name	schema name
-  @param[in]		table_name	table name
-  @param[in]		tablespace_name	tablespace name
-  @param[in]		thread_number	current thread number. */
+  @param[in,out]        thd             current THD
+  @param[in]            schema_name     schema name
+  @param[in]            table_name      table name
+  @param[in]            tablespace_name tablespace name
+  @param[in]            thread_number   current thread number. */
   bool execute_sql(THD *thd, const char *schema_name, const char *table_name,
                    const char *tablespace_name, size_t thread_number);
 
@@ -2406,8 +2439,8 @@ static void clone_init_compression(THD *thd) {
   std::vector<dd::Object_id> dd_table_ids;
 
   if (dc->fetch_global_component_ids<dd::Table>(&dd_table_ids)) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   for (auto dd_table_id : dd_table_ids) {
@@ -2444,8 +2477,8 @@ static void clone_init_compression(THD *thd) {
 
     if (dd_index == nullptr) {
       /* Innodb table must have index. */
-      ut_ad(false);
-      continue;
+      ut_d(ut_error);
+      ut_o(continue);
     }
 
     dd_set_tablespace_compression(dc, compress_option.c_str(),
@@ -2470,7 +2503,7 @@ Clone_notify::Clone_notify(Clone_notify::Type type, space_id_t space,
   }
 
   std::string ntfn_mesg;
-  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex(), UT_LOCATION_HERE);
 
   bool clone_active = false;
   Clone_Handle *clone_donor = nullptr;
@@ -2559,7 +2592,7 @@ Clone_notify::Clone_notify(Clone_notify::Type type, space_id_t space,
 }
 
 Clone_notify::~Clone_notify() {
-  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex(), UT_LOCATION_HERE);
 
   switch (m_wait) {
     case Wait_at::ENTER:
@@ -2674,12 +2707,12 @@ static int clone_init_tablespaces(THD *thd) {
   DD_Objs<dd::Tablespace> dd_spaces;
 
   if (dc->fetch_global_components(&dd_spaces)) {
-    ut_ad(false);
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Innodb Clone failed to load tablespaces");
 
     release_backup_lock(thd);
-    return ER_INTERNAL_ERROR;
+    ut_d(ut_error);
+    ut_o(return ER_INTERNAL_ERROR);
   }
 
   for (auto dd_space : dd_spaces) {
@@ -2701,8 +2734,8 @@ static int clone_init_tablespaces(THD *thd) {
         se_data.get(dd_space_key_strings[DD_SPACE_ID], &space_id)) {
       ib::error(ER_IB_CLONE_INTERNAL)
           << "Clone Error getting ID from DD, space: : " << space_name;
-      ut_ad(false);
-      continue;
+      ut_d(ut_error);
+      ut_o(continue);
     }
 
     /* This function has a side effect to adjust space name. The operation
@@ -2718,8 +2751,8 @@ static int clone_init_tablespaces(THD *thd) {
         se_data.get(dd_space_key_strings[DD_SPACE_FLAGS], &space_flags)) {
       ib::error(ER_IB_CLONE_INTERNAL)
           << "Clone Error getting flags from DD, space: : " << space_name;
-      ut_ad(false);
-      continue;
+      ut_d(ut_error);
+      ut_o(continue);
     }
 
     /* Get the filename. */
@@ -2729,7 +2762,7 @@ static int clone_init_tablespaces(THD *thd) {
 
     /* Acquire dict mutex to prevent race against concurrent DML trying to
     load the space. */
-    IB_mutex_guard sys_mutex(&dict_sys->mutex);
+    IB_mutex_guard sys_mutex(&dict_sys->mutex, UT_LOCATION_HERE);
 
     /* Re-check if space exists after acquiring dict sys mutex. Concurrent
     DML could have already loaded the space. Space name is already adjusted

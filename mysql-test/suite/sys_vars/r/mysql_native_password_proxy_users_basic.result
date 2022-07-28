@@ -107,8 +107,10 @@ SET global.mysql_native_password_proxy_users = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.mysql_native_password_proxy_users = 1' at line 1
 SELECT global.mysql_native_password_proxy_users;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT mysql_native_password_proxy_users = @@session.mysql_native_password_proxy_users;
+SELECT mysql_native_password_proxy_users;
 ERROR 42S22: Unknown column 'mysql_native_password_proxy_users' in 'field list'
+SELECT @@session.mysql_native_password_proxy_users;
+ERROR HY000: Variable 'mysql_native_password_proxy_users' is a GLOBAL variable
 SET @@global.mysql_native_password_proxy_users = @start_value;
 SELECT @@global.mysql_native_password_proxy_users;
 @@global.mysql_native_password_proxy_users

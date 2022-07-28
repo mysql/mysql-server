@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,7 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  in crash recovery.
  @return true if trx is an incomplete transaction that is being rolled
  back in crash recovery */
-ibool trx_is_recv(const trx_t *trx); /*!< in: transaction */
+bool trx_is_recv(const trx_t *trx); /*!< in: transaction */
 /** Returns a transaction savepoint taken at this point in time.
  @return savepoint */
 trx_savept_t trx_savept_take(trx_t *trx); /*!< in: transaction */
@@ -66,8 +66,8 @@ trx_undo_rec_t *trx_roll_pop_top_rec_of_trx(
  committed, then we clean up a possible insert undo log. If the
  transaction was not yet committed, then we roll it back. */
 void trx_rollback_or_clean_recovered(
-    ibool all); /*!< in: FALSE=roll back dictionary transactions;
-                TRUE=roll back all non-PREPARED transactions */
+    bool all); /*!< in: false=roll back dictionary transactions;
+                true=roll back all non-PREPARED transactions */
 
 /** Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
@@ -153,7 +153,7 @@ enum roll_node_state {
 struct roll_node_t {
   que_common_t common;        /*!< node type: QUE_NODE_ROLLBACK */
   enum roll_node_state state; /*!< node execution state */
-  bool partial;               /*!< TRUE if we want a partial
+  bool partial;               /*!< true if we want a partial
                               rollback */
   trx_savept_t savept;        /*!< savepoint to which to
                               roll back, in the case of a

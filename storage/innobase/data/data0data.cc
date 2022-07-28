@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -353,7 +353,7 @@ void dfield_print_also_hex(const dfield_t *dfield) {
 static void dfield_print_raw(FILE *f, const dfield_t *dfield) {
   ulint len = dfield_get_len(dfield);
   if (!dfield_is_null(dfield)) {
-    ulint print_len = ut_min(len, static_cast<ulint>(1000));
+    ulint print_len = std::min(len, static_cast<ulint>(1000));
     ut_print_buf(f, dfield_get_data(dfield), print_len);
     if (len != print_len) {
       fprintf(f, "(total %lu bytes%s)", (ulong)len,
@@ -455,7 +455,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   }
 
   heap = mem_heap_create(
-      size + dtuple_get_n_fields(entry) * sizeof(big_rec_field_t) + 1000);
+      size + dtuple_get_n_fields(entry) * sizeof(big_rec_field_t) + 1000,
+      UT_LOCATION_HERE);
 
   vector = big_rec_t::alloc(heap, dtuple_get_n_fields(entry));
 
@@ -479,6 +480,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
       dfield = dtuple_get_nth_field(entry, i);
       ifield = index->get_field(i);
+
+      ut_ad(dfield_get_len(dfield) != UNIV_SQL_INSTANT_DROP_COL);
 
       /* Skip fixed-length, NULL, externally stored,
       or short columns */
@@ -564,12 +567,12 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
     }
 
 #if 0
-		/* The following would fail the Valgrind checks in
-		page_cur_insert_rec_low() and page_cur_insert_rec_zip().
-		The BLOB pointers in the record will be initialized after
-		the record and the BLOBs have been written. */
-		UNIV_MEM_ALLOC(data + local_prefix_len,
-			       BTR_EXTERN_FIELD_REF_SIZE);
+                /* The following would fail the Valgrind checks in
+                page_cur_insert_rec_low() and page_cur_insert_rec_zip().
+                The BLOB pointers in the record will be initialized after
+                the record and the BLOBs have been written. */
+                UNIV_MEM_ALLOC(data + local_prefix_len,
+                               BTR_EXTERN_FIELD_REF_SIZE);
 #endif
 
     dfield_set_data(dfield, data, local_len);
@@ -583,6 +586,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
       upd_field_t upd_field;
       upd_field.field_no = longest_i;
+      IF_DEBUG(upd_field.field_phy_pos =
+                   index->get_field(longest_i)->col->get_col_phy_pos();)
       upd_field.orig_len = 0;
       upd_field.exp = nullptr;
       upd_field.old_v_val = nullptr;

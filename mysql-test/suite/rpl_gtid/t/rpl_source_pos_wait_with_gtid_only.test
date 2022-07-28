@@ -153,7 +153,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0;
 
 --source include/start_slave.inc
 
-CALL mtr.add_suppression("Recovery from master pos.* and file");
+CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 
 DROP TABLE query_result;
 

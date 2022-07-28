@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,30 @@
 #include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
 
+struct AccessPath;
 class Item_func_eq;
+
+struct ContainedSubquery {
+  AccessPath *path;
+  bool materializable;
+  int row_width;  // Of the subquery's rows.
+};
+
+// Some information about each predicate that the join optimizer would like to
+// have available in order to avoid computing it anew for each use of that
+// predicate.
+struct CachedPropertiesForPredicate {
+  Mem_root_array<ContainedSubquery> contained_subqueries;
+  double selectivity;
+
+  // For equijoins only: A bitmap of which sargable predicates
+  // are part of the same multi-equality as this one (except the
+  // condition itself, which is excluded), and thus are redundant
+  // against it. This is used in AlreadyAppliedThroughSargable()
+  // to quickly find out if we already have applied any of them
+  // as a join condition.
+  OverflowBitset redundant_against_sargable_predicates;
+};
 
 // Describes a rule disallowing specific joins; if any tables from
 // needed_to_activate_rule is part of the join, then _all_ tables from
@@ -63,7 +86,9 @@ struct RelationalExpression {
   explicit RelationalExpression(THD *thd)
       : multi_children(thd->mem_root),
         join_conditions(thd->mem_root),
-        equijoin_conditions(thd->mem_root) {}
+        equijoin_conditions(thd->mem_root),
+        properties_for_join_conditions(thd->mem_root),
+        properties_for_equijoin_conditions(thd->mem_root) {}
 
   enum Type {
     INNER_JOIN = static_cast<int>(JoinType::INNER),
@@ -121,6 +146,20 @@ struct RelationalExpression {
       multi_children;  // See MULTI_INNER_JOIN.
   Mem_root_array<Item *> join_conditions;
   Mem_root_array<Item_func_eq *> equijoin_conditions;
+
+  // For each element in join_conditions and equijoin_conditions (respectively),
+  // contains some cached properties that the join optimizer would like to have
+  // available for frequent reuse.
+  //
+  // It is a bit awkward to have these separate instead of in the same arrays,
+  // but the latter would complicate MakeJoinHypergraph() a fair amount,
+  // as this information is private to the join optimizer (ie., it is not
+  // generated along with the hypergraph; it is added after MakeJoinHypergraph()
+  // is completed).
+  Mem_root_array<CachedPropertiesForPredicate> properties_for_join_conditions;
+  Mem_root_array<CachedPropertiesForPredicate>
+      properties_for_equijoin_conditions;
+
   // If true, at least one condition under “join_conditions” is a false (0)
   // constant. (Such conditions can never be under “equijoin_conditions”.)
   bool join_conditions_reject_all_rows{false};

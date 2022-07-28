@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -46,7 +46,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <vector>
 
 /** Initializes the synchronization data structures.
-@param[in]	max_threads	Maximum threads that can be created. */
+@param[in]      max_threads     Maximum threads that can be created. */
 void sync_check_init(size_t max_threads);
 
 /** Frees the resources in synchronization data structures. */
@@ -57,16 +57,16 @@ void sync_check_close();
 void sync_check_enable();
 
 /** Check if it is OK to acquire the latch.
-@param[in]	latch	latch type */
+@param[in]      latch   latch type */
 void sync_check_lock_validate(const latch_t *latch);
 
 /** Note that the lock has been granted
-@param[in]	latch	latch type */
+@param[in]      latch   latch type */
 void sync_check_lock_granted(const latch_t *latch);
 
 /** Check if it is OK to acquire the latch.
-@param[in]	latch	latch type
-@param[in]	level	the level of the mutex */
+@param[in]      latch   latch type
+@param[in]      level   the level of the mutex */
 void sync_check_lock(const latch_t *latch, latch_level_t level);
 
 /**
@@ -74,18 +74,18 @@ Check if it is OK to re-acquire the lock. */
 void sync_check_relock(const latch_t *latch);
 
 /** Removes a latch from the thread level array if it is found there.
-@param[in]	latch		The latch to unlock */
+@param[in]      latch           The latch to unlock */
 void sync_check_unlock(const latch_t *latch);
 
 /** Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
-@param[in]	level	to find
-@return	a matching latch, or NULL if not found */
+@param[in]      level   to find
+@return a matching latch, or NULL if not found */
 const latch_t *sync_check_find(latch_level_t level);
 
 /** Checks that the level array for the current thread is empty.
 Terminate iteration if the functor returns true.
-@param[in,out]	 functor	called for each element.
+@param[in,out]   functor        called for each element.
 @return true if the functor returns true */
 bool sync_check_iterate(sync_check_functor_t &functor);
 

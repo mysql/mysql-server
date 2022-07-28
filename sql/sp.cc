@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include "sql/sp.h"
 
 #include <string.h>
+
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -43,9 +44,9 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -103,14 +104,12 @@ class sp_rcontext;
 /* Used in error handling only */
 #define SP_TYPE_STRING(type) \
   (type == enum_sp_type::FUNCTION ? "FUNCTION" : "PROCEDURE")
-static bool create_string(THD *thd, String *buf, enum_sp_type sp_type,
-                          const char *db, size_t dblen, const char *name,
-                          size_t namelen, const char *params, size_t paramslen,
-                          const char *returns, size_t returnslen,
-                          const char *body, size_t bodylen,
-                          st_sp_chistics *chistics,
-                          const LEX_CSTRING &definer_user,
-                          const LEX_CSTRING &definer_host, sql_mode_t sql_mode);
+static bool create_string(
+    THD *thd, String *buf, enum_sp_type sp_type, const char *db, size_t dblen,
+    const char *name, size_t namelen, const char *params, size_t paramslen,
+    const char *returns, size_t returnslen, const char *body, size_t bodylen,
+    st_sp_chistics *chistics, const LEX_CSTRING &definer_user,
+    const LEX_CSTRING &definer_host, sql_mode_t sql_mode, bool if_not_exists);
 
 /**************************************************************************
   Fetch stored routines and events creation_ctx for upgrade.
@@ -521,7 +520,7 @@ enum_sp_return_code db_load_routine(
 
   if (!create_string(thd, &defstr, type, nullptr, 0, sp_name, sp_name_len,
                      params, strlen(params), returns, strlen(returns), body,
-                     strlen(body), sp_chistics, user, host, sql_mode)) {
+                     strlen(body), sp_chistics, user, host, sql_mode, false)) {
     ret = SP_INTERNAL_ERROR;
     goto end;
   }
@@ -590,19 +589,22 @@ end:
 }
 
 /**
-  Precheck for create routine statement.
+  Method to check if routine with same name already exists.
 
-  @param  thd      Thread context.
-  @param  sp       Stored routine object to store.
+  @param      thd              Thread context.
+  @param      sp               Stored routine object to store.
+  @param      if_not_exists    True if 'IF NOT EXISTS' clause was specified.
+  @param[out] already_exists   Set to true if routine already exists.
 
-  @retval  false   Success.
-  @retval  true    Error.
+  @retval     false            Success.
+  @retval     true             Error.
 */
+static bool check_routine_already_exists(THD *thd, sp_head *sp,
+                                         bool if_not_exists,
+                                         bool &already_exists) {
+  assert(!already_exists);
 
-static bool create_routine_precheck(THD *thd, sp_head *sp) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  // Check if routine with same name exists.
   bool error;
   const dd::Routine *sr;
   if (sp->m_type == enum_sp_type::FUNCTION)
@@ -615,12 +617,35 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
     // Error is reported by DD API framework.
     return true;
   }
-  if (sr != nullptr) {
-    my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(sp->m_type),
-             sp->m_name.str);
-    return true;
+  if (sr == nullptr) {
+    // Routine with same name does not exist.
+    return false;
   }
 
+  already_exists = true;
+  if (if_not_exists) {
+    push_warning_printf(thd, Sql_condition::SL_NOTE, ER_SP_ALREADY_EXISTS,
+                        ER_THD(thd, ER_SP_ALREADY_EXISTS),
+                        SP_TYPE_STRING(sp->m_type), sp->m_name.str);
+    return false;
+  }
+
+  my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(sp->m_type),
+           sp->m_name.str);
+  return true;
+}
+
+/**
+  Precheck for create routine statement.
+
+  @param   thd     Thread context.
+  @param   sp      Stored routine object to store.
+
+  @retval  false   Success.
+  @retval  true    Error.
+*/
+
+static bool create_routine_precheck(THD *thd, sp_head *sp) {
   /*
     Check if stored function creation is allowed only to the users having SUPER
     privileges.
@@ -659,15 +684,29 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
   }
 
   // Validate body definition to avoid invalid UTF8 characters.
-  if (is_invalid_string(sp->m_body_utf8, system_charset_info)) return true;
+  std::string invalid_sub_str;
+  if (is_invalid_string(sp->m_body_utf8, system_charset_info,
+                        invalid_sub_str)) {
+    // Provide contextual information
+    my_error(ER_DEFINITION_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
+             sp->m_db.str, sp->m_name.str, system_charset_info->csname,
+             invalid_sub_str.c_str());
+    return true;
+  }
 
   // Validate routine comment.
   if (sp->m_chistics->comment.length) {
     // validate comment string to avoid invalid utf8 characters.
     if (is_invalid_string(LEX_CSTRING{sp->m_chistics->comment.str,
                                       sp->m_chistics->comment.length},
-                          system_charset_info))
+                          system_charset_info, invalid_sub_str)) {
+      // Provide contextual information
+      my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
+               (std::string(sp->m_db.str) + "." + std::string(sp->m_name.str))
+                   .c_str(),
+               system_charset_info->csname, invalid_sub_str.c_str());
       return true;
+    }
 
     // Check comment string length.
     if (check_string_char_length(
@@ -678,6 +717,53 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
       return true;
     }
   }
+
+  return false;
+}
+
+/**
+  Method to log create routine event to binlog.
+
+  @param      thd              Thread context.
+  @param      sp               Stored routine object to store.
+  @param      definer          Definer of the routine.
+  @param      if_not_exists    True if 'IF NOT EXISTS' clause was specified.
+  @param      already_exists   True if routine already exists.
+
+  @retval false success
+  @retval true  error
+*/
+static bool sp_binlog_create_routine_stmt(THD *thd, sp_head *sp,
+                                          const LEX_USER *definer,
+                                          bool if_not_exists,
+                                          bool already_exists) {
+  String log_query;
+  log_query.set_charset(system_charset_info);
+
+  String retstr(64);
+  retstr.set_charset(system_charset_info);
+  if (sp->m_type == enum_sp_type::FUNCTION) sp->returns_type(thd, &retstr);
+
+  if (!create_string(thd, &log_query, sp->m_type,
+                     (sp->m_explicit_name ? sp->m_db.str : nullptr),
+                     (sp->m_explicit_name ? sp->m_db.length : 0),
+                     sp->m_name.str, sp->m_name.length, sp->m_params.str,
+                     sp->m_params.length, retstr.c_ptr(), retstr.length(),
+                     sp->m_body.str, sp->m_body.length, sp->m_chistics,
+                     definer->user, definer->host, thd->variables.sql_mode,
+                     if_not_exists))
+    return true;
+
+  thd->add_to_binlog_accessed_dbs(sp->m_db.str);
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.
+  */
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  if (write_bin_log(thd, true, log_query.c_ptr(), log_query.length(),
+                    !already_exists))
+    return true;
 
   return false;
 }
@@ -696,21 +782,25 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
     In case of crash, there won't be any discrepancy between
     the data-dictionary table and the binary log.
 
-  @param thd     Thread context.
-  @param sp      Stored routine object to store.
-  @param definer Definer of the SP.
+  @param       thd                Thread context.
+  @param       sp                 Stored routine object to store.
+  @param       definer            Definer of the SP.
+  @param       if_not_exists      True if 'IF NOT EXISTS' clause was specified.
+  @param[out]  sp_already_exists  Set to true if routine already exists.
 
-  @retval false success
-  @retval true  error
+  @retval      false              Success.
+  @retval      true               Error.
 */
 
-bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
+bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer,
+                       bool if_not_exists, bool &sp_already_exists) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("type: %d  name: %.*s", static_cast<int>(sp->m_type),
                        static_cast<int>(sp->m_name.length), sp->m_name.str));
 
   assert(sp->m_type == enum_sp_type::PROCEDURE ||
          sp->m_type == enum_sp_type::FUNCTION);
+  assert(!sp_already_exists);
 
   /* Grab an exclusive MDL lock. */
   MDL_key::enum_mdl_namespace mdl_type = (sp->m_type == enum_sp_type::FUNCTION)
@@ -723,6 +813,28 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
   }
   DEBUG_SYNC(thd, "after_acquiring_mdl_lock_on_routine");
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *schema = nullptr;
+
+  // Check whether routine with same name already exists.
+  if (check_routine_already_exists(thd, sp, if_not_exists, sp_already_exists)) {
+    /* If this happens, an error should have been reported. */
+    return true;
+  }
+  if (sp_already_exists) {
+    assert(if_not_exists);
+    /*
+      Routine with same name exists, warning is already reported. Log
+      create routine event to binlog.
+    */
+    if (mysql_bin_log.is_open() &&
+        sp_binlog_create_routine_stmt(thd, sp, definer, if_not_exists,
+                                      sp_already_exists))
+      goto err_with_rollback;
+
+    return false;
+  }
+
   if (create_routine_precheck(thd, sp)) {
     /* If this happens, an error should have been reported. */
     return true;
@@ -732,8 +844,6 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
                   DBUG_SET("+d,fail_while_acquiring_dd_object"););
 
   // Check that a database with this name exists.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *schema = nullptr;
   if (thd->dd_client()->acquire(sp->m_db.str, &schema)) {
     DBUG_EXECUTE_IF("fail_while_acquiring_routine_schema_obj",
                     DBUG_SET("-d,fail_while_acquiring_dd_object"););
@@ -760,34 +870,9 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
   }
 
   // Log stored routine create event.
-  if (mysql_bin_log.is_open()) {
-    String log_query;
-    log_query.set_charset(system_charset_info);
-
-    String retstr(64);
-    retstr.set_charset(system_charset_info);
-    if (sp->m_type == enum_sp_type::FUNCTION) sp->returns_type(thd, &retstr);
-
-    if (!create_string(thd, &log_query, sp->m_type,
-                       (sp->m_explicit_name ? sp->m_db.str : nullptr),
-                       (sp->m_explicit_name ? sp->m_db.length : 0),
-                       sp->m_name.str, sp->m_name.length, sp->m_params.str,
-                       sp->m_params.length, retstr.c_ptr(), retstr.length(),
-                       sp->m_body.str, sp->m_body.length, sp->m_chistics,
-                       definer->user, definer->host, thd->variables.sql_mode))
-      goto err_report_with_rollback;
-
-    thd->add_to_binlog_accessed_dbs(sp->m_db.str);
-
-    /*
-      This statement will be replicated as a statement, even when using
-      row-based replication.
-    */
-    Save_and_Restore_binlog_format_state binlog_format_state(thd);
-
-    if (write_bin_log(thd, true, log_query.c_ptr(), log_query.length(), true))
-      goto err_report_with_rollback;
-  }
+  if (mysql_bin_log.is_open() &&
+      sp_binlog_create_routine_stmt(thd, sp, definer, if_not_exists, false))
+    goto err_report_with_rollback;
 
   // Commit changes to the data-dictionary and binary log.
   if (DBUG_EVALUATE_IF("simulate_create_routine_failure", true, false) ||
@@ -1027,7 +1112,18 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   // Validate routine comment.
   if (chistics->comment.str) {
     // validate comment string to invalid utf8 characters.
-    if (is_invalid_string(chistics->comment, system_charset_info)) return true;
+    std::string invalid_sub_str;
+    if (is_invalid_string(
+            LEX_CSTRING{chistics->comment.str, chistics->comment.length},
+            system_charset_info, invalid_sub_str)) {
+      // Provide contextual information
+      my_error(
+          ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
+          (std::string(name->m_db.str) + "." + std::string(name->m_name.str))
+              .c_str(),
+          system_charset_info->csname, invalid_sub_str.c_str());
+      return true;
+    }
 
     // Check comment string length.
     if (check_string_char_length(
@@ -1109,7 +1205,7 @@ bool lock_db_routines(THD *thd, const dd::Schema &schema) {
   /*
     Ensure that we don't hold memory used by MDL_requests after locks have
     been acquired. This reduces memory usage in cases when we have DROP
-    DATABASE tha needs to drop lots of different objects.
+    DATABASE that needs to drop lots of different objects.
   */
   MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
 
@@ -1274,7 +1370,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
           routine->definition().length(), &sp_chistics,
           {routine->definer_user().c_str(), routine->definer_user().length()},
           {routine->definer_host().c_str(), routine->definer_host().length()},
-          routine->sql_mode()))
+          routine->sql_mode(), false))
     return true;
 
   // Prepare sql_mode string representation.
@@ -1344,13 +1440,13 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
     protocol->store_null();
 
   // character_set_client
-  protocol->store(replace_utf8_utf8mb3(cs_info->csname), system_charset_info);
+  protocol->store(cs_info->csname, system_charset_info);
   // connection_collation
   cs_info = dd_get_mysql_charset(routine->connection_collation_id());
-  protocol->store(cs_info->name, system_charset_info);
+  protocol->store(cs_info->m_coll_name, system_charset_info);
   // database_collation
   cs_info = dd_get_mysql_charset(routine->schema_collation_id());
-  protocol->store(cs_info->name, system_charset_info);
+  protocol->store(cs_info->m_coll_name, system_charset_info);
 
   bool err_status = protocol->end_row();
 
@@ -1451,7 +1547,7 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
   if (!cache_only) {
     if (db_find_routine(thd, type, name, &sp) == SP_OK) {
       sp_cache_insert(cp, sp);
-      DBUG_PRINT("info", ("added new: 0x%lx, level: %lu, flags %x", (ulong)sp,
+      DBUG_PRINT("info", ("added new: %p, level: %lu, flags %x", sp,
                           sp->m_recursion_level, sp->m_flags));
     }
   }
@@ -1483,15 +1579,15 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   sp_head *sp = sp_cache_lookup(cp, name);
   if (sp == nullptr) return nullptr;
 
-  DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
+  DBUG_PRINT("info", ("found: %p", sp));
 
   const ulong depth = type == enum_sp_type::PROCEDURE
                           ? thd->variables.max_sp_recursion_depth
                           : 0;
 
   if (sp->m_first_free_instance) {
-    DBUG_PRINT("info", ("first free: 0x%lx  level: %lu  flags %x",
-                        (ulong)sp->m_first_free_instance,
+    DBUG_PRINT("info", ("first free: %p  level: %lu  flags %x",
+                        sp->m_first_free_instance,
                         sp->m_first_free_instance->m_recursion_level,
                         sp->m_first_free_instance->m_flags));
     assert(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
@@ -1535,7 +1631,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   new_sp->m_recursion_level = level;
   new_sp->m_first_instance = sp;
   sp->m_last_cached_sp = sp->m_first_free_instance = new_sp;
-  DBUG_PRINT("info", ("added level: 0x%lx, level: %lu, flags %x", (ulong)new_sp,
+  DBUG_PRINT("info", ("added level: %p, level: %lu, flags %x", new_sp,
                       new_sp->m_recursion_level, new_sp->m_flags));
   return new_sp;
 }
@@ -1583,7 +1679,7 @@ bool sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc) {
 }
 
 /**
-  Auxilary function that adds new element to the set of stored routines
+  Auxiliary function that adds new element to the set of stored routines
   used by statement.
 
   The elements of Query_tables_list::sroutines set are accessed on prepared
@@ -1750,7 +1846,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 
       /*
         Stored routine names are case and accent insensitive. So for the proper
-        hash key comparision, case and accent is stripped off by replacing the
+        hash key comparison, case and accent is stripped off by replacing the
         characters with their sort weight when preparing the Sroutine_hash_entry
         key.
       */
@@ -1954,7 +2050,7 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
           SP allows full NAME_LEN chars thus he have to allocate enough
           size in bytes. Otherwise there is stack overrun could happen
           if multibyte sequence is `name`. `db` is still safe because the
-          rest of the server checks agains NAME_LEN bytes and not chars.
+          rest of the server checks against NAME_LEN bytes and not chars.
           Hence, the overrun happens only if the name is in length > 32 and
           uses multibyte (cyrillic, greek, etc.)
         */
@@ -1981,7 +2077,7 @@ static bool create_string(
     const char *name, size_t namelen, const char *params, size_t paramslen,
     const char *returns, size_t returnslen, const char *body, size_t bodylen,
     st_sp_chistics *chistics, const LEX_CSTRING &definer_user,
-    const LEX_CSTRING &definer_host, sql_mode_t sql_mode) {
+    const LEX_CSTRING &definer_host, sql_mode_t sql_mode, bool if_not_exists) {
   sql_mode_t old_sql_mode = thd->variables.sql_mode;
   /* Make some room to begin with */
   if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
@@ -1996,6 +2092,7 @@ static bool create_string(
     buf->append(STRING_WITH_LEN("FUNCTION "));
   else
     buf->append(STRING_WITH_LEN("PROCEDURE "));
+  if (if_not_exists) buf->append(STRING_WITH_LEN("IF NOT EXISTS "));
   if (dblen > 0) {
     append_identifier(thd, buf, db, dblen);
     buf->append('.');
@@ -2106,7 +2203,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
                      params_str.c_str(), params_str.length(),
                      return_type_str.c_str(), return_type_str.length(),
                      sr_body.str, sr_body.length, &sp_chistics, definer_user,
-                     definer_host, routine->sql_mode()))
+                     definer_host, routine->sql_mode(), false))
     return nullptr;
 
   LEX *old_lex = thd->lex, newlex;
@@ -2132,7 +2229,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
 
   @param thd      Thread context.
   @param sp_type  The stored program type
-  @param sp_name  The stored progam name
+  @param sp_name  The stored program name
 
   @return properly initialized sp_head-instance in case of success, or NULL is
   case of out-of-memory error.
@@ -2140,10 +2237,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
 sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type, sp_name *sp_name) {
   // The order is important:
   // 1. new sp_head()
-  MEM_ROOT own_root;
-
-  init_sql_alloc(key_memory_sp_head_main_root, &own_root, MEM_ROOT_BLOCK_SIZE,
-                 MEM_ROOT_PREALLOC);
+  MEM_ROOT own_root(key_memory_sp_head_main_root, MEM_ROOT_BLOCK_SIZE);
 
   void *rawmem = own_root.Alloc(sizeof(sp_head));
   if (!rawmem) return nullptr;
@@ -2378,6 +2472,7 @@ uint sp_get_flags_for_command(LEX *lex) {
     case SQLCOM_CREATE_RESOURCE_GROUP:
     case SQLCOM_ALTER_RESOURCE_GROUP:
     case SQLCOM_DROP_RESOURCE_GROUP:
+    case SQLCOM_ALTER_TABLESPACE:
       flags = sp_head::HAS_COMMIT_OR_ROLLBACK;
       break;
     default:
@@ -2553,11 +2648,11 @@ String *sp_get_item_value(THD *thd, Item *item, String *str) {
         buf.length(0);
 
         buf.append('_');
-        buf.append(replace_utf8_utf8mb3(result->charset()->csname));
+        buf.append(result->charset()->csname);
         if (cs->escape_with_backslash_is_dangerous) buf.append(' ');
         append_query_string(thd, cs, result, &buf);
         buf.append(" COLLATE '");
-        buf.append(item->collation.collation->name);
+        buf.append(item->collation.collation->m_coll_name);
         buf.append('\'');
         str->copy(buf);
 

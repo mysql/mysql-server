@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,7 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** Move the version base node from current entry to the given entry.
-@param[in]	to_entry	The index entry to which the version base
+@param[in]      to_entry        The index entry to which the version base
                                 node is moved to. */
 void index_entry_t::move_version_base_node(index_entry_t &to_entry) {
   flst_base_node_t *from_node = get_versions_list();
@@ -43,17 +43,7 @@ void index_entry_t::move_version_base_node(index_entry_t &to_entry) {
   flst_init(from_node, m_mtr);
 }
 
-/** The current index entry points to a latest LOB page.  It may or may
-not have older versions.  If older version is there, bring it back to the
-index list from the versions list.  Then remove the current entry from
-the index list.  Move the versions list from current entry to older entry.
-@param[in]  index  the clustered index containing the LOB.
-@param[in]  trxid  The transaction identifier.
-@param[in]  first_page  The first lob page containing index list and free
-                        list.
-@return the location of next entry. */
 fil_addr_t index_entry_t::make_old_version_current(dict_index_t *index,
-                                                   trx_id_t trxid,
                                                    first_page_t &first_page) {
   flst_base_node_t *base = first_page.index_list();
   flst_base_node_t *free_list = first_page.free_list();
@@ -79,9 +69,9 @@ fil_addr_t index_entry_t::make_old_version_current(dict_index_t *index,
     flst_insert_after(base, m_node, old_node, m_mtr);
   }
 
-  fil_addr_t loc = purge_version(index, trxid, base, free_list);
+  fil_addr_t loc = purge_version(index, base, free_list);
 
-  ut_ad(flst_validate(base, m_mtr));
+  ut_d(flst_validate(base, m_mtr));
 
   return (loc);
 }
@@ -97,7 +87,8 @@ void index_entry_t::purge(dict_index_t *index) {
   buf_block_t *block = nullptr;
 
   block = buf_page_get(page_id_t(dict_index_get_space(index), page_no),
-                       dict_table_page_size(index->table), RW_X_LATCH, m_mtr);
+                       dict_table_page_size(index->table), RW_X_LATCH,
+                       UT_LOCATION_HERE, m_mtr);
 
   page_type_t type = fil_page_get_type(block->frame);
 
@@ -116,13 +107,7 @@ void index_entry_t::purge(dict_index_t *index) {
   set_data_len(0);
 }
 
-/** Purge the current entry.
-@param[in]  index  the clustered index containing the LOB.
-@param[in]  trxid  The transaction identifier.
-@param[in]  lst    the base node of index list.
-@param[in]  free_list    the base node of free list.
-@return the location of the next entry. */
-fil_addr_t index_entry_t::purge_version(dict_index_t *index, trx_id_t trxid,
+fil_addr_t index_entry_t::purge_version(dict_index_t *index,
                                         flst_base_node_t *lst,
                                         flst_base_node_t *free_list) {
   /* Save the location of next node. */
@@ -187,7 +172,7 @@ void index_entry_t::read(index_entry_mem_t &entry_mem) const {
 
 /** Load the index entry available in the given file address.
 Take x-latch on the index page.
-@param[in]	addr	the file address of the index entry.
+@param[in]      addr    the file address of the index entry.
 @return the buffer block containing the index entry. */
 buf_block_t *index_entry_t::load_x(const fil_addr_t &addr) {
   ut_ad(m_mtr != nullptr);
@@ -204,7 +189,7 @@ buf_block_t *index_entry_t::load_x(const fil_addr_t &addr) {
 
 /** Load the index entry available in the given file address.
 Take s-latch on the index page.
-@param[in]	addr	the file location of index entry.
+@param[in]      addr    the file location of index entry.
 @return the buffer block. */
 buf_block_t *index_entry_t::load_s(const fil_addr_t &addr) {
   ut_ad(m_mtr != nullptr);
@@ -233,7 +218,7 @@ void index_entry_mem_t::reset() {
 }
 
 /** Print this object into the given output stream.
-@param[in]	out	the output stream.
+@param[in]      out     the output stream.
 @return the output stream. */
 std::ostream &index_entry_mem_t::print(std::ostream &out) const {
   out << "[index_entry_mem_t: m_self=" << m_self << ", m_prev=" << m_prev
@@ -244,6 +229,21 @@ std::ostream &index_entry_mem_t::print(std::ostream &out) const {
       << ", m_undo_no_modifier=" << m_undo_no_modifier
       << ", m_page_no=" << m_page_no << ", m_data_len=" << m_data_len << "]";
   return (out);
+}
+
+void index_entry_t::free_data_page(const page_no_t first_page_no) {
+  ut_ad(m_mtr != nullptr);
+  ut_ad(m_index != nullptr);
+  ut_ad(first_page_no != FIL_NULL);
+  ut_ad(first_page_no != 0);
+
+  const page_no_t page_no = get_page_no();
+  if (page_no != first_page_no && page_no != FIL_NULL) {
+    data_page_t data_page(m_mtr, const_cast<dict_index_t *>(m_index));
+    data_page.load_x(page_no);
+    data_page.dealloc();
+    set_page_no(FIL_NULL);
+  }
 }
 
 } /* namespace lob */

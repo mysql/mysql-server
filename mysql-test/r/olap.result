@@ -2219,7 +2219,9 @@ FROM
 t1, t1 AS t2
 GROUP BY t1.a WITH ROLLUP
 HAVING COUNT(*) = 0 AND t1.a = '刔';
-ERROR HY000: Illegal mix of collations for operation '='
+a
+Warnings:
+Warning	1292	Incorrect time value: '刔' for column 'a' at row 1
 DROP TABLE t1;
 #
 # Bug#33036184: GROUP BY WITH ROLLUP AND CONCAT OVER GROUP BY KEY DOES NOT PRODUCE NULL
@@ -2250,3 +2252,34 @@ REPLACE( IF( t2.a = t2.b, _latin1 'a', 'e'), 'd', 'b' )
 WITH ROLLUP;
 REPLACE( IF( t2.a = t2.b, _latin1 'a', 'e'), 'd', 'b' )
 DROP TABLE t1;
+#
+# Bug #33149402: SELECT'S GROUPING() NOT TAKEN IN ACCOUNT IN HAVING WHEN JOIN USED
+#
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (2020, 2);
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (2);
+SELECT a, GROUPING(a) AS ga
+FROM t1 JOIN t2 USING (b)
+GROUP BY a WITH ROLLUP
+HAVING ga = 0;
+a	ga
+2020	0
+DROP TABLE t1, t2;
+#
+# Bug#33729162: Hypergraph misses rows for SELECT DISTINCT ... GROUP BY WITH ROLLUP
+#
+CREATE TABLE t (x INTEGER);
+INSERT INTO t VALUES (NULL), (0), (1), (2), (3);
+SELECT DISTINCT x AS a, x AS b FROM t GROUP BY a, b WITH ROLLUP;
+a	b
+0	0
+0	NULL
+1	1
+1	NULL
+2	2
+2	NULL
+3	3
+3	NULL
+NULL	NULL
+DROP TABLE t;

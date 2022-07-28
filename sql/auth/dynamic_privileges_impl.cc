@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
+#include "sql/mysqld_thd_manager.h"
 #include "sql/sql_thd_internal_api.h"  // create_internal_thd
 
 class THD;
@@ -61,7 +62,9 @@ class Thd_creator {
         Initiate a THD without plugins,
         without attaching to the Global_THD_manager, and without setting
         an OS thread ID.
+        The global THD manager is still needed to create the thread through.
       */
+      assert(Global_THD_manager::is_initialized());
       m_tmp_thd = create_internal_thd();
       return m_tmp_thd;
     } else if (m_thd == nullptr) {
@@ -99,15 +102,17 @@ class Thd_creator {
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
                    (const char *privilege_str, size_t privilege_str_len)) {
-  Thd_creator get_thd(current_thd);
   try {
-    Acl_cache_lock_guard acl_cache_lock(get_thd(),
-                                        Acl_cache_lock_mode::WRITE_MODE);
-    Dynamic_privilege_register *reg = get_dynamic_privilege_register();
     std::string priv;
     const char *c = &privilege_str[0];
     for (size_t i = 0; i < privilege_str_len; ++i, ++c)
       priv.append(1, static_cast<char>(toupper(*c)));
+
+    Thd_creator get_thd(current_thd);
+    Acl_cache_lock_guard acl_cache_lock(get_thd(),
+                                        Acl_cache_lock_mode::WRITE_MODE);
+    acl_cache_lock.lock();
+    Dynamic_privilege_register *reg = get_dynamic_privilege_register();
     if (reg->find(priv) != reg->end()) {
       /* If the privilege ID already is registered; report success */
       return false;
@@ -133,15 +138,26 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
                    (const char *privilege_str, size_t privilege_str_len)) {
-  Thd_creator get_thd(current_thd);
   try {
-    Acl_cache_lock_guard acl_cache_lock(get_thd(),
-                                        Acl_cache_lock_mode::WRITE_MODE);
     std::string priv;
     const char *c = &privilege_str[0];
     for (size_t i = 0; i < privilege_str_len; ++i, ++c)
       priv.append(1, static_cast<char>(toupper(*c)));
-    return (get_dynamic_privilege_register()->erase(priv) == 0);
+
+    /*
+      This function may be called after the thd manager is gone, e.g.
+      from component deinitialization.
+      In this case it can just remove the priv from the global list
+      without taking locks.
+    */
+    if (Global_THD_manager::is_initialized()) {
+      Thd_creator get_thd(current_thd);
+      Acl_cache_lock_guard acl_cache_lock(get_thd(),
+                                          Acl_cache_lock_mode::WRITE_MODE);
+      acl_cache_lock.lock();
+      return (get_dynamic_privilege_register()->erase(priv) == 0);
+    } else
+      return (get_dynamic_privilege_register()->erase(priv) == 0);
   } catch (...) {
     return true;
   }
@@ -167,8 +183,8 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
 }
 
 /**
-  Boostrap the dynamic privilege service by seeding it with server
-  implementation specific data.
+  Bootstrap the dynamic privilege service by seeding it with server
+  implementation-specific data.
 */
 
 bool dynamic_privilege_init(void) {
@@ -229,6 +245,8 @@ bool dynamic_privilege_init(void) {
           STRING_WITH_LEN("AUTHENTICATION_POLICY_ADMIN"));
       ret += service->register_privilege(
           STRING_WITH_LEN("PASSWORDLESS_USER_ADMIN"));
+      ret += service->register_privilege(
+          STRING_WITH_LEN("SENSITIVE_VARIABLES_OBSERVER"));
     }
   }  // exist scope
   mysql_plugin_registry_release(r);

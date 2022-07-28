@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef srv0start_h
 #define srv0start_h
 
-#include "log0types.h"
 #include "os0thread-create.h"
 #ifndef UNIV_HOTBACKUP
 #include "sync0rw.h"
@@ -64,7 +63,7 @@ struct dict_table_t;
 
 /** If buffer pool is less than the size,
 only one buffer pool instance is used. */
-#define BUF_POOL_SIZE_THRESHOLD (1024 * 1024 * 1024)
+constexpr uint32_t BUF_POOL_SIZE_THRESHOLD = 1024 * 1024 * 1024;
 
 /** Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
  and srv_parse_log_group_home_dirs(). */
@@ -88,7 +87,7 @@ referenced by the TRX_SYS page.
 dberr_t srv_undo_tablespaces_upgrade();
 
 /** Start InnoDB.
-@param[in]	create_new_db		Whether to create a new database
+@param[in]      create_new_db           Whether to create a new database
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t srv_start(bool create_new_db);
 
@@ -107,7 +106,7 @@ any tables (including data dictionary tables) can be accessed. */
 void srv_dict_recover_on_restart();
 
 /** Start up the InnoDB service threads which are independent of DDL recovery
-@param[in]	bootstrap	True if this is in bootstrap */
+@param[in]      bootstrap       True if this is in bootstrap */
 void srv_start_threads(bool bootstrap);
 
 /** Start the remaining InnoDB service threads which must wait for
@@ -118,21 +117,11 @@ void srv_start_threads_after_ddl_recovery();
 purge threads early to apply purge. */
 void srv_start_purge_threads();
 
-/** Copy the file path component of the physical file to parameter. It will
- copy up to and including the terminating path separator.
- @return number of bytes copied or ULINT_UNDEFINED if destination buffer
-         is smaller than the path to be copied. */
-[[nodiscard]] ulint srv_path_copy(
-    char *dest,              /*!< out: destination buffer */
-    ulint dest_len,          /*!< in: max bytes to copy */
-    const char *basedir,     /*!< in: base directory */
-    const char *table_name); /*!< in: source table name */
-
 /** Get the encryption-data filename from the table name for a
 single-table tablespace.
-@param[in]	table		table object
-@param[out]	filename	filename
-@param[in]	max_len		filename max length */
+@param[in]      table           table object
+@param[out]     filename        filename
+@param[in]      max_len         filename max length */
 void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
                                       ulint max_len);
 #endif /* !UNIV_HOTBACKUP */
@@ -145,7 +134,7 @@ extern bool srv_sys_tablespaces_open;
 incomplete transactions */
 extern bool srv_startup_is_before_trx_rollback_phase;
 
-/** TRUE if a raw partition is in use */
-extern ibool srv_start_raw_disk_in_use;
+/** true if a raw partition is in use */
+extern bool srv_start_raw_disk_in_use;
 
 #endif

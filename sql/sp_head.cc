@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@
 #include "my_pointer_arithmetic.h"
 #include "my_systime.h"
 #include "my_user.h"  // parse_user
-#include "mysql/components/services/psi_error_bits.h"
+#include "mysql/components/services/bits/psi_error_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_sp.h"
@@ -1097,7 +1097,7 @@ methods like Item::fix_fields(), which modify the internal state of items,
 
   @subsection sp_exc_rcont Runtime Context
 
-  An interpretor needs to be able to represent the state
+  An interpreter needs to be able to represent the state
   of the SQL program being executed:
   this is the role of the C++ class #sp_rcontext, or runtime context.
 
@@ -1614,7 +1614,7 @@ static void reset_start_time_for_sp(THD *thd) {
     This procedure won't create new Sroutine_hash_entry objects,
     instead it will simply add elements from source to destination
     hash. Thus time of life of elements in destination hash becomes
-    dependant on time of life of elements from source hash. It also
+    dependent on time of life of elements from source hash. It also
     won't touch lists linking elements in source and destination
     hashes.
 */
@@ -1969,10 +1969,10 @@ void sp_head::returns_type(THD *thd, String *result) const {
 
   if (field->has_charset()) {
     result->append(STRING_WITH_LEN(" CHARSET "));
-    result->append(replace_utf8_utf8mb3(m_return_field_def.charset->csname));
+    result->append(m_return_field_def.charset->csname);
     if (!(m_return_field_def.charset->state & MY_CS_PRIMARY)) {
       result->append(STRING_WITH_LEN(" COLLATE "));
-      result->append(m_return_field_def.charset->name);
+      result->append(m_return_field_def.charset->m_coll_name);
     }
   }
 
@@ -1989,7 +1989,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   sql_mode_t save_sql_mode;
   Query_arena *old_arena;
   /* per-instruction arena */
-  MEM_ROOT execute_mem_root;
+  MEM_ROOT execute_mem_root(key_memory_sp_head_execute_root,
+                            MEM_ROOT_BLOCK_SIZE);
   Query_arena execute_arena(&execute_mem_root,
                             Query_arena::STMT_INITIALIZED_FOR_SP),
       backup_arena;
@@ -2039,10 +2040,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
 
   opt_trace_disable_if_no_security_context_access(thd);
 
-  /* init per-instruction memroot */
-  init_sql_alloc(key_memory_sp_head_execute_root, &execute_mem_root,
-                 MEM_ROOT_BLOCK_SIZE, 0);
-
   assert(!(m_flags & IS_INVOKED));
   m_flags |= IS_INVOKED;
   m_first_instance->m_first_free_instance = m_next_cached_sp;
@@ -2081,7 +2078,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
 
   /*
     Switch query context. This has to be done early as this is sometimes
-    allocated trough sql_alloc
+    allocated through sql_alloc
   */
   saved_creation_ctx = m_creation_ctx->set_n_backup(thd);
 
@@ -2201,6 +2198,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     sql_digest_state *parent_digest = thd->m_digest;
     thd->m_digest = &digest_state;
 
+    mysql_thread_set_secondary_engine(false);
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     PSI_statement_locker_state psi_state;
     PSI_statement_info *psi_info = i->get_psi_info();
@@ -2243,7 +2242,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     thd->cleanup_after_query();
 
     // Release memory allocated during execution of the instruction
-    execute_mem_root.Clear();
+    execute_mem_root.ClearForReuse();
 
     /*
       Find and process SQL handlers unless it is a fatal error (fatal
@@ -2404,7 +2403,19 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
                               GRANT_INFO *grant_info) {
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
   bool err_status = false;
-  MEM_ROOT call_mem_root;
+  /*
+    Prepare arena and memroot for objects which lifetime is whole
+    duration of trigger call (sp_rcontext, it's tables and items,
+    sp_cursor and Item_cache holders for case expressions).  We can't
+    use caller's arena/memroot for those objects because in this case
+    some fixed amount of memory will be consumed for each trigger
+    invocation and so statements which involve lot of them will hog
+    memory.
+
+    TODO: we should create sp_rcontext once per command and reuse it
+    on subsequent executions of a trigger.
+  */
+  MEM_ROOT call_mem_root(key_memory_sp_head_call_root, MEM_ROOT_BLOCK_SIZE);
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
@@ -2455,20 +2466,6 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
     security context we will disable tracing.
   */
 
-  /*
-    Prepare arena and memroot for objects which lifetime is whole
-    duration of trigger call (sp_rcontext, it's tables and items,
-    sp_cursor and Item_cache holders for case expressions).  We can't
-    use caller's arena/memroot for those objects because in this case
-    some fixed amount of memory will be consumed for each trigger
-    invocation and so statements which involve lot of them will hog
-    memory.
-
-    TODO: we should create sp_rcontext once per command and reuse it
-    on subsequent executions of a trigger.
-  */
-  init_sql_alloc(key_memory_sp_head_call_root, &call_mem_root,
-                 MEM_ROOT_BLOCK_SIZE, 0);
   thd->swap_query_arena(call_arena, &backup_arena);
 
   sp_rcontext *trigger_runtime_ctx =
@@ -2500,7 +2497,6 @@ err_with_cleanup:
 
   ::destroy(trigger_runtime_ctx);
   call_arena.free_items();
-  call_mem_root.Clear();
   thd->sp_runtime_ctx = parent_sp_runtime_ctx;
 
   if (thd->killed) thd->send_kill_message();
@@ -2517,7 +2513,18 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   char buf[STRING_BUFFER_USUAL_SIZE];
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status = false;
-  MEM_ROOT call_mem_root;
+  /*
+    Prepare arena and memroot for objects which lifetime is whole
+    duration of function call (sp_rcontext, it's tables and items,
+    sp_cursor and Item_cache holders for case expressions).
+    We can't use caller's arena/memroot for those objects because
+    in this case some fixed amount of memory will be consumed for
+    each function/trigger invocation and so statements which involve
+    lot of them will hog memory.
+    TODO: we should create sp_rcontext once per command and reuse
+    it on subsequent executions of a function/trigger.
+  */
+  MEM_ROOT call_mem_root(key_memory_sp_head_call_root, MEM_ROOT_BLOCK_SIZE);
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
@@ -2530,19 +2537,6 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   // Number of arguments has been checked during resolving
   assert(argcount == m_root_parsing_ctx->context_var_count());
 
-  /*
-    Prepare arena and memroot for objects which lifetime is whole
-    duration of function call (sp_rcontext, it's tables and items,
-    sp_cursor and Item_cache holders for case expressions).
-    We can't use caller's arena/memroot for those objects because
-    in this case some fixed amount of memory will be consumed for
-    each function/trigger invocation and so statements which involve
-    lot of them will hog memory.
-    TODO: we should create sp_rcontext once per command and reuse
-    it on subsequent executions of a function/trigger.
-  */
-  init_sql_alloc(key_memory_sp_head_call_root, &call_mem_root,
-                 MEM_ROOT_BLOCK_SIZE, 0);
   thd->swap_query_arena(call_arena, &backup_arena);
 
   sp_rcontext *func_runtime_ctx =
@@ -2727,7 +2721,8 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   bool err_status = false;
   uint params = m_root_parsing_ctx->context_var_count();
   /* Query start time may be reset in a multi-stmt SP; keep this for later. */
-  ulonglong utime_before_sp_exec = thd->utime_after_lock;
+  ulonglong lock_usec_before_sp_exec;
+  thd->push_lock_usec(lock_usec_before_sp_exec);
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
   sp_rcontext *sp_runtime_ctx_saved = thd->sp_runtime_ctx;
   bool save_enable_slow_log = false;
@@ -2929,10 +2924,10 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
 
   ::destroy(proc_runtime_ctx);
   thd->sp_runtime_ctx = sp_runtime_ctx_saved;
-  thd->utime_after_lock = utime_before_sp_exec;
+  thd->pop_lock_usec(lock_usec_before_sp_exec);
 
   /*
-    If not insided a procedure and a function printing warning
+    If not inside a procedure and a function printing warning
     messages.
   */
   bool need_binlog_call = mysql_bin_log.is_open() &&
@@ -3364,7 +3359,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
       table->belong_to_view = belong_to_view;
       table->trg_event_map = stab->trg_event_map;
 
-      /* Everyting else should be zeroed */
+      /* Everything else should be zeroed */
 
       **query_tables_last_ptr = table;
       table->prev_global = *query_tables_last_ptr;

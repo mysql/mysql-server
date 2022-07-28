@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #include "mf_wcomp.h"
 #include "sql/mysqld.h"  // system_charset_info
+#include "storage/ndb/plugin/ndb_ndbapi_errors.h"
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_sleep.h"
 #include "storage/ndb/plugin/ndb_table_guard.h"
@@ -346,7 +347,7 @@ int Ndb_rep_tab_reader::lookup(Ndb *ndb,
   do {
     if (reptab == NULL) {
       if (ndbtab_g.getNdbError().classification == NdbError::SchemaError ||
-          ndbtab_g.getNdbError().code == 4009) {
+          ndbtab_g.getNdbError().code == NDB_ERR_CLUSTER_FAILURE) {
         DBUG_PRINT("info",
                    ("No %s.%s table", ndb_rep_db, ndb_replication_table));
         return 0;

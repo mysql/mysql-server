@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,10 +60,10 @@ Foreign_keys::Foreign_keys() {
                          "table_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
-                             String_type(name_collation()->name));
+                             String_type(name_collation()->m_coll_name));
   m_target_def.add_field(
       FIELD_UNIQUE_CONSTRAINT_NAME, "FIELD_UNIQUE_CONSTRAINT_NAME",
-      "unique_constraint_name VARCHAR(64) COLLATE utf8_tolower_ci");
+      "unique_constraint_name VARCHAR(64) COLLATE utf8mb3_tolower_ci");
   m_target_def.add_field(FIELD_MATCH_OPTION, "FIELD_MATCH_OPTION",
                          "match_option ENUM('NONE', 'PARTIAL', 'FULL') "
                          "NOT NULL");
@@ -83,17 +83,20 @@ Foreign_keys::Foreign_keys() {
       FIELD_REFERENCED_TABLE_CATALOG, "FIELD_REFERENCED_TABLE_CATALOG",
       "referenced_table_catalog "
       "VARCHAR(64) NOT NULL COLLATE " +
-          String_type(Object_table_definition_impl::fs_name_collation()->name));
+          String_type(
+              Object_table_definition_impl::fs_name_collation()->m_coll_name));
   m_target_def.add_field(
       FIELD_REFERENCED_TABLE_SCHEMA, "FIELD_REFERENCED_TABLE_SCHEMA",
       "referenced_table_schema "
       "VARCHAR(64) NOT NULL COLLATE " +
-          String_type(Object_table_definition_impl::fs_name_collation()->name));
+          String_type(
+              Object_table_definition_impl::fs_name_collation()->m_coll_name));
   m_target_def.add_field(
       FIELD_REFERENCED_TABLE, "FIELD_REFERENCED_TABLE",
       "referenced_table_name "
       "VARCHAR(64) NOT NULL COLLATE " +
-          String_type(Object_table_definition_impl::fs_name_collation()->name));
+          String_type(
+              Object_table_definition_impl::fs_name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
 
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY (id)");

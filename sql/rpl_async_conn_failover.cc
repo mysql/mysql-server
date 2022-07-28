@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,7 +181,7 @@ Async_conn_failover_manager::do_auto_conn_failover(Master_info *mi,
 
   /*
     reset current network configuration details with new network
-    configuration details of choosen source.
+    configuration details of chosen source.
   */
   if (!set_channel_conn_details(
           mi,

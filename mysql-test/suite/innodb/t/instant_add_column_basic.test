@@ -1,4 +1,5 @@
 --source include/big_test.inc
+--source include/not_have_innodb_4k.inc
 
 --echo ##############################################
 --echo # Test instant ADD COLUMN for REDUNDANT format
@@ -75,3 +76,32 @@ SHOW CREATE TABLE t1;
 CHECK TABLE t1;
 
 DROP TABLE t1;
+
+
+--echo # Bug #33673961: data is incorrect after instant add column
+
+# VALUE FOR CHECKSUM USING ALGORITHM=INSTANT SHOULD BE CONSISTENT WITH ALGORITHM=COPY FOR IDENTICAL TABLES
+
+--let $use_copy=0
+while($use_copy<=1){
+  CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a char(10));
+  INSERT INTO t1 VALUES(1, 'aa');
+  INSERT INTO t1 VALUES(2, 'bb');
+  if ($use_copy == 0) {
+    ALTER TABLE t1 ADD b VARCHAR(20), ALGORITHM=INSTANT;
+  }
+  if ($use_copy == 1) {
+    ALTER TABLE t1 ADD b VARCHAR(20), ALGORITHM=COPY;
+  }
+  INSERT INTO t1 VALUES(3, 'cc', 'dd');
+  let $cs = `CHECKSUM TABLE t1`;
+  if ($use_copy == 1) {
+    if ($cs == $prev_cs) {
+      echo CHECKSUM is same;
+    }
+  }
+  DROP TABLE t1;
+
+  --let $prev_cs=$cs
+  --inc $use_copy
+}

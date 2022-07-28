@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -36,11 +36,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <utility>
 
 #include "my_alloc.h"
+#include "sql-common/json_dom.h"
 #include "sql/auth/acl_table_base.h"
 #include "sql/auth/partial_revokes.h"
 #include "sql/auth/sql_mfa.h" /* I_multi_factor_auth */
 #include "sql/auth/user_table.h"
-#include "sql/json_dom.h"
 
 class ACL_USER;
 class RowIterator;
@@ -61,11 +61,11 @@ enum class User_attribute_type {
 
 struct Password_lock {
   /**
-     read from the user config. The number of days to keep the accont locked
+     read from the user config. The number of days to keep the account locked
   */
   int password_lock_time_days;
   /**
-    read from the user config. The number of failed login attemps before the
+    read from the user config. The number of failed login attempts before the
     account is locked
   */
   uint failed_login_attempts;
@@ -215,7 +215,7 @@ class Acl_table_user_writer_status {
  public:
   Acl_table_user_writer_status();
   Acl_table_user_writer_status(bool skip, ulong rights, Table_op_error_code err,
-                               struct timeval pwd_timestamp, std::string cred,
+                               my_timeval pwd_timestamp, std::string cred,
                                Password_lock &password_lock,
                                I_multi_factor_auth *multi_factor)
       : skip_cache_update(skip),
@@ -230,7 +230,7 @@ class Acl_table_user_writer_status {
   bool skip_cache_update;
   ulong updated_rights;
   Table_op_error_code error;
-  struct timeval password_change_timestamp;
+  my_timeval password_change_timestamp;
   std::string second_cred;
   Restrictions restrictions;
   Password_lock password_lock;
@@ -318,7 +318,7 @@ class Acl_table_user_reader : public Acl_table {
  private:
   User_table_schema *m_table_schema = nullptr;
   unique_ptr_destroy_only<RowIterator> m_iterator;
-  MEM_ROOT m_mem_root;
+  MEM_ROOT m_mem_root{PSI_NOT_INSTRUMENTED, ACL_ALLOC_BLOCK_SIZE};
   Restrictions *m_restrictions = nullptr;
   Json_object *m_user_application_user_metadata_json = nullptr;
 };

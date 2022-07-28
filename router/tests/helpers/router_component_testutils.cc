@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,9 @@
 #include <fstream>
 #include <thread>
 
-#include "mock_server_rest_client.h"
+#include "mysql/harness/net_ts/impl/resolver.h"
+#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysqlrouter/mock_server_rest_client.h"
 #include "router_test_helpers.h"
 
 namespace {
@@ -50,6 +52,7 @@ using JsonStringBuffer =
 }  // namespace
 
 using namespace std::chrono_literals;
+using native_handle_type = net::impl::socket::native_handle_type;
 
 std::string create_state_file_content(
     const std::string &cluster_type_specific_id,
@@ -290,4 +293,62 @@ size_t count_str_occurences(const std::string &s, const std::string &needle) {
     ++result;
   }
   return result;
+}
+
+static void read_until_error(int sock) {
+  std::array<char, 1024> buf;
+  while (true) {
+    const auto read_res = net::impl::socket::read(sock, buf.data(), buf.size());
+    if (!read_res || read_res.value() == 0) return;
+  }
+}
+
+static stdx::expected<native_handle_type, std::error_code> connect_to_host(
+    uint16_t port) {
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
+
+  const auto addrinfo_res = net::impl::resolver::getaddrinfo(
+      "127.0.0.1", std::to_string(port).c_str(), &hints);
+  if (!addrinfo_res)
+    throw std::system_error(addrinfo_res.error(), "getaddrinfo() failed: ");
+
+  const auto *ainfo = addrinfo_res.value().get();
+
+  const auto socket_res = net::impl::socket::socket(
+      ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
+  if (!socket_res) return socket_res;
+
+  const auto connect_res = net::impl::socket::connect(
+      socket_res.value(), ainfo->ai_addr, ainfo->ai_addrlen);
+  if (!connect_res) {
+    return stdx::make_unexpected(connect_res.error());
+  }
+
+  // return the fd
+  return socket_res.value();
+}
+
+void make_bad_connection(uint16_t port) {
+  // TCP-level connection phase
+  auto connection_res = connect_to_host(port);
+
+  auto sock = connection_res.value();
+
+  // MySQL protocol handshake phase
+  // To simplify code, instead of alternating between reading and writing
+  // protocol packets, we write a lot of garbage upfront, and then read
+  // whatever Router sends back. Router will read what we wrote in chunks,
+  // inbetween its writes, thinking they're replies to its handshake packets.
+  // Eventually it will finish the handshake with error and disconnect.
+  std::vector<char> bogus_data(1024, 0);
+  const auto write_res =
+      net::impl::socket::write(sock, bogus_data.data(), bogus_data.size());
+  if (!write_res) throw std::system_error(write_res.error(), "write() failed");
+  read_until_error(sock);  // error triggered by Router disconnecting
+
+  net::impl::socket::close(sock);
 }

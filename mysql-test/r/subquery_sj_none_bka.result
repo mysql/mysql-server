@@ -10134,24 +10134,6 @@ ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
-EXPLAIN SELECT t1a.*
-FROM t1 AS t1a
-JOIN t1 AS t1b USING ( col_int_nokey )
-WHERE t1a.col_int_key IN (
-SELECT pk
-FROM t2
-WHERE col_int_key IN (
-SELECT col_int_nokey
-FROM t1
-)
-);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1a	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	PRIMARY	t1b	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
-2	DEPENDENT SUBQUERY	t2	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where
-3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1a`.`pk` AS `pk`,`test`.`t1a`.`col_int_nokey` AS `col_int_nokey`,`test`.`t1a`.`col_int_key` AS `col_int_key` from `test`.`t1` `t1a` join `test`.`t1` `t1b` where ((`test`.`t1b`.`col_int_nokey` = `test`.`t1a`.`col_int_nokey`) and <in_optimizer>(`test`.`t1a`.`col_int_key`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1a`.`col_int_key`) in t2 on PRIMARY where <in_optimizer>(`test`.`t2`.`col_int_key`,<exists>(/* select#3 */ select `test`.`t1`.`col_int_nokey` from `test`.`t1` where (<cache>(`test`.`t2`.`col_int_key`) = `test`.`t1`.`col_int_nokey`)))))))
 SELECT t1a.*
 FROM t1 AS t1a
 JOIN t1 AS t1b USING ( col_int_nokey )
@@ -12690,7 +12672,7 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (123,1,1,'1',NULL),
@@ -13137,17 +13119,17 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 EXPLAIN
--> Sort: t4.col_int_key  (cost=0.85 rows=6)
-    -> Filter: <in_optimizer>(t4.col_int_key,<exists>(select #2))  (cost=0.85 rows=6)
-        -> Table scan on t4  (cost=0.85 rows=6)
+-> Sort: t4.col_int_key (rows=6)
+    -> Filter: <in_optimizer>(t4.col_int_key,<exists>(select #2)) (rows=6)
+        -> Table scan on t4 (rows=6)
         -> Select #2 (subquery in condition; dependent)
-            -> Limit: 1 row(s)  (cost=0.78 rows=1)
-                -> Filter: (t3.col_int is null)  (cost=0.78 rows=1)
-                    -> Nested loop left join  (cost=0.78 rows=1)
-                        -> Covering index lookup on t1 using col_int_key (col_int_key=<cache>(t4.col_int_key))  (cost=0.37 rows=1)
-                        -> Nested loop inner join  (cost=1.03 rows=1)
-                            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.34 rows=1)
-                            -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int)  (cost=0.27 rows=1)
+            -> Limit: 1 row(s) (rows=1)
+                -> Filter: (t3.col_int is null) (rows=1)
+                    -> Nested loop left join (rows=1)
+                        -> Covering index lookup on t1 using col_int_key (col_int_key=<cache>(t4.col_int_key)) (rows=1)
+                        -> Nested loop inner join (rows=1)
+                            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk) (rows=1)
+                            -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int) (rows=1)
 
 SELECT *
 FROM t4

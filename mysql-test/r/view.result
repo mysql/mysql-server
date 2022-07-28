@@ -2033,9 +2033,13 @@ create view v1 as select * from t1;
 select * from v1 where f1='2005.02.02';
 f1
 2005-02-02
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.02.02' at row 1 is deprecated. Prefer the standard '-'.
 select * from v1 where '2005.02.02'=f1;
 f1
 2005-02-02
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.02.02' at row 1 is deprecated. Prefer the standard '-'.
 drop view v1;
 drop table t1;
 CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
@@ -2143,6 +2147,8 @@ DROP VIEW v1;
 DROP TABLE t1;
 create table t1(f1 datetime);
 insert into t1 values('2005.01.01 12:0:0');
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.01 12:0:0' at row 1 is deprecated. Prefer the standard '-'.
 create view v1 as select f1, subtime(f1, '1:1:1') as sb from t1;
 select * from v1;
 f1	sb
@@ -2693,12 +2699,26 @@ id	td
 3	2005-01-02
 4	2005-01-03
 5	2005-01-04
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM v1 WHERE td BETWEEN CAST('2005.01.02' AS DATE) AND CAST('2005.01.04' AS DATE);
 id	td
 2	2005-01-02
 3	2005-01-02
 4	2005-01-03
 5	2005-01-04
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
 DROP VIEW v1;
 DROP TABLE t1;
 create table t1 (a int);
@@ -3328,42 +3348,42 @@ ISNULL(d)
 from table_24532;
 describe view_24532_a;
 Field	Type	Null	Key	Default	Extra
-a IS TRUE	int unsigned	NO		0	
-a IS NOT TRUE	int unsigned	NO		0	
-a IS FALSE	int unsigned	NO		0	
-a IS NOT FALSE	int unsigned	NO		0	
-a IS UNKNOWN	int unsigned	NO		0	
-a IS NOT UNKNOWN	int unsigned	NO		0	
-a is NULL	int unsigned	NO		0	
-a IS NOT NULL	int unsigned	NO		0	
-ISNULL(a)	int unsigned	NO		0	
-b IS TRUE	int unsigned	NO		0	
-b IS NOT TRUE	int unsigned	NO		0	
-b IS FALSE	int unsigned	NO		0	
-b IS NOT FALSE	int unsigned	NO		0	
-b IS UNKNOWN	int unsigned	NO		0	
-b IS NOT UNKNOWN	int unsigned	NO		0	
-b is NULL	int unsigned	NO		0	
-b IS NOT NULL	int unsigned	NO		0	
-ISNULL(b)	int unsigned	NO		0	
-c IS TRUE	int unsigned	NO		0	
-c IS NOT TRUE	int unsigned	NO		0	
-c IS FALSE	int unsigned	NO		0	
-c IS NOT FALSE	int unsigned	NO		0	
-c IS UNKNOWN	int unsigned	NO		0	
-c IS NOT UNKNOWN	int unsigned	NO		0	
-c is NULL	int unsigned	NO		0	
-c IS NOT NULL	int unsigned	NO		0	
-ISNULL(c)	int unsigned	NO		0	
-d IS TRUE	int unsigned	NO		0	
-d IS NOT TRUE	int unsigned	NO		0	
-d IS FALSE	int unsigned	NO		0	
-d IS NOT FALSE	int unsigned	NO		0	
-d IS UNKNOWN	int unsigned	NO		0	
-d IS NOT UNKNOWN	int unsigned	NO		0	
-d is NULL	int unsigned	NO		0	
-d IS NOT NULL	int unsigned	NO		0	
-ISNULL(d)	int unsigned	NO		0	
+a IS TRUE	int	NO		0	
+a IS NOT TRUE	int	NO		0	
+a IS FALSE	int	NO		0	
+a IS NOT FALSE	int	NO		0	
+a IS UNKNOWN	int	NO		0	
+a IS NOT UNKNOWN	int	NO		0	
+a is NULL	int	NO		0	
+a IS NOT NULL	int	NO		0	
+ISNULL(a)	int	NO		0	
+b IS TRUE	int	NO		0	
+b IS NOT TRUE	int	NO		0	
+b IS FALSE	int	NO		0	
+b IS NOT FALSE	int	NO		0	
+b IS UNKNOWN	int	NO		0	
+b IS NOT UNKNOWN	int	NO		0	
+b is NULL	int	NO		0	
+b IS NOT NULL	int	NO		0	
+ISNULL(b)	int	NO		0	
+c IS TRUE	int	NO		0	
+c IS NOT TRUE	int	NO		0	
+c IS FALSE	int	NO		0	
+c IS NOT FALSE	int	NO		0	
+c IS UNKNOWN	int	NO		0	
+c IS NOT UNKNOWN	int	NO		0	
+c is NULL	int	NO		0	
+c IS NOT NULL	int	NO		0	
+ISNULL(c)	int	NO		0	
+d IS TRUE	int	NO		0	
+d IS NOT TRUE	int	NO		0	
+d IS FALSE	int	NO		0	
+d IS NOT FALSE	int	NO		0	
+d IS UNKNOWN	int	NO		0	
+d IS NOT UNKNOWN	int	NO		0	
+d is NULL	int	NO		0	
+d IS NOT NULL	int	NO		0	
+ISNULL(d)	int	NO		0	
 create view view_24532_b as
 select
 a IS TRUE,
@@ -3377,13 +3397,13 @@ if(ifnull(a, 1), 1, 0) as old_isnotfalse
 from table_24532;
 describe view_24532_b;
 Field	Type	Null	Key	Default	Extra
-a IS TRUE	int unsigned	NO		0	
+a IS TRUE	int	NO		0	
 old_istrue	int	NO		0	
-a IS NOT TRUE	int unsigned	NO		0	
+a IS NOT TRUE	int	NO		0	
 old_isnottrue	int	NO		0	
-a IS FALSE	int unsigned	NO		0	
+a IS FALSE	int	NO		0	
 old_isfalse	int	NO		0	
-a IS NOT FALSE	int unsigned	NO		0	
+a IS NOT FALSE	int	NO		0	
 old_isnotfalse	int	NO		0	
 show create view view_24532_b;
 View	Create View	character_set_client	collation_connection
@@ -6788,3 +6808,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `foo`,`test`.`t1`.`col_int_key` AS `bar` from `test`.`t1`
 DROP TABLE t1;
+# Bug#34239456: Assertion '!thd->is_error()' failed in MySQL 8.0.29
+CREATE TABLE t0 (c0 INTEGER, c1 INTEGER);
+CREATE VIEW v0 AS
+SELECT c0
+FROM t0
+WHERE c1 = (SELECT 1
+UNION
+SELECT c0 FROM t0
+ORDER BY c1
+);
+SELECT * FROM v0;
+ERROR 42000: Table 't0' from one of the SELECTs cannot be used in global ORDER clause
+DROP VIEW v0;
+DROP TABLE t0;

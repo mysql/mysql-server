@@ -342,8 +342,12 @@ Testing values that are multiples of 1024
 set @@range_alloc_block_size=1024*15+1024;
 set @@query_alloc_block_size=1024*15+1024*2;
 set @@query_prealloc_size=1024*18-1024;
+Warnings:
+Warning	1287	'@@query_prealloc_size' is deprecated and will be removed in a future release.
 set @@transaction_alloc_block_size=1024*21-1024*1;
 set @@transaction_prealloc_size=1024*21-2048;
+Warnings:
+Warning	1287	'@@transaction_prealloc_size' is deprecated and will be removed in a future release.
 ==+ Check manipulated values ==+
 select @@query_alloc_block_size;
 @@query_alloc_block_size
@@ -378,12 +382,14 @@ Warnings:
 Warning	1292	Truncated incorrect query_alloc_block_size value: '17410'
 set @@query_prealloc_size=1024*18-1023;
 Warnings:
+Warning	1287	'@@query_prealloc_size' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect query_prealloc_size value: '17409'
 set @@transaction_alloc_block_size=1024*20-1;
 Warnings:
 Warning	1292	Truncated incorrect transaction_alloc_block_size value: '20479'
 set @@transaction_prealloc_size=1024*21-1;
 Warnings:
+Warning	1287	'@@transaction_prealloc_size' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect transaction_prealloc_size value: '21503'
 ==+ Check manipulated values ==+
 SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
@@ -409,7 +415,11 @@ transaction_prealloc_size	20480
 ==+ Set values back to the default values +==
 set @@range_alloc_block_size=default;
 set @@query_alloc_block_size=default, @@query_prealloc_size=default;
+Warnings:
+Warning	1287	'@@query_prealloc_size' is deprecated and will be removed in a future release.
 set transaction_alloc_block_size=default, @@transaction_prealloc_size=default;
+Warnings:
+Warning	1287	'@@transaction_prealloc_size' is deprecated and will be removed in a future release.
 ==+ Check the values now that they are reset +==
 SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
 'query_alloc_block_size', 'query_prealloc_size',
@@ -834,10 +844,16 @@ select @@global.lc_time_names, @@lc_time_names;
 @@global.lc_time_names	@@lc_time_names
 en_US	en_US
 set @test = @@query_prealloc_size;
+Warnings:
+Warning	1287	'@@query_prealloc_size' is deprecated and will be removed in a future release.
 set @@query_prealloc_size = @test;
+Warnings:
+Warning	1287	'@@query_prealloc_size' is deprecated and will be removed in a future release.
 select @@query_prealloc_size = @test;
 @@query_prealloc_size = @test
 1
+Warnings:
+Warning	1287	'@@query_prealloc_size' is deprecated and will be removed in a future release.
 set global sql_mode=repeat('a',80);
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 End of 4.1 tests
@@ -967,6 +983,8 @@ ssl_crl	#
 ssl_crlpath	#
 ssl_fips_mode	#
 ssl_key	#
+ssl_session_cache_mode	#
+ssl_session_cache_timeout	#
 select * from performance_schema.session_variables where variable_name like 'ssl%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 ssl_ca	#
@@ -977,6 +995,8 @@ ssl_crl	#
 ssl_crlpath	#
 ssl_fips_mode	#
 ssl_key	#
+ssl_session_cache_mode	#
+ssl_session_cache_timeout	#
 SET SQL_BIG_SELECTS=0;
 select @@log_queries_not_using_indexes;
 @@log_queries_not_using_indexes
@@ -1450,6 +1470,20 @@ SET GLOBAL expire_logs_days = @old_eld;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL binlog_expire_logs_seconds= @old_seconds;
+SET @@global.binlog_expire_logs_seconds=0;
+SET @@global.expire_logs_days = 1;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+SET @@global.binlog_expire_logs_seconds=5;
+ERROR HY000: The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds. To set one, first unset the other by setting it to 0.
+SET @@global.expire_logs_days=0;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+SET @@global.binlog_expire_logs_seconds=5;
+SET @@global.binlog_expire_logs_seconds=@old_seconds;
+SET @@global.expire_logs_days=@old_eld;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL auto_increment_offset=-1;
 Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '-1'

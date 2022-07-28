@@ -41,6 +41,10 @@ let crash = $args --innodb-force-recovery-crash;
 #
 # 1. Hitting crash while preparing xa trx.
 #
+--echo # The use of temporary tables inside XA transactions is only permitted
+--echo # when xa_detach_on_prepare is OFF.
+--let $CURSESS_xa_detach_on_prepare = `SELECT @@SESSION.xa_detach_on_prepare`
+SET SESSION xa_detach_on_prepare = OFF;
 create temporary table t1 (i int) engine=innodb;
 create table t2 (i int) engine=innodb;
 #
@@ -62,6 +66,8 @@ xa prepare 'tx2';
 #
 select * from t2;
 drop table t2;
+--replace_result $CURSESS_xa_detach_on_prepare OLD_VALUE_xa_detach_on_prepare
+--eval SET SESSION xa_detach_on_prepare = $CURSESS_xa_detach_on_prepare
 
 #-----------------------------------------------------------------------------
 #

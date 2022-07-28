@@ -1,5 +1,8 @@
 --source include/count_sessions.inc
-
+--echo # The specific purpose of this test is to test the 
+--echo # detach at disconnect behavior
+SET @saved_xa_detach_on_prepare = @@GLOBAL.xa_detach_on_prepare;
+SET GLOBAL xa_detach_on_prepare = OFF;
 CREATE TABLE t (id INT PRIMARY KEY);
 
 --connect (con1, localhost, root,,)
@@ -48,4 +51,5 @@ let $wait_condition=
 
 DROP TABLE t;
 
+SET GLOBAL xa_detach_on_prepare = @saved_xa_detach_on_prepare;
 --source include/wait_until_count_sessions.inc

@@ -14,6 +14,7 @@
 --source include/master-slave.inc
 # Suppress recovery warning messages
 CALL mtr.add_suppression('Recovery from master pos');
+CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 
 # Insert some content on the master
 CREATE TABLE t1 (c1 INT);

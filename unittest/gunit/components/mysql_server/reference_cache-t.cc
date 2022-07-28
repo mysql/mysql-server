@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -44,10 +44,10 @@ extern mysql_component_t mysql_component_mysql_server;
 class reference_cache : public ::testing::Test {
  protected:
   void SetUp() override {
-    reg = NULL;
-    loader = NULL;
-    ref_cache_producer = NULL;
-    ref_cache_consumer = NULL;
+    reg = nullptr;
+    loader = nullptr;
+    ref_cache_producer = nullptr;
+    ref_cache_consumer = nullptr;
     ASSERT_FALSE(minimal_chassis_init((&reg), &COMPONENT_REF(mysql_server)));
     ASSERT_FALSE(reg->acquire("dynamic_loader",
                               reinterpret_cast<my_h_service *>(

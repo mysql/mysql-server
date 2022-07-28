@@ -1,6 +1,6 @@
 CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
 CALL mtr.add_suppression("You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all");
-CALL mtr.add_suppression("log files and all system tablespace files open for the whole time mysqld is running, and");
+CALL mtr.add_suppression("redo log files and all system tablespace files open for the whole time mysqld is running, and");
 CALL mtr.add_suppression("needs to open also some .ibd files if the file-per-table storage model is used. Current open files .*, max allowed open files 1.");
 CALL mtr.add_suppression("Too many (.*) files stay open while the maximum allowed value would be 1. You may need to raise the value of innodb_open_files in my.cnf.");
 CALL mtr.add_suppression("Cannot close file ./mysql/tables.ibd, because modification");

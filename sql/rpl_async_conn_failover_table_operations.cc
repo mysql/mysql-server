@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,9 @@
 
 #include "mysql/components/services/log_builtins.h"
 
+#include "sql-common/json_dom.h"
 #include "sql/current_thd.h"
 #include "sql/handler.h"
-#include "sql/json_dom.h"
 #include "sql/mysqld.h"
 #include "sql/protobuf/generated/protobuf_lite/replication_asynchronous_connection_failover.pb.h"
 #include "sql/rpl_async_conn_failover_configuration_propagation.h"
@@ -111,8 +111,9 @@ Rpl_async_conn_failover_table_operations::add_managed(
   json_str << "{\"Primary_weight\": " << primary_weight
            << ", \"Secondary_weight\": " << secondary_weight << "}";
 
-  auto res_dom = Json_dom::parse(json_str.str().c_str(),
-                                 json_str.str().length(), nullptr, nullptr);
+  auto res_dom = Json_dom::parse(
+      json_str.str().c_str(), json_str.str().length(),
+      [](const char *, size_t) {}, [] {});
 
   if (res_dom == nullptr || res_dom->json_type() != enum_json_type::J_OBJECT) {
     return std::make_tuple(true, "Error parsing Json value.");

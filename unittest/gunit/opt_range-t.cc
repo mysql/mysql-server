@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,14 +100,13 @@ class OptRangeTest : public ::testing::Test {
   void SetUp() override {
     initializer.SetUp();
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_alloc,
-                   thd()->variables.range_alloc_block_size, 0);
+                   thd()->variables.range_alloc_block_size);
   }
 
   void TearDown() override {
     delete m_opt_param;
 
     initializer.TearDown();
-    m_alloc.Clear();
   }
 
   THD *thd() { return initializer.thd(); }
@@ -360,9 +359,7 @@ void OptRangeTest::check_use_count(SEL_TREE *tree) {
     List_iterator<SEL_IMERGE> it(tree->merges);
     SEL_IMERGE *merge = it++;
 
-    for (SEL_TREE **current = merge->trees; current != merge->trees_next;
-         current++)
-      check_use_count(*current);
+    for (SEL_TREE *current : merge->trees) check_use_count(current);
   }
 }
 
@@ -517,7 +514,7 @@ TEST_F(OptRangeTest, XorCondWithIndexes) {
     not range optimizible (treated as always true), we get a tree for
     "field1=7" only.
   */
-  const char expected1[] = "result keys[0]: (7 <= field_1 <= 7)\n";
+  const char expected1[] = "result keys[0]: (field_1 = 7)\n";
 
   SEL_TREE *tree = get_mm_tree(
       thd(), m_opt_param, 0, 0, m_current_table, /*remove_jump_scans=*/true,
@@ -584,12 +581,11 @@ TEST_F(OptRangeTest, GetMMTreeSingleColIndex) {
   create_table_singlecol_idx(1);
 
   // Expected result of next test:
-  const char expected[] = "result keys[0]: (42 <= field_1 <= 42)\n";
+  const char expected[] = "result keys[0]: (field_1 = 42)\n";
   create_tree(new_item_equal(m_field[0], 42), expected);
 
   // Expected result of next test:
-  const char expected2[] =
-      "result keys[0]: (42 <= field_1 <= 42) OR (43 <= field_1 <= 43)\n";
+  const char expected2[] = "result keys[0]: (field_1 = 42) OR (field_1 = 43)\n";
   SEL_TREE *tree = get_mm_tree(
       thd(), m_opt_param, 0, 0, m_current_table, /*remove_jump_scans=*/true,
       new Item_cond_or(new_item_equal(m_field[0], 42),
@@ -601,10 +597,10 @@ TEST_F(OptRangeTest, GetMMTreeSingleColIndex) {
   // Expected result of next test:
   const char expected3[] =
       "result keys[0]: "
-      "(1 <= field_1 <= 1) OR (2 <= field_1 <= 2) OR "
-      "(3 <= field_1 <= 3) OR (4 <= field_1 <= 4) OR "
-      "(5 <= field_1 <= 5) OR (6 <= field_1 <= 6) OR "
-      "(7 <= field_1 <= 7) OR (8 <= field_1 <= 8)\n";
+      "(field_1 = 1) OR (field_1 = 2) OR "
+      "(field_1 = 3) OR (field_1 = 4) OR "
+      "(field_1 = 5) OR (field_1 = 6) OR "
+      "(field_1 = 7) OR (field_1 = 8)\n";
   List<Item> or_list1;
   or_list1.push_back(new_item_equal(m_field[0], 1));
   or_list1.push_back(new_item_equal(m_field[0], 2));
@@ -620,7 +616,7 @@ TEST_F(OptRangeTest, GetMMTreeSingleColIndex) {
   check_tree_result(tree, SEL_TREE::KEY, expected3);
 
   // Expected result of next test:
-  const char expected4[] = "result keys[0]: (7 <= field_1 <= 7)\n";
+  const char expected4[] = "result keys[0]: (field_1 = 7)\n";
   tree = get_mm_tree(thd(), m_opt_param, 0, 0, m_current_table,
                      /*remove_jump_scans=*/true,
                      new Item_cond_and(new Item_cond_or(or_list1),
@@ -631,8 +627,8 @@ TEST_F(OptRangeTest, GetMMTreeSingleColIndex) {
   // Expected result of next test:
   const char expected5[] =
       "result keys[0]: "
-      "(1 <= field_1 <= 1) OR (3 <= field_1 <= 3) OR "
-      "(5 <= field_1 <= 5) OR (7 <= field_1 <= 7)\n";
+      "(field_1 = 1) OR (field_1 = 3) OR "
+      "(field_1 = 5) OR (field_1 = 7)\n";
   List<Item> or_list2;
   or_list2.push_back(new_item_equal(m_field[0], 1));
   or_list2.push_back(new_item_equal(m_field[0], 3));
@@ -665,8 +661,8 @@ TEST_F(OptRangeTest, GetMMTreeMultipleSingleColIndex) {
 
   // Expected result of next test:
   const char expected[] =
-      "result keys[0]: (42 <= field_1 <= 42)\n"
-      "result keys[1]: (42 <= field_1 <= 42)\n";
+      "result keys[0]: (field_1 = 42)\n"
+      "result keys[1]: (field_1 = 42)\n";
   create_tree(new_item_equal(m_field[0], 42), expected);
 }
 
@@ -683,12 +679,11 @@ TEST_F(OptRangeTest, GetMMTreeOneTwoColIndex) {
   range_string.set_charset(system_charset_info);
 
   // Expected result of next test:
-  const char expected[] = "result keys[0]: (42 <= field_1 <= 42)\n";
+  const char expected[] = "result keys[0]: (field_1 = 42)\n";
   create_tree(new_item_equal(m_field[0], 42), expected);
 
   // Expected result of next test:
-  const char expected2[] =
-      "result keys[0]: (42 <= field_1 <= 42 AND 10 <= field_2 <= 10)\n";
+  const char expected2[] = "result keys[0]: (field_1 = 42 AND field_2 = 10)\n";
   SEL_TREE *tree = get_mm_tree(
       thd(), m_opt_param, 0, 0, m_current_table, /*remove_jump_scans=*/true,
       new Item_cond_and(new_item_equal(m_field[0], 42),
@@ -721,7 +716,7 @@ TEST_F(OptRangeTest, GetMMTreeNonApplicableKeypart) {
     not applicable because there are no predicates on the second
     keypart.
   */
-  const char expected1[] = "result keys[0]: (42 <= field_1 <= 42)\n";
+  const char expected1[] = "result keys[0]: (field_1 = 42)\n";
   SEL_TREE *tree = get_mm_tree(
       thd(), m_opt_param, 0, 0, m_current_table, /*remove_jump_scans=*/true,
       new Item_cond_and(new_item_equal(m_field[0], 42),
@@ -735,7 +730,7 @@ TEST_F(OptRangeTest, GetMMTreeNonApplicableKeypart) {
     Non-applicable key parts are also printed in this case.
   */
   const char expected1_printfull[] =
-      "result keys[0]: (42 <= field_1 <= 42 AND 10 <= field_3 <= 10)\n";
+      "result keys[0]: (field_1 = 42 AND field_3 = 10)\n";
 
   range_string.length(0);
   print_tree(&range_string, "result", tree, m_opt_param, true);
@@ -762,7 +757,7 @@ TEST_F(OptRangeTest, GetMMTreeNonApplicableKeypart) {
     Non-applicable key parts are also printed in this case.
   */
   const char expected2_printfull[] =
-      "result keys[0]: (field_1 < 42 AND 10 <= field_2 <= 10)\n";
+      "result keys[0]: (field_1 < 42 AND field_2 = 10)\n";
   range_string.length(0);
   print_tree(&range_string, "result", tree, m_opt_param, true);
   EXPECT_STREQ(expected2_printfull, range_string.c_ptr());
@@ -968,34 +963,34 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex2) {
   create_table_singlecol_idx(3);
 
   // Single-index predicates
-  const char exp_f2_eq1[] = "result keys[1]: (1 <= field_2 <= 1)\n";
-  const char exp_f2_eq2[] = "result keys[1]: (2 <= field_2 <= 2)\n";
-  const char exp_f3_eq[] = "result keys[2]: (1 <= field_3 <= 1)\n";
+  const char exp_f2_eq1[] = "result keys[1]: (field_2 = 1)\n";
+  const char exp_f2_eq2[] = "result keys[1]: (field_2 = 2)\n";
+  const char exp_f3_eq[] = "result keys[2]: (field_3 = 1)\n";
   const char exp_f1_lt1[] = "result keys[0]: (field_1 < 256)\n";
 
   // OR1: Result of OR'ing f2_eq with f3_eq
   const char exp_or1[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
-      "  merge_tree keys[2]: (1 <= field_3 <= 1)\n";
+      "  merge_tree keys[1]: (field_2 = 1)\n"
+      "  merge_tree keys[2]: (field_3 = 1)\n";
 
   // OR2: Result of OR'ing f1_lt with f2_eq
   const char exp_or2[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
       "  merge_tree keys[0]: (field_1 < 256)\n"
-      "  merge_tree keys[1]: (2 <= field_2 <= 2)\n";
+      "  merge_tree keys[1]: (field_2 = 2)\n";
 
   // AND1: Result of "OR1 & OR2"
   const char exp_and1[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
-      "  merge_tree keys[2]: (1 <= field_3 <= 1)\n\n"
+      "  merge_tree keys[1]: (field_2 = 1)\n"
+      "  merge_tree keys[2]: (field_3 = 1)\n\n"
       "--- alternative 2 ---\n"
       "  merge_tree keys[0]: (field_1 < 256)\n"
-      "  merge_tree keys[1]: (2 <= field_2 <= 2)\n";
+      "  merge_tree keys[1]: (field_2 = 2)\n";
 
   SEL_TREE *tree_and1 = create_and_check_tree_and(
       create_and_check_tree_or(
@@ -1012,12 +1007,12 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex2) {
   const char exp_or3[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
-      "  merge_tree keys[2]: (1 <= field_3 <= 1)\n\n"
+      "  merge_tree keys[1]: (field_2 = 1)\n"
+      "  merge_tree keys[2]: (field_3 = 1)\n\n"
       "--- alternative 2 ---\n"
       "  merge_tree keys[0]: (field_1 < 256)\n"
-      "  merge_tree keys[1]: (2 <= field_2 <= 2)\n"
-      "  merge_tree keys[2]: (1 <= field_3 <= 1)\n";
+      "  merge_tree keys[1]: (field_2 = 2)\n"
+      "  merge_tree keys[2]: (field_3 = 1)\n";
 
   SEL_TREE *tree_or3 = create_and_check_tree_or(
       tree_and1, create_tree(new_item_equal(m_field[2], 1), exp_f3_eq),
@@ -1033,13 +1028,13 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex2) {
   const char exp_or4[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
-      "  merge_tree keys[2]: (1 <= field_3 <= 1)\n"
+      "  merge_tree keys[1]: (field_2 = 1)\n"
+      "  merge_tree keys[2]: (field_3 = 1)\n"
       "  merge_tree keys[0]: (field_1 < 35) OR (257 < field_1)\n\n"
       "--- alternative 2 ---\n"
       "  merge_tree keys[0]: (field_1 < 256) OR (257 < field_1)\n"
-      "  merge_tree keys[1]: (2 <= field_2 <= 2)\n"
-      "  merge_tree keys[2]: (1 <= field_3 <= 1)\n";
+      "  merge_tree keys[1]: (field_2 = 2)\n"
+      "  merge_tree keys[2]: (field_3 = 1)\n";
 
   SEL_TREE *tree_or4 = create_and_check_tree_or(
       tree_or3,
@@ -1052,12 +1047,12 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex2) {
   // More single-index predicates
   const char exp_f1_neq[] =
       "result keys[0]: (field_1 < 255) OR (255 < field_1)\n";
-  const char exp_f2_eq3[] = "result keys[1]: (3 <= field_2 <= 3)\n";
+  const char exp_f2_eq3[] = "result keys[1]: (field_2 = 3)\n";
 
   // AND2: Result of ANDing these two ^
   const char exp_and2[] =
       "result keys[0]: (field_1 < 255) OR (255 < field_1)\n"
-      "result keys[1]: (3 <= field_2 <= 3)\n";
+      "result keys[1]: (field_2 = 3)\n";
 
   // OR5: Result of "OR4 | AND3"
   /*
@@ -1069,8 +1064,8 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex2) {
   const char exp_or5[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[1]: (1 <= field_2 <= 1) OR (3 <= field_2 <= 3)\n"
-      "  merge_tree keys[2]: (1 <= field_3 <= 1)\n"
+      "  merge_tree keys[1]: (field_2 = 1) OR (field_2 = 3)\n"
+      "  merge_tree keys[2]: (field_3 = 1)\n"
       "  merge_tree keys[0]: (field_1 < 35) OR (257 < field_1)\n";
 
   create_and_check_tree_or(
@@ -1089,34 +1084,34 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex3) {
   create_table_singlecol_idx(2);
 
   // Single-index predicates
-  const char exp_f1_eq10[] = "result keys[0]: (10 <= field_1 <= 10)\n";
+  const char exp_f1_eq10[] = "result keys[0]: (field_1 = 10)\n";
   const char exp_f2_gtr20[] = "result keys[1]: (20 < field_2)\n";
 
-  const char exp_f1_eq11[] = "result keys[0]: (11 <= field_1 <= 11)\n";
+  const char exp_f1_eq11[] = "result keys[0]: (field_1 = 11)\n";
   const char exp_f2_gtr10[] = "result keys[1]: (10 < field_2)\n";
 
   // OR1: Result of ORing f1_eq10 and f2_gtr20
   const char exp_or1[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+      "  merge_tree keys[0]: (field_1 = 10)\n"
       "  merge_tree keys[1]: (20 < field_2)\n";
 
   // OR2: Result of ORing f1_eq11 and f2_gtr10
   const char exp_or2[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+      "  merge_tree keys[0]: (field_1 = 11)\n"
       "  merge_tree keys[1]: (10 < field_2)\n";
 
   // AND1: Result of ANDing OR1 and OR2
   const char exp_and1[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+      "  merge_tree keys[0]: (field_1 = 10)\n"
       "  merge_tree keys[1]: (20 < field_2)\n\n"
       "--- alternative 2 ---\n"
-      "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+      "  merge_tree keys[0]: (field_1 = 11)\n"
       "  merge_tree keys[1]: (10 < field_2)\n";
 
   SEL_TREE *tree_and1 = create_and_check_tree_and(
@@ -1130,16 +1125,16 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex3) {
           exp_or2),
       SEL_TREE::KEY, exp_and1);
 
-  const char exp_f2_eq5[] = "result keys[1]: (5 <= field_2 <= 5)\n";
+  const char exp_f2_eq5[] = "result keys[1]: (field_2 = 5)\n";
   // OR3: Result of OR'ing AND1 with f2_eq5
   const char exp_or3[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
-      "  merge_tree keys[1]: (5 <= field_2 <= 5) OR (20 < field_2)\n\n"
+      "  merge_tree keys[0]: (field_1 = 10)\n"
+      "  merge_tree keys[1]: (field_2 = 5) OR (20 < field_2)\n\n"
       "--- alternative 2 ---\n"
-      "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
-      "  merge_tree keys[1]: (5 <= field_2 <= 5) OR (10 < field_2)\n";
+      "  merge_tree keys[0]: (field_1 = 11)\n"
+      "  merge_tree keys[1]: (field_2 = 5) OR (10 < field_2)\n";
   SEL_TREE *tree_or3 = create_and_check_tree_or(
       tree_and1, create_tree(new_item_equal(m_field[1], 5), exp_f2_eq5),
       SEL_TREE::KEY, exp_or3);
@@ -1149,13 +1144,13 @@ TEST_F(OptRangeTest, treeAndOrComboSingleColIndex3) {
   const char exp_or4[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+      "  merge_tree keys[0]: (field_1 = 10)\n"
       "  merge_tree keys[1]: (field_2 < 2) OR "
-      "(5 <= field_2 <= 5) OR (20 < field_2)\n\n"
+      "(field_2 = 5) OR (20 < field_2)\n\n"
       "--- alternative 2 ---\n"
-      "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+      "  merge_tree keys[0]: (field_1 = 11)\n"
       "  merge_tree keys[1]: (field_2 < 2) OR "
-      "(5 <= field_2 <= 5) OR (10 < field_2)\n";
+      "(field_2 = 5) OR (10 < field_2)\n";
 
   create_and_check_tree_or(tree_or3,
                            create_tree(new_item_lt(m_field[1], 2), exp_f2_lt2),
@@ -1178,7 +1173,7 @@ TEST_F(OptRangeTest, SelArgOnevalue) {
   SEL_ARG sel_arg7(field_long7, range_val7, range_val7, true);
   String range_string;
   print_selarg_ranges(&range_string, &sel_arg7, &kpi);
-  const char expected[] = "7 <= field_1 <= 7";
+  const char expected[] = "field_1 = 7";
   EXPECT_STREQ(expected, range_string.c_ptr());
 
   sel_arg7.min_flag |= NO_MIN_RANGE;
@@ -1499,7 +1494,7 @@ TEST_F(OptRangeTest, KeyOr2) {
   m_opt_param->add_key(m_field[0], m_field[1]);
 
   SEL_TREE *fld1_20 = create_tree(new_item_equal(m_field[0], 20),
-                                  "result keys[1]: (20 <= field_1 <= 20)\n");
+                                  "result keys[1]: (field_1 = 20)\n");
 
   /*
     Expected result when performing AND of:
@@ -1508,11 +1503,11 @@ TEST_F(OptRangeTest, KeyOr2) {
   SEL_TREE *tree_and1 = create_and_check_tree_and(
       fld1_20,
       create_tree(new_item_equal(m_field[1], 1),
-                  "result keys[0]: (1 <= field_2 <= 1)\n"    // range idx #1
-                  "result keys[1]: (1 <= field_2 <= 1)\n"),  // range idx #2
+                  "result keys[0]: (field_2 = 1)\n"    // range idx #1
+                  "result keys[1]: (field_2 = 1)\n"),  // range idx #2
       SEL_TREE::KEY,
-      "result keys[0]: (1 <= field_2 <= 1)\n"                          // idx #1
-      "result keys[1]: (20 <= field_1 <= 20 AND 1 <= field_2 <= 1)\n"  // idx #2
+      "result keys[0]: (field_2 = 1)\n"                   // idx #1
+      "result keys[1]: (field_1 = 20 AND field_2 = 1)\n"  // idx #2
   );
 
   /*
@@ -1521,13 +1516,13 @@ TEST_F(OptRangeTest, KeyOr2) {
   */
   SEL_TREE *tree_and2 = create_and_check_tree_and(
       create_tree(new_item_equal(m_field[0], 4),
-                  "result keys[1]: (4 <= field_1 <= 4)\n"),
+                  "result keys[1]: (field_1 = 4)\n"),
       create_tree(new_item_equal(m_field[1], 42),
-                  "result keys[0]: (42 <= field_2 <= 42)\n"    // range idx #1
-                  "result keys[1]: (42 <= field_2 <= 42)\n"),  // range idx #2
+                  "result keys[0]: (field_2 = 42)\n"    // range idx #1
+                  "result keys[1]: (field_2 = 42)\n"),  // range idx #2
       SEL_TREE::KEY,
-      "result keys[0]: (42 <= field_2 <= 42)\n"                        // idx #1
-      "result keys[1]: (4 <= field_1 <= 4 AND 42 <= field_2 <= 42)\n"  // idx #2
+      "result keys[0]: (field_2 = 42)\n"                  // idx #1
+      "result keys[1]: (field_1 = 4 AND field_2 = 42)\n"  // idx #2
   );
 
   /*
@@ -1538,10 +1533,10 @@ TEST_F(OptRangeTest, KeyOr2) {
   */
   SEL_TREE *tree_or1 = create_and_check_tree_or(
       tree_and1, tree_and2, SEL_TREE::KEY,
-      "result keys[0]: (1 <= field_2 <= 1) OR (42 <= field_2 <= 42)\n"
+      "result keys[0]: (field_2 = 1) OR (field_2 = 42)\n"
       "result keys[1]: "
-      "(4 <= field_1 <= 4 AND 42 <= field_2 <= 42) OR "
-      "(20 <= field_1 <= 20 AND 1 <= field_2 <= 1)\n");
+      "(field_1 = 4 AND field_2 = 42) OR "
+      "(field_1 = 20 AND field_2 = 1)\n");
 
   /*
     Expected result when performing OR of:
@@ -1555,13 +1550,13 @@ TEST_F(OptRangeTest, KeyOr2) {
       create_tree(new_item_gt(m_field[0], 13),
                   "result keys[1]: (13 < field_1)\n"),
       create_tree(new_item_equal(m_field[1], 14),
-                  "result keys[0]: (14 <= field_2 <= 14)\n"    // range idx #1
-                  "result keys[1]: (14 <= field_2 <= 14)\n"),  // range idx #2
+                  "result keys[0]: (field_2 = 14)\n"    // range idx #1
+                  "result keys[1]: (field_2 = 14)\n"),  // range idx #2
       SEL_TREE::KEY,
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
       "  merge_tree keys[1]: (13 < field_1)\n"
-      "  merge_tree keys[0]: (14 <= field_2 <= 14)\n");
+      "  merge_tree keys[0]: (field_2 = 14)\n");
 
   /*
     Expected result when performing OR of:
@@ -1575,9 +1570,9 @@ TEST_F(OptRangeTest, KeyOr2) {
   const char exp_or3[] =
       "result contains the following merges\n"
       "--- alternative 1 ---\n"
-      "  merge_tree keys[1]: (4 <= field_1 <= 4 AND 42 <= field_2 <= 42) OR "
+      "  merge_tree keys[1]: (field_1 = 4 AND field_2 = 42) OR "
       "(13 < field_1)\n"
-      "  merge_tree keys[0]: (14 <= field_2 <= 14)\n";
+      "  merge_tree keys[0]: (field_2 = 14)\n";
   create_and_check_tree_or(tree_or1, tree_or2, SEL_TREE::KEY, exp_or3);
 
   /*
@@ -1667,8 +1662,8 @@ TEST_F(OptRangeTest, RowConstructorIn2) {
 
   const char *expected =
       "result keys[0]: "
-      "(1 <= field_1 <= 1 AND 2 <= field_2 <= 2) OR "
-      "(3 <= field_1 <= 3 AND 4 <= field_2 <= 4)\n";
+      "(field_1 = 1 AND field_2 = 2) OR "
+      "(field_1 = 3 AND field_2 = 4)\n";
   check_tree_result(sel_tree, SEL_TREE::KEY, expected);
 }
 
@@ -1698,8 +1693,8 @@ TEST_F(OptRangeTest, RowConstructorIn3) {
 
   const char *expected =
       "result keys[0]: "
-      "(1 <= field_1 <= 1 AND 2 <= field_2 <= 2 AND 3 <= field_3 <= 3) OR "
-      "(4 <= field_1 <= 4 AND 5 <= field_2 <= 5 AND 6 <= field_3 <= 6)\n";
+      "(field_1 = 1 AND field_2 = 2 AND field_3 = 3) OR "
+      "(field_1 = 4 AND field_2 = 5 AND field_3 = 6)\n";
 
   check_tree_result(sel_tree, SEL_TREE::KEY, expected);
 }
@@ -1801,6 +1796,7 @@ TEST_F(OptRangeTest, CombineAlways2) {
     Fake_key_part_info(Mock_field_long *field_arg) {
       field = field_arg;
       length = 1;
+      store_length = sizeof(long);
     }
   };
 
@@ -1835,9 +1831,10 @@ TEST_F(OptRangeTest, AppendRange) {
   KEY_PART_INFO kp;
   kp.field = &field;
   kp.length = 1;
-  uchar value = 42;
-  append_range(&out, &kp, &value, &value, NEAR_MIN | NEAR_MAX);
-  EXPECT_STREQ("42 < my_field < 42", out.c_ptr());
+  uchar min_value = 42;
+  uchar max_value = 45;
+  append_range(&out, &kp, &min_value, &max_value, NEAR_MIN | NEAR_MAX);
+  EXPECT_STREQ("42 < my_field < 45", out.c_ptr());
 }
 
 TEST_F(OptRangeTest, TreeRootGetsUpdated) {
@@ -1876,6 +1873,22 @@ TEST_F(OptRangeTest, TreeRootGetsUpdated) {
   }
   EXPECT_EQ(args.size(), root.elements);
   EXPECT_NE(args[0], root.root);
+}
+
+TEST_F(OptRangeTest, CloneSpatialKey) {
+  Fake_RANGE_OPT_PARAM param(thd(), &m_alloc, 2, false);
+  Mock_SEL_ARG key1, key2;
+  key1.min_flag |= GEOM_FLAG;
+  key1.rkey_func_flag = HA_READ_MBR_CONTAIN;
+  SEL_ROOT key1_root(&key1), key2_root(&key2);
+  key1_root.use_count = 2;
+  key1_root.elements = 2;
+  key2_root.type = SEL_ROOT::Type::MAYBE_KEY;
+  // check if tree is cloned along with gis flag.
+  SEL_ROOT *cloned_key1 = key_and(&param, &key1_root, &key2_root);
+  EXPECT_NE(cloned_key1, &key1_root);
+  EXPECT_EQ(cloned_key1->root->rkey_func_flag, key1_root.root->rkey_func_flag);
+  key1_root.use_count = 0;
 }
 
 }  // namespace opt_range_unittest

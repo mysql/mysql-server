@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ static void die(const char *file, int line, const char *expr)
     MY_ATTRIBUTE((noreturn));
 
 /*
-Abort unless given experssion is non-zero.
+Abort unless given expression is non-zero.
 
 SYNOPSIS
 DIE_UNLESS(expr)
@@ -969,8 +969,7 @@ bool fetch_n(const char **query_list, unsigned query_count,
              enum fetch_type fetch_type) {
   unsigned open_statements = query_count;
   int rc, error_count = 0;
-  Stmt_fetch *fetch_array =
-      (Stmt_fetch *)calloc(1, sizeof(Stmt_fetch) * query_count);
+  auto *fetch_array = (Stmt_fetch *)calloc(1, sizeof(Stmt_fetch) * query_count);
   Stmt_fetch *fetch;
   DBUG_TRACE;
 
@@ -1114,7 +1113,7 @@ static struct my_option client_test_long_options[] = {
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
-static void usage(void) {
+static void usage() {
   /* show the usage string when the user asks for this */
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2002"));
@@ -1185,7 +1184,6 @@ static void get_options(int *argc, char ***argv) {
     exit(ho_error);
 
   if (tty_password) opt_password = get_tty_password(NullS);
-  return;
 }
 
 /*

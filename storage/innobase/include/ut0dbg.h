@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,13 +33,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef ut0dbg_h
 #define ut0dbg_h
 
+#include "my_compiler.h"
+
 /* Do not include univ.i because univ.i includes this. */
 
+#include <cstdio>
 #include <functional>
-#include "os0thread.h"
 
 /** Set a callback function to be called before exiting.
-@param[in]	callback	user callback function */
+@param[in]      callback        user callback function */
 void ut_set_assert_callback(std::function<void()> &callback);
 
 /** Report a failed assertion.
@@ -47,19 +49,19 @@ void ut_set_assert_callback(std::function<void()> &callback);
 @param[in] file Source file containing the assertion
 @param[in] line Line number of the assertion */
 [[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
-                                          ulint line);
+                                          uint64_t line);
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR assertion expression that should hold */
-#define ut_a(EXPR)                                               \
-  do {                                                           \
-    if (UNIV_UNLIKELY(!(ulint)(EXPR))) {                         \
-      ut_dbg_assertion_failed(#EXPR, __FILE__, (ulint)__LINE__); \
-    }                                                            \
+#define ut_a(EXPR)                                        \
+  do {                                                    \
+    if (unlikely(false == (bool)(EXPR))) {                \
+      ut_dbg_assertion_failed(#EXPR, __FILE__, __LINE__); \
+    }                                                     \
   } while (0)
 
 /** Abort execution. */
-#define ut_error ut_dbg_assertion_failed(0, __FILE__, (ulint)__LINE__)
+#define ut_error ut_dbg_assertion_failed(0, __FILE__, __LINE__)
 
 #ifdef UNIV_DEBUG
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
@@ -92,6 +94,7 @@ void ut_set_assert_callback(std::function<void()> &callback);
     snprintf(buf, sizeof buf, prefix "_%u", count);                    \
     DBUG_EXECUTE_IF(buf, log_buffer_flush_to_disk(); DBUG_SUICIDE();); \
   } while (0)
+
 #else
 #define DBUG_INJECT_CRASH(prefix, count)
 #define DBUG_INJECT_CRASH_WITH_LOG_FLUSH(prefix, count)
@@ -111,14 +114,14 @@ void ut_set_assert_callback(std::function<void()> &callback);
 
 /** A "chronometer" used to clock snippets of code.
 Example usage:
-        ut_chrono_t	ch("this loop");
+        ut_chrono_t     ch("this loop");
         for (;;) { ... }
         ch.show();
 would print the timings of the for() loop, prefixed with "this loop:" */
 class ut_chrono_t {
  public:
   /** Constructor.
-  @param[in]	name	chrono's name, used when showing the values */
+  @param[in]    name    chrono's name, used when showing the values */
   ut_chrono_t(const char *name) : m_name(name), m_show_from_destructor(true) {
     reset();
   }

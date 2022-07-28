@@ -111,8 +111,10 @@ SET global.super_read_only = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.super_read_only = 1' at line 1
 SELECT global.super_read_only;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT super_read_only = @@session.super_read_only;
+SELECT super_read_only;
 ERROR 42S22: Unknown column 'super_read_only' in 'field list'
+SELECT @@session.super_read_only;
+ERROR HY000: Variable 'super_read_only' is a GLOBAL variable
 SET @@global.read_only = @start_read_only;
 SET @@global.super_read_only = @start_super_read_only;
 SELECT @@global.super_read_only;

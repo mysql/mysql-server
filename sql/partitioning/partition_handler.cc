@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,11 +44,11 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "myisam.h"  // MI_MAX_MSG_BUF
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_memory_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/service_mysql_alloc.h"
@@ -200,7 +200,6 @@ void Partition_share::release_auto_inc_if_possible(
 */
 
 bool Partition_share::populate_partition_name_hash(partition_info *part_info) {
-  uint tot_names;
   uint num_subparts = part_info->num_subparts;
   DBUG_TRACE;
   assert(!part_info->is_sub_partitioned() || num_subparts);
@@ -221,10 +220,6 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info) {
 #endif
   if (partition_name_hash != nullptr) {
     return false;
-  }
-  tot_names = part_info->num_parts;
-  if (part_info->is_sub_partitioned()) {
-    tot_names += part_info->num_parts * num_subparts;
   }
   partition_names = static_cast<const uchar **>(my_malloc(
       key_memory_Partition_share,

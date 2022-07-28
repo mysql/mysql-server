@@ -296,7 +296,7 @@ t1	CREATE TABLE `t1` (
   `c35` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `c36` varbinary(3) DEFAULT NULL,
   `c37` varchar(10) CHARACTER SET latin2 DEFAULT NULL,
-  `c38` varchar(10) CHARACTER SET latin2 DEFAULT NULL
+  `c38` varbinary(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select 
@@ -434,3 +434,7 @@ show status like 'handler_read_key';
 Variable_name	Value
 Handler_read_key	1
 drop table t1;
+# Bug#33630225: Bad caching of converted constants in NULL-safe compare
+SELECT NULL <=> (0 <=> NULL);
+NULL <=> (0 <=> NULL)
+0

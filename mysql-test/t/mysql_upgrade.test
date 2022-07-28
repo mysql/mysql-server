@@ -127,5 +127,28 @@ SHOW GRANTS FOR root@localhost;
 # Cleanup
 DROP USER u1,u2;
 
+--echo #
+--echo # Bug#34068378: Grant SENSITIVE_VARIABLES_OBSERVER in case of database upgrade
+--echo #
+
+CREATE USER u34068378;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u34068378;
+--echo # There should be no SENSITIVE_VARIABLES_OBSERVER privilege
+SHOW GRANTS for u34068378;
+
+# remove SENSITIVE_VARIABLES_OBSERVER from root
+REVOKE SENSITIVE_VARIABLES_OBSERVER ON *.* FROM root@localhost;
+
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+
+--echo # Must have SENSITIVE_VARIABLES_OBSERVER privilege
+SHOW GRANTS for u34068378;
+SHOW GRANTS for root@localhost;
+
+# cleanup
+DROP USER u34068378;
+
 --echo
 --echo End of tests

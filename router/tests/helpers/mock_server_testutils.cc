@@ -1,6 +1,6 @@
 
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
 #include <rapidjson/error/en.h>
 
 #include "config_builder.h"
-#include "mock_server_rest_client.h"
+#include "mysqlrouter/mock_server_rest_client.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 

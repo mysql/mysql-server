@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgmd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_MGMD" "8" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_MGMD" "8" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -134,7 +134,7 @@ T{
 .PP
 \fB--config-file=file\fR,
 .PP
-\fB \fR\fB-f\fR\fB \fR
+\fB \fR\fB-f file\fR\fB \fR
 T}:T{
 Specify cluster configuration file; also specify --reload or --initial
               to override configuration cache if present
@@ -173,9 +173,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -299,9 +299,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -312,9 +312,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -354,7 +354,7 @@ T{
 .PP
 \fB \fR\fB--no-nodeid-checks\fR\fB \fR
 T}:T{
-Do not provide any node ID checks
+Do not perform any node ID checks
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -919,7 +919,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -970,23 +970,11 @@ Write core file on error; used in debugging\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --daemon
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -1134,23 +1122,11 @@ Display help text and exit\&.
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --initial
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1254,23 +1230,11 @@ option has no effect on non\-Windows platforms\&.
 \fB\-\-interactive\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --interactive
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1360,23 +1324,11 @@ Read given path from login file\&.
 \fB\-\-mycnf\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --mycnf
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1402,7 +1354,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -1442,7 +1394,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type
@@ -1528,23 +1480,11 @@ to disable\&.
 \fB\-\-no\-nodeid\-checks\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --no-nodeid-checks
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1562,23 +1502,11 @@ Do not perform any checks of node IDs\&.
 \fB\-\-nodaemon\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --nodaemon
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1707,7 +1635,7 @@ and running on the host having the IP address 198\&.51\&.100\&.150\&. (Suppose, 
 .RS 4
 .\}
 .nf
-shell> \fBndb_mgmd \-\-ndb\-nodeid=10 \-\-nowait\-nodes=11\fR
+$> \fBndb_mgmd \-\-ndb\-nodeid=10 \-\-nowait\-nodes=11\fR
 .fi
 .if n \{\
 .RE
@@ -1726,7 +1654,7 @@ You can then start each of the cluster\*(Aqs data nodes in the usual way\&. If y
 .RS 4
 .\}
 .nf
-shell> \fBndbd \-c 198\&.51\&.100\&.150,198\&.51\&.100\&.151\fR
+$> \fBndbd \-c 198\&.51\&.100\&.150,198\&.51\&.100\&.151\fR
 .fi
 .if n \{\
 .RE
@@ -1800,23 +1728,11 @@ Print program argument list and exit\&.
 \fB\-P\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --print-full-config
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1838,23 +1754,11 @@ process prints information about the cluster setup including an extensive list o
 \fB\-\-reload\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --reload
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1932,23 +1836,11 @@ Remove a management server process that has been installed as a Windows service,
 \fB\-\-skip\-config\-file\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --skip-config-file
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1993,23 +1885,11 @@ Display help text and exit; same as \-\-help\&.
 \fB\-v\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --verbose
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -2119,7 +1999,7 @@ is the process ID file used when running the management server as a daemon\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

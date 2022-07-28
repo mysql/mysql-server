@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,14 +24,21 @@
 
 #include <signaldata/ReadNodesConf.hpp>
 
-bool
-printREAD_NODES_CONF(FILE * output, const Uint32 * theData, 
-		     Uint32 len, Uint16 receiverBlockNo) {
-  const ReadNodesConf * const sig = (ReadNodesConf *)theData;
+bool printREAD_NODES_CONF(FILE *output,
+                          const Uint32 *theData,
+                          Uint32 len,
+                          Uint16 /*receiverBlockNo*/)
+{
+  if (len < ReadNodesConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const ReadNodesConf *const sig = (const ReadNodesConf *)theData;
   fprintf(output, " noOfNodes: %x\n", sig->noOfNodes);
   fprintf(output, " ndynamicId: %x\n", sig->ndynamicId);
   fprintf(output, " masterNodeId: %x\n", sig->masterNodeId);
 
   return true;
 }
-

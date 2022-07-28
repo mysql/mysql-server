@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+
 #include <map>
 #include <set>
 #include <string>
@@ -33,7 +34,7 @@
 
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "sql/dd/string_type.h"
 #include "sql/mdl.h"
 
@@ -304,6 +305,25 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
     handlerton *hton, Foreign_key_parents_invalidator *fk_invalidator);
 
 /**
+  As a result of simple rename table operation, orphan non-self-referencing
+  foreign keys may become non-orphan/adopted self-referencing foreign keys.
+  For such transformed foreign key, check that table has compatible referenced
+  column and parent key. Also, update DD.UNIQUE_CONSTRAINT_NAME.
+
+  @param  thd             Thread handle.
+  @param  db              Table's old schema.
+  @param  table_name      Table's old name.
+  @param  new_db          Table's new schema.
+  @param  new_table_name  Table's new name.
+  @param  hton            Table's SE.
+
+  @retval operation outcome, false if no error.
+*/
+[[nodiscard]] bool adjust_adopted_self_ref_fk_for_simple_rename_table(
+    THD *thd, const char *db, const char *table_name, const char *new_db,
+    const char *new_table_name, handlerton *hton);
+
+/**
   Update referenced table names and the unique constraint name for FKs
   affected by RENAME TABLE operation.
 
@@ -450,6 +470,9 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions);
   Prepares the column definitions for table creation.
 
   @param thd                       Thread object.
+  @param error_schema_name         Schema name of the table used for error
+  reporting.
+  @param error_table_name          Table name used for error reporting.
   @param create_info               Create information.
   @param[in,out] create_list       List of columns to create.
   @param[in,out] select_field_pos  Position where the SELECT columns start
@@ -462,7 +485,9 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions);
   @retval true    error
 */
 
-bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
+bool prepare_create_field(THD *thd, const char *error_schema_name,
+                          const char *error_table_name,
+                          HA_CREATE_INFO *create_info,
                           List<Create_field> *create_list,
                           int *select_field_pos, handler *file,
                           Create_field *sql_field, int field_no);

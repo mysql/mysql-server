@@ -1,7 +1,7 @@
 #ifndef SSL_WRAPPER_INCLUDED
 #define SSL_WRAPPER_INCLUDED
 
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,7 +121,7 @@ long ssl_wrapper_get_verify_result_and_cert(Vio *vio);
 /**
   Return the verification depth limit set in SSL context
 
-  @param vio_ssl              VIO SSL contex descriptor
+  @param vio_ssl              VIO SSL context descriptor
 
   @return
     -1 default values should be used
@@ -132,7 +132,7 @@ long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd *vio_ssl);
 /**
   Return the verification mode set in SSL context
 
-  @param vio_ssl              VIO SSL contex descriptor
+  @param vio_ssl              VIO SSL context descriptor
 
   @return
     -1 default values should be used
@@ -143,9 +143,9 @@ long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd *vio_ssl);
 /**
   Return the last day the server certificate is valid
 
-  @param vio_ssl              VIO SSL contex descriptor
+  @param vio_ssl              VIO SSL context descriptor
   @param no_after             Character buffer for to be filed with the date in
-  human readble format
+  human readable format
   @param no_after_size        Size of the character buffer
 */
 void ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *vio_ssl,
@@ -155,9 +155,9 @@ void ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *vio_ssl,
 /**
   Return the first day the server certificate is valid
 
-  @param vio_ssl              VIO SSL contex descriptor
+  @param vio_ssl              VIO SSL context descriptor
   @param no_before            Character buffer for to be filed with the date in
-  human readble format
+  human readable format
   @param no_before_size       Size of the character buffer
 */
 void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd *vio_ssl,

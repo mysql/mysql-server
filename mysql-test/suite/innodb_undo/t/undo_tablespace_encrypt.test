@@ -17,7 +17,7 @@ SHOW VARIABLES LIKE "%innodb_undo_log_encrypt%";
 
 --let $INNODB_FILE_PER_TABLE= `SELECT @@innodb_file_per_table`
 --let $PAGE_SIZE= `select @@innodb_page_size`
---let $LOG_FILE_SIZE= `select @@innodb_log_file_size`
+--let $LOG_SIZE= `select @@innodb_redo_log_capacity`
 
 --let $MYSQL_ENC_DATADIR= $MYSQL_TMP_DIR/undo_tablespace_encrypt_dir
 --mkdir $MYSQL_ENC_DATADIR
@@ -32,7 +32,7 @@ EOF
 --source include/shutdown_mysqld.inc
 --source include/wait_until_disconnected.inc
 
---let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$PAGE_SIZE --datadir=$MYSQL_ENC_DATADIR --init-file=$BOOTSTRAP_SQL --secure-file-priv="" >>$BOOTSTRAP_LOG 2>&1
+--let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_SIZE --innodb_page_size=$PAGE_SIZE --datadir=$MYSQL_ENC_DATADIR --init-file=$BOOTSTRAP_SQL --secure-file-priv="" >>$BOOTSTRAP_LOG 2>&1
 --exec $NEW_CMD
 
 --echo ###############################################################################

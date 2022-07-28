@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,8 +190,8 @@ extern SERVICE_TYPE_NO_CONST(mysql_runtime_error) * mysql_runtime_error_service;
 // Plugin global methods
 bool server_engine_initialized();
 void *get_plugin_pointer();
-mysql_mutex_t *get_plugin_running_lock();
-Plugin_waitlock *get_plugin_online_lock();
+Checkable_rwlock *get_plugin_running_lock();
+mysql_mutex_t *get_plugin_applier_module_initialize_terminate_lock();
 int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
                                Delayed_initialization_thread *delayed_init_thd);
 int initialize_plugin_modules(gr_modules::mask modules_to_init);
@@ -247,8 +247,6 @@ int get_flow_control_hold_percent_var();
 int get_flow_control_release_percent_var();
 ulong get_components_stop_timeout_var();
 ulong get_communication_stack_var();
-void set_error_state_due_to_error_during_autorejoin();
-bool get_error_state_due_to_error_during_autorejoin();
 
 // Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);

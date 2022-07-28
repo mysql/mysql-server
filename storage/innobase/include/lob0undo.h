@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +40,8 @@ namespace lob {
 /** Undo information about LOB data alone without including LOB index. */
 struct undo_data_t {
   /** Apply the undo information to the given LOB.
-  @param[in]	index		clustered index containing the LOB.
-  @param[in]	lob_mem		LOB on which the given undo will be
+  @param[in]    index           clustered index containing the LOB.
+  @param[in]    lob_mem         LOB on which the given undo will be
                                   applied.
   @param[in]    len             length of LOB.
   @param[in]    lob_version     lob version number
@@ -84,15 +84,15 @@ inline std::ostream &operator<<(std::ostream &out, const undo_data_t &obj) {
 of BLOBs. */
 struct undo_seq_t {
   /** Constructor.
-  @param[in]	field_no	the field number of LOB.*/
+  @param[in]    field_no        the field number of LOB.*/
   undo_seq_t(ulint field_no) : m_field_no(field_no), m_undo_list(nullptr) {}
 
   /** Apply the undo log records on the given LOB in memory.
-  @param[in]	index	the clustered index to which LOB belongs.
-  @param[in]	lob	the BLOB in memory.
-  @param[in]	len	the length of BLOB in memory.
-  @param[in]	lob_version	the LOB version number.
-  @param[in]	first_page_no	the first page number of BLOB.*/
+  @param[in]    index   the clustered index to which LOB belongs.
+  @param[in]    lob     the BLOB in memory.
+  @param[in]    len     the length of BLOB in memory.
+  @param[in]    lob_version     the LOB version number.
+  @param[in]    first_page_no   the first page number of BLOB.*/
   void apply(dict_index_t *index, byte *lob, size_t len, size_t lob_version,
              page_no_t first_page_no) {
     if (m_undo_list != nullptr) {
@@ -108,7 +108,7 @@ struct undo_seq_t {
   ulint get_field_no() const { return (m_field_no); }
 
   /** Append the given undo log record to the end of container.
-  @param[in]	u1	the undo log record information. */
+  @param[in]    u1      the undo log record information. */
   void push_back(undo_data_t &u1) {
     if (m_undo_list == nullptr) {
       m_undo_list =
@@ -197,12 +197,12 @@ struct undo_vers_t {
   }
 
   /** Apply the undo log record on the given LOB in memory.
-  @param[in]	clust_index	the clust index to which LOB belongs.
-  @param[in]	field_no	the field number of the LOB.
-  @param[in]	lob		the LOB data.
-  @param[in]	len		the length of LOB.
-  @param[in]	lob_version	LOB version number.
-  @param[in]	first_page	the first page number of LOB.*/
+  @param[in]    clust_index     the clust index to which LOB belongs.
+  @param[in]    field_no        the field number of the LOB.
+  @param[in]    lob             the LOB data.
+  @param[in]    len             the length of LOB.
+  @param[in]    lob_version     LOB version number.
+  @param[in]    first_page      the first page number of LOB.*/
   void apply(dict_index_t *clust_index, ulint field_no, byte *lob, size_t len,
              size_t lob_version, page_no_t first_page) {
     undo_seq_t *seq = get_undo_sequence_if_exists(field_no);

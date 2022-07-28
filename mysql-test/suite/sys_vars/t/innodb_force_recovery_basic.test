@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.innodb_force_recovery);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_force_recovery = @@SESSION.innodb_force_recovery;
---echo Expected error 'Readonly variable'
+SELECT innodb_force_recovery;
+--echo Expected error 'Unknown column'
 
 

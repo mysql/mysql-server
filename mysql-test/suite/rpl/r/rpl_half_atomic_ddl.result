@@ -91,9 +91,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;
-ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci;
+ALTER DATABASE db_0 DEFAULT COLLATE utf8mb3_general_ci;
 Warnings:
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	#	Rotate	#	#	master-bin.000002;pos=POS
@@ -247,9 +247,9 @@ include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 11 out of 13; current query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'db_0' and default_collation_name = 'utf8_general_ci'';
+Loop: 11 out of 13; current query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8mb3_general_ci'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'db_0' and default_collation_name = 'utf8mb3_general_ci'';
 [connection slave]
-*** Query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci'. Crash right after the query has been binary-logged before committed in the engine. ***
+*** Query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8mb3_general_ci'. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;

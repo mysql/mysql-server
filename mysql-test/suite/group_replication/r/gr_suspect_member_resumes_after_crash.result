@@ -9,6 +9,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    3600 seconds.
 [connection server1]
 SET GLOBAL group_replication_member_expel_timeout = 3600;
+set session sql_log_bin=0;
+call mtr.add_suppression("Old incarnation found while trying to add node*.*");
+set session sql_log_bin=1;
 [connection server2]
 SET GLOBAL group_replication_member_expel_timeout = 3600;
 [connection server3]

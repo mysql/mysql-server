@@ -369,6 +369,9 @@ col_VARCHAR_nokey
 (0, NULL, '21:22:34.025509', '2002-02-13 17:30:06.013935', 'j'),
 (8, '2004-09-18', '10:50:38.059966', '2008-09-27
 00:34:58.026613', 'v');
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-09-27
+00:34:58.026613' at row 2 is deprecated. Prefer the standard ' '.
 EXPLAIN SELECT col_INT_key FROM b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	b	NULL	index	NULL	col_INT_key	5	NULL	2	100.00	Using index
@@ -1751,7 +1754,7 @@ INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ADD COLUMN d INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL, ALGORITHM = INSTANT;
 SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%t1%';
 instant_cols
-2
+0
 ALTER TABLE t1 ADD COLUMN e INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL, ALGORITHM = INSTANT;
 DROP TABLE t1;
 #

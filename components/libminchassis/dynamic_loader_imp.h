@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Making component object and the generation ID as a pair. Here generation ID
   represents the group ID maintained at the time of components insertion.
   The component deinitialization is going to be done as a groups based on the
-  genration ID. This pair is assigned as a value to the my_component_registry
+  generation ID. This pair is assigned as a value to the my_component_registry
   map.
 */
 typedef std::map<const char *, std::unique_ptr<mysql_component>, c_string_less>
@@ -144,9 +144,6 @@ class mysql_dynamic_loader_imp {
     Releases Component iterator. Releases read lock on dynamic loader.
 
     @param iterator Component iterator handle.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
   */
   static DEFINE_METHOD(void, iterator_release,
                        (my_h_component_iterator iterator));

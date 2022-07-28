@@ -118,12 +118,11 @@ SELECT @@global.ft_query_expansion_limit;
 SELECT @@global.innodb_api_enable_mdl;
 
 SELECT @@global.innodb_read_io_threads;
-SELECT @@global.innodb_log_file_size;
 SELECT @@global.log_replica_updates;
 
 --echo # modify existing persisted variables and add new
 SET PERSIST_ONLY innodb_read_io_threads= 16;
-SET PERSIST_ONLY innodb_log_file_size= 4194304, log_replica_updates= 1;
+SET PERSIST_ONLY log_replica_updates= 1;
 
 --echo # Restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -137,7 +136,6 @@ SET PERSIST_ONLY innodb_log_file_size= 4194304, log_replica_updates= 1;
 SELECT @@global.ft_query_expansion_limit;
 SELECT @@global.innodb_api_enable_mdl;
 SELECT @@global.innodb_read_io_threads;
-SELECT @@global.innodb_log_file_size;
 SELECT @@global.log_replica_updates;
 
 --echo # check contents of persistent config file
@@ -266,12 +264,10 @@ SET PERSIST_ONLY ft_query_expansion_limit=80;
 RESET PERSIST;
 
 --echo # test reset on readonly persisted variables
-SET @@persist_only.innodb_log_file_size= 4194304;
 SET @@persist_only.replica_type_conversions = ALL_UNSIGNED;
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 SET PERSIST auto_increment_increment=10;
 SET PERSIST innodb_checksum_algorithm=strict_crc32;
-SET @@persist_only.innodb_log_file_size= DEFAULT;
 SET PERSIST_ONLY ft_query_expansion_limit= DEFAULT;
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --echo # reset replica_type_conversions
@@ -280,9 +276,8 @@ RESET PERSIST replica_type_conversions;
 SELECT * FROM performance_schema.persisted_variables
   WHERE VARIABLE_NAME = 'replica_type_conversions';
 RESET PERSIST auto_increment_increment;
-RESET PERSIST innodb_log_file_size;
 SELECT * FROM performance_schema.persisted_variables
-  WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size')
+  WHERE VARIABLE_NAME IN ('auto_increment_increment')
   ORDER BY 1;
 RESET PERSIST;
 --echo # return 0 rows.

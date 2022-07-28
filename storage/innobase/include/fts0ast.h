@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -151,7 +151,7 @@ Free node and expr allocations.*/
 extern void fts_ast_state_free(fts_ast_state_t *state); /*!< in: state instance
                                                         to free */
 /** Check only union operation involved in the node
-@param[in]	node	ast node to check
+@param[in]      node    ast node to check
 @return true if the node contains only union else false. */
 bool fts_ast_node_check_union(fts_ast_node_t *node);
 
@@ -169,9 +169,9 @@ bool fts_ast_node_check_union(fts_ast_node_t *node);
 /********************************************************************
 Create a lex instance.*/
 [[nodiscard]] fts_lexer_t *fts_lexer_create(
-    ibool boolean_mode, /*!< in: query type */
-    const byte *query,  /*!< in: query string */
-    ulint query_len)    /*!< in: query string len */
+    bool boolean_mode, /*!< in: query type */
+    const byte *query, /*!< in: query string */
+    ulint query_len)   /*!< in: query string len */
     MY_ATTRIBUTE((malloc));
 /********************************************************************
 Free an fts_lexer_t instance.*/
@@ -181,20 +181,20 @@ void fts_lexer_free(fts_lexer_t *fts_lexer); /*!< in: lexer instance to
 /**
 Create an ast string object, with NUL-terminator, so the string
 has one more byte than len
-@param[in] str		pointer to string
-@param[in] len		length of the string
+@param[in] str          pointer to string
+@param[in] len          length of the string
 @return ast string with NUL-terminator */
 fts_ast_string_t *fts_ast_string_create(const byte *str, ulint len);
 
 /**
 Free an ast string instance
-@param[in,out] ast_str	string to free */
+@param[in,out] ast_str  string to free */
 void fts_ast_string_free(fts_ast_string_t *ast_str);
 
 /**
 Translate ast string of type FTS_AST_NUMB to unsigned long by strtoul
-@param[in] ast_str		string to translate
-@param[in] base		the base
+@param[in] ast_str              string to translate
+@param[in] base         the base
 @return translated number */
 ulint fts_ast_string_to_ul(const fts_ast_string_t *ast_str, int base);
 
@@ -212,7 +212,7 @@ struct fts_ast_string_t {
 /* Query term type */
 struct fts_ast_term_t {
   fts_ast_string_t *ptr; /*!< Pointer to term string.*/
-  ibool wildcard;        /*!< TRUE if wild card set.*/
+  bool wildcard;         /*!< true if wild card set.*/
 };
 
 /* Query text type */

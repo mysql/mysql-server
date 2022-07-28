@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,7 +309,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
           keydef->flag &= ~HA_PACK_KEY;
           keydef->flag |= HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY;
         } else {
-          keydef->seg[0].flag |= HA_PACK_KEY; /* for easyer intern test */
+          keydef->seg[0].flag |= HA_PACK_KEY; /* for easier intern test */
           keydef->flag |= HA_VAR_LENGTH_KEY;
           options |= HA_OPTION_PACK_KEYS; /* Using packed keys */
         }
@@ -540,7 +540,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     int have_iext = iext && !strcmp(iext, MI_NAME_IEXT);
     if (options & HA_OPTION_TMP_TABLE) {
       char *path;
-      /* chop off the table name, tempory tables use generated name */
+      /* chop off the table name, temporary tables use generated name */
       if ((path = strrchr(const_cast<char *>(ci->index_file_name), FN_LIBCHAR)))
         *path = '\0';
       fn_format(filename, name, ci->index_file_name, MI_NAME_IEXT,
@@ -556,7 +556,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     linkname_ptr = linkname;
     /*
       Don't create the table if the link or file exists to ensure that one
-      doesn't accidently destroy another table.
+      doesn't accidentally destroy another table.
     */
     create_flag = 0;
   } else {
@@ -603,7 +603,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
 
         if (options & HA_OPTION_TMP_TABLE) {
           char *path;
-          /* chop off the table name, tempory tables use generated name */
+          /* chop off the table name, temporary tables use generated name */
           if ((path =
                    strrchr(const_cast<char *>(ci->data_file_name), FN_LIBCHAR)))
             *path = '\0';

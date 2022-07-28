@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,8 +145,13 @@ class BlobBatchChecker
   /**
    * Check whether the batch contains another blob
    * operation with the same table, index + key
+   *
+   * Returns:
+   * 0 - found
+   * 1 - not found
+   * -1 - error
    */
-  bool findKey(NdbBlob* blob) const
+  int findKey(NdbBlob* blob) const
   {
     DBUG_ENTER("BlobBatchChecker::findKey");
     const Uint32 hash = blob->getBlobKeyHash();
@@ -157,10 +162,11 @@ class BlobBatchChecker
     {
       if (candidate->getBlobKeyHash() == hash)
       {
-        if (candidate->getBlobKeysEqual(blob) == 0)
+        int ret = candidate->getBlobKeysEqual(blob);
+        if (ret <= 0)
         {
-          /* Found */
-          DBUG_RETURN(true);
+          /* Found or error */
+          DBUG_RETURN(ret);
         }
       }
 
@@ -168,7 +174,7 @@ class BlobBatchChecker
     }
 
     /* Not found */
-    DBUG_RETURN(false);
+    DBUG_RETURN(1);
   }
 
   /**
@@ -292,7 +298,7 @@ public:
           if (singleIndex)
           {
             /* Check whether key has been seen before */
-            include = !findKey(firstBlob);
+            include = (findKey(firstBlob) == 1);  // Not found, ok to include
             DBUG_PRINT("info", ("Checked key : include : %u", include));
           }
         }
@@ -507,8 +513,7 @@ setOperationErrorCodeAbort(int error);
 Remark:        Sets an error code on the connection object from an 
                operation object. 
 *****************************************************************************/
-void
-NdbTransaction::setOperationErrorCodeAbort(int error, int abortOption)
+void NdbTransaction::setOperationErrorCodeAbort(int error)
 {
   DBUG_ENTER("NdbTransaction::setOperationErrorCodeAbort");
   if (theTransactionIsStarted == false) {
@@ -599,6 +604,10 @@ class OpList
   NdbOperation* m_savedFirst;
   NdbOperation* m_savedLast;
 
+  // Restore saved list items after or
+  // before main list items
+  bool m_savedAfter;
+
 public:
 #ifdef VM_TRACE
   void checkOpInList(const NdbOperation* op)
@@ -626,7 +635,8 @@ public:
     m_listFirst(listFirst),
     m_listLast(listLast),
     m_savedFirst(NULL),
-    m_savedLast(NULL)
+    m_savedLast(NULL),
+    m_savedAfter(true)
   {
 #ifdef VM_TRACE
     checkOpInList(m_listLast);
@@ -648,10 +658,19 @@ public:
 
       if (m_listFirst != NULL)
       {
-        /* Add to end of list */
         assert(m_listLast != NULL);
-        m_listLast->next(m_savedFirst);
-        m_listLast = m_savedLast;
+        if (m_savedAfter)
+        {
+          /* Add saved to end of list */
+          m_listLast->next(m_savedFirst);
+          m_listLast = m_savedLast;
+        }
+        else
+        {
+          /* Add saved to start of list */
+          m_savedLast->next(m_listFirst);
+          m_listFirst = m_savedFirst;
+        }
       }
       else
       {
@@ -689,6 +708,28 @@ public:
 
     op->next(NULL);
     m_listLast = op;
+    m_savedAfter = true;
+  }
+
+  /**
+   * Save everything up to and including
+   * passed op.
+   * Will be restored to start of list
+   * on going out of scope
+   */
+  void saveBeforeAndIncluding(NdbOperation* op)
+  {
+    assert(m_savedFirst == NULL);
+    assert(m_savedLast == NULL);
+#ifdef VM_TRACE
+    checkOpInList(op);
+#endif
+    m_savedFirst = m_listFirst;
+    m_savedLast = op;
+
+    m_listFirst = op->next();
+    op->next(NULL);
+    m_savedAfter = false;
   }
 
   /**
@@ -711,6 +752,7 @@ public:
       m_savedLast = m_listLast;
     }
     m_listFirst = m_listLast = NULL;
+    m_savedAfter = true;
   }
 
   /**
@@ -857,6 +899,16 @@ NdbTransaction::execute(ExecType aTypeOfExec,
 
           /* Prepare this operation + blob ops now */
           {
+            /* Remove already defined ops from consideration for now
+             * for more efficient operation reordering in
+             * Blob preExecute
+             */
+            OpList precedingOps(theFirstOpInList,
+                                theLastOpInList);
+            if (prevOp)
+            {
+              precedingOps.saveBeforeAndIncluding(prevOp);
+            }
             /**
              * Hide following user defined ops for now so that
              * internal blob operations are logically placed
@@ -888,8 +940,8 @@ NdbTransaction::execute(ExecType aTypeOfExec,
                 assert(ba == NdbBlob::BA_DONE);
               }
               tBlob = tBlob->theNext;
-            }
-          }
+            } // while tBlob
+          } // ops lists
         }
       }
 
@@ -2549,8 +2601,7 @@ Return Value:  Return 0 : receiveTCRELEASECONF was successful.
 Parameters:    aSignal: The signal object pointer.
 Remark:         DisConnect TC Connect pointer to NDBAPI. 
 *******************************************************************************/
-int			
-NdbTransaction::receiveTCRELEASECONF(const NdbApiSignal* aSignal)
+int NdbTransaction::receiveTCRELEASECONF(const NdbApiSignal* /*aSignal*/)
 {
   if (theStatus != DisConnecting)
   {
@@ -2766,7 +2817,7 @@ from other transactions.
     const Uint32 tNoOfOperations = TcKeyConf::getNoOfOperations(tTemp);
     const Uint32 tCommitFlag = TcKeyConf::getCommitFlag(tTemp);
 
-    const Uint32* tPtr = (Uint32 *)&keyConf->operations[0];
+    const Uint32* tPtr = (const Uint32*)&keyConf->operations[0];
     Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
       NdbReceiver* const tReceiver = 
@@ -3543,6 +3594,8 @@ NdbTransaction::setMaxPendingBlobReadBytes(Uint32 bytes)
 void
 NdbTransaction::setMaxPendingBlobWriteBytes(Uint32 bytes)
 {
+  DBUG_PRINT("info", ("Setting Blob max pending bytes %d",
+                      bytes));
   /* 0 == max */
   maxPendingBlobWriteBytes = (bytes?bytes : (~ Uint32(0)));
 }
@@ -3666,7 +3719,7 @@ NdbTransaction::report_node_failure(Uint32 id){
 NdbQuery*
 NdbTransaction::createQuery(const NdbQueryDef* def,
                             const NdbQueryParamValue paramValues[],
-                            NdbOperation::LockMode lock_mode)
+                            NdbOperation::LockMode)
 {
   NdbQueryImpl* query = NdbQueryImpl::buildQuery(*this, def->getImpl());
   if (unlikely(query == NULL)) {

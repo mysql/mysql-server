@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -10037,12 +10038,17 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
     ndbout_c("%u - poll_listener", __LINE__);
     chk2((ret = is.poll_listener(pNdb, 10000)) != -1, is.getNdbError());
     chk1(ret == 1);
-    // one event is expected
+    // At least one event is expected from the above update_stat()
     ndbout_c("%u - next_listener", __LINE__);
     chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
     chk1(ret == 1);
-    ndbout_c("%u - next_listener", __LINE__);
-    chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
+    // Clear event queue as there may be additional events created by auto
+    // updates
+    while (ret == 1)
+    {
+      ndbout_c("%u - next_listener", __LINE__);
+      chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
+    }
     chk1(ret == 0);
   }
 
@@ -10071,12 +10077,17 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
         ndbout_c("%u - poll_listener", __LINE__);
         chk2((ret = is.poll_listener(pNdb, 10000)) != -1, is.getNdbError());
         chk1(ret == 1);
-        // one event is expected
+        // At least one event is expected from the above update_stat()
         ndbout_c("%u - next_listener", __LINE__);
         chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
         chk1(ret == 1);
-        ndbout_c("%u - next_listener", __LINE__);
-        chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
+        // Clear event queue as there may be additional events created by auto
+        // updates
+        while (ret == 1)
+        {
+          ndbout_c("%u - next_listener", __LINE__);
+          chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
+        }
         chk1(ret == 0);
       }
 
@@ -10102,13 +10113,17 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << is.getNdbError() << endl;
       ndbout_c("%u - poll_listener", __LINE__);
       chk2((ret = is.poll_listener(pNdb, 10000)) != -1, is.getNdbError());
-      if (ret == 1)
+      // Clear event queue
+      while (ret == 1)
       {
         /* After the new api is introduced, pollEvents() (old api version)
          * returns 1 when empty epoch is at the head of the event queue.
          * pollEvents2() (new api version) returns 1 when exceptional
          * epoch is at the head of the event queue.
          * So next_listener() must be called to handle them.
+         *
+         * In addition, there may be more events queued due to index
+         * stats auto updates.
          */
         chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
       }
@@ -10432,8 +10447,8 @@ runBug14645319(NDBT_Context* ctx, NDBT_Step* step)
     int expected_buckets;
   };
 
-  STATIC_ASSERT(NDB_DEFAULT_HASHMAP_BUCKETS % 240 == 0);
-  STATIC_ASSERT(NDB_DEFAULT_HASHMAP_BUCKETS % 260 != 0);
+  static_assert(NDB_DEFAULT_HASHMAP_BUCKETS % 240 == 0);
+  static_assert(NDB_DEFAULT_HASHMAP_BUCKETS % 260 != 0);
   test_case test_cases[] = {
     { "Simulate online reorg, may or may not change hashmap depending on default fragment count",
       3, 120, 0, NDB_DEFAULT_HASHMAP_BUCKETS, 0 },

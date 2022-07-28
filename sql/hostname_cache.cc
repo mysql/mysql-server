@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +39,9 @@
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_systime.h"  // my_micro_time()
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
 #include "thr_mutex.h"
 
 #ifndef _WIN32

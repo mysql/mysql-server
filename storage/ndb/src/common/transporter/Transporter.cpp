@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 
+#include "util/require.h"
 #include <TransporterRegistry.hpp>
 #include <TransporterCallback.hpp>
 #include "Transporter.hpp"
@@ -31,6 +32,7 @@
 #include <SocketAuthenticator.hpp>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
+#include "util/cstrbuf.h"
 
 #include <EventLogger.hpp>
 
@@ -96,8 +98,15 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   m_is_active = true;
 
   assert(rHostName);
-  if (rHostName && strlen(rHostName) > 0){
-    strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
+  if (rHostName && strlen(rHostName) > 0)
+  {
+    if (cstrbuf_copy(remoteHostName, rHostName) == 1)
+    {
+      ndbout << "Unable to setup transporter. Node " << rNodeId
+             << " had a too long hostname '" << rHostName
+             << "'. Update configuration." << endl;
+      exit(-1);
+    }
   }
   else
   {
@@ -110,7 +119,13 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     }
     remoteHostName[0]= 0;
   }
-  strncpy(localHostName, lHostName, sizeof(localHostName));
+  if (cstrbuf_copy(localHostName, lHostName) == 1)
+  {
+    ndbout << "Unable to setup transporter. Node " << lNodeId
+           << " had a too long hostname '" << lHostName
+           << "'. Update configuration." << endl;
+    exit(-1);
+  }
 
   DBUG_PRINT("info",("rId=%d lId=%d isServer=%d rHost=%s lHost=%s s_port=%d",
 		     remoteNodeId, localNodeId, isServer,
@@ -543,7 +558,7 @@ void
 Transporter::set_get(NDB_SOCKET_TYPE fd,
                      int level,
                      int optval,
-                     const char *optname, 
+                     const char */*optname*/,
                      int val)
 {
   int actual = 0, defval = 0;

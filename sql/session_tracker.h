@@ -1,7 +1,7 @@
 #ifndef SESSION_TRACKER_INCLUDED
 #define SESSION_TRACKER_INCLUDED
 
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ class State_tracker {
   virtual bool store(THD *thd, String &buf) = 0;
 
   /** Mark the entity as changed. */
-  virtual void mark_as_changed(THD *thd, LEX_CSTRING *name) = 0;
+  virtual void mark_as_changed(THD *thd, LEX_CSTRING name) = 0;
 
   virtual void claim_memory_ownership(bool claim [[maybe_unused]]) {}
 };
@@ -192,7 +192,7 @@ class Session_state_change_tracker : public State_tracker {
   bool check(THD *, set_var *) override { return false; }
   bool update(THD *thd) override;
   bool store(THD *, String &buf) override;
-  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
+  void mark_as_changed(THD *thd, LEX_CSTRING tracked_item_name) override;
   bool is_state_changed();
 };
 
@@ -258,7 +258,7 @@ class Transaction_state_tracker : public State_tracker {
   bool check(THD *, set_var *) override { return false; }
   bool update(THD *thd) override;
   bool store(THD *thd, String &buf) override;
-  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
+  void mark_as_changed(THD *thd, LEX_CSTRING tracked_item_name) override;
 
   /** Change transaction characteristics */
   void set_read_flags(THD *thd, enum enum_tx_read_flags flags);
@@ -304,7 +304,7 @@ class Transaction_state_tracker : public State_tracker {
         ((tx_curr_state & ~TX_STMT_DML) != (tx_reported_state & ~TX_STMT_DML))
             ? TX_CHG_STATE
             : 0;
-    if (tx_changed != TX_CHG_NONE) mark_as_changed(thd, nullptr);
+    if (tx_changed != TX_CHG_NONE) mark_as_changed(thd, {});
   }
 };
 

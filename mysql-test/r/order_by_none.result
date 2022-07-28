@@ -3333,4 +3333,49 @@ z3	CREATE TABLE `z3` (
   `c05` time DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE z1, z2, z3;
+#
+# Bug#32695670: ASSERTION `M_CURRENT_ROLLUP_LEVEL >= 0 && M_CURRENT_ROLLUP_LEVEL < M_NUM_LEVELS'
+#
+CREATE TABLE t(
+m MEDIUMTEXT,   # must be blob, CHAR(1), TEXT works....
+pk INT PRIMARY KEY
+);
+INSERT INTO t VALUES ('s',1);
+SELECT MIN(alias2.m) AS field2,
+alias2.pk AS field3
+FROM t AS alias1
+LEFT JOIN
+t AS alias2
+ON alias1.m = alias2.m
+GROUP BY field3 WITH ROLLUP
+ORDER BY UPPER(field2);
+field2	field3
+s	1
+s	NULL
+DROP TABLE t;
+CREATE TABLE t1 ( a INTEGER, b LONGTEXT );
+INSERT INTO t1 VALUES (1,'z');
+INSERT INTO t1 VALUES (2,'y');
+INSERT INTO t1 VALUES (3,'x');
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(MIN(b), 'a');
+min_b
+x
+y
+z
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(min_b, 'a');
+min_b
+x
+y
+z
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(MIN(b), 'a') DESC;
+min_b
+z
+y
+x
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(min_b, 'a') DESC;
+min_b
+z
+y
+x
+DROP TABLE t1;
 set optimizer_switch=default;

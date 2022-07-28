@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -47,10 +47,10 @@ extern char *redo_log_archive_dirs;
 /**
   Check whether a valid value is given to innodb_redo_log_archive_dirs.
   This function is registered as a callback with MySQL.
-  @param[in]	thd       thread handle
-  @param[in]	var       pointer to system variable
-  @param[out]	save      immediate result for update function
-  @param[in]	value     incoming string
+  @param[in]    thd       thread handle
+  @param[in]    var       pointer to system variable
+  @param[out]   save      immediate result for update function
+  @param[in]    value     incoming string
   @return 0 for valid contents
 */
 int validate_redo_log_archive_dirs(THD *thd [[maybe_unused]],

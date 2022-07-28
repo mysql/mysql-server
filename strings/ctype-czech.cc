@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,7 @@ static const unsigned char *CZ_SORT_TABLE[] = {literal0, literal1, literal2,
                                                literal3};
 
 /*
-        These define the valuse for the double chars that need to be
+        These define the values for the double chars that need to be
         sorted as they were single characters -- in Czech these are
         'ch', 'Ch' and 'CH'.
 */
@@ -458,7 +458,7 @@ static bool my_like_range_czech(const CHARSET_INFO *cs, const char *ptr,
     {
       break;
     }
-    if (value == 255) /* Double char too compicated */
+    if (value == 255) /* Double char too complicated */
     {
       break;
     }
@@ -673,7 +673,7 @@ CHARSET_INFO my_charset_latin2_czech_ci = {
     0,                                              /* number    */
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_CSSORT, /* state     */
     "latin2",                                       /* cs name   */
-    "latin2_czech_cs",                              /* name      */
+    "latin2_czech_cs",                              /* m_coll_name */
     "ISO 8859-2 Central European",                  /* comment   */
     nullptr,                                        /* tailoring */
     nullptr,                                        /* coll_param */

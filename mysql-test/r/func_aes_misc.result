@@ -206,6 +206,7 @@ CREATE TABLE t1(f1 varchar(256)) charset latin1;
 INSERT INTO t1 values(AES_ENCRYPT(@ENCSTR, @KEYS, @IV));
 Warnings:
 Warning	1618	<IV> option ignored
+Warning	3237	AES key size should be 16 bytes length or secure KDF methods hkdf or pbkdf2_hmac should be used, please provide exact AES key size or use KDF methods for better security.
 Combination1..............
 SET @@session.block_encryption_mode = 'aes-192-ecb';
 should return NULL

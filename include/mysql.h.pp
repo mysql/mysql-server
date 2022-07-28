@@ -1,8 +1,8 @@
 typedef uint64_t my_ulonglong;
 typedef int my_socket;
 #include "field_types.h"
-enum enum_field_types
-{ MYSQL_TYPE_DECIMAL,
+enum enum_field_types {
+  MYSQL_TYPE_DECIMAL,
   MYSQL_TYPE_TINY,
   MYSQL_TYPE_SHORT,
   MYSQL_TYPE_LONG,
@@ -35,7 +35,8 @@ enum enum_field_types
   MYSQL_TYPE_BLOB = 252,
   MYSQL_TYPE_VAR_STRING = 253,
   MYSQL_TYPE_STRING = 254,
-  MYSQL_TYPE_GEOMETRY = 255 };
+  MYSQL_TYPE_GEOMETRY = 255
+};
 typedef enum enum_field_types enum_field_types;
 #include "my_list.h"
 typedef struct LIST {
@@ -288,7 +289,7 @@ unsigned int net_length_size(unsigned long long num);
 unsigned int net_field_length_size(const unsigned char *pos);
 #include "mysql/client_plugin.h"
 struct st_mysql_client_plugin {
-   int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *); int (*get_options)(const char *option, void *);
+  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *); int (*get_options)(const char *option, void *);
 };
 struct MYSQL;
 #include "plugin_auth_common.h"
@@ -343,7 +344,7 @@ struct st_mysql_client_plugin *mysql_client_register_plugin(
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
 int mysql_plugin_get_option(struct st_mysql_client_plugin *plugin,
-                         const char *option, void *value);
+                            const char *option, void *value);
 #include "mysql_version.h"
 #include "mysql_time.h"
 enum enum_mysql_timestamp_type {
@@ -366,7 +367,7 @@ void init_client_errs(void);
 void finish_client_errs(void);
 extern const char *client_errors[];
 static inline const char *ER_CLIENT(int client_errno) {
-  if (client_errno >= 2000 && client_errno <= 2072)
+  if (client_errno >= 2000 && client_errno <= 2073)
     return client_errors[client_errno - 2000];
   return client_errors[2000 - 2000];
 }
@@ -456,6 +457,7 @@ enum mysql_option {
   MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
   MYSQL_OPT_LOAD_DATA_LOCAL_DIR,
   MYSQL_OPT_USER_PASSWORD,
+  MYSQL_OPT_SSL_SESSION_DATA
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -609,6 +611,10 @@ bool mysql_ssl_set(MYSQL *mysql, const char *key, const char *cert,
                            const char *ca, const char *capath,
                            const char *cipher);
 const char * mysql_get_ssl_cipher(MYSQL *mysql);
+bool mysql_get_ssl_session_reused(MYSQL *mysql);
+void * mysql_get_ssl_session_data(MYSQL *mysql, unsigned int n_ticket,
+                                         unsigned int *out_len);
+bool mysql_free_ssl_session_data(MYSQL *mysql, void *data);
 bool mysql_change_user(MYSQL *mysql, const char *user,
                                const char *passwd, const char *db);
 MYSQL * mysql_real_connect(MYSQL *mysql, const char *host,

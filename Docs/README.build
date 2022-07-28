@@ -1,4 +1,4 @@
-Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,18 @@ We only support Visual Studio as generator and only 64 bit ("Win64").
 cmake --build . --config Debug
 or
 cmake --build . --config RelWithDebInfo
+
+You can pass options to msbuild, see
+https://docs.microsoft.com/en-us/visualstudio/msbuild/msbuild-command-line-reference?view=vs-2019
+
+To speed up compilation, building multiple projects in parallel:
+cmake --build . --config Debug -- -m
+
+To have a completely silent build:
+cmake --build . --config Debug -- -v:q
+
+Or combined:
+cmake --build . --config Debug -- -m -v:q
 
 
 If you have special needs, you can disable the defaults by setting

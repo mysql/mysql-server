@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,13 +32,10 @@
 
 bool get_group_members_info(
     uint index, const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks,
-    Group_member_info_manager_interface *group_member_manager,
-    Gcs_operations *gcs_module, char *channel_name);
+    char *channel_name);
 
 bool get_group_member_stats(
     uint index, const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks,
-    Group_member_info_manager_interface *group_member_manager,
-    Applier_module *applier_module, Gcs_operations *gcs_module,
     char *channel_name);
 
 bool get_connection_status(

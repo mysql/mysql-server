@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -222,6 +222,57 @@ stdx::expected<size_t, std::error_code> Channel::flush_to_send_buf() {
   } else {
     return this->send_buffer().size();
   }
+}
+
+stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
+  auto &plain_buf = recv_plain_buffer();
+
+  {
+    const auto flush_res = flush_from_recv_buf();
+    if (!flush_res) {
+      return flush_res.get_unexpected();
+    } else {
+#if defined(DEBUG_SSL)
+      std::cerr << __LINE__ << ": " << from << "::ssl->" << from << "::enc"
+                << ": " << flush_res.value() << std::endl;
+#endif
+    }
+  }
+
+  size_t bytes_read{};
+  // decrypt from src-ssl into the ssl-plain-buf
+  while (sz > 0) {
+    auto dyn_buf = net::dynamic_buffer(plain_buf);
+
+    // append to the plain buffer
+    const auto read_res = read(dyn_buf, sz);
+    if (read_res) {
+#if defined(DEBUG_SSL)
+      std::cerr << __LINE__ << ": " << from << "::ssl->" << from << "::dec"
+                << ": " << read_res.value() << std::endl;
+#endif
+
+      const size_t transferred = read_res.value();
+
+      sz -= transferred;
+      bytes_read += transferred;
+    } else {
+      // read from client failed.
+
+      if (read_res.error() != TlsErrc::kWantRead &&
+          read_res.error() !=
+              make_error_code(std::errc::operation_would_block)) {
+        return read_res.get_unexpected();
+      }
+
+      break;
+    }
+  }
+
+  // if there is something to send to the source, write into its buffer.
+  flush_to_send_buf();
+
+  return bytes_read;
 }
 
 #if 0

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -50,13 +50,13 @@ void ut_print_timestamp(FILE *file) /*!< in: file where to print */
 void ut_sprintf_timestamp(char *buf); /*!< in: buffer where to sprintf */
 
 /** Prints the contents of a memory buffer in hex.
-@param[in,out] &o Output stream
+@param[in,out] o Output stream
 @param[in] buf Memory buffer
 @param[in] len Length of the buffer */
 void ut_print_buf_hex(std::ostream &o, const void *buf, ulint len);
 
 /** Prints the contents of a memory buffer in hex and ascii.
-@param[in,out] &o Output stream
+@param[in,out] o Output stream
 @param[in] buf Memory buffer
 @param[in] len Length of the buffer */
 void ut_print_buf(std::ostream &o, const void *buf, ulint len);

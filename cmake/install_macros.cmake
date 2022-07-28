@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ ENDFUNCTION()
 
 FUNCTION(MYSQL_INSTALL_TARGET target_arg)
   CMAKE_PARSE_ARGUMENTS(ARG
-    ""
+    "NAMELINK_SKIP"
     "DESTINATION;COMPONENT"
     ""
     ${ARGN}
@@ -110,7 +110,13 @@ FUNCTION(MYSQL_INSTALL_TARGET target_arg)
   IF(ARG_COMPONENT)
     SET(COMP COMPONENT ${ARG_COMPONENT})
   ENDIF()
-  INSTALL(TARGETS ${target} DESTINATION ${ARG_DESTINATION} ${COMP})
+  IF(ARG_NAMELINK_SKIP)
+    SET(LIBRARY_INSTALL_ARGS NAMELINK_SKIP)
+  ENDIF()
+  INSTALL(TARGETS ${target}
+    RUNTIME DESTINATION ${ARG_DESTINATION} ${COMP}
+    ARCHIVE DESTINATION ${ARG_DESTINATION} ${COMP}
+    LIBRARY DESTINATION ${ARG_DESTINATION} ${COMP} ${LIBRARY_INSTALL_ARGS})
   SET(INSTALL_LOCATION ${ARG_DESTINATION} )
   INSTALL_DEBUG_SYMBOLS(${target})
   SET(INSTALL_LOCATION)
@@ -254,6 +260,20 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
     COMPONENT ${ARG_COMPONENT}
     OPTIONAL)
 
+  # mysqld-debug and debug/group_replication.so both need cleanup of RPATH.
+  # We could/should *generate* these files, but since it only affects two
+  # binaries, we hard-code them for simplicity.
+
+  # NOTE: scripts should work for 'make install' and 'make package'.
+  IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
+    IF(${target} STREQUAL "mysqld")
+      INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove.cmake)
+    ENDIF()
+    IF(${target} STREQUAL "group_replication")
+      INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove_gr.cmake)
+    ENDIF()
+  ENDIF()
+
   # For windows, install .pdb files for .exe and .dll files.
   IF(MSVC AND NOT target_type STREQUAL "STATIC_LIBRARY")
     GET_FILENAME_COMPONENT(ext ${debug_target_location} EXT)
@@ -295,7 +315,7 @@ ENDFUNCTION()
 
 
 # On Unix: add to RPATH of an executable when it is installed.
-# Use 'chrpath' to inspect results.
+# Use 'chrpath' or 'patchelf --print-rpath' to inspect results.
 # For Solaris, use 'elfdump -d'
 MACRO(ADD_INSTALL_RPATH TARGET VALUE)
   GET_TARGET_PROPERTY(CURRENT_RPATH_${TARGET} ${TARGET} INSTALL_RPATH)
@@ -544,13 +564,13 @@ ENDMACRO()
 # For APPLE builds we support
 #   -DWITH_SSL=</path/to/custom/openssl>
 # SSL libraries are installed in lib/
-# For Makefile buids, we need to support running in the build directory
+# For Makefile builds, we need to support running in the build directory
 #   plugins are in plugin_output_directory/
 # and after 'make install'
 #   plugins are in lib/plugin/ and lib/plugin/debug/
 # For Xcode builds, we support running in the build directories only.
 FUNCTION(SET_PATH_TO_CUSTOM_SSL_FOR_APPLE target)
-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  IF(APPLE_WITH_CUSTOM_SSL)
     IF(BUILD_IS_SINGLE_CONFIG)
       GET_TARGET_PROPERTY(TARGET_TYPE_${target} ${target} TYPE)
       IF(TARGET_TYPE_${target} STREQUAL "MODULE_LIBRARY")
@@ -581,6 +601,89 @@ FUNCTION(SET_PATH_TO_CUSTOM_SSL_FOR_APPLE target)
     ENDIF()
   ENDIF()
 ENDFUNCTION()
+
+# For custom SSL, copy the openssl executable to the build directory,
+# and INSTALL it at part of the Test COMPONENT.
+#
+# We update the RUNPATH of the executable to
+# $ORIGIN/../lib:$ORIGIN/lib/private for Linux
+# @loader_path/../lib for macOS.
+#
+# executable_full_filename is ${WITH_SSL_PATH}/bin/openssl.
+# Arguments CRYPTO_VERSION OPENSSL_VERSION are used for macOS only.
+# Set ${OUTPUT_TARGET_NAME} to the name of a target which will do the copying.
+#
+# We cannot install 'openssl' in a public bin/ directory,
+# so we rename it to 'my_openssl'.
+FUNCTION(COPY_OPENSSL_BINARY executable_full_filename
+    CRYPTO_VERSION OPENSSL_VERSION
+    OUTPUT_TARGET_NAME)
+  GET_FILENAME_COMPONENT(executable_name "${executable_full_filename}" NAME)
+  GET_FILENAME_COMPONENT(exe_name_we "${executable_full_filename}" NAME_WE)
+
+  SET(COPY_TARGET_NAME "copy_${exe_name_we}")
+  SET(${OUTPUT_TARGET_NAME} "${COPY_TARGET_NAME}" PARENT_SCOPE)
+
+  # Get rid of Warning MSB8065: File not created
+  # MY_ADD_CUSTOM_TARGET fails in mysterious ways, so we touch here instead.
+  IF(CMAKE_GENERATOR MATCHES "Visual Studio")
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E touch
+      "${CMAKE_BINARY_DIR}/cmakefiles/${COPY_TARGET_NAME}"
+      )
+  ENDIF()
+
+  # Do copying and patching in a sub-process, so that we can skip it if
+  # already done.
+  ADD_CUSTOM_TARGET(${COPY_TARGET_NAME} ALL
+    COMMAND ${CMAKE_COMMAND}
+    -Dexecutable_full_filename="${executable_full_filename}"
+    -Dexecutable_name="my_${executable_name}"
+    -DCWD="${CMAKE_BINARY_DIR}/runtime_output_directory"
+    -DAPPLE=${APPLE}
+    -DLINUX=${LINUX}
+    -DWIN32=${WIN32}
+    -DCRYPTO_VERSION="${CRYPTO_VERSION}"
+    -DOPENSSL_VERSION="${OPENSSL_VERSION}"
+    -DINSTALL_PRIV_LIBDIR="${INSTALL_PRIV_LIBDIR}"
+    -DPATCHELF_EXECUTABLE="${PATCHELF_EXECUTABLE}"
+    -DCPU_PAGE_SIZE="${CPU_PAGE_SIZE}"
+    -DBUILD_IS_SINGLE_CONFIG="${BUILD_IS_SINGLE_CONFIG}"
+    -DCMAKE_GENERATOR="${CMAKE_GENERATOR}"
+    -DCMAKE_SYSTEM_PROCESSOR="${CMAKE_SYSTEM_PROCESSOR}"
+    -DCMAKE_CFG_INTDIR="${CMAKE_CFG_INTDIR}"
+    -P ${CMAKE_SOURCE_DIR}/cmake/copy_openssl_binary.cmake
+    WORKING_DIRECTORY
+    "${CMAKE_BINARY_DIR}/runtime_output_directory"
+    )
+
+  SET(PERMISSIONS_EXECUTABLE
+    PERMISSIONS
+    OWNER_READ OWNER_WRITE OWNER_EXECUTE
+    GROUP_READ GROUP_EXECUTE
+    WORLD_READ WORLD_EXECUTE
+    )
+
+  MESSAGE(STATUS "INSTALL ${executable_name} TO ${INSTALL_BINDIR}")
+  IF(BUILD_IS_SINGLE_CONFIG)
+    INSTALL(FILES
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/my_${executable_name}"
+      DESTINATION "${INSTALL_BINDIR}"
+      COMPONENT Test
+      ${PERMISSIONS_EXECUTABLE}
+      )
+  ELSE()
+    FOREACH(cfg Debug Release RelWithDebInfo MinSizeRel)
+      INSTALL(FILES
+     "${CMAKE_BINARY_DIR}/runtime_output_directory/${cfg}/my_${executable_name}"
+        DESTINATION "${INSTALL_BINDIR}"
+        CONFIGURATIONS ${cfg}
+        COMPONENT Test
+        ${PERMISSIONS_EXECUTABLE}
+        )
+    ENDFOREACH()
+  ENDIF()
+ENDFUNCTION(COPY_OPENSSL_BINARY)
 
 
 # For standalone Linux build and -DWITH_LDAP -DWITH_SASL -DWITH_SSL and
@@ -651,6 +754,8 @@ FUNCTION(COPY_CUSTOM_SHARED_LIBRARY library_full_filename subdir
     -Dlibrary_version="${library_version}"
     -Dsubdir="${subdir}"
     -DPATCHELF_EXECUTABLE="${PATCHELF_EXECUTABLE}"
+    -DCPU_PAGE_SIZE="${CPU_PAGE_SIZE}"
+    -DCMAKE_SYSTEM_PROCESSOR="${CMAKE_SYSTEM_PROCESSOR}"
     -P ${CMAKE_SOURCE_DIR}/cmake/copy_custom_library.cmake
 
     BYPRODUCTS

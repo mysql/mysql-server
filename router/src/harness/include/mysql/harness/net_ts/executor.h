@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,9 @@
 #include <stdexcept>  // logic_error
 #include <thread>
 #include <type_traits>  // decay_t, enable_if
+#include <typeindex>
 #include <unordered_map>
+#include <utility>
 
 #include "my_compiler.h"
 #include "mysql/harness/net_ts/netfwd.h"
@@ -210,16 +212,14 @@ class execution_context {
     std::unique_ptr<service, void (*)(service *)> ptr_;
   };
 
-  using service_key_type = void (*)();
+  using service_key_type = std::type_index;
 
   /**
-   * create one function per Key and return its address.
-   *
-   * As it is static, the address is constant and can be used as key.
+   * maps selected type to unique identifier.
    */
   template <class Key>
   static service_key_type service_key() {
-    return reinterpret_cast<service_key_type>(&service_key<Key>);
+    return std::type_index(typeid(Key));
   }
 
   // mutex for services_, keys_

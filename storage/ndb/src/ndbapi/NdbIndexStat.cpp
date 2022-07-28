@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <new>
 
 #include <ndb_global.h>
@@ -130,15 +131,13 @@ NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
   return 0;
 }
 
-int
-NdbIndexStat::records_in_range(const NdbDictionary::Index* index, 
-                               NdbTransaction* trans,
-                               const NdbRecord* key_record,
-                               const NdbRecord* result_record,
-                               const NdbIndexScanOperation::IndexBound* ib, 
-                               Uint64 table_rows, 
-                               Uint64* count, 
-                               int flags)
+int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
+                                   NdbTransaction* trans,
+                                   const NdbRecord* key_record,
+                                   const NdbRecord* result_record,
+                                   const NdbIndexScanOperation::IndexBound* ib,
+                                   Uint64 /*table_rows*/, Uint64* count,
+                                   int flags [[maybe_unused]])
 {
   DBUG_ENTER("NdbIndexStat::records_in_range");
   Uint64 rows;

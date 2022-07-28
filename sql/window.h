@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,16 @@ enum class Window_retrieve_cached_row_reason {
   LAST_IN_PEERSET = 4,
   MISC_POSITIONS = 5  // NTH_VALUE, LEAD/LAG have dynamic indexes 5..N
 };
+
+/**
+  The number of windows is limited to avoid the stack blowing up
+  when constructing iterators recursively. There used to be no limit, but
+  it would be unsafe since QEP_shared::m_idx of tmp tables assigned for windows
+  would exceed the old range of its type plan_idx (int8). It
+  has now been widened, so the max number of windows could be increased
+  if need be, modulo other problems. We could also make it a system variable.
+*/
+constexpr int kMaxWindows = 127;
 
 /**
   Represents the (explicit) window of a SQL 2003 section 7.11 \<window clause\>,
@@ -439,7 +449,7 @@ class Window {
 
   /**
     Execution state: used iff m_needs_last_peer_in_frame. True if a row
-    leaving the frame is the last row in the peer set withing the frame.
+    leaving the frame is the last row in the peer set within the frame.
   */
   int64 m_is_last_row_in_peerset_within_frame;
 
@@ -604,7 +614,7 @@ class Window {
    *     copy_<kind>_window_functions()  [see process_buffered_windowing_record]
    *     w.set_<toggle>(false)
    *
-   * to achive a special semantic, since we cannot pass down extra parameters.
+   * to achieve a special semantic, since we cannot pass down extra parameters.
    *
    *------------------------------------------------------------------------*/
 

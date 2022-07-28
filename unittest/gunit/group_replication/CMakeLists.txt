@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+IF (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)
+  RETURN()
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wno-unused-local-typedefs" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
@@ -32,6 +36,10 @@ SET(TESTS
   group_replication_member_version
   group_replication_mysql_version_gcs_protocol_map
   group_replication_gcs_mysql_network_provider
+  )
+
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  group_replication_gcs_mysql_network_provider-t.cc
   )
 
 FOREACH(test ${TESTS})
@@ -51,3 +59,10 @@ FOREACH(test ${TESTS})
     mysqlgcs
     )
 ENDFOREACH()
+
+IF(WIN32)
+  # LNK4286: symbol 'unknown_sqlstate' is imported from mysqlclient.lib
+  MY_TARGET_LINK_OPTIONS(
+    group_replication_gcs_mysql_network_provider-t "/ignore:4286"
+    )
+ENDIF()

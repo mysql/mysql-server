@@ -1,0 +1,93 @@
+##########################################################################
+# Test script to test UPGRADE from older version table having
+# INSTANT ADD columns and try UPDATE/ROLLBACK on them. The tables have
+# row fitting exactly to page bounday and UPDATE will cause fields to be
+# stored off page. Whereas ROLLBACK shall bring it back to in page.
+#
+# NOTE : This behavior isn't there for tables with row versions.
+##########################################################################
+
+--source include/not_valgrind.inc
+--source include/have_lowercase0.inc
+--source include/have_innodb_16k.inc
+
+# ------------------------------------------------------------
+# Tables created on earlier version with following
+# ------------------------------------------------------------
+# CREATE TABLE t1_redundant(c1 longtext);
+# INSERT INTO t1_redundant VALUES (repeat('x', 8098));
+# ALTER TABLE t1_redundant ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+#
+# CREATE TABLE t2_redundant(id int NOT NULL AUTO_INCREMENT KEY, c1 longtext);
+# INSERT INTO t2_redundant VALUES (1, repeat('x', 8100));
+# ALTER TABLE t2_redundant ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+#
+# CREATE TABLE t1_compact(c1 longtext);
+# INSERT INTO t1_compact VALUES (repeat('x', 8098));
+# ALTER TABLE t1_compact ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+#
+# CREATE TABLE t2_compact(id int NOT NULL AUTO_INCREMENT KEY, c1 longtext);
+# INSERT INTO t2_compact VALUES (1, repeat('x', 8100));
+# ALTER TABLE t2_compact ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+#
+# CREATE TABLE t1_dynamic(c1 longtext);
+# INSERT INTO t1_dynamic VALUES (repeat('x', 8098));
+# ALTER TABLE t1_dynamic ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+#
+# CREATE TABLE t2_dynamic(id int NOT NULL AUTO_INCREMENT KEY, c1 longtext);
+# INSERT INTO t2_dynamic VALUES (1, repeat('x', 8100));
+# ALTER TABLE t2_dynamic ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+# ------------------------------------------------------------
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+--echo # Stop the running the server
+--source include/shutdown_mysqld.inc
+
+--echo # Copy and unzip the datadir.
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/instant_ddl_upgrade_update.zip $MYSQL_TMP_DIR/instant_ddl_upgrade_update.zip
+--file_exists $MYSQL_TMP_DIR/instant_ddl_upgrade_update.zip
+--exec unzip -qo $MYSQL_TMP_DIR/instant_ddl_upgrade_update.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server against the unzipped datadir
+--replace_result $DATADIR DATADIR
+--let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+--echo ##############################################
+--echo # Test instant ADD/DROP COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = redundant;
+--source suite/innodb/include/instant_ddl_upgrade_update.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for DYNAMIC format
+--echo ############################################
+let $row_format = dynamic;
+--source suite/innodb/include/instant_ddl_upgrade_update.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for COMPACT format
+--echo ############################################
+let $row_format = compact;
+--source suite/innodb/include/instant_ddl_upgrade_update.inc
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/instant_ddl_upgrade_update.zip
+--force-rmdir $MYSQL_TMP_DIR/data
+--remove_file $MYSQL_TMP_DIR/instant_ddl_upgrade_update.zip
+
+--echo # Restarting server to restore server state
+let $restart_parameters =;
+--source include/start_mysqld.inc

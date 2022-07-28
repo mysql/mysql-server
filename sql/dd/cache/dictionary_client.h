@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ class SPI_lru_cache;
 
 /**
   A smart-pointer for managing an SPI_lru_cache even when it is only
-  forward declared. Automaticlly allocated cache with new, and assigns
+  forward declared. Automatically allocated cache with new, and assigns
   m_spi_lru_cache to it, when dereferenced using non-const
   operator->(). Destructor deletes the object pointed to by
   m_spi_lru_cache.
@@ -125,7 +125,7 @@ class SPI_lru_cache_owner_ptr {
   objects, while the registers in the auto releasers are used for
   releasing objects.
 
-  The client also has a second registery of objects with uncommitted changes.
+  The client also has a second registry of objects with uncommitted changes.
   These are objects acquired by acquire_for_modification() or registered
   with register_uncommitted_object(). These objects are only present in
   the local registry and not in the shared cache. Once registered, the
@@ -786,9 +786,11 @@ class Dictionary_client {
   /**
     Retrieve a table object by its se private id.
 
-    @param       engine        Name of the engine storing the table.
-    @param       se_private_id SE private id of the table.
-    @param [out] table         Table object, if present; otherwise NULL.
+    @param       engine          Name of the engine storing the table.
+    @param       se_private_id   SE private id of the table.
+    @param [out] table           Table object, if present; otherwise NULL.
+    @param       skip_spi_cache  Optionally skip looking into the missing
+                                 SE private ID cache. Defaults to false.
 
     @note The object must be acquired uncached since we cannot acquire a
           metadata lock in advance since we do not know the table name.
@@ -801,7 +803,8 @@ class Dictionary_client {
   */
 
   [[nodiscard]] bool acquire_uncached_table_by_se_private_id(
-      const String_type &engine, Object_id se_private_id, Table **table);
+      const String_type &engine, Object_id se_private_id, Table **table,
+      bool skip_spi_cache = false);
 
   /**
     Retrieve a table object by its partition se private id.
@@ -1144,7 +1147,7 @@ class Dictionary_client {
           makes sure there is an exclusive meta data lock on the object
           name.
 
-    @note The argument to this funcion may come from acquire(), and may
+    @note The argument to this function may come from acquire(), and may
           be an instance that is present in the uncommitted registry,
           or in the committed registry. These use cases are handled by
           the implementation of the function. The ownership of the
@@ -1196,7 +1199,7 @@ class Dictionary_client {
     verifying that an object with the same id already exists. The old object,
     which may be present in the shared dictionary cache, is not modified. To
     make the changes visible in the shared cache, please call
-    remove_uncommuitted_objects().
+    remove_uncommitted_objects().
 
     @note A precondition is that the object has been acquired from the
           shared cache indirectly by acquire_for_modification(). For storing

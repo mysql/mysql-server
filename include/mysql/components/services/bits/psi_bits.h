@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 #define COMPONENTS_SERVICES_BITS_PSI_BITS_H
 
 /**
-  @file include/mysql/components/services/bits/psi_bits.h
+  @file mysql/components/services/bits/psi_bits.h
   Performance schema instrumentation interface.
 
   @defgroup instrumentation_interface Instrumentation Interface
@@ -133,6 +133,11 @@ static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
   Use thread instances names without sequence numbers.
 */
 #define PSI_FLAG_NO_SEQNUM (1 << 11)
+
+/**
+  Enable collecting the memory consumed by threads.
+*/
+#define PSI_FLAG_MEM_COLLECT (1 << 12)
 
 #define PSI_VOLATILITY_UNKNOWN 0
 #define PSI_VOLATILITY_PERMANENT 1

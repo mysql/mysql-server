@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,15 +88,41 @@ static char *group_replication_enable_member_action(UDF_INIT *, UDF_ARGS *args,
   const char *return_message = nullptr;
   bool throw_error = false;
   std::pair<bool, std::string> error_pair;
+  bool im_the_primary = false;
+  bool im_offline = false;
 
   std::string name = args->args[0] != nullptr ? args->args[0] : "";
   std::string stage = args->args[1] != nullptr ? args->args[1] : "";
 
-  MUTEX_LOCK(lock, get_plugin_running_lock());
-  const bool im_the_primary =
+  /*
+    Try to acquire a read lock on the plugin_running_lock, which
+    will succeed if no write lock is acquired by START or STOP
+    GROUP_REPLICATION.
+    We cannot wait until a read lock can be acquired because that
+    can cause a deadlock between the UDF and STOP, more precisely:
+    1) STOP acquires the write lock;
+    2) UDF is called and waits for the read lock;
+    3) STOP does call `terminate_plugin_modules()` which does wait
+       that all ongoing UDFs do terminate.
+
+    If it succeeds to acquire it, a RAII Checkable_rwlock::Guard
+    object will keep the acquired lock until it leaves scope, either
+    by success or by any error that might occur.
+  */
+  Checkable_rwlock::Guard g(*get_plugin_running_lock(),
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (!g.is_rdlocked()) {
+    return_message =
+        "It cannot be called while START or STOP "
+        "GROUP_REPLICATION is ongoing.";
+    throw_error = true;
+    goto end;
+  }
+
+  im_the_primary =
       member_online_with_majority() && local_member_info->in_primary_mode() &&
       local_member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY;
-  const bool im_offline = !plugin_is_group_replication_running();
+  im_offline = !plugin_is_group_replication_running();
   if (!(im_the_primary || im_offline)) {
     return_message = "Member must be the primary or OFFLINE.";
     throw_error = true;
@@ -190,15 +216,41 @@ static char *group_replication_disable_member_action(UDF_INIT *, UDF_ARGS *args,
   const char *return_message = nullptr;
   bool throw_error = false;
   std::pair<bool, std::string> error_pair;
+  bool im_the_primary = false;
+  bool im_offline = false;
 
   std::string name = args->args[0] != nullptr ? args->args[0] : "";
   std::string stage = args->args[1] != nullptr ? args->args[1] : "";
 
-  MUTEX_LOCK(lock, get_plugin_running_lock());
-  const bool im_the_primary =
+  /*
+    Try to acquire a read lock on the plugin_running_lock, which
+    will succeed if no write lock is acquired by START or STOP
+    GROUP_REPLICATION.
+    We cannot wait until a read lock can be acquired because that
+    can cause a deadlock between the UDF and STOP, more precisely:
+    1) STOP acquires the write lock;
+    2) UDF is called and waits for the read lock;
+    3) STOP does call `terminate_plugin_modules()` which does wait
+       that all ongoing UDFs do terminate.
+
+    If it succeeds to acquire it, a RAII Checkable_rwlock::Guard
+    object will keep the acquired lock until it leaves scope, either
+    by success or by any error that might occur.
+  */
+  Checkable_rwlock::Guard g(*get_plugin_running_lock(),
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (!g.is_rdlocked()) {
+    return_message =
+        "It cannot be called while START or STOP "
+        "GROUP_REPLICATION is ongoing.";
+    throw_error = true;
+    goto end;
+  }
+
+  im_the_primary =
       member_online_with_majority() && local_member_info->in_primary_mode() &&
       local_member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY;
-  const bool im_offline = !plugin_is_group_replication_running();
+  im_offline = !plugin_is_group_replication_running();
   if (!(im_the_primary || im_offline)) {
     return_message = "Member must be the primary or OFFLINE.";
     throw_error = true;
@@ -282,7 +334,31 @@ static char *group_replication_reset_member_actions(UDF_INIT *, UDF_ARGS *args,
   const char *return_message = nullptr;
   bool throw_error = false;
 
-  MUTEX_LOCK(lock, get_plugin_running_lock());
+  /*
+    Try to acquire a read lock on the plugin_running_lock, which
+    will succeed if no write lock is acquired by START or STOP
+    GROUP_REPLICATION.
+    We cannot wait until a read lock can be acquired because that
+    can cause a deadlock between the UDF and STOP, more precisely:
+    1) STOP acquires the write lock;
+    2) UDF is called and waits for the read lock;
+    3) STOP does call `terminate_plugin_modules()` which does wait
+       that all ongoing UDFs do terminate.
+
+    If it succeeds to acquire it, a RAII Checkable_rwlock::Guard
+    object will keep the acquired lock until it leaves scope, either
+    by success or by any error that might occur.
+  */
+  Checkable_rwlock::Guard g(*get_plugin_running_lock(),
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (!g.is_rdlocked()) {
+    return_message =
+        "It cannot be called while START or STOP "
+        "GROUP_REPLICATION is ongoing.";
+    throw_error = true;
+    goto end;
+  }
+
   if (plugin_is_group_replication_running()) {
     return_message =
         "Member must be OFFLINE to reset its member actions configuration.";

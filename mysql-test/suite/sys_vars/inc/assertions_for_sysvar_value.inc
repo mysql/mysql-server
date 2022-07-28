@@ -205,12 +205,12 @@ if ($expect_persisted_json != '') {
     # Variables tagged as "PERSIST_AS_READONLY" are stored in a
     # sub-document.
     if ($persist_as_readonly) {
-      --let $subsection = .mysql_server_static_options
+      --let $subsection = mysql_static_variables
     }
     if (!$persist_as_readonly) {
-      --let $subsection =
+      --let $subsection = mysql_dynamic_variables
     }
-    --let $actual_value = `SELECT JSON_UNQUOTE(JSON_EXTRACT('$_csv_persisted_json', '$.mysql_server$subsection.$variable.Value'))`
+    --let $actual_value = `SELECT JSON_UNQUOTE(JSON_EXTRACT('$_csv_persisted_json', '$.$subsection.$variable.Value'))`
     --let $actual_value = escape(\',$actual_value)
     --let $assert_cond = '$actual_value' = '$_csv_expect_persisted_value'
     --source include/assert.inc
@@ -218,7 +218,7 @@ if ($expect_persisted_json != '') {
   # Verify that value does not exist.
   if ($expect_persisted_json == noexists) {
     --let $assert_text = $variable should not exist in the persist file
-    --let $assert_cond = JSON_CONTAINS_PATH('$_csv_persisted_json', 'one', '$.mysql_server.$variable') = 0
+    --let $assert_cond = JSON_CONTAINS_PATH('$_csv_persisted_json', 'one', '$.mysql_dynamic_variables.$variable') = 0
     --source include/assert.inc
   }
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ extern bool use_show_create_user;
 class Mysqldump_tool_chain_maker_options
     : public Mysql::Tools::Base::Options::Composite_options_provider {
  public:
-  Mysqldump_tool_chain_maker_options(
+  explicit Mysqldump_tool_chain_maker_options(
       const Mysql_chain_element_options *mysql_chain_element_options);
 
   ~Mysqldump_tool_chain_maker_options() override;

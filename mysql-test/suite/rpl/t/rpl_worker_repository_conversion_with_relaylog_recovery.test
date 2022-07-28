@@ -39,6 +39,7 @@
 --source include/rpl_connection_slave.inc
 
 call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]*\.*[0-9]* for channel ''*");
+call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible");
 
 --let $save_rli_repo_type=`SELECT @@GLOBAL.relay_log_info_repository`

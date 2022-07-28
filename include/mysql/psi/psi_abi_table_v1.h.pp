@@ -18,7 +18,7 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_table_bits.h"
+#include "mysql/components/services/bits/psi_table_bits.h"
 struct TABLE_SHARE;
 struct PSI_table_locker;
 typedef struct PSI_table_locker PSI_table_locker;

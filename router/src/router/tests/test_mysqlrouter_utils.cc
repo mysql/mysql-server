@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,101 +25,100 @@
 /*
  * Test free functions found in utils.cc
  */
+#include "mysqlrouter/utils.h"
 
+#include <array>
 #include <cstdlib>
 
 #include <gmock/gmock.h>
+#include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 
-#include "mysql/harness/filesystem.h"
-#include "mysqlrouter/utils.h"
-
-using std::string;
-
-using mysqlrouter::substitute_envvar;
-
-using ::testing::ContainerEq;
-using ::testing::StrEq;
-
 class SubstituteEnvVarTest : public ::testing::Test {
+ public:
+  static const std::string env_name;
+  static const std::string env_value;
+
  protected:
   void SetUp() override {
-    static char env[64];
+    static std::array<char, 64> env;
 
-    snprintf(env, sizeof(env), "%s=%s", env_name.c_str(), env_value.c_str());
-    putenv(env);
+    snprintf(env.data(), env.size(), "%s=%s", env_name.c_str(),
+             env_value.c_str());
+    putenv(env.data());
   }
-  string env_name{"MYRTEST_ENVAR"};
-  string env_value{"MySQLRouterTest"};
 };
 
-class StringFormatTest : public ::testing::Test {
- protected:
+const std::string SubstituteEnvVarTest::env_name{"MYRTEST_ENVAR"};
+const std::string SubstituteEnvVarTest::env_value{"MySQLRouterTest"};
+
+struct SubstituteOkParam {
+  std::string test_name;
+
+  std::string input;
+  std::string expected_output;
 };
 
-/*! \brief Tests mysqlrouter::substitute_envvar()
- *
- */
+class SubstituteEnvVarOkTest
+    : public SubstituteEnvVarTest,
+      public ::testing::WithParamInterface<SubstituteOkParam> {};
 
-TEST_F(SubstituteEnvVarTest, Simple) {
-  string exp{env_value};
-  string test{"ENV{" + env_name + "}"};
-  substitute_envvar(test);
-  ASSERT_STREQ(exp.c_str(), test.c_str());
+TEST_P(SubstituteEnvVarOkTest, check) {
+  std::string inout{GetParam().input};
+  EXPECT_TRUE(mysqlrouter::substitute_envvar(inout));
+
+  EXPECT_STREQ(GetParam().expected_output.c_str(), inout.c_str());
 }
 
-TEST_F(SubstituteEnvVarTest, SimpleMiddleOfString) {
-  string exp{"ham/" + env_value + "/spam"};
-  string test{"ham/ENV{" + env_name + "}/spam"};
-  bool ok = substitute_envvar(test);
+static const SubstituteOkParam substitute_ok_param[] = {
+    {"simple", "ENV{" + SubstituteEnvVarTest::env_name + "}",
+     SubstituteEnvVarTest::env_value},
 
-  ASSERT_TRUE(ok);
-  ASSERT_STREQ(exp.c_str(), test.c_str());
+    {"simple_middle_of_string",
+     "ham/ENV{" + SubstituteEnvVarTest::env_name + "}/spam",
+     "ham/" + SubstituteEnvVarTest::env_value + "/spam"},
+
+    {"no_placeholder", "hamspam", "hamspam"},
+};
+
+INSTANTIATE_TEST_SUITE_P(Ok, SubstituteEnvVarOkTest,
+                         ::testing::ValuesIn(substitute_ok_param),
+                         [](auto const &tinfo) {
+                           return tinfo.param.test_name;
+                         });
+
+struct SubstituteFailParam {
+  std::string test_name;
+
+  std::string input;
+};
+
+class SubstituteEnvVarFailTest
+    : public SubstituteEnvVarTest,
+      public ::testing::WithParamInterface<SubstituteFailParam> {};
+
+TEST_P(SubstituteEnvVarFailTest, check) {
+  std::string inout{GetParam().input};
+  EXPECT_FALSE(mysqlrouter::substitute_envvar(inout));
+
+  EXPECT_STREQ(GetParam().input.c_str(), inout.c_str());
 }
 
-TEST_F(SubstituteEnvVarTest, NoPlaceholder) {
-  string test{"hamspam"};
-  bool ok = substitute_envvar(test);  // nothing to do -> ok, just a no-op
+static const SubstituteFailParam substitute_fail_param[] = {
+    {"unclosed_placeholder", "hamENV{" + SubstituteEnvVarTest::env_name},
 
-  ASSERT_TRUE(ok);
-  ASSERT_STREQ("hamspam",
-               test.c_str());  // no error, value should be left intact
-}
+    {"empty_variable_name", "ham/ENV{}/spam"},
 
-TEST_F(SubstituteEnvVarTest, UnclosedPlaceholder) {
-  string test{"hamENV{" + env_name + "spam"};
-  bool ok = substitute_envvar(test);
+    {"unknown_envvar", "hamENV{UNKNOWN_VARIABLE_12343xyzYEKfk}"},
+};
 
-  ASSERT_FALSE(ok);
-  // value of test is now undefined
-}
+INSTANTIATE_TEST_SUITE_P(Fail, SubstituteEnvVarFailTest,
+                         ::testing::ValuesIn(substitute_fail_param),
+                         [](auto const &tinfo) {
+                           return tinfo.param.test_name;
+                         });
 
-TEST_F(SubstituteEnvVarTest, EmptyVariableName) {
-  string test{"hamENV{}spam"};
-  bool ok = substitute_envvar(test);
-
-  ASSERT_FALSE(ok);
-  // value of test is now undefined
-}
-
-TEST_F(SubstituteEnvVarTest, UnknownEnvironmentVariable) {
-  string unknown_name{"UNKNOWN_VARIABLE_12343xyzYEKfk"};
-  string test{"hamENV{" + unknown_name + "}spam"};
-  bool ok = substitute_envvar(test);
-
-  ASSERT_FALSE(ok);
-  // value of test is now undefined
-}
-
-/*
- * Tests mysqlrouter::string_format()
- */
-TEST_F(StringFormatTest, Simple) {
-  EXPECT_EQ(std::string("5 + 5 = 10"),
-            mysqlrouter::string_format("%d + %d = %d", 5, 5, 10));
-  EXPECT_EQ(std::string("Spam is 5"),
-            mysqlrouter::string_format("%s is %d", "Spam", 5));
-}
+class StringFormatTest : public ::testing::Test {};
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

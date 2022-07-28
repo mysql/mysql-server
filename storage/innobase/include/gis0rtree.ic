@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,7 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/** @file include gis0rtree.h
+/** @file include/gis0rtree.ic
  R-tree Inline code
 
  Created 2013/03/27 Jimmy Yang and Allen Lai
@@ -59,15 +59,16 @@ static inline void rtr_page_cal_mbr(
   page = buf_block_get_frame(block);
 
   rec = page_rec_get_next(page_get_infimum_rec(page));
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   do {
     /* The mbr address is in the first field. */
-    field = rec_get_nth_field(rec, offsets, 0, &len);
+    field = rec_get_nth_field(index, rec, offsets, 0, &len);
 
     ut_ad(len == DATA_MBR_LEN);
     inc = 0;
-    for (int i = 0; i < SPDIMS; i++) {
+    for (uint i = 0; i < SPDIMS; i++) {
       bmin = mach_double_read(field + inc);
       bmax = mach_double_read(field + inc + sizeof(double));
 
@@ -152,7 +153,7 @@ static inline void rtr_write_mbr(byte *data,           /*!< out: data */
 {
   const double *my_mbr = reinterpret_cast<const double *>(mbr);
 
-  for (int i = 0; i < SPDIMS * 2; i++) {
+  for (uint i = 0; i < SPDIMS * 2; i++) {
     mach_double_write(data + i * sizeof(double), my_mbr[i]);
   }
 }
@@ -161,7 +162,7 @@ static inline void rtr_write_mbr(byte *data,           /*!< out: data */
 static inline void rtr_read_mbr(const byte *data, /*!< in: data */
                                 rtr_mbr_t *mbr)   /*!< out: MBR */
 {
-  for (int i = 0; i < SPDIMS * 2; i++) {
+  for (uint i = 0; i < SPDIMS * 2; i++) {
     (reinterpret_cast<double *>(mbr))[i] =
         mach_double_read(data + i * sizeof(double));
   }

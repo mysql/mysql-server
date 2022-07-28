@@ -453,6 +453,8 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					CAST(0x01 AS char) | 0x31393838	8	21	9	Y	32928	0	63
 CAST(0x01 AS char) | 0x31393838
 825833528
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
 SELECT 0x01 << 1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					0x01 << 1	8	21	1	N	32929	0	63

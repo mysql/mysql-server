@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@ ReturnValueOrError<const dd::Tablespace *> fetch_tablespace(
   }
   if (tblspc_ == nullptr) {
     // When dropping a table in an implicit tablespace, the
-    // refrenced tablespace may already have been removed. This
+    // referenced tablespace may already have been removed. This
     // is ok since this means that the sdis in the tablespace
     // have been removed also. Note that since tsids is only used
     // to check for duplicates, it makes sense to leave tsid

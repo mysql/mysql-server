@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,35 @@ enum class endian {
   native = __BYTE_ORDER__,
 #endif
 };
+
+// from C++23
+// wg21.link/P1048
+
+// all non-enums are also non-scoped-enums
+template <class T, bool B = std::is_enum_v<T>>
+struct __is_scoped_enum_helper : std::false_type {};
+
+// scoped enums are enum's that can't be automatically be converted into its
+// underlying type.
+template <class T>
+struct __is_scoped_enum_helper<T, true>
+    : std::bool_constant<!std::is_convertible_v<T, std::underlying_type_t<T>>> {
+};
+
+template <class T>
+struct is_scoped_enum : __is_scoped_enum_helper<T> {};
+
+template <class E>
+inline constexpr bool is_scoped_enum_v = is_scoped_enum<E>::value;
+
+// C++20
+template <class T>
+struct remove_cvref {
+  using type = std::remove_cv_t<std::remove_reference_t<T>>;
+};
+
+template <class T>
+using remove_cvref_t = typename remove_cvref<T>::type;
 
 }  // namespace stdx
 

@@ -23,7 +23,7 @@ CREATE DATABASE test DEFAULT CHARACTER SET latin1;
 EOF
 
 # Set the bootstrap parameter with new innodb_undo_directory
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb-page-size=$page_size --basedir=$MYSQLD_BASEDIR --datadir=$CUSTOM_DATADIR --innodb_log_file_size=15M --innodb_log_files_in_group=2 --innodb_undo_directory=$MYSQLTEST_VARDIR/tmp/innodb_undo --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb-page-size=$page_size --basedir=$MYSQLD_BASEDIR --datadir=$CUSTOM_DATADIR --innodb_redo_log_capacity=30M --innodb_undo_directory=$MYSQLTEST_VARDIR/tmp/innodb_undo --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 # Run the bootstrap command
 --exec $NEW_CMD
@@ -57,7 +57,7 @@ SET @mypath := CONCAT(@@global.innodb_data_home_dir, '/foo/bar.ibd');
 SELECT sys.format_path(@mypath);
 
 # Ensure innodb_log_group_home_dir is recognized and stripped
-SET @mypath := CONCAT(@@global.innodb_log_group_home_dir, '/ib_logfile0');
+SET @mypath := CONCAT(@@global.innodb_log_group_home_dir, '/#innodb_redo/#ib_redo0');
 
 SELECT sys.format_path(@mypath);
 

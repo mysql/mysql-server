@@ -670,14 +670,14 @@ sysvar:
 - min=
 - max=
 - block_size=1
-- default=0
+- default=1
 - values=["ON", "OFF", 1, 0, "TRUE", "FALSE", "'ON'", "'OFF'"]
 ==== Testing SET @@global.replica_allow_batching [allowed values, range, invalid values] ====
 # Initial value is default
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 # Valid values for variable
 SET @@global.replica_allow_batching=ON;
 include/assert.inc [@@global.replica_allow_batching should be 1]
@@ -721,10 +721,10 @@ include/assert.inc [@@global.slave_allow_batching should be 0]
 include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
 # Setting default value for variable
 SET @@global.replica_allow_batching = DEFAULT;
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 # Invalid values
 SET @@global.replica_allow_batching = 0.1;
 Got one of the listed errors
@@ -744,10 +744,10 @@ SET @@global.replica_allow_batching = NULL;
 Got one of the listed errors
 # Restore default
 SET @@global.replica_allow_batching = DEFAULT;
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
 ==== Testing SET @@session.replica_allow_batching [invalid scope] ====
 SET @@session.replica_allow_batching = DEFAULT;
 ERROR HY000: Variable 'replica_allow_batching' is a GLOBAL variable and should be set with SET GLOBAL
@@ -789,14 +789,14 @@ SELECT @@session.replica_allow_batching;
 ERROR HY000: Variable 'replica_allow_batching' is a GLOBAL variable
 SELECT @@replica_allow_batching;
 @@replica_allow_batching
-0
+1
 include/assert.inc [Variable replica_allow_batching should exist in performance_schema.session_variables]
 ==== Testing SET @@global.slave_allow_batching [allowed values, range, invalid values] ====
 # Initial value is default
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 # Valid values for variable
 SET @@global.slave_allow_batching=ON;
 Warnings:
@@ -858,10 +858,10 @@ include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
 SET @@global.slave_allow_batching = DEFAULT;
 Warnings:
 Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 # Invalid values
 SET @@global.slave_allow_batching = 0.1;
 Got one of the listed errors
@@ -883,10 +883,10 @@ Got one of the listed errors
 SET @@global.slave_allow_batching = DEFAULT;
 Warnings:
 Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
-include/assert.inc [@@global.slave_allow_batching should be 0]
-include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_allow_batching should be 0]
-include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
 ==== Testing SET @@session.slave_allow_batching [invalid scope] ====
 SET @@session.slave_allow_batching = DEFAULT;
 ERROR HY000: Variable 'slave_allow_batching' is a GLOBAL variable and should be set with SET GLOBAL
@@ -928,7 +928,7 @@ SELECT @@session.slave_allow_batching;
 ERROR HY000: Variable 'slave_allow_batching' is a GLOBAL variable
 SELECT @@slave_allow_batching;
 @@slave_allow_batching
-0
+1
 Warnings:
 Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
 include/assert.inc [Variable slave_allow_batching should exist in performance_schema.session_variables]
@@ -2534,217 +2534,6 @@ Warnings:
 Warning	1287	'@@slave_net_timeout' is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
 include/assert.inc [Variable slave_net_timeout should exist in performance_schema.session_variables]
 sysvar:
-- name=replica_parallel_type
-- alias=slave_parallel_type
-- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
-- global=1
-- session=0
-- cmdline=1
-- persist=1
-- persist_as_readonly=1
-- dynamic=1
-- min=
-- max=
-- block_size=1
-- default=LOGICAL_CLOCK
-- values=["LOGICAL_CLOCK", "'DATABASE'", "'LOGICAL_CLOCK'", 0, 1]
-==== Testing SET @@global.replica_parallel_type [allowed values, range, invalid values] ====
-# Initial value is default
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-# Valid values for variable
-SET @@global.replica_parallel_type=LOGICAL_CLOCK;
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-SET @@global.replica_parallel_type='DATABASE';
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
-SET @@global.replica_parallel_type='LOGICAL_CLOCK';
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-SET @@global.replica_parallel_type=0;
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
-SET @@global.replica_parallel_type=1;
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-# Setting default value for variable
-SET @@global.replica_parallel_type = DEFAULT;
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-# Invalid values
-SET @@global.replica_parallel_type = 1.5;
-Got one of the listed errors
-SET @@global.replica_parallel_type = ON;
-Got one of the listed errors
-SET @@global.replica_parallel_type = 'x';
-Got one of the listed errors
-SET @@global.replica_parallel_type = NULL;
-Got one of the listed errors
-SET @@global.replica_parallel_type = 'FOO_BAR';
-Got one of the listed errors
-SET @@global.replica_parallel_type = -1;
-Got one of the listed errors
-SET @@global.replica_parallel_type = 2;
-Got one of the listed errors
-# Restore default
-SET @@global.replica_parallel_type = DEFAULT;
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-==== Testing SET @@session.replica_parallel_type [invalid scope] ====
-SET @@session.replica_parallel_type = DEFAULT;
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@replica_parallel_type = DEFAULT;
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@session.replica_parallel_type = LOGICAL_CLOCK;
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@replica_parallel_type = LOGICAL_CLOCK;
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@session.replica_parallel_type = 'DATABASE';
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@replica_parallel_type = 'DATABASE';
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@session.replica_parallel_type = 'LOGICAL_CLOCK';
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@replica_parallel_type = 'LOGICAL_CLOCK';
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@session.replica_parallel_type = 0;
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@replica_parallel_type = 0;
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@session.replica_parallel_type = 1;
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@replica_parallel_type = 1;
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SELECT @@session.replica_parallel_type;
-ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable
-SELECT @@replica_parallel_type;
-@@replica_parallel_type
-LOGICAL_CLOCK
-include/assert.inc [Variable replica_parallel_type should exist in performance_schema.session_variables]
-==== Testing SET @@global.slave_parallel_type [allowed values, range, invalid values] ====
-# Initial value is default
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-# Valid values for variable
-SET @@global.slave_parallel_type=LOGICAL_CLOCK;
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-SET @@global.slave_parallel_type='DATABASE';
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
-SET @@global.slave_parallel_type='LOGICAL_CLOCK';
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-SET @@global.slave_parallel_type=0;
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
-SET @@global.slave_parallel_type=1;
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-# Setting default value for variable
-SET @@global.slave_parallel_type = DEFAULT;
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-# Invalid values
-SET @@global.slave_parallel_type = 1.5;
-Got one of the listed errors
-SET @@global.slave_parallel_type = ON;
-Got one of the listed errors
-SET @@global.slave_parallel_type = 'x';
-Got one of the listed errors
-SET @@global.slave_parallel_type = NULL;
-Got one of the listed errors
-SET @@global.slave_parallel_type = 'FOO_BAR';
-Got one of the listed errors
-SET @@global.slave_parallel_type = -1;
-Got one of the listed errors
-SET @@global.slave_parallel_type = 2;
-Got one of the listed errors
-# Restore default
-SET @@global.slave_parallel_type = DEFAULT;
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
-include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
-==== Testing SET @@session.slave_parallel_type [invalid scope] ====
-SET @@session.slave_parallel_type = DEFAULT;
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@slave_parallel_type = DEFAULT;
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@session.slave_parallel_type = LOGICAL_CLOCK;
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@slave_parallel_type = LOGICAL_CLOCK;
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@session.slave_parallel_type = 'DATABASE';
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@slave_parallel_type = 'DATABASE';
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@session.slave_parallel_type = 'LOGICAL_CLOCK';
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@slave_parallel_type = 'LOGICAL_CLOCK';
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@session.slave_parallel_type = 0;
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@slave_parallel_type = 0;
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@session.slave_parallel_type = 1;
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@slave_parallel_type = 1;
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
-SELECT @@session.slave_parallel_type;
-ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable
-SELECT @@slave_parallel_type;
-@@slave_parallel_type
-LOGICAL_CLOCK
-Warnings:
-Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [Variable slave_parallel_type should exist in performance_schema.session_variables]
-sysvar:
 - name=replica_parallel_workers
 - alias=slave_parallel_workers
 - invalid=[1.5, "ON", "'x'", "NULL"]
@@ -2754,7 +2543,7 @@ sysvar:
 - persist=1
 - persist_as_readonly=1
 - dynamic=1
-- min=0
+- min=
 - max=1024
 - block_size=1
 - default=4
@@ -2787,21 +2576,6 @@ include/assert.inc [@@global.replica_parallel_workers should be 4]
 include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
 include/assert.inc [@@global.slave_parallel_workers should be 4]
 include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
-# Minimum value
-SET @@global.replica_parallel_workers = 0;
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [Expected min value should equal min value in performance_schema]
-# Less-than-minimum values
-SET @@global.replica_parallel_workers = -1;
-Warnings:
-Warning	1292	Truncated incorrect replica_parallel_workers value: '-1'
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
 # Maximum value
 SET @@global.replica_parallel_workers = 1024;
 include/assert.inc [@@global.replica_parallel_workers should be 1024]
@@ -2891,24 +2665,6 @@ include/assert.inc [@@global.slave_parallel_workers should be 4]
 include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
 include/assert.inc [@@global.replica_parallel_workers should be 4]
 include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
-# Minimum value
-SET @@global.slave_parallel_workers = 0;
-Warnings:
-Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [Expected min value should equal min value in performance_schema]
-# Less-than-minimum values
-SET @@global.slave_parallel_workers = -1;
-Warnings:
-Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
-Warning	1292	Truncated incorrect replica_parallel_workers value: '-1'
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
 # Maximum value
 SET @@global.slave_parallel_workers = 1024;
 Warnings:

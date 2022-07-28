@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -103,7 +103,7 @@ static const uint CLONE_TASK_BLOCK_OFFSET = CLONE_TASK_CHUNK_OFFSET + 4;
 static const uint CLONE_TASK_META_LEN = CLONE_TASK_BLOCK_OFFSET + 4;
 
 /** Initialize header
-@param[in]	version	descriptor version */
+@param[in]      version descriptor version */
 void Clone_Desc_Task_Meta::init_header(uint version) {
   m_header.m_version = version;
 
@@ -394,15 +394,15 @@ void Chnunk_Bitmap::deserialize(const byte *desc_chunk, uint &len_left) {
   desc_chunk += 4;
 
   if (len_left < 4) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   len_left -= 4;
 
   if (bitmap_size > m_size) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   for (ulint index = 0; index < bitmap_size; index++) {
@@ -411,8 +411,8 @@ void Chnunk_Bitmap::deserialize(const byte *desc_chunk, uint &len_left) {
     desc_chunk += 4;
 
     if (len_left < 4) {
-      ut_ad(false);
-      return;
+      ut_d(ut_error);
+      ut_o(return );
     }
 
     len_left -= 4;
@@ -427,8 +427,8 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
   desc_chunk += 4;
 
   if (len_left < 4) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   len_left -= 4;
@@ -436,10 +436,10 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
   auto max_map_size = static_cast<uint32_t>(2 * CLONE_MAX_TASKS);
   /* Each task can have one incomplete chunk at most */
   if (chunk_map_size > max_map_size) {
-    ut_ad(false);
     ib::error(ER_IB_CLONE_RESTART)
         << "Clone too many incomplete chunks: " << chunk_map_size;
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   for (ulint index = 0; index < chunk_map_size; index++) {
@@ -448,8 +448,8 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
     desc_chunk += 4;
 
     if (len_left < 4) {
-      ut_ad(false);
-      return;
+      ut_d(ut_error);
+      ut_o(return );
     }
     len_left -= 4;
 
@@ -457,8 +457,8 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
     desc_chunk += 4;
 
     if (len_left < 4) {
-      ut_ad(false);
-      return;
+      ut_d(ut_error);
+      ut_o(return );
     }
     len_left -= 4;
 
@@ -470,7 +470,7 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
   ut_ad(len_left == 0);
 }
 
-void Clone_Desc_Locator::init(ib_uint64_t id, ib_uint64_t snap_id,
+void Clone_Desc_Locator::init(uint64_t id, uint64_t snap_id,
                               Snapshot_State state, uint version, uint index) {
   m_header.m_version = version;
 
@@ -543,14 +543,14 @@ bool clone_validate_locator(const byte *desc_loc, uint desc_len) {
   Clone_Desc_Header header;
 
   if (!header.deserialize(desc_loc, desc_len)) {
-    ut_ad(false);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
   if (desc_len < CLONE_DESC_LOC_BASE_LEN ||
       header.m_length < CLONE_DESC_LOC_BASE_LEN || header.m_length > desc_len ||
       header.m_type != CLONE_DESC_LOCATOR) {
-    ut_ad(false);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
   return (true);
 }
@@ -563,8 +563,8 @@ void Clone_Desc_Locator::deserialize(const byte *desc_loc, uint desc_len,
 
   if (m_header.m_length < CLONE_DESC_LOC_BASE_LEN ||
       m_header.m_length > desc_len) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   m_clone_id = mach_read_from_8(desc_loc + CLONE_LOC_CID_OFFSET);
@@ -588,16 +588,16 @@ void Clone_Desc_Locator::deserialize(const byte *desc_loc, uint desc_len,
 }
 
 /** Check a specific bit in flag.
-@param[in]	flag	bit flag
-@param[in]	bit	check bit
+@param[in]      flag    bit flag
+@param[in]      bit     check bit
 @return true, iff bit is set in flag. */
 inline bool DESC_CHECK_FLAG(ulint flag, ulint bit) {
   return ((flag & (1ULL << (bit - 1))) > 0);
 }
 
 /** Set a specific bit in flag.
-@param[in]	flag	bit flag
-@param[in]	bit	set bit */
+@param[in]      flag    bit flag
+@param[in]      bit     set bit */
 inline void DESC_SET_FLAG(ulint &flag, ulint bit) {
   flag |= static_cast<ulint>(1ULL << (bit - 1));
 }
@@ -660,8 +660,8 @@ void Clone_Desc_File_MetaData::init_header(uint version) {
   m_header.m_length += static_cast<uint>(m_file_meta.m_file_name_len);
 
   if (m_file_meta.m_transfer_encryption_key) {
-    m_header.m_length += sizeof(m_file_meta.m_encryption_key);
-    m_header.m_length += sizeof(m_file_meta.m_encryption_iv);
+    m_header.m_length += sizeof(m_file_meta.m_encryption_metadata.m_key);
+    m_header.m_length += sizeof(m_file_meta.m_encryption_metadata.m_iv);
   }
 
   m_header.m_type = CLONE_DESC_FILE_METADATA;
@@ -699,7 +699,7 @@ void Clone_Desc_File_MetaData::serialize(byte *&desc_file, uint &len,
     DESC_SET_FLAG(file_flags, CLONE_DESC_FILE_FLAG_LZ4);
   }
   /* Set file encryption type */
-  if (m_file_meta.m_encrypt_type == Encryption::AES) {
+  if (m_file_meta.m_encryption_metadata.m_type == Encryption::AES) {
     DESC_SET_FLAG(file_flags, CLONE_DESC_FILE_FLAG_AES);
   }
   /* Set file renamed attribute */
@@ -741,13 +741,13 @@ void Clone_Desc_File_MetaData::serialize(byte *&desc_file, uint &len,
 
   /* Append Encryption key information if requested. */
   if (m_file_meta.m_transfer_encryption_key) {
-    memcpy(dest_key, m_file_meta.m_encryption_key,
-           sizeof(m_file_meta.m_encryption_key));
+    memcpy(dest_key, m_file_meta.m_encryption_metadata.m_key,
+           sizeof(m_file_meta.m_encryption_metadata.m_key));
 
-    dest_key += sizeof(m_file_meta.m_encryption_key);
+    dest_key += sizeof(m_file_meta.m_encryption_metadata.m_key);
 
-    memcpy(dest_key, m_file_meta.m_encryption_iv,
-           sizeof(m_file_meta.m_encryption_iv));
+    memcpy(dest_key, m_file_meta.m_encryption_metadata.m_iv,
+           sizeof(m_file_meta.m_encryption_metadata.m_iv));
   }
 }
 
@@ -788,9 +788,9 @@ bool Clone_Desc_File_MetaData::deserialize(const byte *desc_file,
   }
 
   /* Get file encryption information */
-  m_file_meta.m_encrypt_type = Encryption::NONE;
+  m_file_meta.m_encryption_metadata.m_type = Encryption::NONE;
   if (DESC_CHECK_FLAG(file_flags, CLONE_DESC_FILE_FLAG_AES)) {
-    m_file_meta.m_encrypt_type = Encryption::AES;
+    m_file_meta.m_encryption_metadata.m_type = Encryption::AES;
   }
 
   /* Get file renamed attribute */
@@ -846,23 +846,24 @@ bool Clone_Desc_File_MetaData::deserialize(const byte *desc_file,
         desc_file + CLONE_FILE_FNAME_OFFSET + m_file_meta.m_file_name_len;
 
     /* Check if we have enough length. */
-    if (desc_len < (sizeof(m_file_meta.m_encryption_key) +
-                    sizeof(m_file_meta.m_encryption_iv))) {
+    if (desc_len < (sizeof(m_file_meta.m_encryption_metadata.m_key) +
+                    sizeof(m_file_meta.m_encryption_metadata.m_iv))) {
       return false; /* purecov: inspected */
     }
 
-    memcpy(m_file_meta.m_encryption_key, src_key,
-           sizeof(m_file_meta.m_encryption_key));
+    memcpy(m_file_meta.m_encryption_metadata.m_key, src_key,
+           sizeof(m_file_meta.m_encryption_metadata.m_key));
 
-    src_key += sizeof(m_file_meta.m_encryption_key);
+    src_key += sizeof(m_file_meta.m_encryption_metadata.m_key);
 
-    memcpy(m_file_meta.m_encryption_iv, src_key,
-           sizeof(m_file_meta.m_encryption_iv));
+    memcpy(m_file_meta.m_encryption_metadata.m_iv, src_key,
+           sizeof(m_file_meta.m_encryption_metadata.m_iv));
 
-    ut_ad(m_header.m_length == CLONE_FILE_FNAME_OFFSET +
-                                   sizeof(m_file_meta.m_encryption_key) +
-                                   sizeof(m_file_meta.m_encryption_iv) +
-                                   m_file_meta.m_file_name_len);
+    ut_ad(m_header.m_length ==
+          CLONE_FILE_FNAME_OFFSET +
+              sizeof(m_file_meta.m_encryption_metadata.m_key) +
+              sizeof(m_file_meta.m_encryption_metadata.m_iv) +
+              m_file_meta.m_file_name_len);
   } else {
     ut_ad(m_header.m_length ==
           CLONE_FILE_FNAME_OFFSET + m_file_meta.m_file_name_len);
@@ -1080,12 +1081,9 @@ void Clone_File_Meta::init() {
   m_fsp_flags = UINT32_UNDEFINED;
 
   m_compress_type = Compression::NONE;
-  m_encrypt_type = Encryption::NONE;
+  m_encryption_metadata = {};
   m_punch_hole = false;
   m_fsblk_size = 0;
-
-  memset(m_encryption_key, 0, sizeof(m_encryption_key));
-  memset(m_encryption_iv, 0, sizeof(m_encryption_iv));
 
   m_transfer_encryption_key = false;
 

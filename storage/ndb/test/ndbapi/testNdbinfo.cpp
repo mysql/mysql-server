@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include "../../src/ndbapi/NdbInfo.hpp"
@@ -159,7 +160,10 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
       (strstr(table->getName(), "cpustat_") != nullptr);
     bool rows_may_increase2 =
       (strstr(table->getName(), "cpudata_") != nullptr);
-    bool rows_may_increase = (rows_may_increase1 || rows_may_increase2);
+    bool rows_may_increase3 =
+      (strstr(table->getName(), "index_stats") != nullptr);
+    bool rows_may_increase = (rows_may_increase1 || rows_may_increase2 ||
+                              rows_may_increase3);
     for (int l = 0; l < ctx->getNumLoops(); l++)
     {
       if (ctx->isTestStopped())
@@ -317,7 +321,10 @@ int runRatelimit(NDBT_Context* ctx, NDBT_Step* step)
       (strstr(table->getName(), "cpustat_") != nullptr);
     bool rows_may_increase2 =
       (strstr(table->getName(), "cpudata_") != nullptr);
-    bool rows_may_increase = (rows_may_increase1 || rows_may_increase2);
+    bool rows_may_increase3 =
+      (strstr(table->getName(), "index_stats") != nullptr);
+    bool rows_may_increase = (rows_may_increase1 || rows_may_increase2 ||
+                              rows_may_increase3);
     for (int l = 0; l < (int)(sizeof(limits)/sizeof(limits[0])); l++)
     {
 

@@ -83,7 +83,9 @@ UNLOCK TABLES;
 --let $slave_sql_errno=1062,3030
 --source include/wait_for_slave_sql_to_stop.inc
 
+--disable_warnings
 SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
+--enable_warnings
 SET GLOBAL replica_parallel_type = @save_replica_parallel_type;
 SET GLOBAL replica_transaction_retries = @save_replica_transaction_retries;
 # Remove the duplicate key from slave's db.

@@ -808,3 +808,39 @@ INSERT INTO t1 VALUES (1);
 SELECT LAST_VALUE(0) OVER (ORDER BY (@f:='x')) FROM t1;
 # NOTE: To actually show the bug in MTR, a shutdown; needs to be inserted here.
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#33399696: Switch slice before reaching execution end
+--echo #
+CREATE TABLE t(a INT, b DOUBLE);
+INSERT INTO t VALUES(1, 2.1);
+INSERT INTO t VALUES(2, 1.4);
+INSERT INTO t VALUES(1, 2.56);
+INSERT INTO t VALUES(2, 2.23);
+
+SELECT a, SUM(b)+1 AS cnt,
+       ROW_NUMBER() OVER (ORDER BY SUM(b) DESC) AS rn
+FROM t GROUP BY a ORDER BY rn;
+
+SELECT a, ROUND(SUM(b), 2) AS cnt,
+       ROW_NUMBER() OVER (ORDER BY SUM(b) DESC) AS rn
+FROM t GROUP BY a ORDER BY rn DESC;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#33415082:Hypergraph: Query with window function crashes in do_add()
+--echo #
+
+CREATE TABLE v0 (v1 INTEGER);
+INSERT INTO v0 VALUES (1);
+
+let $query=
+SELECT v1, (SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2) FROM v0;
+# Query fails only when executed multiple times.
+eval $query;
+eval $query;
+eval $query;
+
+DROP TABLE v0;

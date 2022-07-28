@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -115,6 +115,17 @@ class bad_section : public std::runtime_error {
 class bad_option : public std::runtime_error {
  public:
   explicit bad_option(const std::string &msg) : std::runtime_error(msg) {}
+};
+
+/**
+ * Exception thrown for option value problems.
+ *
+ * @ingroup ConfigParser
+ */
+
+class bad_option_value : public std::runtime_error {
+ public:
+  explicit bad_option_value(const std::string &msg) : std::runtime_error(msg) {}
 };
 
 /**
@@ -244,6 +255,8 @@ class HARNESS_EXPORT Config {
   using OptionMap = ConfigSection::OptionMap;
   using SectionList = std::list<ConfigSection *>;
   using ConstSectionList = std::list<const ConfigSection *>;
+  using ConfigOverwrites = std::map<std::pair<std::string, std::string>,
+                                    std::map<std::string, std::string>>;
 
   /**@{*/
   /** Flags for construction of configurations. */
@@ -261,8 +274,10 @@ class HARNESS_EXPORT Config {
    * Construct a configuration.
    *
    * @param flags flags.
+   * @param config_overwrites overwrites for selected configuration options.
    */
-  explicit Config(unsigned int flags = 0U) noexcept;
+  explicit Config(unsigned int flags = 0U,
+                  const ConfigOverwrites &config_overwrites = {});
 
   /**
    * Construct a configuration.
@@ -270,13 +285,16 @@ class HARNESS_EXPORT Config {
    * @tparam AssocT Associate container type
    * @arg @c parameters Associative container with parameters.
    * @arg @c flags flags.
+   * @arg @c config_overwrites overwrites for selected configuration options.
    * @throws bad_option on bad options
    */
   template <class AssocT>
-  explicit Config(const AssocT &parameters, unsigned int flags = 0U)
-      : Config(flags) {
+  explicit Config(const AssocT &parameters, unsigned int flags = 0U,
+                  const ConfigOverwrites &config_overwrites = {})
+      : Config(flags, config_overwrites) {
     for (auto item : parameters)
       defaults_->set(item.first, item.second);  // throws bad_option
+    apply_overwrites();
   }
 
   /**
@@ -291,12 +309,14 @@ class HARNESS_EXPORT Config {
    * @arg @c parameters Associative container with parameters.
    * @arg @c reserved Sequence container of reserved words.
    * @arg @c flags flags.
+   * @arg @c config_overwrites overwrites for selected configuration options.
    * @throws bad_option on bad options
    */
   template <class AssocT, class SeqT>
   explicit Config(const AssocT &parameters, const SeqT &reserved,
-                  unsigned int flags = 0U)
-      : Config(parameters, flags) /* throws bad_option */ {
+                  unsigned int flags = 0U,
+                  const ConfigOverwrites &config_overwrites = {})
+      : Config(parameters, flags, config_overwrites) /* throws bad_option */ {
     for (auto word : reserved) reserved_.push_back(word);
   }
 
@@ -413,6 +433,8 @@ class HARNESS_EXPORT Config {
   /** @overload */
   SectionList get(const std::string &section);
 
+  ConfigSection &get_default_section() const;
+
   /**
    * Get a section by name and key.
    *
@@ -475,6 +497,8 @@ class HARNESS_EXPORT Config {
    */
   ConstSectionList sections() const;
 
+  bool error_on_unsupported_option{false};
+
  protected:
   using SectionMap = std::map<SectionKey, ConfigSection>;
   using ReservedList = std::vector<std::string>;
@@ -487,8 +511,6 @@ class HARNESS_EXPORT Config {
    * the default section.
    */
   void copy_guts(const Config &source) noexcept;
-
-  std::string replace_variables(const std::string &value) const;
 
   /**
    * Function to read single file.
@@ -508,11 +530,20 @@ class HARNESS_EXPORT Config {
    */
   virtual void do_read_stream(std::istream &input);
 
+  void apply_overwrites();
+
   SectionMap sections_;
   ReservedList reserved_;
   std::shared_ptr<ConfigSection> defaults_;
   unsigned int flags_;
+  ConfigOverwrites config_overwrites_;
 };
+
+/**
+ * Returns true if a character given as a parameter is valid for config
+ * identifier (section, section key or option name)
+ */
+bool HARNESS_EXPORT is_valid_conf_ident_char(const char ch);
 
 }  // namespace mysql_harness
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,32 +23,25 @@
 #ifndef SQL_RANGE_OPTIMIZER_INDEX_MERGE_PLAN_H_
 #define SQL_RANGE_OPTIMIZER_INDEX_MERGE_PLAN_H_
 
-#include "sql/range_optimizer/table_read_plan.h"
-
+template <class T>
+class Mem_root_array;
 class Opt_trace_object;
 class RANGE_OPT_PARAM;
-class QUICK_SELECT_I;
-class TRP_RANGE;
+class String;
+class THD;
+struct AccessPath;
 struct MEM_ROOT;
 
-/*
-  Plan for QUICK_INDEX_MERGE_SELECT scan.
-  QUICK_ROR_INTERSECT_SELECT always retrieves full rows, so retrieve_full_rows
-  is ignored by make_quick.
-*/
+void trace_basic_info_index_merge(THD *thd, const AccessPath *path,
+                                  const RANGE_OPT_PARAM *param,
+                                  Opt_trace_object *trace_object);
 
-class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
- public:
-  TRP_INDEX_MERGE(TABLE *table_arg, bool forced_by_hint_arg)
-      : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/-1,
-                        forced_by_hint_arg) {}
-  QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
-                             MEM_ROOT *return_mem_root) override;
-  TRP_RANGE **range_scans;     /* array of ptrs to plans of merged scans */
-  TRP_RANGE **range_scans_end; /* end of the array */
+void add_keys_and_lengths_index_merge(const AccessPath *path, String *key_names,
+                                      String *used_lengths);
 
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
-                        Opt_trace_object *trace_object) const override;
-};
+#ifndef NDEBUG
+void dbug_dump_index_merge(int indent, bool verbose,
+                           const Mem_root_array<AccessPath *> &children);
+#endif
 
 #endif  // SQL_RANGE_OPTIMIZER_INDEX_MERGE_PLAN_H_

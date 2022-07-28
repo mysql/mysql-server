@@ -877,7 +877,7 @@ log_notice "Starting $MYSQLD daemon with databases from $DATADIR"
 
 # variable to track the current number of "fast" (a.k.a. subsecond) restarts
 fast_restart=0
-# maximum number of restarts before trottling kicks in
+# maximum number of restarts before throttling kicks in
 max_fast_restarts=5
 # flag whether a usable sleep command exists
 have_sleep=1
@@ -955,7 +955,7 @@ do
         sleep_state=$?
         if test $sleep_state -gt 0
         then
-          log_notice "The server is respawning too fast and no working sleep command. Turning off trottling."
+          log_notice "The server is respawning too fast and in addition no working 'sleep' command was found. Turning off throttling."
           have_sleep=0
         fi
 

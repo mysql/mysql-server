@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,6 @@ static int opt_initial;
 static int opt_no_start;
 static unsigned opt_allocated_nodeid;
 static int opt_angel_pid;
-static int opt_retries;
-static int opt_delay;
 static unsigned long opt_logbuffer_size;
 
 extern NdbNodeBitmask g_nowait_nodes;
@@ -61,64 +59,56 @@ static struct my_option my_long_options[] =
   { "initial", NDB_OPT_NOSHORT,
     "Perform initial start of ndbd, including cleaning the file system. "
     "Consult documentation before using this",
-    (uchar**) &opt_initial, (uchar**) &opt_initial, 0,
+    &opt_initial, &opt_initial, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "nostart", 'n',
     "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd",
-    (uchar**) &opt_no_start, (uchar**) &opt_no_start, 0,
+    &opt_no_start, &opt_no_start, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Start ndbd as daemon (default)",
-    (uchar**) &opt_daemon, (uchar**) &opt_daemon, 0,
+    &opt_daemon, &opt_daemon, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
   { "nodaemon", NDB_OPT_NOSHORT,
     "Do not start ndbd as daemon, provided for testing purposes",
-    (uchar**) &opt_no_daemon, (uchar**) &opt_no_daemon, 0,
+    &opt_no_daemon, &opt_no_daemon, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "foreground", NDB_OPT_NOSHORT,
     "Run real ndbd in foreground, provided for debugging purposes"
     " (implies --nodaemon)",
-    (uchar**) &opt_foreground, (uchar**) &opt_foreground, 0,
+    &opt_foreground, &opt_foreground, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "nowait-nodes", NDB_OPT_NOSHORT,
     "Nodes that will not be waited for during start",
-    (uchar**) &opt_nowait_nodes, (uchar**) &opt_nowait_nodes, 0,
+    &opt_nowait_nodes, &opt_nowait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "initial-start", NDB_OPT_NOSHORT,
     "Perform a partial initial start of the cluster.  "
     "Each node should be started with this option, as well as --nowait-nodes",
-    (uchar**) &opt_initialstart, (uchar**) &opt_initialstart, 0,
+    &opt_initialstart, &opt_initialstart, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "bind-address", NDB_OPT_NOSHORT,
     "Local bind address",
-    (uchar**) &opt_bind_address, (uchar**) &opt_bind_address, 0,
+    &opt_bind_address, &opt_bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Write more log messages",
-    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
+    &opt_verbose, &opt_verbose, 0,
     GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
   { "report-fd", 256,
     "INTERNAL: fd where to write extra shutdown status",
-    (uchar**) &opt_report_fd, (uchar**) &opt_report_fd, 0,
+    &opt_report_fd, &opt_report_fd, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, INT_MAX, 0, 0, 0 },
   { "allocated-nodeid", 256,
     "INTERNAL: nodeid allocated by angel process",
-    (uchar**) &opt_allocated_nodeid, (uchar**) &opt_allocated_nodeid, 0,
+    &opt_allocated_nodeid, &opt_allocated_nodeid, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
   { "angel-pid", NDB_OPT_NOSHORT,
     "INTERNAL: angel process id",
-    (uchar**) &opt_angel_pid, (uchar **) &opt_angel_pid, 0,
+    &opt_angel_pid, &opt_angel_pid, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
-  { "connect-retries", 'r',
-    "Number of times mgmd is contacted at start. -1: eternal retries",
-    (uchar**) &opt_retries, (uchar**) &opt_retries, 0,
-    GET_INT, REQUIRED_ARG, 12, -1, 65535, 0, 0, 0 },
-  { "connect-delay", NDB_OPT_NOSHORT,
-    "Number of seconds between each connection attempt",
-    (uchar**) &opt_delay, (uchar**) &opt_delay, 0,
-    GET_INT, REQUIRED_ARG, 5, 0, 3600, 0, 0, 0 },
   { "logbuffer-size", NDB_OPT_NOSHORT,
     "Size of the log buffer for data node ndb_x_out.log",
-    (uchar**) &opt_logbuffer_size, (uchar**) &opt_logbuffer_size, 0,
+    &opt_logbuffer_size, &opt_logbuffer_size, 0,
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
     GET_ULONG, REQUIRED_ARG, 1024*1024, 2048, ULONG_MAX, 0, 0, 0
 #else
@@ -179,9 +169,10 @@ real_main(int argc, char** argv)
     original_args.push_back(argv[i]);
   }
 
-  int ho_error;
-  if ((ho_error=opts.handle_options()))
+  int ho_error = opts.handle_options(ndb_std_get_one_option);
+  if (ho_error != 0) {
     exit(ho_error);
+  }
 
   if (opt_no_daemon || opt_foreground) {
     // --nodaemon or --forground implies --daemon=0
@@ -225,7 +216,7 @@ real_main(int argc, char** argv)
     ndbd_run(opt_foreground, opt_report_fd,
              opt_ndb_connectstring, opt_ndb_nodeid, opt_bind_address,
              opt_no_start, opt_initial, opt_initialstart,
-             opt_allocated_nodeid, opt_retries, opt_delay,
+             opt_allocated_nodeid, opt_connect_retries, opt_connect_retry_delay,
              opt_logbuffer_size);
   }
 
@@ -244,8 +235,8 @@ real_main(int argc, char** argv)
             opt_initial,
             opt_no_start,
             opt_daemon,
-            opt_retries,
-            opt_delay);
+            opt_connect_retries,
+            opt_connect_retry_delay);
 
   return 1; // Never reached
 }

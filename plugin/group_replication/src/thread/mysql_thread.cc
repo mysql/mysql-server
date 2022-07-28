@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,8 +52,10 @@ Mysql_thread::Mysql_thread(PSI_thread_key thread_key,
   mysql_mutex_init(m_dispatcher_mutex_key, &m_dispatcher_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_dispatcher_cond_key, &m_dispatcher_cond);
-  m_trigger_queue = new Abortable_synchronized_queue<Mysql_thread_task *>();
+  m_trigger_queue = new Abortable_synchronized_queue<Mysql_thread_task *>(
+      key_mysql_thread_queued_task);
 }
+
 Mysql_thread::~Mysql_thread() {
   mysql_mutex_destroy(&m_run_lock);
   mysql_cond_destroy(&m_run_cond);
@@ -158,6 +160,19 @@ void Mysql_thread::dispatcher() {
     if (thd->killed) {
       break;
     }
+
+    DBUG_EXECUTE_IF("group_replication_mysql_thread_dispatcher_before_pop", {
+      Mysql_thread_task *t = nullptr;
+      m_trigger_queue->front(&t);
+      const char act[] =
+          "now signal "
+          "signal.group_replication_mysql_thread_dispatcher_before_pop_"
+          "reached "
+          "wait_for "
+          "signal.group_replication_mysql_thread_dispatcher_before_pop_"
+          "continue";
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    });
 
     Mysql_thread_task *task = nullptr;
     if (m_trigger_queue->pop(&task)) {

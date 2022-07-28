@@ -31,13 +31,13 @@ SELECT @@SESSION.innodb_rollback_segments;
 ERROR HY000: Variable 'innodb_rollback_segments' is a GLOBAL variable
 SELECT COUNT(@@SESSION.innodb_rollback_segments);
 ERROR HY000: Variable 'innodb_rollback_segments' is a GLOBAL variable
-SELECT innodb_rollback_segments = @@SESSION.innodb_rollback_segments;
+SELECT innodb_rollback_segments;
 ERROR 42S22: Unknown column 'innodb_rollback_segments' in 'field list'
 SELECT @@LOCAL.innodb_rollback_segments;
 ERROR HY000: Variable 'innodb_rollback_segments' is a GLOBAL variable
 SELECT COUNT(@@LOCAL.innodb_rollback_segments);
 ERROR HY000: Variable 'innodb_rollback_segments' is a GLOBAL variable
-SELECT innodb_rollback_segments = @@LOCAL.innodb_rollback_segments;
+SELECT innodb_rollback_segments;
 ERROR 42S22: Unknown column 'innodb_rollback_segments' in 'field list'
 #
 # Check if accessing variable with and without GLOBAL point to same variable

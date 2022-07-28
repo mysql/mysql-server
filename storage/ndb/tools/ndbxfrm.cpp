@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,20 +22,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <stdio.h>
 #include <string.h>
 
 #include "kernel/signaldata/FsOpenReq.hpp"
 #include "my_getopt.h"
 #include "portlib/ndb_file.h"
+#include "util/ndb_ndbxfrm1.h"
 #include "util/ndb_opts.h"
 #include "util/ndbxfrm_buffer.h"
 #include "util/ndbxfrm_iterator.h"
-#include "util/ndbxfrm_readfile.h"
-#include "util/ndbxfrm_writefile.h"
+#include "util/ndbxfrm_file.h"
 #include "util/ndb_openssl_evp.h"
-
-//#define DUMMY_PASSWORD
 
 using byte = unsigned char;
 
@@ -52,12 +51,12 @@ static ndb_password_from_stdin_option opt_encrypt_password_from_stdin(
                                           opt_encrypt_password_state);
 
 static int g_info = 0;
+static int g_encrypt_block_size = 0;
+static int g_encrypt_cipher = ndb_ndbxfrm1::cipher_cbc;
 static int g_encrypt_kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
+static int g_file_block_size = 512;
 #if defined(TODO_READ_REVERSE)
 static int g_read_reverse = 0;
-#endif
-#if defined(DUMMY_PASSWORD)
-static char g_dummy_password[] = "DUMMY";
 #endif
 
 static struct my_option my_long_options[] =
@@ -72,7 +71,7 @@ static struct my_option my_long_options[] =
 
   // Specific options
   { "compress", 'c', "Compress file",
-    (uchar**) &g_compress, (uchar**) &g_compress, 0,
+    &g_compress, &g_compress, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "decrypt-password", NDB_OPT_NOSHORT, "Decryption password",
     nullptr, nullptr, 0,
@@ -80,6 +79,16 @@ static struct my_option my_long_options[] =
   { "decrypt-password-from-stdin", NDB_OPT_NOSHORT, "Decryption password",
     &opt_decrypt_password_from_stdin.opt_value, nullptr, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_decrypt_password_from_stdin},
+  { "encrypt-block-size", NO_ARG,
+    "Size of input data chunks that are encrypted as an unit. Used with XTS, "
+    "zero for CBC mode.",
+    &g_encrypt_block_size, &g_encrypt_block_size, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, INT_MAX,
+    0, 0, 0 },
+  { "encrypt-cipher", NO_ARG, "Encrypt cipher: CBC(1), XTS(2).",
+    &g_encrypt_cipher, &g_encrypt_cipher, 0,
+    GET_INT, REQUIRED_ARG, ndb_ndbxfrm1::cipher_cbc, 0, INT_MAX,
+    0, 0, 0 },
   { "encrypt-kdf-iter-count", 'k', "Iteration count to used in key definition",
     &g_encrypt_kdf_iter_count, &g_encrypt_kdf_iter_count, 0,
     GET_INT, REQUIRED_ARG, ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT, 0, INT_MAX,
@@ -90,12 +99,16 @@ static struct my_option my_long_options[] =
   { "encrypt-password-from-stdin", NDB_OPT_NOSHORT, "Encryption password",
     &opt_encrypt_password_from_stdin.opt_value, nullptr, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_encrypt_password_from_stdin},
+  { "file-block-size", NO_ARG, "File block size.",
+    &g_file_block_size, &g_file_block_size, 0,
+    GET_INT, REQUIRED_ARG, 512, 0, INT_MAX,
+    0, 0, 0 },
   { "info", 'i', "Print info about file",
-    (uchar**) &g_info, (uchar**) &g_info, 0,
+    &g_info, &g_info, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #if defined(TODO_READ_REVERSE)
   { "read-reverse", 'R', "Read file in reverse",
-    (uchar**) &g_read_reverse, (uchar**) &g_read_reverse, 0,
+    &g_read_reverse, &g_read_reverse, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -149,21 +162,6 @@ int main(int argc, char* argv[])
     return 2;
   }
 
-#if defined(DUMMY_PASSWORD)
-  /*
-   * Replace given password to hard coded version to match what data nodes
-   * and ndb_restore use.
-   */
-  if (opt_decrypt_password)
-  {
-    opt_decrypt_password = g_dummy_password;
-  }
-  if (opt_encrypt_password)
-  {
-    opt_encrypt_password = g_dummy_password;
-  } 
-#endif
-
   if (g_info)
   {
     for (int argi = 0; argi < argc; argi++)
@@ -171,6 +169,14 @@ int main(int argc, char* argv[])
       dump_info(argv[argi]);
     }
     return 0;
+  }
+
+  if (g_file_block_size < 0)
+  {
+    fprintf(stderr,
+            "Error: file_block_size %d can not be negative.\n",
+            g_file_block_size);
+    return 1;
   }
 
   if (argc != 2)
@@ -191,7 +197,7 @@ int main(int argc, char* argv[])
 int dump_info(const char name[])
 {
   ndb_file file;
-  ndbxfrm_readfile xfrm;
+  ndbxfrm_file xfrm;
   int r;
 
   r = file.open(name, FsOpenReq::OM_READONLY);
@@ -214,7 +220,7 @@ int dump_info(const char name[])
          xfrm.is_compressed() ? "yes" : "no",
          xfrm.is_encrypted() ? "yes" : "no");
 
-  xfrm.close();
+  xfrm.close(false);
   file.close();
 
   return 0;
@@ -259,8 +265,8 @@ int copy_file(const char src[], const char dst[])
     return 1;
   }
 
-  ndbxfrm_readfile src_xfrm;
-  ndbxfrm_writefile dst_xfrm;
+  ndbxfrm_file src_xfrm;
+  ndbxfrm_file dst_xfrm;
 
   r = src_xfrm.open(src_file,
                     reinterpret_cast<byte*>(
@@ -268,12 +274,21 @@ int copy_file(const char src[], const char dst[])
                     opt_decrypt_password_state.get_password_length());
   require(r == 0);
 
-  r = dst_xfrm.open(dst_file,
-                    g_compress,
-                    reinterpret_cast<byte*>(
-                        opt_encrypt_password_state.get_password()),
-                    opt_encrypt_password_state.get_password_length(),
-                    g_encrypt_kdf_iter_count);
+  require(g_file_block_size >= 0);
+  size_t file_block_size = g_file_block_size;
+
+  r = dst_xfrm.create(dst_file,
+                      g_compress,
+                      reinterpret_cast<byte*>(
+                          opt_encrypt_password_state.get_password()),
+                      opt_encrypt_password_state.get_password_length(),
+                      g_encrypt_kdf_iter_count,
+                      g_encrypt_cipher,
+                      ndb_ndbxfrm1::key_selection_mode_same,
+                      1 /* key count */,
+                      g_encrypt_block_size,
+                      file_block_size,
+                      ndbxfrm_file::INDEFINITE_SIZE);
   require(r == 0);
 
   // Copy data
@@ -285,7 +300,7 @@ int copy_file(const char src[], const char dst[])
     ndbxfrm_input_iterator wr_it = buffer.get_input_iterator();
     if (dst_xfrm.write_forward(&wr_it) == -1)
     {
-      fprintf(stderr, "Error: Can not write file %s.\n", src);
+      fprintf(stderr, "Error: Can not write file %s.\n", dst);
       r = 2; // write failure
       break;
     }
@@ -314,7 +329,7 @@ int copy_file(const char src[], const char dst[])
     buffer.update_write(rd_it);
   }
  
-  src_xfrm.close();
+  src_xfrm.close(false);
   dst_xfrm.close(false);
 
   src_file.close();

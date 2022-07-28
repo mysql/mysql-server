@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -335,7 +335,8 @@ public:
   Uint32 getNoOfParentOperations() const
   { return (m_parent) ? 1 : 0; }
 
-  const NdbQueryOperationDefImpl& getParentOperation(Uint32 i) const
+  const NdbQueryOperationDefImpl& getParentOperation(Uint32 i
+                                                     [[maybe_unused]]) const
   { assert(i==0 && m_parent!=NULL);
     return *m_parent;
   }
@@ -459,10 +460,10 @@ public:
     return m_spjProjection;
   }
 
-  virtual int checkPrunable(const Uint32Buffer& keyInfo,
-                            Uint32  shortestBound,
-                            bool&   isPruned,
-			    Uint32& hashValue) const {
+  virtual int checkPrunable(const Uint32Buffer& /*keyInfo*/,
+                            Uint32 /*shortestBound*/, bool& isPruned,
+                            Uint32& /*hashValue*/) const
+  {
     isPruned = false;
     return 0;
   }
@@ -588,11 +589,11 @@ protected:
                 Uint32Buffer& serializedDef,
                 const NdbTableImpl& tableOrIndex);
 
-  // Append pattern for creating complete range bounds to serialized code 
-  virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const
+  // Append pattern for creating complete range bounds to serialized code
+  virtual Uint32 appendBoundPattern(Uint32Buffer& /*serializedDef*/) const
   { return 0; }
 
-  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef)
+  virtual Uint32 appendPrunePattern(Uint32Buffer& /*serializedDef*/)
   { return 0; }
 
 }; // class NdbQueryScanOperationDefImpl
@@ -763,7 +764,8 @@ private:
   }
 
   NdbQueryBuilder m_interface;
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
   Vector<NdbQueryOperationDefImpl*> m_operations;
   Vector<NdbQueryOperandImpl*> m_operands;
@@ -796,7 +798,7 @@ public:
   { return m_column; }
 
   virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation)
+                          NdbQueryOperationDefImpl& /*operation*/)
   { if (m_column  && m_column != &column)
       // Already bounded to a different column
       return QRY_OPERAND_ALREADY_BOUND;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <time.h>
 
 #include <NdbTick.h>
+#include "util/cstrbuf.h"
 
 //
 // PUBLIC
@@ -60,8 +61,14 @@ LogHandler::append(const char* pCategory, Logger::LoggerLevel level,
       append_impl(m_last_category, m_last_level, m_last_message, now);
 
     m_last_level= level;
-    strncpy(m_last_category, pCategory, sizeof(m_last_category));
-    strncpy(m_last_message, pMsg, sizeof(m_last_message));
+    if (cstrbuf_copy(m_last_category, pCategory) == 1)
+    {
+      // truncated category
+    }
+    if (cstrbuf_copy(m_last_message, pMsg) == 1)
+    {
+      // truncated message
+    }
   }
   else // repeated message
   {
@@ -127,18 +134,9 @@ LogHandler::setErrorCode(int code)
   m_errorCode = code;
 }
 
+const char* LogHandler::getErrorStr() const { return m_errorStr; }
 
-char*
-LogHandler::getErrorStr()
-{
-  return m_errorStr;
-}
-
-void
-LogHandler::setErrorStr(const char* str)
-{
-  m_errorStr= (char*) str;
-}
+void LogHandler::setErrorStr(const char* str) { m_errorStr = str; }
 
 bool
 LogHandler::parseParams(const BaseString &_params) {

@@ -8,9 +8,13 @@ call mtr.add_suppression("Transaction is tagged with inconsistent logical timest
 call mtr.add_suppression("Cannot execute the current event group in the parallel mode.");
 include/stop_slave.inc
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = 3;
 SET GLOBAL replica_transaction_retries = 0;
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
@@ -782,7 +786,7 @@ FLUSH LOGS;
 CREATE TABLE t1 (c1 VARCHAR(20) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL PRIMARY KEY);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES ('A');
 INSERT INTO t1 VALUES ('b');
@@ -812,7 +816,7 @@ CREATE TABLE t1 (c1 varchar(20) NOT NULL PRIMARY KEY)
 ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES ('á');
 Processing binlog master-bin.000023
@@ -871,6 +875,8 @@ DROP TABLE parent;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
 SET @@GLOBAL.replica_transaction_retries= @save_replica_transaction_retries;
 include/start_slave.inc

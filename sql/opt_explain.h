@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,11 +56,11 @@ Query_block), by calling explain_query_expression() for each of them.
 #include "my_base.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/opt_explain_format.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_result.h"  // Query_result_send
-#include "sql/row_iterator.h"
-#include "sql/sql_cmd.h"  // Sql_cmd
+#include "sql/sql_cmd.h"       // Sql_cmd
 #include "sql/sql_opt_exec_shared.h"
 #include "sys/types.h"
 
@@ -74,7 +74,6 @@ struct AccessPath;
 struct TABLE;
 template <class T>
 class List;
-class QUICK_SELECT_I;
 
 extern const char *join_type_str[];
 
@@ -87,7 +86,7 @@ class Modification_plan {
   TABLE *table;  ///< Table to modify
 
   enum join_type type = JT_UNKNOWN;
-  QUICK_SELECT_I *quick{nullptr};
+  AccessPath *range_scan{nullptr};
   Item *condition{nullptr};
   uint key;                   ///< Key to use
   ha_rows limit;              ///< Limit
@@ -99,7 +98,7 @@ class Modification_plan {
   ha_rows examined_rows;  ///< # of rows expected to be examined in the table
 
   Modification_plan(THD *thd_arg, enum_mod_type mt, TABLE *table_arg,
-                    enum join_type type_arg, QUICK_SELECT_I *quick_arg,
+                    enum join_type type_arg, AccessPath *quick_arg,
                     Item *condition_arg, uint key_arg, ha_rows limit_arg,
                     bool need_tmp_table_arg, bool need_sort_arg,
                     bool used_key_is_modified_arg, ha_rows rows);
@@ -158,10 +157,6 @@ class Query_result_explain final : public Query_result_send {
   bool start_execution(THD *thd) override {
     return Query_result_send::start_execution(thd) ||
            interceptor->start_execution(thd);
-  }
-
-  bool optimize() override {
-    return Query_result_send::optimize() || interceptor->optimize();
   }
 
   void cleanup(THD *thd) override {

@@ -395,8 +395,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where ((`test`.`t3`.`c1` >= 'c-1004=w') and (`test`.`t3`.`c1` <= 'c-1006=w') and (`test`.`t3`.`i1` > 2))
 EXPLAIN FORMAT=tree SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
 EXPLAIN
--> Filter: ((t3.c1 >= 'c-1004=w') and (t3.c1 <= 'c-1006=w') and (t3.i1 > 2))  (cost=0.71 rows=0)
-    -> Index range scan on t3 using c1  (cost=0.71 rows=1)
+-> Filter: ((t3.c1 >= 'c-1004=w') and (t3.c1 <= 'c-1006=w') and (t3.i1 > 2))  (cost=0.71 rows=0.3)
+    -> Index range scan on t3 using c1 over (unprintable_blob_value <= c1 <= unprintable_blob_value AND 2 < i1)  (cost=0.71 rows=1)
 
 SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
 c1
@@ -745,7 +745,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c1` = `test`.`t1`.`c1`) and (((`test`.`t2`.`pk` <= 4) and (`test`.`t1`.`pk` in (2,1))) or ((`test`.`t1`.`pk` > 1) and (`test`.`t2`.`pk` between 6 and 6))))
+Note	1003	/* select#1 */ select `test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c1` = `test`.`t1`.`c1`) and (((`test`.`t2`.`pk` <= 4) and (`test`.`t1`.`pk` in (2,1))) or ((`test`.`t2`.`pk` = 6) and (`test`.`t1`.`pk` > 1))))
 SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
 WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -216,7 +216,7 @@ class Commit_stage_manager {
     leader before it returns.
     In DBUG-ON version the follower marks is preempt status as ready.
 
-    The sesssion threads entering this function acquires mutexes, and few of
+    The session threads entering this function acquires mutexes, and few of
     them are not released while exiting based on thread and stage type.
     - A binlog leader (returning true when stage!=COMMIT_ORDER_FLUSH_STAGE) will
       acquire the stage mutex in this function and not release it.
@@ -332,7 +332,7 @@ class Commit_stage_manager {
   void unlock_queue(StageID stage) { m_queue[stage].unlock(); }
 
  private:
-  /** check if Commit_stage_manager variables already initalized. */
+  /** check if Commit_stage_manager variables already initialized. */
   bool m_is_initialized;
 
   /**

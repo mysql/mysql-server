@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,12 +133,12 @@ bool Table_stat_impl::has_new_primary_key() const {
     So deciding if a object exists or not is not possible based
     on just schema and table name, we would need to add a new
     numeric object id for the same. Adding this new column to
-    these objects would be un-necessary and serve only purpose to
-    update or insert the objects. Additionaly would cost little
+    these objects would be unnecessary and serve the only purpose to
+    update or insert the objects. Additionally, it would cost little
     more disk space too.
 
-    These DD objects are only updated. I.e., if row exists we
-    just update or else insert a new row. Returning 'false' here
+    These DD objects are only updated. That is, if the row exists, we
+    just update it; otherwise, we insert a new row. Returning 'false' here
     enables expected behavior. Even if we have added a new
     numeric primary key, that would require to first fetch the DD
     object and then call store(). Instead returning false here

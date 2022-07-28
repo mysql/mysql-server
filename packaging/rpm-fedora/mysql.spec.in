@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -74,12 +74,15 @@ BuildRequires:  cyrus-sasl-devel
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  libaio-devel
+BuildRequires:  libcurl-devel
+BuildRequires:  libfido2-devel
 BuildRequires:  mecab-devel
 BuildRequires:  multilib-rpm-config
 BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openldap-devel
 BuildRequires:  openssl-devel
+BuildRequires:  patchelf
 BuildRequires:  perl
 BuildRequires:  perl(Carp)
 BuildRequires:  perl(Config)
@@ -122,7 +125,7 @@ BuildRequires:  zlib-devel
 BuildRequires: /usr/bin/pathfix.py
 %endif
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global _privatelibs libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*|libfido2.*
+%global _privatelibs libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
@@ -152,6 +155,7 @@ Requires:       grep
 Requires:       shadow-utils
 Recommends:     mecab-ipadic
 Recommends:     mecab-ipadic-EUCJP
+Requires:       %{name}-icu-data-files = %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Obsoletes:      mysql-community-server < %{version}-%{release}
@@ -248,6 +252,12 @@ Provides:       mysql%{?_isa} = %{version}-%{release}
 %description    client
 This package contains the standard MySQL clients and administration
 tools.
+
+%package        icu-data-files
+Summary:        MySQL packaging of ICU data files
+
+%description    icu-data-files
+This package contains ICU data files needer by MySQL regular expressions.
 
 %package        common
 Summary:        MySQL database common files for server and client libs
@@ -505,6 +515,8 @@ mkdir debug
            -DMYSQL_MAINTAINER_MODE=0 \
            -DTMPDIR=/var/tmp \
            -DWITH_BOOST=.. \
+           -DWITH_CURL=system \
+           -DWITH_FIDO=system \
            -DWITH_MECAB=system \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
@@ -522,7 +534,6 @@ mkdir debug
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DSYSTEMD_PID_DIR="/run/mysqld" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
            -DWITH_NUMA=ON \
@@ -543,6 +554,8 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DTMPDIR=/var/tmp \
            -DWITH_BOOST=.. \
+           -DWITH_CURL=system \
+           -DWITH_FIDO=system \
            -DWITH_MECAB=system \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
@@ -560,7 +573,6 @@ mkdir release
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DSYSTEMD_PID_DIR="/run/mysqld" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
            -DWITH_NUMA=ON \
@@ -573,6 +585,9 @@ mkdir release
 
 %install
 MBD=$RPM_BUILD_DIR/%{src_dir}
+
+# Ignore absolute RPATH followed by $ORIGIN in mysqld.
+export QA_RPATHS=0x0008
 
 # Ensure that needed directories exists
 install -d -m 0751 %{buildroot}/var/lib/mysql
@@ -711,8 +726,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_sbindir}/mysqld
 
 %dir %{_libdir}/mysql/private
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.11.4
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.11.4
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.19.4
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.19.4
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
@@ -764,6 +779,7 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %files server-debug
+%doc %{?license_files_server}
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
@@ -829,6 +845,13 @@ rm -r $(readlink var) var
 %{_datadir}/mysql-*/spanish/
 %{_datadir}/mysql-*/swedish/
 %{_datadir}/mysql-*/ukrainian/
+
+%files icu-data-files
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt69l
+%{_libdir}/mysql/private/icudt69l/unames.icu
+%{_libdir}/mysql/private/icudt69l/brkitr
 
 %files client
 %doc %{?license_files_server}
@@ -938,7 +961,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.*
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
 
 %files test
@@ -996,6 +1018,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_system_variable_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/conflicting_variables.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
@@ -1033,6 +1056,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlx_global_reset.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sensitive_system_variables.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
@@ -1080,6 +1104,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_system_variable_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/conflicting_variables.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so
@@ -1116,6 +1141,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_plugin_registry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sensitive_system_variables.so
 
 %if 0%{?cluster}
 %files management-server
@@ -1156,6 +1182,8 @@ rm -r $(readlink var) var
 %if 0%{?with_router}
 %files -n mysql-router-%{product_suffix}
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
+%doc %{src_dir}/Docs/INFO_SRC*
+%doc release/Docs/INFO_BIN*
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysqlrouter
@@ -1172,11 +1200,15 @@ rm -r $(readlink var) var
 %{_libdir}/mysqlrouter/private/libmysqlharness_stdx.so.*
 %{_libdir}/mysqlrouter/private/libmysqlharness_tls.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_connection_pool.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_io_component.so.*
-%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.3.11.4
+%{_libdir}/mysqlrouter/private/libmysqlrouter_metadata_cache.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_routing.so.*
+%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.3.19.4
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
 %{_libdir}/mysqlrouter/*.so
@@ -1185,6 +1217,9 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
+* Mon Jan 03 2022 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.29-1
+- Added component_test_sensitive_system_variables
+
 * Tue Aug 31 2021 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.27-1
 - Added authentication_oci_client
 

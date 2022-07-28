@@ -878,3 +878,25 @@ SELECT * FROM t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.xml
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug 33714885 - LOAD DATA INFILE fails with ERROR 1054 :
+--echo #   Unknown column XXXX in 'where clause'
+--echo #
+
+CREATE TABLE t1 (c1 varchar(5), c2 varchar(5));
+INSERT INTO t1 VALUES ('a','a');
+CREATE TABLE t2 (d1 varchar(5), d2 varchar(5));
+INSERT INTO t2 VALUES ('a','a'), ('b','b');
+# dump t2 into a file
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t2 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t2.csv' FIELDS TERMINATED BY ',';
+DELETE FROM t2;
+
+# load data back into t2 with a condition
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t2.csv' INTO TABLE t2 FIELDS TERMINATED BY ',' SET d1=(SELECT 1 FROM t1 WHERE c1=d2);
+SELECT * FROM t2;
+--remove_file $MYSQLTEST_VARDIR/tmp/t2.csv
+
+DROP TABLE t1, t2;

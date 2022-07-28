@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,11 +48,11 @@ void Dbtup::init_list_sizes(void)
    * size.
    * Assume varsize may take up the whole row (a slight exaggeration).
    */
-  static_assert(MAX_EXPANDED_TUPLE_SIZE_IN_WORDS <= 7784, "");
+  static_assert(MAX_EXPANDED_TUPLE_SIZE_IN_WORDS <= 7784);
   c_min_list_size[4]= 7784;
   c_max_list_size[4]= 8159;
 
-  static_assert(MAX_FREE_LIST == 5, "");
+  static_assert(MAX_FREE_LIST == 5);
   c_min_list_size[5]= 0;
   c_max_list_size[5]= 199;
 }
@@ -117,7 +117,7 @@ Uint32* Dbtup::alloc_var_rec(Uint32 * err,
   }
   
   PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, key->m_page_no);
+  ndbrequire(c_page_pool.getPtr(pagePtr, key->m_page_no));
   free_fix_rec(fragPtr, tabPtr, key, (Fix_page*)pagePtr.p);
   release_frag_mutex(fragPtr, *out_frag_page_id);
   return 0;
@@ -181,7 +181,7 @@ void Dbtup::free_var_part(Fragrecord* fragPtr,
   Ptr<Page> pagePtr;
   if (key->m_page_no != RNIL)
   {
-    c_page_pool.getPtr(pagePtr, key->m_page_no);
+    ndbrequire(c_page_pool.getPtr(pagePtr, key->m_page_no));
     ndbassert(fragPtr->m_varWordsFree >= ((Var_page*)pagePtr.p)->free_space);
     fragPtr->m_varWordsFree -= ((Var_page*)pagePtr.p)->free_space;
     ((Var_page*)pagePtr.p)->free_record(key->m_page_idx, Var_page::CHAIN);
@@ -243,7 +243,7 @@ void Dbtup::free_var_rec(Fragrecord* fragPtr,
   if (ref.m_page_no != RNIL)
   {
     jam();
-    c_page_pool.getPtr(pagePtr, ref.m_page_no);
+    ndbrequire(c_page_pool.getPtr(pagePtr, ref.m_page_no));
     free_var_part(fragPtr, pagePtr, ref.m_page_idx);
   }
   return;
@@ -653,7 +653,7 @@ Dbtup::alloc_var_rowid(Uint32 * err,
   }
   
   PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, key->m_page_no);
+  ndbrequire(c_page_pool.getPtr(pagePtr, key->m_page_no));
   free_fix_rec(fragPtr, tabPtr, key, (Fix_page*)pagePtr.p);
   release_frag_mutex(fragPtr, *out_frag_page_id);
   return 0;

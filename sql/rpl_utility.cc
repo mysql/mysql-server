@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,7 +271,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
     else
       return false;
   } else if (is_array) {
-    // Can't covert between typed array of different types
+    // Can't convert between typed array of different types
     return false;
   } else if (metadata == 0 &&
              (timestamp_cross_check(field->real_type(), source_type) ||

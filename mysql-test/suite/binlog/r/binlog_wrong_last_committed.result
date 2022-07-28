@@ -1,3 +1,4 @@
+include/only_with_option.inc [GLOBAL.binlog_order_commits = 1]
 RESET MASTER;
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT) ENGINE = InnoDB;
 SET DEBUG_SYNC = "bgc_after_enrolling_for_commit_stage

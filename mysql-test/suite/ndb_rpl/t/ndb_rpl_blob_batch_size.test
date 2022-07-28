@@ -1,0 +1,160 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--echo
+--echo Assert bounds of ndb_replica_blob_write_batch_bytes
+--echo
+
+# Should be truncated to 0
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = -1;
+show variables like 'ndb_replica_blob_write_batch_bytes';
+
+# Should be truncated to max (2^30)
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = 2 * 1024 * 1024 * 1024 + 1;
+show variables like 'ndb_replica_blob_write_batch_bytes';
+
+# Cannot be set as SESSION variable
+--error ER_GLOBAL_VARIABLE
+set @@SESSION.ndb_replica_blob_write_batch_bytes = 32768;
+
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = DEFAULT;
+show variables like 'ndb_replica_blob_write_batch_bytes';
+
+--echo
+
+# This test illustrates the usage of replica specific blob batch write
+# byte size, that can be independently used from the source's binlog
+# applier. If set to a large value it can greatly reduce the
+# amount of execute() calls
+
+# Low batch write size, set to 512 bytes only
+
+--connection slave
+set global replica_allow_batching = ON;
+set ndb_blob_write_batch_bytes = DEFAULT;
+set ndb_blob_read_batch_bytes = DEFAULT;
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = 512;
+show global variables like 'ndb_replica_blob_write_batch_bytes';
+
+--connection master
+set global ndb_log_update_as_write = ON;
+
+create table t1 (a int primary key, b blob) engine=ndb;
+create table t2 (a int primary key, b blob) engine=ndb;
+
+--sync_slave_with_master
+
+--connection slave
+--source ndb_slave_exec_info_init.inc
+
+--connection master
+--echo
+--echo Bulk insert (~1MB) and update with low batch size
+--echo
+
+--disable_query_log
+begin;
+insert into t1 values
+  (1, repeat(x'62', 65024)),
+  (2, repeat(x'62', 65024)),
+  (3, repeat(x'62', 65024)),
+  (4, repeat(x'62', 65024)),
+  (5, repeat(x'62', 65024)),
+  (6, repeat(x'62', 65024)),
+  (7, repeat(x'62', 65024)),
+  (8, repeat(x'62', 65024));
+insert into t2 values
+  (1, repeat(x'63', 65024)),
+  (2, repeat(x'63', 65024)),
+  (3, repeat(x'63', 65024)),
+  (4, repeat(x'63', 65024)),
+  (5, repeat(x'63', 65024)),
+  (6, repeat(x'63', 65024)),
+  (7, repeat(x'63', 65024)),
+  (8, repeat(x'63', 65024));
+update t1 set b=repeat(x'63', 65024) where a in (1,2,3,4,5,6,7,8);
+update t2 set b=repeat(x'62', 65024) where a in (1,2,3,4,5,6,7,8);
+commit;
+
+--sync_slave_with_master
+
+--connection slave
+--disable_query_log
+SET @start_exec_count = @init_wait_exec_complete_count_slave;
+SET @start_pk_op_count = @init_pk_op_count_slave;
+--source ndb_slave_exec_info_init.inc
+--disable_query_log
+SET @low_batch_exec_count = @init_wait_exec_complete_count_slave - @start_exec_count;
+SET @low_batch_pk_op_count = @init_pk_op_count_slave - @start_pk_op_count;
+
+--connection master
+delete from t1;
+delete from t2;
+
+--sync_slave_with_master
+
+--connection slave
+--enable_query_log
+# Now increase replica's blob batch size only (4MB) and reset counters
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = 4 * 1024 * 1024;
+show global variables like 'ndb_replica_blob_write_batch_bytes';
+--source ndb_slave_exec_info_init.inc
+
+--connection master
+--echo
+--echo Bulk insert (~1MB) and update with higher batch size
+--echo
+
+--disable_query_log
+begin;
+insert into t1 values
+  (1, repeat(x'62', 65024)),
+  (2, repeat(x'62', 65024)),
+  (3, repeat(x'62', 65024)),
+  (4, repeat(x'62', 65024)),
+  (5, repeat(x'62', 65024)),
+  (6, repeat(x'62', 65024)),
+  (7, repeat(x'62', 65024)),
+  (8, repeat(x'62', 65024));
+insert into t2 values
+  (1, repeat(x'63', 65024)),
+  (2, repeat(x'63', 65024)),
+  (3, repeat(x'63', 65024)),
+  (4, repeat(x'63', 65024)),
+  (5, repeat(x'63', 65024)),
+  (6, repeat(x'63', 65024)),
+  (7, repeat(x'63', 65024)),
+  (8, repeat(x'63', 65024));
+update t1 set b=repeat(x'63', 65024) where a in (1,2,3,4,5,6,7,8);
+update t2 set b=repeat(x'62', 65024) where a in (1,2,3,4,5,6,7,8);
+commit;
+
+--sync_slave_with_master
+
+--connection slave
+SET @start_exec_count = @init_wait_exec_complete_count_slave;
+SET @start_pk_op_count = @init_pk_op_count_slave;
+--source ndb_slave_exec_info_init.inc
+--disable_query_log
+SET @high_batch_exec_count = @init_wait_exec_complete_count_slave - @start_exec_count;
+SET @high_batch_pk_op_count = @init_pk_op_count_slave - @start_pk_op_count;
+
+--enable_query_log
+--echo Observe that the number of execute() decrease significantly while PK ops are maintained.
+--echo Execute() calls should have decreased by, at least, a factor of 8.
+SELECT @high_batch_exec_count < @low_batch_exec_count AS 'Large batch size execute calls are less';
+SELECT @high_batch_pk_op_count = @low_batch_pk_op_count AS 'Same PK ops';
+SELECT @low_batch_exec_count / @high_batch_exec_count >= 8 AS 'Factor of at least >= 8 for large batch';
+
+--echo Cleanup
+--connection master
+set @@GLOBAL.ndb_log_update_as_write = ON;
+drop table t1;
+drop table t2;
+
+--connection slave
+set @@GLOBAL.ndb_replica_blob_write_batch_bytes = DEFAULT;
+set @@GLOBAL.replica_allow_batching = ON;
+
+--source include/rpl_end.inc

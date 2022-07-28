@@ -1,5 +1,11 @@
 # Enable transformations for InnoDB for ease of testing
 SET optimizer_switch='subquery_to_derived=on';
+
+# This performance schema table is queried further down. Clear it now,
+# so that we start with a clean state, regardless of what earlier
+# tests have written to it.
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+
 --echo #
 --echo # Tests for WL#12885 Add ability to transform scalar subqueries to inner
 --echo # derived table
@@ -205,6 +211,7 @@ let query = SELECT t1.a, t2.a
             FROM t1
                  JOIN t2
                  ON t1.a+t2.a = (SELECT COUNT(*) FROM t1);
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -1029,6 +1036,8 @@ CREATE TEMPORARY TABLE tmp_digests (
   sum_sort_scan BIGINT UNSIGNED NOT NULL,
   sum_no_index_used BIGINT UNSIGNED NOT NULL,
   sum_no_good_index_used BIGINT UNSIGNED NOT NULL,
+  sum_cpu_time BIGINT UNSIGNED NOT NULL,
+  count_secondary BIGINT UNSIGNED NOT NULL,
   first_seen TIMESTAMP NULL DEFAULT NULL,
   last_seen TIMESTAMP NULL DEFAULT NULL,
   quantile_95 BIGINT UNSIGNED NOT NULL,
@@ -1134,6 +1143,7 @@ WHERE (field1, ( SELECT COUNT( col_int_key ) FROM t1 )) IN (
        ON table2.col_int_key = table1.col_int_key
 );
 
+--sorted_result
 eval $query;
 eval EXPLAIN $query;
 

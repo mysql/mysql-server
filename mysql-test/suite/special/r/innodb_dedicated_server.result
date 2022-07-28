@@ -3,18 +3,15 @@
 # INITIAL START                           #
 #  innodb_dedicated_server   = OFF        #
 #  innodb_buffer_pool_size   = default    #
-#  innodb_log_file_size      = default    #
-#  innodb_log_files_in_group = default    #
+#  innodb_redo_log_capacity  = default    #
 #  innodb_flush_method       = default    #
 ###########################################
 INNODB_DEDICATED_SERVER
 OFF
 BUFFER_POOL_SIZE_IN_MB
 128
-LOG_FILE_SIZE_IN_MB
-48
-LOG_FILES_IN_GROUP
-2
+LOG_CAPACITY_IN_MB
+100
 INNODB_FLUSH_METHOD
 fsync
 
@@ -22,8 +19,7 @@ fsync
 # RESTART 1                               #
 #  innodb_dedicated_server   = ON         #
 #  innodb_buffer_pool_size   = autoscaled #
-#  innodb_log_file_size      = autoscaled #
-#  innodb_log_files_in_group = autoscaled #
+#  innodb_redo_log_capacity  = autoscaled #
 #  innodb_flush_method       = autoscaled #
 ###########################################
 # restart: --innodb_dedicated_server=ON
@@ -33,10 +29,7 @@ ON
 @final_pool_size_result
 1
 1 expected
-@final_log_file_size_result
-1
-1 expected
-@final_log_files_in_group_result
+@final_log_capacity_result
 1
 INNODB_FLUSH_METHOD
 O_DIRECT_NO_FSYNC
@@ -45,8 +38,7 @@ O_DIRECT_NO_FSYNC
 # RESTART 2                               #
 #  innodb_dedicated_server   = ON         #
 #  innodb_buffer_pool_size   = explicit   #
-#  innodb_log_file_size      = autoscaled #
-#  innodb_log_files_in_group = autoscaled #
+#  innodb_redo_log_capacity  = autoscaled #
 #  innodb_flush_method       = autoscaled #
 ###########################################
 # restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M
@@ -55,11 +47,8 @@ ON
 BUFFER_POOL_SIZE_IN_MB
 256
 1 expected
-@final_log_file_size_result
+@final_log_capacity_result
 1
-1 expected
-@final_log_files_in_group_result
-0
 INNODB_FLUSH_METHOD
 O_DIRECT_NO_FSYNC
 # Make sure that the warnings are present in server log.
@@ -69,32 +58,27 @@ Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for in
 # RESTART 3                               #
 #  innodb_dedicated_server   = ON         #
 #  innodb_buffer_pool_size   = autoscaled #
-#  innodb_log_file_size      = explicit   #
-#  innodb_log_files_in_group = autoscaled #
+#  innodb_redo_log_capacity  = explicit   #
 #  innodb_flush_method       = autoscaled #
 ###########################################
-# restart: --innodb_dedicated_server=ON --innodb_log_file_size=50M
+# restart: --innodb_dedicated_server=ON --innodb_redo_log_capacity=50M
 INNODB_DEDICATED_SERVER
 ON
 1 expected
 @final_pool_size_result
 1
-LOG_FILE_SIZE_IN_MB
+LOG_CAPACITY_IN_MB
 50
-1 expected
-@final_log_files_in_group_result
-1
 INNODB_FLUSH_METHOD
 O_DIRECT_NO_FSYNC
 # Make sure that the warnings are present in server log.
-Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size" found
+Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_redo_log_capacity" found
 
 ###########################################
 # RESTART 4                               #
 #  innodb_dedicated_server   = ON         #
 #  innodb_buffer_pool_size   = autoscaled #
-#  innodb_log_file_size      = autoscaled #
-#  innodb_log_files_in_group = autoscaled #
+#  innodb_redo_log_capacity  = autoscaled #
 #  innodb_flush_method       = explicit   #
 ###########################################
 # restart: --innodb_dedicated_server=ON --innodb_flush_method=nosync
@@ -104,10 +88,7 @@ ON
 @final_pool_size_result
 1
 1 expected
-@final_log_file_size_result
-1
-1 expected
-@final_log_files_in_group_result
+@final_log_capacity_result
 1
 INNODB_FLUSH_METHOD
 nosync
@@ -118,48 +99,42 @@ Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for in
 # RESTART 5                               #
 #  innodb_dedicated_server   = ON         #
 #  innodb_buffer_pool_size   = explicit   #
-#  innodb_log_file_size      = explicit   #
-#  innodb_log_files_in_group = explicit   #
+#  innodb_redo_log_capacity  = explicit   #
 #  innodb_flush_method       = explicit   #
 ###########################################
-# restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M --innodb_log_file_size=50M --innodb_log_files_in_group=3 --innodb_flush_method=nosync
+# restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M --innodb_redo_log_capacity=50M --innodb_flush_method=nosync
 INNODB_DEDICATED_SERVER
 ON
 BUFFER_POOL_SIZE_IN_MB
 256
-LOG_FILE_SIZE_IN_MB
+LOG_CAPACITY_IN_MB
 50
-LOG_FILES_IN_GROUP
-3
 INNODB_FLUSH_METHOD
 nosync
 # Make sure that the warnings are present in server log.
 Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
-Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size" found
+Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_redo_log_capacity" found
 Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_flush_method" found
 
 ###########################################
 # RESTART 6                               #
 #  innodb_dedicated_server   = ON         #
 #  innodb_buffer_pool_size   = autoscaled #
-#  innodb_log_file_size      = explicit   #
-#  innodb_log_files_in_group = explicit   #
+#  innodb_redo_log_capacity  = explicit   #
 #  innodb_flush_method       = explicit   #
 ###########################################
-# restart: --innodb_dedicated_server=ON --innodb_log_file_size=50M --innodb_log_files_in_group=4 --innodb_flush_method=nosync
+# restart: --innodb_dedicated_server=ON --innodb_redo_log_capacity=50M --innodb_flush_method=nosync
 INNODB_DEDICATED_SERVER
 ON
 1 expected
 @final_pool_size_result
 1
-LOG_FILE_SIZE_IN_MB
+LOG_CAPACITY_IN_MB
 50
-LOG_FILES_IN_GROUP
-4
 INNODB_FLUSH_METHOD
 nosync
 # Make sure that the warnings are present in server log.
-Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size" found
+Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_redo_log_capacity" found
 Pattern "\[Warning\] .*MY-\d+.* Option innodb_dedicated_server is ignored for innodb_flush_method" found
 SET innodb_dedicated_server = 0;
 ERROR HY000: Variable 'innodb_dedicated_server' is a read only variable

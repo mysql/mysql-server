@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond);
 
     @retval Product of number of rows in all tables. ULLONG_MAX for error.
 */
-ulonglong get_exact_record_count(TABLE_LIST *tables) {
+static ulonglong get_exact_record_count(TABLE_LIST *tables) {
   ulonglong count = 1;
   for (TABLE_LIST *tl = tables; tl; tl = tl->next_leaf) {
     ha_rows tmp = 0;
@@ -416,7 +416,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
           /*
             For result count of full-text search: If
             1. it is a single table query,
-            2. the WHERE condition is a single MATCH expresssion,
+            2. the WHERE condition is a single MATCH expression,
             3. the table engine can provide the row count from FTS result, and
             4. the expr in COUNT(expr) can not be NULL,
             we do the full-text search now, and replace with the actual count.
@@ -698,7 +698,7 @@ bool is_simple_predicate(Item_func *func_item, Item **args, bool *inv_order) {
    SELECT MIN(a) FROM t1 WHERE a > 3 AND a > 5;
    @endcode
 
-   the algorithm will recurse over the conjuction, storing first a 3 in the
+   the algorithm will recurse over the conjunction, storing first a 3 in the
    field. In the next recursive invocation the expression a > 5 is evaluated
    as 3 > 5 (Due to the dual nature of Field objects as value carriers and
    field identifiers), which will obviously fail, leading to 5 being stored in
@@ -1059,8 +1059,11 @@ static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
   if (key_cmp_if_same(item_field->field->table, ref->key_buff, ref->key,
                       prefix_len))
     return true;
-  if (cond == nullptr || (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)))
-    return false;
+  if (cond == nullptr) return false;
+  // Constant conditions which were not evaluated earlier (in optimize_cond())
+  // should be evaluated now.
+  if (cond->const_for_execution()) return (cond->val_int() == 0);
+  if (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)) return false;
   return maxmin_in_range(max_fl, item_field, cond);
 }
 

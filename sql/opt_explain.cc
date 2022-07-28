@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,6 +65,8 @@
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
@@ -75,10 +77,13 @@
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"  // Opt_trace_*
 #include "sql/protocol.h"
-#include "sql/range_optimizer/group_min_max.h"
-#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
+#include "sql/range_optimizer/group_index_skip_scan.h"
+#include "sql/range_optimizer/group_index_skip_scan_plan.h"
+#include "sql/range_optimizer/index_range_scan_plan.h"
+#include "sql/range_optimizer/path_helpers.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
-#include "sql/row_iterator.h"
+#include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
@@ -392,7 +397,7 @@ class Explain_table_base : public Explain {
 
   const TABLE *table{nullptr};
   join_type type{JT_UNKNOWN};
-  QUICK_SELECT_I *quick{nullptr};
+  AccessPath *range_scan_path{nullptr};
   Item *condition{nullptr};
   bool dynamic_range{false};
   TABLE_LIST *table_ref{nullptr};
@@ -413,10 +418,10 @@ class Explain_table_base : public Explain {
   bool explain_possible_keys() override;
 
   bool explain_key_parts(int key, uint key_parts);
-  bool explain_key_and_len_quick(QUICK_SELECT_I *quick);
+  bool explain_key_and_len_quick(AccessPath *range_scan);
   bool explain_key_and_len_index(int key);
   bool explain_key_and_len_index(int key, uint key_length, uint key_parts);
-  bool explain_extra_common(int quick_type, uint keyno);
+  bool explain_extra_common(int range_scan_type, uint keyno);
   bool explain_tmptable_and_filesort(bool need_tmp_table_arg,
                                      bool need_sort_arg);
 };
@@ -431,8 +436,8 @@ class Explain_join : public Explain_table_base {
   bool need_order;      ///< add "Using filesort"" to "extra" if true
   const bool distinct;  ///< add "Distinct" string to "extra" column if true
 
-  JOIN *join;      ///< current JOIN
-  int quick_type;  ///< current quick type, see anon. enum at QUICK_SELECT_I
+  JOIN *join;           ///< current JOIN
+  int range_scan_type;  ///< current range scan type, really an AccessPath::Type
 
  public:
   Explain_join(THD *explain_thd_arg, const THD *query_thd_arg,
@@ -498,7 +503,7 @@ class Explain_table : public Explain_table_base {
  public:
   Explain_table(THD *const explain_thd_arg, const THD *query_thd_arg,
                 Query_block *query_block_arg, TABLE *const table_arg,
-                enum join_type type_arg, QUICK_SELECT_I *quick_arg,
+                enum join_type type_arg, AccessPath *range_scan_arg,
                 Item *condition_arg, uint key_arg, ha_rows limit_arg,
                 bool need_tmp_table_arg, bool need_sort_arg,
                 enum_mod_type mod_type_arg, bool used_key_is_modified_arg,
@@ -513,7 +518,7 @@ class Explain_table : public Explain_table_base {
         used_key_is_modified(used_key_is_modified_arg),
         message(msg) {
     type = type_arg;
-    quick = quick_arg;
+    range_scan_path = range_scan_arg;
     condition = condition_arg;
     usable_keys = table->possible_quick_keys;
     if (can_walk_clauses())
@@ -884,14 +889,15 @@ bool Explain_table_base::explain_key_parts(int key, uint key_parts) {
   return false;
 }
 
-bool Explain_table_base::explain_key_and_len_quick(QUICK_SELECT_I *quick) {
+bool Explain_table_base::explain_key_and_len_quick(AccessPath *path) {
   bool ret = false;
   StringBuffer<512> str_key(cs);
   StringBuffer<512> str_key_len(cs);
 
-  if (quick->index != MAX_KEY)
-    ret = explain_key_parts(quick->index, quick->used_key_parts);
-  quick->add_keys_and_lengths(&str_key, &str_key_len);
+  if (used_index(path) != MAX_KEY)
+    ret = explain_key_parts(used_index(range_scan_path),
+                            get_used_key_parts(path));
+  add_keys_and_lengths(path, &str_key, &str_key_len);
   return (ret || fmt->entry()->col_key.set(str_key) ||
           fmt->entry()->col_key_len.set(str_key_len));
 }
@@ -915,7 +921,7 @@ bool Explain_table_base::explain_key_and_len_index(int key, uint key_length,
           fmt->entry()->col_key_len.set(buff_key_len, length));
 }
 
-bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
+bool Explain_table_base::explain_extra_common(int range_scan_type, uint keyno) {
   if (keyno != MAX_KEY && keyno == table->file->pushed_idx_cond_keyno &&
       table->file->pushed_idx_cond) {
     StringBuffer<160> buff(cs);
@@ -957,12 +963,12 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     }
   }
 
-  switch (quick_type) {
-    case QS_TYPE_ROR_UNION:
-    case QS_TYPE_ROR_INTERSECT:
-    case QS_TYPE_INDEX_MERGE: {
+  switch (range_scan_type) {
+    case AccessPath::ROWID_UNION:
+    case AccessPath::ROWID_INTERSECTION:
+    case AccessPath::INDEX_MERGE: {
       StringBuffer<32> buff(cs);
-      quick->add_info_string(&buff);
+      add_info_string(range_scan_path, &buff);
       if (fmt->is_hierarchical()) {
         /*
           We are replacing existing col_key value with a quickselect info,
@@ -1008,15 +1014,16 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
         pushed_cond->print(explain_thd, &buff, cond_print_flags);
       if (push_extra(ET_USING_PUSHED_CONDITION, buff)) return true;
     }
-    if (((quick_type >= 0 && quick->reverse_sorted()) || reversed_access) &&
+    if (((range_scan_type >= 0 && is_reverse_sorted_range(range_scan_path)) ||
+         reversed_access) &&
         push_extra(ET_BACKWARD_SCAN))
       return true;
   }
   if (table->reginfo.not_exists_optimize && push_extra(ET_NOT_EXISTS))
     return true;
 
-  if (quick_type == QS_TYPE_RANGE) {
-    uint mrr_flags = down_cast<QUICK_RANGE_SELECT *>(quick)->get_mrr_flags();
+  if (range_scan_type == AccessPath::INDEX_RANGE_SCAN) {
+    uint mrr_flags = range_scan_path->index_range_scan().mrr_flags;
 
     /*
       During normal execution of a query, multi_range_read_init() is
@@ -1300,7 +1307,7 @@ bool Explain_join::shallow_explain() {
 bool Explain_join::explain_qep_tab(size_t tabnum) {
   tab = join->qep_tab + tabnum;
   type = tab->type();
-  quick = tab->quick();
+  range_scan_path = tab->range_scan();
   condition = tab->condition_optim();
   dynamic_range = tab->dynamic_range();
   skip_records_in_range = tab->skip_records_in_range();
@@ -1310,11 +1317,11 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   table = tab->table();
   usable_keys = tab->keys();
   usable_keys.merge(table->possible_quick_keys);
-  quick_type = -1;
+  range_scan_type = -1;
 
   if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE) {
-    assert(quick);
-    quick_type = quick->get_type();
+    assert(range_scan_path);
+    range_scan_type = range_scan_path->type;
   }
 
   if (tab->starts_weedout()) fmt->begin_context(CTX_DUPLICATES_WEEDOUT);
@@ -1444,8 +1451,8 @@ bool Explain_join::explain_key_and_len() {
   else if (type == JT_INDEX_SCAN || type == JT_FT)
     return explain_key_and_len_index(tab->index());
   else if (type == JT_RANGE || type == JT_INDEX_MERGE ||
-           ((type == JT_REF || type == JT_REF_OR_NULL) && quick))
-    return explain_key_and_len_quick(quick);
+           ((type == JT_REF || type == JT_REF_OR_NULL) && range_scan_path))
+    return explain_key_and_len_quick(range_scan_path);
   return false;
 }
 
@@ -1510,14 +1517,14 @@ bool Explain_join::explain_extra() {
     if (tab->ref().key_parts)
       keyno = tab->ref().key;
     else if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE)
-      keyno = quick->index;
+      keyno = used_index(range_scan_path);
 
-    if (explain_extra_common(quick_type, keyno)) return true;
+    if (explain_extra_common(range_scan_type, keyno)) return true;
 
     if (((tab->type() == JT_INDEX_SCAN || tab->type() == JT_CONST) &&
          table->covering_keys.is_set(tab->index())) ||
-        (quick_type == QS_TYPE_ROR_INTERSECT &&
-         !((QUICK_ROR_INTERSECT_SELECT *)quick)->need_to_fetch_row) ||
+        (range_scan_type == AccessPath::ROWID_INTERSECTION &&
+         range_scan_path->rowid_intersection().is_covering) ||
         /*
           Notice that table->key_read can change on the fly (grep
           for set_keyread); so EXPLAIN CONNECTION reads a changing variable,
@@ -1525,12 +1532,12 @@ bool Explain_join::explain_extra() {
           cannot be severe (at worst, wrong EXPLAIN).
         */
         table->key_read || tab->keyread_optim()) {
-      if (quick_type == QS_TYPE_GROUP_MIN_MAX) {
-        QUICK_GROUP_MIN_MAX_SELECT *qgs = (QUICK_GROUP_MIN_MAX_SELECT *)quick;
+      if (range_scan_type == AccessPath::GROUP_INDEX_SKIP_SCAN) {
         StringBuffer<64> buff(cs);
-        qgs->append_loose_scan_type(&buff);
+        if (range_scan_path->group_index_skip_scan().param->is_index_scan)
+          buff.append(STRING_WITH_LEN("scanning"));
         if (push_extra(ET_USING_INDEX_FOR_GROUP_BY, buff)) return true;
-      } else if (quick_type == QS_TYPE_SKIP_SCAN) {
+      } else if (range_scan_type == AccessPath::INDEX_SKIP_SCAN) {
         if (push_extra(ET_USING_INDEX_FOR_SKIP_SCAN)) return true;
       } else {
         if (push_extra(ET_USING_INDEX)) return true;
@@ -1685,8 +1692,8 @@ bool Explain_table::explain_table_name() {
 
 bool Explain_table::explain_join_type() {
   join_type jt;
-  if (quick)
-    jt = calc_join_type(quick->get_type());
+  if (range_scan_path)
+    jt = calc_join_type(range_scan_path);
   else if (key != MAX_KEY)
     jt = JT_INDEX_SCAN;
   else
@@ -1697,8 +1704,8 @@ bool Explain_table::explain_join_type() {
 }
 
 bool Explain_table::explain_ref() {
-  if (quick) {
-    int key_parts = quick->used_key_parts;
+  if (range_scan_path) {
+    int key_parts = get_used_key_parts(range_scan_path);
     while (key_parts--) {
       fmt->entry()->col_ref.push_back("const");
     }
@@ -1707,8 +1714,8 @@ bool Explain_table::explain_ref() {
 }
 
 bool Explain_table::explain_key_and_len() {
-  if (quick)
-    return explain_key_and_len_quick(quick);
+  if (range_scan_path)
+    return explain_key_and_len_quick(range_scan_path);
   else if (key != MAX_KEY)
     return explain_key_and_len_index(key);
   return false;
@@ -1737,16 +1744,16 @@ bool Explain_table::explain_extra() {
       fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
 
   uint keyno;
-  int quick_type;
-  if (quick) {
-    keyno = quick->index;
-    quick_type = quick->get_type();
+  int range_scan_type;
+  if (range_scan_path) {
+    keyno = used_index(range_scan_path);
+    range_scan_type = range_scan_path->type;
   } else {
     keyno = key;
-    quick_type = -1;
+    range_scan_type = -1;
   }
 
-  return (explain_extra_common(quick_type, keyno) ||
+  return (explain_extra_common(range_scan_type, keyno) ||
           explain_tmptable_and_filesort(need_tmp_table, need_sort));
 }
 
@@ -1811,10 +1818,11 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list) {
 }
 
 /**
-  EXPLAIN handling for single-table UPDATE and DELETE queries
+  EXPLAIN handling for single-table INSERT VALUES, UPDATE, and DELETE queries
 
-  Send to the client a QEP data set for single-table EXPLAIN UPDATE/DELETE
-  queries. As far as single-table UPDATE/DELETE are implemented without
+  Send to the client a QEP data set for single-table
+  EXPLAIN INSERT VALUES/UPDATE/DELETE queries.
+  As far as single-table INSERT VALUES/UPDATE/DELETE are implemented without
   the regular JOIN tree, we can't reuse explain_query_expression() directly,
   thus we deal with this single table in a special way and then call
   explain_query_expression() for subqueries (if any).
@@ -1838,6 +1846,12 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
   if (explain_thd->lex->explain_format->is_tree()) {
     // These kinds of queries don't have a JOIN with an iterator tree.
     return ExplainIterator(explain_thd, query_thd, nullptr);
+  }
+
+  if (query_thd->lex->using_hypergraph_optimizer) {
+    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
+             "EXPLAIN with non-tree formats");
+    return true;
   }
 
   /**
@@ -1886,13 +1900,13 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
         check_acl_for_explain(query_thd->query_plan.get_lex()->query_tables))
       ret = true;
     else
-      ret =
-          Explain_table(explain_thd, query_thd, select, plan->table, plan->type,
-                        plan->quick, plan->condition, plan->key, plan->limit,
-                        plan->need_tmp_table, plan->need_sort, plan->mod_type,
-                        plan->used_key_is_modified, plan->message)
-              .send() ||
-          explain_thd->is_error();
+      ret = Explain_table(explain_thd, query_thd, select, plan->table,
+                          plan->type, plan->range_scan, plan->condition,
+                          plan->key, plan->limit, plan->need_tmp_table,
+                          plan->need_sort, plan->mod_type,
+                          plan->used_key_is_modified, plan->message)
+                .send() ||
+            explain_thd->is_error();
   }
   if (ret)
     result.abort_result_set(explain_thd);
@@ -2006,28 +2020,6 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
   return ret;
 }
 
-/// @returns a comma-separated list of all tables that are touched by UPDATE or
-/// DELETE, with a mention of whether a temporary table is used for each.
-static string FindUpdatedTables(JOIN *join) {
-  Query_result *result = join->query_block->query_result();
-  string ret;
-  for (size_t idx = 0; idx < join->tables; ++idx) {
-    TABLE_LIST *table_ref = join->qep_tab[idx].table_ref;
-    if (table_ref == nullptr) continue;
-    TABLE *table = table_ref->table;
-    if ((table_ref->is_updated() || table_ref->is_deleted()) &&
-        table->s->table_category != TABLE_CATEGORY_TEMPORARY) {
-      if (!ret.empty()) {
-        ret += ", ";
-      }
-      ret += table->alias;
-      ret +=
-          result->immediate_update(table_ref) ? " (immediate)" : " (buffered)";
-    }
-  }
-  return ret;
-}
-
 static bool ExplainIterator(THD *ethd, const THD *query_thd,
                             Query_expression *unit) {
   Query_result_send result;
@@ -2042,22 +2034,18 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
   }
 
   {
+    vector<string> *token_ptr = nullptr;
+#ifndef NDEBUG
+    vector<string> tokens_for_force_subplan;
+    DBUG_EXECUTE_IF("subplan_tokens", token_ptr = &tokens_for_force_subplan;);
+#endif
+
     std::string explain;
     if (unit != nullptr) {
       int base_level = 0;
       JOIN *join = unit->first_query_block()->join;
       const THD::Query_plan *query_plan = &query_thd->query_plan;
       switch (query_plan->get_command()) {
-        case SQLCOM_UPDATE_MULTI:
-        case SQLCOM_UPDATE:
-          explain = "-> Update " + FindUpdatedTables(join) + "\n";
-          base_level = 1;
-          break;
-        case SQLCOM_DELETE_MULTI:
-        case SQLCOM_DELETE:
-          explain = "-> Delete from " + FindUpdatedTables(join) + "\n";
-          base_level = 1;
-          break;
         case SQLCOM_INSERT_SELECT:
         case SQLCOM_INSERT:
           explain = string("-> Insert into ") +
@@ -2075,13 +2063,23 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
         default:
           break;
       }
-      explain += PrintQueryPlan(base_level, unit->root_access_path(),
-                                unit->is_union() ? nullptr : join,
-                                /*is_root_of_join=*/!unit->is_union());
+      explain +=
+          PrintQueryPlan(base_level, unit->root_access_path(),
+                         unit->is_union() ? nullptr : join,
+                         /*is_root_of_join=*/!unit->is_union(), token_ptr);
     } else {
       explain += PrintQueryPlan(0, /*path=*/nullptr, /*join=*/nullptr,
-                                /*is_root_of_join=*/false);
+                                /*is_root_of_join=*/false, token_ptr);
     }
+    DBUG_EXECUTE_IF("subplan_tokens", {
+      explain += "\nTo force this plan, use:\nSET DEBUG='+d,subplan_tokens";
+      for (const string &token : tokens_for_force_subplan) {
+        explain += ",force_subplan_";
+        explain += token;
+      }
+      explain += "';\n";
+    });
+
     mem_root_deque<Item *> field_list(ethd->mem_root);
     Item *item =
         new Item_string(explain.data(), explain.size(), system_charset_info);
@@ -2468,7 +2466,7 @@ void Modification_plan::register_in_thd() {
   @param mt             modification type - MT_INSERT/MT_UPDATE/etc
   @param table_arg      Table to modify
   @param type_arg       Access type (JT_*) for this table
-  @param quick_arg      Range index scan used, if any
+  @param range_scan_arg Range index scan used, if any
   @param condition_arg  Condition applied, if any
   @param key_arg        MAX_KEY or and index number of the key that was chosen
                         to access table data.
@@ -2484,14 +2482,14 @@ void Modification_plan::register_in_thd() {
 
 Modification_plan::Modification_plan(
     THD *thd_arg, enum_mod_type mt, TABLE *table_arg, enum join_type type_arg,
-    QUICK_SELECT_I *quick_arg, Item *condition_arg, uint key_arg,
+    AccessPath *range_scan_arg, Item *condition_arg, uint key_arg,
     ha_rows limit_arg, bool need_tmp_table_arg, bool need_sort_arg,
     bool used_key_is_modified_arg, ha_rows rows)
     : thd(thd_arg),
       mod_type(mt),
       table(table_arg),
       type(type_arg),
-      quick(quick_arg),
+      range_scan(range_scan_arg),
       condition(condition_arg),
       key(key_arg),
       limit(limit_arg),

@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,14 +47,27 @@ ENDIF()
 EXECUTE_PROCESS(
   COMMAND chmod +x "./${library_version}")
 
+EXECUTE_PROCESS(
+  COMMAND ${PATCHELF_EXECUTABLE} --version
+  OUTPUT_VARIABLE PATCHELF_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+STRING(REPLACE "patchelf" "" PATCHELF_VERSION "${PATCHELF_VERSION}")
+
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" AND
+    PATCHELF_VERSION VERSION_LESS "0.14.5")
+  SET(PATCHELF_PAGE_SIZE_ARGS --page-size ${CPU_PAGE_SIZE})
+ENDIF()
+
 # Patch RPATH so that we find NEEDED libraries at load time.
 IF(subdir)
   EXECUTE_PROCESS(
-    COMMAND ${PATCHELF_EXECUTABLE} --set-rpath "$ORIGIN/.."
-    "./${library_version}"
+    COMMAND ${PATCHELF_EXECUTABLE} ${PATCHELF_PAGE_SIZE_ARGS}
+    --set-rpath "$ORIGIN/.." "./${library_version}"
     )
 ELSE()
   EXECUTE_PROCESS(
-    COMMAND ${PATCHELF_EXECUTABLE} --set-rpath "$ORIGIN" "./${library_version}"
+    COMMAND ${PATCHELF_EXECUTABLE} ${PATCHELF_PAGE_SIZE_ARGS}
+    --set-rpath "$ORIGIN" "./${library_version}"
     )
 ENDIF()

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -45,33 +45,93 @@ this program; if not, write to the Free Software Foundation, Inc.,
  -# Extending size of the redo log buffers.
  -# Locking redo position (for replication).
 
- Code responsible for writing to redo log could be found in log0buf.cc,
- log0write.cc, and log0log.ic. The log writer, flusher, write notifier,
- flush notifier, and closer threads are implemented in log0write.cc.
-
- Code responsible for checkpoints could be found in log0chkp.cc.
- The log checkpointer thread is implemented there.
-
  Created 12/9/1995 Heikki Tuuri
  *******************************************************/
 
-#include "log0types.h"
-
-/** Pointer to the log checksum calculation function. */
-log_checksum_func_t log_checksum_algorithm_ptr;
-
 #ifndef UNIV_HOTBACKUP
 
-#include <debug_sync.h>
-#include <sys/types.h>
+/* time, difftime */
 #include <time.h>
-#include "dict0boot.h"
-#include "ha_prototypes.h"
-#include "log0meb.h"
-#include "mtr0mtr.h"
-#include "os0thread-create.h"
-#include "trx0sys.h"
 
+/* fprintf */
+#include <cstdio>
+
+/* std::memcpy */
+#include <cstring>
+
+/* arch_log_sys, arch_wake_threads */
+#include "arch0arch.h"
+
+/* dblwr::set(), ... */
+#include "buf0dblwr.h"
+
+/* fil_space_t */
+#include "fil0fil.h"
+
+/* log_update_buf_limit, ... */
+#include "log0buf.h"
+
+/* log_checkpointer_mutex */
+#include "log0chkp.h"
+
+/* log_calc_max_ages, ... */
+#include "log0files_capacity.h"
+
+/* log_create_new_files */
+#include "log0files_governor.h"
+
+/* log_limits_mutex, ... */
+#include "log0log.h"
+
+/* redo_log_archive_init, ... */
+#include "log0meb.h"
+
+/* log_pre_8_0_30::FILE_BASE_NAME */
+#include "log0pre_8_0_30.h"
+
+/* recv_sys->dblwr_state, ... */
+#include "log0recv.h"
+
+/* log_t::X */
+#include "log0sys.h"
+
+/* log_writer_mutex */
+#include "log0write.h"
+
+/* mtr_t::s_logging */
+#include "mtr0mtr.h"
+
+/* os_event_create, ... */
+#include "os0event.h"
+
+/* os_thread_create, ... */
+#include "os0thread-create.h"
+
+/* os_event_sleep */
+#include "os0thread.h"
+
+/* srv_log_buffer_size, ... */
+#include "srv0srv.h"
+
+/* srv_is_being_started */
+#include "srv0start.h"
+
+/* mysql_pfs_key_t */
+#include "sync0sync.h"
+
+/* LATCH_ID_LOG_WRITER, ... */
+#include "sync0types.h"
+
+/* ut_uint64_align_down */
+#include "ut0byte.h"
+
+/* Link_buf */
+#include "ut0link_buf.h"
+
+/* UT_DELETE_ARRAY */
+#include "ut0new.h"
+
+// clang-format off
 /**
 @page PAGE_INNODB_REDO_LOG Innodb redo log
 
@@ -82,10 +142,10 @@ It provides durability for all changes applied to the pages. In case of crash,
 it is used to recover modifications to pages that were modified but have not
 been flushed to disk.
 
-@note In case of clean shutdown, the redo log should be logically empty.
-This means that after the checkpoint lsn there should be no records to apply.
-However the log files still could contain some old data (which is not used
-during the recovery process).
+@note In case of a shutdown (unless innodb-fast-shutdown = 2), the redo log
+should be logically empty. This means that after the checkpoint lsn there
+should be no records to apply. However the log files still could contain
+some old data (which is not used during the recovery process).
 
 Every change to content of a data page must be done through a mini-transaction
 (so called mtr - mtr_t), which in mtr_commit() writes all its log records
@@ -224,8 +284,7 @@ Redo log consists of following data layers:
 
 -# User threads need to wait if there is no space in the log files.
 
-   @diafile storage/innobase/log/arch_deleting.dia "Reclaiming space in the redo
-log"
+   @diafile storage/innobase/log/arch_deleting.dia "Reclaiming space in the redo log"
 
 -# Well thought out and tested set of _MONITOR_ counters is maintained and
    documented.
@@ -344,7 +403,7 @@ Value is updated by:
 @subsection subsect_redo_log_last_checkpoint_lsn log.last_checkpoint_lsn
 
 Up to this lsn all dirty pages have been flushed to disk and the lsn value
-has been flushed to header of the first log file (_ib_logfile0_).
+has been flushed to the header of the redo log file containing that lsn.
 
 The lsn value points to place where recovery is supposed to start. Data bytes
 for smaller lsn values are not required and might be overwritten (log files
@@ -366,6 +425,7 @@ Read more about redo log details:
 - @subpage PAGE_INNODB_REDO_LOG_FORMAT
 
 *******************************************************/
+// clang-format on
 
 /** Redo log system. Singleton used to populate global pointer. */
 ut::aligned_pointer<log_t, ut::INNODB_CACHE_LINE_SIZE> *log_sys_object;
@@ -373,7 +433,14 @@ ut::aligned_pointer<log_t, ut::INNODB_CACHE_LINE_SIZE> *log_sys_object;
 /** Redo log system (singleton). */
 log_t *log_sys;
 
+#ifdef UNIV_PFS_MEMORY
+PSI_memory_key log_buffer_memory_key;
+#endif /* UNIV_PFS_MEMORY */
+
 #ifdef UNIV_PFS_THREAD
+
+/** PFS key for the log files governor thread. */
+mysql_pfs_key_t log_files_governor_thread_key;
 
 /** PFS key for the log writer thread. */
 mysql_pfs_key_t log_writer_thread_key;
@@ -392,75 +459,104 @@ mysql_pfs_key_t log_write_notifier_thread_key;
 
 #endif /* UNIV_PFS_THREAD */
 
+/** Allocates the log system and initializes all log mutexes and log events. */
+static void log_sys_create();
+
+/** Handles the log creator name stored on the disk (in the redo log files).
+Does whatever is required to handle the creator name and decides if further
+initialization of InnoDB might be allowed.
+@remarks Recognizes log creator by its name and marks that within recv_sys
+by setting recv_sys->is_meb_db or recv_sys->is_cloned_db. Disables the dblwr
+if log files were created by MEB. Emits message to the error log when the
+recognized creator name is not an usual MySQL's creator name.
+@param[in]  log  redo log with log.m_creator_name read from files
+@retval DB_SUCCESS if further initialization might be continued (note that
+potentially the creator name could be recognized as an unknown one)
+@retval DB_ERROR if further initialization must not be continued (for example
+because a foreign creator name was detected but read-only mode is turned on) */
+static dberr_t log_sys_handle_creator(log_t &log);
+
+/** Recognizes log format and emits corresponding message to the error log.
+Returns DB_ERROR if format is too old and no longer supported or format is
+not the current one and innodb_force_recovery != 0 is passed.
+@param[in]  log    redo log
+@return DB_SUCCESS or error */
+static dberr_t log_sys_check_format(const log_t &log);
+
+/** Checks if the redo log directory exists, can be listed and contains
+at least one redo log file.
+@remarks Redo log file is recognized only by looking at the file name,
+accordingly to the configured ruleset (@see log_configure()).
+@param[in]      ctx           redo log files context
+@param[in,out]  path          path to redo log directory checked during this
+call
+@param[out]  found_files  true iff found at least one redo log file
+@retval DB_SUCCESS    if succeeded to list the log directory
+@retval DB_ERROR      if failed to list the existing log directory
+@retval DB_NOT_FOUND  if the log directory does not exist */
+static dberr_t log_sys_check_directory(const Log_files_context &ctx,
+                                       std::string &path, bool &found_files);
+
+/** Free the log system data structures. Deallocate all the related memory. */
+static void log_sys_free();
+
 /** Calculates proper size for the log buffer and allocates the log buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_buffer(log_t &log);
 
 /** Deallocates the log buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_buffer(log_t &log);
 
 /** Allocates the log write-ahead buffer (aligned to system page for
 easier migrations between NUMA nodes).
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_write_ahead_buffer(log_t &log);
 
 /** Deallocates the log write-ahead buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_write_ahead_buffer(log_t &log);
 
-/** Allocates the log checkpoint buffer (used to write checkpoint headers).
-@param[out]	log	redo log */
-static void log_allocate_checkpoint_buffer(log_t &log);
-
-/** Deallocates the log checkpoint buffer.
-@param[out]	log	redo log */
-static void log_deallocate_checkpoint_buffer(log_t &log);
-
 /** Allocates the array with flush events.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_flush_events(log_t &log);
 
 /** Deallocates the array with flush events.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_flush_events(log_t &log);
 
 /** Deallocates the array with write events.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_write_events(log_t &log);
 
 /** Allocates the array with write events.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_write_events(log_t &log);
 
 /** Allocates the log recent written buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_recent_written(log_t &log);
 
 /** Deallocates the log recent written buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_recent_written(log_t &log);
 
 /** Allocates the log recent closed buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_recent_closed(log_t &log);
 
 /** Deallocates the log recent closed buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_recent_closed(log_t &log);
 
-/** Allocates buffers for headers of the log files.
-@param[out]	log	redo log */
-static void log_allocate_file_header_buffers(log_t &log);
-
-/** Deallocates buffers for headers of the log files.
-@param[out]	log	redo log */
-static void log_deallocate_file_header_buffers(log_t &log);
+/** Resets the log encryption buffer (used to write encryption headers).
+@param[out]     log     redo log */
+static void log_reset_encryption_buffer(log_t &log);
 
 /** Calculates proper size of the log buffer and updates related fields.
 Calculations are based on current value of srv_log_buffer_size. Note,
 that the proper size of the log buffer should be a power of two.
-@param[out]	log		redo log */
+@param[out]     log             redo log */
 static void log_calc_buf_size(log_t &log);
 
 /** Pauses writer, flusher and notifiers and switches user threads
@@ -468,23 +564,23 @@ to write log as former version.
 NOTE: These pause/resume functions should be protected by mutex while serving.
 The caller innodb_log_writer_threads_update() is protected
 by LOCK_global_system_variables in mysqld.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_pause_writer_threads(log_t &log);
 
 /** Resumes writer, flusher and notifiers and switches user threads
 not to write log.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_resume_writer_threads(log_t &log);
 
 /**************************************************/ /**
 
- @name	Initialization and finalization of log_sys
+ @name  Allocation and deallocation of log_sys
 
  *******************************************************/
 
 /** @{ */
 
-bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
+static void log_sys_create() {
   ut_a(log_sys == nullptr);
 
   /* The log_sys_object is pointer to aligned_pointer. That's
@@ -499,7 +595,7 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   using log_t_aligned_pointer = std::decay_t<decltype(*log_sys_object)>;
   log_sys_object =
       ut::new_withkey<log_t_aligned_pointer>(UT_NEW_THIS_FILE_PSI_KEY);
-  log_sys_object->alloc();
+  log_sys_object->alloc_withkey(UT_NEW_THIS_FILE_PSI_KEY);
 
   log_sys = *log_sys_object;
 
@@ -508,21 +604,16 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   /* Initialize simple value fields. */
   log.dict_persist_margin.store(0);
   log.periodical_checkpoints_enabled = false;
-  log.format = LOG_HEADER_FORMAT_CURRENT;
-  log.files_space_id = space_id;
-  log.state = log_state_t::OK;
+  log.m_format = Log_format::CURRENT;
+  log.m_creator_name = LOG_HEADER_CREATOR_CURRENT;
   log.n_log_ios_old = log.n_log_ios;
   log.last_printout_time = time(nullptr);
+  log.m_requested_files_consumption = false;
+  log.m_writer_inside_extra_margin = false;
+  log.m_oldest_need_lsn_lowerbound = 0;
   ut_d(log.first_block_is_correct_for_lsn = 0);
-
-  ut_a(file_size <= std::numeric_limits<uint64_t>::max() / n_files);
-  log.file_size = file_size;
-  log.n_files = n_files;
-  log.files_real_capacity = file_size * n_files;
-
-  log.current_file_lsn = LOG_START_LSN;
-  log.current_file_real_offset = LOG_FILE_HDR_SIZE;
-  log_files_update_offsets(log, log.current_file_lsn);
+  log.m_unused_files_count = 0;
+  log.m_encryption_metadata = {};
 
   log.checkpointer_event = os_event_create();
   log.closer_event = os_event_create();
@@ -536,6 +627,10 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   os_event_set(log.writer_threads_resume_event);
   log.sn_lock_event = os_event_create();
   os_event_set(log.sn_lock_event);
+  log.m_files_governor_event = os_event_create();
+  log.m_files_governor_iteration_event = os_event_create();
+  log.m_file_removed_event = os_event_create();
+  log.next_checkpoint_event = os_event_create();
 
   mutex_create(LATCH_ID_LOG_CHECKPOINTER, &log.checkpointer_mutex);
   mutex_create(LATCH_ID_LOG_CLOSER, &log.closer_mutex);
@@ -544,6 +639,7 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   mutex_create(LATCH_ID_LOG_WRITE_NOTIFIER, &log.write_notifier_mutex);
   mutex_create(LATCH_ID_LOG_FLUSH_NOTIFIER, &log.flush_notifier_mutex);
   mutex_create(LATCH_ID_LOG_LIMITS, &log.limits_mutex);
+  mutex_create(LATCH_ID_LOG_FILES, &log.m_files_mutex);
   mutex_create(LATCH_ID_LOG_SN_MUTEX, &log.sn_x_lock_mutex);
 
 #ifdef UNIV_PFS_RWLOCK
@@ -558,57 +654,38 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*log.sn_lock_inst)));
   new (log.sn_lock_inst) rw_lock_t;
   rw_lock_create_func(log.sn_lock_inst, SYNC_LOG_SN, "log.sn_lock_inst",
-                      __FILE__, __LINE__);
+                      UT_LOCATION_HERE);
 #endif /* UNIV_DEBUG */
 
   /* Allocate buffers. */
   log_allocate_buffer(log);
   log_allocate_write_ahead_buffer(log);
-  log_allocate_checkpoint_buffer(log);
   log_allocate_recent_written(log);
   log_allocate_recent_closed(log);
   log_allocate_flush_events(log);
   log_allocate_write_events(log);
-  log_allocate_file_header_buffers(log);
+
+  log_reset_encryption_buffer(log);
 
   log_calc_buf_size(log);
-  log_calc_max_ages(log);
 
-  log.m_crash_unsafe = false;
-  log.m_disable = false;
-  log.m_first_file_lsn = LOG_START_LSN;
-
-  if (!log_calc_concurrency_margin(log)) {
-    ib::error(ER_IB_MSG_1267)
-        << "Cannot continue operation. ib_logfiles are too"
-        << " small for innodb_thread_concurrency " << srv_thread_concurrency
-        << ". The combined size of"
-        << " ib_logfiles should be bigger than"
-        << " 200 kB * innodb_thread_concurrency. To get mysqld"
-        << " to start up, set innodb_thread_concurrency in"
-        << " my.cnf to a lower value, for example, to 8. After"
-        << " an ERROR-FREE shutdown of mysqld you can adjust"
-        << " the size of ib_logfiles. " << INNODB_PARAMETERS_MSG;
-
-    return (false);
-  }
-
-  return (true);
+  log_consumer_register(log, &(log.m_checkpoint_consumer));
 }
 
-void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
-               lsn_t start_lsn, bool allow_checkpoints) {
+dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
+                  byte first_block[OS_FILE_LOG_BLOCK_SIZE],
+                  bool allow_checkpoints) {
   ut_a(log_sys != nullptr);
   ut_a(checkpoint_lsn >= OS_FILE_LOG_BLOCK_SIZE);
   ut_a(checkpoint_lsn >= LOG_START_LSN);
   ut_a(start_lsn >= checkpoint_lsn);
+  ut_a(arch_log_sys == nullptr || !arch_log_sys->is_active());
 
   log.write_to_file_requests_total.store(0);
-  log.write_to_file_requests_interval.store(0);
+  log.write_to_file_requests_interval.store(std::chrono::seconds::zero());
 
   log.recovered_lsn = start_lsn;
   log.last_checkpoint_lsn = checkpoint_lsn;
-  log.next_checkpoint_no = checkpoint_no;
   log.available_for_checkpoint_lsn = checkpoint_lsn;
   log.m_allow_checkpoints.store(allow_checkpoints);
 
@@ -634,10 +711,7 @@ void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
   log.write_lsn = start_lsn;
   log.flushed_to_disk_lsn = start_lsn;
 
-  log_files_update_offsets(log, start_lsn);
-
-  log.write_ahead_end_offset = ut_uint64_align_up(log.current_file_real_offset,
-                                                  srv_log_write_ahead_size);
+  log.write_ahead_end_offset = 0;
 
   lsn_t block_lsn;
   byte *block;
@@ -648,37 +722,48 @@ void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
 
   block = static_cast<byte *>(log.buf) + block_lsn % log.buf_size;
 
-  log_block_set_hdr_no(block, log_block_convert_lsn_to_no(block_lsn));
+  Log_data_block_header block_header;
+  block_header.m_epoch_no = log_block_convert_lsn_to_epoch_no(block_lsn);
+  block_header.m_hdr_no = log_block_convert_lsn_to_epoch_no(block_lsn);
+  block_header.m_data_len = start_lsn - block_lsn;
 
-  log_block_set_flush_bit(block, true);
-
-  log_block_set_data_len(block, start_lsn - block_lsn);
-
-  const auto first_rec_group = log_block_get_first_rec_group(block);
+  if (first_block != nullptr) {
+    std::memcpy(block, first_block, OS_FILE_LOG_BLOCK_SIZE);
+    block_header.m_first_rec_group = log_block_get_first_rec_group(block);
+  } else {
+    ut_a(start_lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE);
+    std::memset(block, 0x00, OS_FILE_LOG_BLOCK_SIZE);
+    block_header.m_first_rec_group = LOG_BLOCK_HDR_SIZE;
+  }
 
   ut_ad(log.first_block_is_correct_for_lsn == start_lsn);
-  ut_ad(first_rec_group >= LOG_BLOCK_HDR_SIZE);
-  ut_a(first_rec_group <= start_lsn - block_lsn);
+  ut_ad(LOG_BLOCK_HDR_SIZE <= block_header.m_first_rec_group);
+  ut_ad(block_header.m_first_rec_group <= block_header.m_data_len);
+
+  log_data_block_header_serialize(block_header, block);
 
   log_update_buf_limit(log, start_lsn);
-  log_update_limits(log);
+
+  const dberr_t err = log_files_start(log);
 
   /* Do not reorder writes above, below this line. For x86 this
   protects only from unlikely compile-time reordering. */
   std::atomic_thread_fence(std::memory_order_release);
+
+  return err;
 }
 
-void log_sys_close() {
+static void log_sys_free() {
   ut_a(log_sys != nullptr);
 
   log_t &log = *log_sys;
 
-  log_deallocate_file_header_buffers(log);
+  log_consumer_unregister(log, &(log.m_checkpoint_consumer));
+
   log_deallocate_write_events(log);
   log_deallocate_flush_events(log);
   log_deallocate_recent_closed(log);
   log_deallocate_recent_written(log);
-  log_deallocate_checkpoint_buffer(log);
   log_deallocate_write_ahead_buffer(log);
   log_deallocate_buffer(log);
 
@@ -694,6 +779,7 @@ void log_sys_close() {
   }
 #endif /* UNIV_PFS_RWLOCK */
 
+  mutex_free(&log.m_files_mutex);
   mutex_free(&log.sn_x_lock_mutex);
   mutex_free(&log.limits_mutex);
   mutex_free(&log.write_notifier_mutex);
@@ -703,6 +789,7 @@ void log_sys_close() {
   mutex_free(&log.closer_mutex);
   mutex_free(&log.checkpointer_mutex);
 
+  os_event_destroy(log.next_checkpoint_event);
   os_event_destroy(log.write_notifier_event);
   os_event_destroy(log.flush_notifier_event);
   os_event_destroy(log.closer_event);
@@ -711,6 +798,9 @@ void log_sys_close() {
   os_event_destroy(log.flusher_event);
   os_event_destroy(log.old_flush_event);
   os_event_destroy(log.writer_threads_resume_event);
+  os_event_destroy(log.m_files_governor_event);
+  os_event_destroy(log.m_files_governor_iteration_event);
+  os_event_destroy(log.m_file_removed_event);
   os_event_destroy(log.sn_lock_event);
 
   log_sys_object->dealloc();
@@ -724,15 +814,13 @@ void log_sys_close() {
 
 /**************************************************/ /**
 
- @name	Start / stop of background threads
+ @name  Start / stop of background threads
 
  *******************************************************/
 
 /** @{ */
 
-void log_writer_thread_active_validate(const log_t &log) {
-  ut_a(log_writer_is_active());
-}
+void log_writer_thread_active_validate() { ut_a(log_writer_is_active()); }
 
 void log_background_write_threads_active_validate(const log_t &log) {
   ut_ad(!log.disable_redo_writes);
@@ -747,9 +835,11 @@ void log_background_threads_active_validate(const log_t &log) {
   ut_a(log_write_notifier_is_active());
   ut_a(log_flush_notifier_is_active());
   ut_a(log_checkpointer_is_active());
+  ut_a(log_files_governor_is_active());
 }
 
-void log_background_threads_inactive_validate(const log_t &log) {
+void log_background_threads_inactive_validate() {
+  ut_a(!log_files_governor_is_active());
   ut_a(!log_checkpointer_is_active());
   ut_a(!log_write_notifier_is_active());
   ut_a(!log_flush_notifier_is_active());
@@ -760,7 +850,7 @@ void log_background_threads_inactive_validate(const log_t &log) {
 void log_start_background_threads(log_t &log) {
   ib::info(ER_IB_MSG_1258) << "Log background threads are being started...";
 
-  log_background_threads_inactive_validate(log);
+  log_background_threads_inactive_validate();
 
   ut_ad(!log.disable_redo_writes);
   ut_a(!srv_read_only_mode);
@@ -784,11 +874,18 @@ void log_start_background_threads(log_t &log) {
   srv_threads.m_log_writer =
       os_thread_create(log_writer_thread_key, 0, log_writer, &log);
 
+  srv_threads.m_log_files_governor = os_thread_create(
+      log_files_governor_thread_key, 0, log_files_governor, &log);
+
+  log.m_no_more_dummy_records_requested.store(false);
+  log.m_no_more_dummy_records_promised.store(false);
+
   srv_threads.m_log_checkpointer.start();
   srv_threads.m_log_flush_notifier.start();
   srv_threads.m_log_flusher.start();
   srv_threads.m_log_write_notifier.start();
   srv_threads.m_log_writer.start();
+  srv_threads.m_log_files_governor.start();
 
   log_background_threads_active_validate(log);
 
@@ -801,7 +898,7 @@ void log_stop_background_threads(log_t &log) {
   /* We cannot stop threads when x-lock is acquired, because of scenario:
           * log_checkpointer starts log_checkpoint()
           * log_checkpoint() asks to persist dd dynamic metadata
-          * dict_persist_dd_table_buffer() tries to write to redo
+          * dict_persist_to_dd_table_buffer() tries to write to redo
           * but cannot lock on log.sn
           * so log_checkpointer thread waits for this thread
             until the x-lock is released
@@ -818,6 +915,9 @@ void log_stop_background_threads(log_t &log) {
   ut_a(!srv_read_only_mode);
 
   log_resume_writer_threads(log);
+
+  log_files_dummy_records_disable(log);
+
   log.should_stop_threads.store(true);
 
   /* Wait until threads are closed. */
@@ -841,17 +941,41 @@ void log_stop_background_threads(log_t &log) {
     os_event_set(log.checkpointer_event);
     std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
+  while (log_files_governor_is_active()) {
+    os_event_set(log.m_files_governor_event);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
+  }
 
-  log_background_threads_inactive_validate(log);
+  log_background_threads_inactive_validate();
 }
 
 void log_stop_background_threads_nowait(log_t &log) {
   log_resume_writer_threads(log);
+  log_files_dummy_records_request_disable(log);
   log.should_stop_threads.store(true);
   log_wake_threads(log);
 }
 
+void log_make_empty_and_stop_background_threads(log_t &log) {
+  log_files_dummy_records_disable(log);
+
+  while (log_make_latest_checkpoint(log)) {
+    /* It could happen, that when writing a new checkpoint,
+    DD dynamic metadata was persisted, making some pages
+    dirty (with the persisted data) and writing new redo
+    records to protect those modifications. In such case,
+    current lsn would be higher than lsn and we would need
+    another iteration to ensure, that checkpoint lsn points
+    to the newest lsn. */
+  }
+
+  log_stop_background_threads(log);
+}
+
 void log_wake_threads(log_t &log) {
+  if (log_files_governor_is_active()) {
+    os_event_set(log.m_files_governor_event);
+  }
   if (log_checkpointer_is_active()) {
     os_event_set(log.checkpointer_event);
   }
@@ -941,7 +1065,7 @@ void log_control_writer_threads(log_t &log) {
 
 /**************************************************/ /**
 
- @name	Status printing
+ @name  Status printing
 
  *******************************************************/
 
@@ -956,6 +1080,10 @@ void log_print(const log_t &log, FILE *file) {
   lsn_t max_assigned_lsn;
   lsn_t current_lsn;
   lsn_t oldest_lsn;
+  uint64_t file_min_id;
+  uint64_t file_max_id;
+
+  log_files_mutex_enter(log);
 
   last_checkpoint_lsn = log.last_checkpoint_lsn.load();
   dirty_pages_added_up_to_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
@@ -964,10 +1092,14 @@ void log_print(const log_t &log, FILE *file) {
   flush_lsn = log.flushed_to_disk_lsn.load();
   max_assigned_lsn = log_get_lsn(log);
   current_lsn = log_get_lsn(log);
+  file_min_id = log.m_files.begin()->m_id;
+  file_max_id = log.m_current_file.m_id;
 
   log_limits_mutex_enter(log);
   oldest_lsn = log.available_for_checkpoint_lsn;
   log_limits_mutex_exit(log);
+
+  log_files_mutex_exit(log);
 
   fprintf(file,
           "Log sequence number          " LSN_PF
@@ -984,10 +1116,14 @@ void log_print(const log_t &log, FILE *file) {
           "\n"
           "Pages flushed up to          " LSN_PF
           "\n"
-          "Last checkpoint at           " LSN_PF "\n",
+          "Last checkpoint at           " LSN_PF
+          "\n"
+          "Log minimum file id is       " UINT64PF
+          "\n"
+          "Log maximum file id is       " UINT64PF "\n",
           current_lsn, max_assigned_lsn, ready_for_write_lsn, write_lsn,
           flush_lsn, dirty_pages_added_up_to_lsn, oldest_lsn,
-          last_checkpoint_lsn);
+          last_checkpoint_lsn, file_min_id, file_max_id);
 
   time_t current_time = time(nullptr);
 
@@ -998,8 +1134,7 @@ void log_print(const log_t &log, FILE *file) {
   }
 
   fprintf(
-      file, ULINTPF " log i/o's done, %.2f log i/o's/second\n",
-      ulint(log.n_log_ios),
+      file, UINT64PF " log i/o's done, %.2f log i/o's/second\n", log.n_log_ios,
       static_cast<double>(log.n_log_ios - log.n_log_ios_old) / time_elapsed);
 
   log.n_log_ios_old = log.n_log_ios;
@@ -1011,11 +1146,24 @@ void log_refresh_stats(log_t &log) {
   log.last_printout_time = time(nullptr);
 }
 
+void log_update_exported_variables(const log_t &log) {
+  export_vars.innodb_redo_log_read_only = srv_read_only_mode;
+
+  export_vars.innodb_redo_log_uuid = log.m_log_uuid;
+
+  export_vars.innodb_redo_log_checkpoint_lsn = log_get_checkpoint_lsn(log);
+
+  export_vars.innodb_redo_log_flushed_to_disk_lsn =
+      log.flushed_to_disk_lsn.load();
+
+  export_vars.innodb_redo_log_current_lsn = log_get_lsn(log);
+}
+
 /** @} */
 
 /**************************************************/ /**
 
- @name	Resizing of buffers
+ @name  Resizing of buffers
 
  *******************************************************/
 
@@ -1037,7 +1185,7 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
   ut_ad(end_lsn - start_lsn <= log.buf_size);
 
   if (end_lsn - start_lsn > new_size) {
-    return (false);
+    return false;
   }
 
   /* Save the contents. */
@@ -1069,7 +1217,7 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
   ib::info(ER_IB_MSG_1260) << "srv_log_buffer_size was extended to "
                            << log.buf_size << ".";
 
-  return (true);
+  return true;
 }
 
 bool log_buffer_resize(log_t &log, size_t new_size) {
@@ -1086,7 +1234,7 @@ bool log_buffer_resize(log_t &log, size_t new_size) {
   log_checkpointer_mutex_exit(log);
   log_buffer_x_lock_exit(log);
 
-  return (ret);
+  return ret;
 }
 
 void log_write_ahead_resize(log_t &log, size_t new_size) {
@@ -1124,7 +1272,7 @@ static void log_calc_buf_size(log_t &log) {
 
 /**************************************************/ /**
 
- @name	Allocation / deallocation of buffers
+ @name  Allocation / deallocation of buffers
 
  *******************************************************/
 
@@ -1135,7 +1283,8 @@ static void log_allocate_buffer(log_t &log) {
   ut_a(srv_log_buffer_size <= INNODB_LOG_BUFFER_SIZE_MAX);
   ut_a(srv_log_buffer_size >= 4 * UNIV_PAGE_SIZE);
 
-  log.buf.alloc(srv_log_buffer_size);
+  log.buf.alloc_withkey(ut::make_psi_memory_key(log_buffer_memory_key),
+                        ut::Count{srv_log_buffer_size});
 }
 
 static void log_deallocate_buffer(log_t &log) { log.buf.dealloc(); }
@@ -1145,19 +1294,12 @@ static void log_allocate_write_ahead_buffer(log_t &log) {
   ut_a(srv_log_write_ahead_size <= INNODB_LOG_WRITE_AHEAD_SIZE_MAX);
 
   log.write_ahead_buf_size = srv_log_write_ahead_size;
-  log.write_ahead_buf.alloc(log.write_ahead_buf_size);
+  log.write_ahead_buf.alloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                    ut::Count{log.write_ahead_buf_size});
 }
 
 static void log_deallocate_write_ahead_buffer(log_t &log) {
   log.write_ahead_buf.dealloc();
-}
-
-static void log_allocate_checkpoint_buffer(log_t &log) {
-  log.checkpoint_buf.alloc(OS_FILE_LOG_BLOCK_SIZE);
-}
-
-static void log_deallocate_checkpoint_buffer(log_t &log) {
-  log.checkpoint_buf.dealloc();
 }
 
 static void log_allocate_flush_events(log_t &log) {
@@ -1231,31 +1373,15 @@ static void log_deallocate_recent_closed(log_t &log) {
   log.recent_closed = {};
 }
 
-static void log_allocate_file_header_buffers(log_t &log) {
-  const uint32_t n_files = log.n_files;
-
-  using Buf_ptr = ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE>;
-  log.file_header_bufs = ut::new_arr_withkey<Buf_ptr>(UT_NEW_THIS_FILE_PSI_KEY,
-                                                      ut::Count{n_files});
-
-  for (uint32_t i = 0; i < n_files; i++) {
-    log.file_header_bufs[i].alloc(LOG_FILE_HDR_SIZE);
-  }
-}
-
-static void log_deallocate_file_header_buffers(log_t &log) {
-  ut_a(log.n_files > 0);
-  ut_a(log.file_header_bufs != nullptr);
-
-  ut::delete_arr(log.file_header_bufs);
-  log.file_header_bufs = nullptr;
+static void log_reset_encryption_buffer(log_t &log) {
+  std::memset(log.m_encryption_buf, 0x00, OS_FILE_LOG_BLOCK_SIZE);
 }
 
 /** @} */
 
 /**************************************************/ /**
 
- @name	Log position locking (for replication)
+ @name  Log position locking (for replication)
 
  *******************************************************/
 
@@ -1292,37 +1418,445 @@ void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
 
 /** @} */
 
-#ifdef UNIV_DEBUG
-void log_free_check_validate() {
-  /* This function may be called while holding some latches. This is OK,
-  as long as we are not holding any latches on buffer blocks or file spaces.
-  The following latches are not held by any thread that frees up redo log
-  space. */
-  static const latch_level_t latches[] = {
-      SYNC_NO_ORDER_CHECK, /* used for non-labeled latches */
-      SYNC_RSEGS,          /* rsegs->x_lock in trx_rseg_create() */
-      SYNC_UNDO_DDL,       /* undo::ddl_mutex */
-      SYNC_UNDO_SPACES,    /* undo::spaces::m_latch */
-      SYNC_FTS_CACHE,      /* fts_cache_t::lock */
-      SYNC_DICT,           /* dict_sys->mutex in commit_try_rebuild() */
-      SYNC_DICT_OPERATION, /* X-latch in commit_try_rebuild() */
-      SYNC_INDEX_TREE      /* index->lock */
+/**************************************************/ /**
+
+ @name Log - persisting flags
+
+ *******************************************************/
+
+/** @{ */
+
+/** Updates and persists the updated log flags to disk.
+@param[in,out]  log               redo log
+@param[in]      update_function   functor called on existing flags,
+                                  supposed to make changes */
+template <typename T>
+static void log_update_flags(log_t &log, T update_function) {
+  ut_a(!srv_read_only_mode);
+
+  log_writer_mutex_enter(log); /* writing to log files */
+  log_files_mutex_enter(log);  /* accessing log.m_files */
+
+  Log_flags log_flags = log.m_log_flags;
+  update_function(log_flags);
+
+  const dberr_t err = log_files_persist_flags(log, log_flags);
+  ut_a(err == DB_SUCCESS);
+
+  log_files_mutex_exit(log);
+  log_writer_mutex_exit(log);
+}
+
+void log_persist_enable(log_t &log) {
+  log_update_flags(log, [](Log_flags &log_flags) {
+    log_file_header_reset_flag(log_flags, LOG_HEADER_FLAG_NO_LOGGING);
+    log_file_header_reset_flag(log_flags, LOG_HEADER_FLAG_CRASH_UNSAFE);
+  });
+}
+
+void log_persist_disable(log_t &log) {
+  log_update_flags(log, [](Log_flags &log_flags) {
+    log_file_header_set_flag(log_flags, LOG_HEADER_FLAG_NO_LOGGING);
+    log_file_header_set_flag(log_flags, LOG_HEADER_FLAG_CRASH_UNSAFE);
+  });
+}
+
+void log_persist_crash_safe(log_t &log) {
+  log_update_flags(log, [](Log_flags &log_flags) {
+    ut_a(log_file_header_check_flag(log_flags, LOG_HEADER_FLAG_NO_LOGGING));
+    log_file_header_reset_flag(log_flags, LOG_HEADER_FLAG_CRASH_UNSAFE);
+  });
+}
+
+void log_persist_initialized(log_t &log) {
+  log_update_flags(log, [](Log_flags &log_flags) {
+    constexpr auto flag_to_reset = LOG_HEADER_FLAG_NOT_INITIALIZED;
+    ut_a(log_file_header_check_flag(log_flags, flag_to_reset));
+    log_file_header_reset_flag(log_flags, flag_to_reset);
+  });
+}
+
+void log_crash_safe_validate(log_t &log) {
+  log_files_mutex_enter(log); /* accessing log.m_files */
+  ut_a(!log_file_header_check_flag(log.m_log_flags,
+                                   LOG_HEADER_FLAG_CRASH_UNSAFE));
+  log_files_mutex_exit(log);
+}
+
+/** @} */
+
+/**************************************************/ /**
+
+ @name Log - log system initialization.
+
+ *******************************************************/
+
+/** @{ */
+
+static dberr_t log_sys_handle_creator(log_t &log) {
+  auto str_starts_with = [](const std::string &a, const std::string &b) {
+    return a.size() >= b.size() && a.substr(0, b.size()) == b;
   };
 
-  sync_allowed_latches check(latches,
-                             latches + sizeof(latches) / sizeof(*latches));
+  const auto &creator_name = log.m_creator_name;
 
-  if (sync_check_iterate(check)) {
-#ifndef UNIV_NO_ERR_MSGS
-    ib::error(ER_IB_MSG_1381)
-#else
-    ib::error()
-#endif
-        << "log_free_check() was called while holding an un-listed latch.";
-    ut_error;
+  if (str_starts_with(creator_name, "MEB")) {
+    /* Disable the double write buffer. MEB ensures that the data pages
+    are consistent. Therefore the dblwr is superfluous. Secondly, the dblwr
+    file is not redo logged and we can have pages in there that were written
+    after the redo log was copied by MEB. */
+
+    /* Restore state after recovery completes. */
+    recv_sys->dblwr_state = dblwr::g_mode;
+    dblwr::g_mode = dblwr::Mode::OFF;
+    dblwr::set();
+
+    recv_sys->is_meb_db = true;
+
+    if (srv_read_only_mode) {
+      ib::error(ER_IB_MSG_LOG_FILES_CREATED_BY_MEB_AND_READ_ONLY_MODE);
+      return DB_ERROR;
+    }
+
+    /* This log file was created by mysqlbackup --restore: print
+    a note to the user about it */
+    ib::info(ER_IB_MSG_LOG_FILES_CREATED_BY_MEB, creator_name.c_str());
+
+  } else if (str_starts_with(creator_name, LOG_HEADER_CREATOR_CLONE)) {
+    recv_sys->is_cloned_db = true;
+    /* Refuse clone database recovery in read only mode. */
+    if (srv_read_only_mode) {
+      ib::error(ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE_AND_READ_ONLY_MODE);
+      return DB_ERROR;
+    }
+    ib::info(ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE);
+
+  } else if (!str_starts_with(creator_name, "MySQL ")) {
+    ib::warn(ER_IB_MSG_LOG_FILES_CREATED_BY_UNKNOWN_CREATOR,
+             creator_name.c_str());
   }
-  mtr_t::check_my_thread_mtrs_are_not_latching();
+  return DB_SUCCESS;
 }
-#endif /* !UNIV_DEBUG */
+
+static dberr_t log_sys_check_format(const log_t &log) {
+  switch (log.m_format) {
+    case Log_format::LEGACY:
+      ib::error(ER_IB_MSG_LOG_FORMAT_BEFORE_5_7_9,
+                ulong{to_int(Log_format::LEGACY)});
+      return DB_ERROR;
+
+    case Log_format::VERSION_5_7_9:
+    case Log_format::VERSION_8_0_1:
+    case Log_format::VERSION_8_0_3:
+    case Log_format::VERSION_8_0_19:
+    case Log_format::VERSION_8_0_28:
+      ib::info(ER_IB_MSG_LOG_FORMAT_BEFORE_8_0_30, ulong{to_int(log.m_format)});
+      break;
+
+    case Log_format::CURRENT:
+      break;
+
+    default:
+      /* The log_files_find_and_analyze() would return error if format
+      was invalid, and InnoDB would quit in log_sys_init() before
+      calling this function. */
+      ut_error;
+  }
+
+  if (log.m_format < Log_format::CURRENT && srv_force_recovery != 0) {
+    /* We say no to running with forced recovery and old format.
+    User should rather use previous version of MySQL and recover
+    properly before he switches to newer version. */
+    const auto directory = log_directory_path(log.m_files_ctx);
+    ib::error(ER_IB_MSG_LOG_UPGRADE_FORCED_RECV, ulong{to_int(log.m_format)});
+    return DB_ERROR;
+  }
+
+  return DB_SUCCESS;
+}
+
+static dberr_t log_sys_check_directory(const Log_files_context &ctx,
+                                       std::string &path, bool &found_files) {
+  path = log_directory_path(ctx);
+  if (!os_file_exists(path.c_str())) {
+    return DB_NOT_FOUND;
+  }
+  ut::vector<Log_file_id> listed_files;
+  const dberr_t err = log_list_existing_files(ctx, listed_files);
+  if (err != DB_SUCCESS) {
+    return DB_ERROR;
+  }
+  found_files = !listed_files.empty();
+  return DB_SUCCESS;
+}
+
+dberr_t log_sys_init(bool expect_no_files, lsn_t flushed_lsn,
+                     lsn_t &new_files_lsn) {
+  ut_a(log_is_data_lsn(flushed_lsn));
+  ut_a(log_sys == nullptr);
+
+  new_files_lsn = 0;
+
+  Log_files_context log_files_ctx{srv_log_group_home_dir,
+                                  Log_files_ruleset::PRE_8_0_30};
+
+  std::string root_path;
+  bool found_files_in_root{false};
+  dberr_t err =
+      log_sys_check_directory(log_files_ctx, root_path, found_files_in_root);
+
+  /* Report error if innodb_log_group_home_dir / datadir has not been found or
+  could not be listed. It's a proper decision for all redo format versions:
+    - older formats store there ib_logfile* files directly,
+    - newer formats store there #innodb_redo subdirectory. */
+  if (err != DB_SUCCESS) {
+    ib::error(ER_IB_MSG_LOG_INIT_DIR_LIST_FAILED, root_path.c_str());
+    return err;
+  }
+
+  Log_file_handle::s_on_before_read = [](Log_file_id, Log_file_type file_type,
+                                         os_offset_t, os_offset_t read_size) {
+    ut_a(file_type == Log_file_type::NORMAL);
+    ut_a(srv_is_being_started);
+#ifndef UNIV_HOTBACKUP
+    srv_stats.data_read.add(read_size);
+#endif /* !UNIV_HOTBACKUP */
+  };
+
+  Log_file_handle::s_on_before_write =
+      [](Log_file_id file_id, Log_file_type file_type, os_offset_t write_offset,
+         os_offset_t write_size) {
+        ut_a(!srv_read_only_mode);
+        if (!srv_is_being_started) {
+          ut_a(log_sys != nullptr);
+          auto file = log_sys->m_files.file(file_id);
+          if (file_type == Log_file_type::NORMAL) {
+            ut_a(file != log_sys->m_files.end());
+            ut_a((file_id == log_sys->m_current_file.m_id &&
+                  write_offset + write_size <= file->m_size_in_bytes) ||
+                 write_offset + write_size <= LOG_FILE_HDR_SIZE);
+          } else {
+            ut_a(file == log_sys->m_files.end());
+            ut_a(file_id == log_sys->m_current_file.next_id());
+          }
+        }
+#ifndef UNIV_HOTBACKUP
+        srv_stats.data_written.add(write_size);
+#endif
+      };
+
+#ifdef _WIN32
+  Log_file_handle::s_skip_fsyncs =
+      (srv_win_file_flush_method == SRV_WIN_IO_UNBUFFERED);
+#else
+  Log_file_handle::s_skip_fsyncs =
+      (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC ||
+       srv_unix_file_flush_method == SRV_UNIX_NOSYNC);
+#endif /* _WIN32 */
+
+  if (!found_files_in_root) {
+    log_files_ctx =
+        Log_files_context{srv_log_group_home_dir, Log_files_ruleset::CURRENT};
+
+    std::string subdir_path;
+    bool found_files_in_subdir{false};
+    err = log_sys_check_directory(log_files_ctx, subdir_path,
+                                  found_files_in_subdir);
+
+    switch (err) {
+      case DB_SUCCESS:
+        if (expect_no_files && found_files_in_subdir) {
+          ib::error(ER_IB_MSG_LOG_INIT_DIR_NOT_EMPTY_WONT_INITIALIZE,
+                    subdir_path.c_str());
+          return DB_ERROR;
+        }
+        if (!srv_read_only_mode) {
+          /* The problem is that a lot of people is not aware
+          that sending SHUTDOWN command does not end when the
+          server is no longer running, but earlier (obvious!).
+          Starting MySQL without waiting on previous instance
+          stopped, seems a bad idea and it often leaded to
+          quick failures here if we did not retry. */
+          for (size_t retries = 0;; ++retries) {
+            const auto remove_unused_files_ret =
+                log_remove_unused_files(log_files_ctx);
+            if (remove_unused_files_ret.first == DB_SUCCESS) {
+              break;
+            }
+            ut_a(retries < 300);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+          }
+        }
+        break;
+      case DB_NOT_FOUND:
+        /* The #innodb_redo directory has not been found. */
+        if (expect_no_files) {
+          /* InnoDB needs to create new directory #innodb_redo. */
+          if (!os_file_create_directory(subdir_path.c_str(), false)) {
+            return DB_ERROR;
+          }
+        } else {
+          /* InnoDB does not start if neither ib_logfile* files were found,
+          nor the #innodb_redo directory was found. User should be informed
+          about the problem and decide to either:
+            - use older version of MySQL (<= 8.0.29) and do a non-fast shutdown,
+            - or create the missing #innodb_redo */
+          ib::error(ER_IB_MSG_LOG_INIT_DIR_MISSING_SUBDIR, LOG_DIRECTORY_NAME,
+                    log_pre_8_0_30::FILE_BASE_NAME, root_path.c_str());
+          return DB_ERROR;
+        }
+        break;
+      default:
+        ib::error(ER_IB_MSG_LOG_INIT_DIR_LIST_FAILED, subdir_path.c_str());
+        return err;
+    }
+
+  } else {
+    /* Found existing files in old location for redo files (PRE_8_0_30).
+    If expected to see no files (and create new), return error emitting
+    the error message. */
+    if (expect_no_files) {
+      ib::error(ER_IB_MSG_LOG_INIT_DIR_NOT_EMPTY_WONT_INITIALIZE,
+                root_path.c_str());
+      return DB_ERROR;
+    }
+  }
+
+  log_sys_create();
+  ut_a(log_sys != nullptr);
+  log_t &log = *log_sys;
+
+  bool is_concurrency_margin_safe;
+  log_concurrency_margin(
+      Log_files_capacity::soft_logical_capacity_for_hard(
+          Log_files_capacity::hard_logical_capacity_for_physical(
+              srv_redo_log_capacity_used)),
+      is_concurrency_margin_safe);
+
+  if (!is_concurrency_margin_safe) {
+    os_offset_t min_redo_log_capacity = srv_redo_log_capacity_used;
+    os_offset_t max_redo_log_capacity = LOG_CAPACITY_MAX;
+    while (min_redo_log_capacity < max_redo_log_capacity) {
+      const os_offset_t capacity_to_check =
+          (min_redo_log_capacity + max_redo_log_capacity) / 2;
+
+      log_concurrency_margin(
+          Log_files_capacity::soft_logical_capacity_for_hard(
+              Log_files_capacity::hard_logical_capacity_for_physical(
+                  capacity_to_check)),
+          is_concurrency_margin_safe);
+
+      if (is_concurrency_margin_safe) {
+        max_redo_log_capacity = capacity_to_check;
+      } else {
+        min_redo_log_capacity = capacity_to_check + 1;
+      }
+    }
+
+    /* The innodb_redo_log_capacity is always rounded to 1M */
+    min_redo_log_capacity =
+        ut_uint64_align_up(min_redo_log_capacity, 1024UL * 1024);
+
+    ib::error(ER_IB_MSG_LOG_PARAMS_CONCURRENCY_MARGIN_UNSAFE,
+              ulonglong{srv_redo_log_capacity_used / 1024 / 1024},
+              ulong{srv_thread_concurrency},
+              ulonglong{min_redo_log_capacity / 1024 / 1024},
+              INNODB_PARAMETERS_MSG);
+
+    return DB_ERROR;
+  }
+
+  log.m_files_ctx = std::move(log_files_ctx);
+
+  if (expect_no_files) {
+    ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO);
+    ut_a(!srv_read_only_mode);
+
+    ut_a(log.m_files_ctx.m_files_ruleset == Log_files_ruleset::CURRENT);
+
+    return log_files_create(log, flushed_lsn, new_files_lsn);
+  }
+
+  if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
+    return DB_SUCCESS;
+  }
+
+  Log_files_dict files{log.m_files_ctx};
+  Log_format format;
+  std::string creator_name;
+  Log_flags log_flags;
+  Log_uuid log_uuid;
+
+  ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO);
+
+  auto res = log_files_find_and_analyze(
+      srv_read_only_mode, log.m_encryption_metadata, files, format,
+      creator_name, log_flags, log_uuid);
+  switch (res) {
+    case Log_files_find_result::FOUND_VALID_FILES:
+      log.m_format = format;
+      log.m_creator_name = creator_name;
+      log.m_log_flags = log_flags;
+      log.m_log_uuid = log_uuid;
+      log.m_files = std::move(files);
+      break;
+
+    case Log_files_find_result::FOUND_UNINITIALIZED_FILES:
+      ut_a(format == Log_format::CURRENT);
+      [[fallthrough]];
+    case Log_files_find_result::FOUND_NO_FILES:
+      ut_a(log.m_files_ctx.m_files_ruleset == Log_files_ruleset::CURRENT);
+      ut_a(files.empty());
+
+      if (srv_read_only_mode) {
+        ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO);
+        ib::error(ER_IB_MSG_LOG_FILES_CREATE_AND_READ_ONLY_MODE);
+        return DB_ERROR;
+      }
+
+      {
+        const auto ret = log_remove_files(log.m_files_ctx);
+        ut_a(ret.first == DB_SUCCESS);
+      }
+
+      return log_files_create(log, flushed_lsn, new_files_lsn);
+
+    case Log_files_find_result::SYSTEM_ERROR:
+    case Log_files_find_result::FOUND_CORRUPTED_FILES:
+    case Log_files_find_result::FOUND_DISABLED_FILES:
+    case Log_files_find_result::FOUND_VALID_FILES_BUT_MISSING_NEWEST:
+      return DB_ERROR;
+  }
+
+  /* Check format of the redo log and emit information to the error log,
+  if the format was not the newest one. */
+  err = log_sys_check_format(log);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  /* Check creator of log files and mark fields of recv_sys: is_cloned_db,
+  is_meb_db if needed. */
+  err = log_sys_handle_creator(log);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  if (log_file_header_check_flag(log_flags, LOG_HEADER_FLAG_NO_LOGGING)) {
+    auto result = mtr_t::s_logging.disable(nullptr);
+    /* Currently never fails. */
+    ut_a(result == 0);
+    srv_redo_log = false;
+  }
+
+  return DB_SUCCESS;
+}
+
+void log_sys_close() {
+  log_sys_free();
+  ut_a(log_sys == nullptr);
+}
+
+/** @} */
 
 #endif /* !UNIV_HOTBACKUP */

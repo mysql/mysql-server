@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     "  ZSTD_COMPRESSION_LEVEL INTEGER not null\n"
     "  COMMENT 'Compression level associated with zstd compression "
     "algorithm.',\n"
-    "  TLS_CIPHERSUITES TEXT CHARACTER SET utf8 COLLATE utf8_bin NULL,\n"
+    "  TLS_CIPHERSUITES TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NULL,\n"
     "  SOURCE_CONNECTION_AUTO_FAILOVER ENUM('1','0') not null,\n"
     "  GTID_ONLY ENUM('1','0') not null\n"
     "  COMMENT 'Indicates if this channel only uses GTIDs and does not persist "

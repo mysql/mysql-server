@@ -1033,3 +1033,26 @@ CREATE TABLE t1 (
 INSERT INTO t1 (Ñ, N) VALUES (1, 2);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#32774799: ASSERTION `ITEM->TYPE() != ITEM::FIELD_ITEM ||
+--echo #              !STATIC_CAST<CONST ITEM_FIELD *>(ITEM)->
+--echo #              FIELD->IS_HIDDEN_BY_SYSTEM()' FAILED.
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, KEY k1 ((1)));
+# An empty VALUES list prompts server to create fields list.
+# The following query should not crash trying to resolve a
+# hidden field in the fields list. Note that the hidden field
+# is added to the table by the server.
+INSERT INTO t1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+# No hidden fields are created by the server. So this should not
+# be affected.
+INSERT INTO v1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INTEGER, b INTEGER AS ((1)) INVISIBLE, KEY k1(b));
+# User added hidden field. Should not be affected.
+INSERT INTO t1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
+DROP TABLE t1;

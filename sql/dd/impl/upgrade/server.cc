@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,11 +21,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/upgrade/server.h"
-#include "sql/dd/upgrade/server.h"
 
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
+
+#include "sql/dd/upgrade/server.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -83,7 +84,7 @@ void Bootstrap_error_handler::my_message_bootstrap(uint error, const char *str,
                                                    myf MyFlags) {
   set_abort_on_error(error);
   my_message_sql(error, str, MyFlags);
-  if (m_log_error)
+  if (should_log_error(error))
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .subsys(LOG_SUBSYSTEM_TAG)
@@ -115,6 +116,21 @@ void Bootstrap_error_handler::set_log_error(bool log_error) {
   m_log_error = log_error;
 }
 
+bool Bootstrap_error_handler::should_log_error(uint error) {
+  return (m_log_error ||
+          (!m_allowlist_errors.empty() &&
+           m_allowlist_errors.find(error) != m_allowlist_errors.end()));
+}
+
+void Bootstrap_error_handler::set_allowlist_errors(std::set<uint> &errors) {
+  assert(m_allowlist_errors.empty());
+  m_allowlist_errors = errors;
+}
+
+void Bootstrap_error_handler::clear_allowlist_errors() {
+  m_allowlist_errors.clear();
+}
+
 Bootstrap_error_handler::~Bootstrap_error_handler() {
   // Skip reverting to old error handler in case someone else
   // has updated the hook.
@@ -124,6 +140,7 @@ Bootstrap_error_handler::~Bootstrap_error_handler() {
 
 bool Bootstrap_error_handler::m_log_error = true;
 bool Bootstrap_error_handler::abort_on_error = false;
+std::set<uint> Bootstrap_error_handler::m_allowlist_errors;
 
 /***************************************************************************
  * Routine_event_context_guard implementation
@@ -302,7 +319,7 @@ class MySQL_check {
   }
 
   /**
-    Returns true if something went wrong while retreving the table list or
+    Returns true if something went wrong while retrieving the table list or
     executing CHECK TABLE statements.
   */
   bool check_tables(THD *thd, const char *schema) {
@@ -825,7 +842,6 @@ bool upgrade_system_schemas(THD *thd) {
 
   LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
          MYSQL_VERSION_ID, "started");
-  log_sink_buffer_check_timeout();
   sysd::notify("STATUS=Server upgrade in progress\n");
 
   bootstrap_error_handler.set_log_error(false);
@@ -853,7 +869,6 @@ bool upgrade_system_schemas(THD *thd) {
   if (!err)
     LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
            MYSQL_VERSION_ID, "completed");
-  log_sink_buffer_check_timeout();
   sysd::notify("STATUS=Server upgrade complete\n");
 
   /*

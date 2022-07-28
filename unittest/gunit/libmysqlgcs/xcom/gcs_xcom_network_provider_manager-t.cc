@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,8 @@ namespace gcs_xcom_networkprovidermamangertest {
 
 class mock_network_provider : public Network_provider {
  public:
-  MOCK_METHOD(int, start, (), (override));
-  MOCK_METHOD(int, stop, (), (override));
+  MOCK_METHOD((std::pair<bool, int>), start, (), (override));
+  MOCK_METHOD((std::pair<bool, int>), stop, (), (override));
   MOCK_METHOD(enum_transport_protocol, get_communication_stack, (),
               (const, override));
   MOCK_METHOD(bool, configure, (const Network_configuration_parameters &params),
@@ -106,10 +106,10 @@ TEST_F(XComNetworkProviderManagerTest, BasicManagerTest) {
       .WillRepeatedly(testing::Return(XCOM_PROTOCOL));
   EXPECT_CALL(*mock_provider, start())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
   EXPECT_CALL(*mock_provider, stop())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
 
   Network_provider_manager::getInstance().add_network_provider(mock_provider);
 
@@ -129,10 +129,10 @@ TEST_F(XComNetworkProviderManagerTest, ManagerShortcutMethodsTest) {
       .WillRepeatedly(testing::Return(XCOM_PROTOCOL));
   EXPECT_CALL(*mock_provider, start())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
   EXPECT_CALL(*mock_provider, stop())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
 
   Network_provider_manager::getInstance().add_and_start_network_provider(
       mock_provider);
@@ -151,10 +151,10 @@ TEST_F(XComNetworkProviderManagerTest, DoubleAddManagerTest) {
       .WillRepeatedly(testing::Return(XCOM_PROTOCOL));
   EXPECT_CALL(*mock_provider, start())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
   EXPECT_CALL(*mock_provider, stop())
       .Times(2)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
 
   Network_provider_manager::getInstance().add_network_provider(mock_provider);
   Network_provider_manager::getInstance().add_network_provider(mock_provider);
@@ -210,10 +210,10 @@ TEST_F(XComNetworkProviderManagerTest, BasicManagerActiveProviderTest) {
       .WillRepeatedly(testing::Return(XCOM_PROTOCOL));
   EXPECT_CALL(*mock_provider, start())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
   EXPECT_CALL(*mock_provider, stop())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
   EXPECT_CALL(*mock_provider, configure(testing::_))
       .Times(1)
       .WillOnce(testing::Return(true));
@@ -236,10 +236,10 @@ TEST_F(XComNetworkProviderManagerTest, BasicManagerActiveProviderWithSSLTest) {
       .WillRepeatedly(testing::Return(XCOM_PROTOCOL));
   EXPECT_CALL(*mock_provider, start())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
   EXPECT_CALL(*mock_provider, stop())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
   EXPECT_CALL(*mock_provider, configure(testing::_))
       .Times(1)
       .WillOnce(testing::Return(true));
@@ -288,10 +288,10 @@ TEST_F(XComNetworkProviderManagerTest,
       .WillRepeatedly(testing::Return(XCOM_PROTOCOL));
   EXPECT_CALL(*mock_provider, start())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
   EXPECT_CALL(*mock_provider, stop())
       .Times(1)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(testing::Return(std::make_pair(false, 0)));
   EXPECT_CALL(*mock_provider, configure(testing::_))
       .Times(1)
       .WillOnce(testing::Return(true));

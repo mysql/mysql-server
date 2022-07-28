@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -168,8 +168,17 @@ ENDIF()
 
 # Turn on Werror (warning => error) when using maintainer mode.
 IF(MYSQL_MAINTAINER_MODE)
-  STRING_APPEND(MY_C_WARNING_FLAGS   " -Werror")
-  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Werror")
+  IF(MSVC)
+    STRING_APPEND(CMAKE_C_FLAGS   " /WX")
+    STRING_APPEND(CMAKE_CXX_FLAGS " /WX")
+    STRING_APPEND(CMAKE_EXE_LINKER_FLAGS    " /WX")
+    STRING_APPEND(CMAKE_MODULE_LINKER_FLAGS " /WX")
+    STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " /WX")
+  ENDIF()
+  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+    STRING_APPEND(MY_C_WARNING_FLAGS   " -Werror")
+    STRING_APPEND(MY_CXX_WARNING_FLAGS " -Werror")
+  ENDIF()
 ENDIF()
 
 # Set warning flags for gcc/g++/clang/clang++

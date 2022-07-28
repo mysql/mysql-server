@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,6 +112,7 @@ struct NodeStatePOD
   /**
    * Length in 32-bit words
    */
+  static_assert(NodeBitmask::Size == 8);
   static constexpr Uint32 DataLength = 8 + NodeBitmask::Size;
   
   /**
@@ -141,17 +142,18 @@ struct NodeStatePOD
    * 
    */
   union {
+    // Keep size compatible with GSN_API_REGCONF signal (ApiRegConf)
+    struct
+    {
+      Uint32 unused[3];
+    } compat;
     struct {
       Uint32 startPhase;     // valid when startLevel == SL_STARTING
       Uint32 restartType;    // valid when startLevel == SL_STARTING
     } starting;
     struct {
       Uint32 systemShutdown; // valid when startLevel == SL_STOPPING_{X}
-      Uint32 timeout;
-      Uint32 alarmTime;
     } stopping;
-
-    
   };
   Uint32 singleUserMode;
   Uint32 singleUserApi;          //the single user node
@@ -203,6 +205,8 @@ public:
   NodeState& operator=(const NodeStatePOD&);
 };
 
+static_assert(sizeof(NodeState) == NodeState::DataLength * 4);
+
 inline
 NodeState::NodeState(){
   init();
@@ -216,34 +220,38 @@ NodeStatePOD::init(){
   dynamicId = 0xFFFFFFFF;
   singleUserMode = 0;
   singleUserApi = 0xFFFFFFFF;
+  compat.unused[0] = 0;
+  compat.unused[1] = 0;
+  compat.unused[2] = 0;
   m_connected_nodes.clear();
 }
 
-inline
-NodeState::NodeState(StartLevel sl){
+inline NodeState::NodeState(StartLevel sl)
+{
+  assert(sl == SL_NOTHING || sl == SL_CMVMI || sl == SL_STARTED ||
+         sl == SL_SINGLEUSER);
   init();
   startLevel = sl;
-  singleUserMode = 0;
-  singleUserApi = 0xFFFFFFFF;
 }
 
 inline
 NodeState::NodeState(StartLevel sl, Uint32 sp, StartType typeOfStart){
+  // starting member only valid for SL_STARTING
+  assert(sl == SL_STARTING);
   init();
   startLevel = sl;
   starting.startPhase = sp;
   starting.restartType = typeOfStart;
-  singleUserMode = 0;
-  singleUserApi = 0xFFFFFFFF;
 }
 
 inline
 NodeState::NodeState(StartLevel sl, bool sys){
+  // stopping member only valid for SL_STOPPING_X
+  assert(sl == SL_STOPPING_1 || sl == SL_STOPPING_2 || sl == SL_STOPPING_3 ||
+         sl == SL_STOPPING_4);
   init();
   startLevel = sl;
   stopping.systemShutdown = sys;
-  singleUserMode = 0;
-  singleUserApi = 0xFFFFFFFF;
 }
 
 inline
@@ -348,11 +356,10 @@ NodeState::operator=(const NodeStatePOD& ns)
   nodeGroup  = ns.nodeGroup;
   dynamicId  = ns.dynamicId;
   // masterNodeId is union with dynamicId
-  starting.startPhase = ns.starting.startPhase;
-  starting.restartType = ns.starting.restartType;
-  // stopping.systemShutdown is union with starting.startPhase
-  // stopping.timeout is union with starting.restartType
-  stopping.alarmTime = ns.stopping.alarmTime;
+  compat = ns.compat;
+  // starting.startPhase is union with compat.unused[0]
+  // starting.restartType is union with compat.unused[1]
+  // stopping.systemShutdown is union with compat.unused[0]
   singleUserMode = ns.singleUserMode;
   singleUserApi  = ns.singleUserApi;
   m_connected_nodes.assign(ns.m_connected_nodes);

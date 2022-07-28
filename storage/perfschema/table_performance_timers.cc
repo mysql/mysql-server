@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,9 +46,9 @@ Plugin_table table_performance_timers::m_table_def(
     /* Name */
     "performance_timers",
     /* Definition */
-    "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND') "
-    "NOT "
-    "NULL,\n"
+    "  TIMER_NAME ENUM ("
+    "    'CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'THREAD_CPU') "
+    "    NOT NULL,\n"
     "  TIMER_FREQUENCY BIGINT,\n"
     "  TIMER_RESOLUTION BIGINT,\n"
     "  TIMER_OVERHEAD BIGINT\n",
@@ -102,6 +102,10 @@ table_performance_timers::table_performance_timers()
   index = (int)TIMER_NAME_MILLISEC - FIRST_TIMER_NAME;
   m_data[index].m_timer_name = TIMER_NAME_MILLISEC;
   m_data[index].m_info = pfs_timer_info.milliseconds;
+
+  index = (int)TIMER_NAME_THREAD_CPU - FIRST_TIMER_NAME;
+  m_data[index].m_timer_name = TIMER_NAME_THREAD_CPU;
+  m_data[index].m_info = pfs_timer_info.thread_cpu;
 }
 
 void table_performance_timers::reset_position(void) {

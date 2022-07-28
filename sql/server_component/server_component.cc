@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/keyring_metadata_query.h>
 #include <mysql/components/services/keyring_reader_with_status.h>
 #include <mysql/components/services/keyring_writer.h>
+#include <mysql/components/services/mysql_audit_print_service_double_data_source.h>
+#include <mysql/components/services/mysql_audit_print_service_longlong_data_source.h>
 #include <mysql/components/services/mysql_cond_service.h>
 #include <mysql/components/services/mysql_mutex_service.h>
 #include <mysql/components/services/mysql_psi_system_service.h>
@@ -59,6 +61,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_builtins_imp.h"
 #include "log_sink_perfschema_imp.h"
 #include "my_inttypes.h"
+#include "mysql_audit_print_service_double_data_source_imp.h"
+#include "mysql_audit_print_service_longlong_data_source_imp.h"
 #include "mysql_backup_lock_imp.h"
 #include "mysql_clone_protocol_imp.h"
 #include "mysql_connection_attributes_iterator_imp.h"
@@ -71,6 +75,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_string_service_imp.h"
 #include "mysql_system_variable_update_imp.h"
 #include "mysql_thd_attributes_imp.h"
+#include "mysql_transaction_delegate_control_imp.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader_imp.h"
 #include "security_context_imp.h"
@@ -315,6 +320,22 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_ongoing_transactions_query)
 mysql_ongoing_transactions_query_imp::get_ongoing_server_transactions
 END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_new_transaction_control)
+mysql_new_transaction_control_imp::stop,
+    mysql_new_transaction_control_imp::allow END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_before_commit_transaction_control)
+mysql_before_commit_transaction_control_imp::stop,
+    mysql_before_commit_transaction_control_imp::allow
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(
+    mysql_server,
+    mysql_close_connection_of_binloggable_transaction_not_reached_commit)
+mysql_close_connection_of_binloggable_transaction_not_reached_commit_imp::close
+END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, host_application_signal)
 mysql_component_host_application_signal_imp::signal
 END_SERVICE_IMPLEMENTATION();
@@ -412,6 +433,16 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_attributes)
 mysql_thd_attributes_imp::get,
     mysql_thd_attributes_imp::set END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_audit_print_service_longlong_data_source)
+mysql_audit_print_service_longlong_data_source_imp::get
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_audit_print_service_double_data_source)
+mysql_audit_print_service_double_data_source_imp::get
+END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -455,6 +486,11 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
                      mysql_account_database_security_context_lookup),
     PROVIDES_SERVICE(mysql_server, mysql_security_context_options),
     PROVIDES_SERVICE(mysql_server, mysql_ongoing_transactions_query),
+    PROVIDES_SERVICE(mysql_server, mysql_new_transaction_control),
+    PROVIDES_SERVICE(mysql_server, mysql_before_commit_transaction_control),
+    PROVIDES_SERVICE(
+        mysql_server,
+        mysql_close_connection_of_binloggable_transaction_not_reached_commit),
     PROVIDES_SERVICE(mysql_server, host_application_signal),
     PROVIDES_SERVICE(mysql_server, mysql_audit_api_message),
     PROVIDES_SERVICE(mysql_server, mysql_page_track),
@@ -471,7 +507,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_error_v1),
     PROVIDES_SERVICE(performance_schema, psi_file_v2),
     PROVIDES_SERVICE(performance_schema, psi_idle_v1),
-    /* Deprecated, use psi_mdl_v1. */
+    /* Deprecated, use psi_mdl_v2. */
     PROVIDES_SERVICE(performance_schema, psi_mdl_v1),
     PROVIDES_SERVICE(performance_schema, psi_mdl_v2),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_memory_v1), */
@@ -483,7 +519,9 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_stage_v1),
     /* Deprecated, use psi_statement_v2. */
     PROVIDES_SERVICE(performance_schema, psi_statement_v1),
+    /* Deprecated, use psi_statement_v3. */
     PROVIDES_SERVICE(performance_schema, psi_statement_v2),
+    PROVIDES_SERVICE(performance_schema, psi_statement_v3),
     PROVIDES_SERVICE(performance_schema, psi_system_v1),
     PROVIDES_SERVICE(performance_schema, psi_table_v1),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v1), */
@@ -491,6 +529,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v3), */
     PROVIDES_SERVICE(performance_schema, psi_thread_v4),
     PROVIDES_SERVICE(performance_schema, psi_thread_v5),
+    PROVIDES_SERVICE(performance_schema, psi_thread_v6),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
     /* Deprecated, use pfs_plugin_table_v1. */
     PROVIDES_SERVICE(performance_schema, pfs_plugin_table),
@@ -539,6 +578,10 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, field_varchar_access_v1),
     PROVIDES_SERVICE(mysql_server, field_any_access_v1),
     PROVIDES_SERVICE(mysql_server, mysql_thd_attributes),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_audit_print_service_longlong_data_source),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_audit_print_service_double_data_source),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -60,10 +60,9 @@ struct sess_t {
 };
 
 /* Session states */
-#define SESS_ACTIVE 1
-#define SESS_ERROR                       \
-  2 /* session contains an error message \
-    which has not yet been communicated  \
-    to the client */
+constexpr uint32_t SESS_ACTIVE = 1;
+/** session contains an error message which has not yet been communicated to the
+client */
+constexpr uint32_t SESS_ERROR = 2;
 
 #endif

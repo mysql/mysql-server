@@ -1055,3 +1055,170 @@ SELECT * FROM t1 WHERE 1 MEMBER OF (j->'$[*]');
 i	j
 1	[1, 2, 3]
 DROP TABLE t1;
+#
+# Bug#33334928: SELECT COUNT(*) using multi-valued index
+#               reports wrong number of rows.
+#
+CREATE TABLE t (
+id int NOT NULL,
+doc_id int DEFAULT NULL,
+doc json DEFAULT NULL,
+PRIMARY KEY (id),
+KEY mv_id (id,(cast(json_extract(doc,'$.val') as unsigned array))),
+KEY mv_doc_id (doc_id,(cast(json_extract(doc,'$.val') as unsigned array)))
+);
+INSERT INTO t values (1, 2, '{"val":[1,2,3,4,5]}'), (2, 1, '{"val":[2,3,4,5]}'), (3, 2, '{"val":[2,3,4,5]}'), (4, NULL, '{"val":[3,4,5]}'), (5, 2, '{"val":[4,5]}');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT COUNT(*) FROM t WHERE id = '1';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	const	PRIMARY,mv_id	PRIMARY	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t` where true
+SELECT COUNT(*) FROM t WHERE id = '1';
+COUNT(*)
+1
+EXPLAIN SELECT COUNT(*) FROM t FORCE INDEX (mv_id) WHERE id = '1';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	mv_id	mv_id	4	const	5	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t` FORCE INDEX (`mv_id`) where (`test`.`t`.`id` = 1)
+SELECT COUNT(*) FROM t FORCE INDEX (mv_id) WHERE id = '1';
+COUNT(*)
+1
+EXPLAIN SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	mv_doc_id	mv_doc_id	5	const	11	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t` FORCE INDEX (`mv_doc_id`) where (`test`.`t`.`doc_id` = 2)
+SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+COUNT(*)
+3
+EXPLAIN SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref_or_null	mv_doc_id	mv_doc_id	5	const	14	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t` FORCE INDEX (`mv_doc_id`) where ((`test`.`t`.`doc_id` = 2) or (`test`.`t`.`doc_id` is null))
+SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+COUNT(*)
+4
+EXPLAIN SELECT * FROM t WHERE id = '1';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	const	PRIMARY,mv_id	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'2' AS `doc_id`,'{"val": [1, 2, 3, 4, 5]}' AS `doc` from `test`.`t` where true
+SELECT * FROM t WHERE id = '1';
+id	doc_id	doc
+1	2	{"val": [1, 2, 3, 4, 5]}
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_id) WHERE id = '1';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	mv_id	mv_id	4	const	5	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_id`) where (`test`.`t`.`id` = 1)
+SELECT * FROM t FORCE INDEX (mv_id) WHERE id = '1';
+id	doc_id	doc
+1	2	{"val": [1, 2, 3, 4, 5]}
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	mv_doc_id	mv_doc_id	5	const	11	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where (`test`.`t`.`doc_id` = 2)
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+id	doc_id	doc
+1	2	{"val": [1, 2, 3, 4, 5]}
+3	2	{"val": [2, 3, 4, 5]}
+5	2	{"val": [4, 5]}
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref_or_null	mv_doc_id	mv_doc_id	5	const	14	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where ((`test`.`t`.`doc_id` = 2) or (`test`.`t`.`doc_id` is null))
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+id	doc_id	doc
+1	2	{"val": [1, 2, 3, 4, 5]}
+3	2	{"val": [2, 3, 4, 5]}
+4	NULL	{"val": [3, 4, 5]}
+5	2	{"val": [4, 5]}
+EXPLAIN SELECT * FROM t WHERE doc_id is NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	mv_doc_id	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` where (`test`.`t`.`doc_id` is not null)
+SELECT * FROM t WHERE doc_id is NOT NULL;
+id	doc_id	doc
+1	2	{"val": [1, 2, 3, 4, 5]}
+2	1	{"val": [2, 3, 4, 5]}
+3	2	{"val": [2, 3, 4, 5]}
+5	2	{"val": [4, 5]}
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id is NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	15	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where (`test`.`t`.`doc_id` is not null)
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id is NOT NULL;
+id	doc_id	doc
+1	2	{"val": [1, 2, 3, 4, 5]}
+2	1	{"val": [2, 3, 4, 5]}
+3	2	{"val": [2, 3, 4, 5]}
+5	2	{"val": [4, 5]}
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id <> 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	16	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where (`test`.`t`.`doc_id` <> 0)
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id <> 0;
+id	doc_id	doc
+1	2	{"val": [1, 2, 3, 4, 5]}
+2	1	{"val": [2, 3, 4, 5]}
+3	2	{"val": [2, 3, 4, 5]}
+5	2	{"val": [4, 5]}
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	15	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where (`test`.`t`.`doc_id` > 0)
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id > 0;
+id	doc_id	doc
+1	2	{"val": [1, 2, 3, 4, 5]}
+2	1	{"val": [2, 3, 4, 5]}
+3	2	{"val": [2, 3, 4, 5]}
+5	2	{"val": [4, 5]}
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id < 2 OR doc_id IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where ((`test`.`t`.`doc_id` < 2) or (`test`.`t`.`doc_id` is null))
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id < 2 OR doc_id IS NULL;
+id	doc_id	doc
+2	1	{"val": [2, 3, 4, 5]}
+4	NULL	{"val": [3, 4, 5]}
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id >= 1 AND doc_id < 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where ((`test`.`t`.`doc_id` >= 1) and (`test`.`t`.`doc_id` < 2))
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id >= 1 AND doc_id < 2;
+id	doc_id	doc
+2	1	{"val": [2, 3, 4, 5]}
+DROP TABLE t;
+#
+# Bug #32725063 CRASH WITH MULTI-VALUED INDEXES IN
+# COMBINATION WITH AT LEAST GENERATED FK
+CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, data JSON,PRIMARY KEY (id));
+ALTER TABLE t1 ADD INDEX ix_t1_idArray ((CAST(data->'$.idArray' AS UNSIGNED ARRAY))),
+ADD COLUMN parent_id BIGINT GENERATED ALWAYS AS (data->'$.parentID') STORED,
+ADD INDEX ix_t1_parent (parent_id),
+ADD CONSTRAINT fk_t1_parent FOREIGN KEY (parent_id) REFERENCES t1 (id) ON DELETE CASCADE;
+INSERT INTO t1 (data) VALUES ('{\"idArray\":[1]}');
+INSERT INTO t1 (data) VALUES ('{\"parentID\":1,\"idArray\":[1]}');
+DELETE FROM t1 WHERE id = 1;
+DROP TABLE t1;
+CREATE TABLE t1 (id BIGINT NOT NULL , PRIMARY KEY (id));
+CREATE TABLE t2(data JSON,child_id bigint GENERATED ALWAYS AS (data->'$.parentID') STORED,key(child_id));
+ALTER TABLE t2 ADD INDEX ix_t1_idArray ((CAST(data->'$.idArray' AS UNSIGNED ARRAY)));
+ALTER TABLE t2 ADD CONSTRAINT fk_t1_parent FOREIGN KEY (child_id) REFERENCES t1 (id) ON DELETE CASCADE;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 (data) VALUES ('{\"parentID\":1,\"idArray\":[1]}');
+DELETE FROM t1 WHERE id = 1;
+DROP TABLE t2,t1;

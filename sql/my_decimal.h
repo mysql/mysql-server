@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_time_t.h"
 
 class String;
 struct MYSQL_TIME;
@@ -285,7 +286,7 @@ inline int my_decimal_set_zero(my_decimal *d) {
   /*
     We need the up-cast here, since my_decimal has sign() member functions,
     which conflicts with decimal_t::size
-    (and decimal_make_zero is a macro, rather than a funcion).
+    (and decimal_make_zero is a macro, rather than a function).
   */
   decimal_make_zero(static_cast<decimal_t *>(d));
   return 0;
@@ -346,7 +347,7 @@ int str2my_decimal(uint mask, const char *from, size_t length,
 
 my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
 my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
-my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec);
+my_decimal *timeval2my_decimal(const my_timeval *tm, my_decimal *dec);
 
 inline int double2my_decimal(uint mask, double val, my_decimal *d) {
   return check_result_and_overflow(mask, double2decimal(val, d), d);

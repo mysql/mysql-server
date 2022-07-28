@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,8 +264,7 @@ bool group_contains_member_older_than(
   bool constexpr ALL_MEMBERS_OK = false;
   bool result = OLDER_MEMBER_EXISTS;
 
-  std::vector<Group_member_info *> *members =
-      group_member_mgr->get_all_members();
+  Group_member_info_list *members = group_member_mgr->get_all_members();
   auto it =
       std::find_if(members->begin(), members->end(),
                    [&min_required_version](Group_member_info *member) {
@@ -319,7 +318,8 @@ bool Charset_service::set_args_charset(UDF_ARGS *args,
                                        const std::string &charset_name) {
   char *charset = const_cast<char *>(charset_name.c_str());
   for (uint index = 0; index < args->arg_count; ++index) {
-    if (udf_metadata_service->argument_set(args, Charset_service::arg_type,
+    if (args->arg_type[index] == STRING_RESULT &&
+        udf_metadata_service->argument_set(args, Charset_service::arg_type,
                                            index,
                                            static_cast<void *>(charset))) {
       return true;

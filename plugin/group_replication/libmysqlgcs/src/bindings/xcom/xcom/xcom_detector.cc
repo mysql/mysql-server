@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,11 +261,11 @@ int iamtheleader(site_def const *s) {
 extern synode_no executed_msg;
 extern synode_no max_synode;
 
-static site_def *last_x_site = 0;
+static site_def *last_x_site = nullptr;
 
 void invalidate_detector_sites(site_def *site) {
   if (last_x_site == site) {
-    last_x_site = NULL;
+    last_x_site = nullptr;
   }
 }
 
@@ -274,10 +274,12 @@ int detector_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   int notify;
   int local_notify;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
-  last_x_site = 0;
+  last_x_site = nullptr;
   ep->notify = 1;
   ep->local_notify = 1;
   IFDBG(D_DETECT, FN;);
@@ -311,6 +313,18 @@ int detector_task(task_arg arg [[maybe_unused]]) {
         /* Send xcom message if node has changed state */
         IFDBG(D_DETECT, FN; NDBG(ep->notify, d));
         if (ep->notify && iamtheleader(x_site) && enough_live_nodes(x_site)) {
+          const site_def *current_site_def = get_site_def();
+          if (current_site_def) {
+            server *my_server = current_site_def->servers[x_site->nodeno];
+            if (my_server) {
+              G_INFO(
+                  "A configuration change was detected. Sending a Global View "
+                  "Message to all nodes. My node identifier is %d and my "
+                  "address "
+                  "is %s:%d",
+                  x_site->nodeno, my_server->srv, my_server->port);
+            }
+          }
           ep->notify = 0;
           send_my_view(x_site);
         }
@@ -342,7 +356,7 @@ int detector_task(task_arg arg [[maybe_unused]]) {
 node_set detector_node_set(site_def const *site) {
   node_set new_set;
   new_set.node_set_len = 0;
-  new_set.node_set_val = 0;
+  new_set.node_set_val = nullptr;
   if (site) {
     u_int nodes = get_maxnodes(site);
     alloc_node_set(&new_set, nodes);
@@ -399,10 +413,12 @@ int alive_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   pax_msg *i_p;
   pax_msg *you_p;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
 
-  ep->i_p = ep->you_p = NULL;
+  ep->i_p = ep->you_p = nullptr;
 
   while (!xcom_shutdown) {
     {
@@ -456,7 +472,7 @@ int alive_task(task_arg arg [[maybe_unused]]) {
   }
   FINALLY
   IFDBG(D_BUG, FN; STRLIT(" shutdown "));
-  replace_pax_msg(&ep->i_p, NULL);
-  replace_pax_msg(&ep->you_p, NULL);
+  replace_pax_msg(&ep->i_p, nullptr);
+  replace_pax_msg(&ep->you_p, nullptr);
   TASK_END;
 }

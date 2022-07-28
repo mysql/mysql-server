@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,24 +35,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0log.h"
 
 /* We define the field offsets of a node for the list */
-#define FLST_PREV                                   \
-  0 /* 6-byte address of the previous list element; \
-    the page part of address is FIL_NULL, if no     \
-    previous element */
-#define FLST_NEXT                              \
-  FIL_ADDR_SIZE /* 6-byte address of the next  \
-        list element; the page part of address \
-        is FIL_NULL, if no next element */
+/** 6-byte address of the previous list element; the page part of address is
+FIL_NULL, if no previous element */
+constexpr uint32_t FLST_PREV = 0;
+/* 6-byte address of the next list element; the page part of address is
+ FIL_NULL, if no next element */
+constexpr uint32_t FLST_NEXT = FIL_ADDR_SIZE;
 
 /* We define the field offsets of a base node for the list */
-#define FLST_LEN 0 /* 32-bit list length field */
-#define FLST_FIRST                         \
-  4 /* 6-byte address of the first element \
-    of the list; undefined if empty list */
-#define FLST_LAST                              \
-  (4 + FIL_ADDR_SIZE) /* 6-byte address of the \
-          last element of the list; undefined  \
-          if empty list */
+/** 32-bit list length field */
+constexpr uint32_t FLST_LEN = 0;
+/** 6-byte address of the first element of the list; undefined if empty list */
+constexpr uint32_t FLST_FIRST = 4;
+/** 6-byte address of the last element of the list; undefined if empty list */
+constexpr uint32_t FLST_LAST = 4 + FIL_ADDR_SIZE;
 
 /** Writes a file address. */
 static inline void flst_write_addr(
@@ -101,7 +97,7 @@ static inline void flst_init(
 }
 
 /** Get the length of a list.
-@param[in]	base	base node
+@param[in]      base    base node
 @return length */
 static inline ulint flst_get_len(const flst_base_node_t *base) {
   return (mach_read_from_4(base + FLST_LEN));

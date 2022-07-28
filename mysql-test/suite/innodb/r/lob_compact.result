@@ -1,4 +1,7 @@
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+SET SESSION innodb_strict_mode=OFF;
 create table ibstd_29_j (a int not null, d varchar(15) not null, b text not null, c text, vadcol int as (a+length(d)) stored, vbcol char(2) as (substr(b,2,2)) virtual, vbidxcol char(3) as (substr(b,1,3)) virtual, pkey int not null auto_increment, j json, vjh varchar(100) as (json_unquote(j->'$.hash')) virtual, vjha varchar(100) as (json_unquote(j->'$.hash1[0]')) virtual , primary key (pkey  desc), index(d  desc), index(a  desc), index(vbidxcol  desc), index(vbidxcol  desc,d  asc) , fulltext ftsic(c,b,d) , fulltext ftsic2(c,b) ) engine=InnoDB  encryption='N' row_format=compact;
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
 show create table ibstd_29_j;
 Table	Create Table
 ibstd_29_j	CREATE TABLE `ibstd_29_j` (

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ using std::vector;
 
   When loading a rule, we will traverse the tree and keep each literal we
   encounter. We later reuse these literals to do the third phase of matching:
-  either a literal in the query matches a paramater marker in the pattern, or
+  either a literal in the query matches a parameter marker in the pattern, or
   an identical literal.
 */
 

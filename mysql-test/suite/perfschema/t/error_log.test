@@ -119,9 +119,16 @@ SELECT prio,error_code,subsystem,data
 # MY-012363: InnoDB-page-size changed, for chtest
 # MY-011953: InnoDB page cleaner. Timing-dependent and thus indeterministic.
 # MY-000000: sql_print_(error|warning|information)
+# MY-013623: fallocate() failed (on redo file creation so timing dependent)
 # MY-013711: Manifest file RO check. Depends on how MTR creates manifest
 #            file and thus indeterministic.
-
+# MY-013880: The latest found checkpoint is at lsn...
+# MY-013881: Redo log capacity sysvar has been changed.
+# MY-013882: Redo log has been requested to resize. Depends on existing files.
+# MY-013883: Redo log resize has been cancelled. Depends on existing files.
+# MY-013884: Redo log has been resized. Depends on existing files.
+# MY-013908: Invalid systemd socket. Bit indeterministic.
+# MY-013930: systemd debug.
 SELECT prio,error_code,subsystem
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -131,7 +138,9 @@ SELECT prio,error_code,subsystem
                          "MY-011952", "MY-011323", "MY-010902", "MY-000000",
                          "MY-012937", "MY-012366", "MY-000067", "MY-010159",
                          "MY-013602", "MY-010069", "MY-013595", "MY-010108",
-                         "MY-012363", "MY-011953", "MY-013711")
+                         "MY-012363", "MY-011953", "MY-013623", "MY-013711",
+                         "MY-013880", "MY-013881", "MY-013882", "MY-013883",
+                         "MY-013884", "MY-013908", "MY-013930")
  ORDER BY logged, error_code;
 
 --echo
@@ -152,6 +161,7 @@ SELECT prio,error_code,subsystem
 # MY-011810: see above (also, variable part: path)
 # MY-010159, MY-000067, MY-000000, MY-010108, MY-013602,MY-013595: see above
 # MY-013711: Manifest file RO check (variable part: path)
+# MY-013908: Invalid systemd socket. Bit indeterministic.
 SELECT prio,error_code,subsystem,data
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -159,7 +169,8 @@ SELECT prio,error_code,subsystem,data
    AND error_code NOT IN("MY-011323", "MY-010075", "MY-010068", "MY-010069",
                          "MY-010931", "MY-010116", "MY-011810", "MY-000000",
                          "MY-000067", "MY-010159", "MY-013595", "MY-013602",
-                         "MY-010108", "MY-012363", "MY-013711")
+                         "MY-010108", "MY-012363", "MY-013711", "MY-013908",
+                         "MY-013930" )
  ORDER BY logged;
 
 --echo
@@ -198,9 +209,6 @@ SELECT LEFT(logged,19), error_code, subsystem, data
 --echo ########################################################################
 --echo # Restart with JSON logging ...
 --echo
-# It'd be nice to be able to split this into a trad test and a JSON test,
-# but we need to INSTALL the JSON component before the server is run.
-INSTALL COMPONENT "file://component_log_sink_json";
 --let LOG_FILE_JSON=$MYSQLTEST_VARDIR/tmp/wl13681.err
 --let LOG_FILE_JSON_SRC=$MYSQLTEST_VARDIR/std_data/wl13681.json
 --let LOG_FILE_JSON_DST=$MYSQLTEST_VARDIR/tmp/wl13681.err.00.json
@@ -266,7 +274,8 @@ SELECT logged>"2020-02-24 12:34:56.123456", prio, error_code, subsystem, data
 --echo
 --echo # Cleanup.
 SET GLOBAL log_error_services= DEFAULT;
-UNINSTALL COMPONENT "file://component_log_sink_json";
+DELETE FROM mysql.component
+      WHERE component_urn="file://component_log_sink_json";
 
 
 --echo #
@@ -403,29 +412,42 @@ SELECT error_code
 --echo 
 --echo # Likewise, show that log_filter_dragnet affects the table.
 INSTALL COMPONENT "file://component_log_filter_dragnet";
-SET PERSIST dragnet.log_error_filter_rules='IF ERROR_CODE == "MY-011300" THEN drop.';
+# previously MY-011300 - ER_XPLUGIN_LISTENER_SETUP_FAILED
+SET PERSIST dragnet.log_error_filter_rules='IF ERR_CODE == ER_SERVER_STARTUP_MSG THEN drop.';
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
 --let $log_services="log_filter_dragnet;log_sink_internal"
 --let LOG_FILE_D=$MYSQLTEST_VARDIR/tmp/wl13681_d.err
---let restart_parameters="restart: --log-error-services=$log_services --log-error=$LOG_FILE_D --log-error-verbosity=3"
+--let restart_parameters="restart: --log-error-services=$log_services --log-error=$LOG_FILE_D"
 --replace_result $LOG_FILE_D LOG_FILE_D
 --source include/restart_mysqld.inc
+
+--echo # Show that the variable is there, implying the component was loaded,
+--echo # and that it's value is as expected.
+SELECT @@global.dragnet.log_error_filter_rules;
+
+--echo # get start-up timestamp from ER_STARTING_AS
+SELECT COUNT(logged)
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
 SELECT logged INTO @startup
   FROM performance_schema.error_log
  WHERE error_code="MY-010116"
  ORDER BY logged DESC LIMIT 1;
 
-SELECT COUNT(*)=0
+--echo # show that we filtered out ER_SERVER_STARTUP_MSG
+SELECT IF(COUNT(*)<>0, "failed: not filtered", "success: filtered")
   FROM performance_schema.error_log
- WHERE logged>=@startup AND ERROR_CODE = "MY-011300";
+ WHERE logged>=@startup AND ERROR_CODE = "MY-010931";
+SELECT *
+  FROM performance_schema.error_log
+ WHERE logged>=@startup AND ERROR_CODE = "MY-010931";
 
 RESET PERSIST `dragnet.log_error_filter_rules`;
 SET @@global.log_error_services=DEFAULT;
-UNINSTALL COMPONENT "file://component_log_filter_dragnet";
 
 --echo 
 --echo # PERSIST + JSON
-
-INSTALL COMPONENT 'file://component_log_sink_json';
 
 SET PERSIST log_error_verbosity=1;
 SET PERSIST log_error_suppression_list="MY-013595,MY-010069,MY-011810,MY-010116";
@@ -463,7 +485,6 @@ RESET PERSIST log_error_verbosity;
 RESET PERSIST log_error_suppression_list;
 RESET PERSIST log_error_services;
 SET @@global.log_error_services=DEFAULT;
-UNINSTALL COMPONENT 'file://component_log_sink_json';
 
 --echo 
 --echo # RENAME & DROP Error Expected

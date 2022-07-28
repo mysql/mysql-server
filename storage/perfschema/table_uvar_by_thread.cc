@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@
 
 class Find_thd_user_var : public Find_THD_Impl {
  public:
-  Find_thd_user_var(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
+  explicit Find_thd_user_var(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
 
   bool operator()(THD *thd) override {
     if (thd != m_unsafe_thd) {

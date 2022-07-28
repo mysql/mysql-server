@@ -1,0 +1,226 @@
+################################################################################
+# This test validates operations on different stages of completion of timeout
+# parameter of UDF group_replication_set_as_primary().
+#
+# Test:
+# 0. This test requires 2 servers.
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 secondary.
+# 2. Block a transaction on server1.
+#    Initiate primary change from server2(secondary) with running_transactions_timeout value as 30.
+#    Unblock server1 transactions.
+#    Since there is no transaction now, THD_transaction_monitor allow all transactions.
+#    Primary change operations finishes and THD_transaction_monitor finishes.
+# 3. Block a transaction on server2.
+#    Initiate primary change from server2(primary) with running_transactions_timeout value as 30.
+#    Unblock server2 transactions.
+#    Since there is no transaction now, THD_transaction_monitor allow all transactions.
+#    Primary change operations finishes and THD_transaction_monitor finishes.
+# 4. Cleanup.
+################################################################################
+
+# big test due to 30 seconds timer present in UDF group_replication_set_as_primary
+--source include/big_test.inc
+--source include/not_valgrind.inc
+--source include/not_valgrind_server.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start group in single primary mode.
+--echo #    Server1 will be primary and server 2 secondary.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+CREATE TABLE t1 (c1 int primary key);
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Block a transaction on server1.
+--echo #    Initiate primary change from server2(secondary) with running_transactions_timeout value as 30.
+--echo #    Unblock server1 transactions.
+--echo #    Since there is no transaction now, THD_transaction_monitor allow all transactions.
+--echo #    Primary change operations finishes and THD_transaction_monitor finishes.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG= '+d,group_replication_transaction_monitor_end';
+--send INSERT INTO t1 values(1)
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $server2_uuid SERVER2_UUID
+--send_eval SELECT group_replication_set_as_primary("$server2_uuid", 30);
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# verify thread THD_group_action_coordinator has started
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
+--source include/wait_condition_or_abort.inc
+
+# New transactions have been stopped immediately
+--let $assert_text= Transaction monitor thread is in block state in < 30 seconds.
+--let $assert_cond= "[select COUNT(*) FROM performance_schema.threads where NAME=\"thread/group_rpl/THD_transaction_monitor\" and PROCESSLIST_INFO = "Group replication transaction monitor: Stopped new transactions"]" = 1;
+--source include/assert.inc
+
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+# Since 30 seconds have elapsed clients running binloggable transactions that did not reach commit have been disconnected.
+
+--let $wait_timeout=60
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Stopped client connections"
+--source include/wait_condition_or_abort.inc
+
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+# Again sleep to prove operation is still blocked
+--sleep 5
+
+--let $assert_text= Transaction monitor thread has disconnected the client connections.
+--let $assert_cond= "[select COUNT(*) FROM performance_schema.threads where NAME=\"thread/group_rpl/THD_transaction_monitor\" and PROCESSLIST_INFO = "Group replication transaction monitor: Stopped client connections"]" = 1;
+--source include/assert.inc
+
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+
+# Confirm transactions are allowed at time of finish of operation and read_only mode is set for safety.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Allowing new transactions"
+--source include/wait_condition_or_abort.inc
+
+--let $assert_text= The super_read_only mode should be 1 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
+--source include/assert.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_transaction_monitor_end";
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_end';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $server2_uuid SERVER2_UUID
+--reap
+
+# Transactions that have reached the commit stage are not rollback.
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+
+--echo
+--echo # 3. Block a transaction on server2.
+--echo #    Initiate primary change from server2(primary) with running_transactions_timeout value as 30.
+--echo #    Unblock server2 transactions.
+--echo #    Since there is no transaction now, THD_transaction_monitor allow all transactions.
+--echo #    Primary change operations finishes and THD_transaction_monitor finishes.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG= '+d,group_replication_transaction_monitor_end';
+--send INSERT INTO t1 values(2)
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid SERVER1_UUID
+--send_eval SELECT group_replication_set_as_primary("$server1_uuid", 30);
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+# verify thread THD_group_action_coordinator has started
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
+--source include/wait_condition_or_abort.inc
+
+--let $assert_text= Transaction monitor thread is in block state in < 30 seconds.
+--let $assert_cond= "[select COUNT(*) FROM performance_schema.threads where NAME=\"thread/group_rpl/THD_transaction_monitor\" and PROCESSLIST_INFO = "Group replication transaction monitor: Stopped new transactions"]" = 1;
+--source include/assert.inc
+
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--let $wait_timeout=60
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Stopped client connections"
+--source include/wait_condition_or_abort.inc
+
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+# Again sleep to prove operation is still blocked
+--sleep 5
+
+--let $assert_text= Transaction monitor thread has disconnected the client connections.
+--let $assert_cond= "[select COUNT(*) FROM performance_schema.threads where NAME=\"thread/group_rpl/THD_transaction_monitor\" and PROCESSLIST_INFO = "Group replication transaction monitor: Stopped client connections"]" = 1;
+--source include/assert.inc
+
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Allowing new transactions"
+--source include/wait_condition.inc
+
+--let $assert_text= The super_read_only mode should be 1 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
+--source include/assert.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_transaction_monitor_end";
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_end';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--reap
+
+# Transactions that have reached the commit stage are not rollback.
+--let $assert_text= 'There is a value 2 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+--replace_result $server1_uuid SERVER1_UUID
+--reap
+
+--echo
+--echo # 4. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

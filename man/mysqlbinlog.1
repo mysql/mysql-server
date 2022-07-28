@@ -2,12 +2,12 @@
 .\"     Title: mysqlbinlog
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLBINLOG" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLBINLOG" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1530,21 +1530,22 @@ Display only the statements contained in the log, without any extra information 
 .IP \(bu 2.3
 .\}
 \fB\-\-skip\-gtids[=(true|false)]\fR
-Do not display any GTIDs in the output\&. This is needed when writing to a dump file from one or more binary logs containing GTIDs, as shown in this example:
+Do not include the GTIDs from the binary log files in the output dump file\&. For example:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
 mysqlbinlog \-\-skip\-gtids binlog\&.000001 >  /tmp/dump\&.sql
-mysqlbinlog \-\-skip\-gtids binlog\&.000002 >> /tmp/dump\&.sql
 mysql \-u root \-p \-e "source /tmp/dump\&.sql"
 .fi
 .if n \{\
 .RE
 .\}
 .sp
-The use of this option is otherwise not normally recommended in production\&.
+You should not normally use this option in production or in recovery, except in the specific, and rare, scenarios where the GTIDs are actively unwanted\&. For example, an administrator might want to duplicate selected transactions (such as table definitions) from a deployment to another, unrelated, deployment that will not replicate to or from the original\&. In that scenario,
+\fB\-\-skip\-gtids\fR
+can be used to enable the administrator to apply the transactions as if they were new, and ensure that the deployments remain unrelated\&. However, you should only use this option if the inclusion of the GTIDs causes a known issue for your use case\&.
 .RE
 .sp
 .RS 4
@@ -2318,7 +2319,7 @@ statements\&. Omitting extraneous lines, the output for the row events produced 
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -2360,7 +2361,7 @@ option\&. This output level also shows table partition information where applica
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-v \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \-v \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -2419,7 +2420,7 @@ TRUE\&. The output contains an additional comment following each column change:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-vv \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \-vv \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -2483,7 +2484,7 @@ provides a convenient way to see row events only as SQL statements:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-v \-\-base64\-output=DECODE\-ROWS \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \-v \-\-base64\-output=DECODE\-ROWS \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -3201,7 +3202,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

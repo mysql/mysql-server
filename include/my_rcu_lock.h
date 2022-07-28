@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 /**
   A class that implements a limited version of the Read-Copy-Update lock pattern
 
-  When you have a global variable that is mostly read and seldomly changed you
+  When you have a global variable that is mostly read and rarely changed you
   need to make sure your readers get minimal overhead eventually at the cost
   of slowing down your writers.
 
@@ -40,7 +40,7 @@
   the global. The problem is how and when to dispose of the old version(s) of
   the global that are swapped out by the write.
 
-  The full RCU implemetnation solves this in a very generic way.
+  The full RCU implementation solves this in a very generic way.
   But we here take a simplification: we assume that there will be frequent times
   when there's not gonna be active readers.
 

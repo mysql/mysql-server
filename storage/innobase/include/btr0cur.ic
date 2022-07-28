@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -103,7 +103,7 @@ static inline void btr_cur_position(
 /** Checks if compressing an index page where a btr cursor is placed makes
  sense.
  @return true if compression is recommended */
-static inline ibool btr_cur_compress_recommendation(
+static inline bool btr_cur_compress_recommendation(
     btr_cur_t *cursor, /*!< in: btr cursor */
     mtr_t *mtr)        /*!< in: mtr */
 {
@@ -114,7 +114,7 @@ static inline ibool btr_cur_compress_recommendation(
 
   page = btr_cur_get_page(cursor);
 
-  LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page) * 2, return (FALSE));
+  LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page) * 2, return false);
 
   if ((page_get_data_size(page) < BTR_CUR_PAGE_COMPRESS_LIMIT(cursor->index)) ||
       ((btr_page_get_next(page, mtr) == FIL_NULL) &&
@@ -127,13 +127,13 @@ static inline ibool btr_cur_compress_recommendation(
     return (dict_index_get_page(cursor->index) != page_get_page_no(page));
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Checks if the record on which the cursor is placed can be deleted without
  making tree compression necessary (or, recommended).
  @return true if can be deleted without recommended compression */
-static inline ibool btr_cur_can_delete_without_compress(
+static inline bool btr_cur_can_delete_without_compress(
     btr_cur_t *cursor, /*!< in: btr cursor */
     ulint rec_size,    /*!< in: rec_get_size(btr_cur_get_rec(cursor))*/
     mtr_t *mtr)        /*!< in: mtr */
@@ -157,12 +157,12 @@ static inline ibool btr_cur_can_delete_without_compress(
     return (dict_index_get_page(cursor->index) == page_get_page_no(page));
   }
 
-  return (TRUE);
+  return true;
 }
 
 static inline void btr_rec_set_deleted_flag(rec_t *rec,
                                             page_zip_des_t *page_zip,
-                                            ulint flag) {
+                                            bool flag) {
   if (page_rec_is_comp(rec)) {
     rec_set_deleted_flag_new(rec, page_zip, flag);
   } else {

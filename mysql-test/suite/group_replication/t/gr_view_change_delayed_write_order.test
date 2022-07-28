@@ -122,7 +122,7 @@ INSERT INTO t1 VALUES (2);
 --source include/rpl_connection.inc
 
 SET @@GLOBAL.DEBUG='-d,group_replication_after_before_commit_hook';
-SET DEBUG_SYNC= "now SIGNAL signal.commit_continue";
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_before_commit_hook_continue";
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

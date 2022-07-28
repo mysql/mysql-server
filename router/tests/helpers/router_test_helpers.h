@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -103,52 +103,6 @@ mysql_harness::Path get_cmake_source_dir();
  */
 mysql_harness::Path get_envvar_path(const std::string &envvar,
                                     mysql_harness::Path alternative);
-
-/** @brief Returns the current working directory
- *
- * Uses `getcwd()` and returns the current working directory as as std::string.
- *
- * Throws std::runtime_error on errors.
- *
- * @return std::string
- */
-const std::string get_cwd();
-
-/** @brief Changes the current working directory
- *
- * Uses `chdir()` to change the current working directory. When succesfully
- * change to the folder, the old working directory is returned.
- *
- * Throws std::runtime_error on errors.
- *
- * @return std::string
- */
-const std::string change_cwd(std::string &dir);
-
-/** @brief Reads a specified number of bytes from a non-blocking socket
- *
- * reads a non-blocking socket until one of three things happen:
- *   1. specified number of bytes have been read - returns this number
- *   2. timeout expires - throws, describing the error
- *   3. read() fails    - throws, describing the error
- *
- * Returns number of bytes read (should be the number of bytes requested,
- * can be less on EOF).  Throws std::runtime_error on I/O error or timeout;
- * the reason can be extracted from the thrown object with what() method.
- *
- * @param sockfd file decriptor
- * @param buffer to store read bytes
- * @param n_bytes of bytes to read
- * @param timeout_in_ms expressed in milliseconds
- *
- * @return number of bytes read
- */
-size_t read_bytes_with_timeout(int sockfd, void *buffer, size_t n_bytes,
-                               uint64_t timeout_in_ms);
-
-#ifdef _WIN32
-std::string get_last_error(int err_code);
-#endif
 
 /** @brief Checks if the given regex pattern can be found in the input string
  *
@@ -291,11 +245,10 @@ bool add_line_to_config_file(const std::string &config_path,
  * @param timeout number of milliseconds we are going to wait for the log_regex
  * to occur at expected position
  *
- * @retval if log_regex is found at expected position return the timestamp of
+ * @returns if log_regex is found at expected position return the timestamp of
  * this log
- * @retval unexpected otherwise
  */
-stdx::expected<std::chrono::time_point<std::chrono::system_clock>, void>
+std::optional<std::chrono::time_point<std::chrono::system_clock>>
 get_log_timestamp(
     const std::string &log_file, const std::string &log_regex,
     const unsigned occurence = 1,

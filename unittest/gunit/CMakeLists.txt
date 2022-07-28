@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -88,10 +88,21 @@ ADD_LIBRARY(gunit_large STATIC
   test_utils.cc
   thread_utils.cc
 )
+
+# Add a library for enable_win_jemalloc.cc
+# and link it with both gunit_small and gunit_large below.
+UNSET(UNITTEST_JEMALLOC_LIB)
+IF(WIN32)
+  ADD_LIBRARY(unittest_jemalloc STATIC ../../sql/enable_win_jemalloc.cc)
+  SET(UNITTEST_JEMALLOC_LIB unittest_jemalloc)
+ENDIF()
+
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
-TARGET_LINK_LIBRARIES(gunit_small mysys strings ${GTEST_LIBRARIES})
-TARGET_LINK_LIBRARIES(gunit_large mysys strings ${GTEST_LIBRARIES})
+TARGET_LINK_LIBRARIES(gunit_small
+  mysys strings ${GTEST_LIBRARIES} ${UNITTEST_JEMALLOC_LIB})
+TARGET_LINK_LIBRARIES(gunit_large
+  mysys strings ${GTEST_LIBRARIES} ${UNITTEST_JEMALLOC_LIB})
 
 IF(WIN32)
   ## Create an object library of nt_servc.cc, so we don't have to
@@ -132,6 +143,7 @@ SET(TESTS
   m_string
   mdl
   mem_root_deque
+  mutex_lock
   my_alloc
   my_bitmap
   my_error
@@ -192,6 +204,8 @@ ENDFOREACH()
 # Add tests (link them with gunit/gmock libraries and the server libraries)
 SET(SERVER_TESTS
   character_set_deprecation
+  compare_access_paths
+  connect_joins
   copy_info
   create_field
   dd_cache
@@ -225,12 +239,15 @@ SET(SERVER_TESTS
   gis_setops
   gis_srs
   gis_symdifference
+  gis_transform
   gis_union
   gis_wkb_parser
   gis_wkb_writer
+  graph_simplification
   handler
   hash_join
   histograms
+  histogram_selectivity
   hypergraph_optimizer
   initialize_password
   insert_delayed
@@ -263,6 +280,7 @@ SET(SERVER_TESTS
   opt_range
   opt_ref
   opt_trace
+  persisted_variables
   protocol_classic
   regexp_engine
   regexp_facade
@@ -282,8 +300,22 @@ SET(SERVER_TESTS
   union_syntax
   unique
   value_map
+  walk_access_paths
   wild_case_compare
+  ha_info_iterator
+  xid_extract
 )
+
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  copy_info-t.cc
+  dd_schema-t.cc
+  opt_range-t.cc
+  regexp_engine-t.cc
+  )
+
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+  ADD_COMPILE_FLAGS(regexp_engine-t.cc COMPILE_FLAGS "-Wno-restrict")
+ENDIF()
 
 IF(WIN32)
   LIST(APPEND SERVER_TESTS win_tests)
@@ -312,6 +344,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
   ${CMAKE_SOURCE_DIR}/sql/join_optimizer/hypergraph.cc
+  ${CMAKE_SOURCE_DIR}/sql/join_optimizer/online_cycle_finder.cc
   ${CMAKE_SOURCE_DIR}/sql/join_optimizer/overflow_bitset.cc
   ${CMAKE_SOURCE_DIR}/sql/locks/shared_spin_lock.cc
   )
@@ -412,3 +445,4 @@ ADD_SUBDIRECTORY(binlogevents)
 ADD_SUBDIRECTORY(memory)
 ADD_SUBDIRECTORY(containers)
 ADD_SUBDIRECTORY(locks)
+ADD_SUBDIRECTORY(changestreams)

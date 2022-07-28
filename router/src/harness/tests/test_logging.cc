@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,6 @@
 
 ////////////////////////////////////////
 // Internal interfaces
-#include "../src/utilities.h"  // string_format()
-#include "common.h"
 #include "dim.h"
 #include "include/magic.h"
 #include "mysql/harness/filesystem.h"
@@ -47,7 +45,9 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/stdx/filesystem.h"
 #include "mysql/harness/stdx/process.h"
+#include "mysql/harness/utility/string.h"  // string_format()
 #include "test/helpers.h"
+#include "test/temp_directory.h"
 
 using mysql_harness::Path;
 using mysql_harness::logging::FileHandler;
@@ -508,8 +508,8 @@ TEST_F(LoggingTest, FileHandlerRotate) {
  *      Verify if no exception is throw when file can be opened for writing.
  */
 TEST_F(LoggingTest, DontThrowIfOpenedLogFileForWriting) {
-  std::string tmp_dir = mysql_harness::get_tmp_dir("logging");
-  Path dir_path(tmp_dir);
+  TempDirectory tmp_dir;
+  Path dir_path(tmp_dir.name());
   Path file_path(dir_path.join("test_file.log").str());
 
   ASSERT_TRUE(dir_path.exists());
@@ -529,8 +529,8 @@ TEST_F(LoggingTest, DontThrowIfOpenedLogFileForWriting) {
  * be created in directory.
  */
 TEST_F(LoggingTest, FileHandlerThrowsNoPermissionToCreateFileInDirectory) {
-  std::string tmp_dir = mysql_harness::get_tmp_dir("logging");
-  Path dir_path(tmp_dir);
+  TempDirectory tmp_dir;
+  Path dir_path(tmp_dir.name());
   Path file_path(dir_path.join("test_file.log").str());
 
   ASSERT_TRUE(dir_path.exists());
@@ -552,8 +552,8 @@ TEST_F(LoggingTest, FileHandlerThrowsNoPermissionToCreateFileInDirectory) {
  */
 TEST_F(LoggingTest,
        FileHandlerThrowsFileExistsButCannotOpenToWriteReadOnlyFile) {
-  std::string tmp_dir = mysql_harness::get_tmp_dir("logging");
-  Path dir_path(tmp_dir);
+  TempDirectory tmp_dir;
+  Path dir_path(tmp_dir.name());
   Path file_path(dir_path.join("test_file.log").str());
 
   // create empty log file

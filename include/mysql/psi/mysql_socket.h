@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #endif
 
 #include "my_macros.h"
-#include "mysql/components/services/mysql_socket_bits.h"
+#include "mysql/components/services/bits/mysql_socket_bits.h"
 
 #if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
 /* PSI_SOCKET_CALL() as direct call. */

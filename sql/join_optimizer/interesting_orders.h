@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@
   Similarly, equivalences, such as WHERE conditions and joins, give rise
   to a stronger form of FDs. If we have an ordering (ab) and the FD b = c,
   we can be said to follow (ac), (acb) or (abc). The former would not be
-  inferrable from {b} → c and {c} → b alone. Equivalences with constants
+  inferable from {b} → c and {c} → b alone. Equivalences with constants
   are perhaps even stronger, e.g. WHERE x=3 would give rise to {} → x,
   which could extend (a) to (xa), (ax) or (x).
 
@@ -702,7 +702,5 @@ class LogicalOrderings {
   void PrintNFSMDottyGraph(std::string *trace) const;
   void PrintDFSMDottyGraph(std::string *trace) const;
 };
-
-bool IsGrouping(Ordering ordering);
 
 #endif  // SQL_JOIN_OPTIMIZER_INTERESTING_ORDERS_H

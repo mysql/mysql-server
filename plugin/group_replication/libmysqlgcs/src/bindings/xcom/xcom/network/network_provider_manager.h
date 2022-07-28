@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,14 +102,6 @@ class Network_provider_manager : public Network_provider_management_interface,
    *
    */
   void remove_all_network_provider() override;
-
-  /**
-   * @brief Starts all network providers.
-   *
-   * @return true In case of success starting ALL network providers
-   * @return false In case of failure in starting AT LEAST ONE network provider
-   */
-  bool start_all_network_providers();
 
   /**
    * @brief Starts an already added network provider

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,6 @@
 #include <string.h>
 
 #include "lex_string.h"
-
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"                        // MYSQL_ERRMSG_SIZE
@@ -93,7 +92,32 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
     return false;
   }
 
-  bool create_trigger(THD *thd, String *binlog_create_trigger_stmt);
+  /**
+    Create trigger for table.
+
+    @param      thd   Thread context
+    @param[out] binlog_create_trigger_stmt
+                      Well-formed CREATE TRIGGER statement for putting into
+    binlog (after successful execution)
+    @param      if_not_exists
+                      True if 'IF NOT EXISTS' clause was specified
+    @param[out] already_exists
+                      Set to true if trigger already exists on the same table
+
+    @note
+      - Assumes that trigger name is fully qualified.
+      - NULL-string means the following LEX_STRING instance:
+      { str = 0; length = 0 }.
+      - In other words, definer_user and definer_host should contain
+      simultaneously NULL-strings (non-SUID/old trigger) or valid strings
+      (SUID/new trigger).
+
+    @return Operation status.
+      @retval false Success
+      @retval true  Failure
+  */
+  bool create_trigger(THD *thd, String *binlog_create_trigger_stmt,
+                      bool if_not_exists, bool &already_exists);
 
   bool process_triggers(THD *thd, enum_trigger_event_type event,
                         enum_trigger_action_time_type action_time,
@@ -160,9 +184,8 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   void set_parse_error_message(const char *error_message) {
     if (!m_has_unparseable_trigger) {
       m_has_unparseable_trigger = true;
-      strncpy(m_parse_error_message, error_message,
-              sizeof(m_parse_error_message) - 1);
-      m_parse_error_message[sizeof(m_parse_error_message) - 1] = '\n';
+      snprintf(m_parse_error_message, sizeof(m_parse_error_message), "%s",
+               error_message);
     }
   }
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
  * runs = 3
  */
 
+#include <array>
 #include <chrono>
 #include <iostream>
 #include <thread>
@@ -94,19 +95,27 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 #define DLLEXPORT
 #endif
 
+static std::array<const char *, 3> supported_options{"interval", "runs"};
+
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_keepalive = {
-    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "Keepalive Plugin", VERSION_NUMBER(0, 0, 1),
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "Keepalive Plugin",
+    VERSION_NUMBER(0, 0, 1),
     // requires
-    0, nullptr,
+    0,
+    nullptr,
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start
     nullptr,  // stop
     // TODO: should it be service maybe?
     false,  // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

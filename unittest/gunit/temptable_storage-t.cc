@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,8 +31,10 @@ namespace temptable_storage_unittest {
 
 TEST(StorageTest, Iterate) {
   std::thread t([]() {
+    temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
     temptable::Block shared_block;
-    temptable::Allocator<uint8_t> allocator(&shared_block);
+    temptable::Allocator<uint8_t> allocator(&shared_block,
+                                            table_resource_monitor);
     temptable::Storage storage(&allocator);
 
     storage.element_size(sizeof(uint64_t));
@@ -62,8 +64,9 @@ TEST(StorageTest, AllocatorRebind) {
   // Bug in VS2019 error C3409 if we do the same as above.
   // Turns out it is the rebind which confuses the compiler.
   auto thread_function = []() {
+    temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
     temptable::Block shared_block;
-    temptable::Allocator<uint8_t> alloc(&shared_block);
+    temptable::Allocator<uint8_t> alloc(&shared_block, table_resource_monitor);
     uint8_t *shared_eater = alloc.allocate(
         1048576);  // Make sure to consume the initial shared block.
     uint8_t *ptr = alloc.allocate(100);

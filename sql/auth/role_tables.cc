@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,13 +43,13 @@
 #include "sql/auth/sql_user_table.h"
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
-#include "sql/records.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"
 #include "sql/table.h"
 #include "sql_string.h"
 #include "thr_lock.h"
@@ -185,7 +185,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
 
 /*
   Populates caches from roles tables.
-  Assumes that tables are opened and requried locks are taken.
+  Assumes that tables are opened and required locks are taken.
   Assumes that caller will close the tables.
 
   @param [in] thd      Handle to THD object

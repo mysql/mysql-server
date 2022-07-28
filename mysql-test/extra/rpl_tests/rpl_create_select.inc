@@ -66,8 +66,6 @@ STOP SLAVE;
 --source include/save_master_pos.inc
 CREATE TABLE t1 AS SELECT * FROM t0;
 FLUSH LOGS;
---replace_column 5 ####
-SHOW MASTER STATUS;
 
 --source include/rpl_connection_slave.inc
 

@@ -2335,9 +2335,13 @@ DROP TABLE t1;
 select hex(convert(_ujis 0xA5FE41 using ucs2));
 hex(convert(_ujis 0xA5FE41 using ucs2))
 003F0041
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(convert(_ujis 0x8FABF841 using ucs2));
 hex(convert(_ujis 0x8FABF841 using ucs2))
 003F0041
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE IF EXISTS t1, t2;
 DROP PROCEDURE IF EXISTS sp1;
 set names ujis;
@@ -25622,9 +25626,9 @@ is_ipv4(inet_ntoa('1'))
 SELECT is_ipv6(inet_ntoa('1'));
 is_ipv6(inet_ntoa('1'))
 0
-SELECT inet6_aton(inet_ntoa('1'));
-inet6_aton(inet_ntoa('1'))
-   
+SELECT HEX(inet6_aton(inet_ntoa('1')));
+HEX(inet6_aton(inet_ntoa('1')))
+00000001
 SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL

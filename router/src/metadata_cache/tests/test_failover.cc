@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -301,8 +301,6 @@ TEST_F(FailoverTest, primary_failover_router_member_network_loss) {
   expect_group_members_1();
   ASSERT_NO_THROW(cache->refresh(true));
 
-  cache->mark_instance_reachability(
-      node_1_uuid, metadata_cache::InstanceStatus::Unreachable);
   // this should fail with timeout b/c no primary yet
   {
     DelayCheck t;
@@ -356,9 +354,6 @@ TEST_F(FailoverTest, primary_failover_shutdown) {
   expect_metadata_1();
   expect_group_members_1();
   ASSERT_NO_THROW(cache->refresh(true));
-
-  cache->mark_instance_reachability(
-      node_1_uuid, metadata_cache::InstanceStatus::Unreachable);
 
   auto wait_failover_thread = std::thread([&] {
     DelayCheck t;

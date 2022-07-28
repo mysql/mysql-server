@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.have_symlink);
 COUNT(@@GLOBAL.have_symlink)
 1
 1 Expected
-SELECT have_symlink = @@SESSION.have_symlink;
+SELECT have_symlink;
 ERROR 42S22: Unknown column 'have_symlink' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ static void BM_LookupAllCollations(size_t num_iterations) {
   for (size_t i = 0; i < num_iterations; i++) {
     const CHARSET_INFO *cs = all_charsets[i % num_charsets];
     if (cs) {
-      EXPECT_NE(lookup_collation(cs->name), nullptr);
+      EXPECT_NE(lookup_collation(cs->m_coll_name), nullptr);
     }
   }
 }

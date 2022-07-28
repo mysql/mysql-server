@@ -4,9 +4,11 @@
 #         - Below listed inc files will continue to skip with --no-skip option#
 #                                                                             #
 # Creation Date: 2016-July-26                                                 #
-# Author : Mohit Joshi							      #
-#									      #
-#									      #
+# Author : Mohit Joshi                                                        #
+#                                                                             #
+# Make sure to not add trailing blanks or bad things can happen when using    #
+# this list on the command line of mysqltest: following entries will become   #
+# a new argument instead of being part of the value of --no-skip-exclude-list #
 ###############################################################################
 
 # 1.0 OS dependent files
@@ -45,6 +47,10 @@ costmodel_planchange.test
 have_met_timezone.inc
 # Checks if server is started with Moscow leap timezone. Including the below inc file until Bug#25188986 is fixed.
 have_moscow_leap_timezone.inc
+
+# 32/64 bits time_t
+have_32bits_time.inc
+have_64bits_time.inc
 
 # 2.0 Binlog formats
 # Below files are included because rpl suite runs each test with 3 different
@@ -100,7 +106,6 @@ fix_priv_tables.test
 federated_bug_25714.test
 
 # 4.4
-have_openssl_binary.inc
 check_openssl_version.inc
 have_tlsv13.inc
 not_have_tlsv13.inc
@@ -211,6 +216,8 @@ have_slave_repository_type_table.inc
 not_relay_log_info_file.inc
 not_master_info_file.inc
 have_transaction_write_set_extraction.inc
+have_default_replica_transaction_retries.inc
+have_default_slave_rows_search_algorithms.inc
 
 #14.3 Some replication tests cannot run with GTID_ONLY == 1
 not_rpl_gtid_only.inc
@@ -301,3 +308,16 @@ not_hypergraph.inc
 
 # 30. Keyring_file component - can be skipped based on cmake configuration
 have_component_keyring_file.inc
+
+# 31. MTR test case can be skipped because it is just used to exercise
+# a unit test that requires a runninng server.
+have_cs_test_mysql_proto_reader_mtr.inc
+
+# skip the test if it's running with the wrong openssl command line version
+have_openssl_binary_version.inc
+
+# skip the test if the openssl library doesn't support TLS 1.3 (not openssl 1.1)
+not_tlsv13.inc
+
+# skip tests which require thread_pool_have_transactions_limit in configs which # don't have it
+have_max_transactions_limit.inc

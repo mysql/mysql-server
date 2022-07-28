@@ -1,4 +1,4 @@
--- Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+-- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -62,6 +62,7 @@ VIEW statement_analysis (
   max_latency,
   avg_latency,
   lock_latency,
+  cpu_latency,
   rows_sent,
   rows_sent_avg,
   rows_examined,
@@ -86,6 +87,7 @@ SELECT sys.format_statement(DIGEST_TEXT) AS query,
        format_pico_time(MAX_TIMER_WAIT) AS max_latency,
        format_pico_time(AVG_TIMER_WAIT) AS avg_latency,
        format_pico_time(SUM_LOCK_TIME) AS lock_latency,
+       format_pico_time(SUM_CPU_TIME) AS cpu_latency,
        SUM_ROWS_SENT AS rows_sent,
        ROUND(IFNULL(SUM_ROWS_SENT / NULLIF(COUNT_STAR, 0), 0)) AS rows_sent_avg,
        SUM_ROWS_EXAMINED AS rows_examined,

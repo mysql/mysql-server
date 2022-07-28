@@ -1,3 +1,4 @@
---initialize=--innodb-log-file-size=10M
+--initialize=--innodb-redo-log-capacity=20M
 --innodb_open_files=40
 --innodb_thread_concurrency=10
+--max_connections=1000

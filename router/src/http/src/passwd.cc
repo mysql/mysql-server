@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,12 +29,12 @@
 #include <sstream>
 #include <vector>
 
-#include "common.h"  // make_file_private
 #include "mysql/harness/arg_handler.h"
-#include "mysql/harness/filesystem.h"
+#include "mysql/harness/filesystem.h"  // make_file_private
 #include "mysql/harness/utility/string.h"
-#include "mysqlrouter/utils.h"
+#include "mysqlrouter/utils.h"         // prompt_password
 #include "print_version.h"             // build_version
+#include "router_config.h"             // MYSQL_ROUTER_NAME
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "http_auth_backend.h"

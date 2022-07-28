@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,7 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 /** Invalid locator ID. */
-const ib_uint64_t CLONE_LOC_INVALID_ID = 0;
+const uint64_t CLONE_LOC_INVALID_ID = 0;
 
 /** Maximum base length for any serialized descriptor. This is only used for
 optimal allocation and has no impact on version compatibility. */
@@ -114,13 +114,13 @@ const size_t CLONE_MAX_TRANSFER_STAGES = 3;
 
 /** Choose lowest descriptor version between reference locator
 and currently supported version.
-@param[in]	ref_loc	reference locator
+@param[in]      ref_loc reference locator
 @return chosen version */
 uint choose_desc_version(const byte *ref_loc);
 
 /** Check if clone locator is valid
-@param[in]	desc_loc	serialized descriptor
-@param[in]	desc_len	descriptor length
+@param[in]      desc_loc        serialized descriptor
+@param[in]      desc_len        descriptor length
 @return true, if valid locator */
 bool clone_validate_locator(const byte *desc_loc, uint desc_len);
 
@@ -159,12 +159,12 @@ struct Clone_Desc_Header {
 
   /** Serialize the descriptor header: Caller must allocate
   the serialized buffer.
-  @param[out]	desc_hdr	serialized header */
+  @param[out]   desc_hdr        serialized header */
   void serialize(byte *desc_hdr);
 
   /** Deserialize the descriptor header.
-  @param[in]	desc_hdr	serialized header
-  @param[in]	desc_len	descriptor length
+  @param[in]    desc_hdr        serialized header
+  @param[in]    desc_len        descriptor length
   @return true, if successful. */
   bool deserialize(const byte *desc_hdr, uint desc_len);
 };
@@ -195,8 +195,8 @@ class Chnunk_Bitmap {
   class Bitmap_Operator_Impl {
    public:
     /** Construct bitmap operator
-    @param[in]	bitmap	reference to bitmap buffer
-    @param[in]	index	array operation index */
+    @param[in]  bitmap  reference to bitmap buffer
+    @param[in]  index   array operation index */
     Bitmap_Operator_Impl(uint32_t *&bitmap, uint32_t index)
 
         : m_bitmap_ref(bitmap) {
@@ -228,7 +228,7 @@ class Chnunk_Bitmap {
     }
 
     /** Set BIT at specific index
-    @param[in]	bit	bit value to set */
+    @param[in]  bit     bit value to set */
     void operator=(bool bit) {
       auto &val = m_bitmap_ref[m_map_index];
 
@@ -251,8 +251,8 @@ class Chnunk_Bitmap {
   };
 
   /** Array index operator
-  @param[in]	index	bitmap array index
-  @return	operator implementation object */
+  @param[in]    index   bitmap array index
+  @return       operator implementation object */
   Bitmap_Operator_Impl operator[](uint32_t index) {
     /* Convert to zero based index */
     --index;
@@ -262,9 +262,9 @@ class Chnunk_Bitmap {
   }
 
   /** Reset bitmap with new size
-  @param[in]	max_bits	number of BITs to hold
-  @param[in]	heap		heap for allocating memory
-  @return	old buffer pointer */
+  @param[in]    max_bits        number of BITs to hold
+  @param[in]    heap            heap for allocating memory
+  @return       old buffer pointer */
   uint32_t *reset(uint32_t max_bits, mem_heap_t *heap);
 
   /** Get minimum BIT position that is not set
@@ -277,13 +277,13 @@ class Chnunk_Bitmap {
 
   /** Serialize the descriptor. Caller should pass
   the length if allocated.
-  @param[out]	desc_chunk	serialized chunk info
-  @param[in,out]	len		length of serialized descriptor */
+  @param[out]   desc_chunk      serialized chunk info
+  @param[in,out]        len             length of serialized descriptor */
   void serialize(byte *&desc_chunk, uint &len);
 
   /** Deserialize the descriptor.
-  @param[in]	desc_chunk	serialized chunk info
-  @param[in,out]	len_left	length left in bytes */
+  @param[in]    desc_chunk      serialized chunk info
+  @param[in,out]        len_left        length left in bytes */
   void deserialize(const byte *desc_chunk, uint &len_left);
 
   /** Get the length of serialized data
@@ -341,17 +341,17 @@ struct Chunk_Info {
 
   /** Serialize the descriptor. Caller should pass
   the length if allocated.
-  @param[out]	desc_chunk	serialized chunk info
-  @param[in,out]	len		length of serialized descriptor */
+  @param[out]   desc_chunk      serialized chunk info
+  @param[in,out]        len             length of serialized descriptor */
   void serialize(byte *desc_chunk, uint &len);
 
   /** Deserialize the descriptor.
-  @param[in]	desc_chunk	serialized chunk info
-  @param[in,out]	len_left	length left in bytes */
+  @param[in]    desc_chunk      serialized chunk info
+  @param[in,out]        len_left        length left in bytes */
   void deserialize(const byte *desc_chunk, uint &len_left);
 
   /** Get the length of serialized data
-  @param[in]	num_tasks	number of tasks to include
+  @param[in]    num_tasks       number of tasks to include
   @return length serialized chunk info */
   size_t get_serialized_length(uint32_t num_tasks);
 };
@@ -378,32 +378,32 @@ struct Clone_Desc_Locator {
   bool m_metadata_transferred;
 
   /** Initialize clone locator.
-  @param[in]	id	Clone identifier
-  @param[in]	snap_id	Snapshot identifier
-  @param[in]	state	snapshot state
-  @param[in]	version	Descriptor version
-  @param[in]	index	clone index */
-  void init(ib_uint64_t id, ib_uint64_t snap_id, Snapshot_State state,
-            uint version, uint index);
+  @param[in]    id      Clone identifier
+  @param[in]    snap_id Snapshot identifier
+  @param[in]    state   snapshot state
+  @param[in]    version Descriptor version
+  @param[in]    index   clone index */
+  void init(uint64_t id, uint64_t snap_id, Snapshot_State state, uint version,
+            uint index);
 
   /** Check if the passed locator matches the current one.
-  @param[in]	other_desc	input locator descriptor
+  @param[in]    other_desc      input locator descriptor
   @return true if matches */
   bool match(Clone_Desc_Locator *other_desc);
 
   /** Serialize the descriptor. Caller should pass
   the length if allocated.
-  @param[out]	desc_loc	serialized descriptor
-  @param[in,out]	len		length of serialized descriptor
-  @param[in]	chunk_info	chunk information to serialize
-  @param[in]	heap		heap for allocating memory */
+  @param[out]   desc_loc        serialized descriptor
+  @param[in,out]        len             length of serialized descriptor
+  @param[in]    chunk_info      chunk information to serialize
+  @param[in]    heap            heap for allocating memory */
   void serialize(byte *&desc_loc, uint &len, Chunk_Info *chunk_info,
                  mem_heap_t *heap);
 
   /** Deserialize the descriptor.
-  @param[in]	desc_loc	serialized locator
-  @param[in]	desc_len	locator length
-  @param[in,out]	chunk_info	chunk information */
+  @param[in]    desc_loc        serialized locator
+  @param[in]    desc_len        locator length
+  @param[in,out]        chunk_info      chunk information */
   void deserialize(const byte *desc_loc, uint desc_len, Chunk_Info *chunk_info);
 };
 
@@ -417,19 +417,19 @@ struct Clone_Desc_Task_Meta {
   Clone_Task_Meta m_task_meta;
 
   /** Initialize header
-  @param[in]	version	descriptor version */
+  @param[in]    version descriptor version */
   void init_header(uint version);
 
   /** Serialize the descriptor. Caller should pass
   the length if allocated.
-  @param[out]	desc_task	serialized descriptor
-  @param[in,out]	len		length of serialized descriptor
-  @param[in]	heap		heap for allocating memory */
+  @param[out]   desc_task       serialized descriptor
+  @param[in,out]        len             length of serialized descriptor
+  @param[in]    heap            heap for allocating memory */
   void serialize(byte *&desc_task, uint &len, mem_heap_t *heap);
 
   /** Deserialize the descriptor.
-  @param[in]	desc_task	serialized descriptor
-  @param[in]	desc_len	descriptor length
+  @param[in]    desc_task       serialized descriptor
+  @param[in]    desc_len        descriptor length
   @return true, if successful. */
   bool deserialize(const byte *desc_task, uint desc_len);
 };
@@ -464,19 +464,19 @@ struct Clone_Desc_State {
   bool m_is_ack;
 
   /** Initialize header
-  @param[in]	version	descriptor version */
+  @param[in]    version descriptor version */
   void init_header(uint version);
 
   /** Serialize the descriptor. Caller should pass
   the length if allocated.
-  @param[out]	desc_state	serialized descriptor
-  @param[in,out]	len		length of serialized descriptor
-  @param[in]	heap		heap for allocating memory */
+  @param[out]   desc_state      serialized descriptor
+  @param[in,out]        len             length of serialized descriptor
+  @param[in]    heap            heap for allocating memory */
   void serialize(byte *&desc_state, uint &len, mem_heap_t *heap);
 
   /** Deserialize the descriptor.
-  @param[in]	desc_state	serialized descriptor
-  @param[in]	desc_len	descriptor length
+  @param[in]    desc_state      serialized descriptor
+  @param[in]    desc_len        descriptor length
   @return true, if successful. */
   bool deserialize(const byte *desc_state, uint desc_len);
 };
@@ -484,8 +484,8 @@ struct Clone_Desc_State {
 /** Clone file information */
 struct Clone_File_Meta {
   /** Set file as deleted chunk.
-  @param[in]	chunk	chunk number that is found deleted. */
-  inline void set_deleted_chunk(uint32 chunk) {
+  @param[in]    chunk   chunk number that is found deleted. */
+  inline void set_deleted_chunk(uint32_t chunk) {
     m_begin_chunk = chunk;
     m_end_chunk = 0;
     m_deleted = true;
@@ -496,6 +496,9 @@ struct Clone_File_Meta {
 
   /** @return true, iff file is deleted. */
   bool is_renamed() const { return m_renamed; }
+
+  /** @return true, iff file is encrypted. */
+  bool can_encrypt() const { return m_encryption_metadata.can_encrypt(); }
 
   /** Reset DDL state of file metadata. */
   void reset_ddl() {
@@ -517,9 +520,6 @@ struct Clone_File_Meta {
 
   /** File compression type */
   Compression::Type m_compress_type;
-
-  /* File encryption type */
-  Encryption::Type m_encrypt_type;
 
   /** If transparent compression is needed. It is derived information
   and is not transferred. */
@@ -558,11 +558,8 @@ struct Clone_File_Meta {
   /** File name */
   const char *m_file_name;
 
-  /** Encryption Key. */
-  byte m_encryption_key[Encryption::KEY_LEN]{};
-
-  /** Encryption Vector. */
-  byte m_encryption_iv[Encryption::KEY_LEN]{};
+  /** Encryption metadata. */
+  Encryption_metadata m_encryption_metadata;
 };
 
 /** CLONE_DESC_FILE_METADATA: Descriptor for file metadata */
@@ -577,19 +574,19 @@ struct Clone_Desc_File_MetaData {
   Clone_File_Meta m_file_meta;
 
   /** Initialize header
-  @param[in]	version	descriptor version */
+  @param[in]    version descriptor version */
   void init_header(uint version);
 
   /** Serialize the descriptor. Caller should pass
   the length if allocated.
-  @param[out]	desc_file	serialized descriptor
-  @param[in,out]	len		length of serialized descriptor
-  @param[in]	heap		heap for allocating memory */
+  @param[out]   desc_file       serialized descriptor
+  @param[in,out]        len             length of serialized descriptor
+  @param[in]    heap            heap for allocating memory */
   void serialize(byte *&desc_file, uint &len, mem_heap_t *heap);
 
   /** Deserialize the descriptor.
-  @param[in]	desc_file	serialized descriptor
-  @param[in]	desc_len	descriptor length
+  @param[in]    desc_file       serialized descriptor
+  @param[in]    desc_len        descriptor length
   @return true, if successful. */
   bool deserialize(const byte *desc_file, uint desc_len);
 };
@@ -618,19 +615,19 @@ struct Clone_Desc_Data {
   uint64_t m_file_size;
 
   /** Initialize header
-  @param[in]	version	descriptor version */
+  @param[in]    version descriptor version */
   void init_header(uint version);
 
   /** Serialize the descriptor. Caller should pass
   the length if allocated.
-  @param[out]	desc_data	serialized descriptor
-  @param[in,out]	len		length of serialized descriptor
-  @param[in]	heap		heap for allocating memory */
+  @param[out]   desc_data       serialized descriptor
+  @param[in,out]        len             length of serialized descriptor
+  @param[in]    heap            heap for allocating memory */
   void serialize(byte *&desc_data, uint &len, mem_heap_t *heap);
 
   /** Deserialize the descriptor.
-  @param[in]	desc_data	serialized descriptor
-  @param[in]	desc_len	descriptor length
+  @param[in]    desc_data       serialized descriptor
+  @param[in]    desc_len        descriptor length
   @return true, if successful. */
   bool deserialize(const byte *desc_data, uint desc_len);
 };

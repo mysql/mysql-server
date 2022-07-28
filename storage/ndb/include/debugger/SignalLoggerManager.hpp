@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -37,6 +37,7 @@
 #include <BlockNumbers.h>
 #include <RefConvert.hpp>
 #include <NdbMutex.h>
+#include "portlib/ndb_compiler.h"
 
 struct SignalHeader;
 

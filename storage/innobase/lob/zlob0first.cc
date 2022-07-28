@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -428,7 +428,8 @@ void z_first_page_t::dealloc() {
 
 buf_block_t *z_first_page_t::load_x(const page_id_t &page_id,
                                     const page_size_t &page_size) {
-  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+  m_block =
+      buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
 
 #ifdef UNIV_DEBUG
   /* Dump the page into the log file, if the page type is not matching
@@ -462,7 +463,7 @@ uint32_t z_first_page_t::incr_lob_version() {
 
 /** When the bit is set, the LOB is not partially updatable anymore.
 Enable the bit.
-@param[in]	trx	the current transaction.*/
+@param[in]      trx     the current transaction.*/
 void z_first_page_t::mark_cannot_be_partially_updated(trx_t *trx) {
   const trx_id_t trxid = (trx == nullptr) ? 0 : trx->id;
   const undo_no_t undo_no = (trx == nullptr) ? 0 : (trx->undo_no - 1);
@@ -518,6 +519,9 @@ size_t z_first_page_t::free_all_data_pages() {
     ut_ad(!local_mtr.conflicts_with(m_mtr));
     restart_mtr(&local_mtr);
   }
+  flst_init(flst, &local_mtr);
+  flst_base_node_t *free_flst = free_list();
+  flst_init(free_flst, &local_mtr);
   ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
 
@@ -590,7 +594,7 @@ size_t z_first_page_t::free_all_frag_pages_old() {
   load_x(&local_mtr);
 
   /* There is no list of fragment pages maintained.  We have to identify the
-   * list of fragment pages from the following two lists. */
+  list of fragment pages from the following two lists. */
   flst_base_node_t *frag_lst = frag_list();
   flst_base_node_t *free_frag_lst = free_frag_list();
 
@@ -610,7 +614,7 @@ size_t z_first_page_t::free_all_frag_pages_old() {
       }
 
       /* Multiple entries can point to the same fragment page.  So scan through
-       * the list and remove all entries pointing to the same fragment page. */
+      the list and remove all entries pointing to the same fragment page. */
       while (!fil_addr_is_null(loc)) {
         node = addr2ptr_x(loc, &local_mtr);
         z_frag_entry_t entry2(node, &local_mtr);
@@ -629,6 +633,8 @@ size_t z_first_page_t::free_all_frag_pages_old() {
       restart_mtr(&local_mtr);
     }
   }
+  flst_init(frag_lst, &local_mtr);
+  flst_init(free_frag_lst, &local_mtr);
 
   ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
@@ -684,14 +690,6 @@ size_t z_first_page_t::make_empty() {
   n_pages_freed += free_all_frag_pages();
   n_pages_freed += free_all_frag_node_pages();
   n_pages_freed += free_all_index_pages();
-  flst_base_node_t *flst = free_list();
-  flst_init(flst, m_mtr);
-  flst_base_node_t *ilst = index_list();
-  flst_init(ilst, m_mtr);
-  flst_base_node_t *free_frag_lst = free_frag_list();
-  flst_init(free_frag_lst, m_mtr);
-  flst_base_node_t *frag_lst = frag_list();
-  flst_init(frag_lst, m_mtr);
   return (n_pages_freed);
 }
 
@@ -702,8 +700,8 @@ bool z_first_page_t::verify_frag_page_no() {
   page_no_t page_no = get_frag_page_no();
 
   /* If the page_no is 0, then FIL_PAGE_PREV is not used to store the list of
-   * fragment pages.  So modifying it is not allowed and hence verification is
-   * not needed. */
+  fragment pages.  So modifying it is not allowed and hence verification is
+  not needed. */
   ut_ad(page_no != 0);
 
   if (page_no == FIL_NULL) {

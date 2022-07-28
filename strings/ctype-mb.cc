@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -279,7 +279,7 @@ static int my_wildcmp_mb_impl(const CHARSET_INFO *cs, const char *str,
 
       mb = wildstr;
       mb_len = my_ismbchar(cs, wildstr, wildend);
-      INC_PTR(cs, wildstr, wildend); /* This is compared trough cmp */
+      INC_PTR(cs, wildstr, wildend); /* This is compared through cmp */
       cmp = likeconv(cs, cmp);
       do {
         for (;;) {
@@ -327,8 +327,8 @@ size_t my_numchars_mb(const CHARSET_INFO *cs, const char *pos,
   return count;
 }
 
-size_t my_charpos_mb(const CHARSET_INFO *cs, const char *pos, const char *end,
-                     size_t length) {
+size_t my_charpos_mb3(const CHARSET_INFO *cs, const char *pos, const char *end,
+                      size_t length) {
   const char *start = pos;
 
   while (length && pos < end) {
@@ -419,7 +419,7 @@ int my_strnncoll_mb_bin(const CHARSET_INFO *cs [[maybe_unused]], const uchar *s,
 
   SYNOPSIS
     my_strnncollsp_mb_bin()
-    cs			Chararacter set
+    cs			Character set
     s			String to compare
     slen		Length of 's'
     t			String to compare
@@ -535,7 +535,7 @@ size_t my_strnxfrm_mb(const CHARSET_INFO *cs, uchar *dst, size_t dstlen,
   }
 
   /*
-    A thourough loop, checking all possible limits:
+    A thorough loop, checking all possible limits:
     "se", "nweights" and "de".
   */
   for (; src < se && nweights && dst < de; nweights--) {
@@ -627,7 +627,7 @@ static void pad_max_char(const CHARSET_INFO *cs, char *str, char *end) {
   assert(buflen > 0);
   do {
     if ((str + buflen) <= end) {
-      /* Enough space for the characer */
+      /* Enough space for the character */
       memcpy(str, buf, buflen);
       str += buflen;
     } else {
@@ -1009,7 +1009,7 @@ static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
 
       mb = wildstr;
       mb_len = my_ismbchar(cs, wildstr, wildend);
-      INC_PTR(cs, wildstr, wildend); /* This is compared trough cmp */
+      INC_PTR(cs, wildstr, wildend); /* This is compared through cmp */
       do {
         for (;;) {
           if (str >= str_end) return -1;

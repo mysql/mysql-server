@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -146,7 +146,7 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
       Since there is no ASSERT in non-debug mode, we use abort
       instead.
     */
-    abort();
+    my_abort();
 #endif
     ret = sprintf(buf, "%d:%" PRId64, sidno, gno);
   }
@@ -199,7 +199,7 @@ void check_return_status(enum_return_status status, const char *action,
         when initializing gtid state by fetching gtids during server startup,
         so we can check on it before diagnostic area is active and skip the
         assert in this case. We assert that diagnostic area logged the error
-        outside server startup since the assert is realy useful.
+        outside server startup since the assert is really useful.
      */
       assert(thd == nullptr ||
              thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR ||
@@ -276,7 +276,7 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            uint *gtid_length_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
-                                           ulonglong *start_time_arg) {
+                                           ulonglong *start_time_arg) const {
   assert(sid_map);
   assert(gtid_arg);
   assert(gtid_length_arg);
@@ -315,7 +315,7 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
                                            ulonglong *start_time_arg,
-                                           ulonglong *end_time_arg) {
+                                           ulonglong *end_time_arg) const {
   assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time / 10 : 0;
@@ -328,7 +328,7 @@ void Trx_monitoring_info::copy_to_ps_table(
     ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
     ulonglong *start_time_arg, uint *last_transient_errno_arg,
     char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
-    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) {
+    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const {
   assert(last_transient_errno_arg);
   assert(last_transient_errmsg_arg);
   assert(last_transient_errmsg_length_arg);
@@ -358,7 +358,7 @@ void Trx_monitoring_info::copy_to_ps_table(
     ulonglong *start_time_arg, ulonglong *end_time_arg,
     uint *last_transient_errno_arg, char *last_transient_errmsg_arg,
     uint *last_transient_errmsg_length_arg,
-    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) {
+    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const {
   assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time / 10 : 0;

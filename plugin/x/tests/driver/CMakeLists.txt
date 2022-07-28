@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ MYSQLX_APPEND_COMPILE_FLAGS(mysqlxtest
 )
 
 MYSQLX_APPEND_COMPILE_DEFINITIONS(mysqlxtest
-  "NGS_DISABLE_LOGGING;USE_MYSQLX_FULL_PROTO"
+  "NGS_DISABLE_LOGGING"
 )
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-parameter" HAS_WARN_FLAG)

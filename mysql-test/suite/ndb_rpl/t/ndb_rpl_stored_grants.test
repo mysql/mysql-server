@@ -50,6 +50,10 @@
 # NDB_STORED_USER is created. Test to verify that the user has not been
 # replicated to server (C), but exists on (A) and (B).
 
+# Test (7) - Bug#33542052: Create user on (A) and test login from (C).
+# Then grant ndb_stored_user, and test login from (B). The user has a
+# randomly generated password, and the bug revolves around the possibility
+# of the IDENTIFIED WITH hashed password being corrupted in transit.
 
 connection default;
 echo;
@@ -206,6 +210,7 @@ CREATE USER 'ndb_u5'@'localhost' IDENTIFIED by 'pass5';
 GRANT NDB_STORED_USER ON *.* to 'ndb_u5'@'localhost';
 GRANT SELECT ON t1 TO 'ndb_u5'@'localhost';
 INSERT INTO t1 VALUES(3,3);
+SET sql_log_bin=1;
 sync_slave_with_master C;
 # Connection to (A) succeeds:
 connect(A_u5,127.0.0.1,ndb_u5,pass5,auth_test_db,$MYSQL_A_PORT,);
@@ -231,6 +236,7 @@ CREATE USER 'ndb_u6'@'localhost' IDENTIFIED by 'pass6';
 GRANT NDB_STORED_USER ON *.* to 'ndb_u6'@'localhost';
 GRANT SELECT ON t1 TO 'ndb_u6'@'localhost';
 INSERT INTO t1 VALUES(4,4);
+SET sql_log_bin=1;
 
 connection default;
 sync_slave_with_master C;
@@ -246,6 +252,49 @@ error ER_ACCESS_DENIED_ERROR;
 connect(should_fail,127.0.0.1,ndb_u6,pass6,auth_test_db,$MYSQL_C_PORT,);
 enable_query_log;
 
+# Test (7)
+# Bug#33542052 grant ndb_stored_user alters user with wrong hash
+# Create user on (A), test login from (C),
+# then grant ndb_stored_user, then test login from (B)
+
+connection default;
+echo;
+echo Test 7:;
+echo [Server A];
+echo Creating user u7 with random password;
+let $u7pass=`SELECT concat(char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1)) as p`;
+disable_query_log ONCE;
+eval create user 'u7'@'127.%'
+  identified with caching_sha2_password by "$u7pass"
+  with max_user_connections 10;
+GRANT SELECT ON t1 TO 'u7'@'127.%';
+sync_slave_with_master C;
+
+connect(C_u7,127.0.0.1,u7,$u7pass,auth_test_db,$MYSQL_C_PORT,);
+connection C_u7;
+echo [Server C];
+select current_user(), @@server_id;
+disconnect C_u7;
+
+connection default;
+echo [Server A];
+GRANT ndb_stored_user on *.* to u7@'127.%';
+select current_user(), @@server_id;
+
+connect(B_u7,127.0.0.1,u7,$u7pass,auth_test_db,$MYSQL_B_PORT,);
+connection B_u7;
+echo [Server B];
+select current_user(), @@server_id;
+disconnect B_u7;
+
 # Cleanup
 
 connection default;
@@ -257,6 +306,7 @@ drop user ndb_u1@localhost;
 drop user ndb_u2@localhost;
 drop user if exists ndb_u5@localhost;
 drop user if exists ndb_u6@localhost;
+drop user if exists u7@'127.%';
 drop table t1;
 drop database auth_test_db;
 sync_slave_with_master C;

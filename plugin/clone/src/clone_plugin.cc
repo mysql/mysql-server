@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,9 @@ static char *clone_ssl_ca;
 
 /** Clone system variable: timeout for clone restart after n/w failure */
 uint clone_restart_timeout;
+
+/** Clone system variable: time delay after removing data */
+uint clone_delay_after_data_drop;
 
 /** Key for registering clone allocations with performance schema */
 PSI_memory_key clone_mem_key;
@@ -611,6 +614,20 @@ static MYSQL_SYSVAR_UINT(donor_timeout_after_network_failure,
                          30,                  /* Maximum =  30 min */
                          1);                  /* Step    =   1 min */
 
+/* Time in seconds to wait after data drop.
+In VxFS file system, it was found that the disk space is released
+asynchronously after data files are successfully removed. Since it
+is FS specific behavior and we could not find any generic way to wait
+till the space is completely released, therefore this configuration
+is introduced.*/
+static MYSQL_SYSVAR_UINT(delay_after_data_drop, clone_delay_after_data_drop,
+                         PLUGIN_VAR_RQCMDARG,
+                         "Time in seconds to wait after removing data.",
+                         nullptr, nullptr, 0, /* Default =  0 no wait */
+                         0,                   /* Minimum =  0 no wait */
+                         60 * 60,             /* Maximum =  1 hour */
+                         1);                  /* Step    =  1 sec */
+
 /** Clone system variables */
 static SYS_VAR *clone_system_variables[] = {
     MYSQL_SYSVAR(buffer_size),
@@ -626,6 +643,7 @@ static SYS_VAR *clone_system_variables[] = {
     MYSQL_SYSVAR(ssl_cert),
     MYSQL_SYSVAR(ssl_ca),
     MYSQL_SYSVAR(donor_timeout_after_network_failure),
+    MYSQL_SYSVAR(delay_after_data_drop),
     nullptr};
 
 /** Declare clone plugin */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -144,7 +144,7 @@ class Source_IO_monitor {
   static Source_IO_monitor *get_instance();
 
   /**
-    Creates and lauches new Monitor IO thread.
+    Creates and launches new Monitor IO thread.
 
     @param[in] thread_key  instrumentation key
 
@@ -343,7 +343,7 @@ class Source_IO_monitor {
       uint &curr_highest_group_weight, uint &curr_conn_weight);
 
   /**
-    Store gathered memebership details to
+    Store gathered membership details to
     replication_asynchronous_connection_failover table.
 
     @param[in] channel_name        The managed channel for which failover
@@ -386,7 +386,6 @@ class Source_IO_monitor {
 
     @param[in]  table_op     The Rpl_sys_table_access class object.
     @param[in]  table        The table object.
-    @param[in]  field_name   The name of column/field of the table.
     @param[in]  field_name   The name of column/field of the table.
     @param[in]  conn_detail  std::tuple containing <channel, host, port,
                              network_namespace, weight, group_name>

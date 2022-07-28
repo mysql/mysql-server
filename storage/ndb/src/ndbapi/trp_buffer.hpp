@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,7 +174,7 @@ public:
 
 protected:
   static constexpr Uint32 SENDBUFFER_DEFAULT_PAGE_SIZE = 32 * 1024;
-  static_assert(SENDBUFFER_DEFAULT_PAGE_SIZE == sizeof(TFPage), "");
+  static_assert(SENDBUFFER_DEFAULT_PAGE_SIZE == sizeof(TFPage));
 };
 
 class TFMTPool : private TFPool

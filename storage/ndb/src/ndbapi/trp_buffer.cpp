@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,13 +83,13 @@ TFBuffer::validate() const
     assert(m_head != 0);
     assert(m_tail != 0);
   }
-  Uint32 sum = 0;
+  Uint32 sum [[maybe_unused]] = 0;
   TFPage * p = m_head;
   while (p)
   {
     assert(p->m_bytes <= p->max_data_bytes());
     assert(p->m_start <= p->max_data_bytes());
-    assert(p->m_start + p->m_bytes <= p->max_data_bytes());
+    assert(Uint32{p->m_start} + p->m_bytes <= p->max_data_bytes());
     assert(p->m_bytes <= (int)m_bytes_in_buffer);
     assert(p->m_next != p);
     if (p == m_tail)

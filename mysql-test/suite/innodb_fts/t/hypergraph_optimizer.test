@@ -58,6 +58,7 @@ SELECT MATCH (x) AGAINST ('abc') AS score FROM t
 --sorted_result
 SELECT MATCH (x) AGAINST ('abc') AS score FROM t
   GROUP BY score WITH ROLLUP HAVING score > 0 OR score IS NULL;
+--error ER_FULLTEXT_WITH_ROLLUP
 SELECT MATCH (x) AGAINST ('abc') AS score, x FROM t
   GROUP BY x WITH ROLLUP ORDER BY score, x;
 # Check that ANY_VALUE picks a value from the correct group. The WHERE

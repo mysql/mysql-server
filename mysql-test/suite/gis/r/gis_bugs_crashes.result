@@ -1372,16 +1372,6 @@ ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(-10 -9,-4 -4),POINT(0 -10),POINT(
 ######################################################################################################
 # BUG#20133571 : ASSERTION `GRES->HAS_GEOM_HEADER_SPACE()' FAILED
 ######################################################################################################
-SELECT ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMTEXT('MULTILINESTRING((-10 3,-9 -4,-9 3,-1 3),'
-                                      '(3 10,7 9,-7 2,2 -9,7 10,7 8,3 -4,-9 -1,-5 -8,-7 5,4 9,-3 -6,9 1),'
-                                      '(4 4,-7 -3,1 -4,-10 -8),(10 6,1 -7),(0 1,1 -10,3 10,2 -10,-6 -2))'),
-ST_GEOMFROMTEXT('MULTILINESTRING((-7 1,-5 -2,0 -10,-3 4,8 -10,-6 4,-5 3,9 10,2 10))')));
-ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMTEXT('MULTILINESTRING((-10 3,-9 -4,-9 3,-1 3),'
-                                      '(3 10,7 9,-7 2,2 -9,7 10,7 8,3 -4,-9 -1,-5 -8,-7 5,4 9,-3 -6,9 1),'
-                                      '(4 4,-7 -3,1 -4,-10 -8)
-GEOMETRYCOLLECTION(MULTIPOINT((-2.7857142857142856 3),(-2.2142857142857144 3),(3 10),(-1 -5.333333333333333),(3.041666666666667 -5.041666666666666),(3.3082437275985663 -4.028673835125447),(6.696969696969697 8.848484848484848),(7 10),(3.0851063829787235 -3.74468085106383),(1.6666666666666667 -3.6666666666666665),(-1.5283018867924527 -2.867924528301887),(-5 -2),(-6.2 -0.19999999999999996),(-0.07224334600760418 0.27376425855513276),(-0.7727272727272725 -1.2272727272727266),(-1.5314685314685315 -2.8531468531468533),(-2.786259541984733 -5.541984732824428),(-2.633587786259542 -5.786259541984733),(-1.0952380952380953 -4.888888888888889),(1.4210526315789478 -3.4210526315789473),(2.387755102040816 -2.857142857142857),(-0.666666666666667 1.0303030303030303),(-2.1111111111111107 0.11111111111111116),(-2.16 0.08000000000000007),(-5.127659574468085 -1.8085106382978724),(-4.152542372881356 -3.3559322033898304),(-1.3486238532110093 -3.706422018348624),(-1.1204819277108435 -4.771084337349397),(-2.8703703703703702 -5.407407407407407),(3.174721189591078 -3.858736059479554),(2.6363636363636367 -4.636363636363637),(0.08411214953271028 0.07476635514018692),(0.3 -2.3),(1.6363636363636367 -3.6363636363636367),(1.790322580645161 -2.096774193548387),(2.846153846153846 6.923076923076923),(2.3589743589743586 -2.8205128205128203),(2.2857142857142856 -4.285714285714286),(-0.5454545454545454 -7.454545454545455),(-3.333333333333333 -4.666666666666666)),LINESTRING(7 9,-5 3))
 ######################################################################################################
 # BUG#20120173 : ASSERTION FAILURE WITH GEOMETRY SET OPERATIONS IN ITEM_GEOFUNC.CC FILE
 ######################################################################################################
@@ -2030,7 +2020,7 @@ ST_GEOMFROMTEXT('MULTIPOLYGON(((-1 -1,7 4,1 10,-1 -1)),'
 ######################################################################################################
 SELECT ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
-MULTIPOINT(POINT(8,-6.0), POINT(9,2), POINT(9,1), POINT(-0,6), POINT(8,6), POINT(4,3), POINT(.7,6)),
+MULTIPOINT(POINT(8,-6), POINT(9,2), POINT(9,1), POINT(-0,6), POINT(8,6), POINT(4,3), POINT(.7,6)),
 MULTIPOINT(POINT(8,-0.7654), POINT(2,7), POINT(8,-0.7654), POINT(-.0,7), POINT(.0,6), POINT(.9,+.4), POINT(6,2.232432)),
 POLYGON(
 LINESTRING(POINT(8,6), POINT(-.4,3), POINT(-9.8,2.232432), POINT(-1032.34324,8), POINT(2.232432,.8), POINT(8,6))),
@@ -2039,9 +2029,9 @@ LINESTRING(POINT(0,9), POINT(3,1), POINT(3,0), POINT(3,2), POINT(0,9)))))),
 ST_GEOMFROMTEXT('MULTILINESTRING((-0.7654 2.232432, 7 2, -6 -1032.34324, 9 7, 2.8 4))')));
 ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
-MULTIPOINT(POINT(8,-6.0), POINT(9,2), POINT(9,1), POINT(-0,6), POINT(8,6), POINT(4,3), POINT(.7,6)),
+MULTIPOINT(POINT(8,-6), POINT(9,2), POINT(9,1), POINT(-0,6), POINT(8,6), POINT(4,3), POINT(.7,6)),
 MULTIPOINT(POINT(8,-0.7654), POINT(2,7), POINT(8,-0.7654), POINT(-.0,7), POINT(.0,6
-GEOMETRYCOLLECTION(LINESTRING(-0.7654 2.232432,3.6737899158554317 2.099559283781633),LINESTRING(3.927301157948162 4.545468302232982,2.8 4),POINT(3.927301157948163 4.545468302232982))
+GEOMETRYCOLLECTION(LINESTRING(-0.7654 2.232432,3.6737899159 2.0995592838),LINESTRING(3.9273011579 4.5454683022,2.8 4),POINT(3.9273011579 4.5454683022))
 ######################################################################################################
 # BUG#20408240 : ST_DIFFERENCE : ASSERTION `T1->RESULT_RANGE' FAILED
 ######################################################################################################
@@ -2355,7 +2345,7 @@ ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10,10 0,0 10)'), 20, ST_B
 POLYGON((-10 0,-14.1421 -4.1421,-4.1421 -14.1421,-1.1114 -16.6294,2.3463 -18.4776,6.0982 -19.6157,10 -20,13.9018 -19.6157,17.6537 -18.4776,21.1114 -16.6294,24.1421 -14.1421,26.6294 -11.1114,28.4776 -7.6537,29.6157 -3.9018,30 0,30 10,29.6157 13.9018,28.4776 17.6537,26.6294 21.1114,24.1421 24.1421,21.1114 26.6294,17.6537 28.4776,13.9018 29.6157,10 30,6.0982 29.6157,2.3463 28.4776,-1.1114 26.6294,-4.1421 24.1421,-14.1421 14.1421,-10 10,-10 0))
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10),(10 0,0 10))'), 50, ST_BUFFER_STRATEGY('end_flat')));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10),(10 0,0 10))'), 50, ST_BUFFER_STRATEGY('end_flat')))
-POLYGON((5.000000748969793 14.999999251030207,-25.35533905932737 45.35533905932737,-35.35533905932737 35.35533905932737,-4.999999251030204 4.999999251030204,-35.35533905932737 -25.35533905932737,-25.35533905932737 -35.35533905932737,4.999999251030207 -4.999999251030207,35.35533905932737 -35.35533905932737,45.35533905932737 -25.35533905932737,14.999999251030204 5.000000748969796,45.35533905932737 35.35533905932737,35.35533905932737 45.35533905932737,5.000000748969793 14.999999251030207))
+POLYGON((5 15,-25.3553 45.3553,-35.3553 35.3553,-5 5,-35.3553 -25.3553,-25.3553 -35.3553,5 -5,35.3553 -35.3553,45.3553 -25.3553,15 5,45.3553 35.3553,35.3553 45.3553,5 15))
 ######################################################################################################
 # BUG#20558350 : ST_BUFFER RETURNS INCORRECT RESULT WITH NEGATIVE DISTANCE AND POLYGON WITH HOLE
 ######################################################################################################
@@ -6542,34 +6532,34 @@ POINT(0 8)
 # Bug #33290245 Item_func_st_distance_sphere::val_real():
 #               Assertion `is_nullable()' failed.
 do st_astext( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_aswkb( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_centroid( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_contains( ( _utf32', ,*') regexp 13946, ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_convexhull( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_distance_sphere( ( ( _utf32', ,*') regexp 13946), 1, 42);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_envelope( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_geometrytype( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_geomfromtext( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_issimple( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_isvalid( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_latitude( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_makeenvelope( ( _utf32', ,*') regexp 13946, 'POINT(0 0)');
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_simplify( ( _utf32', ,*') regexp 13946, 'POINT(0 0)');
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_srid( st_pointfromtext(( _utf32', ,*') regexp 13946));
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_validate( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16

@@ -32,6 +32,7 @@ TRIGGER	%.%	YES	YES
 enabled_consumers
 events_stages_current
 events_stages_history
+events_statements_cpu
 events_statements_current
 events_statements_history
 events_transactions_current
@@ -56,6 +57,7 @@ TRIGGER	%.%	YES	YES
 enabled_consumers
 events_stages_current
 events_stages_history
+events_statements_cpu
 events_statements_current
 events_statements_history
 events_transactions_current
@@ -202,6 +204,7 @@ TRIGGER	%.%	YES	YES
 enabled_consumers
 events_stages_current
 events_stages_history
+events_statements_cpu
 events_statements_current
 events_statements_history
 events_transactions_current
@@ -228,6 +231,7 @@ innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/log_checkpointer_thread	BACKGROUND
+innodb/log_files_governor_thread	BACKGROUND
 innodb/log_flush_notifier_thread	BACKGROUND
 innodb/log_flusher_thread	BACKGROUND
 innodb/log_write_notifier_thread	BACKGROUND
@@ -252,6 +256,7 @@ TRIGGER	%.%	YES	YES
 enabled_consumers
 events_stages_current
 events_stages_history
+events_statements_cpu
 events_statements_current
 events_statements_history
 events_transactions_current
@@ -278,6 +283,7 @@ innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/log_checkpointer_thread	BACKGROUND
+innodb/log_files_governor_thread	BACKGROUND
 innodb/log_flush_notifier_thread	BACKGROUND
 innodb/log_flusher_thread	BACKGROUND
 innodb/log_write_notifier_thread	BACKGROUND

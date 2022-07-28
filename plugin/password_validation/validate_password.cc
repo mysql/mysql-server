@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,7 +138,7 @@ static void dictionary_activate(set_type *dict_words) {
   char *new_ts;
 
   /* fetch the start time */
-  start_time = my_time(MYF(0));
+  start_time = time(nullptr);
   localtime_r(&start_time, &tm);
   snprintf(timebuf, sizeof(timebuf), "%04d-%02d-%02d %02d:%02d:%02d",
            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,

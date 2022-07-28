@@ -2,6 +2,8 @@
 # Bug #21950756 INNODB: FAILING ASSERTION: !(&DICT_SYS->MUTEX)
 # ->IS_OWNED() IN DICT0STATS.CC 3049
 #
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+SET SESSION innodb_strict_mode=OFF;
 CREATE TABLE t1(
 c0 INT(1),
 c1 INT(1),
@@ -123,21 +125,6 @@ KEY idx22 (c51,c7(120)),
 KEY idx23 (c7(163),c31,c71,c14))
 ENGINE=InnoDB DEFAULT CHARSET=latin1
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
-Warnings:
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SET @@session.max_heap_table_size=16384;
 SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size
@@ -171,3 +158,4 @@ test	t1	idx21	1	1	0
 test	t1	idx22	1	1	0
 test	t1	idx23	1	1	0
 DROP TABLE t1;
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;

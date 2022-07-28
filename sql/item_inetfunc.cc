@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -267,7 +267,7 @@ err:
 
   @return Completion status.
   @retval false Given string does not represent an IPv4-address.
-  @retval true  The string has been converted sucessfully.
+  @retval true  The string has been converted successfully.
 
   @note The problem with inet_pton() is that it treats leading zeros in
   IPv4-part differently on different platforms.
@@ -379,7 +379,7 @@ static bool str_to_ipv4(const char *str, int str_length,
 
   @return Completion status.
   @retval false Given string does not represent an IPv6-address.
-  @retval true  The string has been converted sucessfully.
+  @retval true  The string has been converted successfully.
 
   @note The problem with inet_pton() is that it treats leading zeros in
   IPv4-part differently on different platforms.
@@ -687,7 +687,7 @@ static void ipv6_to_str(const in6_addr *ipv6, char *str) {
 
   @return Completion status.
   @retval false Given string does not represent an IP-address.
-  @retval true  The string has been converted sucessfully.
+  @retval true  The string has been converted successfully.
 */
 
 bool Item_func_inet6_aton::calc_value(String *arg, String *buffer) {
@@ -724,7 +724,7 @@ bool Item_func_inet6_aton::calc_value(String *arg, String *buffer) {
 
   @return Completion status.
   @retval false The argument does not correspond to IP-address.
-  @retval true  The string has been converted sucessfully.
+  @retval true  The string has been converted successfully.
 */
 
 bool Item_func_inet6_ntoa::calc_value(String *arg, String *buffer) {

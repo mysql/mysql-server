@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,15 @@ int table_setup_actors::write_row(PFS_engine_table *, TABLE *table,
   enabled = (enabled_value == ENUM_YES) ? true : false;
   history = (history_value == ENUM_YES) ? true : false;
 
-  return insert_setup_actor(user, host, role, enabled, history);
+  PFS_user_name user_value;
+  PFS_host_name host_value;
+  PFS_role_name role_value;
+  user_value.set(user->ptr(), user->length());
+  host_value.set(host->ptr(), host->length());
+  role_value.set(role->ptr(), role->length());
+
+  return insert_setup_actor(&user_value, &host_value, &role_value, enabled,
+                            history);
 }
 
 int table_setup_actors::delete_all_rows(void) { return reset_setup_actor(); }
@@ -237,30 +245,9 @@ int table_setup_actors::make_row(PFS_setup_actor *pfs) {
   pfs_optimistic_state lock;
   pfs->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_hostname_length = pfs->m_hostname_length;
-
-  if (unlikely((m_row.m_hostname_length == 0) ||
-               (m_row.m_hostname_length > sizeof(m_row.m_hostname)))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
-  m_row.m_username_length = pfs->m_username_length;
-
-  if (unlikely((m_row.m_username_length == 0) ||
-               (m_row.m_username_length > sizeof(m_row.m_username)))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
-  m_row.m_rolename_length = pfs->m_rolename_length;
-
-  if (unlikely((m_row.m_rolename_length == 0) ||
-               (m_row.m_rolename_length > sizeof(m_row.m_rolename)))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  memcpy(m_row.m_rolename, pfs->m_rolename, m_row.m_rolename_length);
+  m_row.m_user_name = pfs->m_key.m_user_name;
+  m_row.m_host_name = pfs->m_key.m_host_name;
+  m_row.m_role_name = pfs->m_key.m_role_name;
   m_row.m_enabled_ptr = &pfs->m_enabled;
   m_row.m_history_ptr = &pfs->m_history;
 
@@ -282,13 +269,16 @@ int table_setup_actors::read_row_values(TABLE *table, unsigned char *,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* HOST */
-          set_field_char_utf8(f, m_row.m_hostname, m_row.m_hostname_length);
+          set_field_char_utf8(f, m_row.m_host_name.ptr(),
+                              m_row.m_host_name.length());
           break;
         case 1: /* USER */
-          set_field_char_utf8(f, m_row.m_username, m_row.m_username_length);
+          set_field_char_utf8(f, m_row.m_user_name.ptr(),
+                              m_row.m_user_name.length());
           break;
         case 2: /* ROLE */
-          set_field_char_utf8(f, m_row.m_rolename, m_row.m_rolename_length);
+          set_field_char_utf8(f, m_row.m_role_name.ptr(),
+                              m_row.m_role_name.length());
           break;
         case 3: /* ENABLED */
           set_field_enum(f, (*m_row.m_enabled_ptr) ? ENUM_YES : ENUM_NO);
@@ -314,10 +304,6 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
-        case 0: /* HOST */
-        case 1: /* USER */
-        case 2: /* ROLE */
-          return HA_ERR_WRONG_COMMAND;
         case 3: /* ENABLED */
           value = (enum_yes_no)get_field_enum(f);
           /* Reject illegal enum values in ENABLED */
@@ -335,7 +321,7 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
           *m_row.m_history_ptr = (value == ENUM_YES) ? true : false;
           break;
         default:
-          assert(false);
+          return HA_ERR_WRONG_COMMAND;
       }
     }
   }
@@ -346,10 +332,6 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
 
 int table_setup_actors::delete_row_values(TABLE *, const unsigned char *,
                                           Field **) {
-  CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
-  String user(m_row.m_username, m_row.m_username_length, cs);
-  String role(m_row.m_rolename, m_row.m_rolename_length, cs);
-  String host(m_row.m_hostname, m_row.m_hostname_length, cs);
-
-  return delete_setup_actor(&user, &host, &role);
+  return delete_setup_actor(&m_row.m_user_name, &m_row.m_host_name,
+                            &m_row.m_role_name);
 }

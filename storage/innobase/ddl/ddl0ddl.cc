@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -69,7 +69,7 @@ void Dup::report(const mrec_t *mrec, const ulint *offsets) noexcept {
   ++m_n_dup;
 
   if (m_n_dup == 1) {
-    auto heap = mem_heap_create(1024);
+    auto heap = mem_heap_create(1024, UT_LOCATION_HERE);
     auto dtuple = row_rec_to_index_entry_low(mrec, m_index, offsets, heap);
 
     /* Report the first duplicate record, but count all duplicate records. */
@@ -125,7 +125,7 @@ dberr_t pwrite(os_fd_t fd, void *ptr, size_t len, os_offset_t offset) noexcept {
   return err;
 }
 
-os_fd_t file_create_low(const char *path) noexcept {
+Unique_os_file_descriptor file_create_low(const char *path) noexcept {
   if (path == nullptr) {
     path = innobase_mysql_tmpdir();
   }
@@ -159,42 +159,25 @@ os_fd_t file_create_low(const char *path) noexcept {
 
   if (fd < 0) {
     ib::error(ER_IB_MSG_967) << "Cannot create temporary merge file";
-    return OS_FD_CLOSED;
+    return Unique_os_file_descriptor{};
   }
 
-  return fd;
+  return Unique_os_file_descriptor{fd};
 }
 
-os_fd_t file_create(ddl::file_t *file, const char *path) noexcept {
+bool file_create(ddl::file_t *file, const char *path) noexcept {
   file->m_size = 0;
   file->m_n_recs = 0;
-  file->m_fd = ddl::file_create_low(path);
+  file->m_file = ddl::file_create_low(path);
 
-  if (file->m_fd >= 0 && srv_disable_sort_file_cache) {
-    os_file_set_nocache(file->m_fd, "ddl0ddl.cc", "sort");
+  if (file->m_file.is_open()) {
+    if (srv_disable_sort_file_cache) {
+      os_file_set_nocache(file->m_file.get(), "ddl0ddl.cc", "sort");
+    }
+    return true;
   }
 
-  return file->m_fd;
-}
-
-void file_destroy_low(os_fd_t fd) noexcept {
-#ifdef UNIV_PFS_IO
-  struct PSI_file_locker *locker = nullptr;
-  PSI_file_locker_state state;
-  locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(&state, fd,
-                                                            PSI_FILE_CLOSE);
-  if (locker != nullptr) {
-    PSI_FILE_CALL(start_file_wait)(locker, 0, __FILE__, __LINE__);
-  }
-#endif /* UNIV_PFS_IO */
-  if (fd != OS_FD_CLOSED) {
-    close(fd);
-  }
-#ifdef UNIV_PFS_IO
-  if (locker != nullptr) {
-    PSI_FILE_CALL(end_file_wait)(locker, 0);
-  }
-#endif /* UNIV_PFS_IO */
+  return false;
 }
 
 dict_index_t *create_index(trx_t *trx, dict_table_t *table,
@@ -328,7 +311,7 @@ dberr_t lock_table(trx_t *trx, dict_table_t *table,
 static void index_build_failed(dict_index_t *index) noexcept {
   DEBUG_SYNC_C("merge_drop_index_after_abort");
 
-  rw_lock_x_lock(dict_index_get_lock(index));
+  rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
 
   dict_index_set_online_status(index, ONLINE_INDEX_ABORTED_DROPPED);
 
@@ -395,7 +378,7 @@ static void mark_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
           index = prev;
 
         } else {
-          rw_lock_x_lock(dict_index_get_lock(index));
+          rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
 
           dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
 
@@ -412,7 +395,7 @@ static void mark_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
         break;
 
       case ONLINE_INDEX_CREATION:
-        rw_lock_x_lock(dict_index_get_lock(index));
+        rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
         ut_ad(!index->is_committed());
         row_log_abort_sec(index);
         rw_lock_x_unlock(dict_index_get_lock(index));
@@ -495,7 +478,7 @@ void drop_indexes(trx_t *trx, dict_table_t *table, bool locked) noexcept {
   ut_ad(table->get_ref_count() >= 1);
 
   /* It is possible that table->n_ref_count > 1 when
-  locked=TRUE. In this case, all code that should have an open
+  locked=true. In this case, all code that should have an open
   handle to the table be waiting for the next statement to execute,
   or waiting for a meta-data lock.
 
@@ -511,7 +494,7 @@ void drop_indexes(trx_t *trx, dict_table_t *table, bool locked) noexcept {
 
 dberr_t Row::build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
                    size_t type) noexcept {
-  ut_ad(rec_offs_any_null_extern(m_rec, m_offsets) == nullptr);
+  ut_ad(rec_offs_any_null_extern(index, m_rec, m_offsets) == nullptr);
 
   /* Build a row based on the clustered index. */
 

@@ -1,0 +1,80 @@
+##########################################################################
+# Test script to test UPGRADE from older version table (not) having
+# INSTANT ADD columns.
+##########################################################################
+
+--source include/not_valgrind.inc
+--source include/have_lowercase0.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
+--enable_query_log
+
+# ------------------------------------------------------------
+# Tables created on earlier version with following
+# ------------------------------------------------------------
+# CREATE TABLE t1_redundant (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000)) ROW_FORMAT=REDUNDANT;
+# INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000));
+# ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+#
+# CREATE TABLE t1_compact (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000)) ROW_FORMAT=COMPACT;
+# INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000));
+# ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+#
+# CREATE TABLE t1_dynamic (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000)) ROW_FORMAT=DYNAMIC;
+# INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000));
+# ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+# ------------------------------------------------------------
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+--echo # Stop the running the server
+--source include/shutdown_mysqld.inc
+
+--echo # Copy and unzip the datadir.
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/data_instant_ddl_upgrade_rollback.zip $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback.zip
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server against the unzipped datadir
+--replace_result $DATADIR DATADIR
+--let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=4k
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+--echo ##############################################
+--echo # Test instant ADD/DROP COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = redundant;
+--source suite/innodb/include/instant_ddl_upgrade_rollback.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for DYNAMIC format
+--echo ############################################
+let $row_format = dynamic;
+--source suite/innodb/include/instant_ddl_upgrade_rollback.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for COMPACT format
+--echo ############################################
+let $row_format = compact;
+--source suite/innodb/include/instant_ddl_upgrade_rollback.inc
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback.zip
+--force-rmdir $MYSQL_TMP_DIR/data
+--remove_file $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback.zip
+
+--echo # Restarting server to restore server state
+let $restart_parameters =;
+--source include/start_mysqld.inc

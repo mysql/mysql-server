@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -553,7 +553,7 @@ void Group_check::find_group_in_fd(Item *item) {
   if (select->is_grouped()) {
     /*
       See if we now have all of query expression's GROUP BY list; an
-      implicitely grouped query has an empty group list.
+      implicitly grouped query has an empty group list.
     */
     bool missing = false;
     int j = 0;

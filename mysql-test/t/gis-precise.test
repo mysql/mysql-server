@@ -573,7 +573,7 @@ select (ST_aswkb(cast(st_union(multipoint(
                                        point(8,6), point(1,-17679),
                                        point(-9,-9)),
                             linestring(point(91,12), point(-77,49),
-                                       point(53,-81)))as char(18))))
+                                       point(53,-81)))as binary(40))))
 in  ('1','2');
 
 
@@ -1530,11 +1530,11 @@ SELECT ST_AsText(ST_GeomFromWKB(0x0107000000030000000107000000010000000101000000
 --echo # Bug#21546656 ASSERTION FAILED: DATA_LEN - SRID_SZ - WKB_HEADER_SIZE >= POINT_DATA_SIZE
 --echo #
 --error ER_GIS_INVALID_DATA
-do st_union(cast(point(1,1)as char(12)),point(1,1));
+do st_union(cast(point(1,1)as binary(12)),point(1,1));
 --error ER_GIS_INVALID_DATA
-do st_union(cast(point(1,1)as char(13)),point(1,1));
+do st_union(cast(point(1,1)as binary(13)),point(1,1));
 --error ER_GIS_INVALID_DATA
-select st_astext(st_union(cast(point(1,1)as char(15)),point(1,1))) as res;
+select st_astext(st_union(cast(point(1,1)as binary(15)),point(1,1))) as res;
 
 
 --echo #

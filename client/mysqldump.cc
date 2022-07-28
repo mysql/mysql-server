@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,9 @@
 /* Maximum number of fields per table */
 #define MAX_FIELDS 4000
 
+/* One year in seconds */
+#define LONG_TIMEOUT (3600UL * 24UL * 365UL)
+
 using std::string;
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
@@ -153,6 +156,8 @@ static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = false;
 static uint opt_mysql_port = 0, opt_master_data;
 static uint opt_slave_data;
+static ulong opt_long_query_time = 0;
+static bool long_query_time_opt_provided = false;
 static uint my_end_arg;
 static char *opt_mysql_unix_port = nullptr;
 static char *opt_bind_addr = nullptr;
@@ -181,6 +186,7 @@ static char *shared_memory_base_name = 0;
 #endif
 static uint opt_protocol = 0;
 static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
+static bool opt_skip_gipk = false;
 
 Prealloced_array<uint, 12> ignore_error(PSI_NOT_INSTRUMENTED);
 static int parse_ignore_error();
@@ -292,14 +298,14 @@ static struct my_option my_long_options[] = {
      &opt_databases, &opt_databases, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
 #ifdef NDEBUG
-    {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
-     GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "This is a non-debug version. Catch this and exit.", nullptr,
+     nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-info", OPT_DEBUG_INFO,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #else
     {"debug", '#', "Output debug log.", &default_dbug_option,
      &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
@@ -444,6 +450,11 @@ static struct my_option my_long_options[] = {
      "Append warnings and errors to given file.", &log_error_file,
      &log_error_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+    {"mysqld-long-query-time", OPT_LONG_QUERY_TIME,
+     "Set long_query_time for the session of this dump. Ommitting flag means "
+     "using the server value.",
+     &opt_long_query_time, &opt_long_query_time, 0, GET_ULONG, REQUIRED_ARG, 0,
+     0, LONG_TIMEOUT, nullptr, 0, nullptr},
     {"source-data", OPT_SOURCE_DATA,
      "This causes the binary log position and filename to be appended to the "
      "output. If equal to 1, will print it as a CHANGE MASTER command; if equal"
@@ -643,6 +654,11 @@ static struct my_option my_long_options[] = {
      "inclusive. Default is 3.",
      &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
      REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
+    {"skip-generated-invisible-primary-key", 0,
+     "Controls whether generated invisible primary key and key column should "
+     "be dumped or not.",
+     &opt_skip_gipk, &opt_skip_gipk, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -982,6 +998,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
       /* Store the supplied list of errors into an array. */
       if (parse_ignore_error()) exit(EX_EOM);
       break;
+    case (int)OPT_LONG_QUERY_TIME:
+      long_query_time_opt_provided = true;
+      break;
   }
   return false;
 }
@@ -1065,8 +1084,7 @@ static int get_options(int *argc, char ***argv) {
             my_progname);
     return (EX_USAGE);
   }
-  if (0 != strcmp(replace_utf8_utf8mb3(default_charset),
-                  replace_utf8_utf8mb3(charset_info->csname)) &&
+  if (0 != strcmp(default_charset, charset_info->csname) &&
       !(charset_info =
             get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME))))
     exit(1);
@@ -1243,8 +1261,7 @@ static int switch_db_collation(FILE *sql_file, const char *db_name,
     if (!db_cl) return 1;
 
     fprintf(sql_file, "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
-            quoted_db_name, replace_utf8_utf8mb3(db_cl->csname), db_cl->name,
-            delimiter);
+            quoted_db_name, db_cl->csname, db_cl->m_coll_name, delimiter);
 
     *db_cl_altered = 1;
 
@@ -1266,8 +1283,7 @@ static int restore_db_collation(FILE *sql_file, const char *db_name,
   if (!db_cl) return 1;
 
   fprintf(sql_file, "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
-          quoted_db_name, replace_utf8_utf8mb3(db_cl->csname), db_cl->name,
-          delimiter);
+          quoted_db_name, db_cl->csname, db_cl->m_coll_name, delimiter);
 
   return 0;
 }
@@ -1601,6 +1617,10 @@ static int connect_to_db(char *host, char *user) {
     DB_error(&mysql_connection, "when trying to connect");
     return 1;
   }
+
+  if (ssl_client_check_post_connect_ssl_setup(
+          mysql, [](const char *err) { fprintf(stderr, "%s\n", err); }))
+    return 1;
   if (mysql_get_server_version(&mysql_connection) < 40100) {
     /* Don't dump SET NAMES with a pre-4.1 server (bug#7997).  */
     opt_set_charset = false;
@@ -1659,12 +1679,26 @@ static int connect_to_db(char *host, char *user) {
   /*
     set network read/write timeout value to a larger value to allow tables with
     large data to be sent on network without causing connection lost error due
-    to timeout
+    to timeout.
+    Additionally set long_query_time value for mysqldump session in the same
+    query to possibly reduce one RTT.
   */
-  if (opt_network_timeout) {
-    snprintf(buff, sizeof(buff),
-             "SET SESSION NET_READ_TIMEOUT= 86400, "
-             "SESSION NET_WRITE_TIMEOUT= 86400 ");  // 1 day in seconds
+  if (opt_network_timeout || long_query_time_opt_provided) {
+    size_t len = snprintf(buff, sizeof(buff), "SET ");
+    if (opt_network_timeout) {
+      len += snprintf(buff + len, sizeof(buff) - len,
+                      "SESSION NET_READ_TIMEOUT= 86400, "
+                      "SESSION NET_WRITE_TIMEOUT= 86400");  // 1 day in seconds
+      if (long_query_time_opt_provided) {
+        // delimiter needed for appending next variable
+        len += snprintf(buff + len, sizeof(buff) - len, ", ");
+      }
+    }
+    if (long_query_time_opt_provided) {
+      // add snprintf result to len if new option gets added in the same request
+      snprintf(buff + len, sizeof(buff) - len, "SESSION long_query_time=%lu",
+               opt_long_query_time);
+    }
     if (mysql_query_with_error_report(mysql, nullptr, buff)) return 1;
   }
 
@@ -1672,6 +1706,13 @@ static int connect_to_db(char *host, char *user) {
       mysql_query_with_error_report(
           mysql, nullptr,
           "/*!80018 SET SESSION show_create_table_skip_secondary_engine=1 */"))
+    return 1;
+
+  if (opt_skip_gipk &&
+      mysql_query_with_error_report(
+          mysql, nullptr,
+          "/*!80030 SET SESSION "
+          "show_gipk_in_create_table_and_information_schema = OFF */"))
     return 1;
 
   return 0;
@@ -3717,7 +3758,7 @@ static void dump_table(char *table, char *db) {
     dynstr_append_checked(&query_string, " /*!50138 CHARACTER SET ");
     dynstr_append_checked(&query_string,
                           default_charset == mysql_universal_client_charset
-                              ? my_charset_bin.name
+                              ? my_charset_bin.m_coll_name
                               : /* backward compatibility */
                               default_charset);
     dynstr_append_checked(&query_string, " */");
@@ -4194,7 +4235,8 @@ static int dump_tablespaces(char *ts_where) {
                               " ENGINE,"
                               " EXTRA"
                               " FROM INFORMATION_SCHEMA.FILES"
-                              " WHERE FILE_TYPE = 'UNDO LOG'"
+                              " WHERE ENGINE = 'ndbcluster'"
+                              " AND FILE_TYPE = 'UNDO LOG'"
                               " AND FILE_NAME IS NOT NULL"
                               " AND LOGFILE_GROUP_NAME IS NOT NULL",
                               256);
@@ -4203,7 +4245,8 @@ static int dump_tablespaces(char *ts_where) {
                           " AND LOGFILE_GROUP_NAME IN ("
                           "SELECT DISTINCT LOGFILE_GROUP_NAME"
                           " FROM INFORMATION_SCHEMA.FILES"
-                          " WHERE FILE_TYPE = 'DATAFILE'");
+                          " WHERE ENGINE = 'ndbcluster'"
+                          " AND FILE_TYPE = 'DATAFILE'");
     dynstr_append_checked(&sqlbuf, ts_where);
     dynstr_append_checked(&sqlbuf, ")");
   }

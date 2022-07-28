@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ class PT_hint_max_execution_time;
 
   Opt_hints_global class is hierarchical structure.
   It contains information about global hints and also
-  conains array of QUERY BLOCK level objects (Opt_hints_qb class).
+  contains array of QUERY BLOCK level objects (Opt_hints_qb class).
   Each QUERY BLOCK level object contains array of TABLE level hints
   (class Opt_hints_table). Each TABLE level hint contains array of
   KEY lelev hints (Opt_hints_key class).
@@ -489,7 +489,7 @@ class Opt_hints_qb : public Opt_hints {
 class PT_key_level_hint;
 
 /**
-  Auxiluary class for compound key objects.
+  Auxiliary class for compound key objects.
 */
 class Compound_key_hint {
   PT_key_level_hint *pt_hint;  // Pointer to PT_key_level_hint object.
@@ -688,13 +688,14 @@ class Sys_var_hint {
     Add variable to hint list.
 
     @param thd            pointer to THD object
-    @param sys_var        pointer to sys_var object
+    @param var_tracker    pointer to System_variable_tracker object
     @param sys_var_value  variable value
 
     @return true if variable is added,
             false otherwise
   */
-  bool add_var(THD *thd, sys_var *sys_var, Item *sys_var_value);
+  bool add_var(THD *thd, const System_variable_tracker &var_tracker,
+               Item *sys_var_value);
   /**
     Find variable in hint list.
 
@@ -790,7 +791,7 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
 bool idx_merge_hint_state(THD *thd, const TABLE *table,
                           bool *use_cheapest_index_merge);
 
-int cmp_lex_string(const LEX_CSTRING *s, const LEX_CSTRING *t,
+int cmp_lex_string(const LEX_CSTRING &s, const LEX_CSTRING &t,
                    const CHARSET_INFO *cs);
 
 #endif /* OPT_HINTS_INCLUDED */

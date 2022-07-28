@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -264,9 +264,11 @@ for p in \
          component_test_mysql_runtime_error.so \
          component_test_mysql_system_variable_set.so \
          component_test_component_deinit.so \
+         component_test_global_priv_registration.so \
          component_test_page_track_component.so \
          component_test_pfs_notification.so \
          component_test_pfs_resource_group.so \
+         component_test_sensitive_system_variables.so \
          component_test_status_var_service_int.so \
          component_test_status_var_service_reg_only.so \
          component_test_status_var_service.so \
@@ -292,6 +294,7 @@ for p in \
          component_udf_unreg_3_func.so \
          component_udf_unreg_int_func.so \
          component_udf_unreg_real_func.so \
+         conflicting_variables.so \
          daemon_example.ini \
          ha_example.so \
          ha_mock.so \
@@ -402,8 +405,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysql_migrate_keyring
 
 %dir %{_libdir}/mysql/private
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.11.4
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.11.4
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.19.4
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.19.4
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.*
 
 %dir %{_libdir}/mysql/plugin
@@ -478,6 +481,10 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
 
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt69l
+%{_libdir}/mysql/private/icudt69l/unames.icu
+%{_libdir}/mysql/private/icudt69l/brkitr
+
 %if 0%{?commercial}
 %if 0%{?with_meb}
 %attr(755, root, root) %{_bindir}/mysqlbackup
@@ -498,6 +505,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws_sdk
@@ -511,6 +519,12 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Wed Feb 02 2022 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.30-1
+- Added component_enterprise_encryption
+
+* Mon Jan 03 2022 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.29-1
+- Added component_test_sensitive_system_variables
+
 * Tue Aug 31 2021 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.27-1
 - Added authentication_oci_client
 

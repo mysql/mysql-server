@@ -113,14 +113,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;
-*** Crash right after 'ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci' has been binary-logged before committed in the engine ***
+*** Crash right after 'ALTER DATABASE db_0 DEFAULT COLLATE utf8mb3_general_ci' has been binary-logged before committed in the engine ***
 SET @@SESSION.debug="+d,crash_commit_after_log";
-ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci;
+ALTER DATABASE db_0 DEFAULT COLLATE utf8mb3_general_ci;
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	#	Query	#	#	ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci /* XID # */
+#	#	Query	#	#	ALTER DATABASE db_0 DEFAULT COLLATE utf8mb3_general_ci /* XID # */
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;

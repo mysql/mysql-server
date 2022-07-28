@@ -79,9 +79,9 @@ SELECT COUNT(@@GLOBAL.innodb_read_io_threads);
 COUNT(@@GLOBAL.innodb_read_io_threads)
 1
 1 Expected
-SELECT innodb_read_io_threads = @@SESSION.innodb_read_io_threads;
+SELECT innodb_read_io_threads;
 ERROR 42S22: Unknown column 'innodb_read_io_threads' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'
 SELECT COUNT(@@innodb_write_io_threads);
 COUNT(@@innodb_write_io_threads)
 1
@@ -96,6 +96,6 @@ SELECT COUNT(@@GLOBAL.innodb_write_io_threads);
 COUNT(@@GLOBAL.innodb_write_io_threads)
 1
 1 Expected
-SELECT innodb_write_io_threads = @@SESSION.innodb_write_io_threads;
+SELECT innodb_write_io_threads;
 ERROR 42S22: Unknown column 'innodb_write_io_threads' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

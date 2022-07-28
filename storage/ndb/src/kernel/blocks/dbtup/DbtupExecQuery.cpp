@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2650,13 +2650,57 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto update_error;
     }
   }
-  
-  if (unlikely((res = updateAttributes(req_struct, &cinBuffer[0],
-                                       req_struct->attrinfo_len)) < 0))
+
+  if (unlikely(req_struct->interpreted_exec))
   {
     jam();
-    terrorCode = Uint32(-res);
-    goto update_error;
+
+    /* Interpreted insert only processes the finalUpdate section */
+    const Uint32 RinitReadLen= cinBuffer[0];
+    const Uint32 RexecRegionLen= cinBuffer[1];
+    const Uint32 RfinalUpdateLen= cinBuffer[2];
+    //const Uint32 RfinalRLen= cinBuffer[3];
+    //const Uint32 RsubLen= cinBuffer[4];
+
+    const Uint32 offset = 5 + RinitReadLen + RexecRegionLen;
+    req_struct->log_size = 0;
+
+    if (unlikely((res = updateAttributes(req_struct, &cinBuffer[offset],
+                                         RfinalUpdateLen)) < 0))
+    {
+      jam();
+      terrorCode = Uint32(-res);
+      goto update_error;
+    }
+
+    /**
+     * Send normal format AttrInfo back to LQH for
+     * propagation
+     */
+    req_struct->log_size = RfinalUpdateLen;
+    MEMCOPY_NO_WORDS(&clogMemBuffer[0],
+                     &cinBuffer[offset],
+                     RfinalUpdateLen);
+
+    if (unlikely(sendLogAttrinfo(signal,
+                                 req_struct,
+                                 RfinalUpdateLen,
+                                 regOperPtr.p) != 0))
+    {
+      jam();
+      goto update_error;
+    }
+  }
+  else
+  {
+    /* Normal insert */
+    if (unlikely((res = updateAttributes(req_struct, &cinBuffer[0],
+                                         req_struct->attrinfo_len)) < 0))
+    {
+      jam();
+      terrorCode = Uint32(-res);
+      goto update_error;
+    }
   }
 
   if (ERROR_INSERTED(4017))
@@ -5432,7 +5476,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
       if (copy_bits & Tuple_header::COPY_TUPLE)
       {
         jamDebug();
-        c_page_pool.getPtr(pagePtr, ref.m_page_no);
+        ndbrequire(c_page_pool.getPtr(pagePtr, ref.m_page_no));
         pageP = (Var_page*)pagePtr.p;
       }
       alloc = pageP->get_entry_len(idx);
@@ -5567,7 +5611,7 @@ Dbtup::optimize_var_part(KeyReqStruct* req_struct,
   Uint32 idx = ref.m_page_idx;
 
   Ptr<Page> pagePtr;
-  c_page_pool.getPtr(pagePtr, ref.m_page_no);
+  ndbrequire(c_page_pool.getPtr(pagePtr, ref.m_page_no));
 
   Var_page* pageP = (Var_page*)pagePtr.p;
   Uint32 var_part_size = pageP->get_entry_len(idx);
@@ -6028,7 +6072,7 @@ Dbtup::nr_delete_page_callback(Signal* signal,
 			       Uint32 userpointer, Uint32 page_id)//unused
 {
   Ptr<GlobalPage> gpage;
-  m_global_page_pool.getPtr(gpage, page_id);
+  ndbrequire(m_global_page_pool.getPtr(gpage, page_id));
   PagePtr pagePtr((Tup_page*)gpage.p, gpage.i);
   disk_page_set_dirty(pagePtr);
   Dblqh::Nr_op_info op;
@@ -6099,7 +6143,7 @@ Dbtup::nr_delete_log_buffer_callback(Signal* signal,
     tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
   
   Ptr<GlobalPage> gpage;
-  m_global_page_pool.getPtr(gpage, op.m_page_id);
+  ndbrequire(m_global_page_pool.getPtr(gpage, op.m_page_id));
   PagePtr pagePtr((Tup_page*)gpage.p, gpage.i);
 
   /**

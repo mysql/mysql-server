@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -107,10 +107,8 @@ class NotifyTest : public RestApiComponentTest {
       const std::vector<std::string> &config_file_sections) {
     auto default_section = prepare_config_defaults();
 
-    std::string config_file_content;
-    for (const auto &section : config_file_sections) {
-      config_file_content += section + "\n";
-    }
+    const std::string config_file_content =
+        mysql_harness::join(config_file_sections, "");
 
     return ProcessManager::create_config_file(
         get_test_temp_dir_name(), config_file_content, &default_section);
@@ -178,11 +176,13 @@ class NotifyTest : public RestApiComponentTest {
   ProcessWrapper &launch_router(
       const std::vector<std::string> &params,
       const std::vector<std::pair<std::string, std::string>> &env_vars,
-      int expected_exit_code) {
+      int expected_exit_code,
+      ProcessWrapper::OutputResponder output_responder =
+          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
     // wait_for_notify_ready is false as we do it manually in those tests
     auto &router =
         launch_command(get_mysqlrouter_exec().str(), params, expected_exit_code,
-                       /*catch_stderr*/ true, env_vars);
+                       /*catch_stderr*/ true, env_vars, output_responder);
     router.set_logging_path(get_logging_dir().str(), "mysqlrouter.log");
 
     return router;
@@ -570,7 +570,7 @@ TEST_P(NotifyTestInvalidSocketNameTest, NotifyTestInvalidSocketName) {
                         2s));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     NotifyTestInvalidSocketName, NotifyTestInvalidSocketNameTest,
     ::testing::Values(
         "CON", "PRN",
@@ -924,12 +924,11 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
   auto &router = launch_router(
       {"--bootstrap=localhost:" + std::to_string(metadata_server_port),
        "-d=" + temp_test_dir.name()},
-      env_vars, EXIT_SUCCESS);
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+      env_vars, EXIT_SUCCESS,
+      RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
   SCOPED_TRACE("// Bootstrap should be successful");
-  check_exit_code(router, EXIT_SUCCESS, 10s);
+  check_exit_code(router, EXIT_SUCCESS);
 
   SCOPED_TRACE("// No notification should be sent by the Router");
   wait_for_stopped.join();
@@ -937,7 +936,7 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
             stdx::make_unexpected(make_error_code(std::errc::timed_out)));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     NotifyBootstrapNotAffected, NotifyBootstrapNotAffectedTest,
     ::testing::Values("READY=1",
                       "STOPPING=1\nSTATUS=Router shutdown in progress\n"));

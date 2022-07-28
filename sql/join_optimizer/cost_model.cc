@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "sql/item_subselect.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/find_contained_subqueries.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/relational_expression.h"
@@ -65,11 +66,22 @@ double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
   // cost model is tuned better for this case.
   const double hacked_num_output_rows = ceil(num_output_rows);
 
-  const double table_scan_cost = table->file->table_scan_cost().total_cost();
-  const double worst_seeks = find_worst_seeks(
-      table->cost_model(), hacked_num_output_rows, table_scan_cost);
+  // We call find_cost_for_ref(), which is the same cost model used
+  // in the old join optimizer, but without the “worst_seek” cap,
+  // which gives ref access with high row counts an artificially low cost.
+  // Removing this cap hurts us a bit if the buffer pool gets filled
+  // with useful data _while running this query_, but it is just a really
+  // bad idea overall, that makes the join optimizer prefer such plans
+  // by a mile. The original comment says that it's there to prevent
+  // choosing table scan too often, but table scans are not a problem
+  // if we hash join on them. (They can be dangerous with nested-loop
+  // joins, though!)
+  //
+  // TODO(sgunders): This is still a very primitive, and rather odd,
+  // cost model. In particular, why don't we ask the storage engine for
+  // the cost of scanning non-covering secondary indexes?
   return find_cost_for_ref(thd, table, key_idx, hacked_num_output_rows,
-                           worst_seeks);
+                           /*worst_seeks=*/DBL_MAX);
 }
 
 void EstimateSortCost(AccessPath *path, ha_rows limit_rows) {
@@ -102,16 +114,30 @@ void EstimateSortCost(AccessPath *path, ha_rows limit_rows) {
   path->cost_before_filter = path->cost;
 }
 
-// Estimate the width of each row produced by “query_block”,
-// for temporary table materialization.
-//
-// See EstimateRowWidth() in make_join_hypergraph.cc.
-static size_t EstimateRowWidth(const Query_block &query_block) {
-  size_t ret = 0;
-  for (const Item *item : query_block.fields) {
-    ret += min<size_t>(item->max_length, 4096);
+void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
+             FilterCost *cost) {
+  cost->cost_if_not_materialized += num_rows * subquery.path->cost;
+  if (subquery.materializable) {
+    // We can't ask the handler for costs at this stage, since that
+    // requires an actual TABLE, and we don't want to be creating
+    // them every time we're evaluating a cost-> Thus, instead,
+    // we ask the cost model for an estimate. Longer-term, these two
+    // estimates should really be guaranteed to be the same somehow.
+    Cost_model_server::enum_tmptable_type tmp_table_type;
+    if (subquery.row_width * num_rows < thd->variables.max_heap_table_size) {
+      tmp_table_type = Cost_model_server::MEMORY_TMPTABLE;
+    } else {
+      tmp_table_type = Cost_model_server::DISK_TMPTABLE;
+    }
+    cost->cost_if_materialized += thd->cost_model()->tmptable_readwrite_cost(
+        tmp_table_type, /*write_rows=*/0,
+        /*read_rows=*/num_rows);
+    cost->cost_to_materialize +=
+        subquery.path->cost +
+        kMaterializeOneRowCost * subquery.path->num_output_rows;
+  } else {
+    cost->cost_if_materialized += num_rows * subquery.path->cost;
   }
-  return ret;
 }
 
 FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
@@ -119,58 +145,11 @@ FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
   FilterCost cost{0.0, 0.0, 0.0};
   cost.cost_if_not_materialized = num_rows * kApplyOneFilterCost;
   cost.cost_if_materialized = num_rows * kApplyOneFilterCost;
-  WalkItem(condition, enum_walk::POSTFIX,
-           [thd, num_rows, outer_query_block, &cost](Item *item) {
-             if (!IsItemInSubSelect(item)) {
-               return false;
-             }
-             Item_in_subselect *item_subs =
-                 down_cast<Item_in_subselect *>(item);
-
-             // TODO(sgunders): Respect subquery hints, which can force the
-             // strategy to be materialize.
-             Query_block *query_block = item_subs->unit->first_query_block();
-             const bool materializeable =
-                 item_subs->subquery_allows_materialization(
-                     thd, query_block, outer_query_block) &&
-                 query_block->subquery_strategy(thd) ==
-                     Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT;
-
-             AccessPath *path = item_subs->unit->root_access_path();
-             if (path == nullptr) {
-               // In rare situations involving IN subqueries on the left side of
-               // other IN subqueries, the query block may not be part of the
-               // parent query block's list of inner query blocks. If so, it has
-               // not been optimized here. Since this is a rare case, we'll just
-               // skip it and assign it zero cost.
-               return false;
-             }
-
-             cost.cost_if_not_materialized += num_rows * path->cost;
-             if (materializeable) {
-               // We can't ask the handler for costs at this stage, since that
-               // requires an actual TABLE, and we don't want to be creating
-               // them every time we're evaluating a cost. Thus, instead,
-               // we ask the cost model for an estimate. Longer-term, these two
-               // estimates should really be guaranteed to be the same somehow.
-               Cost_model_server::enum_tmptable_type tmp_table_type;
-               if (EstimateRowWidth(*query_block) * num_rows <
-                   thd->variables.max_heap_table_size) {
-                 tmp_table_type = Cost_model_server::MEMORY_TMPTABLE;
-               } else {
-                 tmp_table_type = Cost_model_server::DISK_TMPTABLE;
-               }
-               cost.cost_if_materialized +=
-                   thd->cost_model()->tmptable_readwrite_cost(
-                       tmp_table_type, /*write_rows=*/0,
-                       /*read_rows=*/num_rows);
-               cost.cost_to_materialize +=
-                   path->cost + kMaterializeOneRowCost * path->num_output_rows;
-             } else {
-               cost.cost_if_materialized += num_rows * path->cost;
-             }
-             return false;
-           });
+  FindContainedSubqueries(
+      thd, condition, outer_query_block,
+      [thd, num_rows, &cost](const ContainedSubquery &subquery) {
+        AddCost(thd, subquery, num_rows, &cost);
+      });
   return cost;
 }
 
@@ -218,7 +197,8 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
 
       // Try to get usable estimates. Ignored by InnoDB, but used by
       // TempTable.
-      temp_table->file->stats.records = path->num_output_rows;
+      temp_table->file->stats.records =
+          min(path->num_output_rows, LLONG_MAX_DOUBLE);
       table_path->cost = temp_table->file->table_scan_cost().total_cost();
     }
   }
@@ -228,12 +208,13 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
   path->cost = path->cost + std::max(table_path->cost, 0.0);
 }
 
-void EstimateAggregateCost(AccessPath *path) {
+void EstimateAggregateCost(AccessPath *path, const Query_block *query_block) {
   AccessPath *child = path->aggregate().child;
 
   // TODO(sgunders): How do we estimate how many rows aggregation
-  // will be reducing the output by?
-  path->num_output_rows = child->num_output_rows;
+  // will be reducing the output by in explicitly grouped queries?
+  path->num_output_rows =
+      query_block->is_implicitly_grouped() ? 1.0 : child->num_output_rows;
   path->init_cost = child->init_cost;
   path->init_once_cost = child->init_once_cost;
   path->cost = child->cost + kAggregateOneRowCost * child->num_output_rows;
@@ -242,25 +223,36 @@ void EstimateAggregateCost(AccessPath *path) {
   path->ordering_state = child->ordering_state;
 }
 
-double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
-                             const JoinPredicate *edge,
-                             double already_applied_selectivity) {
-  const double outer_rows = left_path->num_output_rows;
-  const double inner_rows = right_path->num_output_rows;
-  const double selectivity = edge->selectivity / already_applied_selectivity;
-  if (edge->expr->type == RelationalExpression::ANTIJOIN) {
-    return outer_rows * (1.0 - selectivity);
-  } else {
-    double num_output_rows = outer_rows * inner_rows * selectivity;
-    if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
-      num_output_rows = std::max(num_output_rows, outer_rows);
-    }
-    if (edge->expr->type == RelationalExpression::SEMIJOIN) {
-      num_output_rows =
-          std::min(num_output_rows, outer_rows / already_applied_selectivity);
-      num_output_rows =
-          std::min(num_output_rows, inner_rows / already_applied_selectivity);
-    }
-    return num_output_rows;
-  }
+void EstimateDeleteRowsCost(AccessPath *path) {
+  const auto &param = path->delete_rows();
+  const AccessPath *child = param.child;
+
+  path->num_output_rows = child->num_output_rows;
+  path->init_once_cost = child->init_once_cost;
+  path->init_cost = child->init_cost;
+
+  // Include the cost of building the temporary tables for the non-immediate
+  // (buffered) deletes in the cost estimate.
+  const table_map buffered_tables =
+      param.tables_to_delete_from & ~param.immediate_tables;
+  path->cost = child->cost + kMaterializeOneRowCost *
+                                 PopulationCount(buffered_tables) *
+                                 child->num_output_rows;
+}
+
+void EstimateUpdateRowsCost(AccessPath *path) {
+  const auto &param = path->update_rows();
+  const AccessPath *child = param.child;
+
+  path->num_output_rows = child->num_output_rows;
+  path->init_once_cost = child->init_once_cost;
+  path->init_cost = child->init_cost;
+
+  // Include the cost of building the temporary tables for the non-immediate
+  // (buffered) updates in the cost estimate.
+  const table_map buffered_tables =
+      param.tables_to_update & ~param.immediate_tables;
+  path->cost = child->cost + kMaterializeOneRowCost *
+                                 PopulationCount(buffered_tables) *
+                                 child->num_output_rows;
 }

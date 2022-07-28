@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,12 +55,12 @@ std::string parse_inclusion_string(
     const separator_t *sep = is_user_object ? &sep_user : &sep_object;
 
     tokenizer_t outer_tok(val, sep_csl);
-    for (titerator_t it = outer_tok.begin(); it != outer_tok.end(); it++) {
+    for (titerator_t it = outer_tok.begin(); it != outer_tok.end(); ++it) {
       std::string elt = *it;
       boost::trim(elt);
       tokenizer_t itok(elt, *sep);
       std::vector<std::string> object_parts;
-      for (titerator_t iit = itok.begin(); iit != itok.end(); iit++) {
+      for (titerator_t iit = itok.begin(); iit != itok.end(); ++iit) {
         std::string s = *iit;
         boost::trim(s);
         if (s.length() == 0)

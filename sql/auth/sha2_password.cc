@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,8 +46,8 @@
 #include "my_macros.h"
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_rwlock_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
@@ -876,7 +876,7 @@ static char perform_full_authentication = '\4';
        if (Client: Connection check) then
          -[#red]-> [Priority#1:\nTCP with TLS OR Socket Or\nShared Memory connection:\nSend password to server] "Server: received password"
        else
-         if (Priorty#2:\nPublic key available) then
+         if (Priority#2:\nPublic key available) then
            -[#yellow]-> [yes] "Client: Public key available"
          else
            if (No\nPriority#3: Should client get\nserver's public key) then
@@ -927,8 +927,13 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   char scramble[SCRAMBLE_LENGTH + 1];
   int cipher_length = 0;
   unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_PKEY *private_key = nullptr;
+  EVP_PKEY *public_key = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   RSA *private_key = nullptr;
   RSA *public_key = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   generate_user_salt(scramble, SCRAMBLE_LENGTH + 1);
 
@@ -1064,8 +1069,9 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (pkt_len != cipher_length) return CR_ERROR;
 
     /* Decrypt password */
-    RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
-                        RSA_PKCS1_OAEP_PADDING);
+    if (decrypt_RSA_private_key(pkt, cipher_length, plain_text,
+                                sizeof(plain_text) - 1, private_key))
+      return CR_ERROR;
 
     plain_text[cipher_length] = '\0';  // safety
     xor_string((char *)plain_text, cipher_length, (char *)scramble,
@@ -1467,7 +1473,7 @@ mysql_declare_plugin(caching_sha2_password){
     0x0100,                                 /* version (1.0)                 */
     caching_sha2_password_status_variables, /* status variables              */
     caching_sha2_password_sysvars,          /* system variables              */
-    nullptr,                                /* reserverd                     */
+    nullptr,                                /* reserved                      */
     0,                                      /* flags                         */
 },
     {
@@ -1483,6 +1489,6 @@ mysql_declare_plugin(caching_sha2_password){
         0x0100,                            /* version (1.0)                 */
         nullptr,                           /* status variables              */
         nullptr,                           /* system variables              */
-        nullptr,                           /* reserverd                     */
+        nullptr,                           /* reserved                      */
         0                                  /* flags                         */
     } mysql_declare_plugin_end;

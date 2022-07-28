@@ -72,7 +72,7 @@ explain select * from t2 where t2.a in (select a from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	#	Using where; Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.a	1	#	NULL
-2	MATERIALIZED	t1	NULL	index	a	a	10	NULL	10157	#	Using index
+2	MATERIALIZED	t1	NULL	index	a	a	10	NULL	10004	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
@@ -83,7 +83,7 @@ explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	#	Using where; Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.a	1	#	NULL
-2	MATERIALIZED	t1	NULL	index	a	a	10	NULL	10157	#	Using where; Using index
+2	MATERIALIZED	t1	NULL	index	a	a	10	NULL	10004	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where ((`<subquery2>`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
@@ -95,7 +95,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	#	Using where; Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.a	1	#	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	5	NULL	3	#	Using index
-2	MATERIALIZED	t1	NULL	index	a	a	10	NULL	10157	#	Using where; Using index
+2	MATERIALIZED	t1	NULL	index	a	a	10	NULL	10004	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1` join `test`.`t3`) where ((`<subquery2>`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` = `test`.`t3`.`a`))
 insert into t1 values (3,31);
@@ -115,7 +115,7 @@ explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	#	Using where; Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.a	1	#	NULL
-2	MATERIALIZED	t1	NULL	index	a	a	10	NULL	10157	#	Using where; Using index
+2	MATERIALIZED	t1	NULL	index	a	a	10	NULL	10005	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where ((`<subquery2>`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
 drop table t0, t1, t2, t3;
@@ -4510,7 +4510,7 @@ EXPLAIN
             -> Filter: (t1.kp1 is not null)  (cost=32.26 rows=40)
                 -> Nested loop inner join  (cost=32.26 rows=40)
                     -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=18.26 rows=40)
-                        -> Index range scan on t1 using kp1  (cost=18.26 rows=40)
+                        -> Index range scan on t1 using kp1 over (NULL < kp1 < 20)  (cost=18.26 rows=40)
                     -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.25 rows=1)
 
 select * from t3 where a in 
@@ -8600,7 +8600,7 @@ explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	5	NULL	1000	100.00	Using where; Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.a	1	100.00	NULL
-2	MATERIALIZED	t3	NULL	index	a	a	5	NULL	30360	100.00	Using index
+2	MATERIALIZED	t3	NULL	index	a	a	5	NULL	30000	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t2`.`a`) AS `count(a)` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
 select count(a) from t2 where a in ( SELECT  a FROM t3);
@@ -10460,24 +10460,6 @@ ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
-EXPLAIN SELECT t1a.*
-FROM t1 AS t1a
-JOIN t1 AS t1b USING ( col_int_nokey )
-WHERE t1a.col_int_key IN (
-SELECT pk
-FROM t2
-WHERE col_int_key IN (
-SELECT col_int_nokey
-FROM t1
-)
-);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	PRIMARY,col_int_key	col_int_key	4	NULL	1	100.00	Using index
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Start temporary
-1	SIMPLE	t1a	NULL	ref	col_int_key	col_int_key	4	test.t2.pk	1	100.00	End temporary
-1	SIMPLE	t1b	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1a`.`pk` AS `pk`,`test`.`t1a`.`col_int_nokey` AS `col_int_nokey`,`test`.`t1a`.`col_int_key` AS `col_int_key` from `test`.`t2` join `test`.`t1` `t1a` join `test`.`t1` `t1b` semi join (`test`.`t1`) where ((`test`.`t1b`.`col_int_nokey` = `test`.`t1a`.`col_int_nokey`) and (`test`.`t1a`.`col_int_key` = `test`.`t2`.`pk`) and (`test`.`t1`.`col_int_nokey` = `test`.`t2`.`col_int_key`))
 SELECT t1a.*
 FROM t1 AS t1a
 JOIN t1 AS t1b USING ( col_int_nokey )
@@ -13038,7 +13020,7 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (123,1,1,'1',NULL),
@@ -13491,19 +13473,19 @@ ORDER BY col_int_key
 ;
 EXPLAIN
 -> Sort: t4.col_int_key
-    -> Stream results  (cost=11.32 rows=7)
-        -> Nested loop inner join  (cost=11.32 rows=7)
-            -> Table scan on <subquery2>  (cost=0.37..2.59 rows=7)
-                -> Materialize with deduplication  (cost=4.47..6.69 rows=7)
-                    -> Filter: (t1.col_int_key is not null)  (cost=3.40 rows=7)
-                        -> Filter: (t3.col_int is null)  (cost=3.40 rows=7)
-                            -> Nested loop left join  (cost=3.40 rows=7)
-                                -> Index scan on t1 using col_int_key  (cost=0.95 rows=7)
-                                -> Nested loop inner join  (cost=2.41 rows=1)
-                                    -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.26 rows=1)
-                                    -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int)  (cost=0.25 rows=1)
-            -> Filter: (t4.col_int_key = `<subquery2>`.col_int_key)  (cost=0.54 rows=1)
-                -> Table scan on t4  (cost=0.54 rows=6)
+    -> Stream results (rows=7)
+        -> Nested loop inner join (rows=7)
+            -> Table scan on <subquery2> (rows=7)
+                -> Materialize with deduplication (rows=7)
+                    -> Filter: (t1.col_int_key is not null) (rows=7)
+                        -> Filter: (t3.col_int is null) (rows=7)
+                            -> Nested loop left join (rows=7)
+                                -> Index scan on t1 using col_int_key (rows=7)
+                                -> Nested loop inner join (rows=1)
+                                    -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk) (rows=1)
+                                    -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int) (rows=1)
+            -> Filter: (t4.col_int_key = `<subquery2>`.col_int_key) (rows=1)
+                -> Table scan on t4 (rows=6)
 
 SELECT *
 FROM t4

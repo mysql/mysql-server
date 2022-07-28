@@ -1,7 +1,7 @@
 #ifndef THR_RWLOCK_INCLUDED
 #define THR_RWLOCK_INCLUDED
 
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_thread.h"
-#include "mysql/components/services/thr_rwlock_bits.h"
+#include "mysql/components/services/bits/thr_rwlock_bits.h"
 #include "thr_cond.h"
 #include "thr_mutex.h"
 

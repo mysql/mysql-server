@@ -1,0 +1,132 @@
+# === Purpose ===
+#
+# This test validates that when a table has an index, if that table on the
+# source doe not contain a PK but the same table on the replica does,
+# replication still works
+# Other similar scenarios are tested
+#
+# ==== Requirements ====
+#
+# R1. Replication should work when the table on the replica has more columns
+# on the right, and an extra PK on those extra columns, even with the
+# presence of extra indexes.
+#
+# === Implementation ====
+#
+# 1. Create several tables in the source:
+#    - A table with an index on column c2
+#    - A table with no key or indexes
+#    - A table with a nullable unique key
+#    - A table with a non nullable unique key
+#    Create the same tables in the replica with an extra column that is a PK
+# 2. For the 4 tables:
+#    Insert 2 rows
+#    Update and delete data, operations that usually would use the indexes (if existent) to locate data on the replica
+#    The update and delete should be replicated and applied correctly
+# 3. Cleanup
+#
+# === References ===
+#
+# Bug#34122738: Write_rows apply failure if source table has index and replica an extra PK
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Create several tables in the source:
+--echo #    - A table with an index on column c2
+--echo #    - A table with no key or indexes
+--echo #    - A table with a nullable unique key
+--echo #    - A table with a non nullable unique key
+--echo #    Create the same tables in the replica with an extra column that is a PK
+
+--source include/disable_binlog.inc
+
+# Table with an index
+CREATE TABLE st1 (c1 INT, c2 INT, INDEX(c2));
+
+# Table with no key
+CREATE TABLE st2 (c1 INT, c2 INT);
+
+# Table with a nullable unique key
+CREATE TABLE st3 (c1 INT, c2 INT, UNIQUE KEY(c2));
+
+# Table with a non nullable unique key
+CREATE TABLE st4 (c1 INT, c2 INT NOT NULL, UNIQUE KEY(c2));
+
+--source include/restore_binlog.inc
+
+--source include/rpl_connection_slave.inc
+
+--source include/disable_binlog.inc
+
+CREATE TABLE st1 (c1 INT, c2 INT, c3 INT NOT NULL AUTO_INCREMENT, INDEX(c2), PRIMARY KEY(c3));
+
+CREATE TABLE st2 (c1 INT, c2 INT, c3 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c3));
+
+CREATE TABLE st3 (c1 INT, c2 INT, c3 INT NOT NULL AUTO_INCREMENT, UNIQUE KEY(c2), PRIMARY KEY(c3));
+
+CREATE TABLE st4 (c1 INT, c2 INT NOT NULL, c3 INT NOT NULL AUTO_INCREMENT, UNIQUE KEY(c2), PRIMARY KEY(c3));
+
+--source include/restore_binlog.inc
+
+--echo
+--echo ##############################################################
+--echo # 2. For the 4 tables:
+--echo #    Insert data
+--echo #    Update and delete data, operations that usually would use the indexes (if existent) to locate data on the replica
+--echo #    The update and delete should be replicated and applied correctly
+
+--source include/rpl_connection_master.inc
+
+--let $table_iter=1
+while ($table_iter <=4)
+{
+  --let $table=st$table_iter
+
+  --eval INSERT INTO $table(c1, c2) VALUES(1, 2)
+
+  --eval INSERT INTO $table(c1, c2) VALUES(4, 5)
+
+  --eval UPDATE $table SET c1=3 WHERE c2=2;
+
+  --eval DELETE FROM  $table WHERE c2=5;
+
+  --inc $table_iter
+}
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $table_iter=1
+while ($table_iter <=4)
+{
+  --let $table=st$table_iter
+
+  --let $column_count= `SELECT COUNT(*) FROM $table WHERE c1=3;`
+  --let $assert_text= The table was updated
+  --let $assert_cond= $column_count = 1
+  --source include/assert.inc
+
+  --let $column_count= `SELECT COUNT(*) FROM $table;`
+  --let $assert_text= The delete was executed
+  --let $assert_cond= $column_count = 1
+  --source include/assert.inc
+
+  --inc $table_iter
+}
+
+--echo
+--echo ##############################################################
+--echo # 3. Cleanup
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE st1;
+DROP TABLE st2;
+DROP TABLE st3;
+DROP TABLE st4;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

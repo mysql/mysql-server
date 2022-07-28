@@ -7,9 +7,10 @@
 --source include/rpl_init.inc
 
 disable_query_log;
+call mtr.add_suppression("handler error HA_ERR_UNSUPPORTED");
 call mtr.add_suppression("NDB Replica: Configuration with number of replication sources = .* is not supported when applying to Ndb");
-call mtr.add_suppression("Slave SQL for channel .*: Could not execute Write_rows event");
-call mtr.add_suppression("Slave SQL for channel .*: Request to stop slave SQL Thread");
+call mtr.add_suppression(".*Worker 1 failed executing transaction.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 enable_query_log;
 
 # create connections to first mysqld in each cluster

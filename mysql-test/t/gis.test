@@ -2390,8 +2390,8 @@ SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t) AS result;
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) IN (SELECT b FROM t) AS result;
 --error ER_WRONG_ARGUMENTS
 SELECT ST_GeomFromText('POINT(0 0)') > (SELECT b FROM t) AS result;
---error ER_WRONG_VALUE
-SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t) AS result;
+#--error ER_WRONG_VALUE
+#SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t) AS result;
 DROP TABLE t;
 
 CREATE TABLE t1(a BLOB NOT NULL, b INT NOT NULL) ENGINE=Innodb;
@@ -2614,7 +2614,7 @@ ALTER TABLE t1 MODIFY COLUMN b GEOMETRY NOT NULL;
 SET SESSION sql_mode=@save_sql_mode;
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
-SELECT * FROM t1;
+SELECT HEX(b) FROM t1;
 DROP TABLE t1;
 
 --echo # Convert a POINT column without rows to POLYGON
@@ -4205,4 +4205,22 @@ is_uuid(
 )
 );
 
+DROP TABLE t;
+
+--echo #
+--echo # Bug #32975221 5.7.29+ REGRESSION, SPATIAL INDEX NOT USED ANYMORE FOR MBRCONTAINS
+--echo #
+
+CREATE TABLE t (
+  c1 VARCHAR(8) NOT NULL,
+  c2 VARCHAR(16) NOT NULL,
+  geom POINT NOT NULL SRID 0,
+  PRIMARY KEY (c2,c1),
+  SPATIAL KEY coord (geom)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+
+INSERT INTO t VALUES (1, 2, POINT(1, 2));
+
+--replace_column 10 ## 11 ##
+EXPLAIN SELECT COUNT(*) FROM t WHERE MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((1 2, 2 2, 2 3, 1 2))'), geom) AND c1 <> '10';
 DROP TABLE t;

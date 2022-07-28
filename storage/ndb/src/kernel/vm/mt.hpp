@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@
  */
 #define MAX_INSTANCES_PER_THREAD ((2 * NO_OF_BLOCKS) + 1)
 
-static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS, "");
+static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS);
 
 Uint32 mt_get_instance_count(Uint32 block);
 

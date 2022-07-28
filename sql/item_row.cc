@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ bool Item_row::fix_fields(THD *thd, Item **) {
     // item->is_null() may have raised an error.
     if (thd->is_error()) return true;
 
-    set_nullable(is_nullable() | item->is_nullable());
+    set_nullable(is_nullable() || item->is_nullable());
     add_accum_properties(item);
   }
   if (types_assigned) set_data_type(MYSQL_TYPE_NULL);

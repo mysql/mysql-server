@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,9 +126,10 @@
 #include "sql/sp_head.h"          // SP_PSI_STATEMENT_INFO_COUNT
 #include "sql/sql_backup_lock.h"  // is_instance_backup_locked
 #include "sql/sql_lex.h"
-#include "sql/sql_locale.h"     // my_locale_by_number
-#include "sql/sql_parse.h"      // killall_non_super_threads
-#include "sql/sql_tmp_table.h"  // internal_tmp_mem_storage_engine_names
+#include "sql/sql_locale.h"            // my_locale_by_number
+#include "sql/sql_parse.h"             // killall_non_super_threads
+#include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
+#include "sql/sql_tmp_table.h"         // internal_tmp_mem_storage_engine_names
 #include "sql/ssl_acceptor_context_operator.h"
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"  // Table_cache_manager
@@ -140,6 +141,7 @@
 #ifdef _WIN32
 #include "sql/named_pipe.h"
 #endif
+#include "my_openssl_fips.h"
 
 #ifdef WITH_LOCK_ORDER
 #include "sql/debug_lock_order.h"
@@ -149,6 +151,65 @@
 #include "storage/perfschema/pfs_server.h"
 #include "storage/perfschema/terminology_use_previous.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+static constexpr const unsigned long DEFAULT_ERROR_COUNT{1024};
+static constexpr const unsigned long DEFAULT_SORT_MEMORY{256UL * 1024UL};
+static constexpr const unsigned HOST_CACHE_SIZE{128};
+static constexpr const unsigned long SCHEMA_DEF_CACHE_DEFAULT{256};
+static constexpr const unsigned long STORED_PROGRAM_DEF_CACHE_DEFAULT{256};
+static constexpr const unsigned long TABLESPACE_DEF_CACHE_DEFAULT{256};
+
+/**
+  We must have room for at least 400 table definitions in the table
+  cache, since otherwise there is no chance prepared
+  statements that use these many tables can work.
+  Prepared statements use table definition cache ids (table_map_id)
+  as table version identifiers. If the table definition
+  cache size is less than the number of tables used in a statement,
+  the contents of the table definition cache is guaranteed to rotate
+  between a prepare and execute. This leads to stable validation
+  errors. In future we shall use more stable version identifiers,
+  for now the only solution is to ensure that the table definition
+  cache can contain at least all tables of a given statement.
+*/
+static constexpr const unsigned long TABLE_DEF_CACHE_MIN{400};
+static constexpr const unsigned long SCHEMA_DEF_CACHE_MIN{256};
+static constexpr const unsigned long STORED_PROGRAM_DEF_CACHE_MIN{256};
+static constexpr const unsigned long TABLESPACE_DEF_CACHE_MIN{256};
+/*
+  Default time to wait before aborting a new client connection
+  that does not respond to "initial server greeting" timely
+*/
+static constexpr const unsigned long CONNECT_TIMEOUT{10};
+
+/* Defaults for deprecated "insert delayed" */
+static constexpr const unsigned long DELAYED_LIMIT{100};
+static constexpr const unsigned long DELAYED_QUEUE_SIZE{1000};
+static constexpr const unsigned long DELAYED_WAIT_TIMEOUT{5 * 60};
+
+static constexpr const unsigned long QUERY_ALLOC_BLOCK_SIZE{8192};
+static constexpr const unsigned long QUERY_ALLOC_PREALLOC_SIZE{8192};
+static constexpr const unsigned long TRANS_ALLOC_PREALLOC_SIZE{4096};
+static constexpr const unsigned long RANGE_ALLOC_BLOCK_SIZE{4096};
+
+// Including the switch in this set, makes its default 'on'
+static constexpr const unsigned long long OPTIMIZER_SWITCH_DEFAULT{
+    OPTIMIZER_SWITCH_INDEX_MERGE | OPTIMIZER_SWITCH_INDEX_MERGE_UNION |
+    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION |
+    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT |
+    OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |
+    OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | OPTIMIZER_SWITCH_MRR |
+    OPTIMIZER_SWITCH_MRR_COST_BASED | OPTIMIZER_SWITCH_BNL |
+    OPTIMIZER_SWITCH_MATERIALIZATION | OPTIMIZER_SWITCH_SEMIJOIN |
+    OPTIMIZER_SWITCH_LOOSE_SCAN | OPTIMIZER_SWITCH_FIRSTMATCH |
+    OPTIMIZER_SWITCH_DUPSWEEDOUT | OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED |
+    OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS |
+    OPTIMIZER_SWITCH_COND_FANOUT_FILTER | OPTIMIZER_SWITCH_DERIVED_MERGE |
+    OPTIMIZER_SKIP_SCAN | OPTIMIZER_SWITCH_HASH_JOIN |
+    OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX |
+    OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN};
+
+static constexpr const unsigned long MYSQLD_NET_RETRY_COUNT{10};
 
 TYPELIB bool_typelib = {array_elements(bool_values) - 1, "", bool_values,
                         nullptr};
@@ -193,7 +254,7 @@ static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   if (!key_cache->key_cache_inited)
-    error = ha_init_key_cache(nullptr, key_cache);
+    error = ha_init_key_cache({}, key_cache);
   else
     error = ha_resize_key_cache(key_cache);
 
@@ -463,6 +524,13 @@ static Sys_var_bool Sys_pfs_consumer_events_stages_history_long(
     "Default startup value for the events_stages_history_long consumer.",
     READ_ONLY NOT_VISIBLE
         GLOBAL_VAR(pfs_param.m_consumer_events_stages_history_long_enabled),
+    CMD_LINE(OPT_ARG), DEFAULT(false), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_pfs_consumer_events_statements_cpu(
+    "performance_schema_consumer_events_statements_cpu",
+    "Default startup value for the events_statements_cpu consumer.",
+    READ_ONLY NOT_VISIBLE
+        GLOBAL_VAR(pfs_param.m_consumer_events_statements_cpu_enabled),
     CMD_LINE(OPT_ARG), DEFAULT(false), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_bool Sys_pfs_consumer_events_statements_current(
@@ -952,7 +1020,7 @@ static Sys_var_charptr Sys_basedir(
     CMD_LINE(REQUIRED_ARG, 'b'), IN_FS_CHARSET, DEFAULT(nullptr));
 
 /*
-  --authentication_policy will take precendence over this variable
+  --authentication_policy will take precedence over this variable
   except in case where plugin name for first factor is not a concrete
   value. Please refer authentication_policy variable.
 */
@@ -1137,10 +1205,9 @@ static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100000 /* max connections */),
     DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
-static bool check_outside_trx(sys_var *, THD *thd, set_var *var) {
+static bool check_outside_trx(sys_var *var, THD *thd, set_var *) {
   if (thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->name.str);
     return true;
   }
   if (!thd->owned_gtid_is_empty()) {
@@ -1149,8 +1216,7 @@ static bool check_outside_trx(sys_var *, THD *thd, set_var *var) {
       thd->owned_gtid.to_string(thd->owned_sid, buf);
     else
       strcpy(buf, "ANONYMOUS");
-    my_error(ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID, MYF(0), var->var->name.str,
-             buf);
+    my_error(ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID, MYF(0), var->name.str, buf);
     return true;
   }
   return false;
@@ -1159,8 +1225,7 @@ static bool check_outside_trx(sys_var *, THD *thd, set_var *var) {
 static bool check_session_admin_outside_trx_outside_sf(sys_var *self, THD *thd,
                                                        set_var *var) {
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), self->name.str);
     return true;
   }
   if (check_outside_trx(self, thd, var)) return true;
@@ -1180,13 +1245,11 @@ static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd,
                           self->name.str);
   }
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), self->name.str);
     return true;
   }
   if (thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   return false;
@@ -1207,13 +1270,11 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var) {
       thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_PREPARED);
 
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), self->name.str);
     return true;
   }
   if (!is_prepared_trx && thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   return check_session_admin_or_replication_applier(self, thd, var);
@@ -1223,7 +1284,7 @@ static bool check_session_admin_outside_trx_outside_sf_outside_sp(
     sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin_outside_trx_outside_sf(self, thd, var)) return true;
   if (thd->lex->sphead) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), self->name.str);
     return true;
   }
   return false;
@@ -1422,8 +1483,7 @@ static bool check_binlog_trx_compression(sys_var *self [[maybe_unused]],
   if (check_session_admin(self, thd, var)) return true;
 
   if (!var->is_global_persist() && thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   return false;
@@ -1446,7 +1506,7 @@ static Sys_var_uint Sys_binlog_transaction_compression_level_zstd(
     DEFAULT(binary_log::transaction::compression::Zstd_comp::
                 DEFAULT_COMPRESSION_LEVEL),
     BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_binlog_trx_compression), ON_UPDATE(NULL));
+    ON_CHECK(check_binlog_trx_compression), ON_UPDATE(nullptr));
 
 static bool on_session_track_gtids_update(sys_var *, THD *thd, enum_var_type) {
   thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
@@ -1616,6 +1676,16 @@ static bool master_info_repository_check(sys_var *self, THD *thd,
   return repository_check(self, thd, var, SLAVE_THD_IO);
 }
 
+static bool replica_parallel_workers_update(sys_var *, THD *thd,
+                                            enum_var_type) {
+  if (opt_mts_replica_parallel_workers == 0) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX), "0", "1");
+  }
+  return false;
+}
+
 static const char *repository_names[] = {"FILE", "TABLE",
 #ifndef NDEBUG
                                          "DUMMY",
@@ -1722,10 +1792,10 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var) {
       lex_cstring_set(&se_name, res->ptr());
     } else {
       // Use the default value defined by sys_var.
-      lex_cstring_set(&se_name,
-                      pointer_cast<const char *>(
-                          down_cast<Sys_var_plugin *>(self)->global_value_ptr(
-                              thd, nullptr)));
+      lex_cstring_set(
+          &se_name,
+          pointer_cast<const char *>(
+              down_cast<Sys_var_plugin *>(self)->global_value_ptr(thd, {})));
     }
 
     plugin_ref plugin;
@@ -1769,7 +1839,7 @@ static bool check_charset(sys_var *, THD *thd, set_var *var) {
     }
     warn_on_deprecated_charset(
         thd, static_cast<const CHARSET_INFO *>(var->save_result.ptr),
-        static_cast<const CHARSET_INFO *>(var->save_result.ptr)->name);
+        static_cast<const CHARSET_INFO *>(var->save_result.ptr)->m_coll_name);
   }
   return false;
 }
@@ -1781,7 +1851,7 @@ namespace {
 struct Get_name {
   explicit Get_name(const CHARSET_INFO *ci) : m_ci(ci) {}
   const uchar *get_name() const {
-    return pointer_cast<const uchar *>(m_ci->name);
+    return pointer_cast<const uchar *>(m_ci->m_coll_name);
   }
   const CHARSET_INFO *m_ci;
 };
@@ -1789,7 +1859,7 @@ struct Get_name {
 struct Get_csname {
   explicit Get_csname(const CHARSET_INFO *ci) : m_ci(ci) {}
   const uchar *get_name() const {
-    return pointer_cast<const uchar *>(replace_utf8_utf8mb3(m_ci->csname));
+    return pointer_cast<const uchar *>(m_ci->csname);
   }
   const CHARSET_INFO *m_ci;
 };
@@ -1840,7 +1910,7 @@ static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_database(
 static bool check_cs_client(sys_var *self, THD *thd, set_var *var) {
   if (check_charset_not_null(self, thd, var)) return true;
 
-  // We don't currently support any variable-width character set with a minumum
+  // We don't currently support any variable-width character set with a minimum
   // length greater than 1. If we ever do, we have to revisit
   // is_supported_parser_charset(). See Item_func_statement_digest::val_str()
   // and Item_func_statement_digest_text::val_str().
@@ -2075,7 +2145,7 @@ static bool event_scheduler_update(sys_var *, THD *, enum_var_type) {
     start/stop, there is a possibility that the server variable
     can become out of sync with the real event scheduler state.
 
-    This can happen with two concurrent statments if the first gets
+    This can happen with two concurrent statements if the first gets
     interrupted after start/stop but before retaking
     LOCK_global_system_variables. However, this problem should be quite
     rare and it's difficult to avoid it without opening up possibilities
@@ -2116,7 +2186,7 @@ static bool check_expire_logs_seconds(sys_var *, THD *, set_var *var) {
   ulonglong expire_logs_seconds_value = var->save_result.ulonglong_value;
 
   if (expire_logs_days && expire_logs_seconds_value) {
-    my_error(ER_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
+    my_error(ER_DA_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
     return true;
   }
   return false;
@@ -2145,6 +2215,14 @@ static Sys_var_ulong Sys_binlog_expire_logs_seconds(
     CMD_LINE(REQUIRED_ARG, OPT_BINLOG_EXPIRE_LOGS_SECONDS),
     VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(2592000), BLOCK_SIZE(1), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_expire_logs_seconds), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_binlog_expire_logs_auto_purge(
+    "binlog_expire_logs_auto_purge",
+    "Controls whether the server shall automatically purge binary log "
+    "files or not. If this variable is set to FALSE then the server will "
+    "not purge binary log files automatically.",
+    GLOBAL_VAR(opt_binlog_expire_logs_auto_purge), CMD_LINE(OPT_ARG),
+    DEFAULT(true));
 
 static Sys_var_bool Sys_flush(
     "flush", "Flush MyISAM tables to disk between SQL commands",
@@ -2342,21 +2420,20 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var) {
 
   if ((var->is_global_persist()) &&
       global_system_variables.binlog_format != BINLOG_FORMAT_ROW) {
-    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), self->name.str);
     return true;
   }
 
   if (var->type == OPT_SESSION &&
       thd->variables.binlog_format != BINLOG_FORMAT_ROW) {
-    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), self->name.str);
     return true;
   }
   /*
     if in a stored function/trigger, it's too late to change
   */
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   /*
@@ -2364,8 +2441,7 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var) {
     inside a transaction.
   */
   if (thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   /*
@@ -2529,37 +2605,56 @@ static bool fix_log_error_services(sys_var *self [[maybe_unused]], THD *thd,
   // syntax is OK and services exist; try to initialize them!
   size_t pos;
 
+  char *pipeline_config =
+      my_strdup(PSI_NOT_INSTRUMENTED, opt_log_error_services, MYF(0));
+
+  if (pipeline_config == nullptr) return true;
+
   /*
-    There is a theoretical race/deadlock here:
+    Temporarily release mutex.
+    This solves two issues:
 
-    SET GLOBAL log_error_services=... first acquires
-    LOCK_global_system_variables (on account of being a system variable),
-    and then will try to obtain THR_LOCK_log_stack (to update the
-    error logging stack).
+    a) Setting up the error-logger may implicitly load external
+       logging components. The init-function of such a component
+       may try to install a system-variable and then ask the system
+       for a (persisted / passed on the command-line / ...) initial
+       value for said variable. The function in the component framework
+       that tries to obtain this value tries to obtain the mutex
+       LOCK_global_system_variables.
 
-    If FLUSH ERROR LOGS is also executed, it will first obtain
-    THR_LOCK_log_stack (as it will call the flush functions in all
-    configured sinks, and cannot allow people to change the config
-    or UNINSTALL COMPONENTs while that happens), and then one of
-    those log-components may try to re-install its pluggable
-    system variables on flush.
+       Note that implicit loading is attempted during the pre-check
+       phase and thus should already have happened at this stage
+       and no longer be a concern.
 
-    Due to the reverse locking order, this may deadlock here.
-    We could temporarily release LOCK_global_system_variables
-    while updating the error-logging stack (after first making
-    a copy of opt_log_error_services), but the better option
-    is to not have log-services' pluggable system variables
-    appear/disappear during FLUSH.
+    b) This function is called with the mutex held.
+       log_builtins_error_stack() will obtain an exclusive lock on
+       THR_LOCK_log_stack while it re-configures the error-logger.
+       A different session might run FLUSH ERROR LOGS at the same time.
+       This obtains THR_LOCK_log_stack first; an individual component's
+       flush function might then try to re-install its system-variables
+       on flush, which would try to obtain LOCK_global_system_variables
+       as per above. I.e. both functions would try to obtain the two
+       locks in a different order.
+
+       Note that components should not behave that way; they should
+       install/uninstall their variables on init/exit, not on open/close.
+
+     Both issues are admittedly unlikely, but guarding against them is cheap.
   */
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
-  if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
-    if (pos < strlen(opt_log_error_services)) /* purecov: begin inspected */
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_CANT_START_ERROR_LOG_SERVICE,
-          ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE), self->name.str,
-          &((char *)opt_log_error_services)[pos]);
+  if (log_builtins_error_stack(pipeline_config, false, &pos) < 0) {
+    if (pos < strlen(pipeline_config)) /* purecov: begin inspected */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_CANT_START_ERROR_LOG_SERVICE,
+                          ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE),
+                          self->name.str, &((char *)pipeline_config)[pos]);
     ret = true; /* purecov: end */
   }
+
+  my_free(pipeline_config);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
 
   return ret;
 }
@@ -2570,7 +2665,16 @@ static Sys_var_charptr Sys_log_error_services(
     PERSIST_AS_READONLY GLOBAL_VAR(opt_log_error_services),
     CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
     DEFAULT(LOG_ERROR_SERVICES_DEFAULT), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_log_error_services), ON_UPDATE(fix_log_error_services));
+    ON_CHECK(check_log_error_services), ON_UPDATE(fix_log_error_services),
+    /*
+      We parse it early so it goes into one logical chunk with log_error
+      and log_timestamps, but we don't activate it immediately. We need
+      to wait until component_infrastructure_init() has run, but want to
+      set up logging services before get_options() is run. That way, any
+      loadable components are ready in case component system variables
+      are set from get_options().
+    */
+    nullptr, sys_var::PARSE_EARLY);
 
 static bool check_log_error_suppression_list(sys_var *self, THD *thd,
                                              set_var *var) {
@@ -3178,6 +3282,19 @@ static Sys_var_ulong Sys_optimizer_search_depth(
     HINT_UPDATEABLE SESSION_VAR(optimizer_search_depth), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, MAX_TABLES + 1), DEFAULT(MAX_TABLES + 1), BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_optimizer_max_subgraph_pairs(
+    "optimizer_max_subgraph_pairs",
+    "Maximum depth of subgraph pairs a query can have before the "
+    "hypergraph join optimizer starts reducing the search space "
+    "heuristically. Larger values may result in better query plans "
+    "for large queries, but also more time and memory spent during planning. "
+    "Increasing this larger than the actual number of subgraph pairs "
+    "in the query will have no further effect. "
+    "Ignored by the old (non-hypergraph) join optimizer",
+    HINT_UPDATEABLE SESSION_VAR(optimizer_max_subgraph_pairs),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, INT_MAX), DEFAULT(100000),
+    BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_range_optimizer_max_mem_size(
     "range_optimizer_max_mem_size",
     "Maximum amount of memory used by the range optimizer "
@@ -3325,6 +3442,48 @@ static Sys_var_flagset Sys_optimizer_switch(
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_optimizer_switch), ON_UPDATE(nullptr));
 
+static PolyLock_mutex PLock_global_conn_mem_limit(&LOCK_global_conn_mem_limit);
+
+static Sys_var_ulonglong Sys_global_connection_memory_limit(
+    "global_connection_memory_limit",
+    "Maximum amount of memory all connections can consume",
+    GLOBAL_VAR(global_conn_mem_limit), CMD_LINE(REQUIRED_ARG),
+#ifndef NDEBUG
+    VALID_RANGE(1, max_mem_sz), DEFAULT(max_mem_sz),
+#else
+    VALID_RANGE(1024 * 1024 * 16, max_mem_sz), DEFAULT(max_mem_sz),
+#endif
+    BLOCK_SIZE(1), &PLock_global_conn_mem_limit, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_ulonglong Sys_connection_memory_limit(
+    "connection_memory_limit",
+    "Maximum amount of memory connection can consume",
+    SESSION_VAR(conn_mem_limit), CMD_LINE(REQUIRED_ARG),
+#ifndef NDEBUG
+    VALID_RANGE(1, max_mem_sz), DEFAULT(max_mem_sz),
+#else
+    VALID_RANGE(1024 * 1024 * 2, max_mem_sz), DEFAULT(max_mem_sz),
+#endif
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
+    ON_UPDATE(nullptr));
+
+static Sys_var_ulong Sys_connection_memory_chunk_size(
+    "connection_memory_chunk_size",
+    "Chunk size regulating frequency of updating the global memory counter",
+    SESSION_VAR(conn_mem_chunk_size), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, 1024 * 1024 * 512), DEFAULT(8912), BLOCK_SIZE(1),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
+    ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_connection_global_memory_tracking(
+    "global_connection_memory_tracking",
+    "Enable updating the global memory counter and checking "
+    "the global connection memory limit exceeding",
+    SESSION_VAR(conn_global_mem_tracking), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
+    ON_UPDATE(nullptr));
+
 static Sys_var_bool Sys_var_end_markers_in_json(
     "end_markers_in_json",
     "In JSON output (\"EXPLAIN FORMAT=JSON\" and optimizer trace), "
@@ -3469,20 +3628,85 @@ static bool check_require_secure_transport(sys_var *, THD *,
 #endif
 }
 
+static void event_scheduler_restart(THD *thd) {
+  /*
+    Restart event scheduler if needed.
+
+    At present, turning on SUPER_READ_ONLY means that we
+    can no longer acquire an MDL to update mysql.*.
+    As a result of this, updating the "last run at ..."
+    timestamp of events fails, and the event scheduler
+    shuts down when trying to do so.
+
+    As a convenience, we restart the event scheduler when
+    [SUPER_]READ_ONLY is turned off while the scheduler is
+    enabled (in the settings), but not actually running.
+  */
+  if (Events::opt_event_scheduler == Events::EVENTS_ON) {
+    bool evsched_error;       // Did we fail to start the event scheduler?
+    int evsched_errcode = 0;  // If we failed, what was the actual error code?
+
+    /*
+      We must not hold the lock while starting the event scheduler,
+      as that will internally try to take the lock while creating a THD.
+    */
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    evsched_error = Events::start(&evsched_errcode);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+
+    if (evsched_error) {
+      /*
+        The user requested a change of super_read_only.
+        That change succeeded, so we do not signal a failure here,
+        since it is only the side-effect/convenience of restarting
+        the event scheduler that failed.
+        We do however notify them of that failure, since we're
+        just that nice.
+        We also do not modify opt_event_scheduler, since user
+        intent has not changed. If this policy ever changes,
+        opt_event_scheduler should probably be unset when the
+        event scheduler shuts down.
+      */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_EVENT_SET_VAR_ERROR,
+                          ER_THD(thd, ER_EVENT_SET_VAR_ERROR), evsched_errcode);
+    }
+  }
+}
+
 static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
   bool result = true;
   bool new_read_only = read_only;  // make a copy before releasing a mutex
   DBUG_TRACE;
 
+  /*
+    If we're not newly turning on READ_ONLY, we don't have to worry
+    about locks.
+  */
   if (read_only == false || read_only == opt_readonly) {
+    opt_readonly = read_only;
+
+    /*
+      If we're turning off READ_ONLY here, turn off
+      SUPER_READ_ONLY as well (if on).
+    */
     if (opt_super_readonly && !read_only) {
       opt_super_readonly = false;
       super_read_only = false;
+
+      // Do this last as it temporarily releases the global sys-var lock.
+      event_scheduler_restart(thd);
     }
-    opt_readonly = read_only;
     return false;
   }
 
+  /*
+    Check whether we can change read_only state without causing a deadlock.
+
+    Not to be confused with check_readonly(), which checks in a
+    standardized way whether the current settings of opt_readonly
+    and opt_super_readonly prohibit certain operations.
+  */
   if (check_read_only(self, thd, nullptr))  // just in case
     goto end;
 
@@ -3493,11 +3717,15 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
       - FLUSH TABLES WITH READ LOCK
       - SET GLOBAL READ_ONLY = 1
     */
+    opt_readonly = read_only;
+
     if (opt_super_readonly && !read_only) {
       opt_super_readonly = false;
       super_read_only = false;
+
+      // Do this last as it temporarily releases the global sys-var lock.
+      event_scheduler_restart(thd);
     }
-    opt_readonly = read_only;
     return false;
   }
 
@@ -3547,50 +3775,8 @@ static bool fix_super_read_only(sys_var *, THD *thd, enum_var_type type) {
   if (super_read_only == false) {
     opt_super_readonly = false;
 
-    /*
-      Restart event scheduler if needed.
-
-      At present, turning on super_read_only means that we
-      can no longer acquire an MDL to update mysql.*.
-      As a result of this, updating the "last run at ..."
-      timestamp of events fails, and the event scheduler
-      shuts down when trying to do so.
-
-      As a convenience, we restart the event scheduler when
-      super_read_only is turned off, and the scheduler is
-      turned on (in the settings), but not actually running
-      (anymore).
-    */
-    if (Events::opt_event_scheduler == Events::EVENTS_ON) {
-      bool evsched_error;       // Did we fail to start the event scheduler?
-      int evsched_errcode = 0;  // If we failed, what was the actual error code?
-
-      /*
-        We must not hold the lock while starting the event scheduler,
-        as that will internally try to take the lock while creating a THD.
-      */
-      mysql_mutex_unlock(&LOCK_global_system_variables);
-      evsched_error = Events::start(&evsched_errcode);
-      mysql_mutex_lock(&LOCK_global_system_variables);
-
-      if (evsched_error) {
-        /*
-          The user requested a change of super_read_only.
-          That change succeeded, so we do not signal a failure here,
-          since it is only the side-effect/convenience of restarting
-          the event scheduler that failed.
-          We do however notify them of that failure, since we're
-          just that nice.
-          We also do not modify opt_event_scheduler, since user
-          intent has not changed. If this policy ever changes,
-          opt_event_scheduler should probably be unset when the
-          event scheduler shuts down.
-        */
-        push_warning_printf(
-            thd, Sql_condition::SL_WARNING, ER_EVENT_SET_VAR_ERROR,
-            ER_THD(thd, ER_EVENT_SET_VAR_ERROR), evsched_errcode);
-      }
-    }
+    // Do this last as it temporarily releases the global sys-var lock.
+    event_scheduler_restart(thd);
 
     return false;
   }
@@ -3723,7 +3909,7 @@ static Sys_var_ulong Sys_query_prealloc_size(
     SESSION_VAR(query_prealloc_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(QUERY_ALLOC_PREALLOC_SIZE, ULONG_MAX),
     DEFAULT(QUERY_ALLOC_PREALLOC_SIZE), BLOCK_SIZE(1024), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(fix_thd_mem_root));
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 #if defined(_WIN32)
 static Sys_var_bool Sys_shared_memory(
@@ -3808,7 +3994,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
     SESSION_VAR(trans_prealloc_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, 128 * 1024), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
     BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(fix_trans_mem_root));
+    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static const char *thread_handling_names[] = {
     "one-thread-per-connection", "no-threads", "loaded-dynamically", nullptr};
@@ -3985,10 +4171,10 @@ static Sys_var_enum Sys_replica_parallel_type(
     "transactions can be applied in parallel using the logical timestamps "
     "computed by the source, according to "
     "binlog_transaction_dependency_tracking.",
-    PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
-    mts_parallel_type_names, DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
-    ON_UPDATE(nullptr));
+    PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option),
+    CMD_LINE(REQUIRED_ARG, OPT_REPLICA_PARALLEL_TYPE), mts_parallel_type_names,
+    DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_slave_stopped), ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static Sys_var_deprecated_alias Sys_slave_parallel_type(
     "slave_parallel_type", Sys_replica_parallel_type);
@@ -4100,7 +4286,7 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var) {
          binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
 
-  if (check_purge) mysql_bin_log.purge();
+  if (check_purge) mysql_bin_log.auto_purge();
 
   return false;
 }
@@ -4801,9 +4987,15 @@ static Sys_var_ulong Sys_max_execution_time(
 
 static bool update_fips_mode(sys_var *, THD *, enum_var_type) {
   char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-  if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string) != 1) {
+  if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string)) {
     opt_ssl_fips_mode = get_fips_mode();
-    my_error(ER_DA_SSL_FIPS_MODE_ERROR, MYF(0), "Openssl is not fips enabled");
+    std::string err;
+    if (ssl_err_string[0]) {
+      err.append("Openssl is not fips enabled. Error: ");
+      err.append(ssl_err_string);
+    } else
+      err.append("Openssl is not fips enabled");
+    my_error(ER_DA_SSL_FIPS_MODE_ERROR, MYF(0), err.c_str());
     return true;
   } else {
     return false;
@@ -5061,12 +5253,12 @@ static Sys_var_transaction_read_only Sys_transaction_read_only(
 
 static Sys_var_ulonglong Sys_tmp_table_size(
     "tmp_table_size",
-    "If an internal in-memory temporary table in the MEMORY storage engine "
-    "exceeds this size, MySQL will automatically convert it to an on-disk "
-    "table",
+    "If an internal in-memory temporary table in the MEMORY or TempTable "
+    "storage engine exceeds this size, MySQL will automatically convert it "
+    "to an on-disk table ",
     HINT_UPDATEABLE SESSION_VAR(tmp_table_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1024, (ulonglong) ~(intptr)0), DEFAULT(16 * 1024 * 1024),
-    BLOCK_SIZE(1));
+    VALID_RANGE(1024, std::numeric_limits<ulonglong>::max()),
+    DEFAULT(16 * 1024 * 1024), BLOCK_SIZE(1));
 
 static char *server_version_ptr;
 static Sys_var_version Sys_version(
@@ -5144,7 +5336,7 @@ static Sys_var_bool Sys_temptable_use_mmap(
     "Use mmap files for temptables. "
     "This variable is deprecated and will be removed in a future release.",
     GLOBAL_VAR(temptable_use_mmap), CMD_LINE(OPT_ARG), DEFAULT(true),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(update_deprecated_with_removal_message), nullptr,
     sys_var::PARSE_NORMAL);
 
@@ -5423,7 +5615,7 @@ static bool check_timestamp(sys_var *, THD *, set_var *var) {
 
   val = var->save_result.double_value;
   if (val != 0 &&  // this is how you set the default value
-      (val < TIMESTAMP_MIN_VALUE || val > TIMESTAMP_MAX_VALUE)) {
+      (val < TYPE_TIMESTAMP_MIN_VALUE || val > TYPE_TIMESTAMP_MAX_VALUE)) {
     ErrConvString prm(val);
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", prm.ptr());
     return true;
@@ -5439,7 +5631,7 @@ static Sys_var_session_special_double Sys_timestamp(
 
 static bool update_last_insert_id(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->first_successful_insert_id_in_prev_stmt =
@@ -5483,7 +5675,7 @@ static Sys_var_session_special Sys_identity(
 */
 static bool update_insert_id(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->force_one_auto_inc_interval(var->save_result.ulonglong_value);
@@ -5503,7 +5695,7 @@ static Sys_var_session_special Sys_insert_id(
 
 static bool update_rand_seed1(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->rand.seed1 = (ulong)var->save_result.ulonglong_value;
@@ -5520,7 +5712,7 @@ static Sys_var_session_special Sys_rand_seed1(
 
 static bool update_rand_seed2(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->rand.seed2 = (ulong)var->save_result.ulonglong_value;
@@ -6000,7 +6192,7 @@ static Sys_var_bool Sys_replica_allow_batching(
     "replica_allow_batching",
     "Allow this replica to batch requests when "
     "using the NDB storage engine.",
-    GLOBAL_VAR(opt_replica_allow_batching), CMD_LINE(OPT_ARG), DEFAULT(false));
+    GLOBAL_VAR(opt_replica_allow_batching), CMD_LINE(OPT_ARG), DEFAULT(true));
 
 static Sys_var_deprecated_alias Sys_slave_allow_batching(
     "slave_allow_batching", Sys_replica_allow_batching);
@@ -6201,8 +6393,10 @@ static Sys_var_ulong Sys_replica_parallel_workers(
     "replica_parallel_workers",
     "Number of worker threads for executing events in parallel ",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_mts_replica_parallel_workers),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4),
-    BLOCK_SIZE(1));
+    CMD_LINE(REQUIRED_ARG, OPT_REPLICA_PARALLEL_WORKERS),
+    VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(replica_parallel_workers_update));
 
 static Sys_var_deprecated_alias Sys_slave_parallel_workers(
     "slave_parallel_workers", Sys_replica_parallel_workers);
@@ -6533,8 +6727,8 @@ Gtid_set *gtid_purged;
 static Sys_var_gtid_purged Sys_gtid_purged(
     "gtid_purged",
     "The set of GTIDs that existed in previous, purged binary logs.",
-    GLOBAL_VAR(gtid_purged), NO_CMD_LINE, DEFAULT(nullptr), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_gtid_purged));
+    NON_PERSIST GLOBAL_VAR(gtid_purged), NO_CMD_LINE, DEFAULT(nullptr),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_gtid_purged));
 export sys_var *Sys_gtid_purged_ptr = &Sys_gtid_purged;
 
 static Sys_var_gtid_owned Sys_gtid_owned(
@@ -6629,6 +6823,7 @@ static Sys_var_charptr Sys_track_session_sys_vars(
             "character_set_connection"),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_track_session_sys_vars),
     ON_UPDATE(update_track_session_sys_vars));
+export sys_var *Sys_track_session_sys_vars_ptr = &Sys_track_session_sys_vars;
 
 static bool update_session_track_schema(sys_var *, THD *thd, enum_var_type) {
   DBUG_TRACE;
@@ -6682,7 +6877,7 @@ static bool handle_offline_mode(sys_var *, THD *thd, enum_var_type) {
   DEBUG_SYNC(thd, "after_lock_offline_mode_acquire");
 
   if (mysqld_offline_mode()) {
-    // Unlock the global system varaible lock as kill holds LOCK_thd_data.
+    // Unlock the global system variable lock as kill holds LOCK_thd_data.
     mysql_mutex_unlock(&LOCK_global_system_variables);
     killall_non_super_threads(thd);
     mysql_mutex_lock(&LOCK_global_system_variables);
@@ -6951,7 +7146,7 @@ static bool check_default_collation_for_utf8mb4(sys_var *self, THD *thd,
       cs == &my_charset_utf8mb4_general_ci)
     return false;
 
-  my_error(ER_INVALID_DEFAULT_UTF8MB4_COLLATION, MYF(0), cs->name);
+  my_error(ER_INVALID_DEFAULT_UTF8MB4_COLLATION, MYF(0), cs->m_coll_name);
   return true;
 }
 
@@ -7022,6 +7217,23 @@ static Sys_var_bool Sys_sql_require_primary_key{
     NO_MUTEX_GUARD,
     IN_BINLOG,
     ON_CHECK(check_session_admin)};
+
+static Sys_var_bool Sys_sql_generate_invisible_primary_key(
+    "sql_generate_invisible_primary_key",
+    "When set, if a table is created without a primary key then server "
+    "generates invisible auto-increment column as a primary key for the table.",
+    SESSION_VAR(sql_generate_invisible_primary_key), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_session_admin), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_show_gipk_in_create_table_and_information_schema(
+    "show_gipk_in_create_table_and_information_schema",
+    "When set, if a primary key is generated for a table then SHOW commands "
+    "and INFORMATION_SCHEMA tables shows generated invisible primary key "
+    "definition.",
+    SESSION_VAR(show_gipk_in_create_table_and_information_schema),
+    CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
 static Sys_var_charptr Sys_sys_variables_admin_subject(
     PERSIST_ONLY_ADMIN_X509_SUBJECT,
@@ -7395,3 +7607,36 @@ static Sys_var_enum Sys_terminology_use_previous(
     terminology_use_previous_names, DEFAULT(terminology_use_previous::NONE),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
     DEPRECATED_VAR(""));
+
+static Sys_var_bool Sys_xa_detatch_on_prepare(
+    "xa_detach_on_prepare",
+    "When set, XA transactions will be detached (AKA dissociated or "
+    "disconnected) from connection as part of XA PREPARE. This means that "
+    "the XA transaction can be committed/rolled back by any connection, "
+    "even if the starting connection has not terminated, and the starting "
+    "connection can start new transactions. As a side effect, temporary "
+    "tables cannot be used inside XA transactions. "
+    "When disabled, XA transactions are associated with the same connection "
+    "until the session disconnects. ON is the only safe choice for "
+    "replication.",
+    HINT_UPDATEABLE SESSION_VAR(xa_detach_on_prepare), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_session_admin_outside_trx_outside_sf));
+
+#ifndef NDEBUG
+static Sys_var_charptr Sys_debug_sensitive_session_string(
+    "debug_sensitive_session_string",
+    "Debug variable to test sensitive session string variable.",
+    SENSITIVE SESSION_VAR(debug_sensitive_session_str), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(""));
+#endif /* NDEBUG */
+
+static Sys_var_bool Sys_persist_sensitive_variables_in_plaintext(
+    "persist_sensitive_variables_in_plaintext",
+    "If set to FALSE, server will refuse to persist SENSITIVE variables in "
+    "plaintext and refuse to start if encrypted part of persited file cannot "
+    "be processed.",
+    READ_ONLY NON_PERSIST
+        GLOBAL_VAR(opt_persist_sensitive_variables_in_plaintext),
+    CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr, sys_var::PARSE_EARLY);

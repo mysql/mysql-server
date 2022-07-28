@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,6 @@
 #include "my_sqlcommand.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
-#include "sql/current_thd.h"
 #include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
@@ -193,7 +192,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param)
   List_iterator<SEL_IMERGE> it(arg->merges);
   for (SEL_IMERGE *el = it++; el; el = it++) {
     SEL_IMERGE *merge = new (param->temp_mem_root) SEL_IMERGE(el, param);
-    if (!merge || merge->trees == merge->trees_next || param->has_errors()) {
+    if (!merge || merge->trees.empty() || param->has_errors()) {
       merges.clear();
       return;
     }
@@ -326,12 +325,12 @@ SEL_ARG::SEL_ARG(Field *f, const uchar *min_value_arg,
 
 SEL_ARG::SEL_ARG(Field *field_, uint8 part_, uchar *min_value_,
                  uchar *max_value_, uint8 min_flag_, uint8 max_flag_,
-                 bool maybe_flag_, bool asc)
+                 bool maybe_flag_, bool asc, ha_rkey_function gis_flag)
     : min_flag(min_flag_),
       max_flag(max_flag_),
       maybe_flag(maybe_flag_),
       part(part_),
-      rkey_func_flag(HA_READ_INVALID),
+      rkey_func_flag(gis_flag),
       field(field_),
       min_value(min_value_),
       max_value(max_value_),
@@ -351,7 +350,8 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
 
   if (!(tmp = new (param->temp_mem_root)
             SEL_ARG(field, part, min_value, max_value, min_flag, max_flag,
-                    maybe_flag, is_ascending)))
+                    maybe_flag, is_ascending,
+                    min_flag & GEOM_FLAG ? rkey_func_flag : HA_READ_INVALID)))
     return nullptr;  // OOM
   tmp->parent = new_parent;
   tmp->set_next_key_part(next_key_part);
@@ -504,19 +504,31 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
 
   if (param->has_errors()) return nullptr;
 
-  if (!tree1) return tree2;
-  if (!tree2) return tree1;
-  if (tree1->type == SEL_TREE::IMPOSSIBLE || tree2->type == SEL_TREE::ALWAYS)
-    return tree1;
-  if (tree2->type == SEL_TREE::IMPOSSIBLE || tree1->type == SEL_TREE::ALWAYS)
-    return tree2;
-  if (tree1->type == SEL_TREE::MAYBE) {
-    if (tree2->type == SEL_TREE::KEY) tree2->type = SEL_TREE::KEY_SMALLER;
+  if (tree1 == nullptr) {
+    if (tree2 != nullptr) {
+      tree2->inexact = true;
+    }
     return tree2;
   }
-  if (tree2->type == SEL_TREE::MAYBE) {
-    tree1->type = SEL_TREE::KEY_SMALLER;
+  if (tree2 == nullptr) {
+    if (tree1 != nullptr) {
+      tree1->inexact = true;
+    }
     return tree1;
+  }
+  if (tree1->type == SEL_TREE::IMPOSSIBLE) {
+    return tree1;
+  }
+  if (tree2->type == SEL_TREE::IMPOSSIBLE) {
+    return tree2;
+  }
+  if (tree2->type == SEL_TREE::ALWAYS) {
+    tree1->inexact |= tree2->inexact;
+    return tree1;
+  }
+  if (tree1->type == SEL_TREE::ALWAYS) {
+    tree2->inexact |= tree1->inexact;
+    return tree2;
   }
 
   dbug_print_tree("tree1", tree1, param);
@@ -529,7 +541,16 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
     SEL_ROOT *key1 = tree1->release_key(idx);
     SEL_ROOT *key2 = tree2->release_key(idx);
 
-    if (key1 || key2) {
+    if (key1 != nullptr || key2 != nullptr) {
+      if (key1 == nullptr || key2 == nullptr) {
+        // If AND-ing two trees together, and one has an expression over a
+        // different index from the other, we cannot guarantee that the entire
+        // expression is exact if that index is chosen. (The only time this
+        // really matters is when there's an AND within an OR; only the
+        // hypergraph optimizer cares about the inexact flag, and it does its
+        // own splitting of top-level ANDs.)
+        tree1->inexact = true;
+      }
       SEL_ROOT *new_key = key_and(param, key1, key2);
       tree1->set_key(idx, new_key);
       if (new_key) {
@@ -550,6 +571,7 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
     }
   }
   tree1->keys_map = result_keys;
+  tree1->inexact |= tree2->inexact;
 
   /* ok, both trees are index_merge trees */
   imerge_list_and_list(&tree1->merges, &tree2->merges);
@@ -589,7 +611,7 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
   Remove the trees that are not suitable for record retrieval.
   SYNOPSIS
     param  Range analysis parameter
-    tree   Tree to be processed, tree->type is KEY or KEY_SMALLER
+    tree   Tree to be processed, tree->type is KEY
 
   DESCRIPTION
     This function walks through tree->keys[] and removes the SEL_ARG* trees
@@ -632,7 +654,7 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
     (*) into a usable tree is to call tree_and(something, (*)).
 
     Second look at what tree_and/tree_or function would do when passed a
-    SEL_TREE that has the structure like st1 tree has, and conlcude that
+    SEL_TREE that has the structure like st1 tree has, and conclude that
     tree_and(something, (*)) will not be called.
 
   RETURN
@@ -661,12 +683,11 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
   if (param->has_errors()) return nullptr;
 
   if (!tree1 || !tree2) return nullptr;
+  tree1->inexact = tree2->inexact = tree1->inexact | tree2->inexact;
   if (tree1->type == SEL_TREE::IMPOSSIBLE || tree2->type == SEL_TREE::ALWAYS)
     return tree2;
   if (tree2->type == SEL_TREE::IMPOSSIBLE || tree1->type == SEL_TREE::ALWAYS)
     return tree1;
-  if (tree1->type == SEL_TREE::MAYBE) return tree1;  // Can't use this
-  if (tree2->type == SEL_TREE::MAYBE) return tree2;
 
   /*
     It is possible that a tree contains both
@@ -738,10 +759,10 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
       /* both trees are "range" trees, produce new index merge structure */
       if (!(result = new (param->temp_mem_root)
                 SEL_TREE(param->temp_mem_root, param->keys)) ||
-          !(merge = new (param->temp_mem_root) SEL_IMERGE()) ||
-          (result->merges.push_back(merge)) ||
-          (merge->or_sel_tree(param, tree1)) ||
-          (merge->or_sel_tree(param, tree2)))
+          !(merge =
+                new (param->temp_mem_root) SEL_IMERGE(param->temp_mem_root)) ||
+          result->merges.push_back(merge) || merge->or_sel_tree(tree1) ||
+          merge->or_sel_tree(tree2))
         result = nullptr;
       else
         result->type = tree1->type;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,19 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
 #include "sql/handler.h" /* handler */
-#include "sql/table.h"   /* TABLE_SHARE */
-#include "thr_lock.h"    /* THR_LOCK */
+#include "sql/key.h"
+#include "sql/table.h" /* TABLE_SHARE */
+#include "thr_lock.h"  /* THR_LOCK */
+
+class String;
+class THD;
+struct FT_INFO;
+namespace dd {
+class Table;
+}
 
 /*
   Shared structure for correct LOCK operation
@@ -104,6 +113,11 @@ class ha_blackhole : public handler {
              dd::Table *table_def) override;
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type) override;
+  FT_INFO *ft_init_ext(uint flags, uint inx, String *key) override;
+  int ft_init() override;
+
+ protected:
+  int ft_read(uchar *buf) override;
 
  private:
   int write_row(uchar *buf) override;

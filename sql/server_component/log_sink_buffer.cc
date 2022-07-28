@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -85,45 +85,11 @@ static log_line_buffer *log_line_buffer_start = nullptr;
 static log_line_buffer **log_line_buffer_tail = &log_line_buffer_start;
 
 /**
-  Timestamp: During buffered logging, when should we next consider flushing?
-  This variable is set to the time we'll next check whether we'll want to
-  flush buffered log events.
-  I.e. it is set to a future time (current time + window length); once
-  the value expires (turns into present/past), we check whether we need
-  to flush and update the variable to the next time we should check.
-*/
-static ulonglong log_buffering_timeout = 0;
-
-/// If after this many seconds we're still buffering, flush!
-#ifndef LOG_BUFFERING_TIMEOUT_AFTER
-#define LOG_BUFFERING_TIMEOUT_AFTER (60)
-#endif
-/// Thereafter, if still buffering after this many more seconds, flush again!
-#ifndef LOG_BUFFERING_TIMEOUT_EVERY
-#define LOG_BUFFERING_TIMEOUT_EVERY (10)
-#endif
-/// Time function returns microseconds, we want seconds.
-#ifndef LOG_BUFFERING_TIME_SCALE
-#define LOG_BUFFERING_TIME_SCALE 1000000
-#endif
-
-/// Does buffer contain SYSTEM or ERROR prio messages? Flush early only then!
-int log_buffering_flushworthy = false;
-
-/**
   Timestamp of the last event we put into the error-log buffer
   during buffered mode (while starting up). New items must
   receive a LOG_ITEM_LOG_BUFFERED timestamp greater than this.
 */
 static ulonglong log_sink_buffer_latest_buffered = 0;
-
-/**
-  Timestamp of most recent event we flushed to the built-in sink
-  (which happens when start-up takes very long and we're asked to
-  report status even though external log-components have not been
-  loaded yet).
-*/
-static log_line_buffer *log_sink_buffer_latest_event_shown = nullptr;
 
 /**
   Duplicate a log-event. This is a deep copy where the items (key/value pairs)
@@ -238,19 +204,6 @@ int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll) {
       there at least until we return.)
     */
     log_line_duplicate(&llb->ll, ll);
-
-    /*
-      Remember it when an ERROR or SYSTEM prio event was buffered.
-      If buffered logging times out and the buffer contains such an event,
-      we force a premature flush so the user will know what's going on.
-    */
-    {
-      int index_prio = log_line_index_by_type(&llb->ll, LOG_ITEM_LOG_PRIO);
-
-      if ((index_prio >= 0) &&
-          (llb->ll.item[index_prio].data.data_integer <= ERROR_LEVEL))
-        log_buffering_flushworthy = true;
-    }
   }
 
   /*
@@ -291,94 +244,18 @@ int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll) {
     count = llb->ll.count;
   }
 
-  /*
-    Handle buffering time-out!
-  */
-
-  // Buffering very first event; set up initial time-out ...
-  if (log_buffering_timeout == 0)
-    log_buffering_timeout =
-        now + (LOG_BUFFERING_TIMEOUT_AFTER * LOG_BUFFERING_TIME_SCALE);
-
-  if (log_error_stage_get() == LOG_ERROR_STAGE_BUFFERING_UNIPLEX) {
-    /*
-      When not multiplexing several log-writers into the same stream,
-      we need not delay.
-    */
-    log_sink_buffer_flush(LOG_BUFFER_REPORT_AND_KEEP);
-  }
-
-  // Need to flush? Check on time-out, or when explicitly asked to.
-  else if ((now > log_buffering_timeout) || (ll == nullptr)) {
-    // We timed out. Flush, and set up new, possibly shorter subsequent timeout.
-
-    /*
-      Timing out is somewhat awkward. Ideally, it shouldn't happen at all;
-      but as long as it does, it is extremely unlikely to happen during early
-      set-up -- instead, it might happen during engine set-up ("cannot lock
-      DB file, another server instance already has it", "applying large
-      binlog", etc.).
-
-      The good news is that this means we've already parsed the command line
-      options; we have the timestamp format, the error log file, the verbosity,
-      and the suppression list (if any).
-
-      The bad news is, if the engine we're waiting for is InnoDB, which the
-      component framework persists its component list in, the log-writers
-      selected by the DBA won't have been loaded yet. This of course means
-      that the time-out flushes will only be available in the built-in,
-      "traditional" format, but at least this way, the user gets updates
-      during long waits. Additionally if the server exits during start-up
-      (i.e. before full logging is available), we'll have log info of what
-      happened (albeit not in the preferred format).
-
-      If start-up completes and external log-services become available,
-      we will flush all buffered messages to any external log-writers
-      requested by the user (using their preferred log-filtering set-up
-      as well).
-    */
-
-    // If anything of sufficient priority is in the buffer ...
-    if (log_buffering_flushworthy) {
-      /*
-        ... log it now to the traditional log, but keep the buffered
-        events around in case we need to write them to loadable log-sinks
-        later.
-      */
-      log_sink_buffer_flush(LOG_BUFFER_REPORT_AND_KEEP);
-      // Remember that all high-prio events so far have now been shown.
-      log_buffering_flushworthy = false;
-    }
-
-    // Whether we've needed to flush or not, start a new window:
-    log_buffering_timeout =
-        now + (LOG_BUFFERING_TIMEOUT_EVERY * LOG_BUFFERING_TIME_SCALE);
-  }
-
   if (log_builtins_inited) mysql_mutex_unlock(&THR_LOCK_log_buffered);
 
   return count;
 }
 
-/**
-  Convenience function. Same as log_sink_buffer(), except we only
-  check whether the time-out for buffered logging has been reached
-  during start-up, and act accordingly; no new logging information
-  is added (i.e., we only provide functionality 1 described in the
-  preamble for log_sink_buffer() above).
+/*
+  Release all buffered log-events (discard_error_log_messages()),
+  optionally after running them through the error log stack first
+  (flush_error_log_messages()). Safe to call repeatedly (though
+  subsequent calls will only output anything if further events
+  occurred after the previous flush).
 */
-void log_sink_buffer_check_timeout(void) { log_sink_buffer(nullptr, nullptr); }
-
-/**
-  Test whether we are still in buffered mode,
-  which is implied by the chain of log-components being empty
-  (before the logger is set up), or by the first (and only)
-  configured component being the buffer sink.
-*/
-static bool log_sink_buffer_is_buffered_mode(log_service_instance *lsi) {
-  return ((lsi == nullptr) || (lsi->sce->chistics & LOG_SERVICE_BUFFER));
-}
-
 void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
   log_line_buffer *llp, *local_head, *local_tail = nullptr;
 
@@ -403,47 +280,17 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
 
   /*
     If the lock hasn't been init'd yet, don't get it.
-
-    Likewise don't get it in LOG_BUFFER_REPORT_AND_KEEP mode as
-    then the caller already has it. We generally only grab the lock
-    here when coming from log.cc's discard_error_log_messages() or
-    flush_error_log_messages().
   */
-  if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
-    mysql_mutex_lock(&THR_LOCK_log_buffered);
+  if (log_builtins_inited) mysql_mutex_lock(&THR_LOCK_log_buffered);
 
   local_head = log_line_buffer_start;             // save list head
   log_line_buffer_start = nullptr;                // empty public list
   log_line_buffer_tail = &log_line_buffer_start;  // adjust tail of public list
 
-  if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
-    mysql_mutex_unlock(&THR_LOCK_log_buffered);
+  if (log_builtins_inited) mysql_mutex_unlock(&THR_LOCK_log_buffered);
 
   // get head element from list of buffered log events
   llp = local_head;
-
-  /*
-    If we're in "intermediate update" mode, we continue
-    after the last event we printed, rather that starting
-    from the head of the list.
-  */
-  if (mode == LOG_BUFFER_REPORT_AND_KEEP) {
-    // If we have a continue address, use it.
-    if (log_sink_buffer_latest_event_shown != nullptr) {
-      /*
-        The continue- address is the last event we previously logged
-        to log_sink_trad(). If there are no new events after that,
-        we never enter the loop below, so we make sure to set up
-        local_tail here so it will have the correct value after the
-        loop, whether the loop was entered or not.
-      */
-      local_tail = log_sink_buffer_latest_event_shown;
-      llp = local_tail->next;
-    }
-  } else {
-    // Any mode that may free list-elements invalidates the continue pointer.
-    log_sink_buffer_latest_event_shown = nullptr;
-  }
 
   while (llp != nullptr) {
     /*
@@ -513,78 +360,43 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
         goes wrong, information with undesired formatting is still
         better than not knowing about the issue at all.
       */
-      if (log_sink_buffer_is_buffered_mode(log_service_instances)) {
+      if ((log_error_stage_get() != LOG_ERROR_STAGE_COMPONENTS) &&
+          (log_error_stage_get() != LOG_ERROR_STAGE_COMPONENTS_AND_PFS)) {
         /*
-          This is a fallback used when start-up takes very long.
+          This is a fallback used when the user's log_error_services
+          has not been made active yet (and loadable logging-components
+          have not been loaded yet).
 
           In fallback modes, we run with default settings and
           services.
-
-          In "keep" mode (that is, "start-up's taking a long time,
-          so show the user the info so far in the basic format, but
-          keep the log-events so we can log them properly later"),
-          we expect to be able to log the events with the correct
-          settings and services later (if start-up gets that far).
-          As the services we use in the meantime may change or even
-          remove log events, we'll let the services work on a
-          temporary copy of the events here. The final logging will
-          then use the original event. This way, we don't later log
-          with an intersection of the early and the final settings.
         */
-        if (mode == LOG_BUFFER_REPORT_AND_KEEP) {
-          log_line temp_line;  // copy the line so the filter may mangle it
 
-          log_line_duplicate(&temp_line, &llp->ll);
+        // LOG_BUFFER_PROCESS_AND_DISCARD
 
-          // Only run the built-in filter if any rules are defined.
-          if (log_filter_builtin_rules != nullptr)
-            log_builtins_filter_run(log_filter_builtin_rules, &temp_line);
+        /*
+          This is a fallback used primarily when start-up is aborted.
 
-          // Emit to the built-in writer. Empty lines will be ignored.
-          log_sink_trad(nullptr, &temp_line);
+          If we get here, flush_error_log_messages() was called
+          before logging came out of buffered mode. (If it was
+          called after buffered modes completes, we should land
+          in the following branch instead.)
 
-          log_line_item_free_all(&temp_line);  // release our temporary copy
+          We're asked to print all log-info so far using basic
+          logging, and to then throw it away (rather than keep
+          it around for proper logging). This usually implies
+          that we're shutting down because some unrecoverable
+          situation has arisen during start-up, so a) the user
+          needs to know about it even if full logging (as
+          configured) is not available yet, and b) we'll shut
+          down before we'll ever get full logging, so keeping
+          the info around is pointless.
+        */
 
-          /*
-            Optimization: When giving intermediate updates during long
-            start-ups, we'll remember the first event we haven't yet
-            printed, so we can continue from that element later. This
-            way we won't have to traverse the head of the list to skip
-            the events we've already shown.
-          */
-          log_sink_buffer_latest_event_shown = llp;
+        if (log_filter_builtin_rules != nullptr)
+          log_builtins_filter_run(log_filter_builtin_rules, &llp->ll);
 
-          local_tail = llp;
-          llp = llp->next;  // go to next element, keep head pointer the same
-
-          continue;  // skip the free()-ing
-
-        } else {  // mode == LOG_BUFFER_PROCESS_AND_DISCARD
-          /*
-            This is a fallback used primarily when start-up is aborted.
-
-            If we get here, flush_error_log_messages() was called
-            before logging came out of buffered mode. (If it was
-            called after buffered modes completes, we should land
-            in the following branch instead.)
-
-            We're asked to print all log-info so far using basic
-            logging, and to then throw it away (rather than keep
-            it around for proper logging). This usually implies
-            that we're shutting down because some unrecoverable
-            situation has arisen during start-up, so a) the user
-            needs to know about it even if full logging (as
-            configured) is not available yet, and b) we'll shut
-            down before we'll ever get full logging, so keeping
-            the info around is pointless.
-          */
-
-          if (log_filter_builtin_rules != nullptr)
-            log_builtins_filter_run(log_filter_builtin_rules, &llp->ll);
-
-          log_sink_trad(nullptr, &llp->ll);
-        }  // LOG_BUFFER_REPORT_AND_KEEP? or LOG_BUFFER_PROCESS_AND_DISCARD?
-      } else {  // !log_sink_buffer_is_buffered_mode()
+        log_sink_trad(nullptr, &llp->ll);
+      } else {  // no longer buffering
         /*
           If we get here, logging has left the buffered phase, and
           we can write out the log-events using the configuration
@@ -593,7 +405,7 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
         log_line_submit(&llp->ll);  // frees keys + values (but not llp itself)
         goto kv_freed;              // skip freeing of keys + values
       }
-    }  // !LOG_BUFFER_DISCARD_ONLY
+    }
 
     log_line_item_free_all(&local_head->ll);  // free key/value pairs
   kv_freed:
@@ -602,15 +414,14 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
     llp = local_head;
   }  // while (any_more_buffered_events_to_process)
 
-  if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
-    mysql_mutex_lock(&THR_LOCK_log_buffered);
+  if (log_builtins_inited) mysql_mutex_lock(&THR_LOCK_log_buffered);
 
   /*
     At this point, if (local_head == nullptr), we either didn't have
     a list to begin with, or we just emptied the local version.
     Since we also emptied the global version at the top, whatever's
     in there now (still empty, or new events attached while we were
-    processing) is now authoritive, and no change is needed here.
+    processing) is now authoritative, and no change is needed here.
 
     If local_head is non-NULL, we started with a non-empty local list
     and mode was KEEP. In that case, we merge the local list back into
@@ -645,6 +456,5 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
     log_line_buffer_start = local_head;
   }
 
-  if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
-    mysql_mutex_unlock(&THR_LOCK_log_buffered);
+  if (log_builtins_inited) mysql_mutex_unlock(&THR_LOCK_log_buffered);
 }

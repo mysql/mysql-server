@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 */
 
 #include <ndb_global.h>
-#include "../../kernel/vm/mt-asm.h"
+#include "portlib/mt-asm.h"
 #include <NdbSpin.h>
 #include <NdbTick.h>
 

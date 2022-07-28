@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef NDB_CONFLICT_H
 #define NDB_CONFLICT_H
 
+#include <unordered_set>
 #include "my_bitmap.h"
 #include "mysql/plugin.h"   // SHOW_VAR
 #include "mysql_com.h"      // NAME_CHAR_LEN
@@ -38,6 +39,8 @@ enum enum_conflict_fn_type {
   CFT_NDB_MAX,
   CFT_NDB_OLD,
   CFT_NDB_MAX_DEL_WIN,
+  CFT_NDB_MAX_INS,
+  CFT_NDB_MAX_DEL_WIN_INS,
   CFT_NDB_EPOCH,
   CFT_NDB_EPOCH_TRANS,
   CFT_NDB_EPOCH2,
@@ -116,10 +119,11 @@ typedef int (*prepare_detect_func)(struct NDB_CONFLICT_FN_SHARE *cfn_share,
  * TODO : Encapsulate all these per-algorithm details inside the algorithm
  */
 enum enum_conflict_fn_flags {
-  CF_TRANSACTIONAL = 0x1,   /* Conflicts are handled per transaction */
-  CF_REFLECT_SEC_OPS = 0x2, /* Secondary operations are reflected back */
-  CF_USE_ROLE_VAR = 0x4,    /* Functionality controlled by role variable */
-  CF_DEL_DEL_CFT = 0x8      /* Delete finding no row is a conflict */
+  CF_TRANSACTIONAL = 0x1,    /* Conflicts are handled per transaction */
+  CF_REFLECT_SEC_OPS = 0x2,  /* Secondary operations are reflected back */
+  CF_USE_ROLE_VAR = 0x4,     /* Functionality controlled by role variable */
+  CF_DEL_DEL_CFT = 0x8,      /* Delete finding no row is a conflict */
+  CF_USE_INTERP_WRITE = 0x10 /* Use interpreted writeTuple() when configured */
 };
 
 struct st_conflict_fn_def {
@@ -376,6 +380,9 @@ struct st_ndb_slave_state {
    */
   Uint32 current_refresh_op_count;
 
+  // Tracks server_id's from any source, both immediate and downstream
+  std::unordered_set<Uint32> source_server_ids;
+
   /* Track the current epoch from the immediate master,
    * and whether we've committed it
    */
@@ -412,7 +419,7 @@ struct st_ndb_slave_state {
   Uint64 trans_in_conflict_count;
   Uint64 trans_conflict_commit_count;
 
-  static const Uint32 MAX_RETRY_TRANS_COUNT = 100;
+  static constexpr Uint32 MAX_RETRY_TRANS_COUNT = 100;
 
   /*
     Slave Apply State
@@ -445,6 +452,9 @@ struct st_ndb_slave_state {
   bool verifyNextEpoch(Uint64 next_epoch, Uint32 master_server_id) const;
 
   void resetPerAttemptCounters();
+
+  void saveServerId(Uint32);
+  bool seenServerId(Uint32) const;
 
   static bool checkSlaveConflictRoleChange(enum_slave_conflict_role old_role,
                                            enum_slave_conflict_role new_role,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -291,10 +291,10 @@ TEST_F(FieldTest, FieldTimef) {
 
   Mock_table m_table(thd());
   f->table = &m_table;
-  struct timeval tv;
+  my_timeval tv;
   int warnings = 0;
   EXPECT_FALSE(f->get_timestamp(&tv, &warnings));
-  EXPECT_EQ(123400, tv.tv_usec);
+  EXPECT_EQ(123400, tv.m_tv_usec);
 
   destroy(field);
 }

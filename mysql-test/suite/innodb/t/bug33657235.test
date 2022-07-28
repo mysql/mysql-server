@@ -1,0 +1,37 @@
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  u CHAR(2) NOT NULL,
+  v CHAR(2) NOT NULL,
+  UNIQUE INDEX by_u_1 (u(1)),
+  INDEX by_v_1 (v(1))
+);
+INSERT INTO t1 VALUES (0,"aa","aa"),(10,"ee","ee"),(20,"oo","oo");
+
+--connect (con1, localhost, root,,)
+  BEGIN;
+  # This query is supposed to place an S lock on (v="e",id=10) entry in secondary index
+  # without placing any lock on the (id=10) entry in the clustered index.
+  SELECT COUNT(*) FROM t1 FORCE INDEX ( by_v_1 ) WHERE v>"b" AND id<>10 FOR SHARE;
+
+--connect (con2, localhost, root,,)
+  BEGIN;
+  # This query should try to insert a record to clustered index, then to by_u_1,
+  # notice the conflict there, and perform a partial rollback, in which it should
+  # first try to remove the record form by_u_1, realize there's nothing there to
+  # remove, then move on to removing a record from by_v_1, notice that the record
+  # for (v="e",id=10) already exists, attempt implicit to explicit lock conversion,
+  # and realize that it actually doesn't have an implicit lock on this record, as
+  # "ef" and "ee" both have the same prefix "e", so no change to by_v_1 was done.
+  --error ER_DUP_ENTRY
+  UPDATE t1 SET u="oo",v="ef" WHERE id=10;
+  ROLLBACK;
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

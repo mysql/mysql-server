@@ -102,7 +102,7 @@ SELECT COUNT(@@GLOBAL.myisam_use_mmap);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT myisam_use_mmap = @@SESSION.myisam_use_mmap;
---echo Expected error 'Readonly variable'
+SELECT myisam_use_mmap;
+--echo Expected error 'Unknown column'
 
 

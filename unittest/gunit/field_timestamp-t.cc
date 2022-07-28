@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,20 +86,20 @@ TEST_F(FieldTimestampTest, EvaluateInsertDefaultFunction) {
   {
     Mock_field_timestamp field_dn(Field::DEFAULT_NOW);
     field_dn.evaluate_insert_default_function();
-    EXPECT_EQ(now.tv_sec, field_dn.to_timeval().tv_sec);
-    EXPECT_EQ(0, field_dn.to_timeval().tv_usec);
+    EXPECT_EQ(now.tv_sec, field_dn.to_timeval().m_tv_sec);
+    EXPECT_EQ(0, field_dn.to_timeval().m_tv_usec);
   }
   {
     Mock_field_timestamp field_un(Field::ON_UPDATE_NOW);
     field_un.evaluate_insert_default_function();
-    EXPECT_EQ(0, field_un.to_timeval().tv_sec);
-    EXPECT_EQ(0, field_un.to_timeval().tv_usec);
+    EXPECT_EQ(0, field_un.to_timeval().m_tv_sec);
+    EXPECT_EQ(0, field_un.to_timeval().m_tv_usec);
   }
   {
     Mock_field_timestamp field_dnun(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW);
     field_dnun.evaluate_insert_default_function();
-    EXPECT_EQ(now.tv_sec, field_dnun.to_timeval().tv_sec);
-    EXPECT_EQ(0, field_dnun.to_timeval().tv_usec);
+    EXPECT_EQ(now.tv_sec, field_dnun.to_timeval().m_tv_sec);
+    EXPECT_EQ(0, field_dnun.to_timeval().m_tv_usec);
   }
 }
 
@@ -114,20 +114,20 @@ TEST_F(FieldTimestampTest, EvaluateUpdateDefaultFunction) {
   {
     Mock_field_timestamp field_dn(Field::DEFAULT_NOW);
     field_dn.evaluate_update_default_function();
-    EXPECT_EQ(0, field_dn.to_timeval().tv_sec);
-    EXPECT_EQ(0, field_dn.to_timeval().tv_usec);
+    EXPECT_EQ(0, field_dn.to_timeval().m_tv_sec);
+    EXPECT_EQ(0, field_dn.to_timeval().m_tv_usec);
   }
   {
     Mock_field_timestamp field_un(Field::ON_UPDATE_NOW);
     field_un.evaluate_update_default_function();
-    EXPECT_EQ(now.tv_sec, field_un.to_timeval().tv_sec);
-    EXPECT_EQ(0, field_un.to_timeval().tv_usec);
+    EXPECT_EQ(now.tv_sec, field_un.to_timeval().m_tv_sec);
+    EXPECT_EQ(0, field_un.to_timeval().m_tv_usec);
   }
   {
     Mock_field_timestamp field_dnun(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW);
     field_dnun.evaluate_update_default_function();
-    EXPECT_EQ(now.tv_sec, field_dnun.to_timeval().tv_sec);
-    EXPECT_EQ(0, field_dnun.to_timeval().tv_usec);
+    EXPECT_EQ(now.tv_sec, field_dnun.to_timeval().m_tv_sec);
+    EXPECT_EQ(0, field_dnun.to_timeval().m_tv_usec);
   }
 }
 

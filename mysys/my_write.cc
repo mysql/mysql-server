@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ ssize_t (*mock_write)(int fd, const void *buf, size_t count) = nullptr;
   if (MyFlags & (MY_NABP | MY_FNABP))
   returns
     0  if Count == 0
-    On succes, 0
+    On success, 0
     On failure, (size_t)-1 == MY_FILE_ERROR
 
   otherwise

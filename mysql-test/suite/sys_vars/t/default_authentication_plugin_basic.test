@@ -72,7 +72,7 @@ SELECT COUNT(@@GLOBAL.default_authentication_plugin);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT default_authentication_plugin = @@SESSION.default_authentication_plugin;
---echo Expected error 'Readonly variable'
+SELECT default_authentication_plugin;
+--echo Expected error 'Unknown column'
 
 

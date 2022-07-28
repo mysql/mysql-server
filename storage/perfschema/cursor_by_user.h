@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 
 class PFS_index_users : public PFS_engine_index {
  public:
-  PFS_index_users(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_users(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
   ~PFS_index_users() override = default;
 
@@ -60,7 +60,7 @@ class cursor_by_user : public PFS_engine_table {
   int index_next() override;
 
  protected:
-  cursor_by_user(const PFS_engine_table_share *share);
+  explicit cursor_by_user(const PFS_engine_table_share *share);
 
  public:
   ~cursor_by_user() override = default;

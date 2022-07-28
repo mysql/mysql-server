@@ -83,7 +83,15 @@ CREATE TABLE B32340208.test (
 PRIMARY KEY (`pk`),
 KEY `functional_index` ((radians(`c1`))) USING BTREE COMMENT 'you''re'
 ) ENGINE=InnoDB DEFAULT CHARSET=euckr;
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '0000-00-00
+00:00:00' at row 1 is deprecated. Prefer the standard ' '.
 # Success criteria: should not crash
 DROP DATABASE B32340208;
 SET sql_mode = DEFAULT;
+#
+# Bug #33688141 mysqlpump exits in regards to 'std::logic_error'
+#
+# Expect log that proves the client clean exit
+Pattern "Dump process encountered error and will not continue." found
 # End of 8.0 tests

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "xcom/xcom_memory.h"
 #include "xcom/xcom_profile.h"
 
-cfg_app_xcom_st *the_app_xcom_cfg = NULL;
+cfg_app_xcom_st *the_app_xcom_cfg = nullptr;
 
 void init_cfg_app_xcom() {
   if (!the_app_xcom_cfg)
@@ -36,40 +36,40 @@ void init_cfg_app_xcom() {
 
   the_app_xcom_cfg->m_poll_spin_loops = 0;
   the_app_xcom_cfg->m_cache_limit = DEFAULT_CACHE_LIMIT;
-  the_app_xcom_cfg->identity = NULL;
+  the_app_xcom_cfg->identity = nullptr;
 }
 
 void deinit_cfg_app_xcom() {
   /* Delete the identity because we own it. */
-  if (the_app_xcom_cfg != NULL && the_app_xcom_cfg->identity != NULL) {
+  if (the_app_xcom_cfg != nullptr && the_app_xcom_cfg->identity != nullptr) {
     delete_node_address(1, the_app_xcom_cfg->identity);
   }
   free(the_app_xcom_cfg);
-  the_app_xcom_cfg = NULL;
+  the_app_xcom_cfg = nullptr;
 }
 
 Network_namespace_manager *cfg_app_get_network_namespace_manager() {
   Network_namespace_manager *mgr = nullptr;
-  if (the_app_xcom_cfg != NULL) mgr = the_app_xcom_cfg->network_ns_manager;
+  if (the_app_xcom_cfg != nullptr) mgr = the_app_xcom_cfg->network_ns_manager;
   return mgr;
 }
 
 node_address *cfg_app_xcom_get_identity() {
-  node_address *identity = NULL;
-  if (the_app_xcom_cfg != NULL) identity = the_app_xcom_cfg->identity;
+  node_address *identity = nullptr;
+  if (the_app_xcom_cfg != nullptr) identity = the_app_xcom_cfg->identity;
   return identity;
 }
 
 void cfg_app_xcom_set_identity(node_address *identity) {
   /* Validate preconditions. */
-  assert(identity != NULL);
+  assert(identity != nullptr);
 
   /*
    If the configuration structure was setup, store the identity.
    If not, delete the identity because we own it.
   */
-  if (the_app_xcom_cfg != NULL) {
-    if (the_app_xcom_cfg->identity != NULL) {
+  if (the_app_xcom_cfg != nullptr) {
+    if (the_app_xcom_cfg->identity != nullptr) {
       delete_node_address(1, the_app_xcom_cfg->identity);
     }
     the_app_xcom_cfg->identity = identity;

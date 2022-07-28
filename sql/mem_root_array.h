@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,6 +86,9 @@ class Mem_root_array_YY {
     m_size = 0;
     m_capacity = 0;
   }
+
+  Element_type *data() { return m_array; }
+  const Element_type *data() const { return m_array; }
 
   Element_type &at(size_t n) {
     assert(n < size());

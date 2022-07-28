@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,30 +28,17 @@
 // Standard include files
 #include <cstring>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <stdexcept>
 #include <string>
 #include <utility>
-
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wundef"
-#endif
 
 ////////////////////////////////////////
 // Third-party include files
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
-
-using std::make_pair;
-using std::map;
-using std::pair;
-using std::string;
+#include "mysql/harness/utility/string.h"  // wrap_string
 
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::make_range;
@@ -89,13 +76,13 @@ TEST(TestUtilities, Strip) {
 }
 
 TEST(TestUtilities, FindRangeFirst) {
-  using Map = map<pair<string, string>, string>;
+  using Map = std::map<std::pair<std::string, std::string>, std::string>;
   Map assoc;
-  assoc.emplace(make_pair("one", "first"), "alpha");
-  assoc.emplace(make_pair("one", "second"), "beta");
-  assoc.emplace(make_pair("two", "first"), "gamma");
-  assoc.emplace(make_pair("two", "second"), "delta");
-  assoc.emplace(make_pair("two", "three"), "epsilon");
+  assoc.emplace(std::make_pair("one", "first"), "alpha");
+  assoc.emplace(std::make_pair("one", "second"), "beta");
+  assoc.emplace(std::make_pair("two", "first"), "gamma");
+  assoc.emplace(std::make_pair("two", "second"), "delta");
+  assoc.emplace(std::make_pair("two", "three"), "epsilon");
 
   auto rng1 = find_range_first(assoc, "one");
   ASSERT_NE(rng1.first, assoc.end());
@@ -155,16 +142,16 @@ class WrapStringTest : public ::testing::Test {
 };
 
 TEST_F(WrapStringTest, ShortLine) {
-  std::vector<string> lines = wrap_string(short_line_less72, 72, 0);
+  std::vector<std::string> lines = wrap_string(short_line_less72, 72, 0);
 
-  std::vector<string> exp{short_line_less72};
+  std::vector<std::string> exp{short_line_less72};
   ASSERT_THAT(lines, ContainerEq(exp));
 }
 
 TEST_F(WrapStringTest, OneLine72width) {
-  std::vector<string> lines = wrap_string(one_line, 72, 0);
+  std::vector<std::string> lines = wrap_string(one_line, 72, 0);
 
-  std::vector<string> exp{
+  std::vector<std::string> exp{
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ac tempor",
       "ligula. Curabitur imperdiet sem eget tincidunt viverra. Integer "
       "lacinia,",
@@ -180,9 +167,9 @@ TEST_F(WrapStringTest, OneLine72width) {
 }
 
 TEST_F(WrapStringTest, OneLine72widthIndent4) {
-  std::vector<string> lines = wrap_string(one_line, 72, 4);
+  std::vector<std::string> lines = wrap_string(one_line, 72, 4);
 
-  std::vector<string> exp{
+  std::vector<std::string> exp{
       "    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ac",
       "    tempor ligula. Curabitur imperdiet sem eget tincidunt viverra.",
       "    Integer lacinia, velit vel aliquam finibus, dui turpis aliquet leo,",
@@ -197,9 +184,9 @@ TEST_F(WrapStringTest, OneLine72widthIndent4) {
 }
 
 TEST_F(WrapStringTest, RespectNewLine) {
-  std::vector<string> lines = wrap_string(with_newlines, 80, 0);
+  std::vector<std::string> lines = wrap_string(with_newlines, 80, 0);
 
-  std::vector<string> exp{
+  std::vector<std::string> exp{
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
       "Ut ac tempor ligula. Curabitur imperdiet sem eget tincidunt viverra. "
       "Integer",
@@ -220,9 +207,9 @@ TEST_F(WrapStringTest, RespectNewLine) {
 }
 
 TEST_F(WrapStringTest, RespectNewLineIndent2) {
-  std::vector<string> lines = wrap_string(with_newlines, 60, 2);
+  std::vector<std::string> lines = wrap_string(with_newlines, 60, 2);
 
-  std::vector<string> exp{
+  std::vector<std::string> exp{
       "  Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
       "  Ut ac tempor ligula. Curabitur imperdiet sem eget",
       "  tincidunt viverra. Integer lacinia, velit",
@@ -238,9 +225,9 @@ TEST_F(WrapStringTest, RespectNewLineIndent2) {
 }
 
 TEST_F(WrapStringTest, CustomeIndents) {
-  std::vector<string> lines = wrap_string(custom_indents, 72, 5);
+  std::vector<std::string> lines = wrap_string(custom_indents, 72, 5);
 
-  std::vector<string> exp{
+  std::vector<std::string> exp{
       "                Lorem ipsum dolor      sit amet,",
       "                consectetur adipiscing elit.",
   };

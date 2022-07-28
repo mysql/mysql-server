@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,49 +26,20 @@
 #include "trp_node.hpp"
 #include <NdbOut.hpp>
 
-trp_node::trp_node()
-{
-  compatible = nfCompleteRep = true;
-  m_connected = defined = m_alive = m_api_reg_conf = m_node_fail_rep = false;
-  std::memset(&m_state, 0, sizeof(m_state));
-  m_state.init();
-  m_state.startLevel = NodeState::SL_NOTHING;
-  minDbVersion = 0;
-  minApiVersion = 0;
-}
-
-bool
-trp_node::operator==(const trp_node& other) const
-{
-  return (compatible == other.compatible &&
-          nfCompleteRep == other.nfCompleteRep &&
-          m_connected == other.m_connected &&
-          defined == other.defined &&
-          m_alive == other.m_alive &&
-          m_api_reg_conf == other.m_api_reg_conf &&
-          m_node_fail_rep == other.m_node_fail_rep &&
-          minDbVersion == other.minDbVersion &&
-          minApiVersion == other.minApiVersion &&
-          memcmp(&m_state, &other.m_state, sizeof(m_state)) == 0);
-}
-
 NdbOut&
 operator<<(NdbOut& out, const trp_node& n)
 {
   out << "[ "
-      << "defined: " << n.defined
-      << ", compatible: " << n.compatible
+      << "defined: " << n.defined << ", compatible: " << n.compatible
       << ", connected: " << n.m_connected
-      << ", api_reg_conf: " << n.m_api_reg_conf
-      << ", alive: " << n.m_alive
+      << ", api_reg_conf: " << n.m_api_reg_conf << ", alive: " << n.m_alive
       << ", nodefailrep: " << n.m_node_fail_rep
       << ", nfCompleteRep: " << n.nfCompleteRep
       << ", minDbVersion: " << n.minDbVersion
-      << ", minApiVersion: " << n.minApiVersion
-      << ", state: " << n.m_state
+      << ", minApiVersion: " << n.minApiVersion << ", state: " << n.m_state
       << ", connected: "
       << BaseString::getPrettyTextShort(n.m_state.m_connected_nodes).c_str()
-      << "]";
+      << ", info: " << n.m_info << "]";
 
   return out;
 }

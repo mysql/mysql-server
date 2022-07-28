@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 IBUF_PAGE_SIZE_PER_FREE_SPACE bytes of free space for ibuf to try to
 buffer inserts to this page.  If there is this much of free space, the
 corresponding bits are set in the ibuf bitmap. */
-#define IBUF_PAGE_SIZE_PER_FREE_SPACE 32
+constexpr uint32_t IBUF_PAGE_SIZE_PER_FREE_SPACE = 32;
 
 /** Starts an insert buffer mini-transaction. */
 static inline void ibuf_mtr_start(mtr_t *mtr) /*!< out: mini-transaction */
@@ -101,14 +101,18 @@ void ibuf_set_free_bits_func(
 #endif             /* UNIV_IBUF_DEBUG */
     ulint val);    /*!< in: value to set: < 4 */
 #ifdef UNIV_IBUF_DEBUG
-#define ibuf_set_free_bits(b, v, max) ibuf_set_free_bits_func(b, max, v)
-#else /* UNIV_IBUF_DEBUG */
-#define ibuf_set_free_bits(b, v, max) ibuf_set_free_bits_func(b, v)
+static inline void ibuf_set_free_bits(buf_block_t *b, ulint v, ulint max) {
+  ibuf_set_free_bits_func(b, max, v);
+}
+#else  /* UNIV_IBUF_DEBUG */
+static inline void ibuf_set_free_bits(buf_block_t *b, ulint v, ulint) {
+  ibuf_set_free_bits_func(b, v);
+}
 #endif /* UNIV_IBUF_DEBUG */
 
 /** A basic partial test if an insert to the insert buffer could be possible and
  recommended. */
-static inline ibool ibuf_should_try(
+static inline bool ibuf_should_try(
     dict_index_t *index,     /*!< in: index where to insert */
     ulint ignore_sec_unique) /*!< in: if != 0, we should
                              ignore UNIQUE constraint on
@@ -124,30 +128,30 @@ static inline ibool ibuf_should_try(
           srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE);
 }
 
-/** Returns TRUE if the current OS thread is performing an insert buffer
+/** Returns true if the current OS thread is performing an insert buffer
  routine.
 
  For instance, a read-ahead of non-ibuf pages is forbidden by threads
  that are executing an insert buffer routine.
  @return true if inside an insert buffer routine */
-static inline ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
+static inline bool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
 {
   return (mtr->is_inside_ibuf());
 }
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
+@param[in]      page_id         page id
+@param[in]      page_size       page size
 @return true if a bitmap page */
-static inline ibool ibuf_bitmap_page(const page_id_t &page_id,
-                                     const page_size_t &page_size) {
+static inline bool ibuf_bitmap_page(const page_id_t &page_id,
+                                    const page_size_t &page_size) {
   return ((page_id.page_no() & (page_size.physical() - 1)) ==
           FSP_IBUF_BITMAP_OFFSET);
 }
 
 /** Translates the free space on a page to a value in the ibuf bitmap.
-@param[in]	page_size	page size in bytes
-@param[in]	max_ins_size	maximum insert size after reorganize for
+@param[in]      page_size       page size in bytes
+@param[in]      max_ins_size    maximum insert size after reorganize for
 the page
 @return value for ibuf bitmap bits */
 static inline ulint ibuf_index_page_calc_free_bits(ulint page_size,
@@ -170,8 +174,8 @@ static inline ulint ibuf_index_page_calc_free_bits(ulint page_size,
 }
 
 /** Translates the ibuf free bits to the free space on a page in bytes.
-@param[in]	page_size	page_size
-@param[in]	bits		value for ibuf bitmap bits
+@param[in]      page_size       page_size
+@param[in]      bits            value for ibuf bitmap bits
 @return maximum insert size after reorganize for the page */
 static inline ulint ibuf_index_page_calc_free_from_bits(
     const page_size_t &page_size, ulint bits) {
@@ -208,7 +212,7 @@ static inline ulint ibuf_index_page_calc_free_zip(
   max_ins_size = page_get_max_insert_size(buf_block_get_frame(block), 1);
 
   const auto page_zip = block->get_page_zip();
-  zip_max_ins = page_zip_max_ins_size(page_zip, FALSE /* not clustered */);
+  zip_max_ins = page_zip_max_ins_size(page_zip, false /* not clustered */);
 
   if (zip_max_ins < 0) {
     return (0);

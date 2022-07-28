@@ -95,9 +95,6 @@ Pattern not found.
 # Setting admin certs
 # Configure TLS for admin channel
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
 # Connect through admin channel using TLS - should be a success.
 MYSQL --host=127.0.0.1 --port=MASTER_ADMINPORT --user=root --ssl-mode=REQUIRED -e "SELECT 1"
 1

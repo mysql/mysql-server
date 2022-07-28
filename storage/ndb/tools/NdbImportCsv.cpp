@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <time.h>
 
 #include "m_ctype.h"
@@ -444,6 +445,7 @@ NdbImportCsv::Input::Input(NdbImportCsv& csv,
   m_startpos = 0;
   m_startlineno = 0;
   m_ignore_lines = 0;
+  m_missing_ai_col = 0;
 }
 
 NdbImportCsv::Input::~Input()
@@ -457,6 +459,7 @@ NdbImportCsv::Input::do_init()
 {
   const Opt& opt = m_util.c_opt;
   m_ignore_lines = opt.m_ignore_lines;
+  m_missing_ai_col = opt.m_missing_ai_col;
   m_parse->do_init();
   m_eval->do_init();
 }
@@ -645,6 +648,7 @@ NdbImportCsv::Parse::do_init()
     m_trans[State_plain][u] = T_DATA;
     m_trans[State_quote][u] = T_DATA;
     m_trans[State_escape][u] = T_BYTE;
+    m_trans[State_cr][u] = T_LINEEND;
   }
   {
     const uchar* p = spec.m_fields_terminated_by;
@@ -655,6 +659,7 @@ NdbImportCsv::Parse::do_init()
     m_trans[State_plain][u] = len == 1 ? T_FIELDSEP : T_FIELDSEP2;
     m_trans[State_quote][u] = T_DATA;
     m_trans[State_escape][u] = T_BYTE;
+    m_trans[State_cr][u] = T_LINEEND;
   }
   {
     const uchar* p = spec.m_fields_optionally_enclosed_by;
@@ -665,6 +670,7 @@ NdbImportCsv::Parse::do_init()
       m_trans[State_plain][u] = T_QUOTE;
       m_trans[State_quote][u] = T_QUOTEQUOTE;
       m_trans[State_escape][u] = T_BYTE;
+      m_trans[State_cr][u] = T_LINEEND;
     }
   }
   {
@@ -677,6 +683,7 @@ NdbImportCsv::Parse::do_init()
       m_trans[State_plain][u] = T_ESCAPE;
       m_trans[State_quote][u] = T_ESCAPE;
       m_trans[State_escape][u] = T_BYTE;
+      m_trans[State_cr][u] = T_LINEEND;
     }
   }
   {
@@ -688,6 +695,7 @@ NdbImportCsv::Parse::do_init()
     m_trans[State_plain][u] = len == 1 ? T_LINEEND : T_LINEEND2;
     m_trans[State_quote][u] = T_DATA;
     m_trans[State_escape][u] = T_BYTE;
+    m_trans[State_cr][u] = T_LINEEND;
   }
   // escape (\N is special)
   {
@@ -850,6 +858,8 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
     end += len;
     break;
   case T_LINEEND:
+    if (spec.m_lines_terminated_by_len > 1)
+      pop_state();
     len = 1;
     end += len;
     break;
@@ -863,8 +873,16 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
       break;
     }
     len = 1;
-    end += len;
-    token = T_DATA;
+    end += 1;
+    if ((buf.m_len - buf.m_pos) == 1)
+    {
+      token = T_LINEEND;
+      push_state(State_cr);
+    }
+    else
+    {
+      token = T_DATA;
+    }
     break;
   case T_DATA:
     do
@@ -999,6 +1017,9 @@ NdbImportCsv::g_str_state(Parse::State state)
   case Parse::State_escape:
     str = "escape";
     break;
+  case Parse::State_cr:
+    str = "carriage_return";
+    break;
   }
   require(str != 0);
   return str;
@@ -1031,6 +1052,19 @@ NdbImportCsv::Eval::do_eval()
   LineList& line_list = m_input.m_line_list;
   Line* line = line_list.front();
   RowList rows_chunk;
+
+  const uint attrcnt = table.m_attrs.size();
+  const bool hidden_pk = table.m_has_hidden_pk;
+
+  const uint auto_inc_field_id = table.m_autoIncAttrId;
+  uint expect_attrcnt = attrcnt;
+  if (hidden_pk) {
+    require(auto_inc_field_id == attrcnt - 1);
+    expect_attrcnt = attrcnt - 1;
+  } else if (m_input.m_missing_ai_col && auto_inc_field_id != Inval_uint) {
+    expect_attrcnt = attrcnt - 1;
+  }
+
   while (line != 0)
   {
     const uint64 ignore_lines = m_input.m_ignore_lines;
@@ -1064,7 +1098,7 @@ NdbImportCsv::Eval::do_eval()
       m_util.alloc_rows(table, cnt, rows_chunk);
     }
     Row* row = rows_chunk.pop_front();
-    eval_line(row, line);
+    eval_line(row, line, expect_attrcnt);
     if (line->m_reject)
     {
       m_util.free_row(row);
@@ -1080,7 +1114,7 @@ NdbImportCsv::Eval::do_eval()
 }
 
 void
-NdbImportCsv::Eval::eval_line(Row* row, Line* line)
+NdbImportCsv::Eval::eval_line(Row* row, Line* line, const uint expect_attrcnt)
 {
   const Table& table = m_input.m_table;
   const Attrs& attrs = table.m_attrs;
@@ -1092,17 +1126,26 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
   row->m_startpos = m_input.m_startpos + line->m_pos;
   row->m_endpos = m_input.m_startpos + line->m_end;
   uint fieldcnt = line->m_field_list.cnt();
-  const uint has_hidden_pk = (uint)table.m_has_hidden_pk;
-  const uint expect_attrcnt = attrcnt - has_hidden_pk;
+
+  // Hidden pk
+  const uint auto_inc_field_id = (uint)table.m_autoIncAttrId;
+  const bool hidden_pk = table.m_has_hidden_pk;
+
   Error error;  // local error
   do
   {
     if (fieldcnt < expect_attrcnt)
     {
-      m_util.set_error_data(
-        error, __LINE__, 0,
-        "line %" PRIu64 ": too few fields (%u < %u)",
-        linenr, fieldcnt, attrcnt);
+      if (expect_attrcnt == attrcnt)
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %" PRIu64 ": too few fields (%u < %u)",
+          linenr, fieldcnt, attrcnt);
+      else
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %" PRIu64 ": too few fields (%u < %u of %u)",
+          linenr, fieldcnt, expect_attrcnt, attrcnt);
       break;
     }
     if(fieldcnt == expect_attrcnt + 1 &&
@@ -1128,35 +1171,45 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
     m_input.reject_line(line, (Field*)0, error);
     line->m_reject = true;
   }
+
   Field* field = line->m_field_list.front();
-  for (uint n = 0; n < fieldcnt; n++)
+  for (uint n = 0; n < attrcnt; n++)
   {
     if (line->m_reject) // wrong field count or eval error
       break;
-    require(field != 0);
-    require(field->m_fieldno == n);
-    if (!field->m_null)
-      eval_field(row, line, field);
-    else
-      eval_null(row, line, field);
+
+    bool no_ai_val_provided = false;
+    if (unlikely(auto_inc_field_id == n) && field != nullptr) {
+      if (field->m_null || field->is_empty())
+        no_ai_val_provided = true;
+    }
+
+    if (unlikely(auto_inc_field_id == n) &&
+        (hidden_pk || no_ai_val_provided || m_input.m_missing_ai_col)) {
+      // No field data provided in the input file, so fill the field with 0
+      eval_auto_inc_field(row, line, field, n);
+
+      // Since hidden PK is the last attrib, leave the for-loop
+      if (hidden_pk) {
+        break;
+      }
+      if (m_input.m_missing_ai_col) {
+        continue;
+      }
+    } else {
+      // Eval user-provided-auto-inc or regular field data
+      require(field != 0);
+      if (!field->m_null) {
+        eval_field(row, line, field, n);
+      } else {
+        eval_null(row, line, field, n);
+      }
+    }
     field = field->next();
   }
   if (!line->m_reject)
   {
     require(field == 0);
-  }
-  if (has_hidden_pk)
-  {
-    /*
-     * CSV has no access to Ndb (in fact there may not be any Ndb
-     * object e.g. in CSV input -> CSV output).  Any autoincrement
-     * value for hidden pk is set later in RelayOpWorker.  Fill in
-     * some dummy value to not leave uninitialized data.
-     */
-    const Attr& attr = attrs[attrcnt - 1];
-    require(attr.m_type == NdbDictionary::Column::Bigunsigned);
-    uint64 val = Inval_uint64;
-    attr.set_value(row, &val, 8);
   }
   if (!line->m_reject)
     m_input.m_rows.push_back(row);
@@ -1813,7 +1866,87 @@ ndb_import_csv_parse_timestamp2(const NdbImportCsv::Attr& attr,
 }
 
 void
-NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
+NdbImportCsv::Eval::eval_auto_inc_field(Row* row, Line* line, Field* field, const uint attr_id)
+{
+  const Table& table = m_input.m_table;
+  const Attrs& attrs = table.m_attrs;
+  const Attr& attr = attrs[attr_id];
+
+  Error error; // Local error
+  /*
+   * CSV has no access to Ndb (in fact there may not be any Ndb object
+   * e.g. in CSV input -> CSV output).  Fill in with 0 to
+   * differentiate auto inc field data provided or not provided in the
+   * input file.
+   */
+
+  const Uint64 ui64val = 0;
+  switch (attr.m_type) {
+    case NdbDictionary::Column::Tinyint: {
+      attr.set_value(row, &ui64val, 1);
+      break;
+    }
+    case NdbDictionary::Column::Tinyunsigned: {
+      attr.set_value(row, &ui64val, 1);
+      break;
+    }
+    case NdbDictionary::Column::Smallint: {
+      attr.set_value(row, &ui64val, 2);
+      break;
+    }
+    case NdbDictionary::Column::Smallunsigned: {
+      attr.set_value(row, &ui64val, 2);
+      break;
+    }
+    case NdbDictionary::Column::Mediumint: {
+      attr.set_value(row, &ui64val, 3);
+      break;
+    }
+    case NdbDictionary::Column::Mediumunsigned: {
+      attr.set_value(row, &ui64val, 3);
+      break;
+    }
+    case NdbDictionary::Column::Int: {
+      attr.set_value(row, &ui64val, 4);
+      break;
+    }
+    case NdbDictionary::Column::Unsigned: {
+      attr.set_value(row, &ui64val, 4);
+      break;
+    }
+    case NdbDictionary::Column::Bigint: {
+      attr.set_value(row, &ui64val, 8);
+      break;
+    }
+    case NdbDictionary::Column::Bigunsigned: {
+      attr.set_value(row, &ui64val, 8);
+      break;
+    }
+    default: {
+      // Internal counts file lines and fields from 0
+      const uint64 lineno = m_input.m_startlineno + line->m_lineno;
+      const uint fieldno = field->m_fieldno;
+      // User wants the counts from 1
+      const uint64 linenr = 1 + lineno;
+      const uint fieldnr = 1 + fieldno;
+      m_util.set_error_data(
+                            error, __LINE__, 0,
+                            "line %" PRIu64 " field %u: eval_auto_inc_field %s:"
+                            " failed : bad type",
+                            linenr, fieldnr, attr.m_sqltype);
+
+      break;
+    }
+  }
+  if (m_util.has_error(error))
+  {
+    m_input.reject_line(line, field, error);
+    line->m_reject = true;
+  }
+}
+
+void
+NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field, const uint attr_id)
 {
   const Opt& opt = m_util.c_opt;
   const CHARSET_INFO* cs = opt.m_charset;
@@ -1828,7 +1961,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
   // user wants the counts from 1
   const uint64 linenr = 1 + lineno;
   const uint fieldnr = 1 + fieldno;
-  const Attr& attr = attrs[fieldno];
+  const Attr& attr = attrs[attr_id];
   uint pos = field->m_pack_pos;
   uint end = field->m_pack_end;
   uint length = end - pos;
@@ -2120,9 +2253,10 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
   case NdbDictionary::Column::Unsigned:
     {
       int err = 0;
-      const char* endptr = nullptr;
-      uint32 val = cs->cset->strntoul(
-                   cs, datac, length, 10, &endptr, &err);
+      const char* endptr = 0;
+      uint32 val = (uint32) cs->cset->strntoull10rnd(cs, datac, length,
+                                                     true, &endptr, &err);
+      if (err == MY_ERRNO_ERANGE)  log_debug(1, "Value out of range.");
       if (err != 0)
       {
         m_util.set_error_data(
@@ -2145,9 +2279,10 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
   case NdbDictionary::Column::Bigunsigned:
     {
       int err = 0;
-      const char* endptr = nullptr;
-      uint64 val = cs->cset->strntoull(
-                   cs, datac, length, 10, &endptr, &err);
+      const char* endptr = 0;
+      uint64 val = (uint64) cs->cset->strntoull10rnd(cs, datac, length,
+                                                     true, &endptr, &err);
+      if (err == MY_ERRNO_ERANGE)  log_debug(1, "Value out of range.");
       if (err != 0)
       {
         m_util.set_error_data(
@@ -2628,7 +2763,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
 }
 
 void
-NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field)
+NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field, const uint attr_id)
 {
   const Table& table = m_input.m_table;
   const Attrs& attrs = table.m_attrs;
@@ -2638,7 +2773,7 @@ NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field)
   // user wants the counts from 1
   const uint64 linenr = 1 + lineno;
   const uint fieldnr = 1 + fieldno;
-  const Attr& attr = attrs[fieldno];
+  const Attr& attr = attrs[attr_id];
   Error error;  // local error
   do
   {
@@ -2964,6 +3099,12 @@ struct MyCsv {
 static MyCsv mycsvlist[] = {
   { 0, 0, 0, "",
     MyRes(0) },
+  { 0, 1, 0, "\n",
+    MyRes(1, "") },
+  { 0, 1, 0, "\\N\n",
+    MyRes(1, nullptr) },
+  { 0, 1, 0, ",\n",
+    MyRes(2, "", "") },
   { 0, 1, 0, "123,abc\n",
     MyRes(2, "123", "abc") },
   { 0, 2, 0, "123,abc\n456,def\n",

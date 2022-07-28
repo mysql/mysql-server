@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include "NdbMgmd.hpp"
@@ -1755,8 +1756,7 @@ set_config(NdbMgmd& mgmd,
   if (!call_args.contains("Content-Transfer-Encoding"))
     call_args.put("Content-Transfer-Encoding", "base64");
   if (!call_args.contains("Content-Length"))
-    call_args.put("Content-Length",
-                  encoded_config.length() ? encoded_config.length() - 1 : 1);
+    call_args.put("Content-Length", encoded_config.length());
 
   const char *cmd_str = v2 ? "set config_v2" : "set config";
   if (!mgmd.call(cmd_str, call_args,
@@ -1808,6 +1808,7 @@ static bool set_config_result_contains(NdbMgmd& mgmd,
 static bool
 check_set_config_invalid_content_type(NdbMgmd& mgmd)
 {
+  g_info << __func__ << endl;
   Properties args;
   args.put("Content-Type", "illegal type");
   return set_config_result_contains(mgmd, args, BaseString(""),
@@ -1817,6 +1818,7 @@ check_set_config_invalid_content_type(NdbMgmd& mgmd)
 static bool
 check_set_config_invalid_content_encoding(NdbMgmd& mgmd)
 {
+  g_info << __func__ << endl;
   Properties args;
   args.put("Content-Transfer-Encoding", "illegal encoding");
   return set_config_result_contains(mgmd, args, BaseString(""),
@@ -1827,6 +1829,7 @@ check_set_config_invalid_content_encoding(NdbMgmd& mgmd)
 static bool
 check_set_config_too_large_content_length(NdbMgmd& mgmd)
 {
+  g_info << __func__ << endl;
   Properties args;
   args.put("Content-Length", 1024*1024 + 1);
   return set_config_result_contains(mgmd, args, BaseString(""),
@@ -1836,6 +1839,7 @@ check_set_config_too_large_content_length(NdbMgmd& mgmd)
 static bool
 check_set_config_too_small_content_length(NdbMgmd& mgmd)
 {
+  g_info << __func__ << endl;
   Properties args;
   args.put("Content-Length", (Uint32)0);
   return set_config_result_contains(mgmd, args, BaseString(""),
@@ -1845,6 +1849,7 @@ check_set_config_too_small_content_length(NdbMgmd& mgmd)
 static bool
 check_set_config_wrong_config_length(NdbMgmd& mgmd)
 {
+  g_info << __func__ << endl;
 
   // Get the binary config
   Config conf;
@@ -1860,13 +1865,30 @@ check_set_config_wrong_config_length(NdbMgmd& mgmd)
     return false;
 
   Properties args;
-  args.put("Content-Length", encoded_config.length() - 20);
-  bool res = set_config_result_contains(mgmd, args, encoded_config,
-                                        "Failed to decode config");
+  /*
+   * Skipping last 19 bytes of base64 encoded data.
+   * The base64 encoding used ensures encoded data is multiple of 4 bytes block
+   * encoding 3 characters plus some new lines.
+   * Skipping the last 19 bytes should result in a encoded unit to be
+   * incomplete even if there is one newline included and result in decode
+   * error.
+   * This is not really critical since also other failure will be accepted.
+   */
+  args.put("Content-Length", encoded_config.length() - 19);
+  /*
+   * Depending on there config data is truncated one of the following error
+   * messages may be returned:
+   *
+   *   Failed to read config
+   *   Failed to decode config
+   *   Failed to unpack config
+   */
+  bool res =
+      set_config_result_contains(mgmd, args, encoded_config, "Failed to ");
 
   if (res){
     /*
-      There are now additional 20 bytes of junk that has been
+      There are now additional 19 bytes of junk that has been
       sent to mgmd, reconnect to get rid of it
     */
     if (!mgmd.disconnect())
@@ -1880,6 +1902,7 @@ check_set_config_wrong_config_length(NdbMgmd& mgmd)
 static bool
 check_set_config_any_node(NDBT_Context* ctx, NDBT_Step* step, NdbMgmd& mgmd)
 {
+  g_info << __func__ << endl;
 
   // Get the binary config
   Config conf;
@@ -1923,6 +1946,7 @@ check_set_config_any_node(NDBT_Context* ctx, NDBT_Step* step, NdbMgmd& mgmd)
 static bool
 check_set_config_fail_wrong_generation(NdbMgmd& mgmd)
 {
+  g_info << __func__ << endl;
   // Get the binary config
   Config conf;
   if (!mgmd.get_config(conf))
@@ -1940,6 +1964,7 @@ check_set_config_fail_wrong_generation(NdbMgmd& mgmd)
 static bool
 check_set_config_fail_wrong_name(NdbMgmd& mgmd)
 {
+  g_info << __func__ << endl;
   // Get the binary config
   Config conf;
   if (!mgmd.get_config(conf))
@@ -1957,6 +1982,7 @@ check_set_config_fail_wrong_name(NdbMgmd& mgmd)
 static bool
 check_set_config_fail_wrong_primary(NdbMgmd& mgmd)
 {
+  g_info << __func__ << endl;
   // Get the binary config
   Config conf;
   if (!mgmd.get_config(conf))
@@ -2515,7 +2541,7 @@ check_set_ports_mgmapi(NdbMgmd& mgmd)
   int nodeid = 1;
   unsigned num_ports = 1;
   ndb_mgm_dynamic_port ports[MAX_NODES * 10];
-  static_assert(MAX_NODES < NDB_ARRAY_SIZE(ports), "");
+  static_assert(MAX_NODES < NDB_ARRAY_SIZE(ports));
   ports[0].nodeid = 1;
   ports[0].port = -1;
 
@@ -3652,7 +3678,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
   };
   // Catch if new members are added to NdbApiConfig,
   // if so add tests and adjust expected size
-  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 7 * sizeof(Uint32));
+  static_assert(sizeof(NdbApiConfig) == 7 * sizeof(Uint32));
 
   Config savedconf;
   if (!mgmd.get_config(savedconf))

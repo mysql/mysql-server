@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,7 +271,7 @@ extern "C" bool my_thread_init() {
 #endif
 
   if (!my_thread_global_init_done)
-    return true; /* cannot proceed with unintialized library */
+    return true; /* cannot proceed with uninitialized library */
 
 #ifdef _WIN32
   install_sigabrt_handler();
@@ -369,7 +369,7 @@ CODE_STATE **my_thread_var_dbug() {
   EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
 */
 
-static void my_sigabrt_handler(int sig) { __debugbreak(); }
+static void my_sigabrt_handler(int sig [[maybe_unused]]) { __debugbreak(); }
 
 static void install_sigabrt_handler() {
   /*abort() should not override our exception filter*/

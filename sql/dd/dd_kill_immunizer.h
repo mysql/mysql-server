@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,8 @@ class DD_kill_immunizer {
 
     // Set killed state of THD as NOT_KILLED.
     thd->killed = THD::NOT_KILLED;
+    // No OOM error while immunizer is active.
+    m_thd->m_mem_cnt.no_error_mode();
   }
 
   ~DD_kill_immunizer() {
@@ -73,9 +75,10 @@ class DD_kill_immunizer {
       Current instance is of top level kill immunizer, set kill immune mode to
       inactive(or exiting).
     */
-    if (m_saved_kill_immunizer == nullptr)
+    if (m_saved_kill_immunizer == nullptr) {
       m_is_active = false;
-    else
+      m_thd->m_mem_cnt.restore_mode();
+    } else
       // Set kill_immunizer of THD to parent. We must do it before calling awake
       // to transfer the kill state to parent kill_immunizer.
       m_thd->kill_immunizer = m_saved_kill_immunizer;
@@ -117,7 +120,7 @@ class DD_kill_immunizer {
   THD::killed_state m_killed_state;
 
   // In case of nested Transaction_ro, m_saved_kill_immunizer is used to refer
-  // the parent Transaction_ro's kill_immunizer. This is used to propogate the
+  // the parent Transaction_ro's kill_immunizer. This is used to propagate the
   // m_killed_state to the parent kill_immunizer.
   DD_kill_immunizer *m_saved_kill_immunizer;
 

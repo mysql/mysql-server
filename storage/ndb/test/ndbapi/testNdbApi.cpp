@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
@@ -2089,7 +2090,7 @@ int runTestExecuteAsynch(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
   if (pOp == NULL){
-    NDB_ERR(pOp->getNdbError());
+    NDB_ERR(pCon->getNdbError());
     pNdb->closeTransaction(pCon);
     delete pNdb;
     return NDBT_FAILED;
@@ -3614,7 +3615,7 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
     NdbOperation * pOp = pTrans1->getNdbOperation(ctx->getTab()->getName());
     if (pOp == NULL)
     {
-      NDB_ERR(pOp->getNdbError());
+      NDB_ERR(pTrans1->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -3632,7 +3633,7 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
     NdbOperation * pOp = pTrans2->getNdbOperation(ctx->getTab()->getName());
     if (pOp == NULL)
     {
-      NDB_ERR(pOp->getNdbError());
+      NDB_ERR(pTrans2->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -5404,9 +5405,9 @@ public:
 
   void freeStorage()
   {
-    free(ptrs[0].p);
-    free(ptrs[1].p);
-    free(ptrs[2].p);
+    delete[] ptrs[0].p;
+    delete[] ptrs[1].p;
+    delete[] ptrs[2].p;
   }
 
   int appendToSection(Uint32 secId, LinearSectionPtr ptr) override
@@ -5415,10 +5416,15 @@ public:
     require(secId < 3);
     
     Uint32 existingSz = ptrs[secId].sz;
-    Uint32* existingBuff = ptrs[secId].p;
+    const Uint32* existingBuff = ptrs[secId].p;
 
     Uint32 newSize = existingSz + ptr.sz;
-    Uint32* newBuff = (Uint32*) realloc(existingBuff, newSize * 4);
+    Uint32* newBuff = new Uint32[newSize];
+    if (existingBuff)
+    {
+      memcpy(newBuff, existingBuff, existingSz * 4);
+      delete[] existingBuff;
+    }
 
     if (!newBuff)
       return -1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <NdbSleep.h>
 #include <ndb_limits.h>
 #include <ndb_lib_move_data.hpp>
+#include "util/cstrbuf.h"
 
 static const char* opt_dbname = "TEST_DB";
 static bool opt_exclude_missing_columns = false;
@@ -234,41 +235,41 @@ my_long_options[] =
   NDB_STD_OPTS("ndb_move_data"),
   { "database", 'd',
     "Default database of source and target tables",
-    (uchar**) &opt_dbname, (uchar**) &opt_dbname, 0,
+    &opt_dbname, &opt_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "exclude-missing-columns", NDB_OPT_NOSHORT,
     "Ignore extra columns in source or target table",
-    (uchar **)&opt_exclude_missing_columns, (uchar **)&opt_exclude_missing_columns, 0,
+    &opt_exclude_missing_columns, &opt_exclude_missing_columns, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "promote-attributes", 'A',
     "Allow attribute data to be converted to a larger type",
-    (uchar **)&opt_promote_attributes, (uchar **)&opt_promote_attributes, 0,
+    &opt_promote_attributes, &opt_promote_attributes, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "lossy-conversions", 'L',
     "Allow attribute data to be truncated when converted to a smaller type",
-    (uchar **)&opt_lossy_conversions, (uchar **)&opt_lossy_conversions, 0,
+    &opt_lossy_conversions, &opt_lossy_conversions, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "staging-tries", NDB_OPT_NOSHORT,
     "Specify tries on temporary errors."
     " Format x[,y[,z]] where"
     " x=maxtries (0=no limit) y=mindelay(ms) z=maxdelay(ms)",
-    (uchar**) &opt_staging_tries, (uchar**) &opt_staging_tries, 0,
+    &opt_staging_tries, &opt_staging_tries, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "drop-source", NDB_OPT_NOSHORT,
     "Drop source table after all rows have been moved",
-    (uchar **)&opt_drop_source, (uchar **)&opt_drop_source, 0,
+    &opt_drop_source, &opt_drop_source, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Verbose messages",
-    (uchar **)&opt_verbose, (uchar **)&opt_verbose, 0,
+    &opt_verbose, &opt_verbose, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "error-insert", NDB_OPT_NOSHORT,
     "Insert random temporary errors (testing option)",
-    (uchar **)&opt_error_insert, (uchar **)&opt_error_insert, 0,
+    &opt_error_insert, &opt_error_insert, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "abort-on-error", NDB_OPT_NOSHORT,
     "dump core on permanent error in move-data library (debug option)",
-    (uchar **)&opt_abort_on_error, (uchar **)&opt_abort_on_error, 0,
+    &opt_abort_on_error, &opt_abort_on_error, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0,
     0,
@@ -310,39 +311,33 @@ checkopts(int argc, char** argv)
 
     CHK2(argc == 2, "arguments are: source target");
 
-    memset(g_source, 0, MAX_TAB_NAME_SIZE);
-    memset(g_sourcedb, 0, MAX_TAB_NAME_SIZE);
-    memset(g_sourcename, 0, MAX_TAB_NAME_SIZE);
-    memset(g_target, 0, MAX_TAB_NAME_SIZE);
-    memset(g_targetdb, 0, MAX_TAB_NAME_SIZE);
-    memset(g_targetname, 0, MAX_TAB_NAME_SIZE);
-
     CHK2(strlen(opt_dbname) < MAX_TAB_NAME_SIZE, "db name too long");
     CHK2(strlen(argv[0]) < MAX_TAB_NAME_SIZE, "source name too long");
     CHK2(strlen(argv[1]) < MAX_TAB_NAME_SIZE, "target name too long");
-    strcpy(g_source, argv[0]);
-    strcpy(g_target, argv[1]);
+
+    require(cstrbuf_copy(g_source, argv[0]) == 0);
+    require(cstrbuf_copy(g_target, argv[1]) == 0);
 
     const char* p;
     if ((p = strchr(g_source, '.')) == 0)
     {
-      strcpy(g_sourcedb, opt_dbname);
-      strcpy(g_sourcename, g_source);
+      require(cstrbuf_copy(g_sourcedb, opt_dbname) == 0);
+      require(cstrbuf_copy(g_sourcename, g_source) == 0);
     }
     else
     {
-      strncpy(g_sourcedb, g_source, p - g_source); // is null term
-      strcpy(g_sourcename, p + 1);
+      require(cstrbuf_copy(g_sourcedb, {g_source, size_t(p - g_source)}) == 0);
+      require(cstrbuf_copy(g_sourcename, p + 1) == 0);
     }
     if ((p = strchr(g_target, '.')) == 0)
     {
-      strcpy(g_targetdb, opt_dbname);
-      strcpy(g_targetname, g_target);
+      require(cstrbuf_copy(g_targetdb, opt_dbname) == 0);
+      require(cstrbuf_copy(g_targetname, g_target) == 0);
     }
     else
     {
-      strncpy(g_targetdb, g_target, p - g_target); // is null term
-      strcpy(g_targetname, p + 1);
+      require(cstrbuf_copy(g_targetdb, {g_target, size_t(p - g_target)}) == 0);
+      require(cstrbuf_copy(g_targetname, p + 1) == 0);
     }
   }
   while (0);

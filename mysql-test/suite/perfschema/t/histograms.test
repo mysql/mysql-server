@@ -5,6 +5,7 @@
 # Returns different results on 32bit release build
 --source include/have_64bit.inc
 --source include/no_protocol.inc
+--source include/not_valgrind.inc
 
 # Setup
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,8 @@
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
@@ -607,7 +607,7 @@ int channel_stop_all(int threads_to_stop, long timeout,
                      std::string *error_message) {
   Master_info *mi = nullptr;
 
-  /* Error related varaiables */
+  /* Error related variables */
   int error = 0;
   std::stringstream err_msg_ss;
   err_msg_ss << "Error stopping channel(s): ";
@@ -730,17 +730,18 @@ bool channel_is_active(const char *channel,
 
 int channel_get_thread_id(const char *channel,
                           enum_channel_thread_types thd_type,
-                          unsigned long **thread_id) {
+                          unsigned long **thread_id, bool need_lock) {
   DBUG_TRACE;
 
   int number_threads = -1;
 
-  channel_map.rdlock();
+  if (need_lock) channel_map.rdlock();
+  channel_map.assert_some_lock();
 
   Master_info *mi = channel_map.get_mi(channel);
 
   if (mi == nullptr) {
-    channel_map.unlock();
+    if (need_lock) channel_map.unlock();
     return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
@@ -815,7 +816,7 @@ int channel_get_thread_id(const char *channel,
       break;
   }
 
-  channel_map.unlock();
+  if (need_lock) channel_map.unlock();
 
   return number_threads;
 }
@@ -978,8 +979,8 @@ int channel_is_applier_waiting(const char *channel) {
   }
 
   unsigned long *thread_ids = nullptr;
-  int number_appliers =
-      channel_get_thread_id(channel, CHANNEL_APPLIER_THREAD, &thread_ids);
+  int number_appliers = channel_get_thread_id(channel, CHANNEL_APPLIER_THREAD,
+                                              &thread_ids, false);
 
   if (number_appliers <= 0) {
     goto end;
@@ -1380,12 +1381,12 @@ bool channel_change_source_connection_auto_failover(const char *channel,
 
   if (status && !mi->is_source_connection_auto_failover()) {
     mi->set_source_connection_auto_failover();
-    error |= flush_master_info(mi, true, true, false);
+    error |= (flush_master_info(mi, true, true, false) != 0);
   }
 
   if (!status && mi->is_source_connection_auto_failover()) {
     mi->unset_source_connection_auto_failover();
-    error |= flush_master_info(mi, true, true, false);
+    error |= (flush_master_info(mi, true, true, false) != 0);
   }
 
   unlock_slave_threads(mi);

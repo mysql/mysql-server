@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,6 +158,8 @@ void *lf_alloc_new(LF_PINS *pins);
 struct LF_HASH;
 
 typedef uint lf_hash_func(const LF_HASH *, const uchar *, size_t);
+typedef int lf_cmp_func(const uchar *key1, size_t key1_length,
+                        const uchar *key2, size_t key2_length);
 typedef void lf_hash_init_func(uchar *dst, const uchar *src);
 
 #define LF_HASH_UNIQUE 1
@@ -168,6 +170,7 @@ extern MYSQL_PLUGIN_IMPORT const int LF_HASH_OVERHEAD;
 
 /**
   Callback for extracting key and key length from user data in a LF_HASH.
+
   @param      arg    Pointer to user data.
   @param[out] length Store key length here.
   @return            Pointer to key to be hashed.
@@ -184,6 +187,7 @@ struct LF_HASH {
   hash_get_key_function get_key; /* see HASH */
   CHARSET_INFO *charset;         /* see HASH */
   lf_hash_func *hash_function;   /* see HASH */
+  lf_cmp_func *cmp_function;     /* Compare two keys. */
   uint key_offset, key_length;   /* see HASH */
   uint element_size;             /* size of memcpy'ed area on insert */
   uint flags;                    /* LF_HASH_UNIQUE, etc */
@@ -204,11 +208,18 @@ struct LF_HASH {
 
 #define lf_hash_init(A, B, C, D, E, F, G) \
   lf_hash_init2(A, B, C, D, E, F, G, NULL, NULL, NULL, NULL)
+
 void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
                    uint key_offset, uint key_length,
                    hash_get_key_function get_key, CHARSET_INFO *charset,
                    lf_hash_func *hash_function, lf_allocator_func *ctor,
                    lf_allocator_func *dtor, lf_hash_init_func *init);
+
+void lf_hash_init3(LF_HASH *hash, uint element_size, uint flags,
+                   hash_get_key_function get_key, lf_hash_func *hash_function,
+                   lf_cmp_func *cmp_function, lf_allocator_func *ctor,
+                   lf_allocator_func *dtor, lf_hash_init_func *init);
+
 void lf_hash_destroy(LF_HASH *hash);
 int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data);
 void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key,

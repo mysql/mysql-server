@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -81,8 +81,8 @@ static inline dberr_t dict_create_add_foreign_id(
       if (innobase_check_identifier_length(strchr(id, '/') + 1)) {
         /* Server has already done this check,
         So assert here */
-        ut_ad(0);
-        return DB_IDENTIFIER_TOO_LONG;
+        ut_d(ut_error);
+        ut_o(return DB_IDENTIFIER_TOO_LONG);
       }
     }
     foreign->id = id;
@@ -96,8 +96,8 @@ static inline dberr_t dict_create_add_foreign_id(
 /** Compose a column number for a virtual column, stored in the "POS" field
 of Sys_columns. The column number includes both its virtual column sequence
 (the "nth" virtual column) and its actual column position in original table
-@param[in]	v_pos		virtual column sequence
-@param[in]	col_pos		column position in original table definition
+@param[in]      v_pos           virtual column sequence
+@param[in]      col_pos         column position in original table definition
 @return composed column position number */
 static inline ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos) {
   ut_ad(v_pos <= REC_MAX_N_FIELDS);
@@ -108,7 +108,7 @@ static inline ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos) {
 
 /** Get the column number for a virtual column (the column position in
 original table), stored in the "POS" field of Sys_columns
-@param[in]	pos		virtual column position
+@param[in]      pos             virtual column position
 @return column position in original table */
 static inline ulint dict_get_v_col_mysql_pos(ulint pos) {
   return (pos & 0xFFFF);
@@ -116,6 +116,6 @@ static inline ulint dict_get_v_col_mysql_pos(ulint pos) {
 
 /** Get a virtual column sequence (the "nth" virtual column) for a
 virtual column, stord in the "POS" field of Sys_columns
-@param[in]	pos		virtual column position
+@param[in]      pos             virtual column position
 @return virtual column sequence */
 static inline ulint dict_get_v_col_pos(ulint pos) { return ((pos >> 16) - 1); }

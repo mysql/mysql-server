@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -669,7 +669,7 @@ Qmgr::execDIH_RESTARTREF(Signal*signal)
   ndbrequire(signal->getNoOfSections() == 1);
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ptr;
-  handle.getSection(ptr, 0);
+  ndbrequire(handle.getSection(ptr, 0));
   ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
   c_start.m_no_nodegroup_nodes.clear();
   copy(c_start.m_no_nodegroup_nodes.rep.data, ptr);
@@ -689,7 +689,7 @@ Qmgr::execDIH_RESTARTCONF(Signal*signal)
   ndbrequire(signal->getNoOfSections() == 1);
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ptr;
-  handle.getSection(ptr, 0);
+  ndbrequire(handle.getSection(ptr, 0));
   ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
   c_start.m_no_nodegroup_nodes.clear();
   copy(c_start.m_no_nodegroup_nodes.rep.data, ptr);
@@ -942,7 +942,7 @@ Qmgr::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -1291,6 +1291,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   Uint32 gci = 1;
   Uint32 start_type = ~0;
 
+  ndbrequire(cmRegReq->nodeId < MAX_NODES);
+
   if (!c_connectedNodes.get(cmRegReq->nodeId))
   {
     jam();
@@ -1509,7 +1511,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     LinearSectionPtr lsptr[3];
 
     // 8192 is the size of signal->theData array.
-    STATIC_ASSERT(CmRegConf::SignalLength_v1 + NdbNodeBitmask::Size <=
+    static_assert(CmRegConf::SignalLength_v1 + NdbNodeBitmask::Size <=
                   NDB_ARRAY_SIZE(signal->theData));
     c_clusterNodes.copyto(packed_nodebitmask_length,
                           &signal->theData[CmRegConf::SignalLength_v1]);
@@ -1663,7 +1665,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(cmRegConf->presidentVersion));
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(allNdbNodes.rep.data, ptr);
     releaseSections(handle);
@@ -2017,7 +2019,7 @@ void Qmgr::execCM_REGREF(Signal* signal)
     ndbrequire(signal->getLength() >= CmRegRef::SignalLength);
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
 
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(skip_nodes.rep.data, ptr);
@@ -3290,7 +3292,7 @@ void Qmgr::findNeighbours(Signal* signal, Uint32 from)
 void Qmgr::initData(Signal* signal) 
 {
   // catch-all for missing initializations
-  memset(&arbitRec, 0, sizeof(arbitRec));
+  arbitRec = ArbitRec();
 
   /**
    * Timeouts
@@ -3840,7 +3842,7 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
             if (nodePtr.p->failState == WAITING_FOR_API_FAILCONF)
             {
               jam();
-              static_assert(NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) == 5, "");
+              static_assert(NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) == 5);
               BaseString::snprintf(buf, sizeof(buf),
                                    "  Waiting for blocks: %u %u %u %u %u",
                                    nodePtr.p->m_failconf_blocks[0],
@@ -4975,7 +4977,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
 	  ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
 	  SectionHandle handle(this, signal);
 	  SegmentedSectionPtr ptr;
-	  handle.getSection(ptr, 0);
+          ndbrequire(handle.getSection(ptr, 0));
 
 	  ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
           copy(part.rep.data, ptr);
@@ -5134,7 +5136,7 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(nodes.rep.data, ptr);
     releaseSections(handle);
@@ -5542,7 +5544,7 @@ void Qmgr::execPREP_FAILREF(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(cprepFailedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -7738,7 +7740,7 @@ Qmgr::execNODE_FAILREP(Signal * signal)
         getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
     copy(nodeFail->theNodes, ptr);
     releaseSections(handle);
@@ -8197,7 +8199,7 @@ Qmgr::execSTOP_REQ(Signal* signal)
     jam();
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(c_stopReq.nodes.rep.data, ptr);
     releaseSections(handle);
@@ -9024,7 +9026,7 @@ Qmgr::execISOLATE_ORD(Signal* signal)
     jam();
     ndbrequire(num_sections == 1);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     copy(sig->nodesToIsolate, ptr);
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     sz = ptr.sz;
@@ -9164,12 +9166,11 @@ Qmgr::execNODE_STATE_REP(Signal* signal)
   jam();
   const NodeState prevState = getNodeState();
   SimulatedBlock::execNODE_STATE_REP(signal);
+  const NodeState newState = getNodeState();
 
   /* Check whether we are changing state */
-  const Uint32 prevStartLevel = prevState.startLevel;
-  const Uint32 newStartLevel = getNodeState().startLevel;
-
-  if (newStartLevel != prevStartLevel)
+  if (prevState.startLevel != newState.startLevel ||
+      prevState.nodeGroup != newState.nodeGroup)
   {
     jam();
     /* Inform APIs */

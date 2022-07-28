@@ -190,10 +190,11 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_POLYGONFROMTEXT(' POLYGON((9 9,5 2,4 5,9 9))'),
 
 CREATE TABLE t1 (a INT) engine=innodb;
 INSERT INTO t1 VALUES (1);
---skip_if_hypergraph  # Does not elide the ORDER BY <constant>, so gets the error.
 SELECT * FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+--skip_if_hypergraph  # Elides ORDER BY <constant>, and does not get the error.
 --error ER_GIS_INVALID_DATA
 DELETE FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+--skip_if_hypergraph  # Elides ORDER BY <constant>, and does not get the error.
 --error ER_GIS_INVALID_DATA
 UPDATE t1 SET a=1 ORDER BY cast(st_distance(1,1) as DECIMAL);
 DROP TABLE t1;

@@ -2,12 +2,12 @@
 .\"     Title: ndb_waiter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_WAITER" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_WAITER" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -205,9 +205,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -272,9 +272,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -285,9 +285,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -374,7 +374,7 @@ T{
 .PP
 \fB--timeout=#\fR,
 .PP
-\fB \fR\fB-t\fR\fB \fR
+\fB \fR\fB-t #\fR\fB \fR
 T}:T{
 Wait this many seconds, then exit whether or not cluster has reached
               desired state
@@ -408,7 +408,7 @@ T{
 .PP
 \fB--wait-nodes=list\fR,
 .PP
-\fB \fR\fB-w\fR\fB \fR
+\fB \fR\fB-w list\fR\fB \fR
 T}:T{
 List of nodes to be waited for
 T}:T{
@@ -562,7 +562,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -777,7 +777,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -811,7 +811,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type
@@ -963,7 +963,7 @@ does not wait for the nodes whose IDs are listed\&. The list is comma\-delimited
 .RS 4
 .\}
 .nf
-shell> \fBndb_waiter \-\-nowait\-nodes=1,3,7\-9\fR
+$> \fBndb_waiter \-\-nowait\-nodes=1,3,7\-9\fR
 .fi
 .if n \{\
 .RE
@@ -1099,7 +1099,7 @@ waits only for the nodes whose IDs are listed\&. The list is comma\-delimited; r
 .RS 4
 .\}
 .nf
-shell> \fBndb_waiter \-\-wait\-nodes=2,4\-6,10\fR
+$> \fBndb_waiter \-\-wait\-nodes=2,4\-6,10\fR
 .fi
 .if n \{\
 .RE
@@ -1134,7 +1134,7 @@ when run against a 4\-node cluster in which two nodes have been shut down and th
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_waiter \-c localhost\fR
+$> \fB\&./ndb_waiter \-c localhost\fR
 Connecting to mgmsrv at (localhost)
 State node 1 STARTED
 State node 2 NO_CONTACT
@@ -1211,7 +1211,7 @@ testing library\&. This dependency has been removed, eliminating the extraneous 
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

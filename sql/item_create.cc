@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -510,6 +510,43 @@ class Instantiator<Function_class, 2, 4> {
       case 4:
         return new (thd->mem_root) Function_class(POS(), (*args)[0], (*args)[1],
                                                   (*args)[2], (*args)[3]);
+      default:
+        assert(false);
+        return nullptr;
+    }
+  }
+};
+
+/**
+  Instantiates a function class with between two and six arguments.
+
+  @tparam Function_class The class that implements the function. Does not need
+  to inherit Item_func.
+*/
+template <typename Function_class>
+class Instantiator<Function_class, 2, 6> {
+ public:
+  static const uint Min_argcount = 2;
+  static const uint Max_argcount = 6;
+
+  Item *instantiate(THD *thd, PT_item_list *args) {
+    switch (args->elements()) {
+      case 2:
+        return new (thd->mem_root)
+            Function_class(POS(), (*args)[0], (*args)[1]);
+      case 3:
+        return new (thd->mem_root)
+            Function_class(POS(), (*args)[0], (*args)[1], (*args)[2]);
+      case 4:
+        return new (thd->mem_root) Function_class(POS(), (*args)[0], (*args)[1],
+                                                  (*args)[2], (*args)[3]);
+      case 5:
+        return new (thd->mem_root) Function_class(
+            POS(), (*args)[0], (*args)[1], (*args)[2], (*args)[3], (*args)[4]);
+      case 6:
+        return new (thd->mem_root)
+            Function_class(POS(), (*args)[0], (*args)[1], (*args)[2],
+                           (*args)[3], (*args)[4], (*args)[5]);
       default:
         assert(false);
         return nullptr;
@@ -1140,7 +1177,7 @@ Item *Create_udf_func::create(THD *thd, udf_func *udf,
   assert((udf->type == UDFTYPE_FUNCTION) || (udf->type == UDFTYPE_AGGREGATE));
 
   Item *func = nullptr;
-  POS pos;
+  POS pos{};
 
   switch (udf->returns) {
     case STRING_RESULT:
@@ -1334,8 +1371,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ABS", SQL_FN(Item_func_abs, 1)},
     {"ACOS", SQL_FN(Item_func_acos, 1)},
     {"ADDTIME", SQL_FN(Item_func_add_time, 2)},
-    {"AES_DECRYPT", SQL_FN_V(Item_func_aes_decrypt, 2, 3)},
-    {"AES_ENCRYPT", SQL_FN_V(Item_func_aes_encrypt, 2, 3)},
+    {"AES_DECRYPT", SQL_FN_V(Item_func_aes_decrypt, 2, 6)},
+    {"AES_ENCRYPT", SQL_FN_V(Item_func_aes_encrypt, 2, 6)},
     {"ANY_VALUE", SQL_FN(Item_func_any_value, 1)},
     {"ASIN", SQL_FN(Item_func_asin, 1)},
     {"ATAN", SQL_FN_V(Item_func_atan, 1, 2)},
@@ -1667,7 +1704,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
      SQL_FN_INTERNAL(Item_func_can_access_resource_group, 1)},
     {"CONVERT_CPU_ID_MASK", SQL_FN_INTERNAL(Item_func_convert_cpu_id_mask, 1)},
     {"IS_VISIBLE_DD_OBJECT",
-     SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 2)},
+     SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 3)},
     {"INTERNAL_TABLE_ROWS",
      SQL_FN_LIST_INTERNAL_V(Item_func_internal_table_rows, 8, 9)},
     {"INTERNAL_AVG_ROW_LENGTH",
@@ -1930,7 +1967,7 @@ static bool validate_cast_type_and_extract_length(
         len = my_strtoll10(c_len, nullptr, &error);
         if ((error != 0) || (len > MAX_FIELD_BLOBLENGTH)) {
           my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char",
-                   MAX_FIELD_BLOBLENGTH);
+                   static_cast<unsigned long>(MAX_FIELD_BLOBLENGTH));
           return true;
         }
       }
@@ -2152,8 +2189,10 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
       if (!propagate_datetime_overflow(
               thd, &status.warnings,
               str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
-          ltime.time_type == MYSQL_TIMESTAMP_DATE && !status.warnings)
+          ltime.time_type == MYSQL_TIMESTAMP_DATE && !status.warnings) {
+        check_deprecated_datetime_format(thd, cs, status);
         item = new (thd->mem_root) Item_date_literal(&ltime);
+      }
       break;
     case MYSQL_TYPE_DATETIME:
       if (!propagate_datetime_overflow(
@@ -2162,6 +2201,7 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
           (ltime.time_type == MYSQL_TIMESTAMP_DATETIME ||
            ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) &&
           !status.warnings) {
+        check_deprecated_datetime_format(thd, cs, status);
         if (convert_time_zone_displacement(thd->time_zone(), &ltime))
           return nullptr;
         item = new (thd->mem_root) Item_datetime_literal(
@@ -2170,9 +2210,11 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
       break;
     case MYSQL_TYPE_TIME:
       if (!str_to_time(cs, str, length, &ltime, 0, &status) &&
-          ltime.time_type == MYSQL_TIMESTAMP_TIME && !status.warnings)
+          ltime.time_type == MYSQL_TIMESTAMP_TIME && !status.warnings) {
+        check_deprecated_datetime_format(thd, cs, status);
         item = new (thd->mem_root)
             Item_time_literal(&ltime, status.fractional_digits);
+      }
       break;
     default:
       assert(0);

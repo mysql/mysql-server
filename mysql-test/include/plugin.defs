@@ -37,6 +37,7 @@ qa_auth_server                          plugin_output_directory  no PLUGIN_AUTH_
 qa_auth_client                          plugin_output_directory  no PLUGIN_AUTH_CLIENT    qa_auth_client
 udf_example                             plugin_output_directory  no UDF_EXAMPLE_LIB
 ha_example                              plugin_output_directory  no EXAMPLE_PLUGIN         EXAMPLE
+conflicting_variables                   plugin_output_directory  no CONFLICTING_VARIABLES
 semisync_source                         plugin_output_directory  no SEMISYNC_SOURCE_PLUGIN
 semisync_replica                        plugin_output_directory  no SEMISYNC_REPLICA_PLUGIN
 semisync_master                         plugin_output_directory  no SEMISYNC_MASTER_PLUGIN
@@ -164,3 +165,6 @@ component_test_mysql_system_variable_set          plugin_output_directory  no  C
 
 # component test_table_access
 component_test_table_access  	plugin_output_directory no TEST_TABLE_ACCESS
+
+# component test_sensitive_system_variables
+component_test_sensitive_system_variables  	plugin_output_directory no TEST_SENSITIVE_SYSTEM_VARIABLES

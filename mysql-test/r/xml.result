@@ -1190,6 +1190,8 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 do weight_string(extractvalue('','/*/a'));
 do char((weight_string(extractvalue((''),('tX')))) using cp852);
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
 set names default;
 #
 # Bug#22552615 EXTRACTVALUE RETURNS NULL WHEN NO MATCHING

@@ -936,7 +936,7 @@ select (ST_aswkb(cast(st_union(multipoint(
 point(8,6), point(1,-17679),
 point(-9,-9)),
 linestring(point(91,12), point(-77,49),
-point(53,-81)))as char(18))))
+point(53,-81)))as binary(40))))
 in  ('1','2');
 ERROR 22023: Invalid GIS data provided to function st_aswkb.
 #
@@ -2143,11 +2143,11 @@ ERROR 22023: Invalid GIS data provided to function st_geomfromwkb.
 #
 # Bug#21546656 ASSERTION FAILED: DATA_LEN - SRID_SZ - WKB_HEADER_SIZE >= POINT_DATA_SIZE
 #
-do st_union(cast(point(1,1)as char(12)),point(1,1));
+do st_union(cast(point(1,1)as binary(12)),point(1,1));
 ERROR 22023: Invalid GIS data provided to function st_union.
-do st_union(cast(point(1,1)as char(13)),point(1,1));
+do st_union(cast(point(1,1)as binary(13)),point(1,1));
 ERROR 22023: Invalid GIS data provided to function st_union.
-select st_astext(st_union(cast(point(1,1)as char(15)),point(1,1))) as res;
+select st_astext(st_union(cast(point(1,1)as binary(15)),point(1,1))) as res;
 ERROR 22023: Invalid GIS data provided to function st_union.
 #
 # Bug #21663612 AUTO INCREMENT COLUMN VALUES ARE NOT VISIBLE IN A TABLE CONTAINING SPATIAL INDEX
@@ -2391,7 +2391,7 @@ ERROR HY000: Incorrect arguments to st_buffer
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
--1	POLYGON	6.14
+-1	POLYGON	8
 # Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))

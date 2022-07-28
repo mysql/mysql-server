@@ -21,9 +21,6 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 include/save_master_pos.inc
 CREATE TABLE t1 AS SELECT * FROM t0;
 FLUSH LOGS;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
-master-bin.000002	156			####
 [connection slave]
 # Crash slave server when applying row event (the INSERT)
 SET global DEBUG='+d, crash_on_transactional_ddl_insert';

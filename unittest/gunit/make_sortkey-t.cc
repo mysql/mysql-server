@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,7 @@ TEST_F(MakeSortKeyTest, AddonFields) {
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
   Sort_addon_field addon_field;
-  float val = M_PI;
+  float val = static_cast<float>(M_PI);
   Field_float field(nullptr, 0, nullptr, '\0', Field::NONE, "", 0, false,
                     false);
   Fake_TABLE table(&field);

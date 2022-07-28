@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,14 @@
 #include "NdbDictionaryImpl.hpp"
 #include <EventLogger.hpp>
 
-NdbEventOperation::NdbEventOperation(Ndb *theNdb,const char* eventName) 
-  : m_impl(* new NdbEventOperationImpl(*this,theNdb,eventName))
+NdbEventOperation::NdbEventOperation(Ndb *ndb,
+                                     const NdbDictionary::Event *event)
+  : m_impl(* new NdbEventOperationImpl(*this, ndb, std::move(event)))
 {
 }
+
+NdbEventOperation::NdbEventOperation(NdbEventOperationImpl &impl)
+    : m_impl(impl) {}
 
 NdbEventOperation::~NdbEventOperation()
 {
@@ -266,9 +270,6 @@ int NdbEventOperation::getNdbdNodeId() const
 /*
  * Private members
  */
-
-NdbEventOperation::NdbEventOperation(NdbEventOperationImpl& impl) 
-  : m_impl(impl) {}
 
 const struct NdbError & 
 NdbEventOperation::getNdbError() const {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -78,7 +78,7 @@ void sym_tab_free_private(sym_tab_t *sym_tab) /*!< in, own: symbol table */
       }
 
       sym->table = nullptr;
-      sym->resolved = FALSE;
+      sym->resolved = false;
       sym->token_type = SYM_UNSET;
       sym->mdl = nullptr;
     }
@@ -113,7 +113,7 @@ sym_node_t *sym_tab_add_int_lit(sym_tab_t *sym_tab, /*!< in: symbol table */
   node->common.type = QUE_NODE_SYMBOL;
 
   node->table = nullptr;
-  node->resolved = TRUE;
+  node->resolved = true;
   node->token_type = SYM_LIT;
 
   node->indirection = nullptr;
@@ -154,7 +154,7 @@ sym_node_t *sym_tab_add_str_lit(sym_tab_t *sym_tab, /*!< in: symbol table */
   node->common.type = QUE_NODE_SYMBOL;
 
   node->table = nullptr;
-  node->resolved = TRUE;
+  node->resolved = true;
   node->token_type = SYM_LIT;
 
   node->indirection = nullptr;
@@ -200,7 +200,7 @@ sym_node_t *sym_tab_add_bound_lit(
   node->common.brother = node->common.parent = nullptr;
 
   node->table = nullptr;
-  node->resolved = TRUE;
+  node->resolved = true;
   node->token_type = SYM_LIT;
 
   node->indirection = nullptr;
@@ -274,7 +274,7 @@ sym_node_t *sym_tab_rebind_lit(
     ut_a(dtype_get_mtype(dtype) == DATA_CHAR ||
          dtype_get_mtype(dtype) == DATA_VARCHAR);
 
-    /* Don't force [FALSE] creation of sub-nodes (for LIKE) */
+    /* Don't force [false] creation of sub-nodes (for LIKE) */
     pars_like_rebind(node, static_cast<const byte *>(address), length);
   }
 
@@ -306,7 +306,7 @@ sym_node_t *sym_tab_add_null_lit(sym_tab_t *sym_tab) /*!< in: symbol table */
   node->common.type = QUE_NODE_SYMBOL;
 
   node->table = nullptr;
-  node->resolved = TRUE;
+  node->resolved = true;
   node->token_type = SYM_LIT;
 
   node->indirection = nullptr;
@@ -370,7 +370,7 @@ sym_node_t *sym_tab_add_bound_id(sym_tab_t *sym_tab, /*!< in: symbol table */
   node->common.type = QUE_NODE_SYMBOL;
 
   node->table = nullptr;
-  node->resolved = FALSE;
+  node->resolved = false;
   node->token_type = SYM_UNSET;
   node->indirection = nullptr;
 

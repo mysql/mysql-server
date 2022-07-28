@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ DEFINE_SERVICE_HANDLE(reference_caching_cache);
   be created and maintained until the thread will no longer be producing
   events.
 
-  Now the tread can produce events using the reference cache.
+  Now the thread can produce events using the reference cache.
   This is done by calling the get method and then iterating over the
   resulting set of references and calling each one in turn as one would
   normally do for registry service references.

@@ -1,0 +1,1625 @@
+SET @saved_session_sql_generate_invisible_primary_key = @@session.sql_generate_invisible_primary_key;
+##################################################################################
+# Test cases to verify CREATE TABLE with sql_generate_invisible_primary_key = OFF.
+##################################################################################
+SET SESSION sql_generate_invisible_primary_key=OFF;
+# Test case to check if table is created without PK in this case.
+CREATE TABLE t1(f1 INT, f2 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+DROP TABLE t1;
+##################################################################################
+# Test cases to verify PK generation with sql_generate_invisible_primary_key = ON.
+##################################################################################
+SET SESSION sql_generate_invisible_primary_key=ON;
+# Test case to check table creation with an explicit primary key.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES	NULL
+DROP TABLE t1;
+# Test case to check temporary table creation with an explicit primary key.
+CREATE TEMPORARY TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES	NULL
+DROP TABLE t1;
+# Test case to verify partition table creation with a primary key.
+CREATE TABLE t1 (f1 INT, f2 INT PRIMARY KEY) PARTITION BY RANGE (f2)
+(PARTITION p0 VALUES LESS THAN (2011),
+PARTITION p1 VALUES LESS THAN (2022));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int NOT NULL,
+  PRIMARY KEY (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f2`)
+(PARTITION p0 VALUES LESS THAN (2011) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (2022) ENGINE = InnoDB) */
+DROP TABLE t1;
+# Test case to verify primary key generation on non-InnoDB engine table.
+# Primary key generation is supported for only InnoDB engine tables.
+CREATE TABLE t1 (f1 INT, f2 INT) ENGINE = MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# Test case to verify primary key generation on table with column name "my_row_id".
+CREATE TABLE t1 (my_row_id INT, f2 INT);
+ERROR HY000: Failed to generate invisible primary key. Column 'my_row_id' already exists.
+# Test case to verify primary key generation on table with auto_increment
+# column.
+CREATE TABLE t1(f1 INT NOT NULL AUTO_INCREMENT, f2 INT, key(f1));
+ERROR HY000: Failed to generate invisible primary key. Auto-increment column already exists.
+# Test case to verify primary key generation on PK-less partitioned table.
+CREATE TABLE t1 (f1 INT, f2 DATE) PARTITION BY KEY(f2) PARTITIONS 2;
+ERROR 42000: This version of MySQL doesn't yet support 'generating invisible primary key for the partitioned tables'
+# Test case to verify partition table creation with user defined unique
+# key based implicit primary key.
+CREATE TABLE t1 (f1 INT, f2 INT NOT NULL UNIQUE) PARTITION BY RANGE (f2)
+(PARTITION p0 VALUES LESS THAN (2011),
+PARTITION p1 VALUES LESS THAN (2022));
+ERROR 42000: This version of MySQL doesn't yet support 'generating invisible primary key for the partitioned tables'
+# Test case to verify PK generation on InnoDB PK-less user table.
+# PK should be generated in this case.
+CREATE TABLE t1(f1 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	my_row_id	A	0	NULL	NULL		BTREE			YES	NULL
+DROP TABLE t1;
+# Test case to verify PK generation on InnoDB PK-less temporary table.
+# PK should be generated in this case.
+CREATE TEMPORARY TABLE t1(f1 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	my_row_id	A	0	NULL	NULL		BTREE			YES	NULL
+DROP TABLE t1;
+# Test case to verify PK generation on InnoDB table with unique key
+# based implicit primary key. PK should be generated in this case.
+CREATE TABLE t1(f1 INT NOT NULL UNIQUE);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int NOT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f1` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	my_row_id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	0	f1	1	f1	A	0	NULL	NULL		BTREE			YES	NULL
+DROP TABLE t1;
+# Test case to verify PK generation on InnoDB temporary table with unique key
+# based implicit primary key. PK should be generated in this case.
+CREATE TEMPORARY TABLE t1 (f1 INT NOT NULL UNIQUE);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int NOT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f1` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	my_row_id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	0	f1	1	f1	A	0	NULL	NULL		BTREE			YES	NULL
+DROP TABLE t1;
+# Test case to verify PK generation on InnoDB table with if not exists
+# clause.
+CREATE TABLE t1(f1 INT);
+CREATE TABLE IF NOT EXISTS t1 (f1 INT, f2 INT);
+Warnings:
+Note	1050	Table 't1' already exists
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t2 (f1 INT);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (f1 INT, f2 INT);
+Warnings:
+Note	1050	Table 't2' already exists
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+CREATE VIEW t1 AS SELECT 1;
+CREATE TABLE IF NOT EXISTS t1 (f1 INT);
+Warnings:
+Note	1050	Table 't1' already exists
+SHOW CREATE VIEW t1;
+View	Create View	character_set_client	collation_connection
+t1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `t1` AS select 1 AS `1`	utf8mb4	utf8mb4_0900_ai_ci
+DROP VIEW t1;
+# Test case to verify behavior with CREATE TABLE LIKE.
+# If source table doesn't have primary key then primary key is *not* generated
+# for a target table.
+SET SESSION sql_generate_invisible_primary_key=OFF;
+CREATE TABLE t1(f1 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION sql_generate_invisible_primary_key=ON;
+CREATE TABLE t2 LIKE t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# With sql_require_primary_key=ON, table creation fails as primary key
+# is not generated for CREATE TABLE LIKE.
+SET SESSION sql_require_primary_key=ON;
+CREATE TABLE t3 LIKE t1;
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+SET SESSION sql_require_primary_key=OFF;
+DROP TABLE t1, t2;
+# Test case to check primary key generation with CREATE TABLE ... SELECT
+CREATE TABLE t1 (f1 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Primary key is generated in this case.
+CREATE TABLE t2 AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# Primary key is generated in this case.
+CREATE TABLE t2 (f1 INT NOT NULL UNIQUE) AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int NOT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f1` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# Primary key is *not* generated in this case.
+CREATE TABLE t2 (f1 INT, PRIMARY KEY(f1)) AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# Test case to verify CREATE TABLE ... SELECT with my_row_id in SELECT
+# column list.
+CREATE TABLE t2 AS SELECT f1, my_row_id FROM t1;
+ERROR HY000: Failed to generate invisible primary key. Column 'my_row_id' already exists.
+# Test case to verify CREATE TABLE ... SELECT with my_row_id in
+# SELECT column list and primary key on my_row_id.
+CREATE TABLE t2(my_row_id INT PRIMARY KEY) AS SELECT f1, my_row_id FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int DEFAULT NULL,
+  `my_row_id` int NOT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
+##################################################################################
+# Test case to verify DROP COLUMN / DROP PRIMARY KEY with
+# sql_generate_invisible_primary_key = OFF.
+##################################################################################
+CREATE TABLE t1 (f1 INT);
+CREATE TABLE t2 (f1 INT, f2 INT);
+SET SESSION sql_generate_invisible_primary_key = OFF;
+# Test case to verify DROP COLUMN operation on generated primary key column.
+ALTER TABLE t1 DROP COLUMN my_row_id;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# Test case to verify DROP PRIMARY KEY operation on generated primary key. Dropping
+# key is allowed only if generated primary key column is dropped in the same ALTER
+# statement.
+ALTER TABLE t2 DROP PRIMARY KEY, ADD PRIMARY KEY(f2);
+ERROR HY000: Please drop primary key column to be able to drop generated invisible primary key.
+ALTER TABLE t2 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD PRIMARY KEY (f2);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int DEFAULT NULL,
+  `f2` int NOT NULL,
+  PRIMARY KEY (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+##################################################################################
+# Test case to verify DROP COLUMN / DROP PRIMARY KEY with
+# sql_generate_invisible_primary_key = ON.
+##################################################################################
+SET SESSION sql_generate_invisible_primary_key = ON;
+CREATE TABLE t1 (f1 INT);
+CREATE TABLE t2 (f1 INT);
+CREATE TABLE t3 (f1 INT);
+CREATE TEMPORARY TABLE t4 (f1 INT);
+# Test case to verify DROP COLUMN operation on generated primary key column. Dropping
+# generated primary key without adding a new primary key is not supported.
+ALTER TABLE t1 DROP COLUMN my_row_id;
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+ALTER TABLE t1 DROP COLUMN my_row_id, ADD PRIMARY KEY(f1);
+DROP TABLE t1;
+# Test case to verify DROP PRIMARY KEY operation on generated primary key. Dropping
+# generated primary key without adding a new primary key is not supported.
+ALTER TABLE t2 DROP PRIMARY KEY;
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+# Test case to verify DROP PRIMARY KEY operation on generated primary key. Dropping
+# key is allowed only if generated primary key column is dropped in the same ALTER
+ALTER TABLE t2 DROP PRIMARY KEY, ADD PRIMARY KEY(f1);
+ERROR HY000: Please drop primary key column to be able to drop generated invisible primary key.
+ALTER TABLE t2 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD PRIMARY KEY(f1);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Dropping primary key without adding a new primary key is not supported.
+ALTER TABLE t2 DROP PRIMARY KEY;
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+DROP TABLE t2;
+# Dropping generated primary key without adding a new primary key is not supported.
+DROP INDEX `PRIMARY` ON t3;
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+DROP TABLE t3;
+# Test case to verify DROP PRIMARY KEY operation on generated primary key. Dropping
+# generated primary key without adding a new primary key is not supported even for
+# temporary table..
+ALTER TABLE t4 DROP PRIMARY KEY;
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+# Test case to verify DROP PRIMARY KEY operation on generated primary key. Dropping
+# key is allowed only if generated primary key column is dropped in the same ALTER
+# for temporary table.
+ALTER TABLE t4 DROP PRIMARY KEY, ADD PRIMARY KEY(f1);
+ERROR HY000: Please drop primary key column to be able to drop generated invisible primary key.
+ALTER TABLE t4 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD PRIMARY KEY(f1);
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TEMPORARY TABLE `t4` (
+  `f1` int NOT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Dropping primary key without adding a new primary key is not supported.
+ALTER TABLE t4 DROP PRIMARY KEY;
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+DROP TABLE t4;
+# Test case to verify DROP generated primary key with unique key based implicit
+# primary key addition.
+CREATE TABLE t1 (f1 INT);
+CREATE TEMPORARY TABLE t2 (f1 INT);
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD UNIQUE KEY(f1);
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+ALTER TABLE t2 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD UNIQUE KEY(f1);
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+# Test case to verify ADD primary key *without* dropping generated primary key.
+ALTER TABLE t1 ADD PRIMARY KEY(f1);
+ERROR 42000: Multiple primary key defined
+ALTER TABLE t2 ADD PRIMARY KEY(f1);
+ERROR 42000: Multiple primary key defined
+# Test case to verify ADD implicit primary key *without* dropping generated primary key.
+ALTER TABLE t1 ADD UNIQUE KEY(f1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f1` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+ALTER TABLE t2 ADD UNIQUE KEY(f1);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f1` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+##################################################################################
+# Test case to verify CHANGE/MODIFY/ALTER generated primary key column with
+# sql_generate_invisible_primary_key = OFF / ON.
+##################################################################################
+SET SESSION sql_generate_invisible_primary_key = ON;
+CREATE TABLE t1 (f1 INT, f2 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TEMPORARY TABLE t2 (f1 INT, f2 INT);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION sql_generate_invisible_primary_key = OFF;
+# Test case to verify CHANGE COLUMN operation on generated primary key column.
+ALTER TABLE t1 CHANGE my_row_id id INT NOT NULL AUTO_INCREMENT;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t2 CHANGE my_row_id id INT NOT NULL AUTO_INCREMENT;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+# Test case to verify MODIFY COLUMN operation on generated primary key column.
+ALTER TABLE t1 MODIFY my_row_id INT NOT NULL;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t2 MODIFY my_row_id INT NOT NULL;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+# Test case to verify ALTER COLUMN operation on generated primary key column.
+ALTER TABLE t1 ALTER my_row_id SET DEFAULT 10;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t2 ALTER my_row_id SET DEFAULT 10;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+# Test case to verify generated primary key column rename operation.
+ALTER TABLE t1 RENAME COLUMN my_row_id TO id;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t2 RENAME COLUMN my_row_id TO id;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+# Test case to verify generated primary key column position change.
+ALTER TABLE t1 MODIFY my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE AFTER f2;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t2 MODIFY my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE AFTER f2;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+# Altering visibility attribute of my_row_id to VISIBLE is supported.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE my_row_id my_row_id INT NOT NULL AUTO_INCREMENT;
+ALTER TABLE t1 MODIFY my_row_id INT NOT NULL;
+ALTER TABLE t1 RENAME COLUMN my_row_id TO id;
+ALTER TABLE t2 ALTER my_row_id SET VISIBLE;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 CHANGE my_row_id my_row_id INT NOT NULL AUTO_INCREMENT;
+ALTER TABLE t2 MODIFY my_row_id INT NOT NULL;
+ALTER TABLE t2 RENAME COLUMN my_row_id TO id;
+DROP TABLE t1, t2;
+SET SESSION sql_generate_invisible_primary_key = ON;
+CREATE TABLE t1 (f1 INT, f2 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TEMPORARY TABLE t2 (f1 INT, f2 INT);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION sql_generate_invisible_primary_key = ON;
+# Test case to verify CHANGE COLUMN operation on generated primary key column.
+ALTER TABLE t1 CHANGE my_row_id id INT NOT NULL AUTO_INCREMENT;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t2 CHANGE my_row_id id INT NOT NULL AUTO_INCREMENT;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+# Test case to verify MODIFY COLUMN operation on generated primary key column.
+ALTER TABLE t1 MODIFY my_row_id INT NOT NULL;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t2 MODIFY my_row_id INT NOT NULL;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+# Test case to verify ALTER COLUMN operation on generated primary key column.
+ALTER TABLE t1 ALTER my_row_id SET DEFAULT 10;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t2 ALTER my_row_id SET DEFAULT 10;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+# Test case to verify generated primary key column rename operation.
+ALTER TABLE t1 RENAME COLUMN my_row_id TO id;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t2 RENAME COLUMN my_row_id TO id;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+# Test case to verify generated primary key column position change.
+ALTER TABLE t1 MODIFY my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE AFTER f2;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t2 MODIFY my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE AFTER f2;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+# Altering visibility attribute of my_row_id to VISIBLE is supported.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE my_row_id my_row_id INT NOT NULL AUTO_INCREMENT;
+ALTER TABLE t1 MODIFY my_row_id INT NOT NULL;
+ALTER TABLE t1 RENAME COLUMN my_row_id TO id;
+ALTER TABLE t2 ALTER my_row_id SET VISIBLE;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 CHANGE my_row_id my_row_id INT NOT NULL AUTO_INCREMENT;
+ALTER TABLE t2 MODIFY my_row_id INT NOT NULL;
+ALTER TABLE t2 RENAME COLUMN my_row_id TO id;
+DROP TABLE t1, t2;
+##################################################################################
+# Test case to verify altering table storage engine.
+##################################################################################
+CREATE TABLE t1 (f1 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Altering table engine to engine for which primary key generations is not
+# supported works. But column and key are not considered as a generated primary
+# key.
+ALTER TABLE t1 ENGINE='MyISAM';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN my_row_id;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ENGINE='InnoDB';
+ALTER TABLE t1 ENGINE='MYISAM',
+ADD COLUMN my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE FIRST,
+ADD PRIMARY KEY(my_row_id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN my_row_id;
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1 (f1 INT);
+ALTER TABLE t1 ENGINE='MyISAM';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN my_row_id;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `f1` int DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ENGINE='InnoDB';
+ALTER TABLE t1 ENGINE='MYISAM',
+ADD COLUMN my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE FIRST,
+ADD PRIMARY KEY(my_row_id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN my_row_id;
+DROP TABLE t1;
+##################################################################################
+# Test case to verify altering table's storage engine to the engine for which
+# generated invisible primary key is supported.
+##################################################################################
+CREATE TABLE t1(my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE,
+f1 INT, primary key(my_row_id)) ENGINE = 'MyISAM';
+ALTER TABLE t1 ENGINE='InnoDB';
+ALTER TABLE t1 DROP COLUMN my_row_id;
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+ALTER TABLE t1 ENGINE='MYISAM', ALTER my_row_id SET VISIBLE;
+ALTER TABLE t1 ENGINE='InnoDB', ALTER my_row_id SET INVISIBLE;
+ALTER TABLE t1 DROP COLUMN my_row_id;
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1(my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE,
+f1 INT, primary key(my_row_id)) ENGINE = 'MyISAM';
+ALTER TABLE t1 ENGINE='InnoDB';
+ALTER TABLE t1 DROP COLUMN my_row_id;
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+ALTER TABLE t1 ENGINE='MYISAM', ALTER my_row_id SET VISIBLE;
+ALTER TABLE t1 ENGINE='InnoDB', ALTER my_row_id SET INVISIBLE;
+ALTER TABLE t1 DROP COLUMN my_row_id;
+ERROR 42000: This version of MySQL doesn't yet support 'existing primary key drop without adding a new primary key. In @@sql_generate_invisible_primary_key=ON mode table should have a primary key. Please add a new primary key to be able to drop existing primary key.'
+DROP TABLE t1;
+##################################################################################
+# Test case to verify ADD NEW column at first position of a table with
+# generated primary key column.
+##################################################################################
+CREATE TABLE t1 (f2 INT, f3 INT);
+CREATE TEMPORARY TABLE t2 (f2 INT, f3 INT);
+# Column should be added after generated primary key column.
+ALTER TABLE t1 ADD COLUMN f1 INT FIRST;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 ADD COLUMN f1 INT FIRST;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Test case to verify ADD NEW column at first position after setting
+# generated primary column as VISIBLE.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE;
+# Column should be added at the first position.
+ALTER TABLE t1 ADD COLUMN f0 INT FIRST;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f0` int DEFAULT NULL,
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# my_row_id column is *not* treated as generated primary key column as it is not
+# a first column.
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE;
+ALTER TABLE t1 MODIFY my_row_id INT NOT NULL AUTO_INCREMENT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f0` int DEFAULT NULL,
+  `my_row_id` int NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN f0, MODIFY my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE;
+# my_row_id column is treated as a generated primary key column.
+# Column should be added after primary key column.
+ALTER TABLE t1 ADD COLUMN f0 INT FIRST;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f0` int DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE;
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE;
+# my_row_id column is treated as a generated primary key column.
+# Column should be added after primary key column.
+ALTER TABLE t1 ADD COLUMN f INT FIRST;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f` int DEFAULT NULL,
+  `f0` int DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+ALTER TABLE t2 ALTER my_row_id SET VISIBLE;
+# Column should be added at first position.
+ALTER TABLE t2 ADD COLUMN f0 INT FIRST;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `f0` int DEFAULT NULL,
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# my_row_id column is *not* treated as generated primary key column as it is not
+# a first column.
+ALTER TABLE t2 ALTER my_row_id SET INVISIBLE;
+ALTER TABLE t2 MODIFY my_row_id INT NOT NULL AUTO_INCREMENT;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `f0` int DEFAULT NULL,
+  `my_row_id` int NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 DROP COLUMN f0, MODIFY my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE;
+# my_row_id column is treated as a generated primary key column.  Column should
+# be added after primary key column.
+ALTER TABLE t2 ADD COLUMN f0 INT FIRST;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f0` int DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 ALTER my_row_id SET VISIBLE;
+ALTER TABLE t2 ALTER my_row_id SET INVISIBLE;
+# my_row_id column is treated as a generated primary key column.  Column should
+# be added after primary key column.
+ALTER TABLE t2 ADD COLUMN f INT FIRST;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f` int DEFAULT NULL,
+  `f0` int DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# Test case to verify ADD NEW column at first position with generated primary
+# key DROP operation in the same ALTER.
+CREATE TABLE t1(f2 INT);
+ALTER TABLE t1 ADD COLUMN f1 INT PRIMARY KEY FIRST, DROP PRIMARY KEY,
+DROP COLUMN my_row_id;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1(f2 INT);
+ALTER TABLE t1 ADD COLUMN f1 INT PRIMARY KEY FIRST, DROP PRIMARY KEY,
+DROP COLUMN my_row_id;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+##################################################################################
+# Test case to verify creation of primary key and column with same properties as
+# generated invisible primary key.
+##################################################################################
+SET SESSION sql_generate_invisible_primary_key = OFF;
+CREATE TABLE t1(f2 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f2` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD COLUMN my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE FIRST,
+ADD PRIMARY KEY(my_row_id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# user added column my_row_id is treated as generated invisible primary key column
+# with sql_generate_invisible_primary_key = OFF / ON.
+# Column f1 is added after my_row_id.
+ALTER TABLE t1 ADD COLUMN f1 INT FIRST;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# my_row_id column alter is not permitted.
+ALTER TABLE t1 MODIFY my_row_id INT;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+SET SESSION sql_generate_invisible_primary_key = ON;
+# Column f0 is added after my_row_id.
+ALTER TABLE t1 ADD COLUMN f0 INT FIRST;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f0` int DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# my_row_id column alter is not permitted.
+ALTER TABLE t1 MODIFY my_row_id INT;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+DROP TABLE t1;
+##################################################################################
+# Test case to verify partitioning table with generated invisible primary key.
+##################################################################################
+CREATE TABLE t1 (f1 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 PARTITION BY KEY(my_row_id) PARTITIONS 10;
+ERROR 42000: This version of MySQL doesn't yet support 'partitioning table with generated invisible primary key'
+SET SESSION sql_generate_invisible_primary_key = OFF;
+ALTER TABLE t1 PARTITION BY KEY(my_row_id) PARTITIONS 10;
+ERROR 42000: This version of MySQL doesn't yet support 'partitioning table with generated invisible primary key'
+SET SESSION sql_generate_invisible_primary_key = ON;
+DROP TABLE t1;
+##################################################################################
+# Test case to verify creation of primary key and column with same properties as
+# generated invisible primary key after removing partitioning for the table.
+##################################################################################
+SET SESSION sql_generate_invisible_primary_key = OFF;
+CREATE TABLE t1 (f1 INT) PARTITION BY RANGE(f1) (PARTITION p1 VALUES LESS THAN (1991));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f1`)
+(PARTITION p1 VALUES LESS THAN (1991) ENGINE = InnoDB) */
+ALTER TABLE t1 REMOVE PARTITIONING;
+ALTER TABLE t1 ADD COLUMN my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE FIRST,
+ADD PRIMARY KEY(my_row_id);
+ALTER TABLE t1 MODIFY my_row_id INT;
+ERROR HY000: Altering generated invisible primary key column 'my_row_id' is not allowed.
+ALTER TABLE t1 PARTITION BY KEY(my_row_id) PARTITIONS 10;
+ERROR 42000: This version of MySQL doesn't yet support 'partitioning table with generated invisible primary key'
+DROP TABLE t1;
+SET SESSION sql_generate_invisible_primary_key = ON;
+##################################################################################
+# Test case to verify primary key generation in stored procedures.
+##################################################################################
+CREATE PROCEDURE p1() BEGIN
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT);
+SHOW CREATE TABLE t1;
+CREATE TABLE t2 (f1 INT);
+SHOW CREATE TABLE t2;
+CREATE TABLE t3 AS SELECT * FROM t2;
+SHOW CREATE TABLE t3;
+DROP TABLE t1, t2, t3;
+end
+$
+CALL p1();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL p1();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION sql_generate_invisible_primary_key = OFF;
+call p1();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+call p1();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION sql_generate_invisible_primary_key = ON;
+call p1();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+call p1();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP PROCEDURE p1;
+##################################################################################
+# Test case to verify primary key generation with prepared statements
+##################################################################################
+CREATE TABLE t(f1 INT);
+PREPARE stmt1 FROM 'CREATE TABLE t1(f1 INT, f2 INT)';
+PREPARE stmt2 FROM 'CREATE TABLE t2 AS SELECT * FROM t';
+EXECUTE stmt1;
+EXECUTE stmt2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
+EXECUTE stmt1;
+EXECUTE stmt2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
+SET SESSION sql_generate_invisible_primary_key = OFF;
+EXECUTE stmt1;
+EXECUTE stmt2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
+SET SESSION sql_generate_invisible_primary_key = ON;
+EXECUTE stmt1;
+EXECUTE stmt2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t, t1, t2;
+DROP PREPARE stmt1;
+DROP PREPARE stmt2;
+##################################################################################
+# Test case to verify INFORMATION_SCHEMA table and SHOW resultset with system
+# variable show_gipk_in_create_table_and_information_schema = OFF/ON.
+##################################################################################
+CREATE PROCEDURE run_show_and_i_s_stmts() BEGIN
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+SHOW EXTENDED COLUMNS FROM t1;
+SHOW KEYS FROM t1;
+-- I_S.TABLES
+SELECT TABLE_NAME, AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+-- I_S.COLUMNS
+SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, EXTRA
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME='t1' ORDER BY ORDINAL_POSITION;
+-- I_S.COLUMN_EXTENSIONS
+SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS_EXTENSIONS
+WHERE TABLE_NAME='t1' ORDER BY COLUMN_NAME;
+-- I_S.STATISTICS
+SELECT INDEX_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_NAME='t1';
+-- I_S.KEY_COLUMN_USAGE
+SELECT CONSTRAINT_NAME, COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME='t1';
+-- I_S.TABLE_CONSTRAINTS
+SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE, ENFORCED
+FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+-- I_S.TABLE_CONSTRAINTS_EXTENSIONS
+SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS_EXTENSIONS
+WHERE TABLE_NAME='t1';
+END;
+$
+# INFORMATION_SCHEMA and SHOW resultset for a empty Base Table with
+# show_gipk_in_create_table_and_information_schema = ON/OFF
+CREATE TABLE t1(f1 INT, f2 INT UNIQUE);
+# With show_gipk_in_create_table_and_information_schema = ON generated invisible
+# primary key definitions should be listed.
+SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+CALL run_show_and_i_s_stmts();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment INVISIBLE
+f1	int	YES		NULL	
+f2	int	YES	UNI	NULL	
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment INVISIBLE
+f1	int	YES		NULL	
+f2	int	YES	UNI	NULL	
+DB_TRX_ID		NO		NULL	
+DB_ROLL_PTR		NO		NULL	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	my_row_id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	0	f2	1	f2	A	0	NULL	NULL	YES	BTREE			YES	NULL
+TABLE_NAME	AUTO_INCREMENT
+t1	1
+COLUMN_NAME	COLUMN_TYPE	IS_NULLABLE	EXTRA
+my_row_id	bigint unsigned	NO	auto_increment INVISIBLE
+f1	int	YES	
+f2	int	YES	
+COLUMN_NAME
+f1
+f2
+my_row_id
+INDEX_NAME	COLUMN_NAME
+f2	f2
+PRIMARY	my_row_id
+CONSTRAINT_NAME	COLUMN_NAME
+f2	f2
+PRIMARY	my_row_id
+CONSTRAINT_NAME	CONSTRAINT_TYPE	ENFORCED
+f2	UNIQUE	YES
+PRIMARY	PRIMARY KEY	YES
+CONSTRAINT_NAME
+f2
+PRIMARY
+# With show_gipk_in_create_table_and_information_schema = OFF generated invisible
+# primary key definitions *not* should be listed.
+SET SESSION show_gipk_in_create_table_and_information_schema = OFF;
+CALL run_show_and_i_s_stmts();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	
+f2	int	YES	UNI	NULL	
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	
+f2	int	YES	UNI	NULL	
+DB_TRX_ID		NO		NULL	
+DB_ROLL_PTR		NO		NULL	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	f2	1	f2	A	0	NULL	NULL	YES	BTREE			YES	NULL
+TABLE_NAME	AUTO_INCREMENT
+t1	NULL
+COLUMN_NAME	COLUMN_TYPE	IS_NULLABLE	EXTRA
+f1	int	YES	
+f2	int	YES	
+COLUMN_NAME
+f1
+f2
+INDEX_NAME	COLUMN_NAME
+f2	f2
+CONSTRAINT_NAME	COLUMN_NAME
+f2	f2
+CONSTRAINT_NAME	CONSTRAINT_TYPE	ENFORCED
+f2	UNIQUE	YES
+CONSTRAINT_NAME
+f2
+# With show_gipk_in_create_table_and_information_schema = OFF, after moving table
+# to engine for which feature is not supported. Primary key definitions should be listed.
+ALTER TABLE t1 ENGINE='MyISAM';
+CALL run_show_and_i_s_stmts();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment INVISIBLE
+f1	int	YES		NULL	
+f2	int	YES	UNI	NULL	
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment INVISIBLE
+f1	int	YES		NULL	
+f2	int	YES	UNI	NULL	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	my_row_id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	0	f2	1	f2	A	0	NULL	NULL	YES	BTREE			YES	NULL
+TABLE_NAME	AUTO_INCREMENT
+t1	1
+COLUMN_NAME	COLUMN_TYPE	IS_NULLABLE	EXTRA
+my_row_id	bigint unsigned	NO	auto_increment INVISIBLE
+f1	int	YES	
+f2	int	YES	
+COLUMN_NAME
+f1
+f2
+my_row_id
+INDEX_NAME	COLUMN_NAME
+f2	f2
+PRIMARY	my_row_id
+CONSTRAINT_NAME	COLUMN_NAME
+f2	f2
+PRIMARY	my_row_id
+CONSTRAINT_NAME	CONSTRAINT_TYPE	ENFORCED
+f2	UNIQUE	YES
+PRIMARY	PRIMARY KEY	YES
+CONSTRAINT_NAME
+f2
+PRIMARY
+# With show_gipk_in_create_table_and_information_schema = OFF, after moving table
+# to engine for which feature is supported. Generated invisible primary key definition
+# should *not* be listed.
+ALTER TABLE t1 ENGINE='InnoDB';
+CALL run_show_and_i_s_stmts();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	
+f2	int	YES	UNI	NULL	
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	
+f2	int	YES	UNI	NULL	
+DB_TRX_ID		NO		NULL	
+DB_ROLL_PTR		NO		NULL	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	f2	1	f2	A	0	NULL	NULL	YES	BTREE			YES	NULL
+TABLE_NAME	AUTO_INCREMENT
+t1	NULL
+COLUMN_NAME	COLUMN_TYPE	IS_NULLABLE	EXTRA
+f1	int	YES	
+f2	int	YES	
+COLUMN_NAME
+f1
+f2
+INDEX_NAME	COLUMN_NAME
+f2	f2
+CONSTRAINT_NAME	COLUMN_NAME
+f2	f2
+CONSTRAINT_NAME	CONSTRAINT_TYPE	ENFORCED
+f2	UNIQUE	YES
+CONSTRAINT_NAME
+f2
+DROP TABLE t1;
+# INFORMATION_SCHEMA and SHOW resultset for a Base Table with
+# show_gipk_in_create_table_and_information_schema = ON/OFF
+CREATE TABLE t1(f1 INT, f2 INT UNIQUE); INSERT INTO t1 VALUES(1, 3);
+# With show_gipk_in_create_table_and_information_schema = ON generated invisible
+# primary key definitions should be listed.
+SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+SHOW CREATE TABLE t1; SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+AUTO_INCREMENT
+2
+# With show_gipk_in_create_table_and_information_schema = OFF generated invisible
+# primary key definitions *not* should be listed.
+SET SESSION show_gipk_in_create_table_and_information_schema = OFF;
+SHOW CREATE TABLE t1; SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+AUTO_INCREMENT
+NULL
+# With show_gipk_in_create_table_and_information_schema = OFF, after moving table
+# to engine for which feature is not supported. Primary key definitions should be listed.
+ALTER TABLE t1 ENGINE='MyISAM';
+SHOW CREATE TABLE t1; SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+AUTO_INCREMENT
+2
+# With show_gipk_in_create_table_and_information_schema = OFF, after moving table
+# to engine for which feature is supported. Generated invisible primary key definition
+# should *not* be listed.
+ALTER TABLE t1 ENGINE='InnoDB';
+SHOW CREATE TABLE t1; SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+AUTO_INCREMENT
+NULL
+DROP TABLE t1;
+# INFORMATION_SCHEMA and SHOW resultset for a empty Temporary Table with
+# show_gipk_in_create_table_and_information_schema = ON/OFF
+CREATE TEMPORARY TABLE t1(f1 INT, f2 INT UNIQUE);
+# With show_gipk_in_create_table_and_information_schema = ON generated invisible
+# primary key definitions should be listed.
+SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+SHOW CREATE TABLE t1; SHOW COLUMNS FROM t1; SHOW EXTENDED COLUMNS FROM t1; SHOW KEYS FROM t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment INVISIBLE
+f1	int	YES		NULL	NULL
+f2	int	YES	UNI	NULL	NULL
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment INVISIBLE
+f1	int	YES		NULL	NULL
+f2	int	YES	UNI	NULL	NULL
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	my_row_id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	0	f2	1	f2	A	0	NULL	NULL	YES	BTREE			YES	NULL
+# With show_gipk_in_create_table_and_information_schema = OFF generated invisible
+# primary key definitions *not* should be listed.
+SET SESSION show_gipk_in_create_table_and_information_schema = OFF;
+SHOW CREATE TABLE t1; SHOW COLUMNS FROM t1; SHOW EXTENDED COLUMNS FROM t1; SHOW KEYS FROM t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	NULL
+f2	int	YES	UNI	NULL	NULL
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	NULL
+f2	int	YES	UNI	NULL	NULL
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	f2	1	f2	A	0	NULL	NULL	YES	BTREE			YES	NULL
+# With show_gipk_in_create_table_and_information_schema = OFF, after moving table
+# to engine for which feature is not supported. Primary key definitions should be listed.
+ALTER TABLE t1 ENGINE='MyISAM';
+SHOW CREATE TABLE t1; SHOW COLUMNS FROM t1; SHOW EXTENDED COLUMNS FROM t1; SHOW KEYS FROM t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment INVISIBLE
+f1	int	YES		NULL	NULL
+f2	int	YES	UNI	NULL	NULL
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment INVISIBLE
+f1	int	YES		NULL	NULL
+f2	int	YES	UNI	NULL	NULL
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	my_row_id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	0	f2	1	f2	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+# With show_gipk_in_create_table_and_information_schema = OFF, after moving table
+# to engine for which feature is supported. Generated invisible primary key definition
+# should *not* be listed.
+ALTER TABLE t1 ENGINE='InnoDB';
+SHOW CREATE TABLE t1; SHOW COLUMNS FROM t1; SHOW EXTENDED COLUMNS FROM t1; SHOW KEYS FROM t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	NULL
+f2	int	YES	UNI	NULL	NULL
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	NULL
+f2	int	YES	UNI	NULL	NULL
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	f2	1	f2	A	0	NULL	NULL	YES	BTREE			YES	NULL
+DROP TABLE t1;
+# INFORMATION_SCHEMA and SHOW resultset for a Temporary Table with
+# show_gipk_in_create_table_and_information_schema = ON/OFF
+CREATE TEMPORARY TABLE t1(f1 INT, f2 INT UNIQUE); INSERT INTO t1 VALUES(1,3);
+# With show_gipk_in_create_table_and_information_schema = ON generated invisible
+# primary key definitions should be listed.
+SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# With show_gipk_in_create_table_and_information_schema = OFF generated invisible
+# primary key definitions *not* should be listed.
+SET SESSION show_gipk_in_create_table_and_information_schema = OFF;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# With show_gipk_in_create_table_and_information_schema = OFF, after moving table
+# to engine for which feature is not supported. Primary key definitions should be listed.
+ALTER TABLE t1 ENGINE='MyISAM';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# With show_gipk_in_create_table_and_information_schema = OFF, after moving table
+# to engine for which feature is supported. Generated invisible primary key definition
+# should *not* be listed.
+ALTER TABLE t1 ENGINE='InnoDB';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+DROP PROCEDURE run_show_and_i_s_stmts;
+##################################################################################
+# Test case to verify altering table my_row_id column visibility with all
+# alter algorithms.
+##################################################################################
+SET @saved_session_show_gipk_in_create_table_and_information_schema =
+@@session.show_gipk_in_create_table_and_information_schema;
+SET SESSION show_gipk_in_create_table_and_information_schema = OFF;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (1), (3), (7), (4), (8);
+# Change my_row_id column visibility to VISIBLE with INSTANT algorithm.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE, ALGORITHM=INSTANT;
+# Primary key should be listed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment
+f1	int	YES		NULL	
+# Change my_row_id column visibility to INVISIBLE with INSTANT algorithm.
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE, ALGORITHM=INSTANT;
+# Primary key should be *not* listed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	
+# Change my_row_id column visibility to VISIBLE with allowed instant alter 
+# operation column rename using INSTANT algorithm.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE, RENAME COLUMN f1 to f2,
+ALGORITHM=INSTANT;
+# Primary key should be listed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment
+f2	int	YES		NULL	
+# Change my_row_id column visibility to INVISIBLE with allowed instant alter 
+# operation column rename using INSTANT algorithm.
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE, RENAME COLUMN f2 to f1,
+ALGORITHM=INSTANT;
+# Primary key should be *not* listed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	
+# Change my_row_id column visibility to VISIBLE with INPLACE algorithm.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE, ALGORITHM=INPLACE;
+# Primary key should be listed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment
+f1	int	YES		NULL	
+# Change my_row_id column visibility to INVISIBLE with INPLACE algorithm.
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE, ALGORITHM=INPLACE;
+# Primary key should be *not* listed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	
+# Change my_row_id column visibility to VISIBLE with allowed inplace alter
+# operation using INPLACE algorithm.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE, ADD INDEX (f1), ALGORITHM=INPLACE;
+# Primary key should be listed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  KEY `f1` (`f1`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment
+f1	int	YES	MUL	NULL	
+# Change my_row_id column visibility to INVISIBLE with allowed inplace alter
+# operation using INPLACE algorithm.
+ALTER TABLE t1 DROP INDEX f1;
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE, ADD INDEX(f1),
+ALGORITHM=INPLACE;
+ALTER TABLE t1 DROP INDEX f1;
+# Primary key should be *not* listed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	
+# Change my_row_id column visibility to VISIBLE with COPY algorithm.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE, ALGORITHM=COPY;
+# Primary key should be listed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+my_row_id	bigint unsigned	NO	PRI	NULL	auto_increment
+f1	int	YES		NULL	
+# Change my_row_id column visibility to INVISIBLE with COPY algorithm.
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE, ALGORITHM=COPY;
+# Primary key should be *not* listed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+f1	int	YES		NULL	
+DROP TABLE t1;
+SET SESSION show_gipk_in_create_table_and_information_schema =
+@saved_session_show_gipk_in_create_table_and_information_schema;
+SET SESSION sql_generate_invisible_primary_key =
+@saved_session_sql_generate_invisible_primary_key;

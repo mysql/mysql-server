@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ struct QueryNode  // Effectively used as a base class for QN_xxxNode
   static const QueryNode* nextQueryNode(const QueryNode* node)
   {
     const Uint32 len = QueryNode::getLength(node->len);
-    return (const QueryNode*)((Uint32*)node + len);
+    return (const QueryNode *)((const Uint32 *)node + len);
   }
 
   static void setOpLen(Uint32 &d, Uint32 o, Uint32 l) { d = (l << 16) | o;}

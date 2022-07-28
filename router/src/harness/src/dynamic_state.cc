@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,11 @@
 
 #include "mysql/harness/dynamic_state.h"
 
-#include "common.h"
-
 #include <fstream>
 #include <stdexcept>
+#include <system_error>
 
+#include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/istreamwrapper.h>
@@ -114,9 +114,9 @@ DynamicState::~DynamicState() = default;
 std::ifstream DynamicState::open_for_read() {
   std::ifstream input_file(file_name_);
   if (input_file.fail()) {
-    throw std::runtime_error(
-        "Could not open dynamic state file '" + file_name_ +
-        "' for reading: " + mysql_harness::get_strerror(errno));
+    throw std::system_error(
+        errno, std::generic_category(),
+        "Could not open dynamic state file '" + file_name_ + "' for reading");
   }
 
   return input_file;
@@ -125,9 +125,9 @@ std::ifstream DynamicState::open_for_read() {
 std::ofstream DynamicState::open_for_write() {
   std::ofstream output_file(file_name_);
   if (output_file.fail()) {
-    throw std::runtime_error(
-        "Could not open dynamic state file '" + file_name_ +
-        "' for writing: " + mysql_harness::get_strerror(errno));
+    throw std::system_error(
+        errno, std::generic_category(),
+        "Could not open dynamic state file '" + file_name_ + "' for writing");
   }
 
   return output_file;
@@ -178,26 +178,25 @@ void DynamicState::ensure_version_compatibility() {
 
   // the whole document has to be an object:
   if (!json_doc.IsObject()) {
-    throw std::runtime_error(
-        std::string("Invalid json structure: not an object"));
+    throw std::runtime_error("Invalid json structure: not an object");
   }
 
   // it has to have version field
-  if (!json_doc.GetObject().HasMember(kVersionFieldName)) {
+  auto it = json_doc.FindMember(kVersionFieldName);
+  if (it == json_doc.MemberEnd()) {
     throw std::runtime_error(
         std::string("Invalid json structure: missing field: ") +
         kVersionFieldName);
   }
 
   // this field should be string
-  auto &version_field = json_doc.GetObject()[kVersionFieldName];
-  if (!version_field.IsString()) {
+  if (!it->value.IsString()) {
     throw std::runtime_error(std::string("Invalid json structure: field ") +
                              kVersionFieldName + " should be a string type");
   }
 
   // the format od the string should be MAJOR.MINOR.PATCH
-  std::string version_str = version_field.GetString();
+  std::string version_str = it->value.GetString();
   SchemaVersion version;
   int res = sscanf(version_str.c_str(), "%u.%u.%u", &version.major,
                    &version.minor, &version.patch);
@@ -278,12 +277,13 @@ std::unique_ptr<JsonValue> DynamicState::get_section(
   std::unique_lock<std::mutex> lock(pimpl_->json_state_doc_lock_);
 
   auto &json_doc = pimpl_->json_state_doc_;
-  if (!json_doc.HasMember(section_name.c_str())) return nullptr;
+  auto it = json_doc.FindMember(
+      rapidjson::Value{section_name.data(), section_name.size()});
+  if (it == json_doc.MemberEnd()) return nullptr;
 
   auto &allocator = json_doc.GetAllocator();
-  auto &section = json_doc[section_name.c_str()];
 
-  return std::unique_ptr<JsonValue>(new JsonValue(section, allocator));
+  return std::make_unique<JsonValue>(it->value, allocator);
 }
 
 bool DynamicState::update_section(const std::string &section_name,
@@ -293,12 +293,15 @@ bool DynamicState::update_section(const std::string &section_name,
   auto &json_doc = pimpl_->json_state_doc_;
   auto &allocator = json_doc.GetAllocator();
 
-  if (!json_doc.HasMember(section_name.c_str())) {
-    json_doc.AddMember(JsonValue(section_name.c_str(), allocator), value,
-                       allocator);
+  auto it = json_doc.FindMember(
+      rapidjson::Value{section_name.data(), section_name.size()});
+
+  if (it == json_doc.MemberEnd()) {
+    json_doc.AddMember(
+        JsonValue(section_name.data(), section_name.size(), allocator), value,
+        allocator);
   } else {
-    auto &section = json_doc[section_name.c_str()];
-    section = std::move(value);
+    it->value = std::move(value);
   }
 
   return true;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -238,6 +238,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   Uint32 attrDescriptor = signal->theData[3];
   // DICT sends charset number in upper half
   Uint32 csNumber = (signal->theData[4] >> 16);
+
+  ndbrequire(csNumber < NDB_ARRAY_SIZE(all_charsets));
 
   regTabPtr.i= fragOperPtr.p->tableidFrag;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
@@ -561,7 +563,7 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
   jam();
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ptr;
-  handle.getSection(ptr, TupAddAttrReq::DEFAULT_VALUE_SECTION_NUM);
+  ndbrequire(handle.getSection(ptr, TupAddAttrReq::DEFAULT_VALUE_SECTION_NUM));
 
   SimplePropertiesSectionReader r(ptr, getSectionSegmentPool());
   r.reset();
@@ -2204,7 +2206,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
 	Local_extent_info_list
 	  list(c_extent_pool, alloc_info.m_free_extents[0]);
 	Ptr<Extent_info> ext_ptr;
-	c_extent_pool.getPtr(ext_ptr, alloc_info.m_curr_extent_info_ptr_i);
+        ndbrequire(c_extent_pool.getPtr(ext_ptr, alloc_info.m_curr_extent_info_ptr_i));
         list.addFirst(ext_ptr);
 	alloc_info.m_curr_extent_info_ptr_i= RNIL;
       }
@@ -2260,7 +2262,7 @@ Dbtup::drop_fragment_unmap_page_callback(Signal* signal,
 {
   jam();
   Ptr<GlobalPage> page;
-  m_global_page_pool.getPtr(page, page_id);
+  ndbrequire(m_global_page_pool.getPtr(page, page_id));
   
   Local_key key;
   key.m_page_no = ((Page*)page.p)->m_page_no;
@@ -2675,8 +2677,11 @@ Dbtup::lcp_open_ctl_file(Signal *signal,
   FsOpenReq::v5_setLcpNo(req->fileNumber, ctl_file);
   FsOpenReq::v5_setTableId(req->fileNumber, tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragmentId);
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
-             FsOpenReq::SignalLength, JBA);
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
 void

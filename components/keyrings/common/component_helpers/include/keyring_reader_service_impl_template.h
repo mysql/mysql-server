@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ namespace service_implementation {
     @retval  1 Key found, check out parameters
 */
 template <typename Backend, typename Data_extension = data::Data>
-bool init_reader_template(
+int init_reader_template(
     const char *data_id, const char *auth_id,
     std::unique_ptr<Iterator<Data_extension>> &it,
     Keyring_operations<Backend, Data_extension> &keyring_operations,
@@ -73,12 +73,12 @@ bool init_reader_template(
 
     if (data_id == nullptr || !*data_id) {
       assert(false);
-      return false;
+      return 0;
     }
 
     Metadata metadata(data_id, auth_id);
     if (keyring_operations.init_read_iterator(it, metadata) == true) {
-      return false;
+      return 0;
     }
 
     if (keyring_operations.is_valid(it) == false) {
@@ -86,10 +86,10 @@ bool init_reader_template(
                       ER_NOTE_KEYRING_COMPONENT_READ_DATA_NOT_FOUND, data_id,
                       (auth_id == nullptr || !*auth_id) ? "NULL" : auth_id);
       keyring_operations.deinit_forward_iterator(it);
-      return false;
+      return 0;
     }
 
-    return true;
+    return 1;
   } catch (...) {
     LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_EXCEPTION, "init",
                     "keyring_reader_with_status");

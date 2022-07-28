@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -134,7 +134,7 @@ DECLARE_BOOL_METHOD(get_size, (size_t input_length, const char *mode,
   @param [in]  iv                 Initialization vector
   @param [in]  padding            padding preference (0 implies no padding)
   @param [in]  data_buffer        Input buffer. Byte string.
-  @param [in]  data_buffer_length Input buffer lenth
+  @param [in]  data_buffer_length Input buffer length
   @param [out] out_buffer         Output buffer. Byte string.
   @param [in]  out_buffer_length  Output buffer length
   @param [out] out_length         Length of encrypted data
@@ -171,7 +171,7 @@ DECLARE_BOOL_METHOD(encrypt,
   @param [in]  iv                 Initialization vector
   @param [in]  padding            padding preference (0 implies no padding)
   @param [in]  data_buffer        Input buffer. Byte string.
-  @param [in]  data_buffer_length Input buffer lenth
+  @param [in]  data_buffer_length Input buffer length
   @param [out] out_buffer         Output buffer. Byte string.
   @param [in]  out_buffer_length  Output buffer length
   @param [out] out_length         Length of decrypted data

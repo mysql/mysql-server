@@ -1,7 +1,7 @@
 # create bootstrap file
 # Stop the MTR default DB server
 # Run the bootstrap command
-# restart: --datadir=MYSQLD_DATADIR --innodb_log_file_size=LOG_FILE_SIZE --innodb_log_files_in_group=2
+# restart: --datadir=MYSQLD_DATADIR --innodb_redo_log_capacity=LOG_CAPACITY
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT PRIMARY KEY, b BLOB);
 CREATE TABLE t3 (a INT PRIMARY KEY, b SMALLINT, c TEXT, d JSON, UNIQUE KEY k1(b), KEY k2(b, c(20)));
@@ -144,7 +144,7 @@ SUBPARTITION p33));
 # Should have both tablespace and table SDIs
 # Check SDI from t18_#p#p1#sp#p12.ibd
 # Should only have tablespace SDI
-# restart: --datadir=MYSQLD_DATADIR --innodb_log_file_size=LOG_FILE_SIZE --innodb_log_files_in_group=2
+# restart: --datadir=MYSQLD_DATADIR --innodb_redo_log_capacity=LOG_CAPACITY
 # ALTER TABLE t1, ADD COLUMN. Verify SDI shows the newly added column
 ALTER TABLE t1 ADD COLUMN b INT;
 # ALTER TABLE t2, ADD INDEX, Verify SDI shows the newly added index

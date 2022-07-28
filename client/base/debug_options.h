@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Debug_options : public Abstract_options_provider {
     Constructs new debug options provider.
     @param program Pointer to main program class.
    */
-  Debug_options(Abstract_program *program);
+  explicit Debug_options(Abstract_program *program);
   /**
     Creates all options that will be provided.
     Implementation of Abstract_options_provider virtual method.

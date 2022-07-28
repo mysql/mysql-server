@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@
  Entries can be stored by calling Dns_srv_data::add()
  in any order.
 
- This usage pattern is rougly as follows:
+ This usage pattern is roughly as follows:
  1. Dns_srv_data construct
  2. one or more Dns_srv_data::add()
  3. one or more Dns_srv_data::pop_next()

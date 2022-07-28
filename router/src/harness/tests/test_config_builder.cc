@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,9 @@
 TEST(TestConfigBuilder, build_section_from_init_list) {
   EXPECT_EQ(R"([section]
 foo=bar
-fuz=buz)",
+fuz=buz
+
+)",
             mysql_harness::ConfigBuilder::build_section(
                 "section", {{"foo", "bar"}, {"fuz", "buz"}}));
 }
@@ -37,7 +39,9 @@ fuz=buz)",
 TEST(TestConfigBuilder, build_section_from_vector) {
   EXPECT_EQ(R"([section]
 foo=bar
-fuz=buz)",
+fuz=buz
+
+)",
             mysql_harness::ConfigBuilder::build_section(
                 "section", std::vector<std::pair<std::string, std::string>>{
                                {"foo", "bar"}, {"fuz", "buz"}}));
@@ -46,7 +50,9 @@ fuz=buz)",
 TEST(TestConfigBuilder, build_section_from_map) {
   EXPECT_EQ(R"([section]
 foo=bar
-fuz=buz)",
+fuz=buz
+
+)",
             mysql_harness::ConfigBuilder::build_section(
                 "section", std::map<std::string, std::string>{{"foo", "bar"},
                                                               {"fuz", "buz"}}));

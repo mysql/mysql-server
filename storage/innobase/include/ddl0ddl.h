@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0fts.h"
 #include "lock0types.h"
 #include "os0file.h"
+#include "ut0class_life_cycle.h"
 
 // Forward declaration
 class Flush_observer;
@@ -154,6 +155,66 @@ struct Dup {
   size_t m_n_dup{};
 };
 
+/** Captures ownership and manages lifetime of an already opened OS file
+descriptor. Closes the file on object destruction. */
+class Unique_os_file_descriptor : private ut::Non_copyable {
+ public:
+  /** Default constructor, does not hold any file, does not close any on
+  destruction. */
+  Unique_os_file_descriptor() = default;
+  /** Main constructor capturing an already opened OS file descriptor. */
+  Unique_os_file_descriptor(os_fd_t fd) : m_fd(fd) {}
+
+  Unique_os_file_descriptor(Unique_os_file_descriptor &&other) { swap(other); }
+
+  ~Unique_os_file_descriptor() { close(); }
+
+  /** Returns the managed OS file descriptor for use with OS functions that
+  operate on file. Do not close this file. */
+  os_fd_t get() const {
+    ut_a(is_open());
+    return m_fd;
+  }
+  bool is_open() const { return m_fd != OS_FD_CLOSED; }
+
+  Unique_os_file_descriptor &operator=(Unique_os_file_descriptor &&other) {
+    close();
+    swap(other);
+    return *this;
+  }
+
+  /** Swaps the underlying managed file descriptors between two instances of
+  Unique_os_file_descriptor. No files are closed. */
+  void swap(Unique_os_file_descriptor &other) { std::swap(m_fd, other.m_fd); }
+
+  /** Closes the managed file. Leaves the instance in the same state as default
+  constructed instance. */
+  void close() {
+#ifdef UNIV_PFS_IO
+    struct PSI_file_locker *locker = nullptr;
+    PSI_file_locker_state state;
+    locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(&state, m_fd,
+                                                              PSI_FILE_CLOSE);
+    if (locker != nullptr) {
+      PSI_FILE_CALL(start_file_wait)
+      (locker, 0, __FILE__, __LINE__);
+    }
+#endif /* UNIV_PFS_IO */
+    if (m_fd != OS_FD_CLOSED) {
+      ::close(m_fd);
+      m_fd = OS_FD_CLOSED;
+    }
+#ifdef UNIV_PFS_IO
+    if (locker != nullptr) {
+      PSI_FILE_CALL(end_file_wait)(locker, 0);
+    }
+#endif /* UNIV_PFS_IO */
+  }
+
+ private:
+  os_fd_t m_fd{OS_FD_CLOSED};
+};
+
 /** Sets an exclusive lock on a table, for the duration of creating indexes.
 @param[in,out] trx              Transaction
 @param[in] table                Table to lock.
@@ -171,16 +232,12 @@ because the transaction will not be committed.
                                 drop */
 void drop_indexes(trx_t *trx, dict_table_t *table, bool locked) noexcept;
 
-/**Create temporary merge files in the given paramater path, and if
+/**Create temporary merge files in the given parameter path, and if
 UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
 @param[in] path                 Location for creating temporary merge files.
 @return File descriptor */
-[[nodiscard]] os_fd_t file_create_low(const char *path) noexcept;
-
-/** Destroy a merge file. And de-register the file from Performance Schema
-if UNIV_PFS_IO is defined.
-@param[in] fd                   Merge file descriptor. */
-void file_destroy_low(os_fd_t fd) noexcept;
+[[nodiscard]] Unique_os_file_descriptor file_create_low(
+    const char *path) noexcept;
 
 /** Create the index and load in to the dictionary.
 @param[in,out] trx              Trx (sets error_state)
@@ -204,7 +261,7 @@ dberr_t drop_table(trx_t *trx, dict_table_t *table) noexcept;
 
 /** Generate the next autoinc based on a snapshot of the session
 auto_increment_increment and auto_increment_offset variables.
-Assingnment operator would be used during the inplace_alter_table()
+Assignment operator would be used during the inplace_alter_table()
 phase only **/
 struct Sequence {
   /** Constructor.
@@ -242,7 +299,7 @@ struct Sequence {
     return m_next_value;
   }
 
-  /** Maximum calumn value if adding an AUTOINC column else 0. Once
+  /** Maximum column value if adding an AUTOINC column else 0. Once
   we reach the end of the sequence it will be set to ~0. */
   const ulonglong m_max_value{};
 
@@ -446,12 +503,12 @@ struct Context {
   @param[in,out] cursor         Cursor used for the cluster index read. */
   [[nodiscard]] dberr_t read_init(Cursor *cursor) noexcept;
 
-  /** Initialize the FTS build infrastructue.
+  /** Initialize the FTS build infrastructure.
   @param[in,out] index          Index prototype to build.
   @return DB_SUCCESS or error code. */
   dberr_t fts_create(dict_index_t *index) noexcept;
 
-  /** Setup the FTS index build data structres.
+  /** Setup the FTS index build data structures.
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t setup_fts_build() noexcept;
 
@@ -480,7 +537,7 @@ struct Context {
   /** Init the non-null column constraints checks (if required). */
   void setup_nonnull() noexcept;
 
-  /** Check if the nonnull columns satisy the constraint.
+  /** Check if the nonnull columns satisfy the constraint.
   @param[in] row                Row to check.
   @return true on success. */
   [[nodiscard]] bool check_null_constraints(const dtuple_t *row) const noexcept;
@@ -508,7 +565,7 @@ struct Context {
   using Key_numbers = std::vector<size_t, ut::allocator<size_t>>;
   using Indexes = std::vector<dict_index_t *, ut::allocator<dict_index_t *>>;
 
-  /** Common error code for all index builders running in prallel. */
+  /** Common error code for all index builders running in parallel. */
   std::atomic<dberr_t> m_err{DB_SUCCESS};
 
   /** Index where the error occurred. */

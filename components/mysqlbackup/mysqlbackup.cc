@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -383,6 +383,7 @@ REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_page_track);
 REQUIRES_SERVICE_PLACEHOLDER(global_grants_check);
@@ -402,6 +403,7 @@ REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),
     REQUIRES_SERVICE(status_variable_registration),
     REQUIRES_SERVICE(udf_registration),
     REQUIRES_SERVICE(mysql_thd_security_context),
+    REQUIRES_SERVICE(mysql_runtime_error),
     REQUIRES_SERVICE(mysql_security_context_options),
     REQUIRES_SERVICE(mysql_page_track), REQUIRES_SERVICE(global_grants_check),
     REQUIRES_SERVICE(mysql_current_thread_reader),

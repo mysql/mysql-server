@@ -240,6 +240,7 @@ SET sql_mode = default;
 set @@sql_mode='';
 CREATE TABLE t1(c1 SET('','')CHARACTER SET ucs2) engine=innodb;
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Note	1291	Column 'c1' has duplicated value '' in SET
 INSERT INTO t1 VALUES(990101.102);
 Warnings:
@@ -375,7 +376,7 @@ FROM t;
 SHOW CREATE TABLE u;
 Table	Create Table
 u	CREATE TABLE `u` (
-  `HEX(a)` varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  `HEX(a)` varchar(16) CHARACTER SET latin1 DEFAULT NULL,
   `b` bit(5) DEFAULT NULL,
   `c` int unsigned DEFAULT NULL,
   `d` bigint unsigned DEFAULT NULL,

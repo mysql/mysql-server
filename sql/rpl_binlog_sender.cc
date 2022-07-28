@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/rpl_binlog_sender.h"
+#include "libbinlogevents/include/codecs/factory.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -39,8 +40,9 @@
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/binlog_reader.h"
@@ -99,8 +101,6 @@ class Observe_transmission_guard {
     @param flag            The flag variable to guard
     @param event_type      The type of the event being processed
     @param event_ptr       The raw content of the event being processed
-    @param event_len       The size of the raw content of the event being
-                           processed
     @param checksum_alg    The checksum algorithm being used currently
     @param prev_event_type The type of the event processed just before the
                            current one
@@ -560,6 +560,12 @@ int Binlog_sender::get_binlog_end_pos(File_reader *reader, my_off_t *end_pos) {
   return 1;
 }
 
+int Binlog_sender::send_heartbeat_event(my_off_t log_pos) {
+  uint32 hb_version_flag = m_flag & USE_HEARTBEAT_EVENT_V2;
+  DBUG_EXECUTE_IF("use_old_heartbeat_version", { hb_version_flag = 0; });
+  return (hb_version_flag ? send_heartbeat_event_v2(log_pos)
+                          : send_heartbeat_event_v1(log_pos));
+}
 int Binlog_sender::send_events(File_reader *reader, my_off_t end_pos) {
   DBUG_TRACE;
 
@@ -631,7 +637,7 @@ int Binlog_sender::send_events(File_reader *reader, my_off_t end_pos) {
 
       // if enough time has elapsed so that we should send another heartbeat
       if ((now - m_last_event_sent_ts) >= m_heartbeat_period) {
-        if (unlikely(send_heartbeat_event(log_pos))) return 1;
+        if (send_heartbeat_event(log_pos)) return 1;
         exclude_group_end_pos = 0;
       } else {
         exclude_group_end_pos = log_pos;
@@ -650,7 +656,7 @@ int Binlog_sender::send_events(File_reader *reader, my_off_t end_pos) {
         tmp.copy(m_packet);
         tmp.length(m_packet.length());
 
-        if (unlikely(send_heartbeat_event(exclude_group_end_pos))) return 1;
+        if (send_heartbeat_event(exclude_group_end_pos)) return 1;
         exclude_group_end_pos = 0;
 
         /* Restore the copy back. */
@@ -981,7 +987,7 @@ void Binlog_sender::init_checksum_alg() {
   const auto &uv = get_user_var_from_alternatives(
       m_thd, "source_binlog_checksum", "master_binlog_checksum");
   // Get value of user_var.
-  if (uv) {
+  if (uv && uv->ptr()) {
     m_slave_checksum_alg = static_cast<enum_binlog_checksum_alg>(
         find_type(uv->ptr(), &binlog_checksum_typelib, 1) - 1);
     assert(m_slave_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
@@ -1233,7 +1239,7 @@ inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
   return 0;
 }
 
-int Binlog_sender::send_heartbeat_event(my_off_t log_pos) {
+int Binlog_sender::send_heartbeat_event_v1(my_off_t log_pos) {
   DBUG_TRACE;
   const char *filename = m_linfo.log_file_name;
   const char *p = filename + dirname_length(filename);
@@ -1242,7 +1248,6 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos) {
                      (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
   DBUG_PRINT("info", ("log_file_name %s, log_pos %llu", p, log_pos));
-
   if (reset_transmit_packet(0, event_len)) return 1;
 
   size_t event_offset = m_packet.length();
@@ -1257,6 +1262,48 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos) {
   int4store(header + LOG_POS_OFFSET, static_cast<uint32>(log_pos));
   int2store(header + FLAGS_OFFSET, 0);
   memcpy(header + LOG_EVENT_HEADER_LEN, p, ident_len);
+  if (event_checksum_on()) calc_event_checksum(header, event_len);
+  return send_packet_and_flush();
+}
+int Binlog_sender::send_heartbeat_event_v2(my_off_t log_pos) {
+  DBUG_TRACE;
+  auto codec = binary_log::codecs::Factory::build_codec(
+      binary_log::HEARTBEAT_LOG_EVENT_V2);
+  const char *filename = m_linfo.log_file_name;
+  const char *p = filename + dirname_length(filename);
+  const std::string log_filename{p, strlen(p)};
+  binary_log::Heartbeat_event_v2 hb{};
+  const size_t binlog_checksum_size =
+      (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
+  const size_t max_event_len =
+      LOG_EVENT_HEADER_LEN + hb.max_encoding_length() + binlog_checksum_size;
+
+  DBUG_PRINT("info", ("log_file_name %s, log_pos %llu", p, log_pos));
+  if (reset_transmit_packet(0, max_event_len)) return 1;
+
+  size_t packet_header_len = m_packet.length();
+  uchar *header = pointer_cast<uchar *>(m_packet.ptr()) + packet_header_len;
+  uchar *payload = header + LOG_EVENT_HEADER_LEN;
+
+  // encode the payload of the HB event
+  hb.set_log_filename(log_filename);
+  hb.set_log_position(log_pos);
+  auto result = codec->encode(hb, payload, hb.max_encoding_length());
+  if (result.second) return 1;
+
+  auto event_len{LOG_EVENT_HEADER_LEN + result.first + binlog_checksum_size};
+
+  // craft the header by hand
+  /* Timestamp field */
+  int4store(header, 0);
+  header[EVENT_TYPE_OFFSET] = binary_log::HEARTBEAT_LOG_EVENT_V2;
+  int4store(header + SERVER_ID_OFFSET, server_id);
+  int4store(header + EVENT_LEN_OFFSET, event_len);
+  int4store(header + LOG_POS_OFFSET, static_cast<uint32>(log_pos));
+  int2store(header + FLAGS_OFFSET, 0);
+
+  // set the effective length
+  m_packet.length(event_len + packet_header_len);
 
   if (event_checksum_on()) calc_event_checksum(header, event_len);
 

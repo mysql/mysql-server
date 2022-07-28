@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,9 +71,56 @@ static const uchar *setup_actor_hash_get_key(const uchar *entry,
   assert(typed_entry != nullptr);
   setup_actor = *typed_entry;
   assert(setup_actor != nullptr);
-  *length = setup_actor->m_key.m_key_length;
-  result = setup_actor->m_key.m_hash_key;
+  *length = sizeof(setup_actor->m_key);
+  result = &setup_actor->m_key;
   return reinterpret_cast<const uchar *>(result);
+}
+
+static uint setup_actor_hash_func(const LF_HASH *, const uchar *key,
+                                  size_t key_len [[maybe_unused]]) {
+  const PFS_setup_actor_key *setup_actor_key;
+  uint64 nr1;
+  uint64 nr2;
+
+  assert(key_len == sizeof(PFS_setup_actor_key));
+  setup_actor_key = reinterpret_cast<const PFS_setup_actor_key *>(key);
+  assert(setup_actor_key != nullptr);
+
+  nr1 = 0;
+  nr2 = 0;
+
+  setup_actor_key->m_user_name.hash(&nr1, &nr2);
+  setup_actor_key->m_host_name.hash(&nr1, &nr2);
+  setup_actor_key->m_role_name.hash(&nr1, &nr2);
+
+  return nr1;
+}
+
+static int setup_actor_hash_cmp_func(const uchar *key1,
+                                     size_t key_len1 [[maybe_unused]],
+                                     const uchar *key2,
+                                     size_t key_len2 [[maybe_unused]]) {
+  const PFS_setup_actor_key *setup_actor_key1;
+  const PFS_setup_actor_key *setup_actor_key2;
+  int cmp;
+
+  assert(key_len1 == sizeof(PFS_setup_actor_key));
+  assert(key_len2 == sizeof(PFS_setup_actor_key));
+  setup_actor_key1 = reinterpret_cast<const PFS_setup_actor_key *>(key1);
+  setup_actor_key2 = reinterpret_cast<const PFS_setup_actor_key *>(key2);
+  assert(setup_actor_key1 != nullptr);
+  assert(setup_actor_key2 != nullptr);
+
+  cmp = setup_actor_key1->m_user_name.sort(&setup_actor_key2->m_user_name);
+  if (cmp != 0) {
+    return cmp;
+  }
+  cmp = setup_actor_key1->m_host_name.sort(&setup_actor_key2->m_host_name);
+  if (cmp != 0) {
+    return cmp;
+  }
+  cmp = setup_actor_key1->m_role_name.sort(&setup_actor_key2->m_role_name);
+  return cmp;
 }
 
 /**
@@ -82,8 +129,10 @@ static const uchar *setup_actor_hash_get_key(const uchar *entry,
 */
 int init_setup_actor_hash(const PFS_global_param *param) {
   if ((!setup_actor_hash_inited) && (param->m_setup_actor_sizing != 0)) {
-    lf_hash_init(&setup_actor_hash, sizeof(PFS_setup_actor *), LF_HASH_UNIQUE,
-                 0, 0, setup_actor_hash_get_key, &my_charset_bin);
+    lf_hash_init3(&setup_actor_hash, sizeof(PFS_setup_actor *), LF_HASH_UNIQUE,
+                  setup_actor_hash_get_key, setup_actor_hash_func,
+                  setup_actor_hash_cmp_func, nullptr /* ctor */,
+                  nullptr /* dtor */, nullptr /* init */);
     /* setup_actor_hash.size= param->m_setup_actor_sizing; */
     setup_actor_hash_inited = true;
   }
@@ -108,31 +157,17 @@ static LF_PINS *get_setup_actor_hash_pins(PFS_thread *thread) {
   return thread->m_setup_actor_hash_pins;
 }
 
-static void set_setup_actor_key(PFS_setup_actor_key *key, const char *user,
-                                uint user_length, const char *host,
-                                uint host_length, const char *role,
-                                uint role_length) {
-  assert(user_length <= USERNAME_LENGTH);
-  assert(host_length <= HOSTNAME_LENGTH);
-
-  char *ptr = &key->m_hash_key[0];
-  memcpy(ptr, user, user_length);
-  ptr += user_length;
-  ptr[0] = 0;
-  ptr++;
-  memcpy(ptr, host, host_length);
-  ptr += host_length;
-  ptr[0] = 0;
-  ptr++;
-  memcpy(ptr, role, role_length);
-  ptr += role_length;
-  ptr[0] = 0;
-  ptr++;
-  key->m_key_length = ptr - &key->m_hash_key[0];
+static void set_setup_actor_key(PFS_setup_actor_key *key,
+                                const PFS_user_name *user,
+                                const PFS_host_name *host,
+                                const PFS_role_name *role) {
+  key->m_user_name = *user;
+  key->m_host_name = *host;
+  key->m_role_name = *role;
 }
 
-int insert_setup_actor(const String *user, const String *host,
-                       const String *role, bool enabled, bool history) {
+int insert_setup_actor(const PFS_user_name *user, const PFS_host_name *host,
+                       const PFS_role_name *role, bool enabled, bool history) {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
@@ -148,14 +183,7 @@ int insert_setup_actor(const String *user, const String *host,
 
   pfs = global_setup_actor_container.allocate(&dirty_state);
   if (pfs != nullptr) {
-    set_setup_actor_key(&pfs->m_key, user->ptr(), user->length(), host->ptr(),
-                        host->length(), role->ptr(), role->length());
-    pfs->m_username = &pfs->m_key.m_hash_key[0];
-    pfs->m_username_length = user->length();
-    pfs->m_hostname = pfs->m_username + pfs->m_username_length + 1;
-    pfs->m_hostname_length = host->length();
-    pfs->m_rolename = pfs->m_hostname + pfs->m_hostname_length + 1;
-    pfs->m_rolename_length = role->length();
+    set_setup_actor_key(&pfs->m_key, user, host, role);
     pfs->m_enabled = enabled;
     pfs->m_history = history;
 
@@ -178,8 +206,8 @@ int insert_setup_actor(const String *user, const String *host,
   return HA_ERR_RECORD_FILE_FULL;
 }
 
-int delete_setup_actor(const String *user, const String *host,
-                       const String *role) {
+int delete_setup_actor(const PFS_user_name *user, const PFS_host_name *host,
+                       const PFS_role_name *role) {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
@@ -191,16 +219,15 @@ int delete_setup_actor(const String *user, const String *host,
   }
 
   PFS_setup_actor_key key;
-  set_setup_actor_key(&key, user->ptr(), user->length(), host->ptr(),
-                      host->length(), role->ptr(), role->length());
+  set_setup_actor_key(&key, user, host, role);
 
   PFS_setup_actor **entry;
-  entry = reinterpret_cast<PFS_setup_actor **>(lf_hash_search(
-      &setup_actor_hash, pins, key.m_hash_key, key.m_key_length));
+  entry = reinterpret_cast<PFS_setup_actor **>(
+      lf_hash_search(&setup_actor_hash, pins, &key, sizeof(key)));
 
   if (entry && (entry != MY_LF_ERRPTR)) {
     PFS_setup_actor *pfs = *entry;
-    lf_hash_delete(&setup_actor_hash, pins, key.m_hash_key, key.m_key_length);
+    lf_hash_delete(&setup_actor_hash, pins, &key, sizeof(key));
     global_setup_actor_container.deallocate(pfs);
   }
 
@@ -213,11 +240,10 @@ int delete_setup_actor(const String *user, const String *host,
 
 class Proc_reset_setup_actor : public PFS_buffer_processor<PFS_setup_actor> {
  public:
-  Proc_reset_setup_actor(LF_PINS *pins) : m_pins(pins) {}
+  explicit Proc_reset_setup_actor(LF_PINS *pins) : m_pins(pins) {}
 
   void operator()(PFS_setup_actor *pfs) override {
-    lf_hash_delete(&setup_actor_hash, m_pins, pfs->m_key.m_hash_key,
-                   pfs->m_key.m_key_length);
+    lf_hash_delete(&setup_actor_hash, m_pins, &pfs->m_key, sizeof(pfs->m_key));
 
     global_setup_actor_container.deallocate(pfs);
   }
@@ -253,8 +279,8 @@ long setup_actor_count() { return setup_actor_hash.count; }
   - add an ENABLED column to include/exclude patterns, more flexible
   - the principle is similar to SETUP_OBJECTS
 */
-void lookup_setup_actor(PFS_thread *thread, const char *user, uint user_length,
-                        const char *host, uint host_length, bool *enabled,
+void lookup_setup_actor(PFS_thread *thread, const PFS_user_name *user,
+                        const PFS_host_name *host, bool *enabled,
                         bool *history) {
   PFS_setup_actor_key key;
   PFS_setup_actor **entry;
@@ -267,27 +293,34 @@ void lookup_setup_actor(PFS_thread *thread, const char *user, uint user_length,
     return;
   }
 
+  PFS_user_name any_user;
+  PFS_host_name any_host;
+  PFS_role_name any_role;
+  any_user.set("%", 1);
+  any_host.set("%", 1);
+  any_role.set("%", 1);
+
   for (i = 1; i <= 4; i++) {
     /*
-      WL#988 Roles is not implemented, so we do not have a role name.
+      Role name not used yet.
       Looking up "%" in SETUP_ACTORS.ROLE.
     */
     switch (i) {
       case 1:
-        set_setup_actor_key(&key, user, user_length, host, host_length, "%", 1);
+        set_setup_actor_key(&key, user, host, &any_role);
         break;
       case 2:
-        set_setup_actor_key(&key, user, user_length, "%", 1, "%", 1);
+        set_setup_actor_key(&key, user, &any_host, &any_role);
         break;
       case 3:
-        set_setup_actor_key(&key, "%", 1, host, host_length, "%", 1);
+        set_setup_actor_key(&key, &any_user, host, &any_role);
         break;
       case 4:
-        set_setup_actor_key(&key, "%", 1, "%", 1, "%", 1);
+        set_setup_actor_key(&key, &any_user, &any_host, &any_role);
         break;
     }
-    entry = reinterpret_cast<PFS_setup_actor **>(lf_hash_search(
-        &setup_actor_hash, pins, key.m_hash_key, key.m_key_length));
+    entry = reinterpret_cast<PFS_setup_actor **>(
+        lf_hash_search(&setup_actor_hash, pins, &key, sizeof(key)));
 
     if (entry && (entry != MY_LF_ERRPTR)) {
       PFS_setup_actor *pfs = *entry;

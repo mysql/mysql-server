@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -40,9 +40,11 @@ FILE *outfile;
 const char *filename = "test_component_status_var_service.log";
 class THD;
 
-#define WRITE_LOG(format, lit_log_text)                   \
-  log_text_len = sprintf(log_text, format, lit_log_text); \
-  fwrite((unsigned char *)log_text, sizeof(char), log_text_len, outfile)
+#define WRITE_LOG(format, lit_log_text)                             \
+  log_text_len = sprintf(log_text, format, lit_log_text);           \
+  if (fwrite((unsigned char *)log_text, sizeof(char), log_text_len, \
+             outfile) != static_cast<size_t>(log_text_len))         \
+    return true;
 
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 

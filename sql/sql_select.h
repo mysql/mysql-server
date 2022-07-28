@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -300,7 +300,8 @@ class Key_use {
 };
 
 /// @returns join type according to quick select type used
-join_type calc_join_type(int quick_type);
+///   (which must be a form of range scan, or asserts will happen)
+join_type calc_join_type(AccessPath *path);
 
 class JOIN;
 
@@ -857,8 +858,6 @@ class store_key_hash_item final : public store_key {
   enum store_key_result copy_inner() override;
 };
 
-bool error_if_full_join(JOIN *join);
-
 // Statement timeout function(s)
 bool set_statement_timer(THD *thd);
 void reset_statement_timer(THD *thd);
@@ -891,7 +890,7 @@ bool and_conditions(Item **e1, Item *e2);
   must not be a null pointer.
 
   @param cond  the first argument to the new AND condition
-  @param item  the second argument to the new AND condtion
+  @param item  the second argument to the new AND condition
 
   @return the new AND item
 */
@@ -911,7 +910,7 @@ uint actual_key_parts(const KEY *key_info);
 class ORDER_with_src;
 
 uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
-                         QUICK_SELECT_I **quick, bool *need_sort,
+                         AccessPath *range_scan, bool *need_sort,
                          bool *reverse);
 int test_if_order_by_key(ORDER_with_src *order, TABLE *table, uint idx,
                          uint *used_key_parts, bool *skip_quick);

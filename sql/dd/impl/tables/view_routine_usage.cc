@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,14 +52,16 @@ View_routine_usage::View_routine_usage() {
   m_target_def.add_field(
       FIELD_ROUTINE_CATALOG, "FIELD_ROUTINE_CATALOG",
       "routine_catalog VARCHAR(64) NOT NULL COLLATE " +
-          String_type(Object_table_definition_impl::fs_name_collation()->name));
+          String_type(
+              Object_table_definition_impl::fs_name_collation()->m_coll_name));
   m_target_def.add_field(
       FIELD_ROUTINE_SCHEMA, "FIELD_ROUTINE_SCHEMA",
       "routine_schema VARCHAR(64) NOT NULL COLLATE " +
-          String_type(Object_table_definition_impl::fs_name_collation()->name));
+          String_type(
+              Object_table_definition_impl::fs_name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_ROUTINE_NAME, "FIELD_ROUTINE_NAME",
                          "routine_name VARCHAR(64) NOT NULL COLLATE "
-                         " utf8_general_ci");
+                         " utf8mb3_general_ci");
 
   m_target_def.add_index(INDEX_PK_VIEW_ID_ROUTINE_CATALOG,
                          "INDEX_PK_VIEW_ID_ROUTINE_CATALOG",

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -462,7 +462,12 @@ inline const_buffer buffer(
                       : impl::to_const_buffer(&data.front(), data.size());
 }
 
-// TODO(jkneschk): from-string-view
+template <class CharT, class Traits>
+inline const_buffer buffer(
+    const std::basic_string_view<CharT, Traits> &data) noexcept {
+  return data.empty() ? const_buffer{}
+                      : impl::to_const_buffer(data.data(), data.size());
+}
 
 template <class T, size_t N>
 inline mutable_buffer buffer(T (&data)[N], size_t n) noexcept {
@@ -675,7 +680,7 @@ class transfer_exactly {
    */
   size_t operator()(const std::error_code &ec, size_t n) const {
     // "unspecificed non-zero number"
-    size_t N = std::numeric_limits<size_t>::max();
+    constexpr size_t N = std::numeric_limits<size_t>::max();
 
     if (!ec && n < exact_) return std::min(exact_ - n, N);
 
@@ -858,8 +863,11 @@ read(SyncReadStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
 
       // if socket was non-blocking and some bytes where already read, return
       // the success
-      if ((res.error() == std::errc::resource_unavailable_try_again ||
-           res.error() == net::stream_errc::eof) &&
+      const auto ec = res.error();
+      if ((ec == make_error_condition(
+                     std::errc::resource_unavailable_try_again) ||
+           ec == make_error_condition(std::errc::operation_would_block) ||
+           ec == net::stream_errc::eof) &&
           transferred != 0) {
         return transferred;
       }

@@ -19,6 +19,6 @@ do insert(ltrim(from_unixtime(0,' %T ')), 2, 1, 'hi');
 set @old_collation_connection=@@collation_connection;
 set collation_connection="utf8_general_ci";
 Warnings:
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 do replace(ltrim(from_unixtime(0,' %T ')), '0', '1');
 set collation_connection=@old_collation_connection;

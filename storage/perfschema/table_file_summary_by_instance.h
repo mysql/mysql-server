@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,13 +48,9 @@ struct THR_LOCK;
 /** A row of PERFORMANCE_SCHEMA.FILE_SUMMARY_BY_INSTANCE. */
 struct row_file_summary_by_instance {
   /** Column FILE_NAME. */
-  const char *m_filename;
-  /** Length in bytes of @c m_filename. */
-  uint m_filename_length;
-
+  PFS_file_name m_file_name;
   /** Column EVENT_NAME. */
   PFS_event_name_row m_event_name;
-
   /** Column OBJECT_INSTANCE_BEGIN */
   const void *m_identity;
   /**
@@ -66,7 +62,7 @@ struct row_file_summary_by_instance {
 
 class PFS_index_file_summary_by_instance : public PFS_engine_index {
  public:
-  PFS_index_file_summary_by_instance(PFS_engine_key *key_1)
+  explicit PFS_index_file_summary_by_instance(PFS_engine_key *key_1)
       : PFS_engine_index(key_1) {}
 
   ~PFS_index_file_summary_by_instance() override = default;

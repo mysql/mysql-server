@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -10014,7 +10014,7 @@ static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_gbk,
                                                 mbcharlen_gbk,
                                                 my_numchars_mb,
-                                                my_charpos_mb,
+                                                my_charpos_mb3,
                                                 my_well_formed_len_gbk,
                                                 my_lengthsp_8bit,
                                                 my_numcells_8bit,
@@ -10044,7 +10044,7 @@ CHARSET_INFO my_charset_gbk_chinese_ci = {
     0,                                               /* number */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state      */
     "gbk",                                           /* cs name    */
-    "gbk_chinese_ci",                                /* name */
+    "gbk_chinese_ci",                                /* m_coll_name */
     "GBK Simplified Chinese",                        /* comment    */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */
@@ -10079,7 +10079,7 @@ CHARSET_INFO my_charset_gbk_bin = {
     0,                              /* number */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
     "gbk",                          /* cs name    */
-    "gbk_bin",                      /* name */
+    "gbk_bin",                      /* m_coll_name */
     "GBK Simplified Chinese",       /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */

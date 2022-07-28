@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql_com.h"
 #include "sql/sql_class.h"  // Query_arena
 #include "sql/sql_error.h"
@@ -386,7 +386,7 @@ class Prepared_statement final {
     0. In other words, "db", "db_length" must either be NULL, or contain a
     valid database name.
 
-    @note this attribute is set and alloced by the slave SQL thread (for
+    @note this attribute is set and allocated by the slave SQL thread (for
     the THD of that thread); that thread is (and must remain, for now) the
     only responsible for freeing this member.
   */
@@ -424,7 +424,7 @@ class Prepared_statement final {
 
  private:
   void cleanup_stmt();
-  void setup_set_params();
+  void setup_stmt_logging();
   bool check_parameter_types();
   void copy_parameter_types(Item_param **from_param_array);
   bool set_db(const LEX_CSTRING &db_length);
@@ -433,8 +433,9 @@ class Prepared_statement final {
   bool reprepare();
   bool validate_metadata(Prepared_statement *copy);
   void swap_prepared_statement(Prepared_statement *copy);
-  bool insert_params_from_vars(List<LEX_STRING> &varnames, String *query);
-  bool insert_params(String *query, PS_PARAM *parameters);
+  bool insert_parameters_from_vars(List<LEX_STRING> &varnames, String *query);
+  bool insert_parameters(String *query, bool has_new_types,
+                         PS_PARAM *parameters);
 };
 
 #endif  // SQL_PREPARE_H

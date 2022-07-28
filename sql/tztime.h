@@ -2,7 +2,7 @@
 #define TZTIME_INCLUDED
 
 #include "my_config.h"
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,8 @@
 #include <winsock2.h>
 #endif
 
-#include "mysql_time.h"        // MYSQL_TIME
-#include "time_zone_common.h"  // my_time_t
+#include "my_time_t.h"   // my_time_t
+#include "mysql_time.h"  // MYSQL_TIME
 
 class String;
 class THD;
@@ -53,25 +53,30 @@ class Time_zone {
   enum tz_type { TZ_DB = 1, TZ_OFFSET = 2, TZ_SYSTEM = 3, TZ_UTC = 4 };
 
   /**
-    Converts local time in broken down MYSQL_TIME representation to
-    my_time_t (UTC seconds since Epoch) represenation.
+    Converts local time in MYSQL_TIME representation to
+    my_time_t (UTC seconds since Epoch) representation.
     Returns 0 in case of error. Sets in_dst_time_gap to true if date provided
     falls into spring time-gap (or lefts it untouched otherwise).
   */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     bool *in_dst_time_gap) const = 0;
   /**
-    Converts time in my_time_t representation to local time in
-    broken down MYSQL_TIME representation.
-  */
+   Converts UTC epoch seconds to time in MYSQL_TIME representation.
+
+   @param[out]   tmp  equivalent time point in MYSQL_TIME representation
+   @param[in]    t    number of seconds in UNIX epoch
+   */
   virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const = 0;
   /**
-    Comverts "struct timeval" to local time in
-    broken down MYSQL_TIME represendation.
+    Converts UTC epoch seconds and microseconds to time in
+    MYSQL_TIME representation.
+
+    @param[in]    tv   number of seconds and microseconds in UNIX epoch
+    @param[out]   tmp  equivalent time point in MYSQL_TIME representation
   */
-  void gmt_sec_to_TIME(MYSQL_TIME *tmp, struct timeval tv) const {
-    gmt_sec_to_TIME(tmp, (my_time_t)tv.tv_sec);
-    tmp->second_part = tv.tv_usec;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_timeval tv) const {
+    gmt_sec_to_TIME(tmp, (my_time_t)tv.m_tv_sec);
+    tmp->second_part = tv.m_tv_usec;
   }
   /**
     Because of constness of String returned by get_name() time zone name
@@ -89,7 +94,7 @@ class Time_zone {
   */
   virtual long get_timezone_offset() const = 0;
   /**
-    We need this only for surpressing warnings, objects of this type are
+    We need this only for suppressing warnings, objects of this type are
     allocated on MEM_ROOT and should not require destruction.
   */
   virtual ~Time_zone() = default;
@@ -115,7 +120,7 @@ void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, int64 offset);
 /**
   Number of elements in table list produced by my_tz_get_table_list()
   (this table list contains tables which are needed for dynamical loading
-  of time zone descriptions). Actually it is imlementation detail that
+  of time zone descriptions). Actually it is implementation detail that
   should not be used anywhere outside of tztime.h and tztime.cc.
 */
 

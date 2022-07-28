@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ void free_site_defs() {
 /* Add a new site definition to the list */
 site_def *push_site_def(site_def *s) {
   uint32_t i;
-  set_site_def_ptr(&site_defs, 0, site_defs.count);
+  set_site_def_ptr(&site_defs, nullptr, site_defs.count);
   IFDBG(
       D_NONE, FN; NDBG(site_defs.count, u); PTREXP(s); if (s) {
         SYCEXP(s->start);
@@ -149,7 +149,7 @@ static inline site_def const *_get_site_def() {
   if (site_defs.count > 0)
     return site_defs.site_def_ptr_array_val[0];
   else
-    return 0;
+    return nullptr;
 }
 
 /* Return first site def */
@@ -157,7 +157,7 @@ site_def *get_site_def_rw() {
   if (site_defs.count > 0)
     return site_defs.site_def_ptr_array_val[0];
   else
-    return 0;
+    return nullptr;
 }
 
 /* purecov: begin deadcode */
@@ -169,7 +169,7 @@ static inline site_def const *_get_prev_site_def() {
   if (site_defs.count > 0)
     return site_defs.site_def_ptr_array_val[1];
   else
-    return 0;
+    return nullptr;
 }
 /* purecov: end */
 
@@ -192,7 +192,7 @@ static inline int match_def(site_def const *site, synode_no synode) {
 
 /* Return first site def which has start less than or equal to synode */
 site_def const *find_site_def(synode_no synode) {
-  site_def const *retval = 0;
+  site_def const *retval = nullptr;
   u_int i;
 
   for (i = 0; i < site_defs.count; i++)
@@ -207,7 +207,7 @@ site_def const *find_site_def(synode_no synode) {
 
 /* As find_site_def, but return pointer to non-const object */
 site_def *find_site_def_rw(synode_no synode) {
-  site_def *retval = 0;
+  site_def *retval = nullptr;
   u_int i;
 
   for (i = 0; i < site_defs.count; i++)
@@ -229,7 +229,7 @@ static inline int start_gt(site_def const *site, synode_no synode) {
 
 /* Retrieve the first site_def which has start greater than synode. */
 site_def const *find_next_site_def(synode_no synode) {
-  site_def const *retval = NULL;
+  site_def const *retval = nullptr;
   u_int i;
 
   for (i = site_defs.count; i > 0; i--)
@@ -237,7 +237,7 @@ site_def const *find_next_site_def(synode_no synode) {
       retval = site_defs.site_def_ptr_array_val[i - 1];
       break;
     }
-  assert(retval == NULL ||
+  assert(retval == nullptr ||
          retval->global_node_set.node_set_len == _get_maxnodes(retval));
   return retval;
 }
@@ -248,7 +248,7 @@ static inline int prev_def(site_def const *site, synode_no synode) {
 }
 
 site_def const *find_prev_site_def(synode_no synode) {
-  site_def const *retval = 0;
+  site_def const *retval = nullptr;
   u_int i;
 
   for (i = site_defs.count; i > 0; i--)
@@ -278,7 +278,7 @@ void garbage_collect_site_defs(synode_no x) {
     if (site) {
       IFDBG(D_NONE, SYCEXP(site->start); SYCEXP(site->boot_key););
       free_site_def(site);
-      site_defs.site_def_ptr_array_val[i] = 0;
+      site_defs.site_def_ptr_array_val[i] = nullptr;
     }
     site_defs.count--;
   }
@@ -330,8 +330,8 @@ site_def *clone_site_def(site_def const *site) {
   retval->global_node_set = clone_node_set(site->global_node_set);
   retval->local_node_set = clone_node_set(site->local_node_set);
   retval->leaders = clone_leader_array(site->leaders);
-  retval->cached_leaders = false;  // Invalidate cached leaders
-  retval->dispatch_table = NULL;   // Invalidate dispatch table
+  retval->cached_leaders = false;    // Invalidate cached leaders
+  retval->dispatch_table = nullptr;  // Invalidate dispatch table
   assert(retval->global_node_set.node_set_len == _get_maxnodes(retval));
   IFDBG(D_NONE, FN; PTREXP(site); PTREXP(retval));
   return retval;
@@ -359,7 +359,7 @@ void init_site_def(u_int n, node_address *names, site_def *site) {
   site->x_proto = my_xcom_version;
   /* Inherit latest configuration's event horizon or fallback to default */
   latest_config = get_site_def();
-  if (latest_config != NULL) {
+  if (latest_config != nullptr) {
     site->event_horizon = latest_config->event_horizon;
   } else {
     site->event_horizon = EVENT_HORIZON_MIN;

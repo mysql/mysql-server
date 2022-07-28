@@ -34,7 +34,7 @@ DESCRIPTION	varchar(2048)	NO		NULL
 MAXLEN	int unsigned	NO		NULL	
 SHOW CREATE TABLE information_schema.CHARACTER_SETS;
 View	Create View	character_set_client	collation_connection
-CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8	utf8_general_ci
+CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8mb3	utf8mb3_general_ci
 SHOW COLUMNS FROM information_schema.CHARACTER_SETS;
 Field	Type	Null	Key	Default	Extra
 CHARACTER_SET_NAME	varchar(64)	NO		NULL	

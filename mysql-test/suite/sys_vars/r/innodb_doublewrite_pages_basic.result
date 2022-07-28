@@ -43,6 +43,6 @@ SELECT COUNT(@@GLOBAL.innodb_doublewrite_pages);
 COUNT(@@GLOBAL.innodb_doublewrite_pages)
 1
 1 Expected
-SELECT innodb_doublewrite_pages = @@SESSION.innodb_doublewrite_pages;
+SELECT innodb_doublewrite_pages;
 ERROR 42S22: Unknown column 'innodb_doublewrite_pages' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

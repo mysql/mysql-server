@@ -787,6 +787,8 @@ DBFFDCFF
 drop table t1;
 SET sql_mode = '';
 create table t1 (s1 varchar(50) character set ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values (0xdf84);
 alter table t1 modify column s1 varchar(50) character set utf16;
 Warnings:
@@ -797,6 +799,8 @@ hex(s1)
 drop table t1;
 SET sql_mode = default;
 create table t1 (s1 varchar(5) character set ucs2, s2 varchar(5) character set utf16);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 (s1) values (0xdf84);
 update ignore t1 set s2 = s1;
 Warnings:

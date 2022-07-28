@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ class Server_side_cursor {
     deleted several times. The execution mem_root cannot be used since
     creation of and retrieval from a cursor are in different executions.
   */
-  MEM_ROOT mem_root;
+  MEM_ROOT mem_root{key_memory_TABLE, 1024};
 
  protected:
   Query_arena m_arena;
@@ -64,9 +64,7 @@ class Server_side_cursor {
 
  public:
   Server_side_cursor(Query_result *result_arg)
-      : m_arena(&mem_root, Query_arena::STMT_INITIALIZED), result(result_arg) {
-    init_sql_alloc(key_memory_TABLE, &mem_root, 1024, 1024);
-  }
+      : m_arena(&mem_root, Query_arena::STMT_INITIALIZED), result(result_arg) {}
   virtual bool is_open() const = 0;
 
   virtual bool open(THD *thd) = 0;

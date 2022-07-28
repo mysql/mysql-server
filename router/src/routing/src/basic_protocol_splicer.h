@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <cstdint>  // size_t
 #include <cstdio>
 #include <functional>  // function
+#include <sstream>
 #include <string>
 
 #ifdef _WIN32
@@ -37,9 +38,20 @@
 #include <ws2tcpip.h>
 #endif
 
-#include <openssl/ssl.h>
+#include <openssl/ssl.h>  // SSL_CTX
 
+#include "blocked_endpoints.h"
 #include "channel.h"
+#include "harness_assert.h"
+#include "initial_connection_attributes.h"
+#include "mysql/harness/net_ts/buffer.h"
+#include "mysql/harness/net_ts/impl/socket_constants.h"
+#include "mysql/harness/net_ts/internet.h"  // net::ip::tcp
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/local.h"  // local::stream_protocol
+#include "mysql/harness/net_ts/socket.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/connection_base.h"
 #include "ssl_mode.h"
 
 enum class TlsContentType {
@@ -67,295 +79,465 @@ inline std::string tls_content_type_to_string(TlsContentType v) {
   return "unknown-" + std::to_string(static_cast<int>(v));
 }
 
-class BasicSplicer {
+class TlsSwitchable {
  public:
-  enum class State {
-    SERVER_GREETING,
-    CLIENT_GREETING,
-    TLS_ACCEPT,
-    TLS_CLIENT_GREETING,
-    TLS_CLIENT_GREETING_RESPONSE,
-    TLS_CONNECT,
-    SPLICE_INIT,
-    SPLICE,
-    TLS_SHUTDOWN,
-    FINISH,
-    DONE,
-    ERROR,
-  };
+  using ssl_ctx_gettor_type = std::function<SSL_CTX *()>;
 
-  static const char *state_to_string(State st) {
-    switch (st) {
-      case State::SERVER_GREETING:
-        return "server_greeting";
-      case State::CLIENT_GREETING:
-        return "client_greeting";
-      case State::TLS_ACCEPT:
-        return "tls_accept";
-      case State::TLS_CLIENT_GREETING:
-        return "tls_client_greeting";
-      case State::TLS_CLIENT_GREETING_RESPONSE:
-        return "tls_client_greeting_response";
-      case State::TLS_CONNECT:
-        return "tls_connect";
-      case State::SPLICE_INIT:
-        return "splice_init";
-      case State::SPLICE:
-        return "splice";
-      case State::TLS_SHUTDOWN:
-        return "tls_shutdown";
-      case State::FINISH:
-        return "finish";
-      case State::DONE:
-        return "done";
-      case State::ERROR:
-        return "error";
+  TlsSwitchable(SslMode ssl_mode, ssl_ctx_gettor_type ssl_ctx_gettor)
+      : ssl_mode_{ssl_mode}, ssl_ctx_gettor_{std::move(ssl_ctx_gettor)} {}
+
+  [[nodiscard]] SslMode ssl_mode() const { return ssl_mode_; }
+
+  [[nodiscard]] SSL_CTX *get_ssl_ctx() const { return ssl_ctx_gettor_(); }
+
+ private:
+  SslMode ssl_mode_;
+
+  ssl_ctx_gettor_type ssl_ctx_gettor_;
+};
+
+class RoutingConnectionBase {
+ public:
+  virtual ~RoutingConnectionBase() = default;
+
+  [[nodiscard]] virtual std::vector<std::pair<std::string, std::string>>
+  initial_connection_attributes() const = 0;
+
+  virtual uint64_t reset_error_count(BlockedEndpoints &blocked_endpoints) = 0;
+  virtual uint64_t increment_error_count(
+      BlockedEndpoints &blocked_endpoints) = 0;
+};
+
+/**
+ * basic connection which wraps a net-ts Protocol.
+ *
+ * knows about mysql-protocol specifics like:
+ *
+ * - session attributes
+ * - connection error-tracking.
+ *
+ * @tparam Protocol a protocol like net::ip::tcp or local::stream_protocol
+ */
+template <class Protocol>
+class BasicConnection : public ConnectionBase {
+ public:
+  using protocol_type = Protocol;
+  using socket_type = typename protocol_type::socket;
+  using endpoint_type = typename protocol_type::endpoint;
+
+  using recv_buffer_type = ConnectionBase::recv_buffer_type;
+
+  BasicConnection(socket_type sock, endpoint_type ep)
+      : sock_{std::move(sock)}, ep_{std::move(ep)} {}
+
+  net::io_context &io_ctx() override { return sock_.get_executor().context(); }
+
+  void async_recv(recv_buffer_type &buf,
+                  std::function<void(std::error_code ec, size_t transferred)>
+                      completion) override {
+    if (sock_.native_non_blocking()) {
+      auto read_res =
+          net::read(sock_, net::dynamic_buffer(buf), net::transfer_at_least(1));
+
+      if (!read_res) {
+        auto ec = read_res.error();
+
+        if (ec == make_error_condition(std::errc::operation_would_block)) {
+          net::async_read(sock_, net::dynamic_buffer(buf),
+                          net::transfer_at_least(1), std::move(completion));
+          return;
+        } else {
+          net::post(sock_.get_executor().context(),
+                    [completion = std::move(completion), ec]() {
+                      completion(ec, 0);
+                    });
+          return;
+        }
+      } else {
+        net::post(sock_.get_executor().context(),
+                  [completion = std::move(completion),
+                   transferred = read_res.value()]() {
+                    completion(std::error_code{}, transferred);
+                  });
+        return;
+      }
+
+    } else {
+      net::async_read(sock_, net::dynamic_buffer(buf),
+                      net::transfer_at_least(1), std::move(completion));
     }
-
-    return "unknown";
   }
 
-  BasicSplicer(
-      SslMode source_ssl_mode, SslMode dest_ssl_mode,
-      std::function<SSL_CTX *()> client_ssl_ctx_getter,
-      std::function<SSL_CTX *()> server_ssl_ctx_getter,
-      std::vector<std::pair<std::string, std::string>> session_attributes)
-      : source_ssl_mode_{source_ssl_mode},
-        dest_ssl_mode_{dest_ssl_mode},
-        client_ssl_ctx_getter_{std::move(client_ssl_ctx_getter)},
-        server_ssl_ctx_getter_{std::move(server_ssl_ctx_getter)},
-        client_channel_{std::make_unique<Channel>()},
-        server_channel_{std::make_unique<Channel>()},
-        session_attributes_{std::move(session_attributes)} {}
+  void async_send(recv_buffer_type &buf,
+                  std::function<void(std::error_code ec, size_t transferred)>
+                      completion) override {
+    if (sock_.native_non_blocking()) {
+      auto write_res = net::write(sock_, net::dynamic_buffer(buf),
+                                  net::transfer_at_least(1));
 
-  virtual ~BasicSplicer() = default;
+      if (!write_res) {
+        auto ec = write_res.error();
 
-  bool handshake_done() const { return handshake_done_; }
-  void handshake_done(bool v) { handshake_done_ = v; }
+        if (ec == make_error_condition(std::errc::operation_would_block)) {
+          net::async_write(sock_, net::dynamic_buffer(buf),
+                           net::transfer_at_least(1), std::move(completion));
+          return;
+        } else {
+          net::post(sock_.get_executor().context(),
+                    [completion = std::move(completion), ec]() {
+                      completion(ec, 0);
+                    });
+          return;
+        }
+      } else {
+        net::post(sock_.get_executor().context(),
+                  [completion = std::move(completion),
+                   transferred = write_res.value()]() {
+                    completion(std::error_code{}, transferred);
+                  });
+        return;
+      }
 
-  SslMode source_ssl_mode() const { return source_ssl_mode_; }
-  SslMode dest_ssl_mode() const { return dest_ssl_mode_; }
-
-  void state(State st) {
-#if 0
-    std::cerr << __LINE__ << ": " << state_to_string(state_) << " -> "
-              << state_to_string(st) << std::endl;
-#endif
-    state_ = st;
+    } else {
+      net::async_write(sock_, net::dynamic_buffer(buf),
+                       net::transfer_at_least(1), std::move(completion));
+    }
   }
 
-  State state() const { return state_; }
-
-  Channel *client_channel() { return client_channel_.get(); }
-  Channel *server_channel() { return server_channel_.get(); }
-
-  const Channel *client_channel() const { return client_channel_.get(); }
-  const Channel *server_channel() const { return server_channel_.get(); }
-
-  bool client_waiting_recv() const { return client_waiting_recv_; }
-  void client_waiting_recv(bool waiting) { client_waiting_recv_ = waiting; }
-  bool client_waiting_send() const { return client_waiting_send_; }
-  void client_waiting_send(bool waiting) { client_waiting_send_ = waiting; }
-
-  bool server_waiting_recv() const { return server_waiting_recv_; }
-  void server_waiting_recv(bool waiting) { server_waiting_recv_ = waiting; }
-  bool server_waiting_send() const { return server_waiting_send_; }
-  void server_waiting_send(bool waiting) { server_waiting_send_ = waiting; }
-
-  std::vector<std::pair<std::string, std::string>> session_attributes() const {
-    return session_attributes_;
+  void async_wait_send(
+      std::function<void(std::error_code ec)> completion) override {
+    sock_.async_wait(net::socket_base::wait_write, std::move(completion));
   }
 
-  /**
-   * start the packet reception.
-   */
-  virtual void start() = 0;
-
-  /**
-   * handle the server message.
-   *
-   * - waits for the server greeting to be complete
-   * - parses server-greeting message
-   * - unsets compress capabilities
-   * - tracks capabilities.
-   *
-   * @returns next state to process
-   * @retval State::SERVER_GREETING wait for more data from server
-   * @retval State::CLIENT_GREETING drain send-buffer to client and continue
-   * with client-greeting.
-   * @retval State::FINISH drain send-buffer to client and close connection.
-   */
-  virtual State server_greeting() = 0;
-
-  /**
-   * accept a TLS connection from the client_channel_.
-   *
-   * @return next State
-   */
-  State tls_accept();
-
-  /**
-   * establish a TLS connection to the server_channel_.
-   *
-   * @return next State
-   */
-  virtual State tls_connect() = 0;
-
-  /**
-   * shutdown a TLS connection.
-   *
-   * @return next State
-   */
-  State tls_shutdown();
-
-  /**
-   * process the Client Greeting packet from the client.
-   *
-   * - wait for for a full protocol frame
-   * - decode client-greeting packet and decide how to proceed based on
-   * capabilities and configuration
-   *
-   * ## client-side connection state
-   *
-   * ssl-cap::client
-   * :  SSL capability the client sends to router
-   *
-   * ssl-cap::server
-   * :  SSL capability the server sends to router
-   *
-   * ssl-mode::client
-   * :  client_ssl_mode used by router
-   *
-   * ssl-mode::server
-   * :  server_ssl_mode used by router
-   *
-   * | ssl-mode    | ssl-mode | ssl-cap | ssl-cap  | ssl    |
-   * | client      | server   | client  | server   | client |
-   * | ----------- | -------- | ------- | -------- | ------ |
-   * | DISABLED    | any      | any     | any      | PLAIN  |
-   * | PREFERRED   | any      | [ ]     | any      | PLAIN  |
-   * | PREFERRED   | any      | [x]     | any      | SSL    |
-   * | REQUIRED    | any      | [ ]     | any      | FAIL   |
-   * | REQUIRED    | any      | [x]     | any      | SSL    |
-   * | PASSTHROUGH | any      | [ ]     | any      | PLAIN  |
-   * | PASSTHROUGH | any      | [x]     | [x]      | (SSL)  |
-   *
-   * PLAIN
-   * :  client-side connection is plaintext
-   *
-   * FAIL
-   * :  router fails connection with client
-   *
-   * SSL
-   * :  encrypted, client-side TLS endpoint
-   *
-   * (SSL)
-   * :  encrypted, no TLS endpoint
-   *
-   * ## server-side connection state
-   *
-   * | ssl-mode    | ssl-mode  | ssl-cap | ssl-cap | ssl    |
-   * | client      | server    | client  | server  | server |
-   * | ----------- | --------- | ------- | ------- | ------ |
-   * | any         | DISABLED  | any     | any     | PLAIN  |
-   * | any         | PREFERRED | any     | [ ]     | PLAIN  |
-   * | any         | PREFERRED | any     | [x]     | SSL    |
-   * | any         | REQUIRED  | any     | [ ]     | FAIL   |
-   * | any         | REQUIRED  | any     | [x]     | SSL    |
-   * | PASSTHROUGH | AS_CLIENT | [ ]     | any     | PLAIN  |
-   * | PASSTHROUGH | AS_CLIENT | [x]     | [x]     | (SSL)  |
-   * | other       | AS_CLIENT | [ ]     | any     | PLAIN  |
-   * | other       | AS_CLIENT | [x]     | [ ]     | FAIL   |
-   * | other       | AS_CLIENT | [x]     | [x]     | SSL    |
-   *
-   * PLAIN
-   * :  client-side connection is plaintext
-   *
-   * FAIL
-   * :  router fails connection with client
-   *
-   * SSL
-   * :  encrypted, client-side TLS endpoint
-   *
-   * (SSL)
-   * :  encrypted, no TLS endpoint
-   *
-   */
-  virtual State client_greeting() = 0;
-
-  /**
-   * after tls-accept expect another client-greeting.
-   */
-  virtual State tls_client_greeting() = 0;
-
-  virtual State tls_client_greeting_response() = 0;
-
-  virtual State splice_to_server() = 0;
-
-  virtual State splice_to_client() = 0;
-
-  virtual stdx::expected<size_t, std::error_code> on_block_client_host(
-      std::vector<uint8_t> &buf) = 0;
-
-  template <bool to_server>
-  State splice() {
-    return to_server ? splice_to_server() : splice_to_client();
+  void async_wait_recv(
+      std::function<void(std::error_code ec)> completion) override {
+    sock_.async_wait(net::socket_base::wait_read, std::move(completion));
   }
 
-  static stdx::expected<size_t, std::error_code> read_to_plain(
-      Channel *src_channel, std::vector<uint8_t> &plain_buf);
+  [[nodiscard]] bool is_open() const override { return sock_.is_open(); }
 
-  /**
-   * move the contents of one buffer to the end of another.
-   *
-   * @param send_buf to move to
-   * @param recv_buf to move from
-   */
-  template <class DstDynamicBuffer, class SrcDynamicBuffer>
-  static void move_buffer(DstDynamicBuffer &&send_buf,
-                          SrcDynamicBuffer &&recv_buf) {
-    return move_buffer(send_buf, recv_buf, recv_buf.size());
+  [[nodiscard]] net::impl::socket::native_handle_type native_handle()
+      const override {
+    return sock_.native_handle();
   }
 
-  /**
-   * move parts of the contents of one buffer to the end of another.
-   *
-   * @param send_buf to move to
-   * @param recv_buf to move from
-   * @param to_transfer amount of data to transfer from recv_buf
-   */
-  template <class DstDynamicBuffer, class SrcDynamicBuffer>
-  static void move_buffer(DstDynamicBuffer &&send_buf,
-                          SrcDynamicBuffer &&recv_buf, size_t to_transfer) {
-    auto orig_size = send_buf.size();
+  [[nodiscard]] stdx::expected<void, std::error_code> close() override {
+    return sock_.close();
+  }
 
-    send_buf.grow(to_transfer);
-    auto transferred = net::buffer_copy(send_buf.data(orig_size, to_transfer),
-                                        recv_buf.data(0, to_transfer));
+  [[nodiscard]] stdx::expected<void, std::error_code> cancel() override {
+    return sock_.cancel();
+  }
 
-    recv_buf.consume(transferred);
+  [[nodiscard]] stdx::expected<void, std::error_code> shutdown(
+      net::socket_base::shutdown_type st) override {
+    return sock_.shutdown(st);
+  }
+
+  [[nodiscard]] std::string endpoint() const override {
+    std::ostringstream oss;
+
+    oss << ep_;
+
+    return oss.str();
   }
 
  protected:
-  SslMode source_ssl_mode_;
-  SslMode dest_ssl_mode_;
+  socket_type sock_;
+  endpoint_type ep_;
+};
 
-  std::function<SSL_CTX *()> client_ssl_ctx_getter_;
-  std::function<SSL_CTX *()> server_ssl_ctx_getter_;
+template <class Protocol>
+class RoutingConnection : public RoutingConnectionBase {
+ public:
+  using protocol_type = Protocol;
+  using endpoint_type = typename protocol_type::endpoint;
 
-  State state_{State::SERVER_GREETING};
+  RoutingConnection(endpoint_type ep) : ep_{std::move(ep)} {}
 
-  std::unique_ptr<Channel> client_channel_;
-  std::unique_ptr<Channel> server_channel_;
+  [[nodiscard]] std::vector<std::pair<std::string, std::string>>
+  initial_connection_attributes() const override {
+    return ::initial_connection_attributes(ep_);
+  }
 
-  bool handshake_done_{false};
+  uint64_t reset_error_count(BlockedEndpoints &blocked_endpoints) override {
+    return blocked_endpoints.reset_error_count(ep_);
+  }
 
-  bool client_waiting_send_{false};
-  bool server_waiting_send_{false};
-  bool client_waiting_recv_{false};
-  bool server_waiting_recv_{false};
+  uint64_t increment_error_count(BlockedEndpoints &blocked_endpoints) override {
+    return blocked_endpoints.increment_error_count(ep_);
+  }
 
-  std::vector<std::pair<std::string, std::string>> session_attributes_;
+ private:
+  endpoint_type ep_;
+};
+
+using TcpConnection = BasicConnection<net::ip::tcp>;
+#ifdef NET_TS_HAS_UNIX_SOCKET
+using UnixDomainConnection = BasicConnection<local::stream_protocol>;
+#endif
+
+class ProtocolStateBase {
+ public:
+  virtual ~ProtocolStateBase() = default;
+};
+
+/**
+ * a Connection that can be switched to TLS.
+ *
+ * wraps
+ *
+ * - a low-level connections (conn)
+ * - a routing connection (endpoints, destiantions, ...)
+ * - a tls switchable (a SSL_CTX * wrapper)
+ * - protocol state (classic, xproto)
+ */
+class TlsSwitchableConnection {
+ public:
+  TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
+                          std::unique_ptr<RoutingConnectionBase> routing_conn,
+                          TlsSwitchable tls_switchable,
+                          std::unique_ptr<ProtocolStateBase> state)
+      : conn_{std::move(conn)},
+        routing_conn_{std::move(routing_conn)},
+        tls_switchable_{std::move(tls_switchable)},
+        channel_{std::make_unique<Channel>()},
+        protocol_{std::move(state)} {}
+
+  TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
+                          std::unique_ptr<RoutingConnectionBase> routing_conn,
+                          TlsSwitchable tls_switchable,
+                          std::unique_ptr<Channel> channel,
+                          std::unique_ptr<ProtocolStateBase> state)
+      : conn_{std::move(conn)},
+        routing_conn_{std::move(routing_conn)},
+        tls_switchable_{std::move(tls_switchable)},
+        channel_{std::move(channel)},
+        protocol_{std::move(state)} {}
+
+  [[nodiscard]] std::vector<std::pair<std::string, std::string>>
+  initial_connection_attributes() const {
+    return routing_conn_->initial_connection_attributes();
+  }
+
+  /**
+   * assign a low-level connection.
+   */
+  void assign_connection(std::unique_ptr<ConnectionBase> conn) {
+    conn_ = std::move(conn);
+  }
+
+  /**
+   * async receive data from connection into the channel's receive buffer.
+   *
+   * calls func when async operation is completed.
+   */
+  template <class Func>
+  void async_recv(Func &&func) {
+    harness_assert(conn_ != nullptr);
+    harness_assert(channel_ != nullptr);
+
+    conn_->async_recv(channel_->recv_buffer(), std::forward<Func>(func));
+  }
+
+  /**
+   * async send data from the channel's send buffer to the connection.
+   *
+   * calls func when async operation is completed.
+   */
+  template <class Func>
+  void async_send(Func &&func) {
+    conn_->async_send(channel_->send_buffer(), std::forward<Func>(func));
+  }
+
+  /**
+   * async wait until connection allows to send data.
+   *
+   * calls func when async operation is completed.
+   */
+  template <class Func>
+  void async_wait_send(Func &&func) {
+    conn_->async_wait_send(std::forward<Func>(func));
+  }
+
+  [[nodiscard]] Channel *channel() { return channel_.get(); }
+
+  [[nodiscard]] const Channel *channel() const { return channel_.get(); }
+
+  [[nodiscard]] const TlsSwitchable &tls_switchable() const {
+    return tls_switchable_;
+  }
+
+  [[nodiscard]] bool is_open() const { return conn_ && conn_->is_open(); }
+
+  [[nodiscard]] net::impl::socket::native_handle_type native_handle() const {
+    return conn_->native_handle();
+  }
+
+  [[nodiscard]] stdx::expected<void, std::error_code> close() const {
+    if (!conn_) {
+      return stdx::make_unexpected(make_error_code(std::errc::not_connected));
+    }
+    return conn_->close();
+  }
+
+  [[nodiscard]] stdx::expected<void, std::error_code> shutdown(
+      net::socket_base::shutdown_type st) const {
+    if (!conn_) {
+      return stdx::make_unexpected(make_error_code(std::errc::not_connected));
+    }
+    return conn_->shutdown(st);
+  }
+
+  [[nodiscard]] std::string endpoint() const {
+    if (!is_open()) return "";
+
+    return conn_->endpoint();
+  }
+
+  [[nodiscard]] SSL_CTX *get_ssl_ctx() const {
+    return tls_switchable_.get_ssl_ctx();
+  }
+
+  [[nodiscard]] uint64_t reset_error_count(
+      BlockedEndpoints &blocked_endpoints) {
+    return routing_conn_->reset_error_count(blocked_endpoints);
+  }
+
+  [[nodiscard]] uint64_t increment_error_count(
+      BlockedEndpoints &blocked_endpoints) {
+    return routing_conn_->increment_error_count(blocked_endpoints);
+  }
+
+  [[nodiscard]] stdx::expected<void, std::error_code> cancel() {
+    if (!conn_) return {};
+
+    return conn_->cancel();
+  }
+
+  [[nodiscard]] ProtocolStateBase *protocol() { return protocol_.get(); }
+
+  [[nodiscard]] const ProtocolStateBase *protocol() const {
+    return protocol_.get();
+  }
+
+  std::unique_ptr<ConnectionBase> &connection() { return conn_; }
+
+ private:
+  // tcp/unix-socket
+  std::unique_ptr<ConnectionBase> conn_;
+  std::unique_ptr<RoutingConnectionBase> routing_conn_;
+
+  // tls-state
+  TlsSwitchable tls_switchable_;
+
+  // socket buffers
+  std::unique_ptr<Channel> channel_;
+
+  // higher-level protocol
+  std::unique_ptr<ProtocolStateBase> protocol_;
+};
+
+/**
+ * splices two connections together.
+ */
+class ProtocolSplicerBase {
+ public:
+  ProtocolSplicerBase(TlsSwitchableConnection client_conn,
+                      TlsSwitchableConnection server_conn)
+      : client_conn_{std::move(client_conn)},
+        server_conn_{std::move(server_conn)} {}
+
+  template <class Func>
+  void async_wait_send_server(Func &&func) {
+    server_conn_.async_wait_send(std::forward<Func>(func));
+  }
+
+  template <class Func>
+  void async_recv_server(Func &&func) {
+    server_conn_.async_recv(std::forward<Func>(func));
+  }
+
+  template <class Func>
+  void async_send_server(Func &&func) {
+    server_conn_.async_send(std::forward<Func>(func));
+  }
+
+  template <class Func>
+  void async_recv_client(Func &&func) {
+    client_conn_.async_recv(std::forward<Func>(func));
+  }
+
+  template <class Func>
+  void async_send_client(Func &&func) {
+    client_conn_.async_send(std::forward<Func>(func));
+  }
+
+  [[nodiscard]] TlsSwitchableConnection &client_conn() { return client_conn_; }
+
+  [[nodiscard]] const TlsSwitchableConnection &client_conn() const {
+    return client_conn_;
+  }
+
+  [[nodiscard]] TlsSwitchableConnection &server_conn() { return server_conn_; }
+
+  [[nodiscard]] const TlsSwitchableConnection &server_conn() const {
+    return server_conn_;
+  }
+
+  [[nodiscard]] SslMode source_ssl_mode() const {
+    return client_conn().tls_switchable().ssl_mode();
+  }
+
+  [[nodiscard]] SslMode dest_ssl_mode() const {
+    return server_conn().tls_switchable().ssl_mode();
+  }
+
+  [[nodiscard]] Channel *client_channel() { return client_conn().channel(); }
+
+  [[nodiscard]] const Channel *client_channel() const {
+    return client_conn().channel();
+  }
+
+  [[nodiscard]] Channel *server_channel() { return server_conn().channel(); }
+
+  /**
+   * accept a TLS connection from the client_channel_.
+   */
+  [[nodiscard]] stdx::expected<void, std::error_code> tls_accept() {
+    // write socket data to SSL struct
+    auto *channel = client_conn_.channel();
+
+    {
+      const auto flush_res = channel->flush_from_recv_buf();
+      if (!flush_res) return flush_res.get_unexpected();
+    }
+
+    if (!channel->tls_init_is_finished()) {
+      const auto res = channel->tls_accept();
+
+      // flush the TLS message to the send-buffer.
+      {
+        const auto flush_res = channel->flush_to_send_buf();
+        if (!flush_res) {
+          const auto ec = flush_res.error();
+          if (ec != make_error_code(std::errc::operation_would_block)) {
+            return flush_res.get_unexpected();
+          }
+        }
+      }
+
+      if (!res) {
+        return res.get_unexpected();
+      }
+    }
+
+    return {};
+  }
+
+ protected:
+  TlsSwitchableConnection client_conn_;
+  TlsSwitchableConnection server_conn_;
 };
 
 #endif

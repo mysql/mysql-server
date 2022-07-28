@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -429,10 +429,10 @@ order_node_t *pars_order_by(
   node->column = column;
 
   if (asc == &pars_asc_token) {
-    node->asc = TRUE;
+    node->asc = true;
   } else {
     ut_a(asc == &pars_desc_token);
-    node->asc = FALSE;
+    node->asc = false;
   }
 
   return (node);
@@ -441,17 +441,17 @@ order_node_t *pars_order_by(
 /** Determine if a data type is a built-in string data type of the InnoDB
  SQL parser.
  @return true if string data type */
-static ibool pars_is_string_type(ulint mtype) /*!< in: main data type */
+static bool pars_is_string_type(ulint mtype) /*!< in: main data type */
 {
   switch (mtype) {
     case DATA_VARCHAR:
     case DATA_CHAR:
     case DATA_FIXBINARY:
     case DATA_BINARY:
-      return (TRUE);
+      return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Resolves the data type of a function in an expression. The argument data
@@ -597,7 +597,7 @@ static void pars_resolve_exp_variables_and_types(
 
   ut_a(node);
 
-  sym_node->resolved = TRUE;
+  sym_node->resolved = true;
   sym_node->token_type = SYM_IMPLICIT_VAR;
   sym_node->alias = node;
   sym_node->indirection = node;
@@ -678,7 +678,7 @@ static void pars_resolve_exp_columns(
       if ((sym_node->name_len == ut_strlen(col_name)) &&
           (0 == ut_memcmp(sym_node->name, col_name, sym_node->name_len))) {
         /* Found */
-        sym_node->resolved = TRUE;
+        sym_node->resolved = true;
         sym_node->token_type = SYM_COLUMN;
         sym_node->table = table;
         sym_node->col_no = i;
@@ -717,7 +717,7 @@ static void pars_retrieve_table_def(sym_node_t *sym_node) /*!< in: table node */
   if (sym_node->token_type != SYM_TABLE_REF_COUNTED) {
     ut_a(sym_node->table == nullptr);
 
-    sym_node->resolved = TRUE;
+    sym_node->resolved = true;
     sym_node->token_type = SYM_TABLE_REF_COUNTED;
 
     THD *thd = current_thd;
@@ -836,9 +836,9 @@ static void pars_check_aggregate(
   if (n_aggregate_nodes > 0) {
     ut_a(n_nodes == n_aggregate_nodes);
 
-    select_node->is_aggregate = TRUE;
+    select_node->is_aggregate = true;
   } else {
-    select_node->is_aggregate = FALSE;
+    select_node->is_aggregate = false;
   }
 }
 
@@ -885,22 +885,22 @@ sel_node_t *pars_select_statement(
   if (for_update) {
     ut_a(!lock_shared);
 
-    select_node->set_x_locks = TRUE;
+    select_node->set_x_locks = true;
     select_node->row_lock_mode = LOCK_X;
 
-    select_node->consistent_read = FALSE;
+    select_node->consistent_read = false;
     select_node->read_view = nullptr;
   } else if (lock_shared) {
-    select_node->set_x_locks = FALSE;
+    select_node->set_x_locks = false;
     select_node->row_lock_mode = LOCK_S;
 
-    select_node->consistent_read = FALSE;
+    select_node->consistent_read = false;
     select_node->read_view = nullptr;
   } else {
-    select_node->set_x_locks = FALSE;
+    select_node->set_x_locks = false;
     select_node->row_lock_mode = LOCK_S;
 
-    select_node->consistent_read = TRUE;
+    select_node->consistent_read = true;
   }
 
   select_node->order_by = order_by;
@@ -912,7 +912,7 @@ sel_node_t *pars_select_statement(
   /* The final value of the following fields depend on the environment
   where the select statement appears: */
 
-  select_node->can_get_updated = FALSE;
+  select_node->can_get_updated = false;
   select_node->explicit_cursor = nullptr;
 
   opt_search_plan(select_node);
@@ -927,7 +927,7 @@ que_node_t *pars_cursor_declaration(
                              table */
     sel_node_t *select_node) /*!< in: select node */
 {
-  sym_node->resolved = TRUE;
+  sym_node->resolved = true;
   sym_node->token_type = SYM_CURSOR;
   sym_node->cursor_def = select_node;
 
@@ -943,7 +943,7 @@ que_node_t *pars_function_declaration(
     sym_node_t *sym_node) /*!< in: function id node in the symbol
                           table */
 {
-  sym_node->resolved = TRUE;
+  sym_node->resolved = true;
   sym_node->token_type = SYM_FUNCTION;
 
   /* Check that the function exists. */
@@ -955,7 +955,7 @@ que_node_t *pars_function_declaration(
 /** Parses a delete or update statement start.
  @return own: update node in a query tree */
 upd_node_t *pars_update_statement_start(
-    ibool is_delete,                    /*!< in: TRUE if delete */
+    bool is_delete,                     /*!< in: true if delete */
     sym_node_t *table_sym,              /*!< in: table name node */
     col_assign_node_t *col_assign_list) /*!< in: column assignment list, NULL
                                      if delete */
@@ -1016,18 +1016,18 @@ static void pars_process_assign_list(upd_node_t *node) /*!< in: update node */
     pars_resolve_exp_columns(table_sym, assign_node->val);
     pars_resolve_exp_variables_and_types(nullptr, assign_node->val);
 #if 0
-		ut_a(dtype_get_mtype(
-			     dfield_get_type(que_node_get_val(
-						     assign_node->col)))
-		     == dtype_get_mtype(
-			     dfield_get_type(que_node_get_val(
-						     assign_node->val))));
+                ut_a(dtype_get_mtype(
+                             dfield_get_type(que_node_get_val(
+                                                     assign_node->col)))
+                     == dtype_get_mtype(
+                             dfield_get_type(que_node_get_val(
+                                                     assign_node->val))));
 #endif
 
     /* Add to the update node all the columns found in assignment
-    values as columns to copy: therefore, TRUE */
+    values as columns to copy: therefore, true */
 
-    opt_find_all_cols(TRUE, clust_index, &(node->columns), nullptr,
+    opt_find_all_cols(true, clust_index, &(node->columns), nullptr,
                       assign_node->val);
     n_assigns++;
 
@@ -1047,7 +1047,7 @@ static void pars_process_assign_list(upd_node_t *node) /*!< in: update node */
     col_sym = assign_node->col;
 
     upd_field_set_field_no(upd_field, clust_index->get_col_pos(col_sym->col_no),
-                           clust_index, nullptr);
+                           clust_index);
     upd_field->exp = assign_node->val;
 
     if (!clust_index->get_col(upd_field->field_no)
@@ -1098,13 +1098,13 @@ upd_node_t *pars_update_statement(
 
     sel_node = cursor_sym->alias->cursor_def;
 
-    node->searched_update = FALSE;
+    node->searched_update = false;
   } else {
     sel_node = pars_select_list(nullptr, nullptr);
 
     pars_select_statement(sel_node, table_sym, search_cond, nullptr,
                           &pars_share_token, nullptr);
-    node->searched_update = TRUE;
+    node->searched_update = true;
     sel_node->common.parent = node;
   }
 
@@ -1120,28 +1120,28 @@ upd_node_t *pars_update_statement(
   }
 
   if (node->searched_update) {
-    node->has_clust_rec_x_lock = TRUE;
-    sel_node->set_x_locks = TRUE;
+    node->has_clust_rec_x_lock = true;
+    sel_node->set_x_locks = true;
     sel_node->row_lock_mode = LOCK_X;
   } else {
     node->has_clust_rec_x_lock = sel_node->set_x_locks;
   }
 
   ut_a(sel_node->n_tables == 1);
-  ut_a(sel_node->consistent_read == FALSE);
+  ut_a(sel_node->consistent_read == false);
   ut_a(sel_node->order_by == nullptr);
-  ut_a(sel_node->is_aggregate == FALSE);
+  ut_a(sel_node->is_aggregate == false);
 
-  sel_node->can_get_updated = TRUE;
+  sel_node->can_get_updated = true;
 
   node->state = UPD_NODE_UPDATE_CLUSTERED;
 
   plan = sel_node_get_nth_plan(sel_node, 0);
 
-  plan->no_prefetch = TRUE;
+  plan->no_prefetch = true;
 
   if (!plan->index->is_clustered()) {
-    plan->must_get_clust = TRUE;
+    plan->must_get_clust = true;
 
     node->pcur = &(plan->clust_pcur);
   } else {
@@ -1207,9 +1207,9 @@ static void pars_set_dfield_type(dfield_t *dfield,      /*!< in: dfield */
                                  pars_res_word_t *type, /*!< in: pointer to a
                                                         type token */
                                  ulint len,             /*!< in: length, or 0 */
-                                 ibool is_unsigned, /*!< in: if TRUE, column is
+                                 bool is_unsigned, /*!< in: if true, column is
                                                     UNSIGNED. */
-                                 ibool is_not_null) /*!< in: if TRUE, column is
+                                 bool is_not_null) /*!< in: if true, column is
                                                     NOT NULL. */
 {
   ulint flags = 0;
@@ -1256,12 +1256,12 @@ sym_node_t *pars_variable_declaration(
                            id of the variable */
     pars_res_word_t *type) /*!< in: pointer to a type token */
 {
-  node->resolved = TRUE;
+  node->resolved = true;
   node->token_type = SYM_VAR;
 
   node->param_type = PARS_NOT_PARAM;
 
-  pars_set_dfield_type(que_node_get_val(node), type, 0, FALSE, FALSE);
+  pars_set_dfield_type(que_node_get_val(node), type, 0, false, false);
 
   return (node);
 }
@@ -1589,38 +1589,13 @@ sym_node_t *pars_column_def(sym_node_t *sym_node,  /*!< in: column node in the
   return (sym_node);
 }
 
-/** Parses a table creation operation.
-@param[in]	table_sym		table name node in the symbol table
-@param[in]	column_defs		list of column names
-@param[in]	not_fit_in_memory	a non-NULL pointer means that this is a
-                                        table which in simulations should be
-                                        simulated as not fitting in memory;
-                                        thread is put to sleep to simulate disk
-                                        accesses; NOTE that this flag is not
-                                        stored to the data dictionary on disk,
-                                        and the database will forget about
-                                        non-NULL value if it has to reload the
-                                        table definition from disk
-@param[in]	compact			non-NULL if COMPACT table
-@param[in]	block_size		block size (can be NULL)
-@return table create subgraph */
-tab_node_t *pars_create_table(sym_node_t *table_sym, sym_node_t *column_defs,
-                              sym_node_t *compact, sym_node_t *block_size,
-                              void *not_fit_in_memory [[maybe_unused]]) {
+tab_node_t *pars_create_table(sym_node_t *, sym_node_t *, sym_node_t *,
+                              sym_node_t *, void *) {
   return (nullptr);
 }
 
-/** Parses an index creation operation.
- @return index create subgraph */
-ind_node_t *pars_create_index(
-    pars_res_word_t *unique_def,    /*!< in: not NULL if a unique index */
-    pars_res_word_t *clustered_def, /*!< in: not NULL if a clustered index */
-    sym_node_t *index_sym,          /*!< in: index name node in the symbol
-                                    table */
-    sym_node_t *table_sym,          /*!< in: table name node in the symbol
-                                    table */
-    sym_node_t *column_list)        /*!< in: list of column names */
-{
+ind_node_t *pars_create_index(pars_res_word_t *, pars_res_word_t *,
+                              sym_node_t *, sym_node_t *, sym_node_t *) {
   return (nullptr);
 }
 
@@ -1650,7 +1625,7 @@ que_fork_t *pars_procedure_definition(
   node->common.parent = thr;
 
   sym_node->token_type = SYM_PROCEDURE_NAME;
-  sym_node->resolved = TRUE;
+  sym_node->resolved = true;
 
   node->proc_id = sym_node;
   node->param_list = param_list;
@@ -1714,7 +1689,7 @@ que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
 
   ut_ad(str);
 
-  heap = mem_heap_create(16000);
+  heap = mem_heap_create(16000, UT_LOCATION_HERE);
 
   /* Currently, the parser is not reentrant: */
   ut_ad(mutex_own(&pars_mutex));
@@ -1749,11 +1724,11 @@ que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
 /** Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
-@param[in]	node		root node for an incomplete query
+@param[in]      node            root node for an incomplete query
                                 graph, or NULL for dummy graph
-@param[in]	trx		transaction handle
-@param[in]	heap		memory heap from which allocated
-@param[in]	prebuilt	row prebuilt structure
+@param[in]      trx             transaction handle
+@param[in]      heap            memory heap from which allocated
+@param[in]      prebuilt        row prebuilt structure
 @return query thread node to run */
 que_thr_t *pars_complete_graph_for_exec(que_node_t *node, trx_t *trx,
                                         mem_heap_t *heap,
@@ -1783,7 +1758,7 @@ pars_info_t *pars_info_create(void) {
   pars_info_t *info;
   mem_heap_t *heap;
 
-  heap = mem_heap_create(512);
+  heap = mem_heap_create(512, UT_LOCATION_HERE);
 
   info = static_cast<pars_info_t *>(mem_heap_alloc(heap, sizeof(*info)));
 
@@ -1791,7 +1766,7 @@ pars_info_t *pars_info_create(void) {
   info->funcs = nullptr;
   info->bound_lits = nullptr;
   info->bound_ids = nullptr;
-  info->graph_owns_us = TRUE;
+  info->graph_owns_us = true;
 
   return (info);
 }
@@ -1917,7 +1892,7 @@ new entry.
 @param[in]  name  Name
 @param[in]  val   Value */
 void pars_info_bind_int4_literal(pars_info_t *info, const char *name,
-                                 const ib_uint32_t *val) {
+                                 const uint32_t *val) {
   pars_bound_lit_t *pbl;
 
   pbl = pars_info_lookup_bound_lit(info, name);
@@ -1938,7 +1913,7 @@ new entry.
 @param[in]  name  Name
 @param[in]  val   Value */
 void pars_info_bind_int8_literal(pars_info_t *info, const char *name,
-                                 const ib_uint64_t *val) {
+                                 const uint64_t *val) {
   pars_bound_lit_t *pbl;
 
   pbl = pars_info_lookup_bound_lit(info, name);
@@ -1963,7 +1938,7 @@ void pars_info_bind_int8_literal(pars_info_t *info, const char *name,
  heap. */
 void pars_info_add_ull_literal(pars_info_t *info, /*!< in: info struct */
                                const char *name,  /*!< in: name */
-                               ib_uint64_t val)   /*!< in: value */
+                               uint64_t val)      /*!< in: value */
 {
   byte *buf = static_cast<byte *>(mem_heap_alloc(info->heap, 8));
 
@@ -1978,7 +1953,7 @@ void pars_info_add_ull_literal(pars_info_t *info, /*!< in: info struct */
 @param[in] name Name
 @param[in] val Value */
 void pars_info_bind_ull_literal(pars_info_t *info, const char *name,
-                                const ib_uint64_t *val) {
+                                const uint64_t *val) {
   pars_bound_lit_t *pbl;
 
   pbl = pars_info_lookup_bound_lit(info, name);
@@ -2023,11 +1998,11 @@ void pars_info_bind_function(pars_info_t *info, const char *name,
 }
 
 /** Add bound id.
-@param[in]	info		info struct
-@param[in]	copy_name	copy name if TRUE
-@param[in]	name		name
-@param[in]	id		id */
-void pars_info_bind_id(pars_info_t *info, ibool copy_name, const char *name,
+@param[in]      info            info struct
+@param[in]      copy_name       copy name if true
+@param[in]      name            name
+@param[in]      id              id */
+void pars_info_bind_id(pars_info_t *info, bool copy_name, const char *name,
                        const char *id) {
   pars_bound_id_t *bid;
 
@@ -2046,15 +2021,15 @@ void pars_info_bind_id(pars_info_t *info, ibool copy_name, const char *name,
     bid = static_cast<pars_bound_id_t *>(
         ib_vector_push(info->bound_ids, nullptr));
 
-    bid->name = (copy_name) ? mem_heap_strdup(info->heap, name) : name;
+    bid->name = copy_name ? mem_heap_strdup(info->heap, name) : name;
   }
 
   bid->id = id;
 }
 
 /** Get bound identifier with the given name.
-@param[in]	info	info struct
-@param[in]	name	bound id name to find
+@param[in]      info    info struct
+@param[in]      name    bound id name to find
 @return bound id, or NULL if not found */
 pars_bound_id_t *pars_info_get_bound_id(pars_info_t *info, const char *name) {
   return (pars_info_lookup_bound_id(info, name));

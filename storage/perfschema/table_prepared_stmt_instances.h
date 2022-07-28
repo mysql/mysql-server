@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,12 +68,10 @@ struct row_prepared_stmt_instances {
   enum_object_type m_owner_object_type;
 
   /** Column OWNER_OBJECT_SCHEMA */
-  char m_owner_object_schema[COL_OBJECT_SCHEMA_SIZE];
-  int m_owner_object_schema_length;
+  PFS_schema_name m_owner_object_schema;
 
   /** Column OWNER_OBJECT_NAME */
-  char m_owner_object_name[COL_OBJECT_NAME_SIZE];
-  int m_owner_object_name_length;
+  PFS_object_name m_owner_object_name;
 
   /** Columns TIMER_PREPARE. */
   PFS_stat_row m_prepare_stat;
@@ -81,13 +79,16 @@ struct row_prepared_stmt_instances {
   /** Columns COUNT_REPREPARE. */
   PFS_stat_row m_reprepare_stat;
 
+  /** Column EXECUTION_ENGINE. */
+  bool m_secondary;
+
   /** Columns COUNT_STAR...SUM_NO_GOOD_INDEX_USED. */
   PFS_statement_stat_row m_execute_stat;
 };
 
 class PFS_index_prepared_stmt_instances : public PFS_engine_index {
  public:
-  PFS_index_prepared_stmt_instances(PFS_engine_key *key_1)
+  explicit PFS_index_prepared_stmt_instances(PFS_engine_key *key_1)
       : PFS_engine_index(key_1) {}
 
   PFS_index_prepared_stmt_instances(PFS_engine_key *key_1,

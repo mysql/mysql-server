@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,10 @@
 
 #ifndef NdbDictionary_H
 #define NdbDictionary_H
+
+#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+#include <memory>
+#endif
 
 #include <ndb_types.h>
 
@@ -2305,24 +2309,23 @@ public:
        */
       List& operator=(const List&) = default;
       struct Element {
-	unsigned id;            ///< Id of object
+        unsigned id;            ///< Id of object
         Object::Type type;      ///< Type of object
         Object::State state;    ///< State of object
         Object::Store store;    ///< How object is logged
         Uint32 temp;            ///< Temporary status of object
-	char * database;        ///< In what database the object resides 
-	char * schema;          ///< What schema the object is defined in
-	char * name;            ///< Name of object
+        char * database;        ///< In what database the object resides
+        char * schema;          ///< What schema the object is defined in
+        char * name;            ///< Name of object
         Element() :
           id(0),
           type(Object::TypeUndefined),
           state(Object::StateUndefined),
           store(Object::StoreUndefined),
           temp(NDB_TEMP_TAB_PERMANENT),
-	  database(0),
-	  schema(0),
-          name(0) {
-        }
+          database(0),
+          schema(0),
+          name(0) { }
         /* qsort compare functions */
         static int compareByName(const void * p, const void * q);
         static int compareById(const void * p, const void * q);
@@ -2330,7 +2333,7 @@ public:
       unsigned count;           ///< Number of elements in list
       Element * elements;       ///< Pointer to array of elements
       List() : count(0), elements(0) {}
-      ~List() {
+      void clear() {
         if (elements != 0) {
           for (unsigned i = 0; i < count; i++) {
             delete[] elements[i].database;
@@ -2343,6 +2346,7 @@ public:
           elements = 0;
         }
       }
+      ~List() { clear(); }
       void sortById();
       void sortByName();
     };
@@ -2355,7 +2359,9 @@ public:
     /**
      * Fetch list of all objects, optionally restricted to given type.
      *
-     * @param list   List of objects returned in the dictionary
+     * @param list   List of objects returned in the dictionary.
+     *               The list must be empty. The caller can clear() a
+     *               previously-used list before reusing it.
      * @param type   Restrict returned list to only contain objects of
      *               this type
      *
@@ -2429,7 +2435,9 @@ public:
 
     /**
      * Fetch list of indexes of given table.
-     * @param list  Reference to list where to store the listed indexes
+     * @param list  Reference to list where to store the listed indexes.
+     *              The list must be empty. A previously-used list can
+     *              be cleared for reuse using list.clear().
      * @param tableName  Name of table that index belongs to.
      * @note Calling function with fullyQualified set to false will
      *       return fully qualified names i.e reversed logic
@@ -2480,15 +2488,23 @@ public:
     int dropEvent(const char * eventName, int force= 0);
     
     /**
-     * Get event with given name.
+     * Get event instance for given name.
      * @param eventName  Name of event to get.
      * @return an Event if successful, otherwise NULL.
+     *
+     * @note The returned Event need to be released with `releaseEvent`
      */
     const Event * getEvent(const char * eventName);
 
     /**
+     * Release event previously returned from getEvent()
+     * @param event    The event to release
+     */
+    static void releaseEvent(const Event* event);
+
+    /**
      * List defined events
-     * @param list   List of events returned in the dictionary
+     * @param list   Empty list to hold events returned in the dictionary
      * @return 0 if successful otherwise -1.
      */
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
@@ -2967,6 +2983,17 @@ public:
                                     const NdbDataPrintFormat& format,
                                     const NdbDictionary::Column* c,
                                     const void* val);
+  static
+  class NdbOut& printColumnTypeDescription(class NdbOut &, const Column &);
+
+#if __cplusplus >= 201103L  || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+  // RAII support for the Event returned from Dictionary::getEvent()
+  struct Event_deleter {
+    void operator()(const Event *event) { Dictionary::releaseEvent(event); }
+  };
+  using Event_ptr = std::unique_ptr<const Event, Event_deleter>;
+#endif
+
   
 }; // class NdbDictionary
 

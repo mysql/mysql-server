@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ class Ndb_component {
   /**
    * Con/de-structor is protected...so that sub-class needs to provide own
    */
-  Ndb_component(const char *name);
+  Ndb_component(const char *name, const char *psi_name);
   virtual ~Ndb_component();
 
   /**
@@ -125,11 +125,13 @@ class Ndb_component {
 
   ThreadState m_thread_state;
   my_thread_handle m_thread;
+  PSI_thread_key m_psi_thread_key;
   mysql_mutex_t m_start_stop_mutex;
   mysql_cond_t m_start_stop_cond;
   bool m_server_started;  // Protected by m_start_stop_mutex
 
   const char *m_name;
+  const char *m_psi_name;  // Name for PS, max 16 char, lowercase
 
   void run_impl();
   friend void *Ndb_component_run_C(void *);

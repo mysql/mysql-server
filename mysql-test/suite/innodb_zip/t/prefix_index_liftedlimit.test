@@ -532,6 +532,7 @@ CREATE INDEX prefix_idx5 ON worklog5743(col_5_text (3072));
 --error ER_UNDO_RECORD_TOO_BIG
 UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
 WHERE col_1_varbinary = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+--skip_if_hypergraph  # Different warnings.
 SHOW WARNINGS;
 DROP TABLE worklog5743;
 

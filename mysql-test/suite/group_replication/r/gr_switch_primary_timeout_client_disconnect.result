@@ -1,0 +1,36 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 secondary.
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 2. Add a debug point to block the primary change on validation.
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+
+# 3. Start a primary change on server 1 using connection client_disconnect
+[connection client_disconnect]
+SELECT group_replication_set_as_primary("MEMBER2_UUID", 60);
+
+# 4. Wait for the THD_transaction_monitor thread to start.
+[connection server1]
+
+# 5. Disconnect the client_disconnect connection.
+#    And signal the operation to run.
+SET DEBUG_SYNC = "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+
+# 6. Check the monitor thread exited.
+[connection server1]
+include/gr_assert_secondary_member.inc
+[connection server2]
+include/gr_assert_primary_member.inc
+
+# 7. Cleanup
+include/group_replication_end.inc

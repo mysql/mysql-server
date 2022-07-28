@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -93,6 +93,8 @@ Plugin_table table_events_statements_current::m_table_def(
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
     "  STATEMENT_ID BIGINT unsigned,\n"
+    "  CPU_TIME BIGINT unsigned not null,\n"
+    "  EXECUTION_ENGINE ENUM ('PRIMARY', 'SECONDARY'),\n"
     "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -164,6 +166,8 @@ Plugin_table table_events_statements_history::m_table_def(
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
     "  STATEMENT_ID BIGINT unsigned,\n"
+    "  CPU_TIME BIGINT unsigned not null,\n"
+    "  EXECUTION_ENGINE ENUM ('PRIMARY', 'SECONDARY'),\n"
     "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -234,7 +238,9 @@ Plugin_table table_events_statements_history_long::m_table_def(
     "  NESTING_EVENT_ID BIGINT unsigned,\n"
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
-    "  STATEMENT_ID BIGINT unsigned\n",
+    "  STATEMENT_ID BIGINT unsigned,\n"
+    "  CPU_TIME BIGINT unsigned not null,\n"
+    "  EXECUTION_ENGINE ENUM ('PRIMARY', 'SECONDARY')\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -320,22 +326,11 @@ int table_events_statements_common::make_row_part_1(
   m_row.m_name = klass->m_name.str();
   m_row.m_name_length = klass->m_name.length();
 
-  m_row.m_current_schema_name_length = statement->m_current_schema_name_length;
-  if (m_row.m_current_schema_name_length > 0)
-    memcpy(m_row.m_current_schema_name, statement->m_current_schema_name,
-           m_row.m_current_schema_name_length);
+  m_row.m_current_schema_name = statement->m_current_schema_name;
 
   m_row.m_object_type = statement->m_sp_type;
-
-  m_row.m_schema_name_length = statement->m_schema_name_length;
-  if (m_row.m_schema_name_length > 0)
-    memcpy(m_row.m_schema_name, statement->m_schema_name,
-           m_row.m_schema_name_length);
-
-  m_row.m_object_name_length = statement->m_object_name_length;
-  if (m_row.m_object_name_length > 0)
-    memcpy(m_row.m_object_name, statement->m_object_name,
-           m_row.m_object_name_length);
+  m_row.m_schema_name = statement->m_schema_name;
+  m_row.m_object_name = statement->m_object_name;
 
   make_source_column(statement->m_source_file, statement->m_source_line,
                      m_row.m_source, sizeof(m_row.m_source),
@@ -364,6 +359,8 @@ int table_events_statements_common::make_row_part_1(
   m_row.m_sort_scan = statement->m_sort_scan;
   m_row.m_no_index_used = statement->m_no_index_used;
   m_row.m_no_good_index_used = statement->m_no_good_index_used;
+  m_row.m_cpu_time = statement->m_cpu_time * NANOSEC_TO_PICOSEC;
+  m_row.m_secondary = statement->m_secondary;
 
   /* Copy the digest storage. */
   digest->copy(&statement->m_digest_storage);
@@ -498,35 +495,20 @@ int table_events_statements_common::read_row_values(TABLE *table,
           }
           break;
         case 12: /* CURRENT_SCHEMA */
-          if (m_row.m_current_schema_name_length)
-            set_field_varchar_utf8(f, m_row.m_current_schema_name,
-                                   m_row.m_current_schema_name_length);
-          else {
-            f->set_null();
-          }
+          set_nullable_field_schema_name(f, &m_row.m_current_schema_name);
           break;
         case 13: /* OBJECT_TYPE */
-          if (m_row.m_object_name_length > 0) {
+          if (m_row.m_object_name.length() > 0) {
             set_field_object_type(f, m_row.m_object_type);
           } else {
             f->set_null();
           }
           break;
         case 14: /* OBJECT_SCHEMA */
-          if (m_row.m_schema_name_length)
-            set_field_varchar_utf8(f, m_row.m_schema_name,
-                                   m_row.m_schema_name_length);
-          else {
-            f->set_null();
-          }
+          set_nullable_field_schema_name(f, &m_row.m_schema_name);
           break;
         case 15: /* OBJECT_NAME */
-          if (m_row.m_object_name_length)
-            set_field_varchar_utf8(f, m_row.m_object_name,
-                                   m_row.m_object_name_length);
-          else {
-            f->set_null();
-          }
+          set_nullable_field_object_name(f, &m_row.m_object_name);
           break;
         case 16: /* OBJECT_INSTANCE_BEGIN */
           f->set_null();
@@ -626,6 +608,12 @@ int table_events_statements_common::read_row_values(TABLE *table,
           } else {
             f->set_null();
           }
+          break;
+        case 42: /* CPU_TIME */
+          set_field_ulonglong(f, m_row.m_cpu_time);
+          break;
+        case 43: /* EXECUTION_ENGINE */
+          set_field_enum(f, m_row.m_secondary ? ENUM_SECONDARY : ENUM_PRIMARY);
           break;
         default:
           assert(false);

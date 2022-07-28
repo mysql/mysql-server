@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0load.h"
 #include "ddl0impl-cursor.h"
 #include "ddl0impl-rtree.h"
+#include "log0chkp.h"
 #include "row0vers.h"
 
 namespace ddl {
@@ -39,8 +40,8 @@ RTree_inserter::RTree_inserter(Context &ctx, dict_index_t *index) noexcept
     : m_dtuples(ut::new_withkey<Tuples>(ut::make_psi_memory_key(mem_key_ddl))),
       m_index(index),
       m_ctx(ctx) {
-  m_dml_heap = mem_heap_create(512);
-  m_dtuple_heap = mem_heap_create(512);
+  m_dml_heap = mem_heap_create(512, UT_LOCATION_HERE);
+  m_dtuple_heap = mem_heap_create(512, UT_LOCATION_HERE);
 }
 
 RTree_inserter::~RTree_inserter() noexcept {
@@ -104,7 +105,7 @@ dberr_t RTree_inserter::batch_insert(trx_id_t trx_id,
 
     ut_ad(dtuple != nullptr);
 
-    if (log_needs_free_check() IF_DEBUG(|| force_log_free_check)) {
+    if (log_free_check_is_required() IF_DEBUG(|| force_log_free_check)) {
       if (!latches_released) {
         deep_copy_tuples(it);
 
@@ -175,7 +176,7 @@ dberr_t RTree_inserter::batch_insert(trx_id_t trx_id,
 
     if (err == DB_SUCCESS) {
       if (rtr_info.mbr_adj) {
-        err = rtr_ins_enlarge_mbr(&cursor, nullptr, &mtr);
+        err = rtr_ins_enlarge_mbr(&cursor, &mtr);
       }
 
       if (err == DB_SUCCESS) {

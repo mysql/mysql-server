@@ -11,37 +11,7 @@ SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
 # Make sure that transactions will not finish prematurely
 SET @@global.innodb_lock_wait_timeout = 20;
 
-# This is just to identify transactions easily as con1,con2,con3 in show_locks()
-CREATE TABLE t0 (id INT NOT NULL PRIMARY KEY);
-INSERT INTO t0 VALUES (1), (2), (3);
-
-DELIMITER //;
-CREATE PROCEDURE show_locks ()
-BEGIN
-  SELECT engine_transaction_id INTO @con1
-    FROM performance_schema.data_locks
-    WHERE object_name = 't0' AND lock_data = '1';
-  SELECT engine_transaction_id INTO @con2
-    FROM performance_schema.data_locks
-    WHERE object_name = 't0' AND lock_data = '2';
-  SELECT engine_transaction_id INTO @con3
-    FROM performance_schema.data_locks
-    WHERE object_name = 't0' AND lock_data = '3';
-
-  SELECT
-    CASE engine_transaction_id
-      WHEN @con1 THEN "con1"
-      WHEN @con2 THEN "con2"
-      WHEN @con3 THEN "con3"
-      ELSE "unknown"
-    END connection,index_name,lock_type,lock_mode,lock_status,lock_data
-    FROM performance_schema.data_locks
-    WHERE object_name = 't1'
-    ORDER BY 1,2,3,4,5,6;
-
-END //
-DELIMITER ;//
-
+--source ../include/prepare_show_locks.inc
 
 # Scenario for a deadlock which can be undetected if we move granted gap lock
 # in front of waiting insert intention lock.
@@ -89,14 +59,16 @@ DELIMITER ;//
   # These SELECTS are just to identify transactions easily as con1,con2,con3 in
   # show_locks() by checking which row is locked by which.
   --connect (con1, localhost, root,,)
+    CALL register_connection("con1");
     BEGIN;
-    SELECT * FROM t0 WHERE id=1 FOR UPDATE;
+
   --connect (con2, localhost, root,,)
+    CALL register_connection("con2");
     BEGIN;
-    SELECT * FROM t0 WHERE id=2 FOR UPDATE;
+
   --connect (con3, localhost, root,,)
+    CALL register_connection("con3");
     BEGIN;
-    SELECT * FROM t0 WHERE id=3 FOR UPDATE;
 
   --echo # 1. con1 obtains a GRANTED LOCK_GAP on gap before row id=3
   --connection con1
@@ -176,7 +148,7 @@ DELIMITER ;//
 
 
 
-DROP PROCEDURE show_locks;
-DROP TABLE t0;
+--source ../include/cleanup_show_locks.inc
+
 # Restore saved settings
 SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved ;

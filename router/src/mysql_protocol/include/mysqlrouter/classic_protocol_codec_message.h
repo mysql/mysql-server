@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1079,7 +1079,7 @@ class Codec<message::server::Row>
       // field may other be a Null or a VarString
       auto null_res = accu.template try_step<wire::Null>();
       if (null_res) {
-        fields.emplace_back(stdx::unexpected<void>());
+        fields.emplace_back(std::nullopt);
       } else {
         auto field_res = accu.template step<wire::VarString>();
         if (!field_res) return stdx::make_unexpected(field_res.error());
@@ -1281,7 +1281,7 @@ class Codec<message::server::StmtRow>
 
         values.push_back(value_res->value());
       } else {
-        values.emplace_back(stdx::make_unexpected());
+        values.emplace_back(std::nullopt);
       }
     }
 
@@ -1388,7 +1388,7 @@ enum class CommandByte {
   BinlogDump,
   TableDump,
   ConnectOut,
-  RegisterSlave,
+  RegisterReplica,
   StmtPrepare,
   StmtExecute,
   StmtSendLongData,
@@ -2009,7 +2009,7 @@ class Codec<message::client::StmtExecute>
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
     std::vector<classic_protocol::field_type::value_type> types;
-    std::vector<stdx::expected<std::string, void>> values;
+    std::vector<std::optional<std::string>> values;
 
     if (new_params_bound_res->value()) {
       const auto nullbits = std::move(nullbits_res->value());
@@ -2083,12 +2083,13 @@ class Codec<message::client::StmtExecute>
           }
           auto value_res =
               accu.template step<wire::String>(field_size_res.value());
-          if (!accu.result())
+          if (!accu.result()) {
             return stdx::make_unexpected(accu.result().error());
+          }
 
           values.push_back(value_res->value());
         } else {
-          values.emplace_back(stdx::make_unexpected());
+          values.emplace_back(std::nullopt);
         }
       }
     }
@@ -2814,6 +2815,256 @@ class Codec<message::client::ChangeUser>
         value_type(username_res->value(), auth_method_data_res->value(),
                    schema_res->value(), collation_res->value(),
                    auth_method_name_res->value(), attributes_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for client's Clone command.
+ *
+ * response: server::Ok or server::Error
+ */
+template <>
+class Codec<message::client::Clone>
+    : public CodecSimpleCommand<Codec<message::client::Clone>,
+                                message::client::Clone> {
+ public:
+  using value_type = message::client::Clone;
+  using __base = CodecSimpleCommand<Codec<value_type>, value_type>;
+
+  constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Clone);
+  }
+};
+
+/**
+ * codec for client side dump-binlog message.
+ */
+template <>
+class Codec<message::client::BinlogDump>
+    : public impl::EncodeBase<Codec<message::client::BinlogDump>> {
+ public:
+  using value_type = message::client::BinlogDump;
+
+ private:
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::FixedInt<4>(v_.position()))
+        .step(wire::FixedInt<2>(v_.flags().underlying_value()))
+        .step(wire::FixedInt<4>(v_.server_id()))
+        .step(wire::String(v_.filename()))
+        .result();
+  }
+
+ public:
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::BinlogDump);
+  }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+    auto position_res = accu.template step<wire::FixedInt<4>>();
+    auto flags_res = accu.template step<wire::FixedInt<2>>();
+    auto server_id_res = accu.template step<wire::FixedInt<4>>();
+
+    auto filename_res = accu.template step<wire::String>();
+
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    stdx::flags<value_type::Flags> flags;
+    flags.underlying_value(flags_res->value());
+
+    return std::make_pair(
+        accu.result().value(),
+        value_type(flags, server_id_res->value(), filename_res->value(),
+                   position_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for client side register-replica message.
+ */
+template <>
+class Codec<message::client::RegisterReplica>
+    : public impl::EncodeBase<Codec<message::client::RegisterReplica>> {
+ public:
+  using value_type = message::client::RegisterReplica;
+
+ private:
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::FixedInt<4>(v_.server_id()))
+        .step(wire::FixedInt<1>(v_.hostname().size()))
+        .step(wire::String(v_.hostname()))
+        .step(wire::FixedInt<1>(v_.username().size()))
+        .step(wire::String(v_.username()))
+        .step(wire::FixedInt<1>(v_.password().size()))
+        .step(wire::String(v_.password()))
+        .step(wire::FixedInt<2>(v_.port()))
+        .step(wire::FixedInt<4>(v_.replication_rank()))
+        .step(wire::FixedInt<4>(v_.master_id()))
+        .result();
+  }
+
+ public:
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::RegisterReplica);
+  }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+    auto server_id_res = accu.template step<wire::FixedInt<4>>();
+    auto hostname_len_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    auto hostname_res =
+        accu.template step<wire::String>(hostname_len_res->value());
+
+    auto username_len_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    auto username_res =
+        accu.template step<wire::String>(username_len_res->value());
+
+    auto password_len_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    auto password_res =
+        accu.template step<wire::String>(password_len_res->value());
+
+    auto port_res = accu.template step<wire::FixedInt<2>>();
+    auto replication_rank_res = accu.template step<wire::FixedInt<4>>();
+    auto master_id_res = accu.template step<wire::FixedInt<4>>();
+
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(
+        accu.result().value(),
+        value_type(server_id_res->value(), hostname_res->value(),
+                   username_res->value(), password_res->value(),
+                   port_res->value(), replication_rank_res->value(),
+                   master_id_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for client side dump-binlog-with-gtid message.
+ */
+template <>
+class Codec<message::client::BinlogDumpGtid>
+    : public impl::EncodeBase<Codec<message::client::BinlogDumpGtid>> {
+ public:
+  using value_type = message::client::BinlogDumpGtid;
+
+ private:
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::FixedInt<2>(v_.flags().underlying_value()))
+        .step(wire::FixedInt<4>(v_.server_id()))
+        .step(wire::FixedInt<4>(v_.filename().size()))
+        .step(wire::String(v_.filename()))
+        .step(wire::FixedInt<8>(v_.position()))
+        //
+        ;
+
+    if (v_.flags() & value_type::Flags::through_gtid) {
+      accu.step(wire::FixedInt<4>(v_.sids().size()))
+          .step(wire::String(v_.sids()));
+    }
+
+    return accu.result();
+  }
+
+ public:
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::BinlogDumpGtid);
+  }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+    auto flags_res = accu.template step<wire::FixedInt<2>>();
+    auto server_id_res = accu.template step<wire::FixedInt<4>>();
+    auto filename_len_res = accu.template step<wire::FixedInt<4>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    auto filename_res =
+        accu.template step<wire::String>(filename_len_res->value());
+    auto position_res = accu.template step<wire::FixedInt<8>>();
+    auto sids_len_res = accu.template step<wire::FixedInt<4>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    auto sids_res = accu.template step<wire::String>(sids_len_res->value());
+
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    stdx::flags<value_type::Flags> flags;
+    flags.underlying_value(flags_res->value());
+
+    return std::make_pair(
+        accu.result().value(),
+        value_type(flags, server_id_res->value(), filename_res->value(),
+                   position_res->value(), sids_res->value()));
   }
 
  private:

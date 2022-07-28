@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,6 +85,7 @@
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_nodes.h"  // PT_order_expr
+#include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"  // Query_result
 #include "sql/range_optimizer/partition_pruning.h"
@@ -117,7 +118,8 @@ static bool simplify_const_condition(THD *thd, Item **cond,
                                      bool remove_cond = true,
                                      bool *ret_cond_value = nullptr);
 static Item *create_rollup_switcher(THD *thd, Query_block *query_block,
-                                    Item *item, int send_group_parts);
+                                    Item_sum *item, int send_group_parts);
+static bool fulltext_uses_rollup_column(const Query_block *query_block);
 
 /**
   Prepare query block for optimization.
@@ -302,6 +304,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   if (olap == ROLLUP_TYPE) {
     for (Item *item : fields) {
       mark_item_as_maybe_null_if_rollup_item(item);
+      item->update_used_tables();
     }
   }
 
@@ -358,6 +361,11 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
       return true;
   }
 
+  if (fulltext_uses_rollup_column(this)) {
+    my_error(ER_FULLTEXT_WITH_ROLLUP, MYF(0));
+    return true;
+  }
+
   hidden_order_field_count = fields.size() - all_fields_count;
 
   // Resolve OFFSET and LIMIT clauses
@@ -388,12 +396,13 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     to know about implicit grouping which may be induced by an aggregate
     function in the window's PARTITION or ORDER clause).
   */
+  const size_t fields_cnt = fields.size();
   if (m_windows.elements != 0 &&
       Window::setup_windows1(thd, this, base_ref_items, get_table_list(),
                              &fields, &m_windows))
     return true;
 
-  bool added_new_sum_funcs = false;
+  bool added_new_sum_funcs = fields.size() > fields_cnt;
 
   if (order_list.elements) {
     if (setup_order_final(thd)) return true; /* purecov: inspected */
@@ -458,7 +467,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     1. Set that the evaluation of this condition depends on rollup
     result.
     2. Add a reference to the condition so that result is stored
-    after evalution.
+    after evaluation.
   */
   if (m_having_cond && (m_having_cond->has_aggregation() ||
                         m_having_cond->has_grouping_func())) {
@@ -480,15 +489,17 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     uint send_group_parts = group_list_size();
     for (auto it = fields.begin(); it != fields.end(); ++it) {
       Item *item = *it;
-      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-          down_cast<Item_sum *>(item)->aggr_query_block == this &&
-          !is_rollup_sum_wrapper(item)) {
-        // split_sum_func2 created a new aggregate function item,
-        // so we need to update it for rollup.
-        Item *new_item =
-            create_rollup_switcher(thd, this, item, send_group_parts);
-        if (new_item == nullptr) return true;
-        *it = new_item;
+      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item()) {
+        Item_sum *item_sum = down_cast<Item_sum *>(item);
+        if (item_sum->aggr_query_block == this &&
+            !item_sum->is_rollup_sum_wrapper()) {
+          // split_sum_func2 created a new aggregate function item,
+          // so we need to update it for rollup.
+          Item *new_item =
+              create_rollup_switcher(thd, this, item_sum, send_group_parts);
+          if (new_item == nullptr) return true;
+          *it = new_item;
+        }
       }
     }
   }
@@ -580,7 +591,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
 
   @returns false if success, true if error
 
-  Since this is called at the end after applying local tranformations,
+  Since this is called at the end after applying local transformations,
   call this function while traversing the query block hierarchy top-down.
 */
 bool Query_block::push_conditions_to_derived_tables(THD *thd) {
@@ -888,7 +899,7 @@ bool Query_block::resolve_limits(THD *thd) {
 /**
   Try to replace a const condition with a simple constant.
   A true condition is replaced with an empty item pointer if remove_cond
-  is true. Else it is replaced witha a constant TRUE.
+  is true. Else it is replaced with the constant TRUE.
   A false condition is replaced with the constant FALSE.
 
   @param thd            Thread handler
@@ -1062,7 +1073,7 @@ bool Item_in_subselect::subquery_allows_materialization(
 
 static TABLE_LIST **make_leaf_tables(TABLE_LIST **list, TABLE_LIST *tables) {
   for (TABLE_LIST *table = tables; table; table = table->next_local) {
-    // A mergable view is not allowed to have a table pointer.
+    // A mergeable view is not allowed to have a table pointer.
     assert(!(table->is_view() && table->is_merged() && table->table));
     if (table->merge_underlying_list) {
       assert(table->is_merged());
@@ -2457,10 +2468,10 @@ bool Query_block::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
       if (cond_value) {
         /*
           Remove the expression from inner/outer expression list if the
-          const condition evalutes to true as Item_cond::fix_fields will
+          const condition evaluates to true as Item_cond::fix_fields will
           remove the condition later.
           Do the above if this is not the last expression in the list.
-          Semijoin processing expects atleast one inner/outer expression
+          Semijoin processing expects at least one inner/outer expression
           in the list if there is a sj_nest present.
         */
         if (nested_join->sj_inner_exprs.size() != 1) {
@@ -3603,17 +3614,23 @@ bool Query_block::merge_derived(THD *thd, TABLE_LIST *derived_table) {
           is_distinct() || is_ordered() ||
           get_table_list()->next_local != nullptr)) {
       order_list.push_back(&derived_query_block->order_list);
-      /*
-        If at outer-most level (not within another derived table), ensure
-        the ordering columns are marked in read_set, since columns selected
-        from derived tables are not marked in initial resolving.
-      */
-      if (!thd->derived_tables_processing) {
-        Mark_field mf(thd->mark_used_columns);
-        for (ORDER *o = derived_query_block->order_list.first; o != nullptr;
-             o = o->next)
+      for (ORDER *o = derived_query_block->order_list.first; o != nullptr;
+           o = o->next) {
+        /*
+          ORDER BY clause may contain expressions with outer references that
+          must be adjusted:
+        */
+        o->item[0]->fix_after_pullout(this, derived_query_block);
+        /*
+          If at outer-most level (not within another derived table), ensure
+          the ordering columns are marked in read_set, since columns selected
+          from derived tables are not marked in initial resolving.
+        */
+        if (!thd->derived_tables_processing) {
+          Mark_field mf(thd->mark_used_columns);
           o->item[0]->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
                            pointer_cast<uchar *>(&mf));
+        }
       }
     } else {
       derived_query_block->empty_order_list(this);
@@ -3669,7 +3686,8 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
     if (do_fix_fields && new_cond->fix_fields(thd, tree)) return true;
     if (found_ptr != nullptr) *found_ptr = true;  // inform upper call
     return false;
-  } else if ((*tree)->type() == Item::COND_ITEM) {
+  }
+  if ((*tree)->type() == Item::COND_ITEM) {
     List_iterator<Item> li(*((Item_cond *)(*tree))->argument_list());
     Item *item;
     bool found_local = false;
@@ -3684,8 +3702,8 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
     }
   }
   // item not found
-  if (found_ptr == nullptr) return true;  // if it is the top call: error,
-  return false;                           // else: no error.
+  // if it is the top call: error, else: no error.
+  return (found_ptr == nullptr);
 }
 
 /**
@@ -4333,30 +4351,33 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
         cleaning up), but it may contain subqueries that should be
         unlinked.
       */
-      if ((*order->item)->real_item() != *select_item)
+      if ((*order->item)->real_item() != (*select_item)->real_item()) {
+        Item::Cleanup_after_removal_context ctx(
+            thd->lex->current_query_block());
+
         (*order->item)
             ->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
-                   nullptr);
+                   pointer_cast<uchar *>(&ctx));
+      }
       order->item = &ref_item_array[counter];
       order->in_field_list = true;
       if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
         order->used_alias = true;
       return false;
-    } else {
-      /*
-        There is a field with the same name in the FROM clause. This
-        is the field that will be chosen. In this case we issue a
-        warning so the user knows that the field from the FROM clause
-        overshadows the column reference from the SELECT list.
-        For window functions we do not need to issue this warning
-        (field should resolve to a unique column in the FROM derived
-        table expression, cf. SQL 2016 section 7.15 SR 4)
-      */
-      if (!is_window_order) {
-        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
-                            ER_THD(thd, ER_NON_UNIQ_ERROR),
-                            ((Item_ident *)order_item)->field_name, thd->where);
-      }
+    }
+    /*
+      There is a field with the same name in the FROM clause. This
+      is the field that will be chosen. In this case we issue a
+      warning so the user knows that the field from the FROM clause
+      overshadows the column reference from the SELECT list.
+      For window functions we do not need to issue this warning
+      (field should resolve to a unique column in the FROM derived
+      table expression, cf. SQL 2016 section 7.15 SR 4)
+    */
+    if (!is_window_order) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
+                          ER_THD(thd, ER_NON_UNIQ_ERROR),
+                          ((Item_ident *)order_item)->field_name, thd->where);
     }
   }
 
@@ -4390,7 +4411,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     'order_item' to a column from a table in the list 'tables', or to
     a column in some outer query. Exactly because of the second case
     we come to this point even if (select_item == not_found_item),
-    inspite of that fix_fields() calls find_item_in_list() one more
+    in spite of that fix_fields() calls find_item_in_list() one more
     time.
 
     We check order_item->fixed because Item_func_group_concat can put
@@ -4520,18 +4541,16 @@ bool Query_block::check_only_full_group_by(THD *thd) {
   bool rc = false;
 
   if (is_grouped()) {
-    MEM_ROOT root;
     /*
       "root" has very short lifetime, and should not consume much
       => not instrumented.
     */
-    init_sql_alloc(PSI_NOT_INSTRUMENTED, &root, MEM_ROOT_BLOCK_SIZE, 0);
+    MEM_ROOT root(PSI_NOT_INSTRUMENTED, MEM_ROOT_BLOCK_SIZE);
     {
       Group_check gc(this, &root);
       rc = gc.check_query(thd);
       gc.to_opt_trace(thd);
-    }  // scope, to let any destructor run before root.Clear().
-    root.Clear();
+    }  // Scope, to let any destructor run before the MEM_ROOT DTOR.
   }
 
   if (!rc && is_distinct()) {
@@ -4733,21 +4752,7 @@ bool WalkAndReplace(
         return true;
       }
     }
-    switch (down_cast<Item_func *>(item)->functype()) {
-      case Item_func::GE_FUNC:
-      case Item_func::GT_FUNC:
-      case Item_func::LT_FUNC:
-      case Item_func::LE_FUNC:
-      case Item_func::EQ_FUNC:
-      case Item_func::NE_FUNC:
-      case Item_func::EQUAL_FUNC:
-        if (down_cast<Item_bool_func2 *>(item)->set_cmp_func()) {
-          return true;
-        }
-        break;
-      default:
-        break;
-    }
+
     if (item->m_is_window_function) {
       down_cast<Item_sum *>(item)->update_after_wf_arguments_changed(thd);
     }
@@ -4849,6 +4854,35 @@ void Query_block::remove_hidden_fields() {
 }
 
 /**
+  Refreshes the comparators after ROLLUP resolving.
+
+  This is needed because ROLLUP resolving happens after the comparators have
+  been set up. In ROLLUP resolving, it may turn out that something initially
+  believed to be constant, is not constant after all (e.g., group items that may
+  be NULL in some cases). So we call set_cmp_func() to make Arg_comparator
+  adjust/remove its caches accordingly.
+*/
+static bool refresh_comparators_after_rollup(Item *item) {
+  return WalkItem(item, enum_walk::POSTFIX, [](Item *inner_item) {
+    if (inner_item->type() != Item::FUNC_ITEM) {
+      return false;
+    }
+    switch (down_cast<Item_func *>(inner_item)->functype()) {
+      case Item_func::GE_FUNC:
+      case Item_func::GT_FUNC:
+      case Item_func::LT_FUNC:
+      case Item_func::LE_FUNC:
+      case Item_func::EQ_FUNC:
+      case Item_func::NE_FUNC:
+      case Item_func::EQUAL_FUNC:
+        return down_cast<Item_bool_func2 *>(inner_item)->set_cmp_func();
+      default:
+        return false;
+    }
+  });
+}
+
+/**
   Resolve an item (and its tree) for rollup processing by replacing items
   matching grouped expressions with Item_rollup_group_items and
   updating properties (m_nullable, PROP_ROLLUP_FIELD).
@@ -4878,6 +4912,9 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
       });
   if (error) return nullptr;
   if (changed) {
+    if (refresh_comparators_after_rollup(item)) {
+      return nullptr;
+    }
     item->update_used_tables();
     // Since item is now nullable, mark every expression (except rollup sum
     // functions) depending on it as also potentially nullable. (This is a
@@ -4910,10 +4947,10 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
   return item;
 }
 
-Item *create_rollup_switcher(THD *thd, Query_block *query_block, Item *item,
+Item *create_rollup_switcher(THD *thd, Query_block *query_block, Item_sum *item,
                              int send_group_parts) {
   assert(!item->m_is_window_function);
-  assert(!is_rollup_sum_wrapper(item));
+  assert(!item->is_rollup_sum_wrapper());
 
   List<Item> alternatives;
   alternatives.push_back(item);
@@ -4952,11 +4989,13 @@ bool Query_block::resolve_rollup(THD *thd) {
   for (auto it = fields.begin(); it != fields.end(); ++it) {
     Item *item = *it;
     Item *new_item;
-    if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-        down_cast<Item_sum *>(item)->aggr_query_block == this) {
+    if (Item_sum * item_sum; item->type() == Item::SUM_FUNC_ITEM &&
+                             !item->const_item() &&
+                             (item_sum = down_cast<Item_sum *>(item),
+                              item_sum->aggr_query_block == this)) {
       // This is a top level aggregate, which must be replaced with
       // a different one for each rollup level.
-      new_item = create_rollup_switcher(thd, this, item, send_group_parts);
+      new_item = create_rollup_switcher(thd, this, item_sum, send_group_parts);
     } else {
       new_item = resolve_rollup_item(thd, item);
     }
@@ -4985,13 +5024,14 @@ bool Query_block::resolve_rollup(THD *thd) {
                                 (order_item = *order->item)->check_cols(1)));
     if (ret) return true; /* Wrong field. */
 
-    if (order_item->type() == Item::SUM_FUNC_ITEM &&
-        !order_item->const_item() &&
-        down_cast<Item_sum *>(order_item)->aggr_query_block == this) {
+    if (Item_sum * item_sum; order_item->type() == Item::SUM_FUNC_ITEM &&
+                             !order_item->const_item() &&
+                             (item_sum = down_cast<Item_sum *>(order_item),
+                              item_sum->aggr_query_block == this)) {
       // This is a top level aggregate, which must be replaced with
       // a different one for each rollup level.
       *order->item =
-          create_rollup_switcher(thd, this, order_item, send_group_parts);
+          create_rollup_switcher(thd, this, item_sum, send_group_parts);
     } else {
       *order->item = resolve_rollup_item(thd, order_item);
     }
@@ -4999,6 +5039,49 @@ bool Query_block::resolve_rollup(THD *thd) {
   }
 
   thd->lex->allow_sum_func = saved_allow;
+  return false;
+}
+
+/**
+  Checks if there are any calls to the MATCH function that take a ROLLUP column
+  as argument in the SELECT list, GROUP BY clause, HAVING clause or ORDER BY
+  clause. Such calls should be rejected, since MATCH only works on base columns.
+*/
+static bool fulltext_uses_rollup_column(const Query_block *query_block) {
+  if (query_block->olap != ROLLUP_TYPE || !query_block->has_ft_funcs()) {
+    return false;
+  }
+
+  // References to ROLLUP columns in SELECT, HAVING and ORDER BY are represented
+  // by Item_rollup_group_items. So we can just check if any of the MATCH
+  // functions has such an argument.
+  for (Item_func_match &match : *query_block->ftfunc_list) {
+    if (match.has_rollup_expr()) {
+      return true;
+    }
+  }
+
+  // The references in GROUP BY are not wrapped in Item_rollup_group_item, so we
+  // need to search for them.
+  for (ORDER *group = query_block->group_list.first; group != nullptr;
+       group = group->next) {
+    if (WalkItem(*group->item, enum_walk::PREFIX, [query_block](Item *item) {
+          if (is_function_of_type(item, Item_func::FT_FUNC)) {
+            Item_func_match *match = down_cast<Item_func_match *>(item);
+            for (unsigned i = 0; i < match->arg_count; ++i) {
+              if (query_block->find_in_group_list(match->get_arg(i),
+                                                  /*rollup_level=*/nullptr) !=
+                  nullptr) {
+                return true;
+              }
+            }
+          }
+          return false;
+        })) {
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -5849,7 +5932,7 @@ static bool update_context_to_derived(Item *expr, Query_block *new_derived) {
   containing the grouping during transform_grouped_to_derived.
 
   @param[in]       select     the query block
-  @param[in, out]  aggregates the accumulator which wll contain the aggregates
+  @param[in, out]  aggregates the accumulator which will contain the aggregates
   @return true on error
 */
 static bool collect_aggregates(
@@ -6868,7 +6951,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
 bool Query_block::decorrelate_derived_scalar_subquery_post(
     THD *thd, TABLE_LIST *derived, Lifted_fields_map *lifted_fields,
     bool added_card_check) {
-  // We added referenced inner fields to select list, now replace occurences
+  // We added referenced inner fields to select list, now replace occurrences
   // of such fields in the join condition with derived.<Item_field-n>. Since
   // we have now set up materialization the derived table, we now know the
   // 'Field's to use for new 'Item_field's.
@@ -7045,7 +7128,7 @@ bool Query_block::transform_subquery_to_derived(
 */
 bool is_correlated_predicate_eligible(Item *cor_pred) {
   assert(cor_pred->is_outer_reference());
-  if (cor_pred->type() == Item::FUNC_ITEM &&
+  if (cor_pred->type() != Item::FUNC_ITEM ||
       down_cast<Item_func *>(cor_pred)->functype() != Item_func::EQ_FUNC)
     return false;
   Item_func *eq_func = down_cast<Item_func *>(cor_pred);

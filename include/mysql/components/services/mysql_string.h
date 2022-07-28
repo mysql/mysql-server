@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -119,7 +119,7 @@ END_SERVICE_DEFINITION(mysql_string_case)
 */
 BEGIN_SERVICE_DEFINITION(mysql_string_converter)
 /**
-  alocates a string object and converts the character buffer to string
+  allocates a string object and converts the character buffer to string
   of specified charset_name.
   please call destroy() api to free the allocated string after this api.
 
@@ -129,7 +129,7 @@ BEGIN_SERVICE_DEFINITION(mysql_string_converter)
     string.
   @param length Length of the buffer to copy into string, in bytes, not in
     character count.
-  @param charset_name charset that is used for convertion.
+  @param charset_name charset that is used for conversion.
   @return Status of performed operation
   @retval false success
   @retval true failure
@@ -147,7 +147,7 @@ DECLARE_BOOL_METHOD(convert_from_buffer,
   @param [out] out_buffer Pointer to the buffer with data to be interpreted
     as characters.
   @param length Length of the buffer to hold out put in characters.
-  @param charset_name Handle to charset that is used for convertion.
+  @param charset_name Handle to charset that is used for conversion.
   @return Status of performed operation
   @retval false success
   @retval true failure
@@ -295,7 +295,7 @@ DECLARE_BOOL_METHOD(iterator_get_next,
 /**
   Releases the string iterator object specified.
 
-  @param iter String iterator object handle te release.
+  @param iter String iterator object to handle the release.
   @return Status of performed operation
   @retval false success
   @retval true failure

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -117,8 +117,8 @@ void eval_node_free_val_buf(que_node_t *node) /*!< in: query graph node */
 /*********************************************************************
 Evaluates a LIKE comparison node.
 @return the result of the comparison */
-static inline ibool eval_cmp_like(que_node_t *arg1, /* !< in: left operand */
-                                  que_node_t *arg2) /* !< in: right operand */
+static inline bool eval_cmp_like(que_node_t *arg1, /* !< in: left operand */
+                                 que_node_t *arg2) /* !< in: right operand */
 {
   ib_like_t op;
   que_node_t *arg3;
@@ -151,12 +151,12 @@ static inline ibool eval_cmp_like(que_node_t *arg1, /* !< in: left operand */
 /*********************************************************************
 Evaluates a comparison node.
 @return the result of the comparison */
-ibool eval_cmp(func_node_t *cmp_node) /*!< in: comparison node */
+bool eval_cmp(func_node_t *cmp_node) /*!< in: comparison node */
 {
   que_node_t *arg1;
   que_node_t *arg2;
   int res;
-  ibool val = FALSE; /* remove warning */
+  bool val = false;
 
   ut_ad(que_node_get_type(cmp_node) == QUE_NODE_FUNC);
 
@@ -199,7 +199,7 @@ ibool eval_cmp(func_node_t *cmp_node) /*!< in: comparison node */
       break;
   }
 
-  eval_node_set_ibool_val(cmp_node, val);
+  eval_node_set_bool_val(cmp_node, val);
 
   return (val);
 }
@@ -210,9 +210,8 @@ static inline void eval_logical(
 {
   que_node_t *arg1;
   que_node_t *arg2;
-  ibool val1;
-  ibool val2 = 0; /* remove warning */
-  ibool val = 0;  /* remove warning */
+  bool val2 = false;
+  bool val = false;
   int func;
 
   ut_ad(que_node_get_type(logical_node) == QUE_NODE_FUNC);
@@ -220,10 +219,10 @@ static inline void eval_logical(
   arg1 = logical_node->args;
   arg2 = que_node_get_next(arg1); /* arg2 is NULL if func is 'NOT' */
 
-  val1 = eval_node_get_ibool_val(arg1);
+  auto val1 = eval_node_get_bool_val(arg1);
 
   if (arg2) {
-    val2 = eval_node_get_ibool_val(arg2);
+    val2 = eval_node_get_bool_val(arg2);
   }
 
   func = logical_node->func;
@@ -233,12 +232,12 @@ static inline void eval_logical(
   } else if (func == PARS_OR_TOKEN) {
     val = val1 | val2;
   } else if (func == PARS_NOT_TOKEN) {
-    val = TRUE - val1;
+    val = !val1;
   } else {
     ut_error;
   }
 
-  eval_node_set_ibool_val(logical_node, val);
+  eval_node_set_bool_val(logical_node, val);
 }
 
 /** Evaluates an arithmetic operation node. */
@@ -316,7 +315,7 @@ static inline void eval_notfound(
 {
   sym_node_t *cursor;
   sel_node_t *sel_node;
-  ibool ibool_val;
+  bool bool_val;
 
   ut_ad(func_node->func == PARS_NOTFOUND_TOKEN);
 
@@ -333,12 +332,12 @@ static inline void eval_notfound(
   }
 
   if (sel_node->state == SEL_NODE_NO_MORE_ROWS) {
-    ibool_val = TRUE;
+    bool_val = true;
   } else {
-    ibool_val = FALSE;
+    bool_val = false;
   }
 
-  eval_node_set_ibool_val(func_node, ibool_val);
+  eval_node_set_bool_val(func_node, bool_val);
 }
 
 /** Evaluates a substr-function node. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include "sql/item.h"
 #include "sql/opt_trace_context.h"
 #include "sql/sql_const.h"
+#include "sql/sql_lex.h"
 struct NESTED_JOIN;
 /**
   Class which handles pushing conditions down to a materialized derived
@@ -41,7 +42,7 @@ struct NESTED_JOIN;
         Extract a part of the condition that has columns belonging to only
         this derived table.
         Check if this condition can be pushed past window functions if any to
-        the HAVING clause of the derived table
+        the HAVING clause of the derived table.
           Make a condition that could not be pushed past. This will remain in
           the outer query block.
         Check if this condition can be pushed past group by if present to the
@@ -49,8 +50,8 @@ struct NESTED_JOIN;
           Make a condition that could not be pushed past. This will be part of
           the HAVING clause of the derived table query.
       Get the remainder condition which could not be pushed to the derived
-      the derived table.
-      Push the condition down to derived table's query expression
+      table.
+      Push the condition down to derived table's query expression.
       REPEAT THE ABOVE for the rest of the derived tables.
    For every query expression inside the current query block
      REPEAT THE ABOVE to keep pushing as far down as possible.
@@ -63,20 +64,37 @@ class Condition_pushdown {
       : m_cond_to_check(cond),
         m_derived_table(derived),
         thd(thd_arg),
-        trace(trace_arg) {}
+        trace(trace_arg) {
+    Query_expression *derived_query_expression =
+        m_derived_table->derived_query_expression();
+    m_query_block = derived_query_expression->outer_query_block();
+  }
 
   bool make_cond_for_derived();
-  Item *make_remainder_cond(Item *cond);
+  bool make_remainder_cond(Item *cond, Item **remainder_cond);
   Item *get_remainder_cond() { return m_remainder_cond; }
+
+  /// Used to pass information during condition pushdown.
+  class Derived_table_info {
+   public:
+    TABLE_LIST *m_derived_table;
+    Query_block *m_derived_query_block;
+    bool is_set_operation() const {
+      return m_derived_table->derived_query_expression()->is_union();
+    }
+
+    Derived_table_info(TABLE_LIST *derived_table, Query_block *query_block)
+        : m_derived_table(derived_table), m_derived_query_block(query_block) {}
+  };
 
  private:
   Item *extract_cond_for_table(Item *cond);
   bool replace_columns_in_cond(Item **cond, bool is_having);
-  void push_past_window_functions();
-  void push_past_group_by();
+  bool push_past_window_functions();
+  bool push_past_group_by();
   bool attach_cond_to_derived(Item *derived_cond, Item *cond_to_attach,
                               bool having);
-  void update_between_count(Item *cond);
+  void update_cond_count(Item *cond);
   void check_and_remove_sj_exprs(Item *cond);
   void remove_sj_exprs(Item *cond, NESTED_JOIN *sj_nest);
 
@@ -88,26 +106,39 @@ class Condition_pushdown {
 
   /**
    Condition that is extracted from outer WHERE condition to be pushed to
-   the derived table.
+   the derived table. This will be a copy when a query expression has
+   multiple query blocks.
   */
   Item *m_cond_to_push{nullptr};
 
   /**
+    set to m_cond_to_push before cloning (for query expressions with
+    multiple query blocks).
+  */
+  Item *m_orig_cond_to_push{nullptr};
+
+  /**
     Condition that would be attached to the HAVING clause of the derived
-    table.
-   */
+    table. (For each query block in the derived table if UNIONS are present).
+  */
   Item *m_having_cond{nullptr};
 
   /**
     Condition that would be attached to the WHERE clause of the derived table.
-   */
+    (For each query block in the derived table if UNIONS are present).
+  */
   Item *m_where_cond{nullptr};
 
   /**
-    Condition that would be left behind in the outer select. This is the
+    Condition that would be left behind in the outer query block. This is the
     condition that could not be pushed down to the derived table.
   */
   Item *m_remainder_cond{nullptr};
+
+  /**
+   Query block to which m_cond_to_push should be pushed.
+  */
+  Query_block *m_query_block{nullptr};
 
   /**
     Enum that represents various stages of checking.

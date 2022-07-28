@@ -143,25 +143,28 @@ ERROR HY000: Can't initialize function 'keyring_key_fetch'; Mismatch in number o
 select keyring_key_fetch(1);
 ERROR HY000: Can't initialize function 'keyring_key_fetch'; Mismatch encountered. A string argument is expected for key id.
 select keyring_key_fetch(NULL);
-ERROR HY000: Can't initialize function 'keyring_key_fetch'; Mismatch encountered. A string argument is expected for key id.
+keyring_key_fetch(NULL)
+NULL
 select keyring_key_type_fetch(1);
 ERROR HY000: Can't initialize function 'keyring_key_type_fetch'; Mismatch encountered. A string argument is expected for key id.
 select keyring_key_type_fetch(NULL);
-ERROR HY000: Can't initialize function 'keyring_key_type_fetch'; Mismatch encountered. A string argument is expected for key id.
+keyring_key_type_fetch(NULL)
+NULL
 select keyring_key_length_fetch(1);
 ERROR HY000: Can't initialize function 'keyring_key_length_fetch'; Mismatch encountered. A string argument is expected for key id.
 select keyring_key_length_fetch(NULL);
-ERROR HY000: Can't initialize function 'keyring_key_length_fetch'; Mismatch encountered. A string argument is expected for key id.
+keyring_key_length_fetch(NULL)
+NULL
 select keyring_key_generate('Key_1','AES','123');
 ERROR HY000: Can't initialize function 'keyring_key_generate'; Mismatch encountered. An integer argument is expected for key length.
 select keyring_key_generate(NULL,'AES','123');
-ERROR HY000: Can't initialize function 'keyring_key_generate'; Mismatch encountered. A string argument is expected for key id.
+ERROR HY000: Can't initialize function 'keyring_key_generate'; Mismatch encountered. An integer argument is expected for key length.
 select keyring_key_generate('Key_1',NULL,'123');
-ERROR HY000: Can't initialize function 'keyring_key_generate'; Mismatch encountered. A string argument is expected for key type.
+ERROR HY000: Can't initialize function 'keyring_key_generate'; Mismatch encountered. An integer argument is expected for key length.
 select keyring_key_generate('Key_1','AES',NULL);
 ERROR HY000: Can't initialize function 'keyring_key_generate'; Mismatch encountered. An integer argument is expected for key length.
 select keyring_key_generate(NULL,NULL,NULL);
-ERROR HY000: Can't initialize function 'keyring_key_generate'; Mismatch encountered. A string argument is expected for key id.
+ERROR HY000: Can't initialize function 'keyring_key_generate'; Mismatch encountered. An integer argument is expected for key length.
 select keyring_key_generate(1,'AES',123);
 ERROR HY000: Can't initialize function 'keyring_key_generate'; Mismatch encountered. A string argument is expected for key id.
 select keyring_key_generate('Key_1',123,'123');
@@ -171,7 +174,8 @@ ERROR HY000: Can't initialize function 'keyring_key_generate'; Mismatch encounte
 select keyring_key_remove(1);
 ERROR HY000: Can't initialize function 'keyring_key_remove'; Mismatch encountered. A string argument is expected for key id.
 select keyring_key_remove(NULL);
-ERROR HY000: Can't initialize function 'keyring_key_remove'; Mismatch encountered. A string argument is expected for key id.
+keyring_key_remove(NULL)
+NULL
 select PLUGIN_NAME,PLUGIN_AUTHOR from information_schema.plugins where PLUGIN_NAME like '%keyring%';
 PLUGIN_NAME	PLUGIN_AUTHOR
 keyring_file	Oracle Corporation
@@ -441,13 +445,15 @@ ERROR HY000: Can't initialize function 'keyring_key_store'; Mismatch in number o
 select keyring_key_store('Key_1','AES',123);
 ERROR HY000: Can't initialize function 'keyring_key_store'; Mismatch encountered. A string argument is expected for key.
 select keyring_key_store(NULL,'AES',123);
-ERROR HY000: Can't initialize function 'keyring_key_store'; Mismatch encountered. A string argument is expected for key id.
-select keyring_key_store('Key_1',NULL,123);
-ERROR HY000: Can't initialize function 'keyring_key_store'; Mismatch encountered. A string argument is expected for key type.
-select keyring_key_store('Key_1','AES',NULL);
 ERROR HY000: Can't initialize function 'keyring_key_store'; Mismatch encountered. A string argument is expected for key.
+select keyring_key_store('Key_1',NULL,123);
+ERROR HY000: Can't initialize function 'keyring_key_store'; Mismatch encountered. A string argument is expected for key.
+select keyring_key_store('Key_1','AES',NULL);
+keyring_key_store('Key_1','AES',NULL)
+NULL
 select keyring_key_store(NULL,NULL,NULL);
-ERROR HY000: Can't initialize function 'keyring_key_store'; Mismatch encountered. A string argument is expected for key id.
+keyring_key_store(NULL,NULL,NULL)
+NULL
 select keyring_key_store(1234,NULL,'53247@#$%^');
 ERROR HY000: Can't initialize function 'keyring_key_store'; Mismatch encountered. A string argument is expected for key id.
 select keyring_key_store(1,'AES','123');

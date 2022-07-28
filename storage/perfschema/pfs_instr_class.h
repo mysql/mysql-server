@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_name.h"
 #include "storage/perfschema/pfs_stat.h"
 #include "storage/perfschema/terminology_use_previous_enum.h"
 
@@ -82,7 +83,6 @@ class PFS_opaque_container_page;
 */
 
 extern bool pfs_enabled;
-extern bool pfs_processlist_enabled;
 
 /** Global ref count for plugin and component events. */
 extern std::atomic<uint32> pfs_unload_plugin_ref_count;
@@ -158,7 +158,7 @@ class PFS_instr_name {
   static constexpr uint max_length = PFS_MAX_INFO_NAME_LENGTH - 1;
   /*
     DO NOT ACCESS THE DATA MEMBERS DIRECTLY.  USE THE GETTERS AND
-    SETTTERS INSTEAD.
+    SETTERS INSTEAD.
 
     The data members should really have been private, but having both
     private and public members would make the class a non-POD.  We
@@ -250,6 +250,8 @@ struct PFS_instr_class {
 
   bool has_auto_seqnum() const { return m_flags & PSI_FLAG_AUTO_SEQNUM; }
 
+  bool has_memory_cnt() const { return m_flags & PSI_FLAG_MEM_COLLECT; }
+
   void enforce_valid_flags(uint allowed_flags) {
     /* Reserved for future use. */
     allowed_flags |= PSI_FLAG_THREAD | PSI_FLAG_TRANSFER;
@@ -339,15 +341,14 @@ struct PFS_ALIGNED PFS_thread_class : public PFS_instr_class {
 
 /** Key identifying a table share. */
 struct PFS_table_share_key {
-  /**
-    Hash search key.
-    This has to be a string for @c LF_HASH,
-    the format is @c "<enum_object_type><schema_name><0x00><object_name><0x00>"
-    @see create_table_def_key
-  */
-  char m_hash_key[1 + NAME_LEN + 1 + NAME_LEN + 1];
-  /** Length in bytes of @c m_hash_key. */
-  uint m_key_length;
+  /** Object type. */
+  enum_object_type m_type;
+
+  /** Table schema. */
+  PFS_schema_name m_schema_name;
+
+  /** Table name. */
+  PFS_table_name m_table_name;
 };
 
 /** Table index or 'key' */
@@ -387,9 +388,7 @@ struct PFS_ALIGNED PFS_table_share {
  public:
   uint32 get_version() { return m_lock.get_version(); }
 
-  enum_object_type get_object_type() {
-    return (enum_object_type)m_key.m_hash_key[0];
-  }
+  enum_object_type get_object_type() { return m_key.m_type; }
 
   void aggregate_io(void);
   void aggregate_lock(void);
@@ -428,14 +427,7 @@ struct PFS_ALIGNED PFS_table_share {
 
   /** Search key. */
   PFS_table_share_key m_key;
-  /** Schema name. */
-  const char *m_schema_name;
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
-  /** Table name. */
-  const char *m_table_name;
-  /** Length in bytes of @c m_table_name. */
-  uint m_table_name_length;
+
   /** Number of indexes. */
   uint m_key_count;
   /** Container page. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -306,7 +306,7 @@ void Event_queue::drop_matching_events(LEX_CSTRING pattern,
     We don't call mysql_cond_broadcast(&COND_queue_state);
     If we remove the top event:
     1. The queue is empty. The scheduler will wake up at some time and
-       realize that the queue is empty. If create_event() comes inbetween
+       realize that the queue is empty. If create_event() comes in between
        it will signal the scheduler
     2. The queue is not empty, but the next event after the previous top,
        won't be executed any time sooner than the element we removed. Hence,

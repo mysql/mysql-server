@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -517,10 +517,17 @@ TYPED_TEST(SymDifferenceTest, LinestringGeometryCollection) {
   ls_result2.push_back(pt2);
   ls_result2.push_back(pt4);
 
-  result.clear();
-  result.push_back(ls_result2);
-  result.push_back(mpy);
-  this->test_valid_input(ls2, gc, result);
+  // using clear() here create memory leaks
+  // e.g.
+  // result.clear();
+  // result.push_back(ls_result2);
+  // result.push_back(mpy);
+  // this->test_valid_input(ls2, gc, result);
+
+  typename TypeParam::Geometrycollection result2;
+  result2.push_back(ls_result2);
+  result2.push_back(mpy);
+  this->test_valid_input(ls2, gc, result2);
 }
 
 // symdifference(... , polygon, *, ...)
@@ -897,12 +904,12 @@ TYPED_TEST(SymDifferenceTest, MultiLinestringGeometryCollection) {
   ls_result2.push_back(pt2);
   ls_result2.push_back(pt4);
 
-  result.clear();
-  result.push_back(ls_result2);
-  result.push_back(mpy);
+  typename TypeParam::Geometrycollection result2;
+  result2.push_back(ls_result2);
+  result2.push_back(mpy);
   mls.clear();
   mls.push_back(ls2);
-  this->test_valid_input(mls, gc, result);
+  this->test_valid_input(mls, gc, result2);
 }
 
 // symdifference(... , multipolygon, *, ...)

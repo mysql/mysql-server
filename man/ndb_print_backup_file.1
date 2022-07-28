@@ -2,12 +2,12 @@
 .\"     Title: ndb_print_backup_file
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_PRINT_BACKUP_FILE" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_PRINT_BACKUP_FILE" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -77,9 +77,9 @@ lB l l
 lB l l.
 T{
 .PP
-\fB--backup-password=string\fR,
+\fB--backup-password=password\fR,
 .PP
-\fB \fR\fB-P\fR\fB \fR
+\fB \fR\fB-P password\fR\fB \fR
 T}:T{
 Use this password to decrypt file
 T}:T{
@@ -88,7 +88,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--backup-password-from-stdin[=value]\fR\fB \fR
+\fB \fR\fB--backup-password-from-stdin\fR\fB \fR
 T}:T{
 Get decryption password in a secure fashion from STDIN
 T}:T{
@@ -99,7 +99,7 @@ T{
 .PP
 \fB--control-directory-number=#\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c #\fR\fB \fR
 T}:T{
 Control directory number
 T}:T{
@@ -137,7 +137,7 @@ T{
 .PP
 \fB--fragment-id=#\fR,
 .PP
-\fB \fR\fB-f\fR\fB \fR
+\fB \fR\fB-f #\fR\fB \fR
 T}:T{
 Fragment ID
 T}:T{
@@ -239,9 +239,9 @@ ADDED: NDB 8.0.24
 T}
 T{
 .PP
-\fB--rowid-file\fR,
+\fB--rowid-file=path\fR,
 .PP
-\fB \fR\fB-n\fR\fB \fR
+\fB \fR\fB-n path\fR\fB \fR
 T}:T{
 File containing row ID to check for
 T}:T{
@@ -261,11 +261,11 @@ ADDED: NDB 8.0.24
 T}
 T{
 .PP
-\fB--table-id\fR,
+\fB--table-id=#\fR,
 .PP
-\fB \fR\fB-t\fR\fB \fR
+\fB \fR\fB-t #\fR\fB \fR
 T}:T{
-Table ID
+Table ID; used with --print-restored rows
 T}:T{
 .PP
 ADDED: NDB 8.0.24
@@ -364,7 +364,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---backup-password=string
+--backup-password=password
 T}
 T{
 Introduced
@@ -400,28 +400,16 @@ The long form of this option is available beginning with NDB 8\&.0\&.24\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
---backup-password-from-stdin[=value]
+--backup-password-from-stdin
 T}
 T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -627,8 +615,6 @@ Fragment ID\&. Used together with
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -642,15 +628,6 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
 T}
 .TE
 .sp 1
@@ -725,8 +702,6 @@ Do not read default options from any option file other than login file\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -737,16 +712,6 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -787,8 +752,6 @@ Print program argument list and exit\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -799,16 +762,6 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -827,8 +780,6 @@ Include header words in output\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -839,16 +790,6 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -907,8 +848,6 @@ is the fragment ID set using
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -919,16 +858,6 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -948,8 +877,6 @@ Print rows\&. This option is enabled by default; to disable it, use
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -960,16 +887,6 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -994,7 +911,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---rowid-file
+--rowid-file=path
 T}
 T{
 Introduced
@@ -1028,8 +945,6 @@ File to check for row ID\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -1040,16 +955,6 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1074,7 +979,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---table-id
+--table-id=#
 T}
 T{
 Introduced
@@ -1084,12 +989,12 @@ T}
 T{
 Type
 T}:T{
-Boolean
+Integer
 T}
 T{
 Default Value
 T}:T{
-FALSE
+[none]
 T}
 .TE
 .sp 1
@@ -1184,7 +1089,7 @@ Display version information and exit\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -239,7 +239,7 @@ typedef PFS_ringbuffer_index pos_t;
 /** Generic index for error_log table. Used by cursor class for open index. */
 class PFS_index_error_log : public PFS_engine_index {
  public:
-  PFS_index_error_log(PFS_engine_key *key) : PFS_engine_index(key) {}
+  explicit PFS_index_error_log(PFS_engine_key *key) : PFS_engine_index(key) {}
 
   ~PFS_index_error_log() = default;
 
@@ -259,7 +259,7 @@ class cursor_by_error_log : public PFS_engine_table {
   virtual int index_next() override;
 
  protected:
-  cursor_by_error_log(const PFS_engine_table_share *share);
+  explicit cursor_by_error_log(const PFS_engine_table_share *share);
 
  public:
   ~cursor_by_error_log() override = default;

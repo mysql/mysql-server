@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -656,7 +656,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   {
     Item *report_item = nullptr;
     /*
-       This will hold the intersection of the priviliges on all columns in the
+       This will hold the intersection of the privileges on all columns in the
        view.
      */
     uint final_priv = VIEW_ANY_ACL;
@@ -997,7 +997,7 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
                   view->view_creation_ctx->get_client_cs()->csname);
 
   lex_cstring_set(&view->view_connection_cl_name,
-                  view->view_creation_ctx->get_connection_cl()->name);
+                  view->view_creation_ctx->get_connection_cl()->m_coll_name);
 
   /*
     Our parser allows incorrect invalid UTF8 characters in literals.
@@ -1010,9 +1010,14 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     This is a temporary workaround to be removed once we stop accepting
     invalid UTF8 in literals and fix bugs in view body printing.
   */
+  std::string invalid_sub_str;
   if (is_invalid_string(LEX_CSTRING{is_query.ptr(), is_query.length()},
-                        system_charset_info))
+                        system_charset_info, invalid_sub_str)) {
+    // Provide contextual information
+    my_error(ER_DEFINITION_CONTAINS_INVALID_STRING, MYF(0), "view", view->db,
+             view->alias, system_charset_info->csname, invalid_sub_str.c_str());
     return true;
+  }
 
   if (lex_string_strmake(thd->mem_root, &view->view_body_utf8, is_query.ptr(),
                          is_query.length())) {
@@ -1217,7 +1222,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
 
       Optimizer trace: because tables have been unfolded already, they are
       in LEX::query_tables of the statement using the view. So privileges on
-      them are checked as done for explicitely listed tables, in constructor
+      them are checked as done for explicitly listed tables, in constructor
       of Opt_trace_start. Security context change is checked in
       prepare_security() below.
     */

@@ -89,7 +89,7 @@ analyze table t2, t3, t5;
 show table status;
 show full columns from t3 like "a%";
 show full columns from mysql.db like "Insert%";
---replace_result utf8_tolower_ci utf8_bin
+--replace_result utf8mb3_tolower_ci utf8_bin
 show full columns from v1;
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a" order by table_name;
@@ -868,7 +868,6 @@ DROP FUNCTION func2;
 #
 # Bug#15307 GROUP_CONCAT() with ORDER BY returns empty set on information_schema
 #
---skip_if_hypergraph  # Hits bug #31947466.
 SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name), COUNT(*) AS num
 FROM information_schema.columns WHERE
 table_schema='information_schema' AND
@@ -2632,3 +2631,28 @@ FLUSH TABLES t1 FOR EXPORT;
 SELECT * FROM INFORMATION_SCHEMA.APPLICABLE_ROLES;
 UNLOCK TABLES;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #30624990 NO UTF8MB3 IN INFORMATION_SCHEMA.CHARACTER_SETS
+--echo #
+
+SELECT * FROM information_schema.CHARACTER_SETS
+WHERE CHARACTER_SET_NAME LIKE 'utf8%'
+ORDER BY character_set_name;
+
+SHOW CHARACTER SET LIKE 'utf8%';
+
+--echo
+--echo Bug #33787300 Rename utf8_xxx collations to utf8mb3_xxx
+--echo
+
+SELECT * FROM information_schema.COLLATIONS
+WHERE COLLATION_NAME LIKE "utf8\_%"
+ORDER BY collation_name;
+
+SELECT * FROM information_schema.COLLATIONS
+WHERE COLLATION_NAME LIKE "utf8mb3\_%"
+ORDER BY collation_name;
+
+SHOW COLLATION LIKE 'utf8\_%';
+SHOW COLLATION LIKE 'utf8mb3\_%';

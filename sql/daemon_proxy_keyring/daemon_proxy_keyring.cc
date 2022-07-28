@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -130,13 +130,13 @@ class Callback {
   @return This function always returns true.
 */
 static bool key_plugin_cb_fn(THD *, plugin_ref plugin, void *arg) {
-  plugin = my_plugin_lock(NULL, &plugin);
+  plugin = my_plugin_lock(nullptr, &plugin);
   if (plugin) {
     Callback *callback = reinterpret_cast<Callback *>(arg);
     callback->invoke(
         reinterpret_cast<st_mysql_keyring *>(plugin_decl(plugin)->info));
   }
-  plugin_unlock(NULL, plugin);
+  plugin_unlock(nullptr, plugin);
   // this function should get executed only for the first plugin. This is why
   // it always returns error. plugin_foreach will stop after first iteration.
   return true;
@@ -786,11 +786,11 @@ mysql_declare_plugin(daemon_keyring_proxy){
     "services atop of the keyring plugin",
     PLUGIN_LICENSE_GPL,
     daemon_keyring_proxy_plugin_init,   /* Plugin Init */
-    NULL,                               /* Plugin Check uninstall */
+    nullptr,                            /* Plugin Check uninstall */
     daemon_keyring_proxy_plugin_deinit, /* Plugin Deinit */
     0x0100,                             /* 1.0 */
-    NULL,                               /* Status Variables */
-    NULL,                               /* System Variables */
-    NULL,                               /* Config options */
+    nullptr,                            /* Status Variables */
+    nullptr,                            /* System Variables */
+    nullptr,                            /* Config options */
     0,                                  /* Flags */
 } mysql_declare_plugin_end;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 #include <fido.h>
 
 /**
-   A wrapper class to access fido2 libary APIs to interact with the device.
+   A wrapper class to access fido2 library APIs to interact with the device.
    This class abstracts all access to FIDO device.
 */
 class fido_prepare_assert {

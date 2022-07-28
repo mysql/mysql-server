@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2021, Oracle and/or its affiliates.
+Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -203,7 +203,7 @@ struct Aligned_alloc_impl {
     // Given that P is a runtime value which we cannot know upfront we must opt
     // for N = S + A.
     const std::size_t data_len = size + alignment;
-    void *mem = Alloc_fn<Zero_initialized>::alloc(data_len);
+    void *mem = Alloc_fn::alloc<Zero_initialized>(data_len);
     if (unlikely(!mem)) return {nullptr, 0};
 
     // To guarantee that storage allocated by this function is as advertised
@@ -232,7 +232,7 @@ struct Aligned_alloc_impl {
       @param[in] ptr data_segment_pointer decreased by offset bytes. Both are
       obtained through alloc().
   */
-  static inline void free(void *ptr) noexcept { std::free(ptr); }
+  static inline void free(void *ptr) noexcept { Alloc_fn::free(ptr); }
 };
 
 /** Memory layout representation of metadata segment guaranteed by

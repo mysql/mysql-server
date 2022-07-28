@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@
   All subsequent calls will now be against db2.t1! Guess what? You don't
   have to perform an alter table!
 
-  This connecton="connection string" is necessary for the handler to be
+  This connection="connection string" is necessary for the handler to be
   able to connect to the foreign server, either by URL, or by server
   name.
 
@@ -115,8 +115,8 @@
   * Tables MUST be created on the foreign server prior to any action on those
     tables via the handler, first version. IMPORTANT: IF you MUST use the
     federated storage engine type on the REMOTE end, MAKE SURE [ :) ] That
-    the table you connect to IS NOT a table pointing BACK to your ORIGNAL
-    table! You know  and have heard the screaching of audio feedback? You
+    the table you connect to IS NOT a table pointing BACK to your ORIGINAL
+    table! You know  and have heard the screeching of audio feedback? You
     know putting two mirror in front of each other how the reflection
     continues for eternity? Well, need I say more?!
   * There will not be support for transactions.
@@ -243,7 +243,7 @@
 
     Once compiled, I did a 'make install' (not for the purpose of installing
     the binary, but to install all the files the binary expects to see in the
-    diretory I specified in the build with --prefix,
+    directory I specified in the build with --prefix,
     "/home/mysql/mysql-build/federated".
 
     Then, I started the foreign server:
@@ -294,7 +294,7 @@
     it turns off replication, and sets replication to ignore the test tables.
     After ensuring that you actually do have support for the federated storage
     handler, numerous queries/inserts/updates/deletes are run, many derived
-    from the MyISAM tests, plus som other tests which were meant to reveal
+    from the MyISAM tests, plus some other tests which were meant to reveal
     any issues that would be most likely to affect this handler. All tests
     should work! ;)
 
@@ -1247,7 +1247,7 @@ Summary:
 
 Conclusion:
 
-1. Need logic to determin if a key is min or max when the flag is
+1. Need logic to determine if a key is min or max when the flag is
 HA_READ_AFTER_KEY, and handle appending correct operator accordingly
 
 2. Need a boolean flag to pass to create_where_from_key, used in the
@@ -1594,7 +1594,7 @@ int ha_federated::close(void) {
   results.clear();
 
   /*
-    Check to verify wheather the connection is still alive or not.
+    Check to verify whether the connection is still alive or not.
     FLUSH TABLES will quit the connection and if connection is broken,
     it will reconnect again and quit silently.
   */
@@ -2110,7 +2110,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
   either a previous rnd_next() or index call).
   If you keep a pointer to the last row or can access a primary key it will
   make doing the deletion quite a bit easier.
-  Keep in mind that the server does no guarentee consecutive deletions.
+  Keep in mind that the server does not guarantee consecutive deletions.
   ORDER BY clauses can be used.
 
   Called in sql_acl.cc and sql_udf.cc to manage internal table information.
@@ -2421,7 +2421,7 @@ int ha_federated::rnd_init(bool scan) {
     then get called (this would be the result set we want to use).
 
     After this rnd_init (from sql_update.cc) would be called, it would then
-    unecessarily call "select * from table" on the foreign table, then call
+    unnecessarily call "select * from table" on the foreign table, then call
     mysql_store_result, which would wipe out the correct previous result set
     from the previous call of index_read_idx's that had the result set
     containing the correct record, hence update the wrong row!
@@ -3136,6 +3136,22 @@ int ha_federated::execute_simple_query(const char *query, int len) {
   return 0;
 }
 
+int ha_federated::rnd_pos_by_record(uchar *record [[maybe_unused]]) {
+  int error;
+  assert(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+
+  error = ha_rnd_init(false);
+  if (error != 0) return error;
+
+  if (stored_result) {
+    position(record);
+    error = ha_rnd_pos(record, ref);
+  }
+
+  ha_rnd_end();
+  return error;
+}
+
 struct st_mysql_storage_engine federated_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
 
@@ -3150,8 +3166,8 @@ mysql_declare_plugin(federated){
     nullptr,           /* Plugin check uninstall */
     federated_done,    /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    nullptr, /* status variables                */
-    nullptr, /* system variables                */
-    nullptr, /* config options                  */
-    0,       /* flags                           */
+    nullptr,                /* status variables                */
+    nullptr,                /* system variables                */
+    nullptr,                /* config options                  */
+    PLUGIN_OPT_DEFAULT_OFF, /* flags            */
 } mysql_declare_plugin_end;

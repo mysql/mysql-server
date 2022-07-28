@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -307,7 +307,7 @@ class PFS_object_iterator {
 class PFS_connection_wait_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
-  PFS_connection_wait_visitor(PFS_instr_class *klass);
+  explicit PFS_connection_wait_visitor(PFS_instr_class *klass);
   ~PFS_connection_wait_visitor() override;
   void visit_global() override;
   void visit_host(PFS_host *pfs) override;
@@ -350,7 +350,7 @@ class PFS_connection_all_wait_visitor : public PFS_connection_visitor {
 class PFS_connection_stage_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
-  PFS_connection_stage_visitor(PFS_stage_class *klass);
+  explicit PFS_connection_stage_visitor(PFS_stage_class *klass);
   ~PFS_connection_stage_visitor() override;
   void visit_global() override;
   void visit_host(PFS_host *pfs) override;
@@ -371,7 +371,7 @@ class PFS_connection_stage_visitor : public PFS_connection_visitor {
 class PFS_connection_statement_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
-  PFS_connection_statement_visitor(PFS_statement_class *klass);
+  explicit PFS_connection_statement_visitor(PFS_statement_class *klass);
   ~PFS_connection_statement_visitor() override;
   void visit_global() override;
   void visit_host(PFS_host *pfs) override;
@@ -414,7 +414,7 @@ class PFS_connection_all_statement_visitor : public PFS_connection_visitor {
 class PFS_connection_transaction_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
-  PFS_connection_transaction_visitor(PFS_transaction_class *klass);
+  explicit PFS_connection_transaction_visitor(PFS_transaction_class *klass);
   ~PFS_connection_transaction_visitor() override;
   void visit_global() override;
   void visit_host(PFS_host *pfs) override;
@@ -477,7 +477,7 @@ class PFS_connection_stat_visitor : public PFS_connection_visitor {
 class PFS_connection_memory_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
-  PFS_connection_memory_visitor(PFS_memory_class *klass);
+  explicit PFS_connection_memory_visitor(PFS_memory_class *klass);
   ~PFS_connection_memory_visitor() override;
   void visit_global() override;
   void visit_host(PFS_host *pfs) override;
@@ -498,7 +498,7 @@ class PFS_connection_memory_visitor : public PFS_connection_visitor {
 class PFS_connection_status_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
-  PFS_connection_status_visitor(System_status_var *status_vars);
+  explicit PFS_connection_status_visitor(System_status_var *status_vars);
   ~PFS_connection_status_visitor() override;
   void visit_global() override;
   void visit_host(PFS_host *pfs) override;

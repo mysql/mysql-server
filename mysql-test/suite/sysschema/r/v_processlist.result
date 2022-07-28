@@ -8,9 +8,11 @@ command	varchar(16)	YES		NULL
 state	varchar(64)	YES		NULL	
 time	bigint	YES		NULL	
 current_statement	longtext	YES		NULL	
+execution_engine	enum('PRIMARY','SECONDARY')	YES		NULL	
 statement_latency	varchar(11)	YES		NULL	
 progress	decimal(26,2)	YES		NULL	
 lock_latency	varchar(11)	YES		NULL	
+cpu_latency	varchar(11)	YES		NULL	
 rows_examined	bigint unsigned	YES		NULL	
 rows_sent	bigint unsigned	YES		NULL	
 rows_affected	bigint unsigned	YES		NULL	
@@ -39,9 +41,11 @@ command	varchar(16)	YES		NULL
 state	varchar(64)	YES		NULL	
 time	bigint	YES		NULL	
 current_statement	longtext	YES		NULL	
+execution_engine	enum('PRIMARY','SECONDARY')	YES		NULL	
 statement_latency	bigint unsigned	YES		NULL	
 progress	decimal(26,2)	YES		NULL	
 lock_latency	bigint unsigned	YES		NULL	
+cpu_latency	bigint unsigned	YES		NULL	
 rows_examined	bigint unsigned	YES		NULL	
 rows_sent	bigint unsigned	YES		NULL	
 rows_affected	bigint unsigned	YES		NULL	

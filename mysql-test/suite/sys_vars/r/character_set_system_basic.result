@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.character_set_system);
 COUNT(@@GLOBAL.character_set_system)
 1
 1 Expected
-SELECT character_set_system = @@SESSION.character_set_system;
+SELECT character_set_system;
 ERROR 42S22: Unknown column 'character_set_system' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

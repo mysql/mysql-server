@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,9 +49,9 @@ as whether the page is compressed or not. */
 class page_size_t {
  public:
   /** Constructor from (physical, logical, is_compressed).
-  @param[in]	physical	physical (on-disk/zipped) page size
-  @param[in]	logical		logical (in-memory/unzipped) page size
-  @param[in]	is_compressed	whether the page is compressed */
+  @param[in]    physical        physical (on-disk/zipped) page size
+  @param[in]    logical         logical (in-memory/unzipped) page size
+  @param[in]    is_compressed   whether the page is compressed */
   page_size_t(uint32_t physical, uint32_t logical, bool is_compressed) {
     if (physical == 0) {
       physical = UNIV_PAGE_SIZE_ORIG;
@@ -76,7 +76,7 @@ class page_size_t {
   }
 
   /** Constructor from (fsp_flags).
-  @param[in]	fsp_flags	filespace flags */
+  @param[in]    fsp_flags       filespace flags */
   explicit page_size_t(uint32_t fsp_flags) {
     uint32_t ssize = FSP_FLAGS_GET_PAGE_SSIZE(fsp_flags);
 
@@ -145,7 +145,7 @@ class page_size_t {
         size = 64;
         break;
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
     return (size);
   }
@@ -157,7 +157,7 @@ class page_size_t {
   inline bool is_compressed() const { return (m_is_compressed); }
 
   /** Copy the values from a given page_size_t object.
-  @param[in]	src	page size object whose values to fetch */
+  @param[in]    src     page size object whose values to fetch */
   inline void copy_from(const page_size_t &src) {
     m_physical = src.physical();
     m_logical = src.logical();
@@ -165,11 +165,11 @@ class page_size_t {
   }
 
   /** Check if a given page_size_t object is equal to the current one.
-  @param[in]	a	page_size_t object to compare
+  @param[in]    a       page_size_t object to compare
   @return true if equal */
   inline bool equals_to(const page_size_t &a) const {
     return (a.physical() == m_physical && a.logical() == m_logical &&
-            a.is_compressed() == m_is_compressed);
+            a.is_compressed() == (bool)m_is_compressed);
   }
 
   inline void set_flag(uint32_t fsp_flags) {
@@ -239,9 +239,9 @@ class page_size_t {
 
 /* Overloading the global output operator to conveniently print an object
 of type the page_size_t.
-@param[in,out]	out	the output stream
-@param[in]	obj	an object of type page_size_t to be printed
-@retval	the output stream */
+@param[in,out]  out     the output stream
+@param[in]      obj     an object of type page_size_t to be printed
+@retval the output stream */
 inline std::ostream &operator<<(std::ostream &out, const page_size_t &obj) {
   out << "[page size: physical=" << obj.physical()
       << ", logical=" << obj.logical() << ", compressed=" << obj.is_compressed()

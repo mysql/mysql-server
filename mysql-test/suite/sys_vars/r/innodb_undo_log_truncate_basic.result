@@ -61,7 +61,7 @@ SELECT COUNT(@@GLOBAL.innodb_undo_log_truncate);
 COUNT(@@GLOBAL.innodb_undo_log_truncate)
 1
 1 Expected
-SELECT innodb_undo_log_truncate = @@SESSION.innodb_undo_log_truncate;
+SELECT innodb_undo_log_truncate;
 ERROR 42S22: Unknown column 'innodb_undo_log_truncate' in 'field list'
 SET @@global.innodb_undo_log_truncate = @start_global_value;
 SELECT @@global.innodb_undo_log_truncate;

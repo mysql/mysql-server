@@ -743,11 +743,11 @@ json_extract(trace,"$.steps[*].statement_parameters")
 prepare s from 'select ADDDATE(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6", "LONGLONG"]]
+[["DATE", "LONGLONG"]]
 prepare s from 'select ADDDATE(?, INTERVAL ? MONTH)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6", "LONGLONG"]]
+[["DATE", "LONGLONG"]]
 prepare s from 'select ADDDATE(?, INTERVAL ? SECOND)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
@@ -765,10 +765,26 @@ prepare s from 'select ADDDATE(?, INTERVAL ? DAY_SECOND)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["DATETIME decimals=6", "VARCHAR"]]
+prepare s from 'select ADDDATE(?, INTERVAL 1 MONTH)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATE"]]
+prepare s from 'select ADDDATE(CAST(? AS DATE), INTERVAL 1 MONTH)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATE"]]
+prepare s from 'select ADDDATE(CAST(? AS DATETIME), INTERVAL 1 SECOND)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
 prepare s from 'select ADDTIME(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6", "TIME decimals=6"]]
+[["TIME decimals=6", "TIME decimals=6"]]
+prepare s from "select ADDTIME(?, time'01:01:01')";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["TIME decimals=6"]]
 prepare s from 'select AES_DECRYPT(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
@@ -2647,7 +2663,19 @@ json_extract(trace,"$.steps[*].statement_parameters")
 prepare s from 'select SUBDATE(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6", "LONGLONG"]]
+[["DATE", "LONGLONG"]]
+prepare s from 'select SUBDATE(?, INTERVAL 1 MONTH)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATE"]]
+prepare s from 'select SUBDATE(CAST(? AS DATE), INTERVAL 1 MONTH)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATE"]]
+prepare s from 'select SUBDATE(CAST(? AS DATETIME), INTERVAL 1 SECOND)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
 prepare s from 'select SUBSTR(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
@@ -2671,7 +2699,7 @@ json_extract(trace,"$.steps[*].statement_parameters")
 prepare s from 'select SUBTIME(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6", "TIME decimals=6"]]
+[["TIME decimals=6", "TIME decimals=6"]]
 prepare s from 'select SUM(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -236,7 +236,7 @@ bool MY_LOCALE_ERRMSGS::read_texts() {
                               fn_format(name, ERRMSG_FILE, lang_path, "", 4),
                               O_RDONLY, MYF(0))) < 0) {
     /*
-      Trying pre-5.5 sematics of the --language parameter.
+      Trying pre-5.5 semantics of the --language parameter.
       It included the language-specific part, e.g.:
 
       --language=/path/to/english/

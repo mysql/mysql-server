@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,12 @@
 #include "my_inttypes.h"
 #include "my_systime.h"                  // my_micro_time()
 #include "my_time.h"                     // MYSQL_TIME
+#include "sql-common/json_dom.h"         // Json_object
 #include "sql/field.h"                   // my_charset_numeric
 #include "sql/histograms/equi_height.h"  // Equi_height
 #include "sql/histograms/histogram.h"    // Histogram, Histogram_comparator
 #include "sql/histograms/singleton.h"    // Singleton
 #include "sql/histograms/value_map.h"    // Value_map<T>
-#include "sql/json_dom.h"                // Json_object
 #include "sql/my_decimal.h"              // my_decimal
 #include "sql/sql_time.h"                // my_time_compare
 #include "sql/tztime.h"                  // my_tz_UTC
@@ -249,7 +249,9 @@ class HistogramsTest : public ::testing::Test {
     - All histogram types must have the field "collation-id" of type J_UINT.
 */
 void VerifyCommonJSONFields(Json_object *json_histogram,
-                            const Histogram &histogram) {
+                            const Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   // Last updated field.
   Json_dom *last_updated_dom = json_histogram->get("last-updated");
   EXPECT_NE(last_updated_dom, nullptr);
@@ -263,7 +265,7 @@ void VerifyCommonJSONFields(Json_object *json_histogram,
   Json_string *json_histogram_type =
       static_cast<Json_string *>(histogram_type_dom);
 
-  switch (histogram.get_histogram_type()) {
+  switch (histogram->get_histogram_type()) {
     case Histogram::enum_histogram_type::EQUI_HEIGHT:
       EXPECT_STREQ(json_histogram_type->value().c_str(), "equi-height");
       break;
@@ -288,7 +290,7 @@ void VerifyCommonJSONFields(Json_object *json_histogram,
   EXPECT_EQ(collation_id_dom->json_type(), enum_json_type::J_UINT);
 
   Json_array *buckets = static_cast<Json_array *>(buckets_dom);
-  EXPECT_EQ(buckets->size(), histogram.get_num_buckets());
+  EXPECT_EQ(buckets->size(), histogram->get_num_buckets());
 }
 
 /*
@@ -301,9 +303,11 @@ void VerifyCommonJSONFields(Json_object *json_histogram,
     - The cumulative frequency is greater than the cumulative frequency in the
       previous bucket.
 */
-void VerifySingletonBucketConstraintsDouble(const Histogram &histogram) {
+void VerifySingletonBucketConstraintsDouble(const Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -330,9 +334,11 @@ void VerifySingletonBucketConstraintsDouble(const Histogram &histogram) {
   }
 }
 
-void VerifySingletonBucketConstraintsInt(Histogram &histogram) {
+void VerifySingletonBucketConstraintsInt(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -359,9 +365,11 @@ void VerifySingletonBucketConstraintsInt(Histogram &histogram) {
   }
 }
 
-void VerifySingletonBucketConstraintsUInt(Histogram &histogram) {
+void VerifySingletonBucketConstraintsUInt(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -388,10 +396,12 @@ void VerifySingletonBucketConstraintsUInt(Histogram &histogram) {
   }
 }
 
-void VerifySingletonBucketConstraintsString(Histogram &histogram,
+void VerifySingletonBucketConstraintsString(Histogram *histogram,
                                             const CHARSET_INFO *charset) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -418,9 +428,11 @@ void VerifySingletonBucketConstraintsString(Histogram &histogram,
   }
 }
 
-void VerifySingletonBucketConstraintsDecimal(Histogram &histogram) {
+void VerifySingletonBucketConstraintsDecimal(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -447,9 +459,11 @@ void VerifySingletonBucketConstraintsDecimal(Histogram &histogram) {
   }
 }
 
-void VerifySingletonBucketConstraintsTemporal(Histogram &histogram) {
+void VerifySingletonBucketConstraintsTemporal(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -489,9 +503,11 @@ void VerifySingletonBucketConstraintsTemporal(Histogram &histogram) {
       previous bucket.
     - The number of distinct values in a bucket is equal to or greater than 1.
 */
-void VerifyEquiHeightBucketConstraintsDouble(Histogram &histogram) {
+void VerifyEquiHeightBucketConstraintsDouble(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -533,9 +549,11 @@ void VerifyEquiHeightBucketConstraintsDouble(Histogram &histogram) {
   }
 }
 
-void VerifyEquiHeightBucketConstraintsInt(Histogram &histogram) {
+void VerifyEquiHeightBucketConstraintsInt(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -577,9 +595,11 @@ void VerifyEquiHeightBucketConstraintsInt(Histogram &histogram) {
   }
 }
 
-void VerifyEquiHeightBucketConstraintsUInt(Histogram &histogram) {
+void VerifyEquiHeightBucketConstraintsUInt(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -621,10 +641,12 @@ void VerifyEquiHeightBucketConstraintsUInt(Histogram &histogram) {
   }
 }
 
-void VerifyEquiHeightBucketConstraintsString(Histogram &histogram,
+void VerifyEquiHeightBucketConstraintsString(Histogram *histogram,
                                              const CHARSET_INFO *charset) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -669,9 +691,11 @@ void VerifyEquiHeightBucketConstraintsString(Histogram &histogram,
   }
 }
 
-void VerifyEquiHeightBucketConstraintsDecimal(Histogram &histogram) {
+void VerifyEquiHeightBucketConstraintsDecimal(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -714,9 +738,11 @@ void VerifyEquiHeightBucketConstraintsDecimal(Histogram &histogram) {
   }
 }
 
-void VerifyEquiHeightBucketConstraintsTemporal(Histogram &histogram) {
+void VerifyEquiHeightBucketConstraintsTemporal(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *buckets = down_cast<Json_array *>(buckets_dom);
@@ -775,10 +801,12 @@ void VerifyEquiHeightBucketConstraintsTemporal(Histogram &histogram) {
   The function does not check that the values are correct, but rather that they
   are present with the expected type.
 */
-void VerifyEquiHeightJSONStructure(Histogram &histogram,
+void VerifyEquiHeightJSONStructure(Histogram *histogram,
                                    enum_json_type expected_json_type) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
   VerifyCommonJSONFields(&json_object, histogram);
 
   Json_dom *buckets_dom = json_object.get("buckets");
@@ -818,10 +846,12 @@ void VerifyEquiHeightJSONStructure(Histogram &histogram,
   The function does not check that the values are correct, but rather that they
   are present with the expected type.
 */
-void VerifySingletonJSONStructure(Histogram &histogram,
+void VerifySingletonJSONStructure(Histogram *histogram,
                                   enum_json_type expected_json_type) {
+  ASSERT_TRUE(histogram != nullptr);
+
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
   VerifyCommonJSONFields(&json_object, histogram);
 
   Json_dom *buckets_dom = json_object.get("buckets");
@@ -858,98 +888,106 @@ void VerifySingletonJSONStructure(Histogram &histogram,
     - Blob/binary
 */
 TEST_F(HistogramsTest, DoubleSingletonToJSON) {
-  Singleton<double> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                              Value_map_type::DOUBLE);
+  Singleton<double> *histogram = Singleton<double>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DOUBLE);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(double_values, double_values.size()));
-  EXPECT_EQ(double_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(double_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(double_values, double_values.size()));
+  EXPECT_EQ(double_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(double_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_DOUBLE);
   VerifySingletonBucketConstraintsDouble(histogram);
 }
 
 TEST_F(HistogramsTest, StringSingletonToJSON) {
-  Singleton<String> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                              Value_map_type::STRING);
+  Singleton<String> *histogram = Singleton<String>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::STRING);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(string_values, string_values.size()));
-  EXPECT_EQ(string_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(string_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(string_values, string_values.size()));
+  EXPECT_EQ(string_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(string_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_OPAQUE);
   VerifySingletonBucketConstraintsString(histogram, &my_charset_latin1);
 }
 
 TEST_F(HistogramsTest, UintSingletonToJSON) {
-  Singleton<ulonglong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                 Value_map_type::UINT);
+  Singleton<ulonglong> *histogram = Singleton<ulonglong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::UINT);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(uint_values, uint_values.size()));
-  EXPECT_EQ(uint_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(uint_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(uint_values, uint_values.size()));
+  EXPECT_EQ(uint_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(uint_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_UINT);
   VerifySingletonBucketConstraintsUInt(histogram);
 }
 
 TEST_F(HistogramsTest, IntSingletonToJSON) {
-  Singleton<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                Value_map_type::INT);
+  Singleton<longlong> *histogram = Singleton<longlong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(int_values, int_values.size()));
-  EXPECT_EQ(int_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(int_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(int_values, int_values.size()));
+  EXPECT_EQ(int_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(int_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_INT);
   VerifySingletonBucketConstraintsInt(histogram);
 }
 
 TEST_F(HistogramsTest, DecimalSingletonToJSON) {
-  Singleton<my_decimal> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::DECIMAL);
+  Singleton<my_decimal> *histogram = Singleton<my_decimal>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DECIMAL);
+  ASSERT_TRUE(histogram != nullptr);
 
   EXPECT_FALSE(
-      histogram.build_histogram(decimal_values, decimal_values.size()));
-  EXPECT_EQ(decimal_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(decimal_values.size(), histogram.get_num_distinct_values());
+      histogram->build_histogram(decimal_values, decimal_values.size()));
+  EXPECT_EQ(decimal_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(decimal_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_DECIMAL);
   VerifySingletonBucketConstraintsDecimal(histogram);
 }
 
 TEST_F(HistogramsTest, DatetimeSingletonToJSON) {
-  Singleton<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::DATETIME);
+  Singleton<MYSQL_TIME> *histogram = Singleton<MYSQL_TIME>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATETIME);
+  ASSERT_TRUE(histogram != nullptr);
 
   EXPECT_FALSE(
-      histogram.build_histogram(datetime_values, datetime_values.size()));
-  EXPECT_EQ(datetime_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(datetime_values.size(), histogram.get_num_distinct_values());
+      histogram->build_histogram(datetime_values, datetime_values.size()));
+  EXPECT_EQ(datetime_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(datetime_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_DATETIME);
   VerifySingletonBucketConstraintsTemporal(histogram);
 }
 
 TEST_F(HistogramsTest, DateSingletonToJSON) {
-  Singleton<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::DATE);
+  Singleton<MYSQL_TIME> *histogram = Singleton<MYSQL_TIME>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATE);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(date_values, date_values.size()));
-  EXPECT_EQ(date_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(date_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(date_values, date_values.size()));
+  EXPECT_EQ(date_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(date_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_DATE);
   VerifySingletonBucketConstraintsTemporal(histogram);
 }
 
 TEST_F(HistogramsTest, TimeSingletonToJSON) {
-  Singleton<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::TIME);
+  Singleton<MYSQL_TIME> *histogram = Singleton<MYSQL_TIME>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::TIME);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(time_values, time_values.size()));
-  EXPECT_EQ(time_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(time_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(time_values, time_values.size()));
+  EXPECT_EQ(time_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(time_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_TIME);
   VerifySingletonBucketConstraintsTemporal(histogram);
@@ -977,98 +1015,106 @@ TEST_F(HistogramsTest, TimeSingletonToJSON) {
   bucket having lower_inclusive_value <= upper_inclusive.
 */
 TEST_F(HistogramsTest, DoubleEquiHeightToJSON) {
-  Equi_height<double> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                Value_map_type::DOUBLE);
+  Equi_height<double> *histogram = Equi_height<double>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DOUBLE);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(double_values, double_values.size()));
-  EXPECT_EQ(double_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(double_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(double_values, double_values.size()));
+  EXPECT_EQ(double_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(double_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DOUBLE);
   VerifyEquiHeightBucketConstraintsDouble(histogram);
 }
 
 TEST_F(HistogramsTest, StringEquiHeightToJSON) {
-  Equi_height<String> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                Value_map_type::STRING);
+  Equi_height<String> *histogram = Equi_height<String>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::STRING);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(string_values, string_values.size()));
-  EXPECT_EQ(string_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(string_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(string_values, string_values.size()));
+  EXPECT_EQ(string_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(string_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_OPAQUE);
   VerifyEquiHeightBucketConstraintsString(histogram, &my_charset_latin1);
 }
 
 TEST_F(HistogramsTest, UintEquiHeightToJSON) {
-  Equi_height<ulonglong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                   Value_map_type::UINT);
+  Equi_height<ulonglong> *histogram = Equi_height<ulonglong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::UINT);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(uint_values, uint_values.size()));
-  EXPECT_EQ(uint_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(uint_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(uint_values, uint_values.size()));
+  EXPECT_EQ(uint_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(uint_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_UINT);
   VerifyEquiHeightBucketConstraintsUInt(histogram);
 }
 
 TEST_F(HistogramsTest, IntEquiHeightToJSON) {
-  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::INT);
+  Equi_height<longlong> *histogram = Equi_height<longlong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(int_values, int_values.size()));
-  EXPECT_EQ(int_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(int_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(int_values, int_values.size()));
+  EXPECT_EQ(int_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(int_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_INT);
   VerifyEquiHeightBucketConstraintsInt(histogram);
 }
 
 TEST_F(HistogramsTest, DecimalEquiHeightToJSON) {
-  Equi_height<my_decimal> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                    Value_map_type::DECIMAL);
+  Equi_height<my_decimal> *histogram = Equi_height<my_decimal>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DECIMAL);
+  ASSERT_TRUE(histogram != nullptr);
 
   EXPECT_FALSE(
-      histogram.build_histogram(decimal_values, decimal_values.size()));
-  EXPECT_EQ(decimal_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(decimal_values.size(), histogram.get_num_distinct_values());
+      histogram->build_histogram(decimal_values, decimal_values.size()));
+  EXPECT_EQ(decimal_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(decimal_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DECIMAL);
   VerifyEquiHeightBucketConstraintsDecimal(histogram);
 }
 
 TEST_F(HistogramsTest, DatetimeEquiHeightToJSON) {
-  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                    Value_map_type::DATETIME);
+  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATETIME);
+  ASSERT_TRUE(histogram != nullptr);
 
   EXPECT_FALSE(
-      histogram.build_histogram(datetime_values, datetime_values.size()));
-  EXPECT_EQ(datetime_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(datetime_values.size(), histogram.get_num_distinct_values());
+      histogram->build_histogram(datetime_values, datetime_values.size()));
+  EXPECT_EQ(datetime_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(datetime_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATETIME);
   VerifyEquiHeightBucketConstraintsTemporal(histogram);
 }
 
 TEST_F(HistogramsTest, DateEquiHeightToJSON) {
-  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                    Value_map_type::DATE);
+  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATE);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(date_values, date_values.size()));
-  EXPECT_EQ(date_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(date_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(date_values, date_values.size()));
+  EXPECT_EQ(date_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(date_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATE);
   VerifyEquiHeightBucketConstraintsTemporal(histogram);
 }
 
 TEST_F(HistogramsTest, TimeEquiHeightToJSON) {
-  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                    Value_map_type::TIME);
+  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::TIME);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(time_values, time_values.size()));
-  EXPECT_EQ(time_values.size(), histogram.get_num_buckets());
-  EXPECT_EQ(time_values.size(), histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(time_values, time_values.size()));
+  EXPECT_EQ(time_values.size(), histogram->get_num_buckets());
+  EXPECT_EQ(time_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_TIME);
   VerifyEquiHeightBucketConstraintsTemporal(histogram);
@@ -1083,73 +1129,81 @@ TEST_F(HistogramsTest, TimeEquiHeightToJSON) {
   bucket having lower_inclusive_value <= upper_inclusive.
 */
 TEST_F(HistogramsTest, DoubleEquiHeightFewBuckets) {
-  Equi_height<double> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                Value_map_type::DOUBLE);
+  Equi_height<double> *histogram = Equi_height<double>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DOUBLE);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(double_values, 2U));
+  EXPECT_FALSE(histogram->build_histogram(double_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DOUBLE);
   VerifyEquiHeightBucketConstraintsDouble(histogram);
 }
 
 TEST_F(HistogramsTest, StringEquiHeightFewBuckets) {
-  Equi_height<String> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                Value_map_type::STRING);
+  Equi_height<String> *histogram = Equi_height<String>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::STRING);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(string_values, 2U));
+  EXPECT_FALSE(histogram->build_histogram(string_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_OPAQUE);
   VerifyEquiHeightBucketConstraintsString(histogram, &my_charset_latin1);
 }
 
 TEST_F(HistogramsTest, UintEquiHeightFewBuckets) {
-  Equi_height<ulonglong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                   Value_map_type::UINT);
+  Equi_height<ulonglong> *histogram = Equi_height<ulonglong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::UINT);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(uint_values, 2U));
+  EXPECT_FALSE(histogram->build_histogram(uint_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_UINT);
   VerifyEquiHeightBucketConstraintsUInt(histogram);
 }
 
 TEST_F(HistogramsTest, IntEquiHeightFewBuckets) {
-  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::INT);
+  Equi_height<longlong> *histogram = Equi_height<longlong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(int_values, 2U));
+  EXPECT_FALSE(histogram->build_histogram(int_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_INT);
   VerifyEquiHeightBucketConstraintsInt(histogram);
 }
 
 TEST_F(HistogramsTest, DecimalEquiHeightFewBuckets) {
-  Equi_height<my_decimal> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                    Value_map_type::DECIMAL);
+  Equi_height<my_decimal> *histogram = Equi_height<my_decimal>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DECIMAL);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(decimal_values, 2U));
+  EXPECT_FALSE(histogram->build_histogram(decimal_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DECIMAL);
   VerifyEquiHeightBucketConstraintsDecimal(histogram);
 }
 
 TEST_F(HistogramsTest, DatetimeEquiHeightFewBuckets) {
-  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                    Value_map_type::DATETIME);
+  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATETIME);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(datetime_values, 2U));
+  EXPECT_FALSE(histogram->build_histogram(datetime_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATETIME);
   VerifyEquiHeightBucketConstraintsTemporal(histogram);
 }
 
 TEST_F(HistogramsTest, DateEquiHeightFewBuckets) {
-  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                    Value_map_type::DATE);
+  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATE);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(date_values, 2U));
+  EXPECT_FALSE(histogram->build_histogram(date_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATE);
   VerifyEquiHeightBucketConstraintsTemporal(histogram);
 }
 
 TEST_F(HistogramsTest, TimeEquiHeightFewBuckets) {
-  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                    Value_map_type::TIME);
+  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::TIME);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_FALSE(histogram.build_histogram(time_values, 2U));
+  EXPECT_FALSE(histogram->build_histogram(time_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_TIME);
   VerifyEquiHeightBucketConstraintsTemporal(histogram);
 }
@@ -1199,171 +1253,6 @@ TEST_F(HistogramsTest, AutoSelectHistogramType) {
             histogram3->get_histogram_type());
   EXPECT_LE(histogram3->get_num_buckets(), double_values.size());
   EXPECT_EQ(histogram3->get_num_distinct_values(), double_values.size());
-}
-
-/*
-  A utility function that verifies the actual values in the equi-height JSON
-  bucket.
-*/
-void VerifyEquiHeightBucketContentsInt(Json_array *equi_height_buckets,
-                                       int bucket_index,
-                                       double cumulative_frequency,
-                                       longlong lower_inclusive,
-                                       longlong upper_inclusive,
-                                       ulonglong num_distinct) {
-  Json_array *json_bucket =
-      down_cast<Json_array *>((*equi_height_buckets)[bucket_index]);
-
-  Json_int *json_lower_inclusive = down_cast<Json_int *>((*json_bucket)[0]);
-  Json_int *json_upper_inclusive = down_cast<Json_int *>((*json_bucket)[1]);
-  Json_double *json_cumulative_frequency =
-      down_cast<Json_double *>((*json_bucket)[2]);
-  Json_uint *json_num_distinct = down_cast<Json_uint *>((*json_bucket)[3]);
-
-  EXPECT_DOUBLE_EQ(cumulative_frequency, json_cumulative_frequency->value());
-  EXPECT_EQ(lower_inclusive, json_lower_inclusive->value());
-  EXPECT_EQ(upper_inclusive, json_upper_inclusive->value());
-  EXPECT_EQ(num_distinct, json_num_distinct->value());
-}
-
-/*
-  An utility function that verifies the actual values in the equi-height JSON
-  bucket.
-*/
-void VerifyEquiHeightBucketContentsUInt(Json_array *equi_height_buckets,
-                                        int bucket_index,
-                                        double cumulative_frequency,
-                                        ulonglong lower_inclusive,
-                                        ulonglong upper_inclusive,
-                                        ulonglong num_distinct) {
-  Json_array *json_bucket =
-      down_cast<Json_array *>((*equi_height_buckets)[bucket_index]);
-
-  Json_uint *json_lower_inclusive = down_cast<Json_uint *>((*json_bucket)[0]);
-  Json_uint *json_upper_inclusive = down_cast<Json_uint *>((*json_bucket)[1]);
-  Json_double *json_cumulative_frequency =
-      down_cast<Json_double *>((*json_bucket)[2]);
-  Json_uint *json_num_distinct = down_cast<Json_uint *>((*json_bucket)[3]);
-
-  EXPECT_DOUBLE_EQ(cumulative_frequency, json_cumulative_frequency->value());
-  EXPECT_EQ(lower_inclusive, json_lower_inclusive->value());
-  EXPECT_EQ(upper_inclusive, json_upper_inclusive->value());
-  EXPECT_EQ(num_distinct, json_num_distinct->value());
-}
-
-/*
-  An utility function that verifies the actual values in the equi-height JSON
-  bucket.
-*/
-void VerifyEquiHeightBucketContentsString(
-    Json_array *equi_height_buckets, int bucket_index,
-    double cumulative_frequency, String lower_inclusive, String upper_inclusive,
-    ulonglong num_distinct, const CHARSET_INFO *charset) {
-  Json_array *json_bucket =
-      down_cast<Json_array *>((*equi_height_buckets)[bucket_index]);
-
-  Json_opaque *json_lower_inclusive =
-      down_cast<Json_opaque *>((*json_bucket)[0]);
-  Json_opaque *json_upper_inclusive =
-      down_cast<Json_opaque *>((*json_bucket)[1]);
-  Json_double *json_cumulative_frequency =
-      down_cast<Json_double *>((*json_bucket)[2]);
-  Json_uint *json_num_distinct = down_cast<Json_uint *>((*json_bucket)[3]);
-
-  String json_lower(json_lower_inclusive->value(), json_lower_inclusive->size(),
-                    charset);
-  String json_upper(json_upper_inclusive->value(), json_upper_inclusive->size(),
-                    charset);
-
-  EXPECT_EQ(json_lower.charset()->number, lower_inclusive.charset()->number);
-  EXPECT_EQ(json_upper.charset()->number, upper_inclusive.charset()->number);
-  EXPECT_DOUBLE_EQ(cumulative_frequency, json_cumulative_frequency->value());
-  EXPECT_EQ(sortcmp(&lower_inclusive, &json_lower, charset), 0);
-  EXPECT_EQ(sortcmp(&upper_inclusive, &json_upper, charset), 0);
-  EXPECT_EQ(num_distinct, json_num_distinct->value());
-}
-
-/*
-  An utility function that verifies the actual values in the equi-height JSON
-  bucket.
-*/
-void VerifyEquiHeightBucketContentsDouble(Json_array *equi_height_buckets,
-                                          int bucket_index,
-                                          double cumulative_frequency,
-                                          double lower_inclusive,
-                                          double upper_inclusive,
-                                          ulonglong num_distinct) {
-  Json_array *json_bucket =
-      down_cast<Json_array *>((*equi_height_buckets)[bucket_index]);
-
-  Json_double *json_lower_inclusive =
-      down_cast<Json_double *>((*json_bucket)[0]);
-  Json_double *json_upper_inclusive =
-      down_cast<Json_double *>((*json_bucket)[1]);
-  Json_double *json_cumulative_frequency =
-      down_cast<Json_double *>((*json_bucket)[2]);
-  Json_uint *json_num_distinct = down_cast<Json_uint *>((*json_bucket)[3]);
-
-  EXPECT_DOUBLE_EQ(cumulative_frequency, json_cumulative_frequency->value());
-  EXPECT_EQ(lower_inclusive, json_lower_inclusive->value());
-  EXPECT_EQ(upper_inclusive, json_upper_inclusive->value());
-  EXPECT_EQ(num_distinct, json_num_distinct->value());
-}
-
-/*
-  An utility function that verifies the actual values in the equi-height JSON
-  bucket.
-*/
-void VerifyEquiHeightBucketContentsDecimal(Json_array *equi_height_buckets,
-                                           int bucket_index,
-                                           double cumulative_frequency,
-                                           my_decimal lower_inclusive,
-                                           my_decimal upper_inclusive,
-                                           ulonglong num_distinct) {
-  Json_array *json_bucket =
-      down_cast<Json_array *>((*equi_height_buckets)[bucket_index]);
-
-  Json_decimal *json_lower_inclusive =
-      down_cast<Json_decimal *>((*json_bucket)[0]);
-  Json_decimal *json_upper_inclusive =
-      down_cast<Json_decimal *>((*json_bucket)[1]);
-  Json_double *json_cumulative_frequency =
-      down_cast<Json_double *>((*json_bucket)[2]);
-  Json_uint *json_num_distinct = down_cast<Json_uint *>((*json_bucket)[3]);
-
-  EXPECT_DOUBLE_EQ(cumulative_frequency, json_cumulative_frequency->value());
-  EXPECT_EQ(my_decimal_cmp(json_lower_inclusive->value(), &lower_inclusive), 0);
-  EXPECT_EQ(my_decimal_cmp(json_upper_inclusive->value(), &upper_inclusive), 0);
-  EXPECT_EQ(num_distinct, json_num_distinct->value());
-}
-
-/*
-  An utility function that verifies the actual values in the equi-height JSON
-  bucket.
-*/
-void VerifyEquiHeightBucketContentsTemporal(Json_array *equi_height_buckets,
-                                            int bucket_index,
-                                            double cumulative_frequency,
-                                            MYSQL_TIME lower_inclusive,
-                                            MYSQL_TIME upper_inclusive,
-                                            ulonglong num_distinct) {
-  Json_array *json_bucket =
-      down_cast<Json_array *>((*equi_height_buckets)[bucket_index]);
-
-  Json_datetime *json_lower_inclusive =
-      down_cast<Json_datetime *>((*json_bucket)[0]);
-  Json_datetime *json_upper_inclusive =
-      down_cast<Json_datetime *>((*json_bucket)[1]);
-  Json_double *json_cumulative_frequency =
-      down_cast<Json_double *>((*json_bucket)[2]);
-  Json_uint *json_num_distinct = down_cast<Json_uint *>((*json_bucket)[3]);
-
-  EXPECT_DOUBLE_EQ(cumulative_frequency, json_cumulative_frequency->value());
-  EXPECT_EQ(my_time_compare(*json_lower_inclusive->value(), lower_inclusive),
-            0);
-  EXPECT_EQ(my_time_compare(*json_upper_inclusive->value(), upper_inclusive),
-            0);
-  EXPECT_EQ(num_distinct, json_num_distinct->value());
 }
 
 /*
@@ -1484,72 +1373,203 @@ void VerifySingletonBucketContentsTemporal(Json_array *singleton_buckets,
   EXPECT_EQ(my_time_compare(*json_value->value(), value), 0);
 }
 
-/*
-  Create an equi-height histogram with longlong values, where we manually verify
-  the values for every property in every bucket.
-*/
-TEST_F(HistogramsTest, VerifyEquiHeightContentsInt1) {
-  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::INT);
+template <typename T>
+Equi_height<T> *BuildEquiHeightAndVerifyBasicProperties(
+    MEM_ROOT *mem_root, const Value_map<T> &value_map, size_t num_buckets) {
+  Equi_height<T> *histogram = Equi_height<T>::create(
+      mem_root, "db1", "tbl1", "col1", value_map.get_data_type());
+  EXPECT_TRUE(histogram != nullptr);
 
-  EXPECT_STREQ(histogram.get_database_name().str, "db1");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
-  EXPECT_STREQ(histogram.get_column_name().str, "col1");
+  EXPECT_EQ(histogram->get_num_buckets(), 0U);
+  EXPECT_EQ(histogram->get_num_buckets_specified(), 0U);
+  EXPECT_EQ(histogram->get_num_distinct_values(), 0U);
+  EXPECT_EQ(histogram->get_data_type(), value_map.get_data_type());
 
-  EXPECT_FALSE(histogram.build_histogram(int_values, 3U));
-  EXPECT_EQ(histogram.get_num_buckets(), 3U);
-  EXPECT_EQ(histogram.get_num_distinct_values(), int_values.size());
+  EXPECT_STREQ(histogram->get_database_name().str, "db1");
+  EXPECT_STREQ(histogram->get_table_name().str, "tbl1");
+  EXPECT_STREQ(histogram->get_column_name().str, "col1");
 
-  VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_INT);
+  EXPECT_FALSE(histogram->build_histogram(value_map, num_buckets));
+  EXPECT_EQ(histogram->get_num_buckets(), num_buckets);
+  EXPECT_EQ(histogram->get_num_buckets_specified(), num_buckets);
+  EXPECT_EQ(histogram->get_num_distinct_values(), value_map.size());
+  EXPECT_EQ(histogram->get_character_set()->number,
+            value_map.get_character_set()->number);
 
-  Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  return histogram;
+}
 
-  Json_dom *buckets_dom = json_object.get("buckets");
-  Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
+template <typename T>
+void EquiHeightBucketsAreEqual(const equi_height::Bucket<T> &b1,
+                               const equi_height::Bucket<T> &b2) {
+  EXPECT_EQ(b1.get_cumulative_frequency(), b2.get_cumulative_frequency());
+  EXPECT_EQ(b1.get_num_distinct(), b2.get_num_distinct());
 
-  EXPECT_EQ(json_buckets->size(), 3U);
+  // Equality check: Neither value is less than the other.
+  EXPECT_FALSE(Histogram_comparator()(b1.get_lower_inclusive(),
+                                      b2.get_lower_inclusive()));
+  EXPECT_FALSE(Histogram_comparator()(b2.get_lower_inclusive(),
+                                      b1.get_lower_inclusive()));
 
-  // First bucket.
-  VerifyEquiHeightBucketContentsInt(json_buckets, 0, (20.0 / 70.0),
-                                    std::numeric_limits<longlong>::lowest(),
-                                    -1LL, 2ULL);
+  EXPECT_FALSE(Histogram_comparator()(b1.get_upper_inclusive(),
+                                      b2.get_upper_inclusive()));
+  EXPECT_FALSE(Histogram_comparator()(b2.get_upper_inclusive(),
+                                      b1.get_upper_inclusive()));
+}
 
-  // Second bucket.
-  VerifyEquiHeightBucketContentsInt(json_buckets, 1, (50.0 / 70.0), 0LL, 42LL,
-                                    3ULL);
+template <typename T>
+void EquiHeightHistogramsAreEqual(const Equi_height<T> *h1,
+                                  const Equi_height<T> *h2) {
+  EXPECT_STREQ(h1->get_database_name().str, h2->get_database_name().str);
+  EXPECT_STREQ(h1->get_table_name().str, h2->get_table_name().str);
+  EXPECT_STREQ(h1->get_column_name().str, h2->get_column_name().str);
 
-  // Third bucket.
-  VerifyEquiHeightBucketContentsInt(json_buckets, 2, 1.0, 10000,
-                                    std::numeric_limits<longlong>::max(), 2ULL);
+  EXPECT_EQ(h1->get_histogram_type(), h2->get_histogram_type());
+  EXPECT_EQ(h1->get_data_type(), h2->get_data_type());
+  EXPECT_EQ(h1->get_num_buckets(), h2->get_num_buckets());
+  EXPECT_EQ(h1->get_num_buckets_specified(), h2->get_num_buckets_specified());
+  EXPECT_EQ(h1->get_num_distinct_values(), h2->get_num_distinct_values());
+  EXPECT_EQ(h1->get_non_null_values_fraction(),
+            h2->get_non_null_values_fraction());
+  EXPECT_EQ(h1->get_null_values_fraction(), h2->get_null_values_fraction());
+  EXPECT_EQ(h1->get_character_set()->number, h2->get_character_set()->number);
+  EXPECT_EQ(h1->get_sampling_rate(), h2->get_sampling_rate());
 
-  EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 0.0);
+  ASSERT_EQ(h1->get_num_buckets(), h2->get_num_buckets());
+  for (size_t i = 0; i < h1->get_num_buckets(); ++i) {
+    EquiHeightBucketsAreEqual(h1->get_buckets()[i], h2->get_buckets()[i]);
+  }
 }
 
 /*
-  Create an equi-height histogram with longlong values, where we manually verify
-  the values for every property in every bucket.
+  Serialize and deserialize the given histogram.
+  Verify that the deserialized histogram matches the original.
 */
+template <typename T>
+void VerifyEquiHeightSerialization(MEM_ROOT *mem_root,
+                                   const Equi_height<T> *histogram) {
+  // Serialization.
+  Json_object json_object;
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
+
+  // Deserialization.
+  Histogram *deserialized_histogram = Histogram::json_to_histogram(
+      mem_root, "db1", "tbl1", "col1", json_object);
+  ASSERT_TRUE(deserialized_histogram != nullptr);
+  Equi_height<T> *deserialized_equi_height =
+      dynamic_cast<Equi_height<T> *>(deserialized_histogram);
+  ASSERT_TRUE(deserialized_equi_height != nullptr);
+
+  EquiHeightHistogramsAreEqual(histogram, deserialized_equi_height);
+}
+
+/*
+  Verify that histogram selectivity estimates for the values in the value_map
+  are within max_abs_error of the actual selectivities.
+*/
+template <typename T>
+void VerifyEquiHeightSelectivities(const Value_map<T> &value_map,
+                                   const Equi_height<T> *histogram,
+                                   double max_error_factor) {
+  double max_abs_error =
+      max_error_factor /
+      static_cast<double>(histogram->get_num_buckets_specified());
+
+  ha_rows non_null_values = 0;
+  for (const auto &[value, count] : value_map) non_null_values += count;
+  ha_rows total_values = non_null_values + value_map.get_num_null_values();
+
+  ha_rows cumulative_values = 0;
+  for (const auto &[value, count] : value_map) {
+    double less_than_selectivity =
+        static_cast<double>(cumulative_values) / total_values;
+    EXPECT_NEAR(less_than_selectivity,
+                histogram->get_less_than_selectivity(value), max_abs_error);
+
+    double equal_to_selectivity = static_cast<double>(count) / total_values;
+    EXPECT_NEAR(equal_to_selectivity,
+                histogram->get_equal_to_selectivity(value), max_abs_error);
+
+    double greater_than_selectivity =
+        1.0 - (less_than_selectivity + equal_to_selectivity);
+    EXPECT_NEAR(greater_than_selectivity,
+                histogram->get_greater_than_selectivity(value), max_abs_error);
+
+    cumulative_values += count;
+  }
+
+  double null_fraction =
+      static_cast<double>(value_map.get_num_null_values()) / total_values;
+  double non_null_fraction =
+      static_cast<double>(non_null_values) / total_values;
+
+  const double null_fraction_max_error = 1.0e-9;
+  EXPECT_NEAR(histogram->get_null_values_fraction(), null_fraction,
+              null_fraction_max_error);
+  EXPECT_NEAR(histogram->get_non_null_values_fraction(), non_null_fraction,
+              null_fraction_max_error);
+}
+
+/*
+  The json type that we expect histogram values (bucket endpoints) of a given
+  type to be serialized into.
+*/
+enum_json_type ValueMapTypeToJsonType(Value_map_type value_type) {
+  switch (value_type) {
+    case Value_map_type::INVALID:
+      return enum_json_type::J_ERROR;
+    case Value_map_type::STRING:
+      return enum_json_type::J_OPAQUE;
+    case Value_map_type::INT:
+      return enum_json_type::J_INT;
+    case Value_map_type::UINT:
+      return enum_json_type::J_UINT;
+    case Value_map_type::DOUBLE:
+      return enum_json_type::J_DOUBLE;
+    case Value_map_type::DECIMAL:
+      return enum_json_type::J_DECIMAL;
+    case Value_map_type::DATE:
+      return enum_json_type::J_DATE;
+    case Value_map_type::TIME:
+      return enum_json_type::J_TIME;
+    case Value_map_type::DATETIME:
+      return enum_json_type::J_DATETIME;
+    case Value_map_type::ENUM:
+      return enum_json_type::J_UINT;
+    case Value_map_type::SET:
+      return enum_json_type::J_UINT;
+  }
+  return enum_json_type::J_ERROR;
+}
+
+template <typename T>
+void VerifyEquiHeight(MEM_ROOT *mem_root, const Value_map<T> &value_map,
+                      size_t num_buckets, double max_error_factor = 1.0) {
+  Equi_height<T> *histogram =
+      BuildEquiHeightAndVerifyBasicProperties(mem_root, value_map, num_buckets);
+  enum_json_type expected_json_value_type =
+      ValueMapTypeToJsonType(histogram->get_data_type());
+  VerifyEquiHeightJSONStructure(histogram, expected_json_value_type);
+  VerifyEquiHeightSerialization(mem_root, histogram);
+  VerifyEquiHeightSelectivities(value_map, histogram, max_error_factor);
+}
+
+TEST_F(HistogramsTest, VerifyEquiHeightContentsInt1) {
+  size_t num_buckets = 3;
+  double max_error_factor = 1.0;
+  VerifyEquiHeight(&m_mem_root, int_values, num_buckets, max_error_factor);
+}
+
 TEST_F(HistogramsTest, VerifyEquiHeightContentsInt2) {
-  Equi_height<longlong> histogram(&m_mem_root, "db2", "tbl2", "col2",
-                                  Value_map_type::INT);
-
-  EXPECT_EQ(0U, histogram.get_num_buckets());
-  EXPECT_EQ(0U, histogram.get_num_distinct_values());
-
-  EXPECT_STREQ(histogram.get_database_name().str, "db2");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl2");
-  EXPECT_STREQ(histogram.get_column_name().str, "col2");
-
   /*
     Create a value map with the following key/value pairs;
-
-      [0, 10000]
-      [1,  9999]
-      [2,  9998]
+      [NULL, 10000]
+      [0,    10000]
+      [1,     9999]
+      [2,     9998]
       ...
-      [9998,  2]
-      [9999,  1]
+      [9998,     2]
+      [9999,     1]
   */
   Value_map<longlong> values(&my_charset_numeric, Value_map_type::INT);
   values.add_null_values(10000);
@@ -1558,413 +1578,45 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsInt2) {
     values.add_values(i, frequency);
   }
 
-  // Build a histogram with 10 buckets and 10000 NULL values
   size_t num_buckets = 10;
-  EXPECT_FALSE(histogram.build_histogram(values, num_buckets));
-  EXPECT_LE(histogram.get_num_buckets(), num_buckets);
-  EXPECT_EQ(histogram.get_num_distinct_values(), 10000U);
-
-  VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_INT);
-
-  Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
-
-  Json_dom *buckets_dom = json_object.get("buckets");
-  Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
-
-  EXPECT_EQ(json_buckets->size(), num_buckets);
-
-  /*
-    The sum of all numbers (integers) from M to N, where M = 1, can be
-    found by N(N+1)/2. Add_values 100 to include the NULL values.
-  */
-  longlong total_sum = (10000 * (10000 + 1) / 2) + 10000;
-
-  /*
-    The sum of all numbers (integers) from M to N, where M < N, can be
-    found by N(N+1)/2 - M(M-1)/2
-  */
-  double frequency = 0.0;
-  double tmp;
-
-  // Bucket 1; [0, 512]
-  tmp = 10000 * (10000 + 1) / 2 - (10000 - 512) * (10000 - 512 - 1) / 2;
-  tmp /= total_sum;
-  frequency += tmp;
-  VerifyEquiHeightBucketContentsInt(json_buckets, 0, frequency, 0, 512,
-                                    (512 + 1));
-
-  // Bucket 2; [513, 1055]
-  tmp = (10000 - 513) * (10000 - 513 + 1) / 2 -
-        (10000 - 1055) * (10000 - 1055 - 1) / 2;
-  tmp /= total_sum;
-  frequency += tmp;
-  VerifyEquiHeightBucketContentsInt(json_buckets, 1, frequency, 513, 1055,
-                                    (1055 - 513 + 1));
-
-  // Bucket 3; [1056, 1632]
-  tmp = (10000 - 1056) * (10000 - 1056 + 1) / 2 -
-        (10000 - 1632) * (10000 - 1632 - 1) / 2;
-  tmp /= total_sum;
-  frequency += tmp;
-  VerifyEquiHeightBucketContentsInt(json_buckets, 2, frequency, 1056, 1632,
-                                    (1632 - 1056 + 1));
-
-  // Bucket 4; [1633, 2253]
-  tmp = (10000 - 1633) * (10000 - 1633 + 1) / 2 -
-        (10000 - 2253) * (10000 - 2253 - 1) / 2;
-  tmp /= total_sum;
-  frequency += tmp;
-  VerifyEquiHeightBucketContentsInt(json_buckets, 3, frequency, 1633, 2253,
-                                    (2253 - 1633 + 1));
-
-  // Bucket 5; [2254, 2928]
-  tmp = (10000 - 2254) * (10000 - 2254 + 1) / 2 -
-        (10000 - 2928) * (10000 - 2928 - 1) / 2;
-  tmp /= total_sum;
-  frequency += tmp;
-  VerifyEquiHeightBucketContentsInt(json_buckets, 4, frequency, 2254, 2928,
-                                    (2928 - 2254 + 1));
-
-  // Bucket 6; [2929, 3675]
-  tmp = (10000 - 2929) * (10000 - 2929 + 1) / 2 -
-        (10000 - 3675) * (10000 - 3675 - 1) / 2;
-  tmp /= total_sum;
-  frequency += tmp;
-  VerifyEquiHeightBucketContentsInt(json_buckets, 5, frequency, 2929, 3675,
-                                    (3675 - 2929 + 1));
-
-  // Bucket 7; [3676, 4522]
-  tmp = (10000 - 3676) * (10000 - 3676 + 1) / 2 -
-        (10000 - 4522) * (10000 - 4522 - 1) / 2;
-  tmp /= total_sum;
-  frequency += tmp;
-  VerifyEquiHeightBucketContentsInt(json_buckets, 6, frequency, 3676, 4522,
-                                    (4522 - 3676 + 1));
-
-  // Bucket 8; [4523, 5527]
-  tmp = (10000 - 4523) * (10000 - 4523 + 1) / 2 -
-        (10000 - 5527) * (10000 - 5527 - 1) / 2;
-  tmp /= total_sum;
-  frequency += tmp;
-  VerifyEquiHeightBucketContentsInt(json_buckets, 7, frequency, 4523, 5527,
-                                    (5527 - 4523 + 1));
-
-  // Bucket 9; [5528, 6837]
-  tmp = (10000 - 5528) * (10000 - 5528 + 1) / 2 -
-        (10000 - 6837) * (10000 - 6837 - 1) / 2;
-  tmp /= total_sum;
-  frequency += tmp;
-  VerifyEquiHeightBucketContentsInt(json_buckets, 8, frequency, 5528, 6837,
-                                    (6837 - 5528 + 1));
-
-  // Bucket 10; [6838, 9999]
-  tmp = (10000 - 6838) * (10000 - 6838 + 1) / 2 -
-        (10000 - 9999) * (10000 - 9999 - 1) / 2;
-  tmp /= total_sum;
-  frequency += tmp;
-  VerifyEquiHeightBucketContentsInt(json_buckets, 9, frequency, 6838, 9999,
-                                    (9999 - 6838 + 1));
-
-  EXPECT_DOUBLE_EQ(frequency + histogram.get_null_values_fraction(), 1.0);
+  double max_error_factor = 1.0;
+  VerifyEquiHeight(&m_mem_root, values, num_buckets, max_error_factor);
 }
 
-/*
-  Create an equi-height histogram with double values, where we manually verify
-  the values for every property in every bucket.
-*/
 TEST_F(HistogramsTest, VerifyEquiHeightContentsDouble) {
-  Equi_height<double> histogram(&m_mem_root, "db3", "tbl3", "col3",
-                                Value_map_type::DOUBLE);
-
-  EXPECT_STREQ(histogram.get_database_name().str, "db3");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl3");
-  EXPECT_STREQ(histogram.get_column_name().str, "col3");
-
-  EXPECT_FALSE(histogram.build_histogram(double_values, 3U));
-  EXPECT_EQ(histogram.get_num_buckets(), 3U);
-  EXPECT_EQ(histogram.get_num_distinct_values(), double_values.size());
-
-  VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DOUBLE);
-
-  Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
-
-  Json_dom *buckets_dom = json_object.get("buckets");
-  Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
-
-  EXPECT_EQ(json_buckets->size(), 3U);
-
-  // First bucket.
-  VerifyEquiHeightBucketContentsDouble(json_buckets, 0, (20.0 / 60.0),
-                                       std::numeric_limits<double>::lowest(),
-                                       0.0, 2ULL);
-
-  // Second bucket.
-  VerifyEquiHeightBucketContentsDouble(json_buckets, 1, (40.0 / 60.0),
-                                       std::numeric_limits<double>::epsilon(),
-                                       42.0, 2ULL);
-
-  // Third bucket.
-  VerifyEquiHeightBucketContentsDouble(
-      json_buckets, 2, 1.0, 43.0, std::numeric_limits<double>::max(), 2ULL);
-
-  EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 0.0);
+  size_t num_buckets = 3;
+  double max_error_factor = 1.0;
+  VerifyEquiHeight(&m_mem_root, double_values, num_buckets, max_error_factor);
 }
 
-/*
-  Create an equi-height histogram with string values, where we manually verify
-  the values for every property in every bucket.
-*/
 TEST_F(HistogramsTest, VerifyEquiHeightContentsString) {
-  Equi_height<String> histogram(&m_mem_root, "db4", "tbl4", "col4",
-                                Value_map_type::STRING);
-
-  EXPECT_STREQ(histogram.get_database_name().str, "db4");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl4");
-  EXPECT_STREQ(histogram.get_column_name().str, "col4");
-
-  EXPECT_FALSE(histogram.build_histogram(string_values, 3U));
-  EXPECT_EQ(histogram.get_num_buckets(), 3U);
-  EXPECT_EQ(histogram.get_num_distinct_values(), string_values.size());
-
-  VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_OPAQUE);
-
-  Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
-
-  Json_dom *buckets_dom = json_object.get("buckets");
-  Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
-
-  EXPECT_EQ(json_buckets->size(), 3U);
-
-  String lower_bucket1("", &my_charset_latin1);
-  String upper_bucket1("string1", &my_charset_latin1);
-
-  String bucket2("string2", &my_charset_latin1);
-
-  String lower_bucket3("string3", &my_charset_latin1);
-  String upper_bucket3("string4", &my_charset_latin1);
-
-  // First bucket.
-  VerifyEquiHeightBucketContentsString(json_buckets, 0, (20.0 / 50.0),
-                                       lower_bucket1, upper_bucket1, 2ULL,
-                                       &my_charset_latin1);
-
-  // Second bucket.
-  VerifyEquiHeightBucketContentsString(json_buckets, 1, (30.0 / 50.0), bucket2,
-                                       bucket2, 1ULL, &my_charset_latin1);
-
-  // Third bucket.
-  VerifyEquiHeightBucketContentsString(json_buckets, 2, 1.0, lower_bucket3,
-                                       upper_bucket3, 2ULL, &my_charset_latin1);
-
-  EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 0.0);
+  size_t num_buckets = 3;
+  double max_error_factor = 1.0;
+  VerifyEquiHeight(&m_mem_root, string_values, num_buckets, max_error_factor);
 }
 
-/*
-  Create an equi-height histogram with ulonglong values, where we manually
-  verify the values for every property in every bucket.
-*/
 TEST_F(HistogramsTest, VerifyEquiHeightContentsUint) {
-  Equi_height<ulonglong> histogram(&m_mem_root, "db5", "tbl5", "col5",
-                                   Value_map_type::UINT);
-
-  EXPECT_STREQ(histogram.get_database_name().str, "db5");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl5");
-  EXPECT_STREQ(histogram.get_column_name().str, "col5");
-
-  EXPECT_FALSE(histogram.build_histogram(uint_values, 3U));
-  EXPECT_EQ(histogram.get_num_buckets(), 3U);
-  EXPECT_EQ(histogram.get_num_distinct_values(), uint_values.size());
-
-  VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_UINT);
-
-  Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
-
-  Json_dom *buckets_dom = json_object.get("buckets");
-  Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
-
-  EXPECT_EQ(json_buckets->size(), 3U);
-
-  // First bucket.
-  VerifyEquiHeightBucketContentsUInt(json_buckets, 0, (20.0 / 50.0),
-                                     std::numeric_limits<ulonglong>::lowest(),
-                                     42ULL, 2ULL);
-
-  // Second bucket.
-  VerifyEquiHeightBucketContentsUInt(json_buckets, 1, (30.0 / 50.0), 43ULL,
-                                     43ULL, 1ULL);
-
-  // Third bucket.
-  VerifyEquiHeightBucketContentsUInt(json_buckets, 2, 1.0, 10000ULL,
-                                     std::numeric_limits<ulonglong>::max(),
-                                     2ULL);
-
-  EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 0.0);
+  size_t num_buckets = 3;
+  double max_error_factor = 1.0;
+  VerifyEquiHeight(&m_mem_root, uint_values, num_buckets, max_error_factor);
 }
 
-/*
-  Create an equi-height histogram with my_decimal values, where we manually
-  verify the values for every property in every bucket.
-*/
 TEST_F(HistogramsTest, VerifyEquiHeightContentsDecimal) {
-  Equi_height<my_decimal> histogram(&m_mem_root, "db6", "tbl6", "col6",
-                                    Value_map_type::DECIMAL);
-
-  EXPECT_STREQ(histogram.get_database_name().str, "db6");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl6");
-  EXPECT_STREQ(histogram.get_column_name().str, "col6");
-
-  EXPECT_FALSE(histogram.build_histogram(decimal_values, 3U));
-  EXPECT_EQ(histogram.get_num_buckets(), 3U);
-  EXPECT_EQ(histogram.get_num_distinct_values(), decimal_values.size());
-
-  VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DECIMAL);
-
-  Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
-
-  Json_dom *buckets_dom = json_object.get("buckets");
-  Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
-
-  EXPECT_EQ(json_buckets->size(), 3U);
-
-  my_decimal lower_bucket1;
-  int2my_decimal(E_DEC_FATAL_ERROR, -1000LL, false, &lower_bucket1);
-
-  my_decimal upper_bucket1;
-  int2my_decimal(E_DEC_FATAL_ERROR, 0LL, false, &upper_bucket1);
-
-  my_decimal bucket2;
-  int2my_decimal(E_DEC_FATAL_ERROR, 1LL, false, &bucket2);
-
-  my_decimal lower_bucket3;
-  int2my_decimal(E_DEC_FATAL_ERROR, 42LL, false, &lower_bucket3);
-
-  my_decimal upper_bucket3;
-  int2my_decimal(E_DEC_FATAL_ERROR, 1000LL, false, &upper_bucket3);
-
-  // First bucket.
-  VerifyEquiHeightBucketContentsDecimal(json_buckets, 0, (20.0 / 50.0),
-                                        lower_bucket1, upper_bucket1, 2ULL);
-
-  // Second bucket.
-  VerifyEquiHeightBucketContentsDecimal(json_buckets, 1, (30.0 / 50.0), bucket2,
-                                        bucket2, 1ULL);
-
-  // Third bucket.
-  VerifyEquiHeightBucketContentsDecimal(json_buckets, 2, 1.0, lower_bucket3,
-                                        upper_bucket3, 2ULL);
-
-  EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 0.0);
+  size_t num_buckets = 3;
+  double max_error_factor = 1.0;
+  VerifyEquiHeight(&m_mem_root, decimal_values, num_buckets, max_error_factor);
 }
 
-/*
-  Create an equi-height histogram with MYSQL_TIME values, where we manually
-  verify the values for every property in every bucket.
-*/
 TEST_F(HistogramsTest, VerifyEquiHeightContentsDatetime) {
-  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db7", "tbl7", "col7",
-                                    Value_map_type::DATETIME);
-
-  EXPECT_STREQ(histogram.get_database_name().str, "db7");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl7");
-  EXPECT_STREQ(histogram.get_column_name().str, "col7");
-
-  EXPECT_FALSE(histogram.build_histogram(datetime_values, 3U));
-  EXPECT_EQ(histogram.get_num_buckets(), 3U);
-  EXPECT_EQ(histogram.get_num_distinct_values(), datetime_values.size());
-
-  VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATETIME);
-
-  Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
-
-  Json_dom *buckets_dom = json_object.get("buckets");
-  Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
-
-  EXPECT_EQ(json_buckets->size(), 3U);
-
-  MYSQL_TIME lower_bucket1;
-  TIME_from_longlong_datetime_packed(&lower_bucket1, 914866242077065216);
-
-  MYSQL_TIME upper_bucket1;
-  TIME_from_longlong_datetime_packed(&upper_bucket1, 914866242077065217);
-
-  MYSQL_TIME bucket2;
-  TIME_from_longlong_datetime_packed(&bucket2, 1845541820734373888);
-
-  MYSQL_TIME lower_bucket3;
-  TIME_from_longlong_datetime_packed(&lower_bucket3, 9147936188962652734);
-
-  MYSQL_TIME upper_bucket3;
-  TIME_from_longlong_datetime_packed(&upper_bucket3, 9147936188962652735);
-
-  // First bucket.
-  VerifyEquiHeightBucketContentsTemporal(json_buckets, 0, (20.0 / 50.0),
-                                         lower_bucket1, upper_bucket1, 2ULL);
-
-  // Second bucket.
-  VerifyEquiHeightBucketContentsTemporal(json_buckets, 1, (30.0 / 50.0),
-                                         bucket2, bucket2, 1ULL);
-
-  // Third bucket.
-  VerifyEquiHeightBucketContentsTemporal(json_buckets, 2, 1.0, lower_bucket3,
-                                         upper_bucket3, 2ULL);
-
-  EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 0.0);
+  size_t num_buckets = 3;
+  double max_error_factor = 1.0;
+  VerifyEquiHeight(&m_mem_root, datetime_values, num_buckets, max_error_factor);
 }
 
-/*
-  Create an equi-height histogram with BLOB values, where we manually verify
-  the values for every property in every bucket.
-*/
 TEST_F(HistogramsTest, VerifyEquiHeightContentsBlob) {
-  Equi_height<String> histogram(&m_mem_root, "db8", "tbl8", "col8",
-                                Value_map_type::STRING);
-
-  EXPECT_STREQ(histogram.get_database_name().str, "db8");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl8");
-  EXPECT_STREQ(histogram.get_column_name().str, "col8");
-
-  EXPECT_FALSE(histogram.build_histogram(blob_values, 3U));
-  EXPECT_EQ(histogram.get_num_buckets(), 3U);
-  EXPECT_EQ(histogram.get_num_distinct_values(), blob_values.size());
-
-  VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_OPAQUE);
-
-  Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
-
-  Json_dom *buckets_dom = json_object.get("buckets");
-  Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
-
-  EXPECT_EQ(json_buckets->size(), 3U);
-
-  String lower_bucket1(blob_buf1, 4, &my_charset_bin);
-  String upper_bucket1("bar", &my_charset_bin);
-
-  String bucket2("foo", &my_charset_bin);
-
-  String lower_bucket3("foobar", &my_charset_bin);
-  String upper_bucket3(blob_buf2, 4, &my_charset_bin);
-
-  // First bucket.
-  VerifyEquiHeightBucketContentsString(json_buckets, 0, (20.0 / 50.0),
-                                       lower_bucket1, upper_bucket1, 2ULL,
-                                       &my_charset_bin);
-
-  // Second bucket.
-  VerifyEquiHeightBucketContentsString(json_buckets, 1, (30.0 / 50.0), bucket2,
-                                       bucket2, 1ULL, &my_charset_bin);
-
-  // Third bucket.
-  VerifyEquiHeightBucketContentsString(json_buckets, 2, 1.0, lower_bucket3,
-                                       upper_bucket3, 2ULL, &my_charset_bin);
-
-  EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 0.0);
+  size_t num_buckets = 3;
+  double max_error_factor = 1.0;
+  VerifyEquiHeight(&m_mem_root, blob_values, num_buckets, max_error_factor);
 }
 
 /*
@@ -1972,23 +1624,24 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsBlob) {
   property in every bucket.
 */
 TEST_F(HistogramsTest, VerifySingletonContentsDouble) {
-  Singleton<double> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                              Value_map_type::DOUBLE);
+  Singleton<double> *histogram = Singleton<double>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DOUBLE);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_STREQ(histogram.get_database_name().str, "db1");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
-  EXPECT_STREQ(histogram.get_column_name().str, "col1");
+  EXPECT_STREQ(histogram->get_database_name().str, "db1");
+  EXPECT_STREQ(histogram->get_table_name().str, "tbl1");
+  EXPECT_STREQ(histogram->get_column_name().str, "col1");
 
   Value_map<double> value_map(&my_charset_numeric, Value_map_type::DOUBLE);
   value_map.add_null_values(10);
   value_map.insert(double_values.begin(), double_values.end());
 
-  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
-  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
-  EXPECT_EQ(histogram.get_num_distinct_values(), value_map.size());
+  EXPECT_FALSE(histogram->build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram->get_num_buckets(), value_map.size());
+  EXPECT_EQ(histogram->get_num_distinct_values(), value_map.size());
 
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
@@ -2014,23 +1667,24 @@ TEST_F(HistogramsTest, VerifySingletonContentsDouble) {
   property in every bucket.
 */
 TEST_F(HistogramsTest, VerifySingletonContentsInt) {
-  Singleton<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                Value_map_type::INT);
+  Singleton<longlong> *histogram = Singleton<longlong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_STREQ(histogram.get_database_name().str, "db1");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
-  EXPECT_STREQ(histogram.get_column_name().str, "col1");
+  EXPECT_STREQ(histogram->get_database_name().str, "db1");
+  EXPECT_STREQ(histogram->get_table_name().str, "tbl1");
+  EXPECT_STREQ(histogram->get_column_name().str, "col1");
 
   Value_map<longlong> value_map(&my_charset_numeric, Value_map_type::INT);
   value_map.add_null_values(10);
   value_map.insert(int_values.begin(), int_values.end());
 
-  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
-  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
-  EXPECT_EQ(histogram.get_num_distinct_values(), value_map.size());
+  EXPECT_FALSE(histogram->build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram->get_num_buckets(), value_map.size());
+  EXPECT_EQ(histogram->get_num_distinct_values(), value_map.size());
 
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
@@ -2057,23 +1711,24 @@ TEST_F(HistogramsTest, VerifySingletonContentsInt) {
   property in every bucket.
 */
 TEST_F(HistogramsTest, VerifySingletonContentsUInt) {
-  Singleton<ulonglong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                 Value_map_type::UINT);
+  Singleton<ulonglong> *histogram = Singleton<ulonglong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::UINT);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_STREQ(histogram.get_database_name().str, "db1");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
-  EXPECT_STREQ(histogram.get_column_name().str, "col1");
+  EXPECT_STREQ(histogram->get_database_name().str, "db1");
+  EXPECT_STREQ(histogram->get_table_name().str, "tbl1");
+  EXPECT_STREQ(histogram->get_column_name().str, "col1");
 
   Value_map<ulonglong> value_map(&my_charset_numeric, Value_map_type::UINT);
   value_map.add_null_values(10);
   value_map.insert(uint_values.begin(), uint_values.end());
 
-  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
-  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
-  EXPECT_EQ(histogram.get_num_distinct_values(), value_map.size());
+  EXPECT_FALSE(histogram->build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram->get_num_buckets(), value_map.size());
+  EXPECT_EQ(histogram->get_num_distinct_values(), value_map.size());
 
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
@@ -2096,23 +1751,24 @@ TEST_F(HistogramsTest, VerifySingletonContentsUInt) {
   property in every bucket.
 */
 TEST_F(HistogramsTest, VerifySingletonContentsString) {
-  Singleton<String> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                              Value_map_type::STRING);
+  Singleton<String> *histogram = Singleton<String>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::STRING);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_STREQ(histogram.get_database_name().str, "db1");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
-  EXPECT_STREQ(histogram.get_column_name().str, "col1");
+  EXPECT_STREQ(histogram->get_database_name().str, "db1");
+  EXPECT_STREQ(histogram->get_table_name().str, "tbl1");
+  EXPECT_STREQ(histogram->get_column_name().str, "col1");
 
   Value_map<String> value_map(&my_charset_latin1, Value_map_type::STRING);
   value_map.add_null_values(10);
   value_map.insert(string_values.begin(), string_values.end());
 
-  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
-  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
-  EXPECT_EQ(histogram.get_num_distinct_values(), value_map.size());
+  EXPECT_FALSE(histogram->build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram->get_num_buckets(), value_map.size());
+  EXPECT_EQ(histogram->get_num_distinct_values(), value_map.size());
 
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
@@ -2140,23 +1796,24 @@ TEST_F(HistogramsTest, VerifySingletonContentsString) {
   property in every bucket.
 */
 TEST_F(HistogramsTest, VerifySingletonContentsDecimal) {
-  Singleton<my_decimal> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::DECIMAL);
+  Singleton<my_decimal> *histogram = Singleton<my_decimal>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DECIMAL);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_STREQ(histogram.get_database_name().str, "db1");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
-  EXPECT_STREQ(histogram.get_column_name().str, "col1");
+  EXPECT_STREQ(histogram->get_database_name().str, "db1");
+  EXPECT_STREQ(histogram->get_table_name().str, "tbl1");
+  EXPECT_STREQ(histogram->get_column_name().str, "col1");
 
   Value_map<my_decimal> value_map(&my_charset_latin1, Value_map_type::DECIMAL);
   value_map.add_null_values(10);
   value_map.insert(decimal_values.begin(), decimal_values.end());
 
-  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
-  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
-  EXPECT_EQ(histogram.get_num_distinct_values(), value_map.size());
+  EXPECT_FALSE(histogram->build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram->get_num_buckets(), value_map.size());
+  EXPECT_EQ(histogram->get_num_distinct_values(), value_map.size());
 
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
@@ -2193,23 +1850,24 @@ TEST_F(HistogramsTest, VerifySingletonContentsDecimal) {
   property in every bucket.
 */
 TEST_F(HistogramsTest, VerifySingletonContentsDateTime) {
-  Singleton<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::DATETIME);
+  Singleton<MYSQL_TIME> *histogram = Singleton<MYSQL_TIME>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATETIME);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_STREQ(histogram.get_database_name().str, "db1");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
-  EXPECT_STREQ(histogram.get_column_name().str, "col1");
+  EXPECT_STREQ(histogram->get_database_name().str, "db1");
+  EXPECT_STREQ(histogram->get_table_name().str, "tbl1");
+  EXPECT_STREQ(histogram->get_column_name().str, "col1");
 
   Value_map<MYSQL_TIME> value_map(&my_charset_latin1, Value_map_type::DATETIME);
   value_map.add_null_values(10);
   value_map.insert(datetime_values.begin(), datetime_values.end());
 
-  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
-  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
-  EXPECT_EQ(histogram.get_num_distinct_values(), value_map.size());
+  EXPECT_FALSE(histogram->build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram->get_num_buckets(), value_map.size());
+  EXPECT_EQ(histogram->get_num_distinct_values(), value_map.size());
 
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
@@ -2241,23 +1899,24 @@ TEST_F(HistogramsTest, VerifySingletonContentsDateTime) {
   property in every bucket.
 */
 TEST_F(HistogramsTest, VerifySingletonContentsBlob) {
-  Singleton<String> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                              Value_map_type::STRING);
+  Singleton<String> *histogram = Singleton<String>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::STRING);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_STREQ(histogram.get_database_name().str, "db1");
-  EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
-  EXPECT_STREQ(histogram.get_column_name().str, "col1");
+  EXPECT_STREQ(histogram->get_database_name().str, "db1");
+  EXPECT_STREQ(histogram->get_table_name().str, "tbl1");
+  EXPECT_STREQ(histogram->get_column_name().str, "col1");
 
   Value_map<String> value_map(&my_charset_bin, Value_map_type::STRING);
   value_map.add_null_values(10);
   value_map.insert(blob_values.begin(), blob_values.end());
 
-  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
-  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
-  EXPECT_EQ(histogram.get_num_distinct_values(), value_map.size());
+  EXPECT_FALSE(histogram->build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram->get_num_buckets(), value_map.size());
+  EXPECT_EQ(histogram->get_num_distinct_values(), value_map.size());
 
   Json_object json_object;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_object));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
 
   Json_dom *buckets_dom = json_object.get("buckets");
   Json_array *json_buckets = static_cast<Json_array *>(buckets_dom);
@@ -2285,21 +1944,22 @@ TEST_F(HistogramsTest, VerifySingletonContentsBlob) {
   resulting histogram actually have zero buckets.
 */
 TEST_F(HistogramsTest, EmptyEquiHeightHistogram) {
-  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::INT);
+  Equi_height<longlong> *histogram = Equi_height<longlong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  ASSERT_TRUE(histogram != nullptr);
 
   Value_map<longlong> empty_value_map(&my_charset_numeric, Value_map_type::INT);
 
   // Empty map, no null values, but several buckets specified.
-  EXPECT_FALSE(histogram.build_histogram(empty_value_map, 10U));
-  EXPECT_EQ(histogram.get_num_buckets(), 0U);
-  EXPECT_EQ(histogram.get_num_distinct_values(), 0U);
+  EXPECT_FALSE(histogram->build_histogram(empty_value_map, 10U));
+  EXPECT_EQ(histogram->get_num_buckets(), 0U);
+  EXPECT_EQ(histogram->get_num_distinct_values(), 0U);
 
   // Empty map, multiple null values and several buckets specified.
   empty_value_map.add_null_values(500);
-  EXPECT_FALSE(histogram.build_histogram(empty_value_map, 10U));
-  EXPECT_EQ(histogram.get_num_buckets(), 0U);
-  EXPECT_EQ(histogram.get_num_distinct_values(), 0U);
+  EXPECT_FALSE(histogram->build_histogram(empty_value_map, 10U));
+  EXPECT_EQ(histogram->get_num_buckets(), 0U);
+  EXPECT_EQ(histogram->get_num_distinct_values(), 0U);
 }
 
 /*
@@ -2307,15 +1967,16 @@ TEST_F(HistogramsTest, EmptyEquiHeightHistogram) {
   resulting histogram actually have zero buckets.
 */
 TEST_F(HistogramsTest, EmptySingletonHistogram) {
-  Singleton<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                Value_map_type::INT);
+  Singleton<longlong> *histogram = Singleton<longlong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  ASSERT_TRUE(histogram != nullptr);
 
   Value_map<longlong> empty_value_map(&my_charset_numeric, Value_map_type::INT);
 
   // Empty map, no null values,
-  EXPECT_FALSE(histogram.build_histogram(empty_value_map, 10U));
-  EXPECT_EQ(histogram.get_num_buckets(), 0U);
-  EXPECT_EQ(histogram.get_num_distinct_values(), 0U);
+  EXPECT_FALSE(histogram->build_histogram(empty_value_map, 10U));
+  EXPECT_EQ(histogram->get_num_buckets(), 0U);
+  EXPECT_EQ(histogram->get_num_distinct_values(), 0U);
 }
 
 /*
@@ -2324,14 +1985,15 @@ TEST_F(HistogramsTest, EmptySingletonHistogram) {
   to 1.0.
 */
 TEST_F(HistogramsTest, EquiHeightNullValues) {
-  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::INT);
+  Equi_height<longlong> *histogram = Equi_height<longlong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  ASSERT_TRUE(histogram != nullptr);
 
   Value_map<longlong> empty_value_map(&my_charset_numeric, Value_map_type::INT);
   empty_value_map.add_null_values(10);
 
-  EXPECT_FALSE(histogram.build_histogram(empty_value_map, 1U));
-  EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 1.0);
+  EXPECT_FALSE(histogram->build_histogram(empty_value_map, 1U));
+  EXPECT_DOUBLE_EQ(histogram->get_null_values_fraction(), 1.0);
 }
 
 /*
@@ -2340,14 +2002,15 @@ TEST_F(HistogramsTest, EquiHeightNullValues) {
   to 1.0.
 */
 TEST_F(HistogramsTest, SingletonNullValues) {
-  Singleton<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                Value_map_type::INT);
+  Singleton<longlong> *histogram = Singleton<longlong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  ASSERT_TRUE(histogram != nullptr);
 
   Value_map<longlong> empty_value_map(&my_charset_numeric, Value_map_type::INT);
   empty_value_map.add_null_values(10);
 
-  EXPECT_FALSE(histogram.build_histogram(empty_value_map, 10U));
-  EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 1.0);
+  EXPECT_FALSE(histogram->build_histogram(empty_value_map, 10U));
+  EXPECT_DOUBLE_EQ(histogram->get_null_values_fraction(), 1.0);
 }
 
 /*
@@ -2548,17 +2211,18 @@ TEST_F(HistogramsTest, BigEquiHeight) {
     values.add_values(i, frequency);
   }
 
-  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::INT);
+  Equi_height<longlong> *histogram = Equi_height<longlong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_EQ(0U, histogram.get_num_buckets());
-  EXPECT_EQ(0U, histogram.get_num_distinct_values());
+  EXPECT_EQ(0U, histogram->get_num_buckets());
+  EXPECT_EQ(0U, histogram->get_num_distinct_values());
 
   // Build a histogram with 200 buckets.
   size_t num_buckets = 200;
-  EXPECT_FALSE(histogram.build_histogram(values, num_buckets));
-  EXPECT_LE(histogram.get_num_buckets(), num_buckets);
-  EXPECT_EQ(100000U, histogram.get_num_distinct_values());
+  EXPECT_FALSE(histogram->build_histogram(values, num_buckets));
+  EXPECT_LE(histogram->get_num_buckets(), num_buckets);
+  EXPECT_EQ(100000U, histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_INT);
   VerifyEquiHeightBucketConstraintsInt(histogram);
@@ -2574,13 +2238,14 @@ TEST_F(HistogramsTest, BigEquiHeight) {
 TEST_F(HistogramsTest, HistogramTimeCreated) {
   Value_map<longlong> values(&my_charset_numeric, Value_map_type::INT);
 
-  Singleton<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1",
-                                Value_map_type::INT);
+  Singleton<longlong> *histogram = Singleton<longlong>::create(
+      &m_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  ASSERT_TRUE(histogram != nullptr);
 
-  EXPECT_EQ(0U, histogram.get_num_buckets());
-  EXPECT_EQ(0U, histogram.get_num_distinct_values());
+  EXPECT_EQ(0U, histogram->get_num_buckets());
+  EXPECT_EQ(0U, histogram->get_num_distinct_values());
 
-  EXPECT_FALSE(histogram.build_histogram(values, 10U));
+  EXPECT_FALSE(histogram->build_histogram(values, 10U));
 
   // Get the current time in GMT timezone.
   MYSQL_TIME current_time;
@@ -2589,7 +2254,7 @@ TEST_F(HistogramsTest, HistogramTimeCreated) {
                              static_cast<my_time_t>(micro_time / 1000000));
 
   Json_object json_histogram;
-  EXPECT_FALSE(histogram.histogram_to_json(&json_histogram));
+  EXPECT_FALSE(histogram->histogram_to_json(&json_histogram));
 
   Json_dom *last_updated_dom = json_histogram.get("last-updated");
   Json_datetime *last_updated = down_cast<Json_datetime *>(last_updated_dom);
@@ -2651,26 +2316,58 @@ TEST_F(HistogramsTest, EquiHeightOOM) {
       Create the histogram in a new scope so that the underlying structures
       are freed before the MEM_ROOT.
     */
-    Equi_height<longlong> histogram(&oom_mem_root, "db1", "tbl1", "col1",
-                                    Value_map_type::INT);
+    Equi_height<longlong> *histogram = Equi_height<longlong>::create(
+        &oom_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+    ASSERT_TRUE(histogram != nullptr);
 
     // Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
     oom_mem_root.set_max_capacity(oom_mem_root.allocated_size());
-    EXPECT_TRUE(histogram.build_histogram(values, 10U));
+    EXPECT_TRUE(histogram->build_histogram(values, 10U));
   }
 }
 
 /*
+  Check that the Equi_height factory method returns a nullptr if it runs out of
+  memory during construction.
+*/
+TEST_F(HistogramsTest, EquiHeightCreationOOM) {
+  // Successfully allocate a histogram on a MEM_ROOT.
+  MEM_ROOT not_oom_mem_root(PSI_NOT_INSTRUMENTED, 128);
+  Equi_height<longlong> *not_oom_histogram = Equi_height<longlong>::create(
+      &not_oom_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  EXPECT_TRUE(not_oom_histogram != nullptr);
+
+  // Create a new MEM_ROOT and fix its capacity.
+  MEM_ROOT fixed_capacity_mem_root(PSI_NOT_INSTRUMENTED, 128);
+  fixed_capacity_mem_root.set_max_capacity(not_oom_mem_root.allocated_size());
+
+  // Verify that the same allocation does not fail when we fix the capacity.
+  Equi_height<longlong> *not_oom_histogram2 = Equi_height<longlong>::create(
+      &fixed_capacity_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  EXPECT_TRUE(not_oom_histogram2 != nullptr);
+
+  // Allocate a histogram with long strings leading to an OOM error during
+  // construction (not when allocating space for the histogram itself).
+  MEM_ROOT fixed_capacity_mem_root2(PSI_NOT_INSTRUMENTED, 128);
+  fixed_capacity_mem_root2.set_max_capacity(not_oom_mem_root.allocated_size());
+  std::string long_string(1000, 'x');  // A string of length 1000.
+  Equi_height<longlong> *oom_histogram = Equi_height<longlong>::create(
+      &fixed_capacity_mem_root2, long_string, long_string, long_string,
+      Value_map_type::INT);
+  EXPECT_TRUE(oom_histogram == nullptr);
+}
+
+/*
   Check that an out-of-memory situation doesn't crash brutally, but fails
-  gracefully.
+  gracefully. We need to add more than a few buckets to the default-initialized
+  vector holding the buckets in order to trigger an allocation.
 */
 TEST_F(HistogramsTest, SingletonOOM) {
   Value_map<longlong> values(&my_charset_numeric, Value_map_type::INT);
-  values.add_values(1, 10);
-  values.add_values(2, 10);
-  values.add_values(3, 10);
-  values.add_values(4, 10);
-
+  size_t num_buckets = 100;
+  for (longlong i = 0; i < static_cast<longlong>(num_buckets); ++i) {
+    values.add_values(i, 10);
+  }
   MEM_ROOT oom_mem_root(PSI_NOT_INSTRUMENTED, 128);
 
   {
@@ -2678,13 +2375,45 @@ TEST_F(HistogramsTest, SingletonOOM) {
       Create the histogram in a new scope so that the underlying structures
       are freed before the MEM_ROOT.
     */
-    Singleton<longlong> histogram(&oom_mem_root, "db1", "tbl1", "col1",
-                                  Value_map_type::INT);
+    Singleton<longlong> *histogram = Singleton<longlong>::create(
+        &oom_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+    ASSERT_TRUE(histogram != nullptr);
 
     // Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
     oom_mem_root.set_max_capacity(oom_mem_root.allocated_size());
-    EXPECT_TRUE(histogram.build_histogram(values, 10U));
+    EXPECT_TRUE(histogram->build_histogram(values, num_buckets));
   }
+}
+
+/*
+  Check that the Singleton histogram factory method returns a nullptr if it runs
+  out of memory during construction.
+*/
+TEST_F(HistogramsTest, SingletonCreationOOM) {
+  // Successfully allocate a histogram on a MEM_ROOT.
+  MEM_ROOT not_oom_mem_root(PSI_NOT_INSTRUMENTED, 128);
+  Singleton<longlong> *not_oom_histogram = Singleton<longlong>::create(
+      &not_oom_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  EXPECT_TRUE(not_oom_histogram != nullptr);
+
+  // Create a new MEM_ROOT and fix its capacity.
+  MEM_ROOT fixed_capacity_mem_root(PSI_NOT_INSTRUMENTED, 128);
+  fixed_capacity_mem_root.set_max_capacity(not_oom_mem_root.allocated_size());
+
+  // Verify that the same allocation does not fail when we fix the capacity.
+  Singleton<longlong> *not_oom_histogram2 = Singleton<longlong>::create(
+      &fixed_capacity_mem_root, "db1", "tbl1", "col1", Value_map_type::INT);
+  EXPECT_TRUE(not_oom_histogram2 != nullptr);
+
+  // Allocate a histogram with long strings leading to an OOM error during
+  // construction (not when allocating space for the histogram itself).
+  MEM_ROOT fixed_capacity_mem_root2(PSI_NOT_INSTRUMENTED, 128);
+  fixed_capacity_mem_root2.set_max_capacity(not_oom_mem_root.allocated_size());
+  std::string long_string(1000, 'x');  // A string of length 1000.
+  Singleton<longlong> *oom_histogram = Singleton<longlong>::create(
+      &fixed_capacity_mem_root2, long_string, long_string, long_string,
+      Value_map_type::INT);
+  EXPECT_TRUE(oom_histogram == nullptr);
 }
 
 }  // namespace histograms_unittest

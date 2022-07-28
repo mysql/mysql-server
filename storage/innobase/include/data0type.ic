@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,20 +46,19 @@ static inline ulint dtype_get_charset_coll(
  may return false negatives, in case further character-set collation
  codes are introduced in MySQL later.
  @return true if a subset of UTF-8 */
-static inline ibool dtype_is_utf8(ulint prtype) /*!< in: precise data type */
+static inline bool dtype_is_utf8(ulint prtype) /*!< in: precise data type */
 {
-  /* These codes have been copied from strings/ctype-extra.c
-  and strings/ctype-utf8.c. */
+  /* These codes have been copied from strings/ctype-extra.cc
+  and strings/ctype-utf8.cc. */
   switch (dtype_get_charset_coll(prtype)) {
-    case 11:  /* ascii_general_ci */
-    case 65:  /* ascii_bin */
-    case 33:  /* utf8_general_ci */
-    case 83:  /* utf8_bin */
-    case 254: /* utf8_general_cs */
-      return (TRUE);
+    case 11: /* ascii_general_ci */
+    case 65: /* ascii_bin */
+    case 33: /* utf8mb3_general_ci */
+    case 83: /* utf8mb3_bin */
+      return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Gets the MySQL type code from a dtype.
@@ -203,9 +202,8 @@ static inline void dtype_new_store_for_order_and_null_size(
     ulint prefix_len)    /*!< in: prefix length to
                       replace type->len, or 0 */
 {
-#if 6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
-#error "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
-#endif
+  static_assert(DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE == 6,
+                "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE");
   ulint len;
 
   ut_ad(type);
@@ -218,7 +216,7 @@ static inline void dtype_new_store_for_order_and_null_size(
     buf[0] |= 128;
   }
 
-  /* In versions < 4.1.2 we had:	if (type->prtype & DATA_NONLATIN1) {
+  /* In versions < 4.1.2 we had:        if (type->prtype & DATA_NONLATIN1) {
   buf[0] |= 64;
   }
   */
@@ -247,9 +245,8 @@ static inline void dtype_read_for_order_and_null_size(
     dtype_t *type,   /*!< in: type struct */
     const byte *buf) /*!< in: buffer for stored type order info */
 {
-#if 4 != DATA_ORDER_NULL_TYPE_BUF_SIZE
-#error "4 != DATA_ORDER_NULL_TYPE_BUF_SIZE"
-#endif
+  static_assert(DATA_ORDER_NULL_TYPE_BUF_SIZE == 4,
+                "4 != DATA_ORDER_NULL_TYPE_BUF_SIZE");
 
   type->mtype = buf[0] & 63;
   type->prtype = buf[1];
@@ -274,9 +271,8 @@ static inline void dtype_new_read_for_order_and_null_size(
 {
   ulint charset_coll;
 
-#if 6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
-#error "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
-#endif
+  static_assert(DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE == 6,
+                "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE");
 
   type->mtype = buf[0] & 63;
   type->prtype = buf[1];
@@ -413,7 +409,7 @@ static inline ulint dtype_get_fixed_size_low(
     ulint len,         /*!< in: length */
     ulint mbminmaxlen, /*!< in: minimum and maximum length of
                        a multibyte character, in bytes */
-    ulint comp)        /*!< in: nonzero=ROW_FORMAT=COMPACT  */
+    bool comp)         /*!< in: nonzero=ROW_FORMAT=COMPACT  */
 {
   switch (mtype) {
     case DATA_SYS:
@@ -429,8 +425,8 @@ static inline ulint dtype_get_fixed_size_low(
           ut_ad(len == DATA_ROLL_PTR_LEN);
           break;
         default:
-          ut_ad(0);
-          return (0);
+          ut_d(ut_error);
+          ut_o(return (0));
       }
       [[fallthrough]];
 #endif /* UNIV_DEBUG */
@@ -503,8 +499,8 @@ static inline ulint dtype_get_min_size_low(
           ut_ad(len == DATA_ROLL_PTR_LEN);
           break;
         default:
-          ut_ad(0);
-          return (0);
+          ut_d(ut_error);
+          ut_o(return (0));
       }
 #endif /* UNIV_DEBUG */
       [[fallthrough]];
@@ -547,8 +543,8 @@ static inline ulint dtype_get_min_size_low(
 
 /** Returns the maximum size of a data type. Note: types in system tables may
 be incomplete and return incorrect information.
-@param[in]	mtype	main type
-@param[in]	len	length
+@param[in]      mtype   main type
+@param[in]      len     length
 @return maximum size */
 static inline ulint dtype_get_max_size_low(ulint mtype, /*!< in: main type */
                                            ulint len)   /*!< in: length */
@@ -582,7 +578,7 @@ static inline ulint dtype_get_max_size_low(ulint mtype, /*!< in: main type */
  @return SQL null storage size in ROW_FORMAT=REDUNDANT */
 static inline ulint dtype_get_sql_null_size(
     const dtype_t *type, /*!< in: type */
-    ulint comp)          /*!< in: nonzero=ROW_FORMAT=COMPACT */
+    bool comp)           /*!< in: nonzero=ROW_FORMAT=COMPACT */
 {
 #ifndef UNIV_HOTBACKUP
   return (dtype_get_fixed_size_low(type->mtype, type->prtype, type->len,

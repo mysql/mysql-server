@@ -42,7 +42,9 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `NESTING_EVENT_ID` bigint unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `NESTING_EVENT_LEVEL` int DEFAULT NULL,
-  `STATEMENT_ID` bigint unsigned DEFAULT NULL
+  `STATEMENT_ID` bigint unsigned DEFAULT NULL,
+  `CPU_TIME` bigint unsigned NOT NULL,
+  `EXECUTION_ENGINE` enum('PRIMARY','SECONDARY') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from INFORMATION_SCHEMA.STATISTICS
 where TABLE_SCHEMA = "performance_schema"

@@ -1,0 +1,68 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Create several tables in the source:
+#    - A table with an index on column c2
+#    - A table with no key or indexes
+#    - A table with a nullable unique key
+#    - A table with a non nullable unique key
+#    Create the same tables in the replica with an extra column that is a PK
+include/disable_binlog.inc
+CREATE TABLE st1 (c1 INT, c2 INT, INDEX(c2));
+CREATE TABLE st2 (c1 INT, c2 INT);
+CREATE TABLE st3 (c1 INT, c2 INT, UNIQUE KEY(c2));
+CREATE TABLE st4 (c1 INT, c2 INT NOT NULL, UNIQUE KEY(c2));
+include/restore_binlog.inc
+[connection slave]
+include/disable_binlog.inc
+CREATE TABLE st1 (c1 INT, c2 INT, c3 INT NOT NULL AUTO_INCREMENT, INDEX(c2), PRIMARY KEY(c3));
+CREATE TABLE st2 (c1 INT, c2 INT, c3 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c3));
+CREATE TABLE st3 (c1 INT, c2 INT, c3 INT NOT NULL AUTO_INCREMENT, UNIQUE KEY(c2), PRIMARY KEY(c3));
+CREATE TABLE st4 (c1 INT, c2 INT NOT NULL, c3 INT NOT NULL AUTO_INCREMENT, UNIQUE KEY(c2), PRIMARY KEY(c3));
+include/restore_binlog.inc
+
+##############################################################
+# 2. For the 4 tables:
+#    Insert data
+#    Update and delete data, operations that usually would use the indexes (if existent) to locate data on the replica
+#    The update and delete should be replicated and applied correctly
+[connection master]
+INSERT INTO st1(c1, c2) VALUES(1, 2);
+INSERT INTO st1(c1, c2) VALUES(4, 5);
+UPDATE st1 SET c1=3 WHERE c2=2;;
+DELETE FROM  st1 WHERE c2=5;;
+INSERT INTO st2(c1, c2) VALUES(1, 2);
+INSERT INTO st2(c1, c2) VALUES(4, 5);
+UPDATE st2 SET c1=3 WHERE c2=2;;
+DELETE FROM  st2 WHERE c2=5;;
+INSERT INTO st3(c1, c2) VALUES(1, 2);
+INSERT INTO st3(c1, c2) VALUES(4, 5);
+UPDATE st3 SET c1=3 WHERE c2=2;;
+DELETE FROM  st3 WHERE c2=5;;
+INSERT INTO st4(c1, c2) VALUES(1, 2);
+INSERT INTO st4(c1, c2) VALUES(4, 5);
+UPDATE st4 SET c1=3 WHERE c2=2;;
+DELETE FROM  st4 WHERE c2=5;;
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The table was updated]
+include/assert.inc [The delete was executed]
+include/assert.inc [The table was updated]
+include/assert.inc [The delete was executed]
+include/assert.inc [The table was updated]
+include/assert.inc [The delete was executed]
+include/assert.inc [The table was updated]
+include/assert.inc [The delete was executed]
+
+##############################################################
+# 3. Cleanup
+[connection master]
+DROP TABLE st1;
+DROP TABLE st2;
+DROP TABLE st3;
+DROP TABLE st4;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

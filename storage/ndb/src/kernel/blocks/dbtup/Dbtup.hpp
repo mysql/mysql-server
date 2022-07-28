@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef DBTUP_H
 #define DBTUP_H
 
+#include "util/require.h"
 #include <cstring>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
@@ -3913,11 +3914,11 @@ private:
    *   - clogMemBuffer also used for before values
    */
   static_assert(sizeof(clogMemBuffer) >=
-      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE), "");
+      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE));
   static_assert(sizeof(coutBuffer) >=
-      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE), "");
+      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE));
   static_assert(sizeof(cinBuffer) >=
-      sizeof(Uint32) * (MAX_KEY_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_INDEX), "");
+      sizeof(Uint32) * (MAX_KEY_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_INDEX));
 
   Uint32 ctemp_page[ZWORDS_ON_PAGE];
   Uint32 ctemp_var_record[ZWORDS_ON_PAGE];
@@ -4755,7 +4756,7 @@ Dbtup::tuxGetNode(Uint32 attrDataOffset,
                   Uint32*& node)
 {
   PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, pageId);
+  ndbrequire(c_page_pool.getPtr(pagePtr, pageId));
   node= ((Fix_page*)pagePtr.p)->
     get_ptr(pageOffset, tuxFixHeaderSize) + attrDataOffset;
   NDB_PREFETCH_READ((void*)node);

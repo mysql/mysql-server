@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -870,4 +870,66 @@ TEST_F(PriorityQueueTest, TestElementRemove) {
   pq.remove(6);
   EXPECT_TRUE(pq.is_valid());
 }
+
+struct IntWithMark {
+  int value;
+  int index;
+};
+std::stringstream &operator<<(std::stringstream &stream, const IntWithMark *a) {
+  stream << a->value;
+  return stream;
+}
+struct Pointer_less {
+  bool operator()(const IntWithMark *a, const IntWithMark *b) const {
+    return a->value < b->value;
+  }
+};
+struct IntMarker {
+  void operator()(size_t index, IntWithMark **value) {
+    (*value)->index = index;
+  }
+};
+
+TEST_F(PriorityQueueTest, Mark) {
+  Priority_queue<IntWithMark *, std::vector<IntWithMark *>, Pointer_less,
+                 IntMarker>
+      pq;
+
+  IntWithMark a, b, c, d;
+  a.value = 10;
+  b.value = 5;
+  c.value = 15;
+  d.value = 25;
+
+  pq.push(&a);
+  pq.push(&b);
+  pq.push(&c);
+  pq.push(&d);
+
+  std::stringstream ss1;
+  ss1 << pq;
+  EXPECT_STREQ("25 15 10 5 ", ss1.str().c_str());
+  EXPECT_EQ(2, a.index);
+  EXPECT_EQ(3, b.index);
+  EXPECT_EQ(1, c.index);
+  EXPECT_EQ(0, d.index);
+
+  c.value = 1;
+  pq.update(c.index);
+  EXPECT_EQ(3, c.index);
+
+  d.value = 100;
+  pq.update(d.index);
+  EXPECT_EQ(0, d.index);
+  EXPECT_EQ(100, pq.top()->value);
+
+  pq.pop();
+  std::stringstream ss2;
+  ss2 << pq;
+  EXPECT_STREQ("10 5 1 ", ss2.str().c_str());
+  EXPECT_EQ(0, a.index);
+  EXPECT_EQ(1, b.index);
+  EXPECT_EQ(2, c.index);
+}
+
 }  // namespace priority_queue_unittest

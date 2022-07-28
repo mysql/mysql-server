@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,10 +42,10 @@
 #include "mysql_time.h"
 #include "sql/comp_creator.h"
 #include "sql/enum_query_type.h"
-#include "sql/item.h"            // Item_result_field
-#include "sql/parse_location.h"  // POS
+#include "sql/item.h"                    // Item_result_field
+#include "sql/iterators/row_iterator.h"  // IWYU pragma: keep
+#include "sql/parse_location.h"          // POS
 #include "sql/parse_tree_node_base.h"
-#include "sql/row_iterator.h"  // IWYU pragma: keep
 #include "sql/sql_const.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "template_utils.h"

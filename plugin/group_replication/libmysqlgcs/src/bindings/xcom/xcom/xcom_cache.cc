@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,7 @@ static pax_machine *hash_out(pax_machine *p) {
 
 pax_machine *hash_get(synode_no synode) {
   /* static pax_machine *cached_machine = NULL; */
-  stack_machine *hash_table = NULL;
+  stack_machine *hash_table = nullptr;
 
   /* if(cached_machine && synode_eq(synode, cached_machine->synode)) */
   /* return cached_machine; */
@@ -169,7 +169,7 @@ pax_machine *hash_get(synode_no synode) {
     }
   })
 
-  if (hash_table != NULL) {
+  if (hash_table != nullptr) {
     linkage *bucket = &hash_table->pax_hash[synode_hash(synode)];
 
     FWD_ITER(bucket, pax_machine, {
@@ -179,7 +179,7 @@ pax_machine *hash_get(synode_no synode) {
       }
     });
   }
-  return NULL;
+  return nullptr;
 }
 
 static int was_machine_executed(pax_machine *p) {
@@ -197,8 +197,8 @@ lest recently used order.
 */
 
 static lru_machine *lru_get(bool_t force) {
-  lru_machine *retval = NULL;
-  lru_machine *force_retval = NULL;
+  lru_machine *retval = nullptr;
+  lru_machine *force_retval = nullptr;
   if (!link_empty(&probation_lru)) {
     retval = (lru_machine *)link_first(&probation_lru);
   } else {
@@ -255,14 +255,14 @@ void init_cache() {
 }
 
 static void deinit_pax_machine(pax_machine *p, lru_machine *l) {
-  init_pax_machine(&l->pax, NULL, null_synode);
+  init_pax_machine(&l->pax, nullptr, null_synode);
   if (p->proposer.prep_nodeset) {
     free_bit_set(p->proposer.prep_nodeset);
-    p->proposer.prep_nodeset = NULL;
+    p->proposer.prep_nodeset = nullptr;
   }
   if (p->proposer.prop_nodeset) {
     free_bit_set(p->proposer.prop_nodeset);
-    p->proposer.prop_nodeset = NULL;
+    p->proposer.prop_nodeset = nullptr;
   }
   link_out(&p->watchdog);
 }
@@ -300,7 +300,7 @@ pax_machine *get_cache_no_touch(synode_no synode, bool_t force) {
   if (!retval) {
     lru_machine *l =
         lru_get(force); /* Need to know when it is safe to re-use... */
-    if (!l) return NULL;
+    if (!l) return nullptr;
     IFDBG(D_NONE, FN; PTREXP(l); COPY_AND_FREE_GOUT(dbg_pax_machine(&l->pax)););
     /* assert(l->pax.synode > log_tail); */
 
@@ -332,7 +332,7 @@ static inline int can_deallocate(lru_machine *link_iter) {
   site_def const *dealloc_site = find_site_def(link_iter->pax.synode);
 
   /* If we have no site, or site was just installed, refuse deallocation */
-  if (site == 0) return 0;
+  if (site == nullptr) return 0;
   /*
           With the patch that was put in to ensure that nodes always see  a
           global  view  message when it joins, the node that joins may need
@@ -347,7 +347,8 @@ static inline int can_deallocate(lru_machine *link_iter) {
           other nodes anyway, and expelled.
   */
   if ((site->install_time + DETECTOR_LIVE_TIMEOUT) > task_now()) return 0;
-  if (dealloc_site == 0) /* Synode does not match any site, OK to deallocate */
+  if (dealloc_site ==
+      nullptr) /* Synode does not match any site, OK to deallocate */
     return 1;
   delivered_msg = get_min_delivered_msg(site);
   if (synode_eq(delivered_msg,
@@ -394,7 +395,7 @@ pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
   sub_cache_size(p);
   link_init(&p->hash_link, TYPE_HASH("pax_machine"));
   p->lru = lru;
-  p->stack_link = NULL;
+  p->stack_link = nullptr;
   p->synode = synode;
   p->last_modified = 0.0;
   link_init(&p->rv, TYPE_HASH("task_env"));
@@ -408,10 +409,10 @@ pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
   if (!p->proposer.prop_nodeset)
     p->proposer.prop_nodeset = new_bit_set(NSERVERS);
   BIT_ZERO(p->proposer.prop_nodeset);
-  replace_pax_msg(&p->proposer.msg, NULL);
+  replace_pax_msg(&p->proposer.msg, nullptr);
   init_ballot(&p->acceptor.promise, 0, 0);
-  replace_pax_msg(&p->acceptor.msg, NULL);
-  replace_pax_msg(&p->learner.msg, NULL);
+  replace_pax_msg(&p->acceptor.msg, nullptr);
+  replace_pax_msg(&p->learner.msg, nullptr);
   p->lock = 0;
   p->op = initial_op;
   p->force_delivery = 0;
@@ -632,6 +633,8 @@ void do_cache_maintenance() {
 int cache_manager_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   int dummy;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN

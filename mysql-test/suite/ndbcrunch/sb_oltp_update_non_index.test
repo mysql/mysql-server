@@ -1,0 +1,10 @@
+# Run benchmark oltp_update_non_index
+#
+# - non index updates, "UPDATE c WHERE id = ?"
+#
+--source sb_init.inc
+
+let $bench_name = oltp_update_non_index;
+--source sb_run.inc
+
+--source sb_cleanup.inc

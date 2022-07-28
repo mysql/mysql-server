@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,6 +53,7 @@ static inline upd_t *upd_create(
   update->n_fields = n;
   update->fields = reinterpret_cast<upd_field_t *>(&update[1]);
   update->heap = heap;
+  update->per_stmt_heap = nullptr;
 
   for (ulint i = 0; i < n; ++i) {
     upd_field_t *uf = &update->fields[i];
@@ -87,14 +88,9 @@ static inline upd_field_t *upd_get_nth_field(
 }
 #endif /* UNIV_DEBUG */
 
-/** Sets an index field number to be updated by an update vector field. */
-static inline void upd_field_set_field_no(
-    upd_field_t *upd_field,    /*!< in: update vector field */
-    ulint field_no,            /*!< in: field number in a clustered
-                               index */
-    const dict_index_t *index, /*!< in: index */
-    trx_t *trx)                /*!< in: transaction */
-{
+static inline void upd_field_set_field_no(upd_field_t *upd_field,
+                                          ulint field_no,
+                                          const dict_index_t *index) {
   upd_field->field_no = field_no;
   upd_field->orig_len = 0;
 
@@ -103,16 +99,16 @@ static inline void upd_field_set_field_no(
         << " trying to access field " << field_no << " in " << index->name
         << " of table " << index->table->name << " which contains only "
         << index->n_fields << " fields";
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   index->get_col(field_no)->copy_type(dfield_get_type(&upd_field->new_val));
 }
 
 /** set field number to a update vector field, marks this field is updated.
-@param[in,out]	upd_field	update vector field
-@param[in]	field_no	virtual column sequence num
-@param[in]	index		index */
+@param[in,out]  upd_field       update vector field
+@param[in]      field_no        virtual column sequence num
+@param[in]      index           index */
 static inline void upd_field_set_v_field_no(upd_field_t *upd_field,
                                             ulint field_no,
                                             const dict_index_t *index) {
@@ -124,20 +120,16 @@ static inline void upd_field_set_v_field_no(upd_field_t *upd_field,
                              << " in " << index->name << " of table "
                              << index->table->name << " which contains only "
                              << index->table->n_v_cols << " virutal columns";
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   dict_table_get_nth_v_col(index->table, field_no)
       ->m_col.copy_type(dfield_get_type(&upd_field->new_val));
 }
 
-/** Returns a field of an update vector by field_no.
- @return update vector field, or NULL */
-static inline const upd_field_t *upd_get_field_by_field_no(
-    const upd_t *update, /*!< in: update vector */
-    ulint no,            /*!< in: field_no */
-    bool is_virtual)     /*!< in: if it is virtual column */
-{
+static inline const upd_field_t *upd_get_field_by_field_no(const upd_t *update,
+                                                           ulint no,
+                                                           bool is_virtual) {
   ulint i;
   for (i = 0; i < upd_get_n_fields(update); i++) {
     const upd_field_t *uf = upd_get_nth_field(update, i);

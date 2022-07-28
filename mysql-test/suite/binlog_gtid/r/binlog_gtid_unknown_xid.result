@@ -3,13 +3,13 @@ SET @@AUTOCOMMIT=0;
 SET SESSION GTID_NEXT='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:1';
 INSERT INTO t2 VALUES(1);
 XA ROLLBACK 'xa1';
-ERROR XAE04: XAER_NOTA: Unknown XID
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  NON-EXISTING state
 SET @@AUTOCOMMIT=1;
 SET @@AUTOCOMMIT=0;
 SET SESSION GTID_NEXT='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:2';
 INSERT INTO t2 VALUES(2);
 XA COMMIT 'xa1';
-ERROR XAE04: XAER_NOTA: Unknown XID
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  NON-EXISTING state
 SET @@AUTOCOMMIT=1;
 XA START 'xa1';
 XA END 'xa1';

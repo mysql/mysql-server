@@ -7,9 +7,13 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
 SET @replica_parallel_type_saved= @@GLOBAL.REPLICA_PARALLEL_TYPE;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @replica_parallel_workers_saved= @@GLOBAL.REPLICA_PARALLEL_WORKERS;
 SET @slave_preserver_commit_order_saved= @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER;
 SET GLOBAL replica_parallel_type= 'LOGICAL_CLOCK';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers= 4;
 SET GLOBAL replica_preserve_commit_order= ON;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
@@ -20,6 +24,8 @@ include/start_group_replication.inc
 include/assert.inc [GTID_EXECUTED must be UUID:1-2]
 include/assert.inc [There can be no applying transactions when the service state is off]
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
 SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
 include/stop_group_replication.inc

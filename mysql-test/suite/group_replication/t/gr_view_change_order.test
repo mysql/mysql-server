@@ -67,7 +67,7 @@ SET @@GLOBAL.DEBUG='+d,sql_int_wait_for_gtid_executed_no_timeout';
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
-SET DEBUG_SYNC= "now SIGNAL signal.commit_continue";
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_before_commit_hook_continue";
 SET @@GLOBAL.DEBUG='-d,sql_int_wait_for_gtid_executed_no_timeout';
 
 --let $rpl_connection_name= server2

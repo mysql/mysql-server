@@ -33,7 +33,7 @@ if ($debug_test) {
 
 --echo #
 --echo # 2. Optionally modify no-redo dirtied page (in which case next time we remodify it)
---echo #    Note it will be flushed mean while anyway.
+--echo #    Note it will be flushed meanwhile anyway.
 --echo #
 
 BEGIN;
@@ -124,7 +124,7 @@ if ($debug_test) {
 --source ../include/log_wait_for_current_lsn.inc
 
 --echo #
---echo # 8. Execute mini transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
+--echo # 8. Execute mini-transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
 --echo #    When bug was present, such mtr inserted pages with too big lsn using
 --echo #    current lsn, which does not fit space in log.recent_closed, bypassing
 --echo #    required wait for space there (thanks to MTR_LOG_NO_REDO).
@@ -146,7 +146,7 @@ if ($noredo_remodify == 0) {
 --source ../include/log_recent_closed_unfreeze.inc
 
 --echo #
---echo # 10. Finish pending mini transactions
+--echo # 10. Finish pending mini-transactions
 --echo #
 
 COMMIT;

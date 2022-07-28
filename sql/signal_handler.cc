@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,35 +51,35 @@
 
 /*
   We are handling signals in this file.
-  Any global variables we read should be 'volatile sig_atomic_t'
-  to guarantee that we read some consistent value.
+  Any global variables we read should be 'volatile sig_atomic_t' or lock-free
+  std::atomic.
  */
-static volatile sig_atomic_t segfaulted = 0;
 
 /**
- * Handler for fatal signals
- *
- * Fatal events (seg.fault, bus error etc.) will trigger
- * this signal handler.  The handler will try to dump relevant
- * debugging information to stderr and dump a core image.
- *
- * Signal handlers can only use a set of 'safe' system calls
- * and library functions.  A list of safe calls in POSIX systems
- * are available at:
- *  http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html
- * For MS Windows, guidelines are available at:
- *  http://msdn.microsoft.com/en-us/library/xdkz3x12(v=vs.71).aspx
- *
- * @param sig Signal number
- */
-extern "C" void handle_fatal_signal(int sig) {
-  if (segfaulted) {
-    my_safe_printf_stderr("Fatal " SIGNAL_FMT " while backtracing\n", sig);
-    _exit(MYSQLD_FAILURE_EXIT); /* Quit without running destructors */
-  }
+  This is used to check if the signal handler is not called again while already
+  handling the previous signal, as may happen when either another thread
+  triggers it, or a bug in handling causes abort again.
+*/
+static std::atomic<bool> s_handler_being_processed{false};
+/**
+  Used to remember if the fatal info was already printed. The info can be
+  printed from user threads, but in the fatal signal handler we want to print it
+  if and only if the info was not yet printed. User threads after printing the
+  info will call abort which will call the handler.
+*/
+static std::atomic<bool> s_fatal_info_printed{false};
 
-  segfaulted = 1;
+/**
+  This function will try to dump relevant debugging information to stderr and
+  dump a core image.
 
+  It may be called as part of the signal handler. This fact limits library calls
+  that we can perform and much more, @see handle_fatal_signal
+
+  @param sig Signal number
+*/
+void print_fatal_signal(int sig) {
+  s_fatal_info_printed = true;
 #ifdef _WIN32
   SYSTEMTIME utc_time;
   GetSystemTime(&utc_time);
@@ -165,8 +165,39 @@ extern "C" void handle_fatal_signal(int sig) {
       "information that should help you find out what is causing the crash.\n");
 
 #endif /* HAVE_STACKTRACE */
+}
 
-  if (test_flags & TEST_CORE_ON_SIGNAL) {
+/**
+  Handler for fatal signals
+
+  Fatal events (seg.fault, bus error etc.) will trigger this signal handler. The
+  handler will try to dump relevant debugging information to stderr and dump a
+  core image.
+
+  Signal handlers can only use a set of 'safe' system calls and library
+  functions.
+
+  - A list of safe calls in POSIX systems are available at:
+  http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html
+  - For MS Windows, guidelines are available in documentation of the `signal()`
+  function:
+  https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/signal?view=msvc-160
+
+  @param sig Signal number
+*/
+extern "C" void handle_fatal_signal(int sig) {
+  if (s_handler_being_processed) {
+    my_safe_printf_stderr("Fatal " SIGNAL_FMT " while backtracing\n", sig);
+    _exit(MYSQLD_FAILURE_EXIT); /* Quit without running destructors */
+  }
+
+  s_handler_being_processed = true;
+
+  if (!s_fatal_info_printed) {
+    print_fatal_signal(sig);
+  }
+
+  if ((test_flags & TEST_CORE_ON_SIGNAL) != 0) {
     my_safe_printf_stderr("%s", "Writing a core file\n");
     my_write_core(sig);
   }
@@ -179,4 +210,59 @@ extern "C" void handle_fatal_signal(int sig) {
   _exit(MYSQLD_FAILURE_EXIT);  // Using _exit(), since exit() is not async
                                // signal safe
 #endif
+}
+
+/**
+  This is a wrapper around abort() which ensures that abort() will be called
+  exactly once, as calling it more than once might cause following problems:
+  When original abort() is called there is a signal processing triggered, but
+  only the first abort() causes the signal handler to be called, all other
+  abort()s called by the other threads will cause immediate exit() call, which
+  will also terminate the first abort() processing within the signal handler,
+  aborting stacktrace printing, core writeout or any other processing.
+*/
+void my_server_abort() {
+  static std::atomic_int aborts_pending{0};
+  static std::atomic_bool abort_processing{false};
+  /* Broadcast that this thread wants to print the signal info. */
+  aborts_pending++;
+  /*
+    Wait for the exclusive right to print the signal info. This assures the
+    output is not interleaved.
+  */
+  while (abort_processing.exchange(true)) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  /*
+    This actually takes some time, some or many other threads may call
+    my_server_abort in meantime.
+  */
+  print_fatal_signal(SIGABRT);
+  abort_processing = false;
+  /*
+    If there are no other threads pending abort then we call real abort as the
+    last aborting thread. If that succeeds, we are left with a positive
+    `aborts_pending`, and it will never go down to zero again. This effectively
+    prevents any other thread from calling real `abort`.
+  */
+  auto left = --aborts_pending;
+  if (!left && aborts_pending.compare_exchange_strong(left, 1)) {
+    /*
+      Wait again for the exclusive right to print the signal info by calling
+      the real `abort`. This assures the output is not interleaved with any
+      printing from a few lines above, that could start in the meantime.
+    */
+    while (abort_processing.exchange(true)) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    abort();
+  }
+  /*
+    Abort can't return, we will sleep here forever - the algorithm above
+    assures exactly one thread, eventually, will call `abort()` and terminate
+    the whole program.
+  */
+  while (true) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
 }

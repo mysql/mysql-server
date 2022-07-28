@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,6 @@
 #include <rapidjson/writer.h>
 
 #include "dim.h"
-#include "filesystem_utils.h"
 #include "harness_assert.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
@@ -128,11 +127,7 @@ TEST_P(ClusterSetBootstrapTargetClusterTest, ClusterSetBootstrapTargetCluster) {
 
   auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_SUCCESS);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
-
-  check_exit_code(router, EXIT_SUCCESS, 5s);
+  check_exit_code(router, EXIT_SUCCESS);
 
   const std::string conf_file_path =
       bootstrap_directory.name() + "/mysqlrouter.conf";
@@ -476,11 +471,7 @@ TEST_P(ClusterSetConfUseGrNotificationParamTest,
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(bootstrap_params);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
-
-  check_exit_code(router, EXIT_SUCCESS, 5s);
+  check_exit_code(router, EXIT_SUCCESS);
 
   const std::string state_file_path =
       bootstrap_directory.name() + "/data/state.json";
@@ -575,9 +566,6 @@ TEST_P(ClusterSetBootstrapParamsErrorTest, ClusterSetBootstrapParamsError) {
                           GetParam().bootstrap_params.end());
 
   auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_FAILURE);
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged
 
@@ -748,9 +736,6 @@ TEST_P(ClusterSetBootstrapClusterNotFoundErrorTest,
                           GetParam().bootstrap_params.end());
 
   auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_FAILURE);
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged
 
@@ -859,9 +844,6 @@ TEST_F(RouterClusterSetBootstrapTest, ClusterSetBootstrapNoPrimaryError) {
   };
 
   auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_FAILURE);
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged
   EXPECT_NO_THROW(router.wait_for_exit());
@@ -885,15 +867,12 @@ class ClusterSetBootstrapParamsNoBootstrapErrorTest
 TEST_P(ClusterSetBootstrapParamsNoBootstrapErrorTest,
        ClusterSetBootstrapParamsNoBootstrapError) {
   // const uint16_t server_port = port_pool_.get_next_available();
-  std::vector<std::string> router_params{"--connect-timeout=1"};
+  std::vector<std::string> router_params;
 
   router_params.insert(router_params.end(), GetParam().bootstrap_params.begin(),
                        GetParam().bootstrap_params.end());
 
   auto &router = launch_router_for_bootstrap(router_params, EXIT_FAILURE);
-  //  // add login hook
-  //  router.register_response("Please enter MySQL password for root: ",
-  //                           kRootPassword + "\n"s);
 
   //  // verify that appropriate message was logged
 
@@ -937,6 +916,75 @@ INSTANTIATE_TEST_SUITE_P(
             "Error: Parameters '--conf-target-cluster' and "
             "'--conf-target-cluster-by-name' are mutually exclusive and can't "
             "be used together"}));
+
+static int get_session_init_count(const uint16_t http_port) {
+  std::string server_globals =
+      MockServerRestClient(http_port).get_globals_as_json_string();
+
+  return get_int_field_value(server_globals, "session_count");
+}
+
+/**
+ * @test
+ *       verify that when user bootstraps using non-writable node, bootstrap
+ * failover will first go to the nodes of the Cluster who's role is reported as
+ * PRIMARY in the metadata, regardless of the order of those nodes returned by
+ * the query
+ *
+ * For this we have a following scenario:
+ * ClusterSet with 3 clusters
+ * Cluster 1 is REPLICA
+ * Cluster 2 is REPLICA
+ * Cluster 3 is PRIMARY
+ *
+ * We use first node of Cluster 2 to bootstrap. We expect the failover, as this
+ * node is not writable. The first node we are expected to failover to is the
+ * first node of Cluster 3. We never expect to try to connect to Cluster 1.
+ */
+TEST_F(RouterClusterSetBootstrapTest, PrimaryClusterQueriedFirst) {
+  const int target_cluster_id = 1;
+  const int primary_cluster_id = 2;
+  const std::string expected_target_cluster =
+      "00000000-0000-0000-0000-0000000000g2";
+
+  create_clusterset(view_id, target_cluster_id, primary_cluster_id,
+                    "bootstrap_clusterset.js", "", expected_target_cluster);
+
+  const unsigned bootstrap_node_id = 0;
+  const std::string target_cluster_param = "--conf-target-cluster=current";
+
+  // const auto &expected_output_strings = GetParam().expected_output_strings;
+
+  std::vector<std::string> bootstrap_params = {
+      "--bootstrap=127.0.0.1:" +
+          std::to_string(clusterset_data_.clusters[target_cluster_id]
+                             .nodes[bootstrap_node_id]
+                             .classic_port),
+      "-d", bootstrap_directory.name(), target_cluster_param,
+      "--logger.level=debug"};
+
+  auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_SUCCESS);
+
+  check_exit_code(router, EXIT_SUCCESS);
+
+  // check that the only nodes that we connected to during the bootstrap are the
+  // one used as a -B parameter (first node of the second cluster) and the
+  // primary node (first node of the third cluster)
+  for (size_t cluster_id = 0; cluster_id < clusterset_data_.clusters.size();
+       ++cluster_id) {
+    const auto &cluster = clusterset_data_.clusters[cluster_id];
+
+    for (size_t node_id = 0; node_id < cluster.nodes.size(); ++node_id) {
+      const int expected_session_count =
+          (cluster_id == 1 && node_id == 0) || (cluster_id == 2 && node_id == 0)
+              ? 1
+              : 0;
+
+      EXPECT_EQ(expected_session_count,
+                get_session_init_count(cluster.nodes[node_id].http_port));
+    }
+  }
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,21 +112,20 @@ private:
 class MessageStreamLostMsgHandler : public LostMsgHandler
 {
 private:
-  const char* m_lost_msg_fmt;
   const char* m_category;
 
 public:
-  MessageStreamLostMsgHandler(): m_lost_msg_fmt("*** %u MESSAGES LOST ***"),
-  m_category("MgmtSrvr")
-  {
-  }
-  /* Return size in bytes which must be appended to describe the lost messages */
-  size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) override;
+ MessageStreamLostMsgHandler() : m_category("MgmtSrvr") {}
+ /* Return size in bytes which must be appended to describe the lost messages */
+ size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) override;
 
-  /* Write lost message summary into the buffer for the lost message summary */
-  bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs) override;
+ /* Write lost message summary into the buffer for the lost message summary */
+ bool writeLostMsg(char* buf,
+                   size_t buf_size,
+                   size_t lost_bytes,
+                   size_t lost_msgs) override;
 
-  ~MessageStreamLostMsgHandler() override {}
+ ~MessageStreamLostMsgHandler() override {}
 };
 
 #endif /* STORAGE_NDB_INCLUDE_LOGGER_BUFFEREDLOGHANDLER_HPP_ */

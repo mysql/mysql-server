@@ -8,7 +8,7 @@ drop function if exists f1;
 --enable_warnings
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
-# 
+#
 # Let us first check +HH:MM style timezones
 #
 create table t1 (ts timestamp);
@@ -31,11 +31,11 @@ select * from t1;
 drop table t1;
 
 
-# 
+#
 # Let us try DB specified time zones
 #
-select Name from mysql.time_zone_name where Name in 
-  ('UTC','Universal','MET','Europe/Moscow','leap/Europe/Moscow');
+select Name from mysql.time_zone_name where Name in
+  ('UTC','Universal','MET','Europe/Moscow','leap/Europe/Moscow','Japan','CET','US/Pacific');
 
 create table t1 (i int, ts timestamp);
 
@@ -107,7 +107,7 @@ select from_unixtime(362793609);
 drop table t1;
 
 
-# 
+#
 # Let us test range for TIMESTAMP
 #
 create table t1 (ts timestamp);
@@ -134,7 +134,7 @@ select * from t1;
 drop table t1;
 
 
-# 
+#
 # Test of show variables
 #
 show variables like 'time_zone';
@@ -142,7 +142,7 @@ set time_zone = default;
 show variables like 'time_zone';
 
 
-# 
+#
 # Let us try some invalid time zone specifications
 #
 --error 1298
@@ -157,18 +157,18 @@ set time_zone= '+20:00';
 set time_zone= 'Some/Unknown/Time/Zone';
 
 
-# Let us check that aliases for time zones work and they are 
+# Let us check that aliases for time zones work and they are
 # case-insensitive
 select convert_tz(now(),'UTC', 'Universal') = now();
 select convert_tz(now(),'utc', 'UTC') = now();
 
 
-# 
+#
 # Let us test CONVERT_TZ function (may be func_time.test is better place).
 #
-select convert_tz('1917-11-07 12:00:00', 'MET', 'UTC'); 
-select convert_tz('1970-01-01 01:00:00', 'MET', 'UTC'); 
-select convert_tz('1970-01-01 01:00:01', 'MET', 'UTC'); 
+select convert_tz('1917-11-07 12:00:00', 'MET', 'UTC');
+select convert_tz('1970-01-01 01:00:00', 'MET', 'UTC');
+select convert_tz('1970-01-01 01:00:01', 'MET', 'UTC');
 select convert_tz('2003-03-01 00:00:00', 'MET', 'UTC');
 select convert_tz('2003-03-30 01:59:59', 'MET', 'UTC');
 select convert_tz('2003-03-30 02:30:00', 'MET', 'UTC');
@@ -179,8 +179,9 @@ select convert_tz('2003-10-26 02:00:00', 'MET', 'UTC');
 select convert_tz('2003-10-26 02:59:59', 'MET', 'UTC');
 select convert_tz('2003-10-26 04:00:00', 'MET', 'UTC');
 select convert_tz('2038-01-19 04:14:07', 'MET', 'UTC');
-select convert_tz('2038-01-19 04:14:08', 'MET', 'UTC');
-select convert_tz('2103-01-01 04:00:00', 'MET', 'UTC');
+# moved to func_unixtime.inc
+# select convert_tz('2038-01-19 04:14:08', 'MET', 'UTC');
+# select convert_tz('2103-01-01 04:00:00', 'MET', 'UTC');
 
 # Let us test variable time zone argument
 create table t1 (tz varchar(3));
@@ -316,3 +317,24 @@ CREATE FUNCTION f1() RETURNS DATETIME RETURN CONVERT_TZ('2015-01-01 00:00:00', '
 --echo # Below statement caused assertion failure.
 SELECT f1();
 DROP FUNCTION f1;
+
+--echo #
+--echo # Bug#33840652 Wrong result for UNIX_TIMESTAMP for time zones west of UTC close to
+--echo #           UNIX epoch 1970-01-01
+--echo # Bug#33837691 UNIX_TIMESTAMP() works differently in 8.0.28 than in previous versions
+--echo #
+
+--echo #
+--echo # Test west of UTC at and around UNIX epoch.
+--echo # We cannot test at max value here since it differs between 32 and 64
+--echo # bits time OSes. Refer to specific tests func_unixtime_{32,64}bits
+--echo #
+SET time_zone = "US/Pacific";
+SELECT FROM_UNIXTIME(0);
+SELECT UNIX_TIMESTAMP("1969-12-31 15:59:59");
+SELECT UNIX_TIMESTAMP("1969-12-31 16:00:00");
+SELECT UNIX_TIMESTAMP("1969-12-31 16:00:01");
+SELECT UNIX_TIMESTAMP("1970-01-01 00:00:01");
+SELECT UNIX_TIMESTAMP("2022-01-01 16:00:01");
+
+SET time_zone = DEFAULT;

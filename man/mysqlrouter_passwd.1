@@ -2,12 +2,12 @@
 .\"     Title: mysqlrouter_passwd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/03/2021
+.\"      Date: 06/02/2022
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLROUTER_PASSWD" "1" "09/03/2021" "MySQL 8\&.0" "MySQL Router"
+.TH "MYSQLROUTER_PASSWD" "1" "06/02/2022" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,7 +36,7 @@ mysqlrouter_passwd \- MySQL Router Password Tool
 .PP
 The
 \fBmysqlrouter_passwd\fR
-utility is a a command line application to manage the accounts in the passwd file\&.
+utility is a command line application to manage the accounts in the passwd file\&.
 .if n \{\
 .sp
 .\}
@@ -60,19 +60,25 @@ Usage information:
 .RS 4
 .\}
 .nf
-Usage: \&./mysqlrouter_passwd [\-\-delete] [\-?|\-\-help] [\-\-kdf=<name>] [\-\-list] [\-\-verify]
-                            [\-V|\-\-version] [\-\-work\-factor=<num>] [filename username]
-Options:
-  \-\-delete
-      Delete username if it exists\&.
+Usage
+  bin/mysqlrouter_passwd [opts] <cmd> <filename> [<username>]
+  bin/mysqlrouter_passwd \-\-help
+  bin/mysqlrouter_passwd \-\-version
+Commands
+  delete
+      Delete username (if it exists) from <filename>\&.
+  list
+      list one or all accounts of <filename>\&.
+  set
+      add or overwrite account of <username> in <filename>\&.
+  verify
+      verify if password matches <username>\*(Aqs credentials in <filename>\&.
+Options
   \-?, \-\-help
       Display this help and exit\&.
   \-\-kdf <name>
-      Key Derivation Function\&. One of pbkdf2\-sha256, pbkdf2\-sha512, sha256\-crypt, sha512\-crypt\&. default: sha256\-crypt
-  \-\-list
-      List account(s)\&.
-  \-\-verify
-      Verify password against stored hash for username\&. Exit\-code is 0 if password matches, 1 otherwise
+      Key Derivation Function for \*(Aqset\*(Aq\&. One of pbkdf2\-sha256, pbkdf2\-sha512,
+      sha256\-crypt, sha512\-crypt\&. default: sha256\-crypt
   \-V, \-\-version
       Display version information and exit\&.
   \-\-work\-factor <num>
@@ -84,7 +90,7 @@ Options:
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2021, Oracle and/or its affiliates.
+Copyright \(co 2006, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #include "mysql/harness/stdx/expected.h"
 
+#include <optional>
+#include <string_view>
 #include <type_traits>  // is_move_constructible
 
 #include <gmock/gmock.h>
@@ -257,39 +259,35 @@ class non_copyable_no_default {
   non_copyable_no_default &operator=(non_copyable_no_default &&) = default;
 };
 
-static_assert(std::is_copy_constructible<copyable>::value, "");
-static_assert(std::is_move_constructible<copyable>::value, "");
-static_assert(!std::is_copy_constructible<non_copyable>::value, "");
-static_assert(std::is_move_constructible<non_copyable>::value, "");
-static_assert(!std::is_copy_assignable<non_copyable>::value, "");
-static_assert(std::is_move_assignable<non_copyable>::value, "");
+static_assert(std::is_copy_constructible<copyable>::value);
+static_assert(std::is_move_constructible<copyable>::value);
+static_assert(!std::is_copy_constructible<non_copyable>::value);
+static_assert(std::is_move_constructible<non_copyable>::value);
+static_assert(!std::is_copy_assignable<non_copyable>::value);
+static_assert(std::is_move_assignable<non_copyable>::value);
 
-static_assert(!std::is_copy_constructible<void>::value, "");
-static_assert(!std::is_copy_assignable<void>::value, "");
-static_assert(std::is_copy_constructible<int>::value, "");
-static_assert(std::is_copy_assignable<int>::value, "");
-static_assert(std::is_copy_constructible<std::error_code>::value, "");
-static_assert(std::is_copy_assignable<std::error_code>::value, "");
+static_assert(!std::is_copy_constructible<void>::value);
+static_assert(!std::is_copy_assignable<void>::value);
+static_assert(std::is_copy_constructible<int>::value);
+static_assert(std::is_copy_assignable<int>::value);
+static_assert(std::is_copy_constructible<std::error_code>::value);
+static_assert(std::is_copy_assignable<std::error_code>::value);
 static_assert(
-    std::is_copy_constructible<stdx::expected<void, std::error_code>>::value,
-    "");
+    std::is_copy_constructible<stdx::expected<void, std::error_code>>::value);
 static_assert(
-    std::is_copy_assignable<stdx::expected<void, std::error_code>>::value, "");
+    std::is_copy_assignable<stdx::expected<void, std::error_code>>::value);
 static_assert(
-    std::is_copy_constructible<stdx::expected<int, std::error_code>>::value,
-    "");
-static_assert(std::is_copy_assignable<int>::value, "");
-static_assert(std::is_copy_constructible<int>::value, "");
-static_assert(std::is_copy_assignable<std::error_code>::value, "");
-static_assert(std::is_copy_constructible<std::error_code>::value, "");
+    std::is_copy_constructible<stdx::expected<int, std::error_code>>::value);
+static_assert(std::is_copy_assignable<int>::value);
+static_assert(std::is_copy_constructible<int>::value);
+static_assert(std::is_copy_assignable<std::error_code>::value);
+static_assert(std::is_copy_constructible<std::error_code>::value);
 static_assert(
-    std::is_copy_assignable<stdx::expected<int, std::error_code>>::value, "");
+    std::is_copy_assignable<stdx::expected<int, std::error_code>>::value);
 static_assert(!std::is_copy_constructible<
-                  stdx::expected<non_copyable, std::error_code>>::value,
-              "");
+              stdx::expected<non_copyable, std::error_code>>::value);
 static_assert(!std::is_copy_assignable<
-                  stdx::expected<non_copyable, std::error_code>>::value,
-              "");
+              stdx::expected<non_copyable, std::error_code>>::value);
 
 TEST(Expected, T_unique_ptr) {
   auto test_func = [](bool success)
@@ -451,80 +449,79 @@ TEST(Expected, T_void) {
   ASSERT_TRUE(res3);
 }
 
-TEST(Expected, T_void_E_void) {
-  auto test_func = [](bool success) -> stdx::expected<void, void> {
-    if (!success) {
-      return stdx::make_unexpected();
-    }
+TEST(Expected, conversion) {
+  {
+    stdx::expected<std::string, int> exp = std::string("");
+    ASSERT_TRUE(exp);
 
-    return {};
-  };
+    EXPECT_EQ(exp.value(), "");
+  }
 
-  // instantiation
-  auto res = test_func(true);
-  ASSERT_TRUE(res);
+  {
+    stdx::expected<std::string, int> exp = "def";
 
-  // move assignment
-  res = test_func(false);
-  ASSERT_FALSE(res);
-  EXPECT_EQ(res, stdx::make_unexpected());
+    ASSERT_TRUE(exp);
+    EXPECT_EQ(exp.value(), "def");
 
-  // move assignment
-  res = test_func(true);
-  ASSERT_TRUE(res);
+    exp = "abc";
 
-  // copy assignment
-  auto res2 = res;
-  ASSERT_EQ(res2, res);
+    ASSERT_TRUE(exp);
+    EXPECT_EQ(exp.value(), "abc");
 
-  // move assignment
-  auto res3 = std::move(res);
-  ASSERT_TRUE(res3);
+    exp = stdx::unexpected(1);
+
+    ASSERT_FALSE(exp);
+  }
 }
 
-TEST(Expected, T_trivial_E_void) {
-  auto test_func = [](bool success) -> stdx::expected<int, void> {
-    if (!success) {
-      return stdx::make_unexpected();
-    }
+TEST(Unexpected, copy_construct_from_unexpected) {
+  constexpr stdx::unexpected<int> err{1};
 
-    return {1};
-  };
+  stdx::expected<int, int> exp = err;
 
-  // instantiation
-  auto res = test_func(true);
-  ASSERT_TRUE(res);
-  ASSERT_EQ(res.value(), 1);
+  EXPECT_FALSE(exp);
+}
 
-  // move assignment
-  res = test_func(false);
-  ASSERT_FALSE(res);
-  EXPECT_EQ(res, stdx::make_unexpected());
+TEST(Unexpected, move_construct_from_unexpected) {
+  stdx::expected<int, int> exp = stdx::unexpected(1);
 
-  // move assignment
-  res = test_func(true);
-  ASSERT_TRUE(res);
-  ASSERT_EQ(res.value(), 1);
+  EXPECT_FALSE(exp);
+}
 
-  // copy construction
-  auto res2 = res;
-  ASSERT_EQ(res2, res);
-  ASSERT_EQ(res2.value(), 1);
-  ASSERT_EQ(res.value(), 1);
+TEST(Unexpected, in_place_construct_from_unexpect) {
+  stdx::expected<std::string, std::optional<int>> exp(stdx::unexpect, 1);
 
-  // move construction
-  auto res3 = std::move(res);
-  ASSERT_TRUE(res3);
-  ASSERT_EQ(res3.value(), 1);
+  EXPECT_FALSE(exp);
+}
 
-  // the move an int, is the same a copy. Not much to test here
-  // ASSERT_EQ(res.value(), {});
+TEST(Unexpected, in_place_construct_from_unexpect_curly) {
+  stdx::expected<std::string, std::optional<int>> exp{stdx::unexpect, 1};
 
-  // copy assignment
-  res = res3;
-  ASSERT_EQ(res3, res);
-  ASSERT_EQ(res3.value(), 1);
-  ASSERT_EQ(res.value(), 1);
+  EXPECT_FALSE(exp);
+}
+
+TEST(Unexpected, construct_eq_from_unexpected) {
+  stdx::expected<std::string, std::optional<int>> exp = stdx::unexpected(1);
+
+  EXPECT_FALSE(exp);
+}
+
+TEST(Unexpected, construct_curly_from_unexpected) {
+  stdx::expected<std::string, std::optional<int>> exp{stdx::unexpected(1)};
+
+  EXPECT_FALSE(exp);
+}
+
+TEST(Expected, converting_construct) {
+  stdx::expected<std::optional<int>, bool> exp{stdx::expected<int, bool>(1)};
+
+  EXPECT_TRUE(exp);
+}
+
+TEST(Expected, move_construct) {
+  stdx::expected<int, bool> exp{stdx::expected<int, bool>(1)};
+
+  EXPECT_TRUE(exp);
 }
 
 /**
@@ -561,7 +558,7 @@ TEST(Expected, T_string_E_std_error_code) {
   auto res =
       stdx::expected<std::string, std::error_code>(std::in_place, "initial"s);
 
-  static_assert(std::is_move_assignable<std::string>::value, "");
+  static_assert(std::is_move_assignable<std::string>::value);
 
   ASSERT_TRUE(res);
   ASSERT_EQ(res.value(), "initial"s);
@@ -617,13 +614,8 @@ TEST(Expected, T_no_default_construct) {
   };
 
   static_assert(!std::is_default_constructible<
-                    stdx::expected<no_default_construct, void>>::value,
-                "");
-  static_assert(!std::is_default_constructible<
-                    stdx::expected<no_default_construct, int>>::value,
-                "");
+                stdx::expected<no_default_construct, int>>::value);
 
-  stdx::expected<no_default_construct, void> t_void(1);
   stdx::expected<no_default_construct, int> t_non_void(1);
 }
 
@@ -636,67 +628,37 @@ TEST(Expected, T_no_copy_construct) {
   };
 
   static_assert(std::is_default_constructible<
-                    stdx::expected<no_copy_construct, void>>::value,
-                "");
+                stdx::expected<no_copy_construct, int>>::value);
   static_assert(
-      !std::is_copy_assignable<stdx::expected<no_copy_construct, void>>::value,
-      "");
+      !std::is_copy_assignable<stdx::expected<no_copy_construct, int>>::value);
   static_assert(
-      !std::is_move_assignable<stdx::expected<no_copy_construct, void>>::value,
-      "");
+      !std::is_move_assignable<stdx::expected<no_copy_construct, int>>::value);
 
-  static_assert(std::is_default_constructible<
-                    stdx::expected<no_copy_construct, int>>::value,
-                "");
-  static_assert(
-      !std::is_copy_assignable<stdx::expected<no_copy_construct, int>>::value,
-      "");
-  static_assert(
-      !std::is_move_assignable<stdx::expected<no_copy_construct, int>>::value,
-      "");
-
-  stdx::expected<no_copy_construct, void> t_void;
   stdx::expected<no_copy_construct, int> t_non_void;
+  EXPECT_TRUE(t_non_void);
 }
 
 // tests for the operator<< behaviour
-static_assert(stdx::impl::is_to_stream_writable<std::ostream, int>::value, "");
-static_assert(stdx::impl::is_to_stream_writable<std::ostream, double>::value,
-              "");
+static_assert(stdx::impl::is_to_stream_writable<std::ostream, int>::value);
+static_assert(stdx::impl::is_to_stream_writable<std::ostream, double>::value);
 static_assert(stdx::impl::is_to_stream_writable<
-                  std::ostream, stdx::expected<int, std::error_code>>::value,
-              "");
+              std::ostream, stdx::expected<int, std::error_code>>::value);
 static_assert(stdx::impl::is_to_stream_writable<
-                  std::ostream, stdx::expected<int, void>>::value,
-              "");
-static_assert(stdx::impl::is_to_stream_writable<
-                  std::ostream, stdx::expected<void, void>>::value,
-              "");
-static_assert(stdx::impl::is_to_stream_writable<
-                  std::ostream, stdx::expected<void, std::error_code>>::value,
-              "");
+              std::ostream, stdx::expected<void, std::error_code>>::value);
 
 static_assert(
-    !stdx::impl::is_to_stream_writable<std::ostream, non_copyable>::value, "");
+    !stdx::impl::is_to_stream_writable<std::ostream, non_copyable>::value);
 
 static_assert(!stdx::impl::is_to_stream_writable<
-                  std::ostream, non_copyable_no_default>::value,
-              "");
+              std::ostream, non_copyable_no_default>::value);
 
 static_assert(
     !stdx::impl::is_to_stream_writable<
-        std::ostream, stdx::expected<non_copyable, std::error_code>>::value,
-    "");
+        std::ostream, stdx::expected<non_copyable, std::error_code>>::value);
 
-static_assert(
-    !stdx::impl::is_to_stream_writable<
-        std::ostream,
-        stdx::expected<non_copyable_no_default, std::error_code>>::value,
-    "");
-
-static_assert(std::is_move_constructible<
-                  stdx::expected<std::unique_ptr<int>, void>>::value,
-              "");
+static_assert(!stdx::impl::is_to_stream_writable<
+              std::ostream,
+              stdx::expected<non_copyable_no_default, std::error_code>>::value);
 
 TEST(ExpectedOstream, some_int) {
   std::ostringstream oss;
@@ -704,6 +666,380 @@ TEST(ExpectedOstream, some_int) {
   oss << stdx::expected<int, std::error_code>(0);
 
   EXPECT_EQ(oss.str(), "0");
+}
+
+TEST(ExpectedAndThen, void_errc) {
+  stdx::expected<void, std::errc> exp;
+
+  auto r = exp.and_then([]() -> stdx::expected<void, std::errc> { return {}; });
+  ASSERT_TRUE(r);
+}
+
+TEST(ExpectedAndThen, int_errc) {
+  stdx::expected<int, std::errc> exp{1};
+
+  auto r = exp.and_then(
+      [](auto const &) -> stdx::expected<int, std::errc> { return {2}; });
+  ASSERT_TRUE(r);
+  EXPECT_EQ(r.value(), 2);
+}
+
+TEST(ExpectedAndThen, void_errc_refref) {
+  auto r = stdx::expected<void, std::errc>{}.and_then(
+      []() -> stdx::expected<void, std::errc> { return {}; });
+  ASSERT_TRUE(r);
+}
+
+TEST(ExpectedAndThen, move_only_type) {
+  auto r = stdx::expected<void, int>{}.and_then(
+      []() -> stdx::expected<std::unique_ptr<int>, int> {
+        return std::make_unique<int>(2);
+      });
+  ASSERT_TRUE(r);
+  EXPECT_EQ(*r.value(), 2);
+}
+
+TEST(ExpectedAndThen, move_only_unwrapped) {
+  auto r = stdx::expected<void, int>{}
+               .and_then([]() -> stdx::expected<std::unique_ptr<int>, int> {
+                 return std::make_unique<int>(2);
+               })
+               .and_then([](const auto &v) -> stdx::expected<int, int> {
+                 return *v;
+               });
+
+  // last .and_then() return type wins
+  EXPECT_TRUE((std::is_same_v<decltype(r), stdx::expected<int, int>>));
+
+  ASSERT_TRUE(r);
+  EXPECT_EQ(r.value(), 2);
+}
+
+TEST(ExpectedAndThen, move_only_error_code) {
+  auto r =
+      stdx::expected<void, non_copyable>{}
+          .and_then([]() -> stdx::expected<int, non_copyable> {
+            return stdx::make_unexpected(non_copyable{});
+          })
+          .and_then([](const auto &v) -> stdx::expected<int, non_copyable> {
+            return v;
+          });
+
+  // last .and_then() return type wins
+  EXPECT_TRUE((std::is_same_v<decltype(r), stdx::expected<int, non_copyable>>));
+
+  // one 'unexpected' along the way.
+  ASSERT_FALSE(r);
+}
+
+TEST(ExpectedOrElse, rewrite_error_code) {
+  auto r =
+      stdx::expected<void, std::error_code>{
+          stdx::make_unexpected(make_error_code(std::errc::io_error))}
+          .and_then([]() -> stdx::expected<int, std::error_code> { return 2; })
+          .or_else([](const auto &
+                      /* ec */) -> stdx::expected<int, std::error_code> {
+            return stdx::make_unexpected(
+                make_error_code(std::errc::bad_message));
+          });
+
+  // last .or_else() return type wins
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(r), stdx::expected<int, std::error_code>>));
+
+  ASSERT_FALSE(r);
+  // rewritten
+  EXPECT_EQ(r.error(), make_error_code(std::errc::bad_message));
+}
+
+TEST(ExpectedOrElse, make_happy_again) {
+  auto r =
+      stdx::expected<void, std::error_code>{
+          stdx::make_unexpected(make_error_code(std::errc::io_error))}
+          .and_then(
+              []() -> stdx::expected<std::unique_ptr<int>, std::error_code> {
+                // skipped
+                return std::make_unique<int>(2);
+              })
+          .or_else(
+              [](const auto &ec)
+                  -> stdx::expected<std::unique_ptr<int>, std::error_code> {
+                // error turned into a error-code.
+                return {std::make_unique<int>(ec.value())};
+              });
+
+  // last .and_then() return type wins
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(r),
+                      stdx::expected<std::unique_ptr<int>, std::error_code>>));
+
+  ASSERT_TRUE(r);
+  // error-code is bubbled down and .or_else() returns success again.
+  EXPECT_EQ(*r.value(), make_error_code(std::errc::io_error).value());
+}
+
+TEST(ExpectedOrElse, int_to_int) {
+  auto r = stdx::expected<int, std::error_code>{1}.or_else(
+      [](const auto & /* err */) -> stdx::expected<int, std::error_code> {
+        return 2;
+      });
+
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(r), stdx::expected<int, std::error_code>>));
+
+  ASSERT_TRUE(r);
+  EXPECT_EQ(r.value(), 1);
+}
+
+TEST(ExpectedOrElse, void_to_void) {
+  auto r = stdx::expected<void, std::error_code>{}.or_else(
+      [](const auto & /* err */) -> stdx::expected<void, std::error_code> {
+        return {};
+      });
+
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(r), stdx::expected<void, std::error_code>>));
+
+  ASSERT_TRUE(r);
+}
+
+TEST(ExpectedTransform, int_to_int) {
+  auto r = stdx::expected<int, std::error_code>{1}.transform(
+      [](auto v) { return v + 1; });
+
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(r), stdx::expected<int, std::error_code>>));
+
+  ASSERT_TRUE(r);
+  EXPECT_EQ(r.value(), 2);
+}
+
+TEST(ExpectedTransform, int_to_void) {
+  auto r =
+      stdx::expected<int, std::error_code>{1}.transform([](auto /* v */) {});
+
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(r), stdx::expected<void, std::error_code>>));
+
+  ASSERT_TRUE(r);
+}
+
+TEST(ExpectedTransform, void_to_void) {
+  auto r = stdx::expected<void, std::error_code>{}.transform([]() {});
+
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(r), stdx::expected<void, std::error_code>>));
+
+  ASSERT_TRUE(r);
+}
+
+TEST(ExpectedTransform, void_to_int) {
+  auto r = stdx::expected<void, std::error_code>{}.transform(
+      []() { return int{1}; });
+
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(r), stdx::expected<int, std::error_code>>));
+
+  ASSERT_TRUE(r);
+  EXPECT_EQ(r.value(), 1);
+}
+
+TEST(Expected, T_E_converting_copy_constructor_expected) {
+  stdx::expected<uint8_t, uint8_t> a{2};
+  stdx::expected<uint16_t, uint16_t> b = a;
+
+  ASSERT_TRUE(a);
+  ASSERT_TRUE(b);
+  EXPECT_EQ(a.value(), b.value());
+}
+
+TEST(Expected, T_E_converting_move_constructor_expected) {
+  stdx::expected<uint16_t, uint16_t> b = stdx::expected<uint8_t, uint8_t>{2};
+
+  ASSERT_TRUE(b);
+  EXPECT_EQ(b.value(), 2);
+}
+
+TEST(Expected, T_E_converting_copy_assignment_expected) {
+  stdx::expected<uint16_t, uint16_t> a{2};
+  stdx::expected<uint16_t, uint16_t> b{4};
+
+  b = a;
+
+  ASSERT_TRUE(a);
+  ASSERT_TRUE(b);
+  EXPECT_EQ(a.value(), b.value());
+}
+
+TEST(Expected, T_E_converting_move_assignment_expected) {
+  stdx::expected<uint16_t, uint16_t> b{4};
+
+  b = stdx::expected<uint8_t, uint16_t>{2};
+
+  ASSERT_TRUE(b);
+  EXPECT_EQ(b.value(), 2);
+}
+
+TEST(Expected, T_E_converting_value_constructor) {
+  auto b = []() -> stdx::expected<std::string, uint16_t> { return {"abc"}; }();
+
+  ASSERT_TRUE(b);
+  EXPECT_EQ(b.value(), "abc");
+}
+
+TEST(Expected, T_E_construct_unexpect) {
+  stdx::expected<uint16_t, uint16_t> b{stdx::unexpect, 24};
+
+  ASSERT_FALSE(b);
+  EXPECT_EQ(b.error(), 24);
+}
+
+TEST(Expected, T_E_construct_unexpect_pair) {
+  stdx::expected<uint16_t, std::pair<int, int>> b{stdx::unexpect, 24, 42};
+
+  ASSERT_FALSE(b);
+  EXPECT_EQ(b.error(), std::make_pair(24, 42));
+}
+
+TEST(Expected, T_E_construct_unexpected) {
+  stdx::expected<uint16_t, int> b = stdx::unexpected{24L};
+
+  ASSERT_FALSE(b);
+  EXPECT_EQ(b.error(), 24);
+}
+
+/*
+ * a simple type with an explicit constructor.
+ */
+template <class T>
+class Explicit {
+ public:
+  using value_type = T;
+
+  explicit Explicit(value_type v) : v_{std::move(v)} {}
+
+  bool operator==(const value_type &other) const { return v_ == other; }
+
+ private:
+  value_type v_;
+};
+
+/*
+ * check explicit constructors work as expected.
+ */
+TEST(Expected, T_E_explicit_constructor_from_value) {
+  {
+    static_assert(!std::is_convertible_v<Explicit<int>, int>);
+    static_assert(std::is_constructible_v<Explicit<int>, int>);
+
+    // explicit constructor. Can't assign.
+    //
+    // Explicit<int> converted = 1;
+
+    Explicit<int> explicit_constructed{1};  // works
+  }
+
+  {
+    static_assert(
+        !std::is_convertible_v<stdx::expected<Explicit<int>, int>, int>);
+    static_assert(
+        std::is_constructible_v<stdx::expected<Explicit<int>, int>, int>);
+
+    // fails as expected
+    // stdx::expected<Explicit<int>, int> converted = 1;
+
+    stdx::expected<Explicit<int>, int> explicit_constructed{1};  // works
+  }
+}
+
+template <class V>
+using R = stdx::expected<V, std::error_code>;
+
+/*
+ * check that construct between void and non-void expected-types fails.
+ */
+TEST(Expected, construct_from_other_void) {
+  // construct/convert from itself, works
+  static_assert(std::is_constructible_v<R<int>, R<int>>);
+  static_assert(std::is_convertible_v<R<int>, R<int>>);
+
+  static_assert(std::is_constructible_v<R<void>, R<void>>);
+  static_assert(std::is_convertible_v<R<void>, R<void>>);
+
+  // but not void <-> non-void
+  static_assert(!std::is_constructible_v<R<int>, R<void>>);
+  static_assert(!std::is_convertible_v<R<void>, R<int>>);
+
+  static_assert(!std::is_constructible_v<R<void>, R<int>>);
+  static_assert(!std::is_convertible_v<R<int>, R<void>>);
+}
+
+/*
+ * check if narrowing conversion is accepted.
+ *
+ * (std::optional doesn't fail/warning on narrowing conversion, and expected
+ * isn't doing it either).
+ */
+TEST(Expected, construct_from_other_int) {
+  // sanity-check: construct/convert from itself, works
+  static_assert(std::is_constructible_v<R<uint8_t>, R<uint8_t>>);
+  static_assert(std::is_convertible_v<R<uint8_t>, R<uint8_t>>);
+
+  static_assert(std::is_constructible_v<R<uint16_t>, R<uint16_t>>);
+  static_assert(std::is_convertible_v<R<uint16_t>, R<uint16_t>>);
+
+  static_assert(std::is_constructible_v<R<uint8_t>, uint8_t>);
+  static_assert(std::is_constructible_v<R<uint8_t>, R<uint8_t>>);
+
+  // sanity-check: how does optional handles narrowing conversions?
+  // -> no warning.
+  {
+    std::optional<uint8_t> o = 256 + 255;
+    ASSERT_TRUE(o);
+    EXPECT_EQ(o.value(), 255);
+  }
+
+  {
+    std::optional<uint8_t> o{256 + 255};
+    ASSERT_TRUE(o);
+    EXPECT_EQ(o.value(), 255);
+  }
+
+  // check stdx::expected behaves as optional around "narrowing".
+  static_assert(std::is_constructible_v<uint8_t, uint16_t>);
+
+  // construct from T
+  static_assert(std::is_constructible_v<R<uint8_t>, uint16_t>);
+  {
+    R<uint8_t> r{std::numeric_limits<uint16_t>::max()};
+    ASSERT_TRUE(r);
+    EXPECT_EQ(*r, 255);
+  }
+  // construct from expected<T, E>
+  static_assert(std::is_constructible_v<R<uint8_t>, R<uint16_t>>);
+  {
+    R<uint8_t> r{R<uint16_t>{std::numeric_limits<uint16_t>::max()}};
+    ASSERT_TRUE(r);
+    EXPECT_EQ(*r, 255);
+  }
+
+  // sanity-check: basic type conversion
+  static_assert(std::is_convertible_v<uint16_t, uint8_t>);
+
+  // convert from T
+  static_assert(std::is_convertible_v<uint16_t, R<uint8_t>>);
+  {
+    R<uint8_t> r = 256 + 255;
+    ASSERT_TRUE(r);
+    EXPECT_EQ(*r, 255);
+  }
+  // convert from expected<T, E>
+  static_assert(std::is_convertible_v<R<uint16_t>, R<uint8_t>>);
+  {
+    R<uint8_t> r = R<uint16_t>{256 + 255};
+    ASSERT_TRUE(r);
+    EXPECT_EQ(*r, 255);
+  }
 }
 
 int main(int argc, char *argv[]) {

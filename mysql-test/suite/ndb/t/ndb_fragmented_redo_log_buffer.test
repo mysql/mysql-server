@@ -1,0 +1,13 @@
+source include/have_ndb.inc;
+source have_ndb_error_insert.inc;
+
+# Error 5107 will allocate redo log buffer in chunks with unused pages between
+# the chunks, demonstraing bug#32959887.
+exec $NDB_MGM -e "2 restart -n";
+exec $NDB_MGM -e "2 error 5107";
+exec $NDB_MGM -e "2 start";
+exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT;
+
+exec $NDB_MGM -e "2 error 0";
+
+remove_file $NDB_TOOLS_OUTPUT;

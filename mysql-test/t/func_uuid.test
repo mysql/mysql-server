@@ -7,9 +7,12 @@
 --echo # WL#8920: Improve usability of UUID manipulations
 --echo #
 
-SELECT uuid_to_bin('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}', TRUE) AS a, uuid_to_bin('{e60c88ba-083f-4ceb-be59-f67636d718a2}', TRUE) AS b;
-SELECT uuid_to_bin('c8eb4b15cb0948bbbbb2e6a0b6b4d5c7', TRUE) AS a, uuid_to_bin('e60c88ba083f4cebbe59f67636d718a2', TRUE) AS b;
-SELECT uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7', TRUE) AS a, uuid_to_bin('e60c88ba-083f-4ceb-be59-f67636d718a2', TRUE) AS b;
+SELECT HEX(uuid_to_bin('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}', TRUE)) AS a,
+       HEX(uuid_to_bin('{e60c88ba-083f-4ceb-be59-f67636d718a2}', TRUE)) AS b;
+SELECT HEX(uuid_to_bin('c8eb4b15cb0948bbbbb2e6a0b6b4d5c7', TRUE)) AS a,
+       HEX(uuid_to_bin('e60c88ba083f4cebbe59f67636d718a2', TRUE)) AS b;
+SELECT HEX(uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7', TRUE)) AS a,
+       HEX(uuid_to_bin('e60c88ba-083f-4ceb-be59-f67636d718a2', TRUE)) AS b;
 
 --echo # UUID too long
 --error ER_WRONG_VALUE_FOR_TYPE
@@ -78,7 +81,11 @@ CREATE TABLE t(a binary(16));
 INSERT into t VALUES(unhex('7f9d04ae61b34468ac798ffcc984ab68')),(unhex('d00653b290b940d193c2194456bd4f3d')),(unhex('e60c88ba083f4cebbe59f67636d718a2')),(unhex('c8eb4b15cb0948bbbbb2e6a0b6b4d5c7'));
 
 SELECT bin_to_uuid(a), bin_to_uuid(a,TRUE) FROM t;
-SELECT uuid_to_bin(bin_to_uuid(a)), uuid_to_bin(bin_to_uuid(a)) = a, uuid_to_bin(bin_to_uuid(a, TRUE), TRUE), uuid_to_bin(bin_to_uuid(a, TRUE), TRUE) = a FROM t;
+SELECT HEX(uuid_to_bin(bin_to_uuid(a))) AS c1,
+       uuid_to_bin(bin_to_uuid(a)) = a AS c2,
+       HEX(uuid_to_bin(bin_to_uuid(a, TRUE), TRUE)) AS c3,
+       uuid_to_bin(bin_to_uuid(a, TRUE), TRUE) = a AS c4
+FROM t;
 SELECT bin_to_uuid(uuid_to_bin(bin_to_uuid(a))), bin_to_uuid(uuid_to_bin(bin_to_uuid(a, TRUE), TRUE), TRUE) FROM t;
 
 SELECT bin_to_uuid(uuid_to_bin('{12345678-1234-5678-1234-567812345678}')), bin_to_uuid(uuid_to_bin('{12345678-1234-5678-1234-567812345678}')) = '12345678-1234-5678-1234-567812345678';
@@ -187,12 +194,12 @@ INSERT into t1(col1) VALUES
 ('12345679123456781234567812345678'),
 ('12345670-1234-5678-1234-567812345678');
 
-EXPLAIN SELECT * FROM t1 where gcol2=x'12345679123456781234567812345678';
-SELECT * FROM t1 where gcol2=x'12345679123456781234567812345678';
+EXPLAIN SELECT col1, HEX(gcol2) FROM t1 where gcol2=x'12345679123456781234567812345678';
+SELECT col1, HEX(gcol2) FROM t1 where gcol2=x'12345679123456781234567812345678';
 
 -- echo # Gcol expression is recognized and gcol index is used:
-EXPLAIN SELECT * FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
-SELECT * FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
+EXPLAIN SELECT col1, HEX(gcol2) FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
+SELECT col1, HEX(gcol2) FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
 
 CREATE TABLE t2(col1 binary(16), gcol2 varchar(36) AS (bin_to_uuid(col1)) virtual, index(col1), index(gcol2));
 
@@ -201,13 +208,13 @@ INSERT into t2(col1) VALUES
 (x'12345679123456781234567812345678'),
 (x'12345670123456781234567812345678');
 
-EXPLAIN SELECT * FROM t2 where col1=x'12345679123456781234567812345678';
-SELECT * FROM t2 where col1=x'12345679123456781234567812345678';
+EXPLAIN SELECT HEX(col1), gcol2 FROM t2 where col1=x'12345679123456781234567812345678';
+SELECT HEX(col1), gcol2 FROM t2 where col1=x'12345679123456781234567812345678';
 
-EXPLAIN SELECT * FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
-SELECT * FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
-EXPLAIN SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
-SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
+EXPLAIN SELECT HEX(col1), gcol2 FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
+SELECT HEX(col1), gcol2 FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
+EXPLAIN SELECT HEX(col1), gcol2 FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
+SELECT HEX(col1), gcol2 FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
 
 DROP TABLE t1;
 DROP TABLE t2;

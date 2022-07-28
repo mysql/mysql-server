@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,8 @@ constexpr const char *udf_get_changed_pages{
     "mysqlbackup_page_track_get_changed_pages"};
 constexpr const char *udf_get_changed_page_count{
     "mysqlbackup_page_track_get_changed_page_count"};
+constexpr const char *udf_page_track_purge_up_to{
+    "mysqlbackup_page_track_purge_up_to"};
 // Changed pages file path
 constexpr const char *backup_scratch_dir{"#meb"};
 // Changed pages file extension

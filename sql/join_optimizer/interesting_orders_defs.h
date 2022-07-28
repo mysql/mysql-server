@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,5 +62,6 @@ static constexpr int kMaxSupportedFDs = 64;
 using FunctionalDependencySet = std::bitset<kMaxSupportedFDs>;
 
 static constexpr int kMaxSupportedOrderings = 64;
+using OrderingSet = std::bitset<kMaxSupportedOrderings>;
 
 #endif  // SQL_JOIN_OPTIMIZER_INTERESTING_ORDERS_H

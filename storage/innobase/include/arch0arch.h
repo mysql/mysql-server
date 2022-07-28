@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,7 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ARCH_ARCH_INCLUDE
 
 #include <mysql/components/services/page_track_service.h>
-#include "log0log.h"
+#include "buf0buf.h" /* buf_page_t */
 #include "ut0mutex.h"
 
 #include <list>
@@ -122,13 +122,13 @@ enum Arch_Client_State {
 };
 
 /** Remove files related to page and log archiving.
-@param[in]	file_path	path to the file
-@param[in]	file_name	name of the file */
+@param[in]      file_path       path to the file
+@param[in]      file_name       name of the file */
 void arch_remove_file(const char *file_path, const char *file_name);
 
 /** Remove group directory and the files related to page and log archiving.
-@param[in]	dir_path	path to the directory
-@param[in]	dir_name	directory name */
+@param[in]      dir_path        path to the directory
+@param[in]      dir_name        directory name */
 void arch_remove_dir(const char *dir_path, const char *dir_name);
 
 /** Archiver system state.
@@ -349,9 +349,9 @@ using Arch_Reset = std::deque<Arch_Reset_File>;
 class Arch_Block {
  public:
   /** Constructor: Initialize elements
-  @param[in]	blk_buf	buffer for data block
-  @param[in]	size	buffer size
-  @param[in]	type	block type */
+  @param[in]    blk_buf buffer for data block
+  @param[in]    size    buffer size
+  @param[in]    type    block type */
   Arch_Block(byte *blk_buf, uint size, Arch_Blk_Type type)
       : m_data(blk_buf), m_size(size), m_type(type) {}
 
@@ -361,7 +361,7 @@ class Arch_Block {
   void copy_data(const Arch_Block *block);
 
   /** Set the block ready to begin writing page ID
-  @param[in]	pos		position to initiate block number */
+  @param[in]    pos             position to initiate block number */
   void begin_write(Arch_Page_Pos pos);
 
   /** End writing to a block.
@@ -382,54 +382,54 @@ class Arch_Block {
   void set_flushed() { m_state = ARCH_BLOCK_FLUSHED; }
 
   /** Add page ID to current block
-  @param[in]	page	page from buffer pool
-  @param[in]	pos	Archiver current position
+  @param[in]    page    page from buffer pool
+  @param[in]    pos     Archiver current position
   @return true, if successful
           false, if no more space in current block */
   bool add_page(buf_page_t *page, Arch_Page_Pos *pos);
 
   /* Add reset information to the current reset block.
-  @param[in]	reset_lsn	reset lsn info
-  @param[in]	reset_pos	reset pos info which needs to be added
+  @param[in]    reset_lsn       reset lsn info
+  @param[in]    reset_pos       reset pos info which needs to be added
   to the current reset block */
   void add_reset(lsn_t reset_lsn, Arch_Page_Pos reset_pos);
 
   /** Copy page Ids from this block at read position to a buffer.
-  @param[in]	read_pos	current read position
-  @param[in]	read_len	length of data to copy
-  @param[out]	read_buff	buffer to copy page IDs.
+  @param[in]    read_pos        current read position
+  @param[in]    read_len        length of data to copy
+  @param[out]   read_buff       buffer to copy page IDs.
                                   Caller must allocate the buffer.
   @return true, if successful
           false, if block is already overwritten */
   bool get_data(Arch_Page_Pos *read_pos, uint read_len, byte *read_buff);
 
   /** Copy page Ids from a buffer to this block.
-  @param[in]	read_len	length of data to copy
-  @param[in]	read_buff	buffer to copy page IDs from
-  @param[in]	read_offset	offset from where to write
+  @param[in]    read_len        length of data to copy
+  @param[in]    read_buff       buffer to copy page IDs from
+  @param[in]    read_offset     offset from where to write
   @return true if successful */
   bool set_data(uint read_len, byte *read_buff, uint read_offset);
 
   /** Flush this block to the file group
-  @param[in]	file_group	current archive group
-  @param[in]	type		flush type
+  @param[in]    file_group      current archive group
+  @param[in]    type            flush type
   @return error code. */
   dberr_t flush(Arch_Group *file_group, Arch_Blk_Flush_Type type);
 
   /* Update the block header with the given LSN
-  @param[in]	stop_lsn	stop LSN to update in the block header
-  @param[in]	reset_lsn	reset LSN to update in the blk header */
+  @param[in]    stop_lsn        stop LSN to update in the block header
+  @param[in]    reset_lsn       reset LSN to update in the blk header */
   void update_block_header(lsn_t stop_lsn, lsn_t reset_lsn);
 
   /** @return data length of the block. */
   uint get_data_len() const { return m_data_len; }
 
   /** Set the data length of the block.
-  @param[in]	data_len	data length */
+  @param[in]    data_len        data length */
   void set_data_len(uint data_len) { m_data_len = data_len; }
 
   /** Set the reset length of the block.
-  @param[in]	reset_lsn	reset lsn */
+  @param[in]    reset_lsn       reset lsn */
   void set_reset_lsn(lsn_t reset_lsn) { m_reset_lsn = reset_lsn; }
 
   /** @return block number of the block. */
@@ -491,8 +491,8 @@ class Arch_Block {
   static uint32_t get_checksum(byte *block);
 
   /** Fetch the offset for a block in the archive file.
-  @param[in]	block_num	block number
-  @param[in]	type		type of block
+  @param[in]    block_num       block number
+  @param[in]    type            type of block
   @return file offset of the block */
   static uint64_t get_file_offset(uint64_t block_num, Arch_Blk_Type type);
 
@@ -523,7 +523,7 @@ class Arch_Block {
   lsn_t m_stop_lsn{LSN_MAX};
 
   /** Oldest LSN of all the page IDs added to the block since the last
-   * checkpoint */
+   checkpoint */
   lsn_t m_oldest_lsn{LSN_MAX};
 
   /** Start LSN or the last reset LSN of the group */
@@ -549,54 +549,64 @@ class Arch_File_Ctx {
   }
 
   /** Initializes archiver file context.
-  @param[in]	path		path to the file
-  @param[in]	base_dir	directory name prefix
-  @param[in]	base_file	file name prefix
-  @param[in]	num_files	initial number of files
-  @param[in]	file_size	file size in bytes
+  @param[in]    path            path to the file
+  @param[in]    base_dir        directory name prefix
+  @param[in]    base_file       file name prefix
+  @param[in]    num_files       initial number of files
   @return error code. */
   dberr_t init(const char *path, const char *base_dir, const char *base_file,
-               uint num_files, uint64_t file_size);
+               uint num_files);
 
   /** Open a file at specific index
-  @param[in]	read_only	open in read only mode
-  @param[in]	start_lsn	start lsn for the group
-  @param[in]	file_index	index of the file within the group which needs
-  to be opened
-  @param[in]	file_offset	start offset
+  @param[in]  read_only    open in read only mode
+  @param[in]  start_lsn    start lsn for the group
+  @param[in]  file_index   index of the file within the group which needs
+                           to be opened
+  @param[in]  file_offset  start offset
+  @param[in]  file_size    maximum allowed file size or 0 to use its current
+                           real size on disk as the limitation (file is full)
   @return error code. */
   dberr_t open(bool read_only, lsn_t start_lsn, uint file_index,
-               uint64_t file_offset);
+               uint64_t file_offset, uint64_t file_size);
 
   /** Add a new file and open
-  @param[in]	start_lsn	start lsn for the group
-  @param[in]	file_offset	start offset
+  @param[in]  start_lsn          start lsn for the group
+  @param[in]  new_file_size      size limit for the new file
+  @param[in]  initial_file_size  initial size of file to create
   @return error code. */
-  dberr_t open_new(lsn_t start_lsn, uint64_t file_offset);
+  dberr_t open_new(lsn_t start_lsn, uint64_t new_file_size,
+                   uint64_t initial_file_size);
 
   /** Open next file for read
-  @param[in]	start_lsn	start lsn for the group
-  @param[in]	file_offset	start offset
+  @param[in]  start_lsn    start lsn for the group
+  @param[in]  file_offset  start offset
+  @param[in]  file_size    maximum allowed file size or 0 to use its current
+                           real size on disk as the limitation (file is full)
   @return error code. */
-  dberr_t open_next(lsn_t start_lsn, uint64_t file_offset);
+  dberr_t open_next(lsn_t start_lsn, uint64_t file_offset, uint64_t file_size);
 
   /** Read data from the current file that is open.
   Caller must ensure that the size is within the limits of current file
   context.
-  @param[in,out]	to_buffer	read data into this buffer
-  @param[in]		offset		file offset from where to read
-  @param[in]		size		size of data to read in bytes
+  @param[in,out]        to_buffer       read data into this buffer
+  @param[in]            offset          file offset from where to read
+  @param[in]            size            size of data to read in bytes
   @return error code */
-  dberr_t read(byte *to_buffer, const uint64_t offset, const uint size);
+  dberr_t read(byte *to_buffer, const uint64_t offset, uint size);
+
+  /** Resize file to provided size and overwrite the whole file with 0x00.
+  @param[in]  file_size   new file size
+  @return error code */
+  dberr_t resize_and_overwrite_with_zeros(uint64_t file_size);
 
   /** Write data to this file context from the given file offset.
   Data source is another file context or buffer. If buffer is NULL, data is
   copied from input file context. Caller must ensure that the size is within
   the limits of current file for both source and destination file context.
-  @param[in]	from_file	file context to copy data from
-  @param[in]	from_buffer	buffer to copy data or NULL
-  @param[in]	offset		file offset from where to write
-  @param[in]	size		size of data to copy in bytes
+  @param[in]    from_file       file context to copy data from
+  @param[in]    from_buffer     buffer to copy data or NULL
+  @param[in]    offset          file offset from where to write
+  @param[in]    size            size of data to copy in bytes
   @return error code */
   dberr_t write(Arch_File_Ctx *from_file, byte *from_buffer, uint offset,
                 uint size);
@@ -605,9 +615,9 @@ class Arch_File_Ctx {
   Data source is another file context or buffer. If buffer is NULL, data is
   copied from input file context. Caller must ensure that the size is within
   the limits of current file for both source and destination file context.
-  @param[in]	from_file	file context to copy data from
-  @param[in]	from_buffer	buffer to copy data or NULL
-  @param[in]	size		size of data to copy in bytes
+  @param[in]    from_file       file context to copy data from
+  @param[in]    from_buffer     buffer to copy data or NULL
+  @param[in]    size            size of data to copy in bytes
   @return error code */
   dberr_t write(Arch_File_Ctx *from_file, byte *from_buffer, uint size);
 
@@ -638,18 +648,18 @@ class Arch_File_Ctx {
   }
 
   /** Construct file name at specific index
-  @param[in]	idx	file index
-  @param[in]	dir_lsn	lsn of the group
-  @param[out]	buffer	file name including path.
+  @param[in]    idx     file index
+  @param[in]    dir_lsn lsn of the group
+  @param[out]   buffer  file name including path.
                           The buffer is allocated by caller.
-  @param[in]	length	buffer length */
+  @param[in]    length  buffer length */
   void build_name(uint idx, lsn_t dir_lsn, char *buffer, uint length);
 
   /** Construct group directory name
-  @param[in]	dir_lsn	lsn of the group
-  @param[out]	buffer	directory name.
+  @param[in]    dir_lsn lsn of the group
+  @param[out]   buffer  directory name.
                           The buffer is allocated by caller.
-  @param[in]	length	buffer length */
+  @param[in]    length  buffer length */
   void build_dir_name(lsn_t dir_lsn, char *buffer, uint length);
 
   /** Get the logical size of a file.
@@ -659,6 +669,10 @@ class Arch_File_Ctx {
   /* Fetch offset of the file open in this context.
   @return file offset */
   uint64_t get_offset() const { return (m_offset); }
+
+  /** Get current file index.
+  @return current file index */
+  uint get_index() const { return m_index; }
 
   /** Get number of files
   @return current file count */
@@ -673,18 +687,18 @@ class Arch_File_Ctx {
   }
 
   /** Update stop lsn of a file in the group.
-  @param[in]	file_index	file_index the current write_pos belongs to
-  @param[in]	stop_lsn	stop point */
+  @param[in]    file_index      file_index the current write_pos belongs to
+  @param[in]    stop_lsn        stop point */
   void update_stop_point(uint file_index, lsn_t stop_lsn);
 
 #ifdef UNIV_DEBUG
   /** Check if the information maintained in the memory is the same
   as the information maintained in the files.
   @return true if both sets of information are the same
-  @param[in]	group	group whose file is being validated
-  @param[in]	file_index	index of the file which is being validated
-  @param[in]	start_lsn
-  @param[in,out]	reset_count	count of files which has been validated
+  @param[in]    group   group whose file is being validated
+  @param[in]    file_index      index of the file which is being validated
+  @param[in]    start_lsn
+  @param[in,out]        reset_count     count of files which has been validated
   @return true if both the sets of information are the same. */
   bool validate(Arch_Group *group, uint file_index, lsn_t start_lsn,
                 uint &reset_count);
@@ -692,50 +706,48 @@ class Arch_File_Ctx {
 
   /** Update the reset information in the in-memory structure that we maintain
   for faster access.
-  @param[in]	lsn     lsn at the time of reset
-  @param[in]	pos     pos at the time of reset
-  @retval true if the reset point was saved
-  @retval false if the reset point wasn't saved because it was already saved */
+  @param[in]    lsn     lsn at the time of reset
+  @param[in]    pos     pos at the time of reset */
   void save_reset_point_in_mem(lsn_t lsn, Arch_Page_Pos pos);
 
   /** Find the appropriate reset LSN that is less than or equal to the
   given lsn and fetch the reset point.
-  @param[in]	check_lsn	LSN to be searched against
-  @param[out]	reset_point	reset position of the fetched reset point
+  @param[in]    check_lsn       LSN to be searched against
+  @param[out]   reset_point     reset position of the fetched reset point
   @return true if the search was successful. */
   bool find_reset_point(lsn_t check_lsn, Arch_Point &reset_point);
 
   /** Find the first stop LSN that is greater than the given LSN and fetch
   the stop point.
-  @param[in]	group		the group whose stop_point we're interested in
-  @param[in]	check_lsn	LSN to be searched against
-  @param[out]	stop_point	stop point
-  @param[in]	last_pos	position of the last block in the group;
+  @param[in]    group           the group whose stop_point we're interested in
+  @param[in]    check_lsn       LSN to be searched against
+  @param[out]   stop_point      stop point
+  @param[in]    last_pos        position of the last block in the group;
   m_write_pos if group is active and m_stop_pos if not
   @return true if the search was successful. */
   bool find_stop_point(Arch_Group *group, lsn_t check_lsn,
                        Arch_Point &stop_point, Arch_Page_Pos last_pos);
 
   /** Delete a single file belonging to the specified file index.
-  @param[in]	file_index	file index of the file which needs to be deleted
-  @param[in]	begin_lsn	group's start lsn
+  @param[in]    file_index      file index of the file which needs to be deleted
+  @param[in]    begin_lsn       group's start lsn
   @return true if successful, else false. */
   bool delete_file(uint file_index, lsn_t begin_lsn);
 
   /** Delete all files for this archive group
-  @param[in]	begin_lsn	group's start lsn */
+  @param[in]    begin_lsn       group's start lsn */
   void delete_files(lsn_t begin_lsn);
 
   /** Purge archived files until the specified purge LSN.
-  @param[in]	begin_lsn	start LSN of the group
-  @param[in]	end_lsn	end LSN of the group
+  @param[in]    begin_lsn       start LSN of the group
+  @param[in]    end_lsn end LSN of the group
   @param[in]    purge_lsn   purge LSN until which files needs to be purged
   @return LSN until which purging was successful
   @retval LSN_MAX if there was no purging done. */
   lsn_t purge(lsn_t begin_lsn, lsn_t end_lsn, lsn_t purge_lsn);
 
   /** Fetch the status of the page tracking system.
-  @param[out]	status	vector of a pair of (ID, bool) where ID is the
+  @param[out]   status  vector of a pair of (ID, bool) where ID is the
   start/stop point and bool is true if the ID is a start point else false */
   void get_status(std::vector<std::pair<lsn_t, bool>> &status) {
     for (auto reset_file : m_reset) {
@@ -749,9 +761,9 @@ class Arch_File_Ctx {
 #ifdef UNIV_DEBUG
   /** Check if the reset information maintained in the memory is the same
   as the information maintained in the given file.
-  @param[in]	file	file descriptor
-  @param[in]	file_index	index of the file
-  @param[in,out]	reset_count	number of files processed containing
+  @param[in]    file    file descriptor
+  @param[in]    file_index      index of the file
+  @param[in,out]        reset_count     number of files processed containing
   reset data
   @return true if both sets of information are the same */
   bool validate_reset_block_in_file(pfs_os_file_t file, uint file_index,
@@ -759,9 +771,9 @@ class Arch_File_Ctx {
 
   /** Check if the stop LSN maintained in the memory is the same as the
   information maintained in the files.
-  @param[in]	group	group whose file is being validated
-  @param[in]	file	file descriptor
-  @param[in]	file_index	index of the file for which the validation is
+  @param[in]    group   group whose file is being validated
+  @param[in]    file    file descriptor
+  @param[in]    file_index      index of the file for which the validation is
   happening
   @return true if both the sets of information are the same. */
   bool validate_stop_point_in_file(Arch_Group *group, pfs_os_file_t file,
@@ -824,23 +836,31 @@ class Arch_File_Ctx {
   std::vector<lsn_t> m_stop_points;
 };
 
+/** Number which tries to uniquely identify the archived data (unless it is
+zero, which stands for unsupported identification). Currently only redo log
+files are identified (by Log_uuid's value). */
+typedef uint32_t Arch_group_uuid;
+
 /** Contiguous archived data for redo log or page tracking.
 If there is a gap, that is if archiving is stopped and started, a new
 group is created. */
 class Arch_Group {
  public:
+  /** Function responsible to format the header of a new file which is
+  created, when the stream of data is written to a sequence of new files.
+  @param[in]  start_offset    offset at which a new file starts, expressed
+                              in bytes from the beginning of the stream
+  @param[in]  header          header to format */
+  typedef std::function<dberr_t(uint64_t start_offset, byte *header)>
+      Get_file_header_callback;
+
   /** Constructor: Initialize members
-  @param[in]	start_lsn	start LSN for the group
-  @param[in]	header_len	length of header for archived files
-  @param[in]	mutex		archive system mutex from caller */
+  @param[in]    start_lsn       start LSN for the group
+  @param[in]    header_len      length of header for archived files
+  @param[in]    mutex           archive system mutex from caller */
   Arch_Group(lsn_t start_lsn, uint header_len, ib_mutex_t *mutex)
       : m_begin_lsn(start_lsn),
-        m_header_len(header_len)
-#ifdef UNIV_DEBUG
-        ,
-        m_arch_mutex(mutex)
-#endif /* UNIV_DEBUG */
-  {
+        m_header_len(header_len) IF_DEBUG(, m_arch_mutex(mutex)) {
     m_active_file.m_file = OS_FILE_CLOSED;
     m_durable_file.m_file = OS_FILE_CLOSED;
     m_stop_pos.init();
@@ -850,10 +870,10 @@ class Arch_Group {
   ~Arch_Group();
 
   /** Initialize the doublewrite buffer file context for the archive group.
-  @param[in]	path		path to the file
-  @param[in]	base_file	file name prefix
-  @param[in]	num_files	initial number of files
-  @param[in]	file_size	file size in bytes
+  @param[in]    path            path to the file
+  @param[in]    base_file       file name prefix
+  @param[in]    num_files       initial number of files
+  @param[in]    file_size       file size in bytes
   @return error code. */
   static dberr_t init_dblwr_file_ctx(const char *path, const char *base_file,
                                      uint num_files, uint64_t file_size);
@@ -861,16 +881,19 @@ class Arch_Group {
   /** Initialize the file context for the archive group.
   File context keeps the archived data in files on disk. There
   is one file context for a archive group.
-  @param[in]	path			path to the file
-  @param[in]	base_dir		directory name prefix
-  @param[in]	base_file		file name prefix
-  @param[in]	num_files		initial number of files
-  @param[in]	file_size		file size in bytes
+  @param[in]  path        path to the file
+  @param[in]  base_dir    directory name prefix
+  @param[in]  base_file   file name prefix
+  @param[in]  num_files   initial number of files
+  @param[in]  file_size   size of file used when a new file is created
+  @param[in]  uuid        uuid of this arch group or 0 if unknown
   @return error code. */
   dberr_t init_file_ctx(const char *path, const char *base_dir,
                         const char *base_file, uint num_files,
-                        uint64_t file_size) {
-    return (m_file_ctx.init(path, base_dir, base_file, num_files, file_size));
+                        uint64_t file_size, Arch_group_uuid uuid) {
+    m_uuid = uuid;
+    m_file_size = file_size;
+    return (m_file_ctx.init(path, base_dir, base_file, num_files));
   }
 
   /* Close the file contexts when they're not required anymore. */
@@ -886,7 +909,7 @@ class Arch_Group {
   /** Mark archive group inactive.
   A group is marked inactive by archiver background before entering
   into idle state ARCH_STATE_IDLE.
-  @param[in]	end_lsn	lsn where redo archiving is stopped */
+  @param[in]    end_lsn lsn where redo archiving is stopped */
   void disable(lsn_t end_lsn) {
     m_is_active = false;
 
@@ -896,7 +919,7 @@ class Arch_Group {
   }
 
   /** Attach a client to the archive group.
-  @param[in]	is_durable	true, if durable tracking is requested */
+  @param[in]    is_durable      true, if durable tracking is requested */
   void attach(bool is_durable) {
     ut_ad(mutex_own(m_arch_mutex));
     ++m_num_active;
@@ -904,7 +927,10 @@ class Arch_Group {
     if (is_durable) {
       ++m_dur_ref_count;
     } else {
-      ++m_ref_count;
+      ut_ad(m_ref_count < std::numeric_limits<decltype(m_ref_count)>::max());
+      if (m_ref_count < std::numeric_limits<decltype(m_ref_count)>::max()) {
+        ++m_ref_count;
+      }
     }
   }
 
@@ -912,8 +938,8 @@ class Arch_Group {
   The client still has reference to the group so that the group
   is not destroyed when it retrieves the archived data. The
   reference is removed later by #Arch_Group::release.
-  @param[in]	stop_lsn	archive stop lsn for client
-  @param[in]	stop_pos	archive stop position for client. Used only by
+  @param[in]    stop_lsn        archive stop lsn for client
+  @param[in]    stop_pos        archive stop position for client. Used only by
   the page_archiver.
   @return number of active clients */
   uint detach(lsn_t stop_lsn, Arch_Page_Pos *stop_pos) {
@@ -935,13 +961,24 @@ class Arch_Group {
   Reduce the reference count. When all clients release the group,
   the reference count falls down to zero. The function would then
   return zero and the caller can remove the group.
-  @param[in]	is_durable	the client needs durable archiving */
+  @param[in]    is_durable      the client needs durable archiving */
   void release(bool is_durable) {
     ut_ad(mutex_own(m_arch_mutex));
-    ut_a(!is_durable);
+    ut_ad(!is_durable);
+    if (is_durable) {
+      /* For durable, m_ref_count was not incremented. */
+      return;
+    }
 
     ut_ad(m_ref_count > 0);
     --m_ref_count;
+    /* If there was a bug, and m_ref_count was 0 before the decrement,
+    it would become std::numeric_limits<decltype(m_ref_count)>::max(),
+    and the caller would not remove the group. If we called attach()
+    afterwards (holding still the m_arch_mutex), the m_ref_count would
+    stay unchanged, because there is mechanism protecting from overflows.
+    This way, the scope of the potential bug, is limited to the group not
+    being removed. */
   }
 
   /** Construct file name for the active file which indicates whether a group
@@ -983,8 +1020,8 @@ class Arch_Group {
 
   /** Write the header (RESET page) to an archived file.
   @note Used only by the Page Archiver and not by the Redo Log Archiver.
-  @param[in]	from_buffer	buffer to copy data
-  @param[in]	length		size of data to copy in bytes
+  @param[in]    from_buffer     buffer to copy data
+  @param[in]    length          size of data to copy in bytes
   @note Used only by the Page Archiver.
   @return error code */
   dberr_t write_file_header(byte *from_buffer, uint length);
@@ -992,10 +1029,10 @@ class Arch_Group {
   /** Write to the doublewrite buffer before writing archived data to a file.
   The source is either a file context or buffer. Caller must ensure that data
   is in single file in source file context.
-  @param[in]	from_file	file context to copy data from
-  @param[in]	from_buffer	buffer to copy data or NULL
-  @param[in]	write_size	size of data to write in bytes
-  @param[in]	offset		offset from where to write
+  @param[in]    from_file       file context to copy data from
+  @param[in]    from_buffer     buffer to copy data or NULL
+  @param[in]    write_size      size of data to write in bytes
+  @param[in]    offset          offset from where to write
   @note Used only by the Page Archiver.
   @return error code */
   static dberr_t write_to_doublewrite_file(Arch_File_Ctx *from_file,
@@ -1005,19 +1042,21 @@ class Arch_Group {
   /** Archive data to one or more files.
   The source is either a file context or buffer. Caller must ensure that data
   is in single file in source file context.
-  @param[in]	from_file	file context to copy data from
-  @param[in]	from_buffer	buffer to copy data or NULL
-  @param[in]	length		size of data to copy in bytes
-  @param[in]	partial_write	true if the operation is part of partial flush
-  @param[in]	do_persist	doublewrite to ensure persistence
+  @param[in]    from_file       file context to copy data from
+  @param[in]    from_buffer     buffer to copy data or NULL
+  @param[in]    length          size of data to copy in bytes
+  @param[in]    partial_write   true if the operation is part of partial flush
+  @param[in]    do_persist      doublewrite to ensure persistence
+  @param[in]    new_file        callback called for each new file being created
   @return error code */
   dberr_t write_to_file(Arch_File_Ctx *from_file, byte *from_buffer,
-                        uint length, bool partial_write, bool do_persist);
+                        uint length, bool partial_write, bool do_persist,
+                        Get_file_header_callback new_file);
 
   /** Find the appropriate reset LSN that is less than or equal to the
   given lsn and fetch the reset point.
-  @param[in]	check_lsn	LSN to be searched against
-  @param[out]	reset_point	reset position of the fetched reset point
+  @param[in]    check_lsn       LSN to be searched against
+  @param[out]   reset_point     reset position of the fetched reset point
   @return true if the search was successful. */
   bool find_reset_point(lsn_t check_lsn, Arch_Point &reset_point) {
     return (m_file_ctx.find_reset_point(check_lsn, reset_point));
@@ -1025,9 +1064,9 @@ class Arch_Group {
 
   /** Find the first stop LSN that is greater than the given LSN and fetch
   the stop point.
-  @param[in]	check_lsn	LSN to be searched against
-  @param[out]	stop_point	stop point
-  @param[in]	write_pos	latest write_pos
+  @param[in]    check_lsn       LSN to be searched against
+  @param[out]   stop_point      stop point
+  @param[in]    write_pos       latest write_pos
   @return true if the search was successful. */
   bool find_stop_point(lsn_t check_lsn, Arch_Point &stop_point,
                        Arch_Page_Pos write_pos) {
@@ -1076,9 +1115,9 @@ class Arch_Group {
   bool is_durable() const { return (m_dur_ref_count > 0); }
 
   /** Purge archived files until the specified purge LSN.
-  @param[in]	purge_lsn	LSN until which archived files needs to be
+  @param[in]    purge_lsn       LSN until which archived files needs to be
   purged
-  @param[out]	purged_lsn	LSN until which purging is successfule;
+  @param[out]   purged_lsn      LSN until which purging is successfule;
   LSN_MAX if there was no purging done
   @return error code */
   uint purge(lsn_t purge_lsn, lsn_t &purged_lsn);
@@ -1088,42 +1127,40 @@ class Arch_Group {
 
   /** Update the reset information in the in-memory structure that we maintain
   for faster access.
-  @param[in]	lsn     lsn at the time of reset
-  @param[in]	pos     pos at the time of reset
-  @retval true if the reset point was saved
-  @retval false if the reset point wasn't saved because it was already saved */
+  @param[in]    lsn     lsn at the time of reset
+  @param[in]    pos     pos at the time of reset */
   void save_reset_point_in_mem(lsn_t lsn, Arch_Page_Pos pos) {
     m_file_ctx.save_reset_point_in_mem(lsn, pos);
   }
 
   /** Update stop lsn of a file in the group.
-  @param[in]	pos		stop position
-  @param[in]	stop_lsn	stop point */
+  @param[in]    pos             stop position
+  @param[in]    stop_lsn        stop point */
   void update_stop_point(Arch_Page_Pos pos, lsn_t stop_lsn) {
     m_file_ctx.update_stop_point(
         Arch_Block::get_file_index(pos.m_block_num, ARCH_DATA_BLOCK), stop_lsn);
   }
 
   /** Recover the information belonging to this group from the archived files.
-  @param[in,out]	group_info	structure containing information of a
+  @param[in,out]        group_info      structure containing information of a
   group obtained during recovery by scanning files
   @param[in]      dblwr_ctx   file context related to doublewrite buffer
   @return error code */
   dberr_t recover(Arch_Recv_Group_Info &group_info, Arch_Dblwr_Ctx *dblwr_ctx);
 
   /** Parse block for block info (header/data).
-  @param[in]	cur_pos		position to read
-  @param[in,out]	buff	buffer into which to write the parsed data
-  @param[in]	buff_len	length of the buffer
+  @param[in]    cur_pos         position to read
+  @param[in,out]        buff    buffer into which to write the parsed data
+  @param[in]    buff_len        length of the buffer
   @return error code */
   int read_data(Arch_Page_Pos cur_pos, byte *buff, uint buff_len);
 
   /** Get archived file name at specific index in this group.
   Caller would use it to open and copy data from archived files.
-  @param[in]	idx		file index in the group
-  @param[out]	name_buf	file name and path. Caller must
+  @param[in]    idx             file index in the group
+  @param[out]   name_buf        file name and path. Caller must
                                   allocate the buffer.
-  @param[in]	buf_len		allocated buffer length */
+  @param[in]    buf_len         allocated buffer length */
   void get_file_name(uint idx, char *name_buf, uint buf_len) {
     ut_ad(name_buf != nullptr);
 
@@ -1131,10 +1168,10 @@ class Arch_Group {
     m_file_ctx.build_name(idx, m_begin_lsn, name_buf, buf_len);
   }
 
-  /** Get file size for this group.
+  /** Get the current file size for this group.
   Fixed size files are used for archiving data in a group.
   @return file size in bytes */
-  uint64_t get_file_size() const { return (m_file_ctx.get_size()); }
+  uint64_t get_file_size() const { return m_file_size; }
 
   /** Get start LSN for this group
   @return start LSN */
@@ -1146,8 +1183,11 @@ class Arch_Group {
   /** @return stop block position of the group. */
   Arch_Page_Pos get_stop_pos() const { return (m_stop_pos); }
 
+  /** @return uuid for the arch group */
+  Arch_group_uuid get_uuid() const { return m_uuid; }
+
   /** Fetch the status of the page tracking system.
-  @param[out]	status	vector of a pair of (ID, bool) where ID is the
+  @param[out]   status  vector of a pair of (ID, bool) where ID is the
   start/stop point and bool is true if the ID is a start point else false */
   void get_status(std::vector<std::pair<lsn_t, bool>> &status) {
     m_file_ctx.get_status(status);
@@ -1174,20 +1214,26 @@ class Arch_Group {
   class Recovery;
 
   /** Get page IDs from archived file
-  @param[in]	read_pos	position to read from
-  @param[in]	read_len	length of data to read
-  @param[in]	read_buff	buffer to read page IDs
+  @param[in]    read_pos        position to read from
+  @param[in]    read_len        length of data to read
+  @param[in]    read_buff       buffer to read page IDs
   @return error code */
   int read_from_file(Arch_Page_Pos *read_pos, uint read_len, byte *read_buff);
 
   /** Get the directory name for this archive group.
   It is used for cleaning up the archive directory.
-  @param[out]	name_buf	directory name and path. Caller must
+  @param[out]   name_buf        directory name and path. Caller must
                                   allocate the buffer.
-  @param[in]	buf_len		buffer length */
+  @param[in]    buf_len         buffer length */
   void get_dir_name(char *name_buf, uint buf_len) {
     m_file_ctx.build_dir_name(m_begin_lsn, name_buf, buf_len);
   }
+
+  /** Create a new file and write the header.
+  @param[in]  start_offset  start offste
+  @param[in]  get_header    callback which prepares a header */
+  dberr_t prepare_file_with_header(uint64_t start_offset,
+                                   Get_file_header_callback &get_header);
 
  private:
   /** If the group is active */
@@ -1233,6 +1279,12 @@ class Arch_Group {
   /** Header length for the archived files */
   uint m_header_len{};
 
+  /** Size of file used when a new file is being created. */
+  uint64_t m_file_size;
+
+  /** UUID generated for this arch group. */
+  Arch_group_uuid m_uuid{};
+
   /** Archive file context */
   Arch_File_Ctx m_file_ctx;
 
@@ -1253,6 +1305,15 @@ using Arch_Grp_List = std::list<Arch_Group *, ut::allocator<Arch_Group *>>;
 
 /** An iterator for archive group */
 using Arch_Grp_List_Iter = Arch_Grp_List::iterator;
+
+class Arch_log_consumer : public Log_consumer {
+ public:
+  const std::string &get_name() const override;
+
+  lsn_t get_consumed_lsn() const override;
+
+  void consumption_requested() override;
+};
 
 /** Redo log archiving system */
 class Arch_Log_Sys {
@@ -1279,17 +1340,29 @@ class Arch_Log_Sys {
   In #ARCH_STATE_PREPARE_IDLE state, all clients have already detached
   but archiver background task is yet to finish.
   @return true, if archiving is active */
-  bool is_active() {
+  bool is_active() const {
     return (m_state == ARCH_STATE_ACTIVE || m_state == ARCH_STATE_PREPARE_IDLE);
   }
 
   /** Check if archiver system is in initial state
   @return true, if redo log archiver state is #ARCH_STATE_INIT */
-  bool is_init() { return (m_state == ARCH_STATE_INIT); }
+  bool is_init() const { return (m_state == ARCH_STATE_INIT); }
 
   /** Get LSN up to which redo is archived
   @return last archived redo LSN */
-  lsn_t get_archived_lsn() { return (m_archived_lsn.load()); }
+  lsn_t get_archived_lsn() const {
+    lsn_t archived_lsn = m_archived_lsn.load();
+    ut_ad(archived_lsn == LSN_MAX ||
+          archived_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
+    if (archived_lsn != LSN_MAX && archived_lsn % OS_FILE_LOG_BLOCK_SIZE != 0) {
+      archived_lsn = ut_uint64_align_down(archived_lsn, OS_FILE_LOG_BLOCK_SIZE);
+    }
+    return archived_lsn;
+  }
+
+  /** Get recommended archived redo file size
+  @return size of file in bytes */
+  os_offset_t get_recommended_file_size() const;
 
   /** Get current redo log archive group
   @return current archive group */
@@ -1298,10 +1371,10 @@ class Arch_Log_Sys {
   /** Start redo log archiving.
   If archiving is already in progress, the client
   is attached to current group.
-  @param[out]	group		log archive group
-  @param[out]	start_lsn	start lsn for client
-  @param[out]	header		redo log header
-  @param[in]	is_durable	if client needs durable archiving
+  @param[out]  group       log archive group
+  @param[out]  start_lsn   start lsn for client
+  @param[out]  header      redo log header
+  @param[in]   is_durable  if client needs durable archiving
   @return error code */
   int start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
             bool is_durable);
@@ -1309,30 +1382,31 @@ class Arch_Log_Sys {
   /** Stop redo log archiving.
   If other clients are there, the client is detached from
   the current group.
-  @param[out]	group		log archive group
-  @param[out]	stop_lsn	stop lsn for client
-  @param[out]	log_blk		redo log trailer block
-  @param[in,out]	blk_len		length in bytes
+  @param[out]   group           log archive group
+  @param[out]   stop_lsn        stop lsn for client
+  @param[out]   log_blk         redo log trailer block
+  @param[in,out]        blk_len         length in bytes
   @return error code */
   int stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
            uint32_t &blk_len);
 
-  /** Force to abort the archiver (state becomes ARCH_STATE_ABORT). */
+  /** Force to abort the archiver (state becomes ARCH_STATE_IDLE or
+  ARCH_STATE_ABORT). */
   void force_abort();
 
   /** Release the current group from client.
-  @param[in]	group		group the client is attached to
-  @param[in]	is_durable	if client needs durable archiving */
+  @param[in]    group           group the client is attached to
+  @param[in]    is_durable      if client needs durable archiving */
   void release(Arch_Group *group, bool is_durable);
 
   /** Archive accumulated redo log in current group.
   This interface is for archiver background task to archive redo log
   data by calling it repeatedly over time.
-  @param[in, out]	init		true when called the first time; it will
+  @param[in, out]       init            true when called the first time; it will
   then be set to false
-  @param[in]	curr_ctx	system redo logs to copy data from
-  @param[out]	arch_lsn	LSN up to which archiving is completed
-  @param[out]	wait		true, if no more redo to archive
+  @param[in]    curr_ctx        system redo logs to copy data from
+  @param[out]   arch_lsn        LSN up to which archiving is completed
+  @param[out]   wait            true, if no more redo to archive
   @return true, if archiving is aborted */
   bool archive(bool init, Arch_File_Ctx *curr_ctx, lsn_t *arch_lsn, bool *wait);
 
@@ -1360,31 +1434,43 @@ class Arch_Log_Sys {
 
   /** Wait for redo log archive up to the target LSN.
   We need to wait till current log sys LSN during archive stop.
-  @param[in]	target_lsn	target archive LSN to wait for
+  @param[in]    target_lsn      target archive LSN to wait for
   @return error code */
   int wait_archive_complete(lsn_t target_lsn);
 
   /** Update checkpoint LSN and related information in redo
   log header block.
-  @param[in]		group	archiving group
-  @param[in,out]	header	redo log header buffer
-  @param[in]	checkpoint_lsn	checkpoint LSN for recovery */
-  void update_header(const Arch_Group *group, byte *header,
-                     lsn_t checkpoint_lsn);
+  @param[in,out] header          redo log header buffer
+  @param[in]     file_start_lsn  LSN of first data byte within file
+  @param[in]     checkpoint_lsn  LSN of the checkpoint within the file or 0 */
+  void update_header(byte *header, lsn_t file_start_lsn, lsn_t checkpoint_lsn);
 
   /** Check and set log archive system state and output the
   amount of redo log available for archiving.
-  @param[in]	is_abort	need to abort
-  @param[in,out]	archived_lsn	LSN up to which redo log is archived
-  @param[out]	to_archive	amount of redo log to be archived */
+  @param[in]    is_abort        need to abort
+  @param[in,out]        archived_lsn    LSN up to which redo log is archived
+  @param[out]   to_archive      amount of redo log to be archived */
   Arch_State check_set_state(bool is_abort, lsn_t *archived_lsn,
                              uint *to_archive);
 
   /** Copy redo log from file context to archiver files.
-  @param[in]	file_ctx	file context for system redo logs
-  @param[in]	length		data to copy in bytes
+  @param[in]  file_ctx  file context for system redo logs
+  @param[in]  start_lsn lsn at which we start copying
+  @param[in]  length    data to copy in bytes
   @return error code */
-  dberr_t copy_log(Arch_File_Ctx *file_ctx, uint length);
+  dberr_t copy_log(Arch_File_Ctx *file_ctx, lsn_t start_lsn, uint length);
+
+  /** Update m_state to the given state. Then check if Arch_Log_Sys is active
+  and accordingly register or unregister the @see m_log_consumer. It is caller
+  that should acquire log_sys's: m_files_mutex and writer_mutex prior before
+  calling this method.
+  @param[in]  state   state to assign to m_state */
+  void update_state_low(Arch_State state);
+
+  /** Acquires log_sys's m_files_mutex, writer_mutex and calls
+  @see update_state_low(state).
+  @param[in]  state   state to assign to m_state */
+  void update_state(Arch_State state);
 
  private:
   /** Mutex to protect concurrent start, stop operations */
@@ -1412,7 +1498,11 @@ class Arch_Log_Sys {
   uint m_start_log_index;
 
   /** System log file offset where the archiving started */
-  ib_uint64_t m_start_log_offset;
+  uint64_t m_start_log_offset;
+
+  /** Redo log consumer that can be registered to prevent consumption
+  of redo log files which still haven't been archived. */
+  Arch_log_consumer m_log_consumer;
 };
 
 /** Vector of page archive in memory blocks */
@@ -1431,8 +1521,8 @@ struct ArchPageData {
   void clean();
 
   /** Get the block for a position
-  @param[in]	pos	position in page archive sys
-  @param[in]	type	block type
+  @param[in]    pos     position in page archive sys
+  @param[in]    type    block type
   @return page archive in memory block */
   Arch_Block *get_block(Arch_Page_Pos *pos, Arch_Blk_Type type);
 
@@ -1474,12 +1564,12 @@ class Arch_Page_Sys {
 
   /** Start dirty page ID archiving.
   If archiving is already in progress, the client is attached to current group.
-  @param[out]	group		page archive group the client gets attached to
-  @param[out]	start_lsn	start lsn for client in archived data
-  @param[out]	start_pos	start position for client in archived data
-  @param[in]	is_durable	true if client needs durable archiving
-  @param[in]	restart	true if client is already attached to current group
-  @param[in]	recovery	true if archiving is being started during
+  @param[out]   group           page archive group the client gets attached to
+  @param[out]   start_lsn       start lsn for client in archived data
+  @param[out]   start_pos       start position for client in archived data
+  @param[in]    is_durable      true if client needs durable archiving
+  @param[in]    restart true if client is already attached to current group
+  @param[in]    recovery        true if archiving is being started during
   recovery
   @return error code */
   int start(Arch_Group **group, lsn_t *start_lsn, Arch_Page_Pos *start_pos,
@@ -1487,10 +1577,10 @@ class Arch_Page_Sys {
 
   /** Stop dirty page ID archiving.
   If other clients are there, the client is detached from the current group.
-  @param[in]	group		page archive group the client is attached to
-  @param[out]	stop_lsn	stop lsn for client
-  @param[out]	stop_pos	stop position in archived data
-  @param[in]	is_durable	true if client needs durable archiving
+  @param[in]    group           page archive group the client is attached to
+  @param[out]   stop_lsn        stop lsn for client
+  @param[out]   stop_pos        stop position in archived data
+  @param[in]    is_durable      true if client needs durable archiving
   @return error code */
   int stop(Arch_Group *group, lsn_t *stop_lsn, Arch_Page_Pos *stop_pos,
            bool is_durable);
@@ -1501,31 +1591,31 @@ class Arch_Page_Sys {
   int recovery_load_and_start(const Arch_Recv_Group_Info &info);
 
   /** Release the current group from client.
-  @param[in]	group		group the client is attached to
-  @param[in]	is_durable	if client needs durable archiving
-  @param[in]	start_pos	start position when the client calling the
+  @param[in]    group           group the client is attached to
+  @param[in]    is_durable      if client needs durable archiving
+  @param[in]    start_pos       start position when the client calling the
   release was started */
   void release(Arch_Group *group, bool is_durable, Arch_Page_Pos start_pos);
 
   /** Check and add page ID to archived data.
   Check for duplicate page.
-  @param[in]	bpage		page to track
-  @param[in]	track_lsn	LSN when tracking started
-  @param[in]	frame_lsn	current LSN of the page
-  @param[in]	force		if true, add page ID without check */
+  @param[in]    bpage           page to track
+  @param[in]    track_lsn       LSN when tracking started
+  @param[in]    frame_lsn       current LSN of the page
+  @param[in]    force           if true, add page ID without check */
   void track_page(buf_page_t *bpage, lsn_t track_lsn, lsn_t frame_lsn,
                   bool force);
 
   /** Flush all the unflushed inactive blocks and flush the active block if
   required.
   @note Used only during the checkpointing process.
-  @param[in]	checkpoint_lsn	next checkpoint LSN */
+  @param[in]    checkpoint_lsn  next checkpoint LSN */
   void flush_at_checkpoint(lsn_t checkpoint_lsn);
 
   /** Archive dirty page IDs in current group.
   This interface is for archiver background task to flush page archive
   data to disk by calling it repeatedly over time.
-  @param[out]	wait	true, if no more data to archive
+  @param[out]   wait    true, if no more data to archive
   @return true, if archiving is aborted */
   bool archive(bool *wait);
 
@@ -1550,34 +1640,34 @@ class Arch_Page_Sys {
   bool save_reset_point(bool is_durable);
 
   /** Wait for reset info to be flushed to disk.
-  @param[in]	request_block	block number until which blocks need to be
+  @param[in]    request_block   block number until which blocks need to be
   flushed
   @return true if flushed, else false */
   bool wait_for_reset_info_flush(uint64_t request_block);
 
   /** Get the group which has tracked pages between the start_id and stop_id.
-  @param[in,out]	start_id	start LSN from which tracked pages are
+  @param[in,out]        start_id        start LSN from which tracked pages are
   required; updated to the actual start LSN used for the search
-  @param[in,out]	stop_id     stop_lsn until when tracked pages are
+  @param[in,out]        stop_id     stop_lsn until when tracked pages are
   required; updated to the actual stop LSN used for the search
-  @param[out]		group       group which has the required tracked
+  @param[out]           group       group which has the required tracked
   pages, else nullptr.
   @return error */
   int fetch_group_within_lsn_range(lsn_t &start_id, lsn_t &stop_id,
                                    Arch_Group **group);
 
   /** Purge the archived files until the specified purge LSN.
-  @param[in]	purge_lsn	purge lsn until where files needs to be purged
+  @param[in]    purge_lsn       purge lsn until where files needs to be purged
   @return error code
   @retval 0 if purge was successful */
   uint purge(lsn_t *purge_lsn);
 
   /** Update the stop point in all the required structures.
-  @param[in]	cur_blk	block which needs to be updated with the stop info */
+  @param[in]    cur_blk block which needs to be updated with the stop info */
   void update_stop_info(Arch_Block *cur_blk);
 
   /** Fetch the status of the page tracking system.
-  @param[out]	status	vector of a pair of (ID, bool) where ID is the
+  @param[out]   status  vector of a pair of (ID, bool) where ID is the
   start/stop point and bool is true if the ID is a start point else false */
   void get_status(std::vector<std::pair<lsn_t, bool>> &status) {
     for (auto group : m_group_list) {
@@ -1586,9 +1676,9 @@ class Arch_Page_Sys {
   }
 
   /** Given start and stop position find number of pages tracked between them
-  @param[in]	start_pos	start position
-  @param[in]	stop_pos	stop position
-  @param[out]	num_pages	number of pages tracked between start and stop
+  @param[in]    start_pos       start position
+  @param[in]    stop_pos        stop position
+  @param[out]   num_pages       number of pages tracked between start and stop
   position
   @return false if start_pos and stop_pos are invalid else true */
   bool get_num_pages(Arch_Page_Pos start_pos, Arch_Page_Pos stop_pos,
@@ -1604,10 +1694,10 @@ class Arch_Page_Sys {
 
   /** Get page IDs from a specific position.
   Caller must ensure that read_len doesn't exceed the block.
-  @param[in]	group		group whose pages we're interested in
-  @param[in]	read_pos	position in archived data
-  @param[in]	read_len	amount of data to read
-  @param[out]	read_buff	buffer to return the page IDs.
+  @param[in]    group           group whose pages we're interested in
+  @param[in]    read_pos        position in archived data
+  @param[in]    read_len        amount of data to read
+  @param[out]   read_buff       buffer to return the page IDs.
   @note Caller must allocate the buffer.
   @return true if we could successfully read the block. */
   bool get_pages(Arch_Group *group, Arch_Page_Pos *read_pos, uint read_len,
@@ -1616,7 +1706,7 @@ class Arch_Page_Sys {
   /** Get archived page Ids between two given LSN values.
   Attempt to read blocks directly from in memory buffer. If overwritten,
   copy from archived files.
-  @param[in]	thd		thread handle
+  @param[in]    thd             thread handle
   @param[in]      cbk_func        called repeatedly with page ID buffer
   @param[in]      cbk_ctx         callback function context
   @param[in,out]  start_id        fetch archived page Ids from this LSN
@@ -1696,27 +1786,27 @@ class Arch_Page_Sys {
   bool is_gap_small();
 
   /** Enable tracking pages in all buffer pools.
-  @param[in]	tracking_lsn	track pages from this LSN */
+  @param[in]    tracking_lsn    track pages from this LSN */
   void set_tracking_buf_pool(lsn_t tracking_lsn);
 
   /** Track pages for which IO is already started. */
   void track_initial_pages();
 
   /** Flush the blocks to disk.
-  @param[out]	wait	true, if no more data to archive
+  @param[out]   wait    true, if no more data to archive
   @return error code */
   dberr_t flush_blocks(bool *wait);
 
   /** Flush all the blocks which are ready to be flushed but not flushed.
-  @param[out]	cur_pos	position of block which needs to be flushed
-  @param[in]	end_pos	position of block until which the blocks need to
+  @param[out]   cur_pos position of block which needs to be flushed
+  @param[in]    end_pos position of block until which the blocks need to
   be flushed
   @return error code */
   dberr_t flush_inactive_blocks(Arch_Page_Pos &cur_pos, Arch_Page_Pos end_pos);
 
   /** Do a partial flush of the current active block
-  @param[in]	cur_pos	position of block which needs to be flushed
-  @param[in]	partial_reset_block_flush	true if reset block needs to be
+  @param[in]    cur_pos position of block which needs to be flushed
+  @param[in]    partial_reset_block_flush       true if reset block needs to be
   flushed
   @return error code */
   dberr_t flush_active_block(Arch_Page_Pos cur_pos,

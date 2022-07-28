@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,8 @@
 #include <gmock/gmock.h>
 
 #include "mysql/harness/stdx/attribute.h"
-#include "mysql_session.h"
 #include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/mysql_session.h"
 #include "process_manager.h"
 #include "process_wrapper.h"
 #include "tcp_port_pool.h"
@@ -82,6 +82,15 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
     EXPECT_EQ(std::strtoul((*result)[0], nullptr, 10), expected_node_port);
 
     return session;
+  }
+
+  uint16_t make_new_connection_ok(uint16_t router_port) {
+    MySQLSession session;
+    EXPECT_NO_THROW(session.connect("127.0.0.1", router_port, "username",
+                                    "password", "", ""));
+
+    auto result{session.query_one("select @@port")};
+    return static_cast<uint16_t>(std::strtoul((*result)[0], nullptr, 10));
   }
 
   void verify_new_connection_fails(uint16_t router_port) {
@@ -135,7 +144,10 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
  **/
 class RouterComponentBootstrapTest : virtual public RouterComponentTest {
  public:
+  using OutputResponder = ProcessWrapper::OutputResponder;
+
   static void SetUpTestCase() { my_hostname = "dont.query.dns"; }
+  static const OutputResponder kBootstrapOutputResponder;
 
  protected:
   TempDirectory bootstrap_dir;
@@ -148,7 +160,7 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
     uint16_t http_port;
     std::string js_filename;
     bool unaccessible{false};
-    std::string cluster_specific_id{"cluster-specific-id"};
+    std::string cluster_specific_id{"00000000-0000-0000-0000-0000000000g1"};
   };
 
   void bootstrap_failover(
@@ -158,7 +170,7 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
       int expected_exitcode = 0,
       const std::vector<std::string> &expected_output_regex = {},
       std::chrono::milliseconds wait_for_exit_timeout =
-          std::chrono::seconds(10),
+          std::chrono::seconds(30),
       const mysqlrouter::MetadataSchemaVersion &metadata_version = {2, 0, 3},
       const std::vector<std::string> &extra_router_options = {});
 
@@ -168,11 +180,14 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
 
   ProcessWrapper &launch_router_for_bootstrap(
       std::vector<std::string> params, int expected_exit_code = EXIT_SUCCESS,
-      const bool disable_rest = true) {
+      const bool disable_rest = true,
+      ProcessWrapper::OutputResponder output_responder =
+          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
     if (disable_rest) params.push_back("--disable-rest");
+
     return ProcessManager::launch_router(
         params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
-        /*wait_for_notify_ready=*/std::chrono::seconds(-1));
+        /*wait_for_notify_ready=*/std::chrono::seconds(-1), output_responder);
   }
 
   static constexpr const char kRootPassword[] = "fake-pass";

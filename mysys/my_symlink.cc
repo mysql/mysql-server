@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,7 @@
 
 int my_readlink(char *to, const char *filename, myf MyFlags) {
 #ifdef _WIN32
+  (void)MyFlags;  // maybe_unused
   my_stpcpy(to, filename);
   return 1;
 #else
@@ -120,6 +121,7 @@ int my_is_symlink(const char *filename, ST_FILE_ID *file_id) {
   return result;
 
 #else
+  (void)file_id;  // maybe_unused
   DWORD dwAttr = GetFileAttributes(filename);
   return (dwAttr != INVALID_FILE_ATTRIBUTES) &&
          (dwAttr & FILE_ATTRIBUTE_REPARSE_POINT);

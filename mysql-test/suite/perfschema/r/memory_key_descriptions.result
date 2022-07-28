@@ -25,7 +25,6 @@ memory/sql/LOG::file_name	File name of slow log and general log.
 memory/sql/MDL_context::acquire_locks	Buffer for sorting lock requests.
 memory/sql/MDL_context::backup_manager	MDL for prepared XA trans with disconnected client.
 memory/sql/MYSQL_LOCK	Table locks per session.
-memory/sql/NAMED_ILINK::name	Names in the MyISAM key cache.
 memory/sql/NET::buff	Buffer in the client protocol communications layer.
 memory/sql/NET::compress_packet	Buffer used when compressing a packet.
 memory/sql/Partition::admin	Buffer for printing messages into the client protocol.
@@ -33,6 +32,9 @@ memory/sql/Partition::prune_exec	Mem root used temporarily while pruning partiti
 memory/sql/Partition::share	Partition name and auto increment mutex.
 memory/sql/Partition::sort_buffer	Record buffer for a partition.
 memory/sql/Partition::syntax_buffer	Buffer used for formatting the partition expression.
+memory/sql/Persisted_variables::memroot	Memory allocated to process persisted variables during server start-up and plugin/component initialization.
+memory/sql/Persisted_variables::unordered_map	Memory allocated for in-memory maps for persisted variables
+memory/sql/Persisted_variables::unordered_set	Memory allocated for in-memory sets for persisted variables
 memory/sql/Prepared_statement::infrastructure	Map infrastructure for prepared statements per session.
 memory/sql/Prepared_statement::main_mem_root	Mem root for each prepared statement for items etc.
 memory/sql/rm_db::mdl_reqs_root	Mem root for allocating MDL requests while dropping datbase.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -214,6 +214,11 @@ MYSQL *Mysql_connection_options::create_connection() {
     return nullptr;
   }
 
+  if (this->m_ssl_options_provider.check_connection(connection)) {
+    mysql_close(connection);
+    return nullptr;
+  }
+
   /* Reset auto-commit to the default */
   if (mysql_autocommit(connection, true)) {
     this->db_error(connection, "while resetting auto-commit");
@@ -232,7 +237,7 @@ CHARSET_INFO *Mysql_connection_options::get_current_charset() const {
 }
 
 void Mysql_connection_options::set_current_charset(CHARSET_INFO *charset) {
-  m_default_charset = string(replace_utf8_utf8mb3(charset->csname));
+  m_default_charset = string(charset->csname);
 }
 
 const char *Mysql_connection_options::get_null_or_string(

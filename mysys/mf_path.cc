@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ static char *find_file_in_path(char *to, const char *name);
    then path is taken from "_".
    If filename doesn't contain a path append MY_BASEDIR_VERSION or
    MY_BASEDIR if defined, else append "/my/running".
-   own_path_name_part is concatinated to result.
+   own_path_name_part is concatenated to result.
    my_path puts result in to and returns to */
 
 char *my_path(char *to, const char *progname, const char *own_pathname_part) {

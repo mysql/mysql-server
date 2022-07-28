@@ -1,7 +1,7 @@
 #ifndef RPL_SOURCE_H_INCLUDED
 #define RPL_SOURCE_H_INCLUDED
 
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,12 @@
 #include <stddef.h>
 #include <string>  // std::string
 
-#include "my_hostname.h"  // HOSTNAME_LENGTH
+#include "libbinlogevents/include/uuid.h"  // UUID
+#include "my_hostname.h"                   // HOSTNAME_LENGTH
 #include "my_inttypes.h"
-#include "mysql_com.h"      // USERNAME_LENGTH
-#include "sql/sql_const.h"  // MAX_PASSWORD_LENGTH
+#include "my_thread_local.h"  // my_thread_id
+#include "mysql_com.h"        // USERNAME_LENGTH
+#include "sql/sql_const.h"    // MAX_PASSWORD_LENGTH
 
 class Gtid_set;
 class String;
@@ -40,19 +42,21 @@ extern int max_binlog_dump_events;
 extern bool opt_sporadic_binlog_dump_fail;
 extern bool opt_show_replica_auth_info;
 
-struct SLAVE_INFO {
+struct REPLICA_INFO {
   uint32 server_id;
   uint32 rpl_recovery_rank, master_id;
   char host[HOSTNAME_LENGTH + 1];
   char user[USERNAME_LENGTH + 1];
   char password[MAX_PASSWORD_LENGTH + 1];
   uint16 port;
-  THD *thd;
+  my_thread_id thd_id;
+  binary_log::Uuid replica_uuid;
+  bool valid_replica_uuid;
 };
 
-int register_slave(THD *thd, uchar *packet, size_t packet_length);
-void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list);
-bool show_slave_hosts(THD *thd);
+int register_replica(THD *thd, uchar *packet, size_t packet_length);
+void unregister_replica(THD *thd, bool only_mine, bool need_lock_slave_list);
+bool show_replicas(THD *thd);
 String *get_replica_uuid(THD *thd, String *value);
 bool show_master_status(THD *thd);
 bool show_binlogs(THD *thd);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -82,31 +82,30 @@ char *dict_get_first_table_name_in_db(
     const char *name); /*!< in: database name which ends to '/' */
 
 /** Get the first filepath from SYS_DATAFILES for a given space_id.
-@param[in]	space_id	Tablespace ID
+@param[in]      space_id        Tablespace ID
 @return First filepath (caller must invoke ut::free() on it)
 @retval NULL if no SYS_DATAFILES entry was found. */
 char *dict_get_first_path(ulint space_id);
 
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
 was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
-@param[in]	table		Table object
-@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
+@param[in]      table           Table object
+@param[in]      dict_mutex_own  true if dict_sys->mutex is owned already */
 void dict_get_and_save_data_dir_path(dict_table_t *table, bool dict_mutex_own);
 
 /** Make sure the tablespace name is saved in dict_table_t if the table
 uses a general tablespace.
 Try to read it from the fil_system_t first, then from SYS_TABLESPACES.
-@param[in]  table           Table object
-@param[in]  dict_mutex_own  true if dict_sys->mutex is owned already */
-void dict_get_and_save_space_name(dict_table_t *table, bool dict_mutex_own);
+@param[in]  table           Table object */
+void dict_get_and_save_space_name(dict_table_t *table);
 
 /** Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads
 all foreign key constraints where the foreign key is in the table or where
 a foreign key references columns in this table.
-@param[in]	name		Table name in the dbname/tablename format
-@param[in]	cached		true=add to cache, false=do not
-@param[in]	ignore_err	Error to be ignored when loading
+@param[in]      name            Table name in the dbname/tablename format
+@param[in]      cached          true=add to cache, false=do not
+@param[in]      ignore_err      Error to be ignored when loading
                                 table and its index definition
 @param[in]      prev_table      previous table name. The current table load
                                 is happening because of the load of the
@@ -169,20 +168,19 @@ const char *dict_process_sys_tablespaces(
     space_id_t *space, /*!< out: space id */
     const char **name, /*!< out: tablespace name */
     uint32_t *flags);  /*!< out: tablespace flags */
+
 /** Opens a tablespace for dict_load_table_one()
-@param[in,out]	table		A table that refers to the tablespace to open
-@param[in,out]	heap		A memory heap
-@param[in]	ignore_err	Whether to ignore an error. */
-void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
-                          dict_err_ignore_t ignore_err);
+@param[in,out]  table           A table that refers to the tablespace to open
+@param[in]      ignore_err      Whether to ignore an error. */
+void dict_load_tablespace(dict_table_t *table, dict_err_ignore_t ignore_err);
 
 /** Using the table->heap, copy the null-terminated filepath into
 table->data_dir_path. The data directory path is derived from the
 filepath by stripping the the table->name.m_name component suffix.
 If the filepath is not of the correct form (".../db/table.ibd"),
 then table->data_dir_path will remain nullptr.
-@param[in,out]	table		table instance
-@param[in]	filepath	filepath of tablespace */
+@param[in,out]  table           table instance
+@param[in]      filepath        filepath of tablespace */
 void dict_save_data_dir_path(dict_table_t *table, char *filepath);
 
 /** Load all tablespaces during upgrade */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,6 +85,9 @@ my_svc_bool thd_set_security_context(MYSQL_THD _thd,
       in_ctx->set_thd(thd);
       // Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege
       set_system_user_flag(thd);
+      // Update the flag in THD based on if the user is granted CONNECTION_ADMIN
+      // privilege
+      set_connection_admin_flag(thd);
     }
     return MY_SVC_FALSE;
   } catch (...) {
@@ -185,10 +188,13 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
                : false;
   /*
     If it is not a new security context then update the
-    system_user flag in its referenced THD.
+    system_user and connection_admin flags in its referenced THD.
   */
   THD *sctx_thd = ctx->get_thd();
-  if (sctx_thd) set_system_user_flag(sctx_thd);
+  if (sctx_thd) {
+    set_system_user_flag(sctx_thd);
+    set_connection_admin_flag(sctx_thd);
+  }
 
   if (tmp_thd) {
     destroy_internal_thd(tmp_thd);
@@ -198,7 +204,7 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
 }
 
 /**
-  Reads a named security context attribute and retuns its value.
+  Reads a named security context attribute and returns its value.
   Currently defined names are:
 
   - user        MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of

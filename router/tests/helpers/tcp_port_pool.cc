@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <netinet/in.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/stat.h>  // chmod
 #include <sys/un.h>
 #include <unistd.h>
 #else
@@ -48,8 +49,6 @@
 #include "tcp_port_pool.h"
 
 using mysql_harness::Path;
-
-const unsigned TcpPortPool::kPortsRange;
 
 #ifndef _WIN32
 bool UniqueId::lock_file(const std::string &file_name) {

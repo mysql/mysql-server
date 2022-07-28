@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,10 @@
 # all the platforms we need to support.
 
 # With earier versions, several compression tests fail.
-SET(MIN_ZLIB_VERSION_REQUIRED "1.2.11")
+# SET(MIN_ZLIB_VERSION_REQUIRED "1.2.11")
+
+# Security bug fixes required from:
+SET(MIN_ZLIB_VERSION_REQUIRED "1.2.12")
 
 MACRO(FIND_ZLIB_VERSION)
   FOREACH(version_part
@@ -46,6 +49,8 @@ MACRO(FIND_ZLIB_VERSION)
   SET(ZLIB_VERSION "${ZLIB_VER_MAJOR}.${ZLIB_VER_MINOR}.${ZLIB_VER_REVISION}")
   SET(ZLIB_VERSION "${ZLIB_VERSION}" CACHE INTERNAL "ZLIB major.minor.step")
   MESSAGE(STATUS "ZLIB_VERSION (${WITH_ZLIB}) is ${ZLIB_VERSION}")
+  MESSAGE(STATUS "ZLIB_INCLUDE_DIR ${ZLIB_INCLUDE_DIR}")
+  MESSAGE(STATUS "ZLIB_LIBRARY ${ZLIB_LIBRARY}")
 ENDMACRO()
 
 MACRO (FIND_SYSTEM_ZLIB)
@@ -81,17 +86,30 @@ MACRO (RESET_ZLIB_VARIABLES)
   UNSET(FIND_PACKAGE_MESSAGE_DETAILS_ZLIB CACHE)
 ENDMACRO()
 
+SET(ZLIB_VERSION_DIR "zlib-1.2.12")
+SET(BUNDLED_ZLIB_PATH ${CMAKE_SOURCE_DIR}/extra/zlib/${ZLIB_VERSION_DIR})
+
 MACRO (MYSQL_USE_BUNDLED_ZLIB)
   RESET_ZLIB_VARIABLES()
 
-  SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/zlib)
+  SET(ZLIB_INCLUDE_DIR ${BUNDLED_ZLIB_PATH})
   SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
   INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${CMAKE_SOURCE_DIR}/extra/zlib
-    ${CMAKE_BINARY_DIR}/extra/zlib
+    ${CMAKE_SOURCE_DIR}/extra/zlib/${ZLIB_VERSION_DIR}
+    ${CMAKE_BINARY_DIR}/extra/zlib/${ZLIB_VERSION_DIR}
     )
-  ADD_SUBDIRECTORY(extra/zlib)
+  ADD_SUBDIRECTORY(extra/zlib/${ZLIB_VERSION_DIR})
+
+  # Add support for bundled curl.
+  IF(NOT CMAKE_VERSION VERSION_LESS 3.4)
+    ADD_LIBRARY(ZLIB::ZLIB UNKNOWN IMPORTED)
+    SET_TARGET_PROPERTIES(ZLIB::ZLIB PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_INCLUDE_DIR}")
+    SET_PROPERTY(TARGET ZLIB::ZLIB APPEND PROPERTY
+      IMPORTED_LOCATION
+      "${CMAKE_BINARY_DIR}/archive_output_directory/libzlib.a")
+  ENDIF()
 ENDMACRO()
 
 

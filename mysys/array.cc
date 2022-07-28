@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key psi_key,
 
 bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element) {
   uchar *buffer;
-  if (array->elements == array->max_element) { /* Call only when nessesary */
+  if (array->elements == array->max_element) { /* Call only when necessary */
     if (!(buffer = static_cast<uchar *>(alloc_dynamic(array)))) return true;
   } else {
     buffer = array->buffer + (array->elements * array->size_of_element);

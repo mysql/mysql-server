@@ -123,6 +123,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t1 VALUES('abcd');
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
 ERROR HY000: Can't find FULLTEXT index matching the column list

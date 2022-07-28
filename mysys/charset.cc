@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,8 @@ extern CHARSET_INFO my_charset_utf32_unicode_ci;
 extern CHARSET_INFO my_charset_cp932_japanese_ci;
 
 bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2) {
+  assert(0 != strcmp(cs1->csname, "utf8"));
+  assert(0 != strcmp(cs2->csname, "utf8"));
   return ((cs1 == cs2) || !strcmp(cs1->csname, cs2->csname));
 }
 
@@ -139,9 +141,9 @@ static bool cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
     if (to->csname == nullptr) return true;
   }
 
-  if (from->name) {
-    to->name = my_once_strdup(from->name, MYF(MY_WME));
-    if (to->name == nullptr) return true;
+  if (from->m_coll_name) {
+    to->m_coll_name = my_once_strdup(from->m_coll_name, MYF(MY_WME));
+    if (to->m_coll_name == nullptr) return true;
   }
 
   if (from->comment) {
@@ -192,7 +194,7 @@ static bool cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
 static bool simple_cs_is_full(CHARSET_INFO *cs) {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
            cs->to_lower) &&
-          (cs->number && cs->name &&
+          (cs->number && cs->m_coll_name &&
            (cs->sort_order || (cs->state & MY_CS_BINSORT))));
 }
 
@@ -213,14 +215,15 @@ static void clear_cs_info(CHARSET_INFO *cs) {
   cs->number = 0;
   cs->primary_number = 0;
   cs->binary_number = 0;
-  cs->name = nullptr;
+  cs->m_coll_name = nullptr;
   cs->state = 0;
   cs->sort_order = nullptr;
 }
 
 static int add_collation(CHARSET_INFO *cs) {
-  if (cs->name &&
-      (cs->number || (cs->number = get_collation_number_internal(cs->name))) &&
+  if (cs->m_coll_name &&
+      (cs->number ||
+       (cs->number = get_collation_number_internal(cs->m_coll_name))) &&
       cs->number < array_elements(all_charsets)) {
     if (!all_charsets[cs->number]) {
       if (!(all_charsets[cs->number] =
@@ -238,7 +241,7 @@ static int add_collation(CHARSET_INFO *cs) {
     if (cs->binary_number == cs->number) cs->state |= MY_CS_BINSORT;
 
     all_charsets[cs->number]->state |= cs->state;
-    map_coll_name_to_number(cs->name, cs->number);
+    map_coll_name_to_number(cs->m_coll_name, cs->number);
     map_cs_name_to_number(cs->csname, cs->number, cs->state);
 
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED)) {
@@ -296,7 +299,7 @@ static int add_collation(CHARSET_INFO *cs) {
       }
     } else {
       /*
-        We need the below to make get_charset_name()
+        We need the below to make get_collaiton_name()
         and get_charset_number() working even if a
         character set has not been really incompiled.
         The above functions are used for example
@@ -312,8 +315,8 @@ static int add_collation(CHARSET_INFO *cs) {
       if (cs->csname)
         if (!(dst->csname = my_once_strdup(cs->csname, MYF(MY_WME))))
           return MY_XML_ERROR;
-      if (cs->name)
-        if (!(dst->name = my_once_strdup(cs->name, MYF(MY_WME))))
+      if (cs->m_coll_name)
+        if (!(dst->m_coll_name = my_once_strdup(cs->m_coll_name, MYF(MY_WME))))
           return MY_XML_ERROR;
     }
     clear_cs_info(cs);
@@ -425,7 +428,7 @@ CHARSET_INFO *default_charset_info = &my_charset_latin1;
 void add_compiled_collation(CHARSET_INFO *cs) {
   assert(cs->number < array_elements(all_charsets));
   all_charsets[cs->number] = cs;
-  map_coll_name_to_number(cs->name, cs->number);
+  map_coll_name_to_number(cs->m_coll_name, cs->number);
   map_cs_name_to_number(cs->csname, cs->number, cs->state);
   cs->state |= MY_CS_AVAILABLE;
 }
@@ -458,9 +461,8 @@ static const char *get_collation_name_alias(const char *name, char *buf,
     snprintf(buf, bufsize, "utf8_%s", name + 8);
     return buf;
   }
-  /* CLDR's tailoring data for Norwegian is same as Danish */
-  if (!native_strncasecmp(name, "utf8mb4_no_0900_", 16)) {
-    snprintf(buf, bufsize, "utf8mb4_da_0900_%s", name + 16);
+  if (!native_strncasecmp(name, "utf8_", 5)) {
+    snprintf(buf, bufsize, "utf8mb3_%s", name + 5);
     return buf;
   }
   return nullptr;
@@ -513,7 +515,7 @@ static uint get_charset_number_internal(const char *charset_name,
 }
 
 static const char *get_charset_name_alias(const char *name) {
-  if (!my_strcasecmp(&my_charset_latin1, name, "utf8mb3")) return "utf8";
+  if (!my_strcasecmp(&my_charset_latin1, name, "utf8")) return "utf8mb3";
   return nullptr;
 }
 
@@ -526,13 +528,14 @@ uint get_charset_number(const char *charset_name, uint cs_flags) {
   return 0;
 }
 
-const char *get_charset_name(uint charset_number) {
+const char *get_collation_name(uint charset_number) {
   std::call_once(charsets_initialized, init_available_charsets);
 
   if (charset_number < array_elements(all_charsets)) {
     CHARSET_INFO *cs = all_charsets[charset_number];
 
-    if (cs && (cs->number == charset_number) && cs->name) return cs->name;
+    if (cs && (cs->number == charset_number) && cs->m_coll_name)
+      return cs->m_coll_name;
   }
 
   return "?"; /* this mimics find_type() */

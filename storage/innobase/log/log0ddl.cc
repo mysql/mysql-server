@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "dict0stats.h"
 #include "ha_innodb.h"
+#include "log0chkp.h"
 #include "log0ddl.h"
 #include "mysql/plugin.h"
 #include "pars0pars.h"
@@ -121,8 +122,7 @@ static uint32_t crash_before_alter_encrypt_space_log_counter = 1;
 /** Crash injection counter used after writing ALTER ENCRYPT TABLESPACE log */
 static uint32_t crash_after_alter_encrypt_space_log_counter = 1;
 
-void ddl_log_crash_reset(THD *thd, SYS_VAR *var, void *var_ptr,
-                         const void *save) {
+void ddl_log_crash_reset(THD *, SYS_VAR *, void *, const void *save) {
   const bool reset = *static_cast<const bool *>(save);
 
   innodb_ddl_log_crash_reset_debug = reset;
@@ -167,7 +167,7 @@ void DDL_Record::set_old_file_path(const char *name) {
   ulint len = strlen(name);
 
   if (m_heap == nullptr) {
-    m_heap = mem_heap_create(FN_REFLEN + 1);
+    m_heap = mem_heap_create(FN_REFLEN + 1, UT_LOCATION_HERE);
   }
 
   m_old_file_path = mem_heap_strdupl(m_heap, name, len);
@@ -175,7 +175,7 @@ void DDL_Record::set_old_file_path(const char *name) {
 
 void DDL_Record::set_old_file_path(const byte *data, ulint len) {
   if (m_heap == nullptr) {
-    m_heap = mem_heap_create(FN_REFLEN + 1);
+    m_heap = mem_heap_create(FN_REFLEN + 1, UT_LOCATION_HERE);
   }
 
   m_old_file_path = static_cast<char *>(mem_heap_dup(m_heap, data, len + 1));
@@ -186,7 +186,7 @@ void DDL_Record::set_new_file_path(const char *name) {
   ulint len = strlen(name);
 
   if (m_heap == nullptr) {
-    m_heap = mem_heap_create(FN_REFLEN + 1);
+    m_heap = mem_heap_create(FN_REFLEN + 1, UT_LOCATION_HERE);
   }
 
   m_new_file_path = mem_heap_strdupl(m_heap, name, len);
@@ -194,7 +194,7 @@ void DDL_Record::set_new_file_path(const char *name) {
 
 void DDL_Record::set_new_file_path(const byte *data, ulint len) {
   if (m_heap == nullptr) {
-    m_heap = mem_heap_create(FN_REFLEN + 1);
+    m_heap = mem_heap_create(FN_REFLEN + 1, UT_LOCATION_HERE);
   }
 
   m_new_file_path = static_cast<char *>(mem_heap_dup(m_heap, data, len + 1));
@@ -235,7 +235,7 @@ std::ostream &DDL_Record::print(std::ostream &out) const {
       out << "ALTER UNENCRYPT TABLESPACE";
       break;
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   out << ",";
@@ -306,8 +306,8 @@ std::ostream &DDL_Record::print(std::ostream &out) const {
 }
 
 /** Display a DDL record
-@param[in,out]	o	output stream
-@param[in]	record	DDL record to display
+@param[in,out]  o       output stream
+@param[in]      record  DDL record to display
 @return the output stream */
 std::ostream &operator<<(std::ostream &o, const DDL_Record &record) {
   return (record.print(o));
@@ -318,7 +318,7 @@ DDL_Log_Table::DDL_Log_Table() : DDL_Log_Table(nullptr) {}
 DDL_Log_Table::DDL_Log_Table(trx_t *trx)
     : m_table(dict_sys->ddl_log), m_tuple(nullptr), m_trx(trx), m_thr(nullptr) {
   ut_ad(m_trx == nullptr || m_trx->ddl_operation);
-  m_heap = mem_heap_create(1000);
+  m_heap = mem_heap_create(100, UT_LOCATION_HERE);
   if (m_trx != nullptr) {
     start_query_thread();
   }
@@ -463,7 +463,7 @@ dberr_t DDL_Log_Table::insert(const DDL_Record &record) {
   dict_index_t *index = m_table->first_index();
   dtuple_t *entry;
   uint32_t flags = BTR_NO_LOCKING_FLAG;
-  mem_heap_t *offsets_heap = mem_heap_create(1000);
+  mem_heap_t *offsets_heap = mem_heap_create(100, UT_LOCATION_HERE);
   static std::atomic<uint64_t> count(0);
 
   if (count++ % 64 == 0) {
@@ -530,7 +530,8 @@ void DDL_Log_Table::convert_to_ddl_record(bool is_clustered, rec_t *rec,
         continue;
       }
 
-      data = rec_get_nth_field(rec, offsets, i, &len);
+      const dict_index_t *clust_index = m_table->first_index();
+      data = rec_get_nth_field(clust_index, rec, offsets, i, &len);
 
       if (len != UNIV_SQL_NULL) {
         set_field(data, i, len, record);
@@ -547,7 +548,7 @@ ulint DDL_Log_Table::parse_id(const dict_index_t *index, rec_t *rec,
   ulint len;
   ulint index_offset = index->get_col_pos(s_id_col_no);
 
-  const byte *data = rec_get_nth_field(rec, offsets, index_offset, &len);
+  const byte *data = rec_get_nth_field(index, rec, offsets, index_offset, &len);
   ut_ad(len == s_id_col_len);
 
   return (mach_read_from_8(data));
@@ -594,7 +595,7 @@ void DDL_Log_Table::set_field(const byte *data, ulint index_offset, ulint len,
     case s_old_file_path_col_no:
     case s_new_file_path_col_no:
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 }
 
@@ -615,11 +616,11 @@ ulint DDL_Log_Table::fetch_value(const byte *data, ulint offset) {
     case s_new_file_path_col_no:
     case s_old_file_path_col_no:
     default:
-      ut_ad(0);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
   }
 
-  return (value);
+  ut_o(return (value));
 }
 
 dberr_t DDL_Log_Table::search_all(DDL_Records &records) {
@@ -634,17 +635,17 @@ dberr_t DDL_Log_Table::search_all(DDL_Records &records) {
   mtr_start(&mtr);
 
   /** Scan the index in decreasing order. */
-  btr_pcur_open_at_index_side(false, index, BTR_SEARCH_LEAF, &pcur, true, 0,
-                              &mtr);
+  pcur.open_at_side(false, index, BTR_SEARCH_LEAF, true, 0, &mtr);
 
-  for (; move == true; move = btr_pcur_move_to_prev(&pcur, &mtr)) {
-    rec = btr_pcur_get_rec(&pcur);
+  for (; move == true; move = pcur.move_to_prev(&mtr)) {
+    rec = pcur.get_rec();
 
     if (page_rec_is_infimum(rec) || page_rec_is_supremum(rec)) {
       continue;
     }
 
-    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &m_heap);
+    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &m_heap);
 
     if (rec_get_deleted_flag(rec, dict_table_is_comp(m_table))) {
       continue;
@@ -655,7 +656,7 @@ dberr_t DDL_Log_Table::search_all(DDL_Records &records) {
     records.push_back(record);
   }
 
-  btr_pcur_close(&pcur);
+  pcur.close();
   mtr_commit(&mtr);
 
   return (error);
@@ -694,17 +695,18 @@ dberr_t DDL_Log_Table::search_by_id(ulint id, dict_index_t *index,
   mtr_start(&mtr);
 
   create_tuple(id, index);
-  btr_pcur_open_with_no_init(index, m_tuple, PAGE_CUR_GE, BTR_SEARCH_LEAF,
-                             &pcur, 0, &mtr);
+  pcur.open_no_init(index, m_tuple, PAGE_CUR_GE, BTR_SEARCH_LEAF, 0, &mtr,
+                    UT_LOCATION_HERE);
 
-  for (; move == true; move = btr_pcur_move_to_next(&pcur, &mtr)) {
-    rec = btr_pcur_get_rec(&pcur);
+  for (; move == true; move = pcur.move_to_next(&mtr)) {
+    rec = pcur.get_rec();
 
     if (page_rec_is_infimum(rec) || page_rec_is_supremum(rec)) {
       continue;
     }
 
-    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &m_heap);
+    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &m_heap);
 
     if (cmp_dtuple_rec(m_tuple, rec, index, offsets) != 0) {
       break;
@@ -747,23 +749,23 @@ dberr_t DDL_Log_Table::remove(ulint id) {
 
   mtr_start(&mtr);
 
-  btr_pcur_open(clust_index, m_tuple, PAGE_CUR_LE,
-                BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE, &pcur, &mtr);
+  pcur.open(clust_index, 0, m_tuple, PAGE_CUR_LE,
+            BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE, &mtr, UT_LOCATION_HERE);
 
-  btr_cur = btr_pcur_get_btr_cur(&pcur);
+  btr_cur = pcur.get_btr_cur();
 
-  if (page_rec_is_infimum(btr_pcur_get_rec(&pcur)) ||
-      btr_pcur_get_low_match(&pcur) < clust_index->n_uniq) {
-    btr_pcur_close(&pcur);
+  if (page_rec_is_infimum(pcur.get_rec()) ||
+      pcur.get_low_match() < clust_index->n_uniq) {
+    pcur.close();
     mtr_commit(&mtr);
     return (DB_SUCCESS);
   }
 
-  offsets = rec_get_offsets(btr_pcur_get_rec(&pcur), clust_index, nullptr,
-                            ULINT_UNDEFINED, &m_heap);
+  offsets = rec_get_offsets(pcur.get_rec(), clust_index, nullptr,
+                            ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
 
-  row = row_build(ROW_COPY_DATA, clust_index, btr_pcur_get_rec(&pcur), offsets,
-                  nullptr, nullptr, nullptr, nullptr, m_heap);
+  row = row_build(ROW_COPY_DATA, clust_index, pcur.get_rec(), offsets, nullptr,
+                  nullptr, nullptr, nullptr, m_heap);
 
   rec = btr_cur_get_rec(btr_cur);
 
@@ -773,7 +775,7 @@ dberr_t DDL_Log_Table::remove(ulint id) {
                                          &mtr);
   }
 
-  btr_pcur_close(&pcur);
+  pcur.close();
   mtr_commit(&mtr);
 
   if (err != DB_SUCCESS) {
@@ -786,22 +788,22 @@ dberr_t DDL_Log_Table::remove(ulint id) {
   entry = row_build_index_entry(row, nullptr, index, m_heap);
   search_result = row_search_index_entry(
       index, entry, BTR_MODIFY_LEAF | BTR_DELETE_MARK, &pcur, &mtr);
-  btr_cur = btr_pcur_get_btr_cur(&pcur);
+  btr_cur = pcur.get_btr_cur();
 
   if (search_result == ROW_NOT_FOUND) {
-    btr_pcur_close(&pcur);
+    pcur.close();
     mtr_commit(&mtr);
-    ut_ad(0);
-    return (DB_CORRUPTION);
+    ut_d(ut_error);
+    ut_o(return (DB_CORRUPTION));
   }
 
   rec = btr_cur_get_rec(btr_cur);
 
   if (!rec_get_deleted_flag(rec, dict_table_is_comp(m_table))) {
-    err = btr_cur_del_mark_set_sec_rec(flags, btr_cur, TRUE, m_thr, &mtr);
+    err = btr_cur_del_mark_set_sec_rec(flags, btr_cur, true, m_thr, &mtr);
   }
 
-  btr_pcur_close(&pcur);
+  pcur.close();
   mtr_commit(&mtr);
 
   return (err);
@@ -922,10 +924,10 @@ dberr_t Log_DDL::insert_free_tree_log(trx_t *trx, const dict_index_t *index,
   bool has_dd_trx = (trx != nullptr);
   if (!has_dd_trx) {
     trx = trx_allocate_for_background();
-    trx_start_internal(trx);
+    trx_start_internal(trx, UT_LOCATION_HERE);
     trx->ddl_operation = true;
   } else {
-    trx_start_if_not_started(trx, true);
+    trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
   }
 
   ut_ad(trx->ddl_operation);
@@ -1019,10 +1021,10 @@ dberr_t Log_DDL::insert_delete_space_log(trx_t *trx, uint64_t id,
 
   if (!has_dd_trx) {
     trx = trx_allocate_for_background();
-    trx_start_internal(trx);
+    trx_start_internal(trx, UT_LOCATION_HERE);
     trx->ddl_operation = true;
   } else {
-    trx_start_if_not_started(trx, true);
+    trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
   }
 
   ut_ad(trx->ddl_operation);
@@ -1119,7 +1121,7 @@ dberr_t Log_DDL::insert_rename_space_log(uint64_t id, ulint thread_id,
                                          const char *new_file_path) {
   dberr_t error;
   trx_t *trx = trx_allocate_for_background();
-  trx_start_internal(trx);
+  trx_start_internal(trx, UT_LOCATION_HERE);
   trx->ddl_operation = true;
 
   ut_ad(dict_sys_mutex_own());
@@ -1211,7 +1213,7 @@ dberr_t Log_DDL::insert_alter_encrypt_space_log(uint64_t id, ulint thread_id,
                                                 DDL_Record *existing_rec) {
   dberr_t err = DB_SUCCESS;
   trx_t *trx = trx_allocate_for_background();
-  trx_start_internal(trx);
+  trx_start_internal(trx, UT_LOCATION_HERE);
   trx->ddl_operation = true;
 
   DDL_Record record;
@@ -1282,7 +1284,7 @@ dberr_t Log_DDL::insert_drop_log(trx_t *trx, uint64_t id, ulint thread_id,
   ut_ad(trx->ddl_operation);
   ut_ad(dict_sys_mutex_own());
 
-  trx_start_if_not_started(trx, true);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   dict_sys_mutex_exit();
 
@@ -1345,7 +1347,7 @@ dberr_t Log_DDL::insert_rename_table_log(uint64_t id, ulint thread_id,
                                          const char *new_name) {
   dberr_t error;
   trx_t *trx = trx_allocate_for_background();
-  trx_start_internal(trx);
+  trx_start_internal(trx, UT_LOCATION_HERE);
   trx->ddl_operation = true;
 
   ut_ad(dict_sys_mutex_own());
@@ -1411,7 +1413,7 @@ dberr_t Log_DDL::insert_remove_cache_log(uint64_t id, ulint thread_id,
                                          const char *table_name) {
   dberr_t error;
   trx_t *trx = trx_allocate_for_background();
-  trx_start_internal(trx);
+  trx_start_internal(trx, UT_LOCATION_HERE);
   trx->ddl_operation = true;
 
   DDL_Record record;
@@ -1439,7 +1441,7 @@ dberr_t Log_DDL::insert_remove_cache_log(uint64_t id, ulint thread_id,
 dberr_t Log_DDL::delete_by_id(trx_t *trx, uint64_t id, bool dict_locked) {
   dberr_t err;
 
-  trx_start_if_not_started(trx, true);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   ut_ad(trx->ddl_operation);
 
@@ -1531,7 +1533,7 @@ dberr_t Log_DDL::replay_by_thread_id(ulint thread_id) {
   return (err);
 }
 
-#define DELETE_IDS_RETRIES_MAX 10
+constexpr uint32_t DELETE_IDS_RETRIES_MAX = 10;
 
 dberr_t Log_DDL::delete_by_ids(DDL_Records &records) {
   dberr_t err = DB_SUCCESS;
@@ -1544,7 +1546,7 @@ dberr_t Log_DDL::delete_by_ids(DDL_Records &records) {
   for (t = DELETE_IDS_RETRIES_MAX; t > 0; t--) {
     trx_t *trx;
     trx = trx_allocate_for_background();
-    trx_start_if_not_started(trx, true);
+    trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
     trx->ddl_operation = true;
 
     {
@@ -1598,7 +1600,7 @@ dberr_t Log_DDL::replay(DDL_Record &record) {
       break;
 
     case Log_Type::RENAME_TABLE_LOG:
-      replay_rename_table_log(record.get_table_id(), record.get_old_file_path(),
+      replay_rename_table_log(record.get_old_file_path(),
                               record.get_new_file_path());
       break;
 
@@ -1747,7 +1749,7 @@ void Log_DDL::replay_rename_space_log(space_id_t space_id,
 static dberr_t replace_and_insert(DDL_Record *record) {
   dberr_t err = DB_SUCCESS;
   trx_t *trx = trx_allocate_for_background();
-  trx_start_internal(trx);
+  trx_start_internal(trx, UT_LOCATION_HERE);
   trx->ddl_operation = true;
 
   /* update the thread_id for the record */
@@ -1807,7 +1809,7 @@ void Log_DDL::replay_drop_log(const table_id_t table_id) {
   DBUG_INJECT_CRASH("ddl_log_crash_after_replay", crash_after_replay_counter++);
 }
 
-void Log_DDL::replay_rename_table_log(table_id_t table_id, const char *old_name,
+void Log_DDL::replay_rename_table_log(const char *old_name,
                                       const char *new_name) {
   if (is_in_recovery()) {
     if (srv_print_ddl_logs) {
@@ -1821,9 +1823,9 @@ void Log_DDL::replay_rename_table_log(table_id_t table_id, const char *old_name,
   trx_t *trx;
   trx = trx_allocate_for_background();
   trx->mysql_thd = current_thd;
-  trx_start_if_not_started(trx, true);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
-  row_mysql_lock_data_dictionary(trx);
+  row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
   trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
   /* Convert partition table name DDL log, if needed. Required if

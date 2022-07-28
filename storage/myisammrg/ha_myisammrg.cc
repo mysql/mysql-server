@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@
   The version check is done in myisammrg_attach_children_callback(),
   which is called for every child. ha_myisammrg::attach_children()
   initializes 'need_compat_check' to false and
-  myisammrg_attach_children_callback() sets it ot true if a table
+  myisammrg_attach_children_callback() sets it to true if a table
   def version mismatches the remembered child def version.
 
   The children chain remains in the statement query list until the table
@@ -130,15 +130,7 @@ static handler *myisammrg_create_handler(handlerton *hton, TABLE_SHARE *table,
 */
 
 ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
-    : handler(hton, table_arg), file(nullptr), is_cloned(false) {
-  init_sql_alloc(rg_key_memory_children, &children_mem_root, FN_REFLEN, 0);
-}
-
-/**
-  @brief Destructor
-*/
-
-ha_myisammrg::~ha_myisammrg(void) { children_mem_root.Clear(); }
+    : handler(hton, table_arg), file(nullptr), is_cloned(false) {}
 
 static const char *ha_myisammrg_exts[] = {".MRG", NullS};
 static void split_file_name(const char *file_name, LEX_CSTRING *db,
@@ -474,7 +466,7 @@ int ha_myisammrg::add_children_list(void) {
       issue is solved thanks to notification mechanism in MDL subsystem.
 
       SRO locks don't require similar handling since they are never upgraded and
-      underlying tables are always propertly protected by thr_lock.c locks.
+      underlying tables are always properly protected by thr_lock.c locks.
     */
     if (!thd->locked_tables_mode &&
         parent_l->mdl_request.type == MDL_SHARED_UPGRADABLE)
@@ -860,7 +852,7 @@ err:
 
   @note
     Detach must not touch the child TABLE objects in any way.
-    They may have been closed at ths point already.
+    They may have been closed at this point already.
     All references to the children should be removed.
 */
 
@@ -1192,7 +1184,7 @@ int ha_myisammrg::extra(enum ha_extra_function operation) {
   } else if (operation == HA_EXTRA_DETACH_CHILDREN) {
     /*
       Note that detach must not touch the children in any way.
-      They may have been closed at ths point already.
+      They may have been closed at this point already.
     */
     int rc = detach_children();
     return (rc);
@@ -1376,7 +1368,7 @@ void ha_myisammrg::append_create_info(String *packet) {
         get_type(&merge_insert_method, file->merge_insert_method - 1));
   }
   /*
-    There is no sence adding UNION clause in case there is no underlying
+    There is no sense adding UNION clause in case there are no underlying
     tables specified.
   */
   if (file->open_tables == file->end_table) return;

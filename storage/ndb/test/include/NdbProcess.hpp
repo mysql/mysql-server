@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -27,6 +27,7 @@
 #ifndef NDB_PROCESS_HPP
 #define NDB_PROCESS_HPP
 
+#include "util/require.h"
 #include <portlib/NdbSleep.h>
 
 class NdbProcess

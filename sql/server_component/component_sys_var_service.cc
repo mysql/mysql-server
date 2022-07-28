@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -41,9 +41,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
 #include "mysql/components/services/component_sys_var_service.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/system_variable_source_type.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -57,6 +57,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/mysqld.h"
 #include "sql/persisted_variable.h"  // Persisted_variables_cache
 #include "sql/set_var.h"
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_lex.h"    // LEX
 #include "sql/sql_plugin_var.h"
 #include "sql/sql_show.h"
 #include "sql/sys_vars_shared.h"
@@ -92,20 +94,21 @@ void mysql_comp_sys_var_services_init() {
   return;
 }
 
-int mysql_add_sysvar(sys_var *first) {
-  sys_var *var;
-
-  var = first;
+int mysql_add_sysvar(sys_var *var) {
+  assert(var->cast_pluginvar() != nullptr);
   /* A write lock should be held on LOCK_system_variables_hash */
   /* this fails if there is a conflicting variable name. see HASH_UNIQUE */
+  mysql_mutex_assert_not_owner(&LOCK_plugin);
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-  if (!get_system_variable_hash()->emplace(to_string(var->name), var).second) {
+  if (!get_dynamic_system_variable_hash()
+           ->emplace(to_string(var->name), var)
+           .second) {
     LogErr(ERROR_LEVEL, ER_DUPLICATE_SYS_VAR, var->name.str);
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     return 1;
   }
   /* Update system_variable_hash version. */
-  system_variable_hash_version++;
+  dynamic_system_variable_hash_version++;
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
   return 0;
 }
@@ -356,10 +359,16 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     */
     if (mysqld_server_started) {
       Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
-      if (pv && pv->set_persist_options(true, true)) {
-        LogErr(ERROR_LEVEL,
-               ER_SYS_VAR_COMPONENT_FAILED_TO_MAKE_VARIABLE_PERSISTENT,
-               com_sys_var_name);
+      if (pv != nullptr) {
+        mysql_rwlock_wrlock(&LOCK_system_variables_hash);
+        mysql_mutex_lock(&LOCK_plugin);
+        bool error = pv->set_persisted_options(true);
+        mysql_mutex_unlock(&LOCK_plugin);
+        mysql_rwlock_unlock(&LOCK_system_variables_hash);
+        if (error)
+          LogErr(ERROR_LEVEL,
+                 ER_SYS_VAR_COMPONENT_FAILED_TO_MAKE_VARIABLE_PERSISTENT,
+                 com_sys_var_name);
       }
     }
     ret = false;
@@ -433,11 +442,13 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
 
          (tocs->mbminlen * (len)) / fromcs->mbmaxlen
    */
-  const bool is_user_buffer_too_small = *val_length < result_length;
+
+  if (*val_length < result_length + 1) {  // "+1" is for terminating '\0'
+    *val_length = result_length + 1;
+    return nullptr;
+  }
+
   *val_length = result_length;
-
-  if (is_user_buffer_too_small) return nullptr;
-
   memcpy(val_buf, result.get(), result_length);
   val_buf[result_length] = '\0';
 
@@ -448,28 +459,19 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
                    (const char *component_name, const char *var_name,
                     void **val, size_t *out_length_of_val)) {
   try {
-    String com_sys_var_name;
-    sys_var *var;
-
     // all of the non-prefixed variables are treated as part of the server
     // component
-    if (!strcmp(component_name, "mysql_server"))
-      com_sys_var_name.set(var_name, strlen(var_name), &my_charset_latin1);
-    else if (com_sys_var_name.reserve(strlen(component_name) + 1 +
-                                      strlen(var_name) + 1) ||
-             com_sys_var_name.append(component_name) ||
-             com_sys_var_name.append(".") || com_sys_var_name.append(var_name))
-      return true;  // OOM
-    mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-    var = intern_find_sys_var(com_sys_var_name.c_ptr(),
-                              com_sys_var_name.length());
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
-
-    if (!var) return true;
-
-    if (!get_variable_value(var, (char *)*val, out_length_of_val)) return true;
-
-    return false;
+    const char *prefix =
+        strcmp(component_name, "mysql_server") == 0 ? "" : component_name;
+    auto f = [val, out_length_of_val](const System_variable_tracker &,
+                                      sys_var *var) -> bool {
+      return get_variable_value(var, (char *)*val, out_length_of_val) ==
+             nullptr;
+    };
+    return System_variable_tracker::make_tracker(prefix, var_name)
+        .access_system_variable<bool>(current_thd, f,
+                                      Suppress_not_found_error::YES)
+        .value_or(true);
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
@@ -487,11 +489,16 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
         com_sys_var_name.append(component_name) ||
         com_sys_var_name.append(".") || com_sys_var_name.append(var_name))
       return true;  // OOM
+    if (current_thd != nullptr) {
+      // During shutdown we have no THD, and we have already done
+      // mysql_mutex_destroy(&LOCK_plugin);
+      mysql_mutex_assert_not_owner(&LOCK_plugin);
+    }
     mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
     sys_var *sysvar = nullptr;
-    if (get_system_variable_hash() != nullptr) {
-      sysvar = find_or_nullptr(*get_system_variable_hash(),
+    if (get_dynamic_system_variable_hash() != nullptr) {
+      sysvar = find_or_nullptr(*get_dynamic_system_variable_hash(),
                                to_string(com_sys_var_name));
     }
     if (sysvar == nullptr) {
@@ -500,9 +507,10 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
       return true;
     }
 
-    result = !get_system_variable_hash()->erase(to_string(sysvar->name));
+    result =
+        !get_dynamic_system_variable_hash()->erase(to_string(sysvar->name));
     /* Update system_variable_hash version. */
-    system_variable_hash_version++;
+    dynamic_system_variable_hash_version++;
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
     /*

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ ADD_CUSTOM_COMMAND(
 )
 
 # Add target for the above to be built
-ADD_CUSTOM_TARGET(GenFixPrivs
+MY_ADD_CUSTOM_TARGET(GenFixPrivs
   ALL
   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables_sql.h
 )
@@ -152,7 +152,7 @@ ADD_CUSTOM_COMMAND(
 
 # Add target for the above to be built
 IF(NOT WITHOUT_SERVER)
-  ADD_CUSTOM_TARGET(GenBootstrapPriv
+  MY_ADD_CUSTOM_TARGET(GenBootstrapPriv
     ALL
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
     ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
@@ -320,8 +320,17 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
         SET(${var} "${${var}} ${lib} ")
       ELSEIF(lib MATCHES "^/")
         # Full path, convert to just filename, strip "lib" prefix and extension
+        GET_FILENAME_COMPONENT(dir "${lib}" DIRECTORY)
         GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
         STRING(REGEX REPLACE "^lib" "" lib "${lib}")
+        # Add -L/usr/local/opt/openssl/lib for ssl (and crypto).
+        IF(APPLE AND WITH_SSL STREQUAL "system" AND ${lib} STREQUAL "ssl")
+          SET(${var} "${${var}}-L${dir} " )
+        ENDIF()
+        # Add -L/usr/local/lib for zstd
+        IF(APPLE AND WITH_ZSTD STREQUAL "system" AND ${lib} STREQUAL "zstd")
+          SET(${var} "${${var}}-L${dir} " )
+        ENDIF()
         SET(${var} "${${var}}-l${lib} " )
       ELSE()
         SET(${var} "${${var}}-l${lib} " )
@@ -453,6 +462,15 @@ ELSE()
 
   # Systemd files
   IF(WITH_SYSTEMD)
+
+    IF(SYSTEMD_HAS_PLUS)
+      SET(SYSTEMD_EXE_PREFIX "+")
+      SET(SYSTEMD_START_ONLY "# hence, + prefix is used")
+    ELSE()
+      SET(SYSTEMD_EXE_PREFIX "")
+      SET(SYSTEMD_START_ONLY "PermissionsStartOnly=true")
+    ENDIF()
+
     CONFIGURE_FILE(systemd/mysqld_pre_systemd.in
       ${CMAKE_CURRENT_BINARY_DIR}/mysqld_pre_systemd ESCAPE_QUOTES @ONLY)
 

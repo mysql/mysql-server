@@ -1,0 +1,101 @@
+# === Purpose ===
+#
+# This test verifies that changes to the SQL mode are also replicated
+# ensuring the replica has the same data as the source
+#
+# ==== Requirements ====
+#
+# R1. When use row based replication, the SQL mode from the source should also
+#     be used on the replica
+#
+# === Implementation ====
+#
+# 1. Create a table where a generated column has the type TIME
+# 2. Change the source SQL mode to 'TIME_TRUNCATE_FRACTIONAL'
+# 3. Insert data on the source being the value of the generated column dependent on the SQL mode
+# 4. Delete the row on the source and verify it was deleted on the replica
+# 5. Cleanup
+#
+# === References ===
+#
+# Bug #33945038: SQL mode is sometimes over-written in row based replication
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Create a table where a generated column has the type TIME
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1 (
+  first DOUBLE,
+  gen_col TIME(1) GENERATED ALWAYS AS (`first`) VIRTUAL,
+  KEY (gen_col)
+) ENGINE=InnoDB;
+
+
+--echo
+--echo ##############################################################
+--echo # 2. Change the source SQL mode to 'TIME_TRUNCATE_FRACTIONAL'
+
+#
+# To understand what is the effect of this mode, here is the docs example
+#
+# CREATE TABLE t (id INT, tval TIME(1));
+# SET sql_mode='';
+# INSERT INTO t (id, tval) VALUES(1, 1.55);
+# SET sql_mode='TIME_TRUNCATE_FRACTIONAL';
+# INSERT INTO t (id, tval) VALUES(2, 1.55);
+#
+# mysql> SELECT id, tval FROM t ORDER BY id;
+# +------+------------+
+# | id   | tval       |
+# +------+------------+
+# |    1 | 00:00:01.6 |
+# |    2 | 00:00:01.5 |
+# +------+------------+
+#
+
+SET sql_mode='TIME_TRUNCATE_FRACTIONAL';
+
+--echo
+--echo ##############################################################
+--echo # 3. Insert data on the source being the value of the generated column dependent on the SQL mode
+
+INSERT INTO t1 (first) VALUES(1.55);
+
+--echo
+--echo ##############################################################
+--echo # 4. Delete the row on the source and verify it was deleted on the replica
+
+DELETE FROM t1 WHERE gen_col="00:00:01.5";
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+
+#
+# To understand what divergences in SQL mode would do:
+# When inserted in the replica the row will be indexed to the value of `gen_col`
+#`When deleted, the replica will search for the value of "00:00:01.5", but
+# the table index would have the value "00:00:01.6" if the sql mode was different.
+# The delete would not find the row and no data would be removed in the replica.
+#
+
+--let $table_data_count = `SELECT COUNT(*) FROM t1`
+--let $assert_text= The data on the replica was deleted
+--let $assert_cond= $table_data_count = 0
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 5. Cleanup
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc

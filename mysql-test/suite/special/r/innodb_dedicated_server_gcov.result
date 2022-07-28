@@ -1,12 +1,8 @@
 # restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=512M --innodb_debug_sys_mem_size=1G
-actual_innodb_log_file_size  = 49152
-actual_innodb_log_files_in_group = 2
+actual_innodb_redo_log_capacity  = 100
 # restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=512M --innodb_debug_sys_mem_size=4G
-actual_innodb_log_file_size  = 524288
-actual_innodb_log_files_in_group = 2
+actual_innodb_redo_log_capacity  = 1024
 # restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=512M --innodb_debug_sys_mem_size=16G
-actual_innodb_log_file_size  = 1048576
-actual_innodb_log_files_in_group = 9
+actual_innodb_redo_log_capacity  = 9216
 # restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=512M --innodb_debug_sys_mem_size=200G
-actual_innodb_log_file_size  = 2097152
-actual_innodb_log_files_in_group = 64
+actual_innodb_redo_log_capacity  = 131072

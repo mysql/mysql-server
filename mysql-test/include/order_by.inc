@@ -1920,3 +1920,40 @@ SHOW CREATE TABLE z2;
 SHOW CREATE TABLE z3;
 
 DROP TABLE z1, z2, z3;
+
+--echo #
+--echo # Bug#32695670: ASSERTION `M_CURRENT_ROLLUP_LEVEL >= 0 && M_CURRENT_ROLLUP_LEVEL < M_NUM_LEVELS'
+--echo #
+CREATE TABLE t(
+  m MEDIUMTEXT,   # must be blob, CHAR(1), TEXT works....
+  pk INT PRIMARY KEY
+);
+
+INSERT INTO t VALUES ('s',1);
+
+# Used to hit assert in debug mode
+SELECT MIN(alias2.m) AS field2,
+       alias2.pk AS field3
+FROM t AS alias1
+     LEFT JOIN
+     t AS alias2
+     ON alias1.m = alias2.m
+GROUP BY field3 WITH ROLLUP
+ORDER BY UPPER(field2); # The alias must be a function argument
+
+DROP TABLE t;
+
+CREATE TABLE t1 ( a INTEGER, b LONGTEXT );
+INSERT INTO t1 VALUES (1,'z');
+INSERT INTO t1 VALUES (2,'y');
+INSERT INTO t1 VALUES (3,'x');
+
+# Used to give correct result
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(MIN(b), 'a');
+# Used to give wrong result
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(min_b, 'a');
+
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(MIN(b), 'a') DESC;
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(min_b, 'a') DESC;
+
+DROP TABLE t1;

@@ -4,6 +4,9 @@
 ###############################################################################
 --source include/not_valgrind.inc
 --source include/have_log_bin.inc
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 0
+--source include/only_with_option.inc
 
 #
 # MIXED mode is chosen because formats are varied inside the sourced tests.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -235,10 +235,6 @@ class Member_actions_handler : public Mysql_thread_body,
     Trigger the actions configured to run on the given event.
 
     @param[in] event  the event that did trigger the member actions
-
-    @return the operation status
-      @retval false  Successful
-      @retval true   Error
   */
   void trigger_actions(Member_actions::enum_action_event event);
 
@@ -246,10 +242,6 @@ class Member_actions_handler : public Mysql_thread_body,
     Run the actions that were triggered.
 
     @param[in] parameters  the actions parameters
-
-    @return the operation status
-      @retval false  Successful
-      @retval true   Error
   */
   void run(Mysql_thread_body_parameters *parameters) override;
 

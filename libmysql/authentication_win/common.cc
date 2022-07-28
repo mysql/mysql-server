@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -349,7 +349,7 @@ char *wchar_to_utf8(const wchar_t *string, size_t *len) {
 
   /*
     A conversion from utf8 to wchar_t will never take more than 3 bytes per
-    character, so a buffer of length 3 * str_len schould be sufficient.
+    character, so a buffer of length 3 * str_len should be sufficient.
     We check that assumption with an assertion later.
   */
 

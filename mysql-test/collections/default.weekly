@@ -145,7 +145,7 @@ perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_16k --testcase
 perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_64k --testcase-timeout=60 --debug-server --vardir=var-innodb-undo-32-64k  --suite=innodb_zip,innodb --initialize=--init-file=std_data/explicit_undo_32.sql --initialize=--innodb-page-size=64k --no-skip
 
 # Run innodb suite with --innodb_sync_debug=1
-perl mysql-test-run.pl --timer  --force  --comment=innodb_sync_debug --testcase-timeout=60 --debug-server --vardir=var-innodb-sync-debug  --suite=innodb --mysqld=--innodb_sync_debug=1 --no-skip
+perl mysql-test-run.pl --timer  --force  --comment=innodb_sync_debug --testcase-timeout=60 --debug-server --vardir=var-innodb-sync-debug  --suite=innodb,innodb_fts,innodb_undo,innodb_zip --mysqld=--innodb_sync_debug=1 --no-skip
 
 ######################END OF SECTION 6 (INNODB(EXTENDED-WEEKLY))#######
 #

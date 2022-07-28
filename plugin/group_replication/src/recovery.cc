@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -325,6 +325,20 @@ single_member_online:
 
   error = wait_for_applier_module_recovery();
 
+#ifndef NDEBUG
+  DBUG_EXECUTE_IF(
+      "recovery_thread_wait_after_wait_for_applier_module_recovery", {
+        const char act[] =
+            "now signal "
+            "signal.recovery_thread_wait_after_wait_for_applier_module_"
+            "recovery "
+            "wait_for "
+            "signal.recovery_thread_resume_after_wait_for_applier_module_"
+            "recovery";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+#endif  // NDEBUG
+
 cleanup:
 
   /* Step 5 */
@@ -540,13 +554,6 @@ int Recovery_module::wait_for_applier_module_recovery() {
   if (applier_module->get_applier_status() == APPLIER_ERROR &&
       !recovery_aborted)
     return 1; /* purecov: inspected */
-
-  /*
-    Take View_change_log_event transaction into account, that
-    despite being queued on applier channel was applied through
-    recovery channel.
-  */
-  pipeline_stats->decrement_transactions_waiting_apply();
 
   return 0;
 }

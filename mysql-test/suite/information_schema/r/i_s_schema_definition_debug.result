@@ -118,7 +118,7 @@ include/assert.inc [All expected I_S system views are present.]
 #         I_S system views.
 ########################################################################
 # Print the actual I_S version stored on disk.
-Current I_S_VERSION=80023
+Current I_S_VERSION=80030
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
@@ -205,7 +205,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   cat.name AS TABLE_CATALOG,
   sch.name AS TABLE_SCHEMA,
   tbl.name AS TABLE_NAME,
-  col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
+  col.name COLLATE utf8mb3_tolower_ci AS COLUMN_NAME,
   col.ordinal_position AS ORDINAL_POSITION,
   col.default_value_utf8 AS COLUMN_DEFAULT,
   IF (col.is_nullable = 1, 'YES','NO') AS IS_NULLABLE,
@@ -232,13 +232,13 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
   INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name,tbl.name, tbl.type, tbl.options)
   AND CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'))
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'), col.options)
 
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COLUMNS AS SELECT 
   cat.name AS TABLE_CATALOG,
   sch.name AS TABLE_SCHEMA,
   tbl.name AS TABLE_NAME,
-  col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
+  col.name COLLATE utf8mb3_tolower_ci AS COLUMN_NAME,
   col.ordinal_position AS ORDINAL_POSITION,
   col.default_value_utf8 AS COLUMN_DEFAULT,
   IF (col.is_nullable = 1, 'YES','NO') AS IS_NULLABLE,
@@ -265,13 +265,13 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
   INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name,tbl.name, tbl.type, tbl.options)
   AND CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'))
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'), col.options)
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COLUMNS_EXTENSIONS AS SELECT 
   cat.name AS TABLE_CATALOG,
   sch.name AS TABLE_SCHEMA,
   tbl.name AS TABLE_NAME,
-  col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
+  col.name COLLATE utf8mb3_tolower_ci AS COLUMN_NAME,
   col.engine_attribute AS ENGINE_ATTRIBUTE,
   col.secondary_engine_attribute AS SECONDARY_ENGINE_ATTRIBUTE FROM 
   mysql.columns col
@@ -280,13 +280,13 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
   INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name,tbl.name, tbl.type, tbl.options)
   AND CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'))
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'), col.options)
 
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COLUMNS_EXTENSIONS AS SELECT 
   cat.name AS TABLE_CATALOG,
   sch.name AS TABLE_SCHEMA,
   tbl.name AS TABLE_NAME,
-  col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
+  col.name COLLATE utf8mb3_tolower_ci AS COLUMN_NAME,
   col.engine_attribute AS ENGINE_ATTRIBUTE,
   col.secondary_engine_attribute AS SECONDARY_ENGINE_ATTRIBUTE FROM 
   mysql.columns col
@@ -295,7 +295,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
   INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name,tbl.name, tbl.type, tbl.options)
   AND CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'))
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'), col.options)
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COLUMN_STATISTICS AS SELECT 
   SCHEMA_NAME AS SCHEMA_NAME,
@@ -608,7 +608,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   cat.name AS TABLE_CATALOG,
   sch.name AS TABLE_SCHEMA,
   tbl.name AS TABLE_NAME,
-  col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
+  col.name COLLATE utf8mb3_tolower_ci AS COLUMN_NAME,
   constraints.ordinal_position AS ORDINAL_POSITION,
   constraints.POSITION_IN_UNIQUE_CONSTRAINT AS POSITION_IN_UNIQUE_CONSTRAINT,
   constraints.REFERENCED_TABLE_SCHEMA AS REFERENCED_TABLE_SCHEMA,
@@ -617,10 +617,10 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-  , LATERAL (SELECT    idx.name AS CONSTRAINT_NAME,    icu.ordinal_position AS ORDINAL_POSITION,    NULL AS POSITION_IN_UNIQUE_CONSTRAINT,    NULL AS REFERENCED_TABLE_SCHEMA,    NULL AS REFERENCED_TABLE_NAME,    NULL AS REFERENCED_COLUMN_NAME,    icu.column_id,    idx.hidden OR icu.hidden AS HIDDEN    FROM mysql.indexes idx    JOIN mysql.index_column_usage icu ON icu.index_id = idx.id    WHERE idx.table_id = tbl.id      AND idx.type IN ('PRIMARY', 'UNIQUE')  UNION ALL SELECT    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,    fkcu.ordinal_position AS ORDINAL_POSITION,    fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,    fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,    fk.referenced_table_name AS REFERENCED_TABLE_NAME,    fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME,    fkcu.column_id,    FALSE AS HIDDEN    FROM mysql.foreign_keys fk    JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id = fk.id    WHERE fk.table_id = tbl.id) constraints
+  , LATERAL (SELECT    idx.name AS CONSTRAINT_NAME,    icu.ordinal_position AS ORDINAL_POSITION,    NULL AS POSITION_IN_UNIQUE_CONSTRAINT,    NULL AS REFERENCED_TABLE_SCHEMA,    NULL AS REFERENCED_TABLE_NAME,    NULL AS REFERENCED_COLUMN_NAME,    icu.column_id,    idx.hidden OR icu.hidden AS HIDDEN    FROM mysql.indexes idx    JOIN mysql.index_column_usage icu ON icu.index_id = idx.id    WHERE idx.table_id = tbl.id      AND idx.type IN ('PRIMARY', 'UNIQUE')  UNION ALL SELECT    fk.name COLLATE utf8mb3_tolower_ci AS CONSTRAINT_NAME,    fkcu.ordinal_position AS ORDINAL_POSITION,    fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,    fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,    fk.referenced_table_name AS REFERENCED_TABLE_NAME,    fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME,    fkcu.column_id,    FALSE AS HIDDEN    FROM mysql.foreign_keys fk    JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id = fk.id    WHERE fk.table_id = tbl.id) constraints
   JOIN mysql.columns col ON constraints.COLUMN_ID=col.id WHERE 
   CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible' OR constraints.HIDDEN)
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User') OR constraints.HIDDEN, col.options)
 
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.KEY_COLUMN_USAGE AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
@@ -629,7 +629,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   cat.name AS TABLE_CATALOG,
   sch.name AS TABLE_SCHEMA,
   tbl.name AS TABLE_NAME,
-  col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
+  col.name COLLATE utf8mb3_tolower_ci AS COLUMN_NAME,
   constraints.ordinal_position AS ORDINAL_POSITION,
   constraints.POSITION_IN_UNIQUE_CONSTRAINT AS POSITION_IN_UNIQUE_CONSTRAINT,
   constraints.REFERENCED_TABLE_SCHEMA AS REFERENCED_TABLE_SCHEMA,
@@ -638,10 +638,10 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-  , LATERAL (SELECT    idx.name AS CONSTRAINT_NAME,    icu.ordinal_position AS ORDINAL_POSITION,    NULL AS POSITION_IN_UNIQUE_CONSTRAINT,    NULL AS REFERENCED_TABLE_SCHEMA,    NULL AS REFERENCED_TABLE_NAME,    NULL AS REFERENCED_COLUMN_NAME,    icu.column_id,    idx.hidden OR icu.hidden AS HIDDEN    FROM mysql.indexes idx    JOIN mysql.index_column_usage icu ON icu.index_id = idx.id    WHERE idx.table_id = tbl.id      AND idx.type IN ('PRIMARY', 'UNIQUE')  UNION ALL SELECT    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,    fkcu.ordinal_position AS ORDINAL_POSITION,    fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,    fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,    fk.referenced_table_name AS REFERENCED_TABLE_NAME,    fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME,    fkcu.column_id,    FALSE AS HIDDEN    FROM mysql.foreign_keys fk    JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id = fk.id    WHERE fk.table_id = tbl.id) constraints
+  , LATERAL (SELECT    idx.name AS CONSTRAINT_NAME,    icu.ordinal_position AS ORDINAL_POSITION,    NULL AS POSITION_IN_UNIQUE_CONSTRAINT,    NULL AS REFERENCED_TABLE_SCHEMA,    NULL AS REFERENCED_TABLE_NAME,    NULL AS REFERENCED_COLUMN_NAME,    icu.column_id,    idx.hidden OR icu.hidden AS HIDDEN    FROM mysql.indexes idx    JOIN mysql.index_column_usage icu ON icu.index_id = idx.id    WHERE idx.table_id = tbl.id      AND idx.type IN ('PRIMARY', 'UNIQUE')  UNION ALL SELECT    fk.name COLLATE utf8mb3_tolower_ci AS CONSTRAINT_NAME,    fkcu.ordinal_position AS ORDINAL_POSITION,    fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,    fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,    fk.referenced_table_name AS REFERENCED_TABLE_NAME,    fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME,    fkcu.column_id,    FALSE AS HIDDEN    FROM mysql.foreign_keys fk    JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id = fk.id    WHERE fk.table_id = tbl.id) constraints
   JOIN mysql.columns col ON constraints.COLUMN_ID=col.id WHERE 
   CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible' OR constraints.HIDDEN)
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User') OR constraints.HIDDEN, col.options)
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.KEYWORDS AS SELECT 
   j.word AS WORD,
@@ -778,7 +778,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.REFERENTIAL_CONSTRAINTS AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
   sch.name AS CONSTRAINT_SCHEMA,
-  fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,
+  fk.name COLLATE utf8mb3_tolower_ci AS CONSTRAINT_NAME,
   fk.referenced_table_catalog AS UNIQUE_CONSTRAINT_CATALOG,
   fk.referenced_table_schema AS UNIQUE_CONSTRAINT_SCHEMA,
   fk.unique_constraint_name AS UNIQUE_CONSTRAINT_NAME,
@@ -797,7 +797,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.REFERENTIAL_CONSTRAINTS AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
   sch.name AS CONSTRAINT_SCHEMA,
-  fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,
+  fk.name COLLATE utf8mb3_tolower_ci AS CONSTRAINT_NAME,
   fk.referenced_table_catalog AS UNIQUE_CONSTRAINT_CATALOG,
   fk.referenced_table_schema AS UNIQUE_CONSTRAINT_SCHEMA,
   fk.unique_constraint_name AS UNIQUE_CONSTRAINT_NAME,
@@ -923,9 +923,9 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   tbl.name AS TABLE_NAME,
   IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',0,1) AS NON_UNIQUE,
   sch.name AS INDEX_SCHEMA,
-  idx.name COLLATE utf8_tolower_ci AS INDEX_NAME,
+  idx.name COLLATE utf8mb3_tolower_ci AS INDEX_NAME,
   icu.ordinal_position AS SEQ_IN_INDEX,
-  IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8_tolower_ci) AS COLUMN_NAME,
+  IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8mb3_tolower_ci) AS COLUMN_NAME,
   CASE WHEN icu.order = 'DESC' THEN 'D' WHEN icu.order = 'ASC'  THEN 'A' ELSE NULL END AS COLLATION,
   INTERNAL_INDEX_COLUMN_CARDINALITY(sch.name, tbl.name, idx.name,col.name, idx.ordinal_position,icu.ordinal_position,IF(ISNULL(tbl.partition_type), tbl.engine, ''),tbl.se_private_id,tbl.hidden != 'Visible' OR idx.hidden OR icu.hidden,COALESCE(stat.cardinality, CAST(-1 AS UNSIGNED)),COALESCE(CAST(stat.cached_time as UNSIGNED), 0)) AS CARDINALITY,
   GET_DD_INDEX_SUB_PART_LENGTH(icu.length,col.type, col.char_length, col.collation_id,idx.type) AS SUB_PART,
@@ -947,7 +947,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   JOIN mysql.collations coll ON tbl.collation_id=coll.id
   LEFT JOIN mysql.index_stats stat  ON tbl.name=stat.table_name AND sch.name=stat.schema_name AND idx.name=stat.index_name AND col.name=stat.column_name WHERE 
   CAN_ACCESS_TABLE(sch.name, tbl.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden OR icu.hidden)
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden OR icu.hidden, idx.options)
 
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.SHOW_STATISTICS AS SELECT 
   cat.name AS TABLE_CATALOG,
@@ -955,9 +955,9 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   tbl.name AS TABLE_NAME,
   IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',0,1) AS NON_UNIQUE,
   sch.name AS INDEX_SCHEMA,
-  idx.name COLLATE utf8_tolower_ci AS INDEX_NAME,
+  idx.name COLLATE utf8mb3_tolower_ci AS INDEX_NAME,
   icu.ordinal_position AS SEQ_IN_INDEX,
-  IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8_tolower_ci) AS COLUMN_NAME,
+  IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8mb3_tolower_ci) AS COLUMN_NAME,
   CASE WHEN icu.order = 'DESC' THEN 'D' WHEN icu.order = 'ASC'  THEN 'A' ELSE NULL END AS COLLATION,
   INTERNAL_INDEX_COLUMN_CARDINALITY(sch.name, tbl.name, idx.name,col.name, idx.ordinal_position,icu.ordinal_position,IF(ISNULL(tbl.partition_type), tbl.engine, ''),tbl.se_private_id,tbl.hidden != 'Visible' OR idx.hidden OR icu.hidden,COALESCE(stat.cardinality, CAST(-1 AS UNSIGNED)),COALESCE(CAST(stat.cached_time as UNSIGNED), 0)) AS CARDINALITY,
   GET_DD_INDEX_SUB_PART_LENGTH(icu.length,col.type, col.char_length, col.collation_id,idx.type) AS SUB_PART,
@@ -979,7 +979,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   JOIN mysql.collations coll ON tbl.collation_id=coll.id
   LEFT JOIN mysql.index_stats stat  ON tbl.name=stat.table_name AND sch.name=stat.schema_name AND idx.name=stat.index_name AND col.name=stat.column_name WHERE 
   CAN_ACCESS_TABLE(sch.name, tbl.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden OR icu.hidden)
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden OR icu.hidden, idx.options)
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.SCHEMATA AS SELECT 
   cat.name AS CATALOG_NAME,
@@ -1085,9 +1085,9 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   tbl.name AS TABLE_NAME,
   IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',0,1) AS NON_UNIQUE,
   sch.name AS INDEX_SCHEMA,
-  idx.name COLLATE utf8_tolower_ci AS INDEX_NAME,
+  idx.name COLLATE utf8mb3_tolower_ci AS INDEX_NAME,
   icu.ordinal_position AS SEQ_IN_INDEX,
-  IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8_tolower_ci) AS COLUMN_NAME,
+  IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8mb3_tolower_ci) AS COLUMN_NAME,
   CASE WHEN icu.order = 'DESC' THEN 'D' WHEN icu.order = 'ASC'  THEN 'A' ELSE NULL END AS COLLATION,
   INTERNAL_INDEX_COLUMN_CARDINALITY(sch.name, tbl.name, idx.name,col.name, idx.ordinal_position,icu.ordinal_position,IF(ISNULL(tbl.partition_type), tbl.engine, ''),tbl.se_private_id,tbl.hidden != 'Visible' OR idx.hidden OR icu.hidden,COALESCE(stat.cardinality, CAST(-1 AS UNSIGNED)),COALESCE(CAST(stat.cached_time as UNSIGNED), 0)) AS CARDINALITY,
   GET_DD_INDEX_SUB_PART_LENGTH(icu.length,col.type, col.char_length, col.collation_id,idx.type) AS SUB_PART,
@@ -1107,7 +1107,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   JOIN mysql.collations coll ON tbl.collation_id=coll.id
   LEFT JOIN mysql.index_stats stat  ON tbl.name=stat.table_name AND sch.name=stat.schema_name AND idx.name=stat.index_name AND col.name=stat.column_name WHERE 
   CAN_ACCESS_TABLE(sch.name, tbl.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden OR icu.hidden)
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden OR icu.hidden, idx.options)
 
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.STATISTICS AS SELECT 
   cat.name AS TABLE_CATALOG,
@@ -1115,9 +1115,9 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   tbl.name AS TABLE_NAME,
   IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',0,1) AS NON_UNIQUE,
   sch.name AS INDEX_SCHEMA,
-  idx.name COLLATE utf8_tolower_ci AS INDEX_NAME,
+  idx.name COLLATE utf8mb3_tolower_ci AS INDEX_NAME,
   icu.ordinal_position AS SEQ_IN_INDEX,
-  IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8_tolower_ci) AS COLUMN_NAME,
+  IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8mb3_tolower_ci) AS COLUMN_NAME,
   CASE WHEN icu.order = 'DESC' THEN 'D' WHEN icu.order = 'ASC'  THEN 'A' ELSE NULL END AS COLLATION,
   INTERNAL_INDEX_COLUMN_CARDINALITY(sch.name, tbl.name, idx.name,col.name, idx.ordinal_position,icu.ordinal_position,IF(ISNULL(tbl.partition_type), tbl.engine, ''),tbl.se_private_id,tbl.hidden != 'Visible' OR idx.hidden OR icu.hidden,COALESCE(stat.cardinality, CAST(-1 AS UNSIGNED)),COALESCE(CAST(stat.cached_time as UNSIGNED), 0)) AS CARDINALITY,
   GET_DD_INDEX_SUB_PART_LENGTH(icu.length,col.type, col.char_length, col.collation_id,idx.type) AS SUB_PART,
@@ -1137,7 +1137,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   JOIN mysql.collations coll ON tbl.collation_id=coll.id
   LEFT JOIN mysql.index_stats stat  ON tbl.name=stat.table_name AND sch.name=stat.schema_name AND idx.name=stat.index_name AND col.name=stat.column_name WHERE 
   CAN_ACCESS_TABLE(sch.name, tbl.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden OR icu.hidden)
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden OR icu.hidden, idx.options)
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TABLE_CONSTRAINTS AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
@@ -1150,7 +1150,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id = sch.catalog_id
-  , LATERAL ( SELECT    idx.name AS CONSTRAINT_NAME,    IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.indexes idx    WHERE idx.table_id=tbl.id AND idx.type IN ('PRIMARY', 'UNIQUE')          AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden) UNION ALL  SELECT    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,    'FOREIGN KEY' as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.foreign_keys fk WHERE fk.table_id=tbl.id UNION ALL  SELECT    cc.name AS CONSTRAINT_NAME,    'CHECK' as CONSTRAINT_TYPE,    cc.enforced as ENFORCED  FROM mysql.check_constraints cc WHERE cc.table_id=tbl.id) constraints WHERE 
+  , LATERAL ( SELECT    idx.name AS CONSTRAINT_NAME,    IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.indexes idx    WHERE idx.table_id=tbl.id AND idx.type IN ('PRIMARY', 'UNIQUE')          AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden, idx.options) UNION ALL  SELECT    fk.name COLLATE utf8mb3_tolower_ci AS CONSTRAINT_NAME,    'FOREIGN KEY' as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.foreign_keys fk WHERE fk.table_id=tbl.id UNION ALL  SELECT    cc.name AS CONSTRAINT_NAME,    'CHECK' as CONSTRAINT_TYPE,    cc.enforced as ENFORCED  FROM mysql.check_constraints cc WHERE cc.table_id=tbl.id) constraints WHERE 
   CAN_ACCESS_TABLE(sch.name, tbl.name)
   AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
 
@@ -1165,7 +1165,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id = sch.catalog_id
-  , LATERAL ( SELECT    idx.name AS CONSTRAINT_NAME,    IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.indexes idx    WHERE idx.table_id=tbl.id AND idx.type IN ('PRIMARY', 'UNIQUE')          AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden) UNION ALL  SELECT    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,    'FOREIGN KEY' as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.foreign_keys fk WHERE fk.table_id=tbl.id UNION ALL  SELECT    cc.name AS CONSTRAINT_NAME,    'CHECK' as CONSTRAINT_TYPE,    cc.enforced as ENFORCED  FROM mysql.check_constraints cc WHERE cc.table_id=tbl.id) constraints WHERE 
+  , LATERAL ( SELECT    idx.name AS CONSTRAINT_NAME,    IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.indexes idx    WHERE idx.table_id=tbl.id AND idx.type IN ('PRIMARY', 'UNIQUE')          AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden, idx.options) UNION ALL  SELECT    fk.name COLLATE utf8mb3_tolower_ci AS CONSTRAINT_NAME,    'FOREIGN KEY' as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.foreign_keys fk WHERE fk.table_id=tbl.id UNION ALL  SELECT    cc.name AS CONSTRAINT_NAME,    'CHECK' as CONSTRAINT_TYPE,    cc.enforced as ENFORCED  FROM mysql.check_constraints cc WHERE cc.table_id=tbl.id) constraints WHERE 
   CAN_ACCESS_TABLE(sch.name, tbl.name)
   AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
 ");
@@ -1181,7 +1181,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
   CAN_ACCESS_TABLE(sch.name, tbl.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, FALSE, idx.options)
 
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TABLE_CONSTRAINTS_EXTENSIONS AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
@@ -1195,7 +1195,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
   CAN_ACCESS_TABLE(sch.name, tbl.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, FALSE, idx.options)
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TABLES AS SELECT 
   cat.name AS TABLE_CATALOG,
@@ -1211,7 +1211,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   IF (tbl.type = 'VIEW', NULL,INTERNAL_MAX_DATA_LENGTH(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(stat.max_data_length, 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))) AS MAX_DATA_LENGTH,
   IF (tbl.type = 'VIEW', NULL,INTERNAL_INDEX_LENGTH(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(stat.index_length, 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))) AS INDEX_LENGTH,
   IF (tbl.type = 'VIEW', NULL,INTERNAL_DATA_FREE(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(stat.data_free, 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))) AS DATA_FREE,
-  IF (tbl.type = 'VIEW', NULL,INTERNAL_AUTO_INCREMENT(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(stat.auto_increment, 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0), tbl.se_private_data)) AS AUTO_INCREMENT,
+  IF (tbl.type = 'VIEW', NULL,INTERNAL_AUTO_INCREMENT(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id,   IS_VISIBLE_DD_OBJECT(tbl.hidden, FALSE,    tbl.options) IS FALSE,  ts.se_private_data,  COALESCE(stat.auto_increment, 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0), tbl.se_private_data)) AS AUTO_INCREMENT,
   tbl.created AS CREATE_TIME,
   IF (tbl.type = 'VIEW', NULL,INTERNAL_UPDATE_TIME(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(CAST(stat.update_time as UNSIGNED), 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))) AS UPDATE_TIME,
   IF (tbl.type = 'VIEW', NULL,INTERNAL_CHECK_TIME(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(CAST(stat.check_time as UNSIGNED), 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))) AS CHECK_TIME,
@@ -1242,7 +1242,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   IF (tbl.type = 'VIEW', NULL,INTERNAL_MAX_DATA_LENGTH(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(stat.max_data_length, 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))) AS MAX_DATA_LENGTH,
   IF (tbl.type = 'VIEW', NULL,INTERNAL_INDEX_LENGTH(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(stat.index_length, 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))) AS INDEX_LENGTH,
   IF (tbl.type = 'VIEW', NULL,INTERNAL_DATA_FREE(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(stat.data_free, 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))) AS DATA_FREE,
-  IF (tbl.type = 'VIEW', NULL,INTERNAL_AUTO_INCREMENT(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(stat.auto_increment, 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0), tbl.se_private_data)) AS AUTO_INCREMENT,
+  IF (tbl.type = 'VIEW', NULL,INTERNAL_AUTO_INCREMENT(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id,   IS_VISIBLE_DD_OBJECT(tbl.hidden, FALSE,    tbl.options) IS FALSE,  ts.se_private_data,  COALESCE(stat.auto_increment, 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0), tbl.se_private_data)) AS AUTO_INCREMENT,
   tbl.created AS CREATE_TIME,
   IF (tbl.type = 'VIEW', NULL,INTERNAL_UPDATE_TIME(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(CAST(stat.update_time as UNSIGNED), 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))) AS UPDATE_TIME,
   IF (tbl.type = 'VIEW', NULL,INTERNAL_CHECK_TIME(sch.name, tbl.name,  IF(ISNULL(tbl.partition_type), tbl.engine, ''),  tbl.se_private_id, tbl.hidden != 'Visible',   ts.se_private_data,  COALESCE(CAST(stat.check_time as UNSIGNED), 0),  COALESCE(CAST(stat.cached_time as UNSIGNED), 0))) AS CHECK_TIME,
@@ -1649,8 +1649,8 @@ SET debug = '-d,fetch_system_view_definition';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
-The schema checksum corresponds to I_S version 80023.
+The schema checksum corresponds to I_S version 80030.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
 include/assert.inc [The schema checksum corresponds to
-IS_VERSION 80023 stored on on disk.]
+IS_VERSION 80030 stored on on disk.]
 include/assert.inc [The stored I_S version is the latest published I_S version.]

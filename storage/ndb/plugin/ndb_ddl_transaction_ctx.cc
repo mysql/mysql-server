@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 // Implements the interface defined in
 #include "storage/ndb/plugin/ndb_ddl_transaction_ctx.h"
 
+#include "my_dbug.h"
 #include "sql/handler.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
@@ -70,6 +71,12 @@ bool Ndb_DDL_transaction_ctx::rollback_create_table(
   DBUG_PRINT("info",
              ("Rollback : Dropping table '%s.%s'", db_name, table_name));
 
+  DBUG_EXECUTE_IF("ndb_simulate_failure_during_rollback", {
+    DBUG_SET("-d,ndb_simulate_failure_during_rollback");
+    thd_ndb->push_warning("Failed to rollback after CREATE TABLE failure.");
+    return false;
+  });
+
   /* Drop the table created during this DDL execution */
   Ndb *ndb = thd_ndb->ndb;
   if (drop_table_impl(m_thd, ndb,
@@ -114,8 +121,8 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
   Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
   Ndb *ndb = thd_ndb->ndb;
   Ndb_table_guard ndbtab_g(ndb, new_db_name, new_table_name);
-  const NdbDictionary::Table *renamed_table;
-  if (!(renamed_table = ndbtab_g.get_table())) {
+  const NdbDictionary::Table *renamed_table = ndbtab_g.get_table();
+  if (renamed_table == nullptr) {
     thd_ndb->push_ndb_error_warning(ndbtab_g.getNdbError());
     thd_ndb->push_warning("Failed to rename table during rollback.");
     return false;
@@ -272,8 +279,8 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_rename_table(
 
   /* Load the table from NDB */
   Ndb_table_guard ndbtab_g(ndb, db_name, table_name);
-  const NdbDictionary::Table *ndb_table;
-  if (!(ndb_table = ndbtab_g.get_table())) {
+  const NdbDictionary::Table *ndb_table = ndbtab_g.get_table();
+  if (ndb_table == nullptr) {
     thd_ndb->push_ndb_error_warning(ndbtab_g.getNdbError());
     thd_ndb->push_warning("Unable to load table during rollback");
     return false;

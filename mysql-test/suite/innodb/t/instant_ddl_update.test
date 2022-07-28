@@ -1,0 +1,22 @@
+##########################################################################
+# Test script to test UPDATE on table having INSTANT ADD columns.
+##########################################################################
+
+--echo ##############################################
+--echo # Test instant ADD/DROP COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = REDUNDANT;
+--source suite/innodb/include/instant_ddl_update.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for DYNAMIC format
+--echo ############################################
+let $row_format = DYNAMIC;
+--source suite/innodb/include/instant_ddl_update.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for COMPACT format
+--echo ############################################
+let $row_format = COMPACT;
+--source suite/innodb/include/instant_ddl_update.inc
+

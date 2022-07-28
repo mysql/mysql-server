@@ -126,75 +126,75 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;
 SHOW CREATE EVENT root6;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root6	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root6` ON SCHEDULE EVERY '10:20' MINUTE_SECOND STARTS '#' ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root6	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root6` ON SCHEDULE EVERY '10:20' MINUTE_SECOND STARTS '#' ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root7 on schedule every 2 year do select 1;
 SHOW CREATE EVENT root7;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root7	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root7` ON SCHEDULE EVERY 2 YEAR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root7	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root7` ON SCHEDULE EVERY 2 YEAR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root8 on schedule every '2:5' year_month do select 1;
 SHOW CREATE EVENT root8;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root8	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root8` ON SCHEDULE EVERY '2-5' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root8	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root8` ON SCHEDULE EVERY '2-5' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root8_1 on schedule every '2:15' year_month do select 1;
 SHOW CREATE EVENT root8_1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root8_1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root8_1` ON SCHEDULE EVERY '3-3' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root8_1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root8_1` ON SCHEDULE EVERY '3-3' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root9 on schedule every 2 week ON COMPLETION PRESERVE DISABLE COMMENT 'коментар на кирилица' do select 1;
 SHOW CREATE EVENT root9;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root9	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root9` ON SCHEDULE EVERY 2 WEEK STARTS '#' ON COMPLETION PRESERVE DISABLE COMMENT 'коментар на кирилица' DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root9	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root9` ON SCHEDULE EVERY 2 WEEK STARTS '#' ON COMPLETION PRESERVE DISABLE COMMENT 'коментар на кирилица' DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root10 on schedule every '20:5' day_hour do select 1;
 SHOW CREATE EVENT root10;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root10	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root10` ON SCHEDULE EVERY '20 5' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root10	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root10` ON SCHEDULE EVERY '20 5' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root11 on schedule every '20:25' day_hour do select 1;
 SHOW CREATE EVENT root11;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root11	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root11` ON SCHEDULE EVERY '21 1' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root11	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root11` ON SCHEDULE EVERY '21 1' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root12 on schedule every '20:25' hour_minute do select 1;
 SHOW CREATE EVENT root12;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root12	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root12` ON SCHEDULE EVERY '20:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root12	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root12` ON SCHEDULE EVERY '20:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root13 on schedule every '25:25' hour_minute do select 1;
 SHOW CREATE EVENT root13;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root13	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root13` ON SCHEDULE EVERY '25:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root13	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root13` ON SCHEDULE EVERY '25:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root13_1 on schedule every '11:65' hour_minute do select 1;
 SHOW CREATE EVENT root13_1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root13_1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root13_1` ON SCHEDULE EVERY '12:5' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root13_1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root13_1` ON SCHEDULE EVERY '12:5' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root14 on schedule every '35:35' minute_second do select 1;
 SHOW CREATE EVENT root14;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root14	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root14` ON SCHEDULE EVERY '35:35' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root14	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root14` ON SCHEDULE EVERY '35:35' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root15 on schedule every '35:66' minute_second do select 1;
 SHOW CREATE EVENT root15;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root15	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root15` ON SCHEDULE EVERY '36:6' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root15	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root15` ON SCHEDULE EVERY '36:6' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root16 on schedule every '35:56' day_minute do select 1;
 SHOW CREATE EVENT root16;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root16	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root16` ON SCHEDULE EVERY '1 11:56' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root16	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root16` ON SCHEDULE EVERY '1 11:56' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root17 on schedule every '35:12:45' day_minute do select 1;
 SHOW CREATE EVENT root17;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root17	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root17` ON SCHEDULE EVERY '35 12:45' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root17	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root17` ON SCHEDULE EVERY '35 12:45' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root17_1 on schedule every '35:25:65' day_minute do select 1;
 SHOW CREATE EVENT root17_1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root17_1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root17_1` ON SCHEDULE EVERY '36 2:5' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root17_1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root17_1` ON SCHEDULE EVERY '36 2:5' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root18 on schedule every '35:12:45' hour_second do select 1;
 SHOW CREATE EVENT root18;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root18	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root18` ON SCHEDULE EVERY '35:12:45' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root18	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root18` ON SCHEDULE EVERY '35:12:45' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root19 on schedule every '15:59:85' hour_second do select 1;
 SHOW CREATE EVENT root19;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root19	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root19` ON SCHEDULE EVERY '16:0:25' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root19	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root19` ON SCHEDULE EVERY '16:0:25' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 create event root20 on schedule every '50:20:12:45' day_second do select 1;
 SHOW CREATE EVENT root20;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root20	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8_general_ci	utf8mb4_0900_ai_ci
+root20	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 set names cp1251;
 create event ����21 on schedule every '50:23:59:95' day_second COMMENT '���� � 1251 ��������' do select 1;
 SHOW CREATE EVENT ����21;
@@ -218,19 +218,4 @@ DROP EVENT event_test;
 #
 # End of tests
 #
-#
-# Bug#2469962 - INVALID UTF-8 IN COMMENT OF AN EVENT DDL CAUSES ASSERT.
-#
-SET @orig_character_set_client = @@character_set_client;
-SET character_set_client = utf8;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE EVENT t�est ON SCHEDULE AT NOW() ON COMPLETION NOT PRESERVE DO SELECT 1;
-ERROR HY000: Invalid utf8 character string: 't\xF7est'
-CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'test�' DO SELECT 1;
-ERROR HY000: Invalid utf8 character string: 'FF'
-CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'test' DO SELECT 1;
-ALTER EVENT event COMMENT 'test�';
-ERROR HY000: Invalid utf8 character string: 'FF'
-SET character_set_client = @orig_character_set_client;
 DROP DATABASE events_test;

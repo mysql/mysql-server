@@ -283,6 +283,7 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 141	1410	Clone Test Row - 141	umn Data Large Column Data Large
 140	1400	Clone Test Row - 140	umn Data Large Column Data Large
 # restart:
+SET GLOBAL innodb_redo_log_capacity = 100*1024*1024;
 SET GLOBAL DEBUG ="+d,clone_arch_log_stop_file_end";
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
@@ -307,6 +308,7 @@ COMMIT;
 SET DEBUG_SYNC = 'now SIGNAL resume_clone2';
 # In connection default - Cloning database
 SET GLOBAL DEBUG ="-d,clone_arch_log_stop_file_end";
+SET GLOBAL innodb_redo_log_capacity = 100*1024*1024;
 SET GLOBAL DEBUG ="+d,clone_arch_log_stop_file_end";
 SET GLOBAL DEBUG ="+d,clone_arch_log_extra_bytes";
 SET DEBUG_SYNC = 'RESET';

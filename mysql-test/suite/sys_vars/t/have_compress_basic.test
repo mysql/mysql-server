@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.have_compress);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT have_compress = @@SESSION.have_compress;
---echo Expected error 'Readonly variable'
+SELECT have_compress;
+--echo Expected error 'Unknown column'
 
 

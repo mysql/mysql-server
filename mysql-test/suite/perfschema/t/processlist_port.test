@@ -32,22 +32,22 @@ flush privileges;
 show grants for user1@localhost;
 
 --echo
---echo # Connect (con_user0, localhost, user0, , )
-connect (con_user0, localhost, user0, , );
+--echo # Connect (con_user0, 127.0.0.1, user0, , , MASTER_MYPORT, )
+connect (con_user0, 127.0.0.1, user0, , , $MASTER_MYPORT, );
 --echo
 select connection_id() into @con_user0_id;
 
---echo # Connect (con_user1, localhost, user1, , )
-connect (con_user1, localhost, user1, , );
+--echo # Connect (con_user1, 127.0.0.1, user1, , , MASTER_MYPORT, )
+connect (con_user1, 127.0.0.1, user1, , , $MASTER_MYPORT, );
 
---echo # Connect (con_user2, localhost, user2, , )
-connect (con_user2, localhost, user2, , );
+--echo # Connect (con_user2, 127.0.0.1, user2, , , MASTER_MYPORT, )
+connect (con_user2, 127.0.0.1, user2, , , $MASTER_MYPORT, );
 
---echo # Connect (con_user3, localhost, user3, , )
-connect (con_user3, localhost, user3, , );
+--echo # Connect (con_user3, 127.0.0.1, user3, , , MASTER_MYPORT, )
+connect (con_user3, 127.0.0.1, user3, , , $MASTER_MYPORT, );
 
---echo # Connect (con_user4, localhost, user4, , )
-connect (con_user4, localhost, user4, , );
+--echo # Connect (con_user4, 127.0.0.1, user4, , , MASTER_MYPORT, )
+connect (con_user4, 127.0.0.1, user4, , , $MASTER_MYPORT, );
 
 --echo # Connection user0
 --connection con_user0
@@ -84,6 +84,9 @@ let $pfs_spl = off;
 let $host_old = query_get_value(SHOW FULL PROCESSLIST, Host, 1);
 
 --echo
+
+## DEBUG ONLY
+##  --echo DEBUG: New: $host_new  Old: $host_old
 
 if ($host_new == $host_old)
 {

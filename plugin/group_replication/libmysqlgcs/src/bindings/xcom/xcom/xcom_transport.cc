@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,7 +145,7 @@ result set_nodelay(int fd) {
 
 void init_xcom_transport(xcom_port listen_port) {
   xcom_listen_port = listen_port;
-  if (get_port_matcher() == 0) /* purecov: begin deadcode */
+  if (get_port_matcher() == nullptr) /* purecov: begin deadcode */
     set_port_matcher(pm);
   /* purecov: end */
 }
@@ -200,6 +200,8 @@ static u_int put_srv_buf(srv_buf *sb, char *data, u_int len) {
 int flush_srv_buf(server *s, int64_t *ret) {
   DECL_ENV
   u_int buflen;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t sent{0};
@@ -246,7 +248,7 @@ int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
      This means that:
      - They are configured with an IPv4 raw address
      - They have a name that is reachable via IPv4 name resolution */
-  if (current_site_def == NULL)
+  if (current_site_def == nullptr)
     return 0; /* This means that we are the ones entering a group */
 
   {
@@ -256,8 +258,8 @@ int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
     /* For each node in the current configuration */
     for (node = 0; node < current_site_def->nodes.node_list_len; node++) {
       int has_ipv4_address = 0;
-      struct addrinfo *node_addr = NULL;
-      struct addrinfo *node_addr_cycle = NULL;
+      struct addrinfo *node_addr = nullptr;
+      struct addrinfo *node_addr_cycle = nullptr;
       char ip[IP_MAX_SIZE];
       xcom_port port;
 
@@ -267,7 +269,7 @@ int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
       }
 
       /* Query the name server */
-      checked_getaddrinfo(ip, NULL, NULL, &node_addr);
+      checked_getaddrinfo(ip, nullptr, nullptr, &node_addr);
 
       /* Lets cycle through all returned addresses and check if at least one
          address is reachable via IPv4. */
@@ -293,6 +295,8 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
   DECL_ENV
   uint32_t buflen;
   char *buf;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t sent{0};
@@ -303,7 +307,7 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
         COPY_AND_FREE_GOUT(dbg_pax_msg(p)););
   if (to == p->from) {
     IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_pax_msg(p)););
-    dispatch_op(find_site_def(p->synode), p, NULL);
+    dispatch_op(find_site_def(p->synode), p, nullptr);
     TASK_RETURN(sizeof(*p));
   } else {
     p->max_synode = get_max_synode();
@@ -378,6 +382,8 @@ int send_proto(connection_descriptor *con, xcom_proto x_proto,
                x_msg_type x_type, unsigned int tag, int64_t *ret) {
   DECL_ENV
   char buf[MSG_HDR_SIZE];
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t sent{0};
@@ -416,7 +422,7 @@ int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,
   XDR xdr;
   [[maybe_unused]] int s = 0;
 
-  xdr.x_ops = NULL;
+  xdr.x_ops = nullptr;
   xdrmem_create(&xdr, (char *)buff, bufflen, op);
   /*
     Mac OSX changed the xdrproc_t prototype to take
@@ -458,7 +464,7 @@ void dbg_app_data(app_data_ptr a);
 /* Return 0 if it fails to serialize the message, otherwise 1 is returned. */
 static int serialize(void *p, xcom_proto x_proto, uint32_t *out_len,
                      xdrproc_t xdrfunc, char **out_buf) {
-  unsigned char *buf = NULL;
+  unsigned char *buf = nullptr;
   uint64_t msg_buflen = 0;
   uint64_t tot_buflen = 0;
   unsigned int tag = 666;
@@ -527,7 +533,7 @@ static xdrproc_t pax_msg_func[] = {
 int serialize_msg(pax_msg *p, xcom_proto x_proto, uint32_t *buflen,
                   char **buf) {
   *buflen = 0;
-  *buf = 0;
+  *buf = nullptr;
   return (x_proto >= x_1_0 && x_proto <= MY_XCOM_PROTO) &&
          old_proto_knows(x_proto, p->op) &&
          serialize((void *)p, x_proto, buflen, pax_msg_func[x_proto], buf);
@@ -577,7 +583,7 @@ static server *mksrv(char *srv, xcom_port port) {
   s = (server *)xcom_calloc((size_t)1, sizeof(*s));
 
   IFDBG(D_NONE, FN; PTREXP(s); STREXP(srv));
-  if (s == 0) {
+  if (s == nullptr) {
     g_critical("out of memory");
     abort();
   }
@@ -617,7 +623,7 @@ static server *mksrv(char *srv, xcom_port port) {
 
 static server *addsrv(char *srv, xcom_port port) {
   server *s = mksrv(srv, port);
-  assert(all_servers[maxservers] == 0);
+  assert(all_servers[maxservers] == nullptr);
   assert(maxservers < SERVER_MAX);
   all_servers[maxservers] = s;
   /*
@@ -645,7 +651,7 @@ static void rmsrv(int i) {
   srv_unref(all_servers[i]);
 
   all_servers[i] = all_servers[maxservers];
-  all_servers[maxservers] = 0;
+  all_servers[maxservers] = nullptr;
 }
 
 static void init_collect() {
@@ -751,6 +757,8 @@ int srv_unref(server *s) {
 int incoming_connection_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   connection_descriptor *new_conn;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
 
@@ -783,6 +791,8 @@ void server_detected(server *s) { s->detected = task_now(); }
 static int dial(server *s) {
   DECL_ENV
   int dummy;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -1000,6 +1010,8 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
   DECL_ENV
   uint32_t left;
   char *bytes;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t nread = 0;
@@ -1051,6 +1063,8 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
   DECL_ENV
   uint32_t left;
   char *bytes;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   uint32_t nget = 0;
 
@@ -1131,11 +1145,13 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
   uint32_t msgsize;
   x_msg_type x_type;
   unsigned int tag;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
   do {
-    ep->bytes = NULL;
+    ep->bytes = nullptr;
     /* Read length field, protocol version, and checksum */
     ep->n = 0;
     IFDBG(D_TRANSPORT, FN; STRLIT("reading header"));
@@ -1247,11 +1263,13 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
 #ifdef NOTDEF
   unsigned int check;
 #endif
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
   do {
-    ep->bytes = NULL;
+    ep->bytes = nullptr;
     /* Read length field, protocol version, and checksum */
     ep->n = 0;
     IFDBG(D_TRANSPORT, FN; STRLIT("reading header"));
@@ -1381,7 +1399,7 @@ static inline unsigned int incr_tag(unsigned int tag) {
 }
 
 static void start_protocol_negotiation(channel *outgoing) {
-  msg_link *link = msg_link_new(0, VOID_NODE_NO);
+  msg_link *link = msg_link_new(nullptr, VOID_NODE_NO);
   IFDBG(D_NONE, FN; PTREXP(outgoing); COPY_AND_FREE_GOUT(dbg_msg_link(link)););
   channel_put_front(outgoing, &link->l);
 }
@@ -1407,6 +1425,8 @@ int sender_task(task_arg arg) {
 #if defined(_WIN32)
   bool was_connected;
 #endif
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t ret_code{0};
@@ -1419,7 +1439,7 @@ int sender_task(task_arg arg) {
   ep->was_connected = false;
 #endif
   ep->s = (server *)get_void_arg(arg);
-  ep->link = NULL;
+  ep->link = nullptr;
   ep->tag = TAG_START;
   srv_ref(ep->s);
 
@@ -1553,10 +1573,11 @@ int sender_task(task_arg arg) {
       msg_link_delete(&ep->link);
       /* TASK_YIELD; */
     }
+    G_MESSAGE("Sender task disconnected from %s:%d", ep->s->srv, ep->s->port);
   }
   FINALLY
   empty_msg_channel(&ep->s->outgoing);
-  ep->s->sender = NULL;
+  ep->s->sender = nullptr;
   srv_unref(ep->s);
   if (ep->link) msg_link_delete(&ep->link);
   IFDBG(D_BUG, FN; STRLIT(" shutdown "));
@@ -1570,6 +1591,8 @@ int tcp_reconnection_task(task_arg arg [[maybe_unused]]) {
   int dummy;
   server *s;
   int i;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
 
@@ -1605,12 +1628,14 @@ int local_sender_task(task_arg arg) {
   DECL_ENV
   server *s;
   msg_link *link;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
 
   ep->s = (server *)get_void_arg(arg);
-  ep->link = NULL;
+  ep->link = nullptr;
   srv_ref(ep->s);
 
   reset_srv_buf(&ep->s->out_buf);
@@ -1626,13 +1651,13 @@ int local_sender_task(task_arg arg) {
             COPY_AND_FREE_GOUT(dbg_linkage(&ep->link->l)););
       assert(ep->link->p);
       ep->link->p->to = ep->link->p->from;
-      dispatch_op(find_site_def(ep->link->p->synode), ep->link->p, NULL);
+      dispatch_op(find_site_def(ep->link->p->synode), ep->link->p, nullptr);
     }
     msg_link_delete(&ep->link);
   }
   FINALLY
   empty_msg_channel(&ep->s->outgoing);
-  ep->s->sender = NULL;
+  ep->s->sender = nullptr;
   srv_unref(ep->s);
   if (ep->link) msg_link_delete(&ep->link);
   IFDBG(D_BUG, FN; STRLIT(" shutdown "));
@@ -1647,7 +1672,7 @@ static server *find_server(server *table[], int n, char *name, xcom_port port) {
         s->port == port) /* FIXME should use IP address */
       return s;
   }
-  return 0;
+  return nullptr;
 }
 
 void update_servers(site_def *s, cargo_type operation) {
@@ -1659,9 +1684,11 @@ void update_servers(site_def *s, cargo_type operation) {
 
     IFDBG(D_NONE, FN; NDBG(get_maxnodes(s), u); NDBG(n, d); PTREXP(s));
 
+    G_INFO("Updating physical connections to other servers");
+
     for (i = 0; i < n; i++) {
       char *addr = s->nodes.node_list_val[i].address;
-      char *name = NULL;
+      char *name = nullptr;
       xcom_port port = 0;
 
       name = (char *)xcom_malloc(IP_MAX_SIZE);
@@ -1679,7 +1706,7 @@ void update_servers(site_def *s, cargo_type operation) {
         server *sp = find_server(all_servers, maxservers, name, port);
 
         if (sp) {
-          G_INFO("Re-using server node %d host %s:%d", i, name, port);
+          G_INFO("Using existing server node %d host %s:%d", i, name, port);
           s->servers[i] = sp;
 
           /*
@@ -1707,7 +1734,7 @@ void update_servers(site_def *s, cargo_type operation) {
     }
     /* Zero the rest */
     for (i = n; i < NSERVERS; i++) {
-      s->servers[i] = 0;
+      s->servers[i] = nullptr;
     }
 
     /*
@@ -1757,6 +1784,8 @@ void invalidate_servers(const site_def *old_site_def,
 int tcp_reaper_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   int dummy;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
   while (!xcom_shutdown) {
@@ -1786,7 +1815,7 @@ int tcp_reaper_task(task_arg arg [[maybe_unused]]) {
 #ifndef XCOM_WITHOUT_OPENSSL
 void ssl_free_con(connection_descriptor *con) {
   SSL_free(con->ssl_fd);
-  con->ssl_fd = NULL;
+  con->ssl_fd = nullptr;
 }
 
 #endif
@@ -1810,7 +1839,7 @@ void reset_connection(connection_descriptor *con) {
   if (con) {
     con->fd = -1;
 #ifndef XCOM_WITHOUT_OPENSSL
-    con->ssl_fd = 0;
+    con->ssl_fd = nullptr;
 #endif
     set_connected(con, CON_NULL);
   }
@@ -1885,9 +1914,9 @@ static int emit(parse_buf *p) {
 static int match_port(parse_buf *p, xcom_port *port) {
   if (*(p->in) == 0) goto err;
   {
-    char *end_ptr = NULL;
+    char *end_ptr = nullptr;
     long int port_to_int = strtol(p->in, &end_ptr, 10);
-    if (end_ptr == 0 || strlen(end_ptr) != 0) {
+    if (end_ptr == nullptr || strlen(end_ptr) != 0) {
       goto err;
     }
     *port = (xcom_port)port_to_int;
@@ -1955,7 +1984,7 @@ static int match_ip_and_port(char const *address, char ip[IP_MAX_SIZE],
   auto ok_ip = [&ip]() { return ip[0] != 0; };
 
   /* Sanity checks */
-  if (address == NULL || (strlen(address) == 0)) {
+  if (address == nullptr || (strlen(address) == 0)) {
     return 0;
   }
 

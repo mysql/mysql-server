@@ -2,12 +2,12 @@
 .\"     Title: ndb_desc
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_DESC" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_DESC" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -87,7 +87,7 @@ Output from
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
+$> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
 \-\- fish \-\-
 Version: 2
 Fragment type: HashMapPartition
@@ -145,7 +145,7 @@ You can obtain additional information about a specific index using the
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_desc uk \-d test \-t fish\fR
+$> \fB\&./ndb_desc uk \-d test \-t fish\fR
 \-\- uk \-\-
 Version: 2
 Base table: fish
@@ -284,7 +284,7 @@ column shows the binary properties just enabled\&. You can see this in the outpu
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
+$> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
 \-\- fish \-\-
 Version: 4
 Fragment type: HashMapPartition
@@ -327,7 +327,7 @@ NDBT_ProgramExit: 0 \- OK
 .\}
 .PP
 For more information about these table properties, see
-Section\ \&13.1.20.11, \(lqSetting NDB_TABLE Options\(rq\&.
+Section\ \&13.1.20.12, \(lqSetting NDB Comment Options\(rq\&.
 .PP
 The
 Extent_space
@@ -407,7 +407,7 @@ displays the following output:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
+$> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
 \-\- fish \-\-
 Version: 1
 Fragment type: HashMapPartition
@@ -578,9 +578,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -593,7 +593,7 @@ T{
 .PP
 \fB \fR\fB-x\fR\fB \fR
 T}:T{
-Show extra information for table such as database, schema, name,
+Show extra information for table such as database, schema, name, and
               internal ID
 T}:T{
 .PP
@@ -610,9 +610,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--database=dbname\fR,
+\fB--database=name\fR,
 .PP
-\fB \fR\fB-d\fR\fB \fR
+\fB \fR\fB-d name\fR\fB \fR
 T}:T{
 Name of database containing table
 T}:T{
@@ -652,8 +652,8 @@ T{
 .PP
 \fB \fR\fB-n\fR\fB \fR
 T}:T{
-Include partition-to-data-node mappings in output. Requires that the -p
-              option also be used
+Include partition-to-data-node mappings in output; requires
+              --extra-partition-info
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -691,9 +691,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -704,9 +704,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -755,7 +755,7 @@ T{
 .PP
 \fB--retries=#\fR,
 .PP
-\fB \fR\fB-r\fR\fB \fR
+\fB \fR\fB-r #\fR\fB \fR
 T}:T{
 Number of times to retry the connection (once per second)
 T}:T{
@@ -764,9 +764,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--table=tbl_name\fR,
+\fB--table=name\fR,
 .PP
-\fB \fR\fB-t\fR\fB \fR
+\fB \fR\fB-t name\fR\fB \fR
 T}:T{
 Specify the table in which to find an index. When this option is used,
               -p and -n have no effect and are ignored
@@ -977,7 +977,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -1248,7 +1248,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -1282,7 +1282,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type
@@ -1491,7 +1491,7 @@ Table indexes listed in the output are ordered by ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -1,0 +1,53 @@
+--source include/not_parallel.inc
+
+# This test checks scenario of recovery executed on data directory which is
+# missing one of redo files.
+
+# According to perl's documentation, 'Q' in (un)pack() is supported only if perl
+# has been compiled with support for 64bit integers.
+# The log_file_get_start_lsn(), which is used in this test, uses unpack('Q>').
+--source include/have_perl_64bit_int.inc
+
+--let MYSQLD_IB_REDO_LOG_NON_TMP_FILES_COUNT_MIN = 3
+
+--source include/log_multiple_files_test_begin.inc
+
+perl;
+    require 'include/ib_redo_log_files.inc';
+    my $fpath = '';
+    my $n = 0;
+    for my $f (log_get_non_tmp_files()) {
+        if ($n++ > 0) {
+            $fpath = $f;
+            last;
+        }
+    }
+
+    my $result_file_path = "$ENV{'MYSQLD_DATADIR'}/found.inc";
+    if ($fpath ne '') {
+        $start_lsn = log_file_get_start_lsn($fpath);
+        open my $fh, '+>', $result_file_path or die "open failed: $!\n";
+        syswrite($fh, "let REDO_FILE=$fpath;\n") > 0 or die "write failed: $!\n";
+        syswrite($fh, "let REDO_FILE_START_LSN=$start_lsn;\n") > 0 or die "write failed: $!\n";
+        close $fh or die "close failed: $!\n";
+    } else {
+        open my $fh, '+>', $result_file_path or die "open failed: $!\n";
+        syswrite($fh, "--skip The required number of redo files was decreased just before MySQL was killed.\n") > 0 or die "write failed: $!\n";
+        close $fh or die "close failed: $!\n";
+    }
+
+EOF
+
+--source $MYSQLD_DATADIR/found.inc
+
+--remove_file $REDO_FILE
+
+--error 1,42
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS --innodb-unknown-param=y
+
+let SEARCH_FILE = $MYSQLD_ERROR_LOG;
+let SEARCH_PATTERN = Missing redo log file .* \(with start_lsn = $REDO_FILE_START_LSN\);
+--replace_result $REDO_FILE_START_LSN REDO_FILE_START_LSN 
+--source include/search_pattern.inc
+
+--source include/log_multiple_files_test_end.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -282,6 +282,10 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
   IF(BUILD_PLUGIN AND ARG_MODULE_ONLY)
     ADD_OBJDUMP_TARGET(show_${target} "$<TARGET_FILE:${target}>"
       DEPENDS ${target})
+  ENDIF()
+
+  IF(BUILD_PLUGIN)
+    ADD_DEPENDENCIES(plugin_all ${target})
   ENDIF()
 
 ENDMACRO(MYSQL_ADD_PLUGIN)

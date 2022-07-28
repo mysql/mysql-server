@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,8 +96,15 @@ int main(int argc, char **argv) {
         exit(1);
       }
 
-      fwrite(output_buffer, 1,
-             OUTPUT_BUFFER_SIZE - decompression_context.avail_out, output_file);
+      size_t bytes_to_write =
+          OUTPUT_BUFFER_SIZE - decompression_context.avail_out;
+      if (fwrite(output_buffer, 1, bytes_to_write, output_file) !=
+          bytes_to_write) {
+        fprintf(stderr,
+                "zlib_decompress: [Error] Encountered problem during "
+                "file write.\n");
+        exit(1);
+      }
     } while (decompression_context.avail_out == 0);
   }
 

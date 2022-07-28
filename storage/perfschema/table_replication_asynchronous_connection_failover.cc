@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ Plugin_table table_replication_asynchronous_connection_failover::m_table_def(
     /* Name */
     "replication_asynchronous_connection_failover",
     /* Definition */
-    "  CHANNEL_NAME CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci "
+    "  CHANNEL_NAME CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci "
     "NOT NULL COMMENT 'The replication channel name that connects source and "
     "replica.',\n"
     "  HOST CHAR(255) CHARACTER SET ASCII NOT NULL COMMENT 'The source "
@@ -70,7 +70,7 @@ Plugin_table table_replication_asynchronous_connection_failover::m_table_def(
     "replica shall try to switch the connection over to when there are "
     "failures. Weight can be set to a number between 1 and 100, where 100 is "
     "the highest weight and 1 the lowest.',\n"
-    " MANAGED_NAME CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci "
+    " MANAGED_NAME CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci "
     "NOT NULL DEFAULT '' COMMENT 'The name of the group which this server "
     "belongs to.'\n",
     /* Options */

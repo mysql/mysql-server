@@ -156,7 +156,9 @@ SET global.flush = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.flush;
 --Error ER_BAD_FIELD_ERROR
-SELECT flush = @@session.flush;
+SELECT flush;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.flush;
 
 
 ##############################  

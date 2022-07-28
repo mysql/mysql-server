@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -46,12 +46,12 @@ rwlock_scoped_lock::rwlock_scoped_lock(mysql_rwlock_t *lock,
     if (!mysql_rwlock_wrlock_with_src(lock, file, line)) {
       m_lock = lock;
     } else
-      m_lock = NULL;
+      m_lock = nullptr;
   } else {
     if (!mysql_rwlock_rdlock_with_src(lock, file, line)) {
       m_lock = lock;
     } else
-      m_lock = NULL;
+      m_lock = nullptr;
   }
 }
 

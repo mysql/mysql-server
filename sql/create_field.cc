@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,10 @@
 
 #include <cmath>
 #include <optional>
+
+static constexpr const size_t MAX_BIT_FIELD_LENGTH{64};
+/** YYYYMMDDHHMMSS */
+static constexpr const size_t MAX_DATETIME_COMPRESSED_WIDTH{14};
 
 /**
     Constructs a column definition from an object representing an actual
@@ -310,7 +314,8 @@ bool Create_field::init(
     const ulonglong ull_length =
         my_strtoull(display_width_in_codepoints, nullptr, 10);
     if ((errno != 0) || (ull_length > MAX_FIELD_BLOBLENGTH)) {
-      my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name, MAX_FIELD_BLOBLENGTH);
+      my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,
+               static_cast<unsigned long>(MAX_FIELD_BLOBLENGTH));
       return true;
     }
     m_max_display_width_in_codepoints = static_cast<size_t>(ull_length);
@@ -473,7 +478,6 @@ bool Create_field::init(
           and 19 as length of 4.1 compatible representation.  Silently
           shrink it to MAX_DATETIME_COMPRESSED_WIDTH.
         */
-        assert(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
         if (m_max_display_width_in_codepoints !=
             UINT_MAX) /* avoid overflow; is safe because of min() */
           m_max_display_width_in_codepoints =

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -147,9 +147,10 @@ class Group_action_coordinator : public Group_event_observer {
                         bool is_leaving, bool *skip_election,
                         enum_primary_election_mode *election_mode,
                         std::string &suggested_primary) override;
-  int after_primary_election(std::string primary_uuid, bool primary_changed,
-                             enum_primary_election_mode election_mode,
-                             int error) override;
+  int after_primary_election(
+      std::string primary_uuid,
+      enum_primary_election_primary_change_status primary_change_status,
+      enum_primary_election_mode election_mode, int error) override;
   int before_message_handling(const Plugin_gcs_message &message,
                               const std::string &message_origin,
                               bool *skip_message) override;
@@ -177,7 +178,7 @@ class Group_action_coordinator : public Group_event_observer {
     @param all_members_info the list of info objects for all members
     @return true if yes, false if no member is in recovery
   */
-  bool member_in_recovery(std::vector<Group_member_info *> *all_members_info);
+  bool member_in_recovery(Group_member_info_list *all_members_info);
 
   /**
     This method checks if there is a member from a version that does not allow
@@ -185,8 +186,7 @@ class Group_action_coordinator : public Group_event_observer {
     @param all_members_info the list of info objects for all members
     @return true if yes, false if all members are valid
   */
-  bool member_from_invalid_version(
-      std::vector<Group_member_info *> *all_members_info);
+  bool member_from_invalid_version(Group_member_info_list *all_members_info);
 
   /**
     Set an error message and awake the coordinator

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -241,8 +241,8 @@ void ReadView::ids_t::reserve(ulint n) {
 
 /**
 Copy and overwrite this array contents
-@param start		Source array
-@param end		Pointer to end of array */
+@param start            Source array
+@param end              Pointer to end of array */
 
 void ReadView::ids_t::assign(const value_type *start, const value_type *end) {
   ut_ad(end >= start);
@@ -264,7 +264,7 @@ void ReadView::ids_t::assign(const value_type *start, const value_type *end) {
 
 /**
 Append a value to the array.
-@param value		the value to append */
+@param value            the value to append */
 
 void ReadView::ids_t::push_back(value_type value) {
   if (capacity() <= size()) {
@@ -328,7 +328,7 @@ ReadView::~ReadView() {
 }
 
 /** Constructor
-@param size		Number of views to pre-allocate */
+@param size             Number of views to pre-allocate */
 MVCC::MVCC(ulint size) : m_free(), m_views() {
   for (ulint i = 0; i < size; ++i) {
     ReadView *view = ut::new_withkey<ReadView>(UT_NEW_THIS_FILE_PSI_KEY);
@@ -409,7 +409,7 @@ void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
 #ifdef UNIV_DEBUG
   /* The check is done randomly from time to time, because the check adds
   a kind of extra synchronization which itself could hide existing bugs. */
-  if (ut_rnd_interval(0, 99) == 0) {
+  if (ut::random_from_interval(0, 99) == 0) {
     /* Assert that all transaction ids in list are active. */
     for (auto trx_id : trx_ids) {
       while (trx_sys->latch_and_execute_with_active_trx(
@@ -441,7 +441,7 @@ void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
 /**
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
-@param id		Creator transaction id */
+@param id               Creator transaction id */
 
 void ReadView::prepare(trx_id_t id) {
   ut_ad(trx_sys_mutex_own());
@@ -496,7 +496,7 @@ ReadView *MVCC::get_view() {
 /**
 Release a view that is inactive but not closed. Caller must own
 the trx_sys_t::mutex.
-@param view		View to release */
+@param view             View to release */
 void MVCC::view_release(ReadView *&view) {
   ut_ad(!srv_read_only_mode);
   ut_ad(trx_sys_mutex_own());
@@ -522,9 +522,9 @@ void MVCC::view_release(ReadView *&view) {
 }
 
 /** Allocate and create a view.
-@param view	View owned by this class created for the caller. Must be
+@param view     View owned by this class created for the caller. Must be
 freed by calling view_close()
-@param trx	Transaction instance of caller */
+@param trx      Transaction instance of caller */
 void MVCC::view_open(ReadView *&view, trx_t *trx) {
   ut_ad(!srv_read_only_mode);
 
@@ -618,7 +618,7 @@ ReadView *MVCC::get_oldest_view() const {
 
 /**
 Copy state from another view. Must call copy_complete() to finish.
-@param other		view to copy from */
+@param other            view to copy from */
 
 void ReadView::copy_prepare(const ReadView &other) {
   ut_ad(&other != this);
@@ -669,7 +669,7 @@ call view_close(). The caller owns the view that is passed in.
 It will also move the closed views from the m_views list to the
 m_free list. This function is called by Purge to determine whether it should
 purge the delete marked record or not.
-@param view		Preallocated view, owned by the caller */
+@param view             Preallocated view, owned by the caller */
 void MVCC::clone_oldest_view(ReadView *view) {
   trx_sys_mutex_enter();
 
@@ -714,8 +714,8 @@ ulint MVCC::size() const {
 
 /**
 Close a view created by the above function.
-@param view		view allocated by trx_open.
-@param own_mutex	true if caller owns trx_sys_t::mutex */
+@param view             view allocated by trx_open.
+@param own_mutex        true if caller owns trx_sys_t::mutex */
 
 void MVCC::view_close(ReadView *&view, bool own_mutex) {
   uintptr_t p = reinterpret_cast<uintptr_t>(view);

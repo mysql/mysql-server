@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,7 @@
 #ifndef DBQLQH_H
 #define DBQLQH_H
 
-#ifndef DBLQH_STATE_EXTRACT
 #include "Dblqh.hpp"
-#endif
 
 #define JAM_FILE_ID 517
 

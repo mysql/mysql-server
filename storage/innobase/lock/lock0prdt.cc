@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,7 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0vec.h"
 
 /** Get a minimum bounding box from a Predicate
- @return	the minimum bounding box */
+ @return        the minimum bounding box */
 static inline rtr_mbr_t *prdt_get_mbr_from_prdt(
     const lock_prdt_t *prdt) /*!< in: the lock predicate */
 {
@@ -58,7 +58,7 @@ static inline rtr_mbr_t *prdt_get_mbr_from_prdt(
 }
 
 /** Get a predicate from a lock
- @return	the predicate */
+ @return        the predicate */
 lock_prdt_t *lock_get_prdt_from_lock(const lock_t *lock) /*!< in: the lock */
 {
   lock_prdt_t *prdt =
@@ -69,7 +69,7 @@ lock_prdt_t *lock_get_prdt_from_lock(const lock_t *lock) /*!< in: the lock */
 }
 
 /** Get a minimum bounding box directly from a lock
- @return	the minimum bounding box*/
+ @return        the minimum bounding box*/
 static inline rtr_mbr_t *lock_prdt_get_mbr_from_lock(
     const lock_t *lock) /*!< in: the lock */
 {
@@ -92,11 +92,11 @@ void lock_prdt_set_prdt(lock_t *lock, const lock_prdt_t *prdt) {
 }
 
 /** Check whether two predicate locks are compatible with each other
-@param[in]	prdt1	first predicate lock
-@param[in]	prdt2	second predicate lock
-@param[in]	op	predicate comparison operator
-@param[in]	srs      Spatial reference system of R-tree
-@return	true if consistent */
+@param[in]      prdt1   first predicate lock
+@param[in]      prdt2   second predicate lock
+@param[in]      op      predicate comparison operator
+@param[in]      srs      Spatial reference system of R-tree
+@return true if consistent */
 static bool lock_prdt_consistent(lock_prdt_t *prdt1, lock_prdt_t *prdt2,
                                  ulint op,
                                  const dd::Spatial_reference_system *srs) {
@@ -141,7 +141,7 @@ static bool lock_prdt_consistent(lock_prdt_t *prdt1, lock_prdt_t *prdt2,
 
 /** Checks if a predicate lock request for a new lock has to wait for
  another lock.
- @return	true if new lock has to wait for lock2 to be released */
+ @return        true if new lock has to wait for lock2 to be released */
 bool lock_prdt_has_to_wait(
     const trx_t *trx,    /*!< in: trx of new lock */
     ulint type_mode,     /*!< in: precise mode of the new lock
@@ -187,7 +187,7 @@ bool lock_prdt_has_to_wait(
       different users can have conflicting lock types
       on predicates. */
 
-      return (FALSE);
+      return false;
     }
 
     if (lock2->type_mode & LOCK_INSERT_INTENTION) {
@@ -195,22 +195,22 @@ bool lock_prdt_has_to_wait(
       intention lock to be removed. This makes it similar
       to GAP lock, that allows conflicting insert intention
       locks */
-      return (FALSE);
+      return false;
     }
 
     if (!lock_prdt_consistent(cur_prdt, prdt, 0, lock2->index->rtr_srs.get())) {
       return (false);
     }
 
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Checks if a transaction has a GRANTED stronger or equal predicate lock
  on the page
- @return	lock or NULL */
+ @return        lock or NULL */
 static inline lock_t *lock_prdt_has_lock(
     ulint precise_mode,       /*!< in: LOCK_S or LOCK_X */
     ulint type_mode,          /*!< in: LOCK_PREDICATE etc. */
@@ -258,7 +258,7 @@ static inline lock_t *lock_prdt_has_lock(
 
 /** Checks if some other transaction has a conflicting predicate
  lock request in the queue, so that we have to wait.
- @return	lock or NULL */
+ @return        lock or NULL */
 static const lock_t *lock_prdt_other_has_conflicting(
     ulint mode,               /*!< in: LOCK_S or LOCK_X,
                               possibly ORed to LOCK_PREDICATE or
@@ -321,7 +321,7 @@ static void lock_prdt_enlarge_prdt(lock_t *lock, /*!< in/out: lock to modify */
 }
 
 /** Check two predicates' MBRs are the same
- @return	true if they are the same */
+ @return        true if they are the same */
 static bool lock_prdt_is_same(
     lock_prdt_t *prdt1,                      /*!< in: MBR with the lock */
     lock_prdt_t *prdt2,                      /*!< in: MBR with the lock */
@@ -340,7 +340,7 @@ static bool lock_prdt_is_same(
 /** Looks for a similar predicate lock struct by the same trx on the same page.
  This can be used to save space when a new record lock should be set on a page:
  no new struct is needed, if a suitable old one is found.
- @return	lock or NULL */
+ @return        lock or NULL */
 static lock_t *lock_prdt_find_on_page(
     ulint type_mode,          /*!< in: lock type_mode field */
     const buf_block_t *block, /*!< in: buffer block */
@@ -371,7 +371,7 @@ static lock_t *lock_prdt_find_on_page(
 }
 
 /** Adds a predicate lock request in the predicate lock queue.
- @return	lock where the bit was set */
+ @return        lock where the bit was set */
 static lock_t *lock_prdt_add_to_queue(
     ulint type_mode,          /*!< in: lock mode, wait, predicate
                             etc. flags; type is ignored
@@ -426,7 +426,7 @@ static lock_t *lock_prdt_add_to_queue(
 
 /** Checks if locks of other transactions prevent an immediate insert of
  a predicate record.
- @return	DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK
+ @return        DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK
  */
 dberr_t lock_prdt_insert_check_and_lock(
     ulint flags,         /*!< in: if BTR_NO_LOCKING_FLAG bit is
@@ -517,7 +517,6 @@ dberr_t lock_prdt_insert_check_and_lock(
 
 void lock_prdt_update_parent(buf_block_t *left_block, buf_block_t *right_block,
                              lock_prdt_t *left_prdt, lock_prdt_t *right_prdt,
-                             lock_prdt_t *parent_prdt,
                              const page_id_t &page_id) {
   lock_t *lock;
 
@@ -649,7 +648,7 @@ void lock_init_prdt_from_mbr(
 }
 
 /** Acquire a predicate lock on a block
- @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, or DB_DEADLOCK
+ @return        DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, or DB_DEADLOCK
  */
 dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
                        lock_prdt_t *prdt,   /*!< in: Predicate for the lock */
@@ -661,9 +660,8 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
                                             SELECT FOR UPDATE */
                        ulint type_mode,
                        /*!< in: LOCK_PREDICATE or LOCK_PRDT_PAGE */
-                       que_thr_t *thr, /*!< in: query thread
+                       que_thr_t *thr) /*!< in: query thread
                                        (can be NULL if BTR_NO_LOCKING_FLAG) */
-                       mtr_t *mtr)     /*!< in/out: mini-transaction */
 {
   trx_t *trx = thr_get_trx(thr);
   dberr_t err = DB_SUCCESS;
@@ -714,7 +712,7 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
         wait_for = lock_prdt_other_has_conflicting(prdt_mode, block, prdt, trx);
 
         if (wait_for != nullptr) {
-          RecLock rec_lock(thr, index, block, PRDT_HEAPNO, prdt_mode, prdt);
+          RecLock rec_lock(thr, index, block, PRDT_HEAPNO, prdt_mode);
 
           trx_mutex_enter(trx);
           err = rec_lock.add_to_waitq(wait_for);
@@ -838,8 +836,8 @@ void lock_prdt_rec_move(
 }
 
 /** Removes predicate lock objects set on an index page which is discarded.
-@param[in]	block		page to be discarded
-@param[in]	lock_hash	lock hash */
+@param[in]      block           page to be discarded
+@param[in]      lock_hash       lock hash */
 void lock_prdt_page_free_from_discard(const buf_block_t *block,
                                       hash_table_t *lock_hash) {
   lock_t *lock;

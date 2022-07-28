@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,10 @@
 #include <string>
 #include <thread>
 
-#include "common.h"
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "metadata_cache.h"
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
@@ -178,7 +178,7 @@ class MetadataServersStateListener
  * @param env plugin's environment
  */
 static void start(mysql_harness::PluginFuncEnv *env) {
-  mysql_harness::rename_thread("MDC Main");
+  my_thread_self_setname("MDC Main");
 
   mysqlrouter::MySQLClientThreadToken api_token;
 
@@ -284,18 +284,24 @@ static const std::array<const char *, 2> required = {{
 
 extern "C" {
 
-mysql_harness::Plugin METADATA_API harness_plugin_metadata_cache = {
-    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "Metadata Cache, managing information fetched from the Metadata Server",
-    VERSION_NUMBER(0, 0, 1),
-    // requires
-    required.size(), required.data(),
-    // conflicts
-    0, nullptr,
-    init,     // init
-    nullptr,  // deinit
-    start,    // start
-    nullptr,  // stop
-    true      // declares_readiness
+mysql_harness::Plugin METADATA_CACHE_PLUGIN_EXPORT
+    harness_plugin_metadata_cache = {
+        mysql_harness::PLUGIN_ABI_VERSION,
+        mysql_harness::ARCHITECTURE_DESCRIPTOR,
+        "Metadata Cache, managing information fetched from the Metadata Server",
+        VERSION_NUMBER(0, 0, 1),
+        // requires
+        required.size(),
+        required.data(),
+        // conflicts
+        0,
+        nullptr,
+        init,     // init
+        nullptr,  // deinit
+        start,    // start
+        nullptr,  // stop
+        true,     // declares_readiness
+        metadata_cache_supported_options.size(),
+        metadata_cache_supported_options.data(),
 };
 }

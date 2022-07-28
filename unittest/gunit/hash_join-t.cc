@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,11 @@
 #include "include/my_murmur3.h"
 #include "my_alloc.h"
 #include "my_xxhash.h"
-#include "sql/hash_join_buffer.h"
-#include "sql/hash_join_iterator.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/iterators/hash_join_buffer.h"
+#include "sql/iterators/hash_join_iterator.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/bit_utils.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_optimizer.h"
 #include "sql_string.h"
@@ -831,6 +831,51 @@ TEST(HashJoinTest, HashJoinResetNullFlagBeforeBuild) {
   EXPECT_EQ(-1, hash_join_iterator.Read());
 
   initializer.TearDown();
+}
+
+TEST(HashJoinTest, HashJoinChunkFiles) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  vector<int> left_dataset;
+  int dataset_sz = 1000;
+  if (SIZEOF_VOIDP == 4) {
+    // 32-bit arch, modify #rows to get same numbers for chunk calculations
+    dataset_sz *= 2;
+  }
+  for (int i = 0; i < dataset_sz; ++i) {
+    left_dataset.push_back(i);
+  }
+
+  HashJoinTestHelper test_helper(&initializer, left_dataset, left_dataset);
+
+  HashJoinIterator hash_join_iterator(
+      initializer.thd(), std::move(test_helper.left_iterator),
+      test_helper.left_tables(), /*estimated_build_rows=*/dataset_sz,
+      std::move(test_helper.right_iterator), test_helper.right_tables(),
+      /*store_rowids=*/false,
+      /*tables_to_get_rowid_for=*/0, 1024 /* 1 KB */,
+      {*test_helper.join_condition}, true, JoinType::INNER,
+      test_helper.extra_conditions,
+      /*probe_input_batch_mode=*/false, nullptr);
+
+  ASSERT_FALSE(hash_join_iterator.Init());
+
+  // We hash 1000 rows (64-bit arch) or 2000 rows (32-bit arch). The hash
+  // table can normally hold about 410 rows on 64-bit machines and 820 rows on
+  // 32-bit machines (verified experimentally). To get the required number of
+  // chunks, the number of remaining rows should be divided by the number of
+  // hash table rows. But as a safeguard, this calculation is adjusted to yield
+  // a few extra chunks rather than risk having too few chunks. So the number
+  // of remaining rows is instead divided by a reduced count of hash table rows
+  // The reduced count is obtained by multiplying the hash table row count by
+  // a 'reduction factor' of 0.9. E.g. for 64-bit rows:
+  // reduced_rows_in_hash_table = 410 * 0.9 = 369
+  // remaining_rows = 1000 - 410 = 590
+  // required number of chunks = remaining_rows / reduced_rows_in_hash_table
+  //                           = 590 / 369 = 1.59, rounded up to 2
+  // So a count of 2 chunks is expected.
+  EXPECT_EQ(2, hash_join_iterator.ChunkCount());
 }
 
 }  // namespace hash_join_unittest

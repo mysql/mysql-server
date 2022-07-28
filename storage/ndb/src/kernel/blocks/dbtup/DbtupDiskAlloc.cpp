@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -220,7 +220,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   if (alloc.m_curr_extent_info_ptr_i != RNIL)
   {
     Ptr<Extent_info> ptr;
-    c_extent_pool.getPtr(ptr, alloc.m_curr_extent_info_ptr_i);
+    ndbrequire(c_extent_pool.getPtr(ptr, alloc.m_curr_extent_info_ptr_i));
     printPtr(g_eventLogger, "Current extent: ", 0, ptr);
   }
 }
@@ -586,7 +586,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       jamLine(i);
       ptrI= alloc.m_dirty_pages[i].getFirst();
       Ptr<GlobalPage> gpage;
-      m_global_page_pool.getPtr(gpage, ptrI);
+      ndbrequire(m_global_page_pool.getPtr(gpage, ptrI));
       
       PagePtr tmp;
       tmp.i = gpage.i;
@@ -612,7 +612,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       jamLine(i);
       ptrI= alloc.m_page_requests[i].getFirst();
       Ptr<Page_request> req;
-      c_page_request_pool.getPtr(req, ptrI);
+      ndbrequire(c_page_request_pool.getPtr(req, ptrI));
 
       disk_page_prealloc_transit_page(alloc, req, i, sz);
       * key = req.p->m_key;
@@ -898,7 +898,7 @@ Dbtup::disk_page_prealloc_dirty_page(Disk_alloc_info & alloc,
   
   ddrequire(free >= used);
   Ptr<Extent_info> extentPtr;
-  c_extent_pool.getPtr(extentPtr, ext);
+  ndbrequire(c_extent_pool.getPtr(extentPtr, ext));
 
   Uint32 new_idx= alloc.calc_page_free_bits(free - used);
 
@@ -931,7 +931,7 @@ Dbtup::disk_page_prealloc_transit_page(Disk_alloc_info& alloc,
   Uint32 ext= req.p->m_extent_info_ptr;
   
   Ptr<Extent_info> extentPtr;
-  c_extent_pool.getPtr(extentPtr, ext);
+  ndbrequire(c_extent_pool.getPtr(extentPtr, ext));
 
   ddrequire(free >= used);
   Uint32 new_idx= alloc.calc_page_free_bits(free - used);
@@ -953,10 +953,10 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
   jamEntry();
 
   Ptr<Page_request> req;
-  c_page_request_pool.getPtr(req, page_request);
+  ndbrequire(c_page_request_pool.getPtr(req, page_request));
 
   Ptr<GlobalPage> gpage;
-  m_global_page_pool.getPtr(gpage, page_id);
+  ndbrequire(m_global_page_pool.getPtr(gpage, page_id));
 
   Ptr<Fragrecord> fragPtr;
   fragPtr.i= req.p->m_frag_ptr_i;
@@ -1007,7 +1007,7 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
   }
 
   Ptr<Extent_info> extentPtr;
-  c_extent_pool.getPtr(extentPtr, req.p->m_extent_info_ptr);
+  ndbrequire(c_extent_pool.getPtr(extentPtr, req.p->m_extent_info_ptr));
 
   pagePtr.p->uncommitted_used_space += req.p->m_uncommitted_used_space;
   ddrequire(pagePtr.p->free_space >= pagePtr.p->uncommitted_used_space);
@@ -1146,10 +1146,10 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
    * 5) call ordinary callback
    */
   Ptr<Page_request> req;
-  c_page_request_pool.getPtr(req, page_request);
+  ndbrequire(c_page_request_pool.getPtr(req, page_request));
 
   Ptr<GlobalPage> gpage;
-  m_global_page_pool.getPtr(gpage, page_id);
+  ndbrequire(m_global_page_pool.getPtr(gpage, page_id));
   PagePtr pagePtr;
   pagePtr.i = gpage.i;
   pagePtr.p = reinterpret_cast<Page*>(gpage.p);
@@ -1163,7 +1163,7 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
   Ptr<Extent_info> extentPtr;
-  c_extent_pool.getPtr(extentPtr, req.p->m_extent_info_ptr);
+  ndbrequire(c_extent_pool.getPtr(extentPtr, req.p->m_extent_info_ptr));
 
   ndbrequire(tabPtr.p->m_attributes[DD].m_no_of_varsize == 0);
 
@@ -1345,7 +1345,7 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
   jamEntry();
   (void)ptrI;
   Ptr<GlobalPage> gpage;
-  m_global_page_pool.getPtr(gpage, page_id);
+  ndbrequire(m_global_page_pool.getPtr(gpage, page_id));
   PagePtr pagePtr;
   pagePtr.i = gpage.i;
   pagePtr.p = reinterpret_cast<Page*>(gpage.p);
@@ -1659,7 +1659,7 @@ Dbtup::disk_page_free(Signal *signal,
   ddrequire(alloc.calc_page_free_bits(old_free - used) == old_idx);
   
   Ptr<Extent_info> extentPtr;
-  c_extent_pool.getPtr(extentPtr, ext);
+  ndbrequire(c_extent_pool.getPtr(extentPtr, ext));
   
   if (old_idx != new_idx)
   {
@@ -1706,7 +1706,7 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
     jam();
     ndbrequire(res > 0);
     Ptr<GlobalPage> gpage;
-    m_global_page_pool.getPtr(gpage, (Uint32)res);
+    ndbrequire(m_global_page_pool.getPtr(gpage, (Uint32)res));
     PagePtr pagePtr;
     pagePtr.i = gpage.i;
     pagePtr.p = reinterpret_cast<Page*>(gpage.p);
@@ -1721,7 +1721,7 @@ Dbtup::disk_page_abort_prealloc_callback(Signal* signal,
 {
   jamEntry();  
   Ptr<GlobalPage> gpage;
-  m_global_page_pool.getPtr(gpage, page_id);
+  ndbrequire(m_global_page_pool.getPtr(gpage, page_id));
   
   PagePtr pagePtr;
   pagePtr.i = gpage.i;
@@ -1751,7 +1751,7 @@ Dbtup::disk_page_abort_prealloc_callback_1(Signal* signal,
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
 
   Ptr<Extent_info> extentPtr;
-  c_extent_pool.getPtr(extentPtr, pagePtr.p->m_extent_info_ptr);
+  ndbrequire(c_extent_pool.getPtr(extentPtr, pagePtr.p->m_extent_info_ptr));
 
   Uint32 idx = pagePtr.p->list_index & 0x7FFF;
   Uint32 used = pagePtr.p->uncommitted_used_space;
@@ -2466,7 +2466,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
 {
   jamEntry();
   Ptr<GlobalPage> gpage;
-  m_global_page_pool.getPtr(gpage, page_id);
+  ndbrequire(m_global_page_pool.getPtr(gpage, page_id));
   PagePtr pagePtr;
   pagePtr.i = gpage.i;
   pagePtr.p = reinterpret_cast<Page*>(gpage.p);
@@ -3386,7 +3386,7 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
       {
         thrjam(jamBuf);
         Ptr<Extent_info> old;
-        c_extent_pool.getPtr(old, alloc.m_curr_extent_info_ptr_i);
+        ndbrequire(c_extent_pool.getPtr(old, alloc.m_curr_extent_info_ptr_i));
         ndbassert(old.p->m_free_matrix_pos == RNIL);
         Uint32 pos= alloc.calc_extent_pos(old.p);
         Local_extent_info_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
@@ -3442,7 +3442,7 @@ Dbtup::disk_restart_page_bits(EmulatedJamBuffer* jamBuf,
     Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
     
     Ptr<Extent_info> ext;
-    c_extent_pool.getPtr(ext, alloc.m_curr_extent_info_ptr_i);
+    ndbrequire(c_extent_pool.getPtr(ext, alloc.m_curr_extent_info_ptr_i));
     
     Uint32 size= alloc.calc_page_free_space(bits);  
     

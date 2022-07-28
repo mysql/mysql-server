@@ -1,15 +1,18 @@
 #
 # WL#8920: Improve usability of UUID manipulations
 #
-SELECT uuid_to_bin('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}', TRUE) AS a, uuid_to_bin('{e60c88ba-083f-4ceb-be59-f67636d718a2}', TRUE) AS b;
+SELECT HEX(uuid_to_bin('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}', TRUE)) AS a,
+HEX(uuid_to_bin('{e60c88ba-083f-4ceb-be59-f67636d718a2}', TRUE)) AS b;
 a	b
-HªÀ	»ÎKª≤Ê†∂¥’«	LÎ?Êà∫æYˆv6◊¢
-SELECT uuid_to_bin('c8eb4b15cb0948bbbbb2e6a0b6b4d5c7', TRUE) AS a, uuid_to_bin('e60c88ba083f4cebbe59f67636d718a2', TRUE) AS b;
+48BBCB09C8EB4B15BBB2E6A0B6B4D5C7	4CEB083FE60C88BABE59F67636D718A2
+SELECT HEX(uuid_to_bin('c8eb4b15cb0948bbbbb2e6a0b6b4d5c7', TRUE)) AS a,
+HEX(uuid_to_bin('e60c88ba083f4cebbe59f67636d718a2', TRUE)) AS b;
 a	b
-HªÀ	»ÎKª≤Ê†∂¥’«	LÎ?Êà∫æYˆv6◊¢
-SELECT uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7', TRUE) AS a, uuid_to_bin('e60c88ba-083f-4ceb-be59-f67636d718a2', TRUE) AS b;
+48BBCB09C8EB4B15BBB2E6A0B6B4D5C7	4CEB083FE60C88BABE59F67636D718A2
+SELECT HEX(uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7', TRUE)) AS a,
+HEX(uuid_to_bin('e60c88ba-083f-4ceb-be59-f67636d718a2', TRUE)) AS b;
 a	b
-HªÀ	»ÎKª≤Ê†∂¥’«	LÎ?Êà∫æYˆv6◊¢
+48BBCB09C8EB4B15BBB2E6A0B6B4D5C7	4CEB083FE60C88BABE59F67636D718A2
 # UUID too long
 SELECT uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5cc7', TRUE) AS a;
 ERROR HY000: Incorrect string value: 'c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5cc7' for function uuid_to_bin
@@ -116,12 +119,16 @@ bin_to_uuid(a)	bin_to_uuid(a,TRUE)
 d00653b2-90b9-40d1-93c2-194456bd4f3d	90b940d1-53b2-d006-93c2-194456bd4f3d
 e60c88ba-083f-4ceb-be59-f67636d718a2	083f4ceb-88ba-e60c-be59-f67636d718a2
 c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7	cb0948bb-4b15-c8eb-bbb2-e6a0b6b4d5c7
-SELECT uuid_to_bin(bin_to_uuid(a)), uuid_to_bin(bin_to_uuid(a)) = a, uuid_to_bin(bin_to_uuid(a, TRUE), TRUE), uuid_to_bin(bin_to_uuid(a, TRUE), TRUE) = a FROM t;
-uuid_to_bin(bin_to_uuid(a))	uuid_to_bin(bin_to_uuid(a)) = a	uuid_to_bin(bin_to_uuid(a, TRUE), TRUE)	uuid_to_bin(bin_to_uuid(a, TRUE), TRUE) = a
-ùÆa≥Dh¨yè¸…Ñ´h	1	ùÆa≥Dh¨yè¸…Ñ´h	1
-–S≤êπ@—ì¬DVΩO=	1	–S≤êπ@—ì¬DVΩO=	1
-Êà∫?LÎæYˆv6◊¢	1	Êà∫?LÎæYˆv6◊¢	1
-»ÎKÀ	Hªª≤Ê†∂¥’«	1	»ÎKÀ	Hªª≤Ê†∂¥’«	1
+SELECT HEX(uuid_to_bin(bin_to_uuid(a))) AS c1,
+uuid_to_bin(bin_to_uuid(a)) = a AS c2,
+HEX(uuid_to_bin(bin_to_uuid(a, TRUE), TRUE)) AS c3,
+uuid_to_bin(bin_to_uuid(a, TRUE), TRUE) = a AS c4
+FROM t;
+c1	c2	c3	c4
+7F9D04AE61B34468AC798FFCC984AB68	1	7F9D04AE61B34468AC798FFCC984AB68	1
+D00653B290B940D193C2194456BD4F3D	1	D00653B290B940D193C2194456BD4F3D	1
+E60C88BA083F4CEBBE59F67636D718A2	1	E60C88BA083F4CEBBE59F67636D718A2	1
+C8EB4B15CB0948BBBBB2E6A0B6B4D5C7	1	C8EB4B15CB0948BBBBB2E6A0B6B4D5C7	1
 SELECT bin_to_uuid(uuid_to_bin(bin_to_uuid(a))), bin_to_uuid(uuid_to_bin(bin_to_uuid(a, TRUE), TRUE), TRUE) FROM t;
 bin_to_uuid(uuid_to_bin(bin_to_uuid(a)))	bin_to_uuid(uuid_to_bin(bin_to_uuid(a, TRUE), TRUE), TRUE)
 7f9d04ae-61b3-4468-ac79-8ffcc984ab68	61b34468-04ae-7f9d-ac79-8ffcc984ab68
@@ -256,52 +263,52 @@ INSERT into t1(col1) VALUES
 ('{12345678-1234-5678-1234-567812345678}'),
 ('12345679123456781234567812345678'),
 ('12345670-1234-5678-1234-567812345678');
-EXPLAIN SELECT * FROM t1 where gcol2=x'12345679123456781234567812345678';
+EXPLAIN SELECT col1, HEX(gcol2) FROM t1 where gcol2=x'12345679123456781234567812345678';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	gcol2	gcol2	17	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`gcol2` AS `gcol2` from `test`.`t1` where (`test`.`t1`.`gcol2` = 0x12345679123456781234567812345678)
-SELECT * FROM t1 where gcol2=x'12345679123456781234567812345678';
-col1	gcol2
-12345679123456781234567812345678	4Vy4Vx4Vx4Vx
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`gcol2`) AS `HEX(gcol2)` from `test`.`t1` where (`test`.`t1`.`gcol2` = 0x12345679123456781234567812345678)
+SELECT col1, HEX(gcol2) FROM t1 where gcol2=x'12345679123456781234567812345678';
+col1	HEX(gcol2)
+12345679123456781234567812345678	12345679123456781234567812345678
 # Gcol expression is recognized and gcol index is used:
-EXPLAIN SELECT * FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
+EXPLAIN SELECT col1, HEX(gcol2) FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	gcol2	gcol2	17	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`gcol2` AS `gcol2` from `test`.`t1` where (`test`.`t1`.`gcol2` = 0x12345679123456781234567812345678)
-SELECT * FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
-col1	gcol2
-12345679123456781234567812345678	4Vy4Vx4Vx4Vx
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`gcol2`) AS `HEX(gcol2)` from `test`.`t1` where (`test`.`t1`.`gcol2` = 0x12345679123456781234567812345678)
+SELECT col1, HEX(gcol2) FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
+col1	HEX(gcol2)
+12345679123456781234567812345678	12345679123456781234567812345678
 CREATE TABLE t2(col1 binary(16), gcol2 varchar(36) AS (bin_to_uuid(col1)) virtual, index(col1), index(gcol2));
 INSERT into t2(col1) VALUES
 (x'12345678123456781234567812345678'),
 (x'12345679123456781234567812345678'),
 (x'12345670123456781234567812345678');
-EXPLAIN SELECT * FROM t2 where col1=x'12345679123456781234567812345678';
+EXPLAIN SELECT HEX(col1), gcol2 FROM t2 where col1=x'12345679123456781234567812345678';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	col1	col1	17	const	1	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`col1` = 0x12345679123456781234567812345678)
-SELECT * FROM t2 where col1=x'12345679123456781234567812345678';
-col1	gcol2
-4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
-EXPLAIN SELECT * FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
+Note	1003	/* select#1 */ select hex(`test`.`t2`.`col1`) AS `HEX(col1)`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`col1` = 0x12345679123456781234567812345678)
+SELECT HEX(col1), gcol2 FROM t2 where col1=x'12345679123456781234567812345678';
+HEX(col1)	gcol2
+12345679123456781234567812345678	12345679-1234-5678-1234-567812345678
+EXPLAIN SELECT HEX(col1), gcol2 FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	gcol2	gcol2	147	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`gcol2` = '12345679-1234-5678-1234-567812345678')
-SELECT * FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
-col1	gcol2
-4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
-EXPLAIN SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
+Note	1003	/* select#1 */ select hex(`test`.`t2`.`col1`) AS `HEX(col1)`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`gcol2` = '12345679-1234-5678-1234-567812345678')
+SELECT HEX(col1), gcol2 FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
+HEX(col1)	gcol2
+12345679123456781234567812345678	12345679-1234-5678-1234-567812345678
+EXPLAIN SELECT HEX(col1), gcol2 FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	gcol2	gcol2	147	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`gcol2` = '12345679-1234-5678-1234-567812345678')
-SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
-col1	gcol2
-4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
+Note	1003	/* select#1 */ select hex(`test`.`t2`.`col1`) AS `HEX(col1)`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`gcol2` = '12345679-1234-5678-1234-567812345678')
+SELECT HEX(col1), gcol2 FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
+HEX(col1)	gcol2
+12345679123456781234567812345678	12345679-1234-5678-1234-567812345678
 DROP TABLE t1;
 DROP TABLE t2;
 #

@@ -30,6 +30,7 @@ prepare ps_insert_cast from 'insert into t1 values (cast(? as json))';
 --echo scalar JSON value, without cast the parameter is rejected as invald JSON.
 
 execute ps_insert_cast using @int;
+prepare ps_insert from 'insert into t1 values (?)';
 --error ER_INVALID_JSON_TEXT
 execute ps_insert using @int;
 
@@ -37,6 +38,7 @@ execute ps_insert using @int;
 --echo scalar JSON value, without cast the parameter is rejected as invald JSON.
 
 execute ps_insert_cast using @dec;
+prepare ps_insert from 'insert into t1 values (?)';
 --error ER_INVALID_JSON_TEXT
 execute ps_insert using @dec;
 
@@ -44,6 +46,7 @@ execute ps_insert using @dec;
 --echo scalar JSON value, without cast the parameter is rejected as invald JSON.
 
 execute ps_insert_cast using @flt;
+prepare ps_insert from 'insert into t1 values (?)';
 --error ER_INVALID_JSON_TEXT
 execute ps_insert using @flt;
 
@@ -51,18 +54,21 @@ execute ps_insert using @flt;
 --echo parameter as a scalar JSON value.
 
 execute ps_insert_cast using @intstr;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @intstr;
 
 --echo String parameter containing a decimal: Both statements accept the
 --echo parameter as a scalar JSON value.
 
 execute ps_insert_cast using @decstr;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @decstr;
 
 --echo String parameter containing a float: Both statements accept the
 --echo parameter as a scalar JSON value.
 
 execute ps_insert_cast using @fltstr;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @fltstr;
 
 --echo String parameter containing a non-quoted string: None of the statements
@@ -70,6 +76,7 @@ execute ps_insert using @fltstr;
 
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 execute ps_insert_cast using @strstr;
+prepare ps_insert from 'insert into t1 values (?)';
 --error ER_INVALID_JSON_TEXT
 execute ps_insert using @strstr;
 
@@ -77,6 +84,7 @@ execute ps_insert using @strstr;
 --echo the parameter as a scalar JSON value.
 
 execute ps_insert_cast using @quotstr;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @quotstr;
 
 --echo String parameter containing a timestamp literal: None of the statements
@@ -84,17 +92,20 @@ execute ps_insert using @quotstr;
 
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 execute ps_insert_cast using @ts;
+prepare ps_insert from 'insert into t1 values (?)';
 --error ER_INVALID_JSON_TEXT
 execute ps_insert using @ts;
 
 --echo Parameter that is a NULL value: accepted with both statements:
 
 execute ps_insert_cast using @null;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @null;
 
 --echo String parameter that is a JSON object: accepted with both statements:
 
 execute ps_insert_cast using @json;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @json;
 
 DEALLOCATE PREPARE ps_insert_cast;
@@ -113,6 +124,7 @@ prepare ps_get_str from "select * from t1 where json_extract(j, '$.str') = ?";
 execute ps_get_int using @int;
 execute ps_get_int using @intstr;
 execute ps_get_dec using @dec;
+
 execute ps_get_dec using @decstr;
 execute ps_get_flt using @flt;
 execute ps_get_flt using @fltstr;

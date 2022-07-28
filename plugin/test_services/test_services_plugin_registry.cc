@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,7 @@ static bool test_plugin_registry(MYSQL_PLUGIN p [[maybe_unused]]) {
 
   state = MY_SVC_ACQUIRED;
 
-  /* Aquire an already aquired service: Succeed (ignored) */
+  /* Acquire an already acquired service: Succeed (ignored) */
   if (r->acquire("test_services_plugin_registry_service", &h_ret_svc)) {
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                  "newly registered service already aquired");

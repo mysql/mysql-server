@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ TEST_F(XcomSiteDef, config_max_boot_key) {
   synode_no const synode_0_3_0{0, 3, 0};
   synode_no const synode_0_3_1{0, 3, 1};
   synode_no const synode_1_2_0{1, 2, 0};
-  gcs_snapshot gcs_snap{null_synode, null_synode, {0, 0}, {{0, 0}}};
+  gcs_snapshot gcs_snap{null_synode, null_synode, {0, nullptr}, {{0, nullptr}}};
   synode_no max_boot_key = null_synode;
 
   /* `max_boot_key` of empty snapshot is `null_synode`. */
@@ -48,8 +48,9 @@ TEST_F(XcomSiteDef, config_max_boot_key) {
   ASSERT_TRUE(synode_eq(max_boot_key, null_synode));
 
   /* `max_boot_key` of snapshot with one config is that config's `boot_key`. */
-  config one_cfg{null_synode, synode_0_1_0, {0, 0}, {0, 0}, EVENT_HORIZON_MIN,
-                 0,           {0, 0}};
+  config one_cfg{null_synode,  synode_0_1_0,      {0, nullptr},
+                 {0, nullptr}, EVENT_HORIZON_MIN, 0,
+                 {0, nullptr}};
   config_ptr one_cfg_ptr = &one_cfg;
   gcs_snap.cfg.configs_len = 1;
   gcs_snap.cfg.configs_val = &one_cfg_ptr;
@@ -59,9 +60,27 @@ TEST_F(XcomSiteDef, config_max_boot_key) {
   /* `max_boot_key` of snapshot with various configs is highest `boot_key` of a
      config... */
   config three_cfg[3] = {
-      {null_synode, synode_0_2_0, {0, 0}, {0, 0}, EVENT_HORIZON_MIN, 0, {0, 0}},
-      {null_synode, synode_0_3_1, {0, 0}, {0, 0}, EVENT_HORIZON_MIN, 0, {0, 0}},
-      {null_synode, synode_0_3_0, {0, 0}, {0, 0}, EVENT_HORIZON_MIN, 0, {0, 0}},
+      {null_synode,
+       synode_0_2_0,
+       {0, nullptr},
+       {0, nullptr},
+       EVENT_HORIZON_MIN,
+       0,
+       {0, nullptr}},
+      {null_synode,
+       synode_0_3_1,
+       {0, nullptr},
+       {0, nullptr},
+       EVENT_HORIZON_MIN,
+       0,
+       {0, nullptr}},
+      {null_synode,
+       synode_0_3_0,
+       {0, nullptr},
+       {0, nullptr},
+       EVENT_HORIZON_MIN,
+       0,
+       {0, nullptr}},
   };
   config_ptr three_cfg_ptr[3] = {&three_cfg[0], &three_cfg[1], &three_cfg[2]};
   gcs_snap.cfg.configs_len = 3;
@@ -72,8 +91,20 @@ TEST_F(XcomSiteDef, config_max_boot_key) {
   /* ...whose group_id's match the snapshot, otherwise `max_boot_key` is
      `null_synode`. */
   config two_cfg[2] = {
-      {null_synode, synode_1_2_0, {0, 0}, {0, 0}, EVENT_HORIZON_MIN, 0, {0, 0}},
-      {null_synode, synode_0_3_0, {0, 0}, {0, 0}, EVENT_HORIZON_MIN, 0, {0, 0}},
+      {null_synode,
+       synode_1_2_0,
+       {0, nullptr},
+       {0, nullptr},
+       EVENT_HORIZON_MIN,
+       0,
+       {0, nullptr}},
+      {null_synode,
+       synode_0_3_0,
+       {0, nullptr},
+       {0, nullptr},
+       EVENT_HORIZON_MIN,
+       0,
+       {0, nullptr}},
   };
   config_ptr two_cfg_ptr[2] = {&two_cfg[0], &two_cfg[1]};
   gcs_snap.cfg.configs_len = 2;

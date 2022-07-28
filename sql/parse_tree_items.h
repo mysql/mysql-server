@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -386,25 +386,26 @@ class PTI_user_variable final : public Item_func_get_user_var {
 
   Example: \@global.default.x
 */
-class PTI_variable_aux_3d : public Parse_tree_item {
+class PTI_get_system_variable : public Parse_tree_item {
   typedef Parse_tree_item super;
 
-  enum_var_type var_type;
-  LEX_STRING ident1;
-  POS ident1_pos;
-  LEX_STRING ident2;
-
  public:
-  PTI_variable_aux_3d(const POS &pos, enum_var_type var_type_arg,
-                      const LEX_STRING &ident1_arg, const POS &ident1_pos_arg,
-                      const LEX_STRING &ident2_arg)
-      : super(pos),
-        var_type(var_type_arg),
-        ident1(ident1_arg),
-        ident1_pos(ident1_pos_arg),
-        ident2(ident2_arg) {}
+  PTI_get_system_variable(const POS &pos, enum_var_type scope,
+                          const POS &name_pos, const LEX_CSTRING &opt_prefix,
+                          const LEX_CSTRING &name)
+      : super{pos},
+        m_scope{scope},
+        m_name_pos{name_pos},
+        m_opt_prefix{opt_prefix},
+        m_name{name} {}
 
   bool itemize(Parse_context *pc, Item **res) override;
+
+ private:
+  const enum_var_type m_scope;
+  const POS m_name_pos;
+  const LEX_CSTRING m_opt_prefix;
+  const LEX_CSTRING m_name;
 };
 
 class PTI_count_sym : public Item_sum_count {

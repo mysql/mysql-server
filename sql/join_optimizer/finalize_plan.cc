@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include "sql/item.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/node_map.h"
@@ -144,12 +145,18 @@ static TABLE *CreateTemporaryTableFromSelectList(
       }
 
       // Verify that all non-constant, non-window-related items
-      // have been added to items_to_copy.
-      assert(item->const_for_execution() || item->has_wf() ||
-             std::any_of(
-                 temp_table_param->items_to_copy->begin(),
-                 temp_table_param->items_to_copy->end(),
-                 [item](const Func_ptr &ptr) { return ptr.func() == item; }));
+      // have been added to items_to_copy. (For implicitly grouped
+      // queries, non-deterministic expressions that don't reference
+      // any tables are also considered constant by create_tmp_table(),
+      // because they are evaluated exactly once.)
+      assert(
+          item->const_for_execution() || item->has_wf() ||
+          (query_block->is_implicitly_grouped() &&
+           IsSubset(item->used_tables(), RAND_TABLE_BIT | INNER_TABLE_BIT)) ||
+          std::any_of(
+              temp_table_param->items_to_copy->begin(),
+              temp_table_param->items_to_copy->end(),
+              [item](const Func_ptr &ptr) { return ptr.func() == item; }));
     }
   } else {
     // create_tmp_table() doesn't understand that rollup group items
@@ -159,8 +166,8 @@ static TABLE *CreateTemporaryTableFromSelectList(
     // This works because the base fields are always included. The logic is
     // very similar to what happens in change_to_use_tmp_fields_except_sums().
     //
-    // TODO: Consider removing the rollup group items on the inner levels,
-    // similar to what change_to_use_tmp_fields_except_sums() does.
+    // TODO(sgunders): Consider removing the rollup group items on the inner
+    // levels, similar to what change_to_use_tmp_fields_except_sums() does.
     auto new_end = std::remove_if(
         temp_table_param->items_to_copy->begin(),
         temp_table_param->items_to_copy->end(),
@@ -308,7 +315,7 @@ static void UpdateReferencesToMaterializedItems(
     path->sort().filesort = new (thd->mem_root)
         Filesort(thd, std::move(tables),
                  /*keep_buffers=*/false, path->sort().order, limit_rows,
-                 path->sort().remove_duplicates, /*force_sort_positions=*/false,
+                 path->sort().remove_duplicates, path->sort().force_sort_rowids,
                  path->sort().unwrap_rollup);
     join->filesorts_to_cleanup.push_back(path->sort().filesort);
     if (!path->sort().filesort->using_addon_fields()) {
@@ -522,12 +529,14 @@ static Item *AddCachesAroundConstantConditions(Item *item) {
       present its own challenges.
     - Join conditions.
  */
-bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
-                               AccessPath *root_path) {
+bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
   assert(query_block->join->needs_finalize);
 
   Query_block *old_query_block = thd->lex->current_query_block();
   thd->lex->set_current_query_block(query_block);
+
+  AccessPath *const root_path = query_block->join->root_access_path();
+  assert(root_path != nullptr);
 
   // If we have a sort node (e.g. for GROUP BY) with a materialization under it,
   // we need to make sure that what we sort on is included in the
@@ -621,6 +630,8 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
   }
 
   query_block->join->needs_finalize = false;
+  if (query_block->join->push_to_engines()) return true;
+
   thd->lex->set_current_query_block(old_query_block);
   return error;
 }

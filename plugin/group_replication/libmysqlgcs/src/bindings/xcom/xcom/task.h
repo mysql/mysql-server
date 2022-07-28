@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -318,6 +318,7 @@ typedef struct task_queue task_queue;
       pushp(stack, TASK_ALLOC(stack, struct env));            \
       ep = _ep;                                               \
       assert(ep);                                             \
+      ep->init();                                             \
       TERM_CHECK;
 
 /* This stack frame is finished, deallocate it and return 0 to signal exit */
@@ -486,6 +487,13 @@ void channel_put_front(channel *c,
 /* Define the typeless struct which is the container for all variables in the
  * stack frame */
 #define DECL_ENV struct env {
+/*Define a code block where we can init ENV variables. It only works nested
+  within DECL_ENV
+*/
+#define ENV_INIT void init() {
+/*Ends the default initialization block*/
+#define END_ENV_INIT }
+
 /* Define a pointer to the environment struct */
 #define END_ENV \
   }             \

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -89,13 +89,14 @@ the virtual method table (vtable) in GCC 3. */
 /* Include a minimum number of SQL header files so that few changes
 made in SQL code cause a complete InnoDB rebuild.  These headers are
 used throughout InnoDB but do not include too much themselves.  They
-support cross-platform development and expose comonly used SQL names. */
+support cross-platform development and expose commonly used SQL names. */
 
 #include "m_string.h"
 #ifndef UNIV_HOTBACKUP
 #include "my_thread.h"
 #endif /* !UNIV_HOTBACKUP  */
 
+#include <limits>
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
 #include <sys/stat.h>
 
@@ -171,7 +172,7 @@ for all cases. This is used by ut0lst.h related code. */
 #pragma pointers_to_members(full_generality, single_inheritance)
 #endif /* _WIN32 */
 
-/*			DEBUG VERSION CONTROL
+/*                      DEBUG VERSION CONTROL
                         ===================== */
 
 /* When this macro is defined then additional test functions will be
@@ -280,7 +281,7 @@ constexpr size_t UNIV_WORD_SIZE = SIZEOF_LONG;
 
 /** The following alignment is used in memory allocations in memory heap
 management to ensure correct alignment for doubles etc. */
-#define UNIV_MEM_ALIGNMENT 8
+constexpr uint32_t UNIV_MEM_ALIGNMENT = 8;
 
 /*
                         DATABASE VERSION CONTROL
@@ -295,7 +296,7 @@ management to ensure correct alignment for doubles etc. */
 
 /** log2 of smallest compressed page size (1<<10 == 1024 bytes)
 Note: This must never change! */
-#define UNIV_ZIP_SIZE_SHIFT_MIN 10
+constexpr uint32_t UNIV_ZIP_SIZE_SHIFT_MIN = 10;
 
 /** log2 of largest compressed page size (1<<14 == 16384 bytes).
 A compressed page directory entry reserves 14 bits for the start offset
@@ -303,34 +304,34 @@ and 2 bits for flags. This limits the uncompressed page size to 16k.
 Even though a 16k uncompressed page can theoretically be compressed
 into a larger compressed page, it is not a useful feature so we will
 limit both with this same constant. */
-#define UNIV_ZIP_SIZE_SHIFT_MAX 14
+constexpr uint32_t UNIV_ZIP_SIZE_SHIFT_MAX = 14;
 
 /* Define the Min, Max, Default page sizes. */
 /** Minimum Page Size Shift (power of 2) */
-#define UNIV_PAGE_SIZE_SHIFT_MIN 12
+constexpr uint32_t UNIV_PAGE_SIZE_SHIFT_MIN = 12;
 /** Maximum Page Size Shift (power of 2) */
-#define UNIV_PAGE_SIZE_SHIFT_MAX 16
+constexpr uint32_t UNIV_PAGE_SIZE_SHIFT_MAX = 16;
 /** Default Page Size Shift (power of 2) */
-#define UNIV_PAGE_SIZE_SHIFT_DEF 14
+constexpr uint32_t UNIV_PAGE_SIZE_SHIFT_DEF = 14;
 /** Original 16k InnoDB Page Size Shift, in case the default changes */
-#define UNIV_PAGE_SIZE_SHIFT_ORIG 14
+constexpr uint32_t UNIV_PAGE_SIZE_SHIFT_ORIG = 14;
 /** Original 16k InnoDB Page Size as an ssize (log2 - 9) */
-#define UNIV_PAGE_SSIZE_ORIG (UNIV_PAGE_SIZE_SHIFT_ORIG - 9)
+constexpr uint32_t UNIV_PAGE_SSIZE_ORIG = UNIV_PAGE_SIZE_SHIFT_ORIG - 9;
 
 /** Minimum page size InnoDB currently supports. */
-#define UNIV_PAGE_SIZE_MIN (1 << UNIV_PAGE_SIZE_SHIFT_MIN)
+constexpr uint32_t UNIV_PAGE_SIZE_MIN = 1 << UNIV_PAGE_SIZE_SHIFT_MIN;
 /** Maximum page size InnoDB currently supports. */
-constexpr size_t UNIV_PAGE_SIZE_MAX = (1 << UNIV_PAGE_SIZE_SHIFT_MAX);
+constexpr size_t UNIV_PAGE_SIZE_MAX = 1 << UNIV_PAGE_SIZE_SHIFT_MAX;
 /** Default page size for InnoDB tablespaces. */
-#define UNIV_PAGE_SIZE_DEF (1 << UNIV_PAGE_SIZE_SHIFT_DEF)
+constexpr uint32_t UNIV_PAGE_SIZE_DEF = 1 << UNIV_PAGE_SIZE_SHIFT_DEF;
 /** Original 16k page size for InnoDB tablespaces. */
-#define UNIV_PAGE_SIZE_ORIG (1 << UNIV_PAGE_SIZE_SHIFT_ORIG)
+constexpr uint32_t UNIV_PAGE_SIZE_ORIG = 1 << UNIV_PAGE_SIZE_SHIFT_ORIG;
 
 /** Smallest compressed page size */
-#define UNIV_ZIP_SIZE_MIN (1 << UNIV_ZIP_SIZE_SHIFT_MIN)
+constexpr uint32_t UNIV_ZIP_SIZE_MIN = 1 << UNIV_ZIP_SIZE_SHIFT_MIN;
 
 /** Largest compressed page size */
-#define UNIV_ZIP_SIZE_MAX (1 << UNIV_ZIP_SIZE_SHIFT_MAX)
+constexpr uint32_t UNIV_ZIP_SIZE_MAX = 1 << UNIV_ZIP_SIZE_SHIFT_MAX;
 
 /** Largest possible ssize for an uncompressed page.
 (The convention 'ssize' is used for 'log2 minus 9' or the number of
@@ -344,33 +345,34 @@ This max number varies depending on UNIV_PAGE_SIZE. */
   static_cast<ulint>(UNIV_PAGE_SIZE_SHIFT_MIN - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
 
 /** Maximum number of parallel threads in a parallelized operation */
-#define UNIV_MAX_PARALLELISM 32
+constexpr uint32_t UNIV_MAX_PARALLELISM = 32;
 
 /** This is the "mbmaxlen" for my_charset_filename (defined in
 strings/ctype-utf8.c), which is used to encode File and Database names. */
-#define FILENAME_CHARSET_MAXNAMLEN 5
+constexpr uint32_t FILENAME_CHARSET_MAXNAMLEN = 5;
 
 /** The maximum length of an encode table name in bytes.  The max
 table and database names are NAME_CHAR_LEN (64) characters. After the
 encoding, the max length would be NAME_CHAR_LEN (64) *
 FILENAME_CHARSET_MAXNAMLEN (5) = 320 bytes. The number does not include a
 terminating '\0'. InnoDB can handle longer names internally */
-#define MAX_TABLE_NAME_LEN 320
+constexpr uint32_t MAX_TABLE_NAME_LEN = 320;
 
 /** The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
 the MySQL's NAME_LEN, see check_and_convert_db_name(). */
-#define MAX_DATABASE_NAME_LEN MAX_TABLE_NAME_LEN
+constexpr uint32_t MAX_DATABASE_NAME_LEN = MAX_TABLE_NAME_LEN;
 
 /** MAX_FULL_NAME_LEN defines the full name path including the
 database name and table name. In addition, 14 bytes is added for:
         2 for surrounding quotes around table name
         1 for the separating dot (.)
         9 for the #mysql50# prefix */
-#define MAX_FULL_NAME_LEN (MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14)
+constexpr uint32_t MAX_FULL_NAME_LEN =
+    MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14;
 
-/** Maximum length of the compression alogrithm string. Currently we support
+/** Maximum length of the compression algorithm string. Currently we support
 only (NONE | ZLIB | LZ4). */
-#define MAX_COMPRESSION_LEN 4
+constexpr uint32_t MAX_COMPRESSION_LEN = 4;
 
 /*
                         UNIVERSAL TYPE DEFINITIONS
@@ -387,23 +389,13 @@ macro ULINTPF. We also give the printf format suffix (without '%') macro
 ULINTPFS, this one can be useful if we want to put something between % and
 lu/llu, like in %03lu. */
 
-#ifdef _WIN32
-/* Use the integer types and formatting strings defined in Visual Studio. */
-#define UINT32PF "%lu"
-#define UINT32PFS "lu"
-#define UINT64PF "%llu"
-#define UINT64PFx "%016llx"
-typedef unsigned __int64 ib_uint64_t;
-typedef unsigned __int32 ib_uint32_t;
-#else
-/* Use the integer types and formatting strings defined in the C99 standard. */
+/* Use the integer types and formatting strings defined in the C++11 standard.
+ */
+#define UINT16PF "%" PRIu16
 #define UINT32PF "%" PRIu32
 #define UINT32PFS PRIu32
 #define UINT64PF "%" PRIu64
 #define UINT64PFx "%016" PRIx64
-typedef uint64_t ib_uint64_t;
-typedef uint32_t ib_uint32_t;
-#endif /* _WIN32 */
 
 #define IB_ID_FMT UINT64PF
 
@@ -426,28 +418,31 @@ typedef long int lint;
 #endif
 
 /** The 'undefined' value for a ulint */
-constexpr ulint ULINT_UNDEFINED = -1;
+constexpr ulint ULINT_UNDEFINED = ~ulint{0U};
 
-constexpr ulong ULONG_UNDEFINED = -1;
+constexpr ulong ULONG_UNDEFINED = ~0UL;
 
 /** The 'undefined' value for a  64-bit unsigned integer */
-constexpr uint64_t UINT64_UNDEFINED = -1;
+constexpr uint64_t UINT64_UNDEFINED = ~0ULL;
 
 /** The 'undefined' value for a  32-bit unsigned integer */
-constexpr uint32_t UINT32_UNDEFINED = -1;
+constexpr uint32_t UINT32_UNDEFINED = ~0U;
+
+/** The 'undefined' value for a 16-bit unsigned integer */
+constexpr uint16_t UINT16_UNDEFINED = std::numeric_limits<uint16_t>::max();
+
+/** The 'undefined' value for a 8-bit unsigned integer */
+constexpr uint8_t UINT8_UNDEFINED = std::numeric_limits<uint8_t>::max();
 
 /** The bitmask of 32-bit unsigned integer */
-#define ULINT32_MASK 0xFFFFFFFF
+constexpr uint32_t UINT32_MASK = 0xFFFFFFFF;
 
 /** Maximum value for a ulint */
-#define ULINT_MAX ((ulint)(-2))
-
-/** Maximum value for ib_uint64_t */
-#define IB_UINT64_MAX ((ib_uint64_t)(~0ULL))
+constexpr ulint ULINT_MAX = std::numeric_limits<ulint>::max() - 1;
 
 /** The generic InnoDB system object identifier data type */
-typedef ib_uint64_t ib_id_t;
-#define IB_ID_MAX IB_UINT64_MAX
+typedef uint64_t ib_id_t;
+constexpr ib_id_t IB_ID_MAX = std::numeric_limits<uint64_t>::max();
 
 /** Page number */
 typedef uint32_t page_no_t;
@@ -458,17 +453,6 @@ typedef uint32_t space_id_t;
 #define SPACE_ID_PFS UINT32PFS
 #define PAGE_NO_PF UINT32PF
 #define PAGE_ID_PF "page " SPACE_ID_PF ":" PAGE_NO_PF
-
-/** This 'ibool' type is used within Innobase. Remember that different included
-headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
-#define ibool ulint
-
-#ifndef TRUE
-
-#define TRUE 1
-#define FALSE 0
-
-#endif
 
 #define UNIV_NOTHROW
 
@@ -486,20 +470,21 @@ constexpr auto UNIV_SQL_ADD_COL_DEFAULT = UNIV_SQL_NULL - 1;
 attribute value for the multi-value index exists in the JSON doc */
 constexpr auto UNIV_NO_INDEX_VALUE = UNIV_SQL_ADD_COL_DEFAULT - 1;
 
-/** The follwoing number as the length marker of a logical field, which
+/** The following number as the length marker of a logical field, which
 is only used for multi-value field data, means the data itself of the
 field is actually an array. */
 const uint32_t UNIV_MULTI_VALUE_ARRAY_MARKER = UNIV_NO_INDEX_VALUE - 1;
+
+/** Flag to indicate a field which was dropped instantly */
+constexpr auto UNIV_SQL_INSTANT_DROP_COL = UNIV_MULTI_VALUE_ARRAY_MARKER - 1;
 
 /** Lengths which are not UNIV_SQL_NULL, but bigger than the following
 number indicate that a field contains a reference to an externally
 stored part of the field in the tablespace. The length field then
 contains the sum of the following flag and the locally stored len. */
 
-#define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_DEF)
-
-/* Tell the compiler that variable/function is unused. */
-#define UNIV_UNUSED [[maybe_unused]]
+constexpr uint32_t UNIV_EXTERN_STORAGE_FIELD =
+    UNIV_SQL_NULL - UNIV_PAGE_SIZE_DEF;
 
 /* Some macros to improve branch prediction and reduce cache misses */
 #if defined(COMPILER_HINTS) && defined(__GNUC__)
@@ -532,9 +517,9 @@ it is read or written. */
 #endif
 
 /* Tell the compiler that cond is likely to hold */
-#define UNIV_LIKELY(cond) UNIV_EXPECT(cond, TRUE)
+#define UNIV_LIKELY(cond) UNIV_EXPECT(cond, true)
 /* Tell the compiler that cond is unlikely to hold */
-#define UNIV_UNLIKELY(cond) UNIV_EXPECT(cond, FALSE)
+#define UNIV_UNLIKELY(cond) UNIV_EXPECT(cond, false)
 
 /* Compile-time constant of the given array's size. */
 #define UT_ARR_SIZE(a) (sizeof(a) / sizeof((a)[0]))
@@ -601,7 +586,7 @@ typedef void *os_thread_ret_t;
   do {                                \
     void *p = (addr);                 \
     ut_d(memset(p, c, size));         \
-    UNIV_MEM_INVALID(addr, size);     \
+    UNIV_MEM_INVALID(p, size);        \
   } while (0)
 #else
 #define UNIV_MEM_VALID(addr, size) \
@@ -656,14 +641,14 @@ static const size_t UNIV_SECTOR_SIZE = 512;
 
 /* Dimension of spatial object we support so far. It has its root in
 myisam/sp_defs.h. We only support 2 dimension data */
-#define SPDIMS 2
+constexpr uint32_t SPDIMS = 2;
 
 /** Hard-coded data dictionary entry */
 #define INNODB_DD_TABLE(name, n_indexes) \
   { name, n_indexes }
 
 /** Explicitly call the destructor, this is to get around Clang bug#12350.
-@param[in,out]	p		Instance on which to call the destructor */
+@param[in,out]  p               Instance on which to call the destructor */
 template <typename T>
 void call_destructor(T *p) {
   p->~T();
@@ -675,9 +660,8 @@ constexpr auto to_int(T v) -> typename std::underlying_type<T>::type {
 }
 
 /** If we are doing something that takes longer than this many seconds then
-print an informative message. Type should be return type of ut_time_monotonic().
-*/
-static constexpr ib_time_monotonic_t PRINT_INTERVAL_SECS = 10;
+print an informative message. */
+static constexpr std::chrono::seconds PRINT_INTERVAL{10};
 
 #if defined(UNIV_LIBRARY) && !defined(UNIV_NO_ERR_MSGS)
 
@@ -705,6 +689,11 @@ as a standalone library. */
 #define IF_ENABLED(s, ...)
 #endif /* UNIV_DEBUG */
 
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+#define IF_AHI_DEBUG(...) __VA_ARGS__
+#else /* UNIV_AHI_DEBUG || defined UNIV_DEBUG */
+#define IF_AHI_DEBUG(...)
+#endif /* UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 using Col_offsets_t = ulint;
 
 #endif /* univ_i */

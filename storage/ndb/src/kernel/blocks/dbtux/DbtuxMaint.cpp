@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   TuxMaintReq* const sig = (TuxMaintReq*)signal->getDataPtrSend();
   // ignore requests from redo log
   IndexPtr indexPtr;
-  c_indexPool.getPtr(indexPtr, sig->indexId);
+  ndbrequire(c_indexPool.getPtr(indexPtr, sig->indexId));
 
   if (unlikely(! (indexPtr.p->m_state == Index::Online ||
                   indexPtr.p->m_state == Index::Building)))

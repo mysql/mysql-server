@@ -1685,7 +1685,7 @@ DROP DATABASE `test/1`;
 
 
 --echo #
---echo # Bug#51494c rash with join, explain and 'sounds like' operator
+--echo # Bug#51494 crash with join, explain and 'sounds like' operator
 --echo #
 
 CREATE TABLE t1 (a INT) ENGINE=MYISAM;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,13 +46,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
  @return DB_SUCCESS, DB_LOCK_WAIT, DB_NO_REFERENCED_ROW, or
  DB_ROW_IS_REFERENCED */
 [[nodiscard]] dberr_t row_ins_check_foreign_constraint(
-    ibool check_ref,         /*!< in: TRUE If we want to check that
-                           the referenced table is ok, FALSE if we
-                           want to check the foreign key table */
+    bool check_ref,          /*!< in: true If we want to check that
+                            the referenced table is ok, false if we
+                            want to check the foreign key table */
     dict_foreign_t *foreign, /*!< in: foreign constraint; NOTE that the
                              tables mentioned in it must be in the
                              dictionary cache if they exist at all */
-    dict_table_t *table,     /*!< in: if check_ref is TRUE, then the foreign
+    dict_table_t *table,     /*!< in: if check_ref is true, then the foreign
                              table, else the referenced table */
     dtuple_t *entry,         /*!< in: index entry for index */
     que_thr_t *thr);         /*!< in: query thread */
@@ -69,47 +69,45 @@ void ins_node_set_new_row(
     ins_node_t *node, /*!< in: insert node */
     dtuple_t *row);   /*!< in: new row (or first row) for the node */
 /** Tries to insert an entry into a clustered index, ignoring foreign key
- constraints. If a record with the same unique key is found, the other
- record is necessarily marked deleted by a committed transaction, or a
- unique key violation error occurs. The delete marked record is then
- updated to an existing record, and we must write an undo log record on
- the delete marked record.
- @retval DB_SUCCESS on success
- @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
- @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
- @return error code */
+constraints. If a record with the same unique key is found, the other
+record is necessarily marked deleted by a committed transaction, or a
+unique key violation error occurs. The delete marked record is then
+updated to an existing record, and we must write an undo log record on
+the delete marked record.
+@param[in] flags Undo logging and locking flags.
+@param[in] mode BTR_MODIFY_LEAF or BTR_MODIFY_TREE, depending on whether we wish
+optimistic or pessimistic descent down the index tree.
+@param[in] index Clustered index.
+@param[in] n_uniq 0 or index->n_uniq.
+@param[in] entry Index entry to insert.
+@param[in] thr Query thread, or nullptr if flags & (BTR_NO_LOCKING_FLAG |
+BTR_NO_UNDO_LOG_FLAG) and a duplicate can't occur.
+@param[in] dup_chk_only If true, just do duplicate check and return. don't
+execute actual insert.
+@retval DB_SUCCESS on success
+@retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
+@retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
+@return error code */
 [[nodiscard]] dberr_t row_ins_clust_index_entry_low(
-    uint32_t flags,      /*!< in: undo logging and locking flags */
-    ulint mode,          /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
-                         depending on whether we wish optimistic or
-                         pessimistic descent down the index tree */
-    dict_index_t *index, /*!< in: clustered index */
-    ulint n_uniq,        /*!< in: 0 or index->n_uniq */
-    dtuple_t *entry,     /*!< in/out: index entry to insert */
-    que_thr_t *thr,      /*!< in: query thread,  or NULL if
-                         flags & (BTR_NO_LOCKING_FLAG
-                         | BTR_NO_UNDO_LOG_FLAG) and a duplicate
-                         can't occur */
-    bool dup_chk_only);
-/*!< in: if true, just do duplicate check
-and return. don't execute actual insert. */
+    uint32_t flags, ulint mode, dict_index_t *index, ulint n_uniq,
+    dtuple_t *entry, que_thr_t *thr, bool dup_chk_only);
 
 /** Tries to insert an entry into a secondary index. If a record with exactly
 the same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
-@param[in]	flags		undo logging and locking flags
-@param[in]	mode		BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+@param[in]      flags           undo logging and locking flags
+@param[in]      mode            BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                                 depending on whether we wish optimistic or
                                 pessimistic descent down the index tree
-@param[in]	index		secondary index
-@param[in,out]	offsets_heap	memory heap that can be emptied
-@param[in,out]	heap		memory heap
-@param[in,out]	entry		index entry to insert
-@param[in]	trx_id		PAGE_MAX_TRX_ID during row_log_table_apply(),
+@param[in]      index           secondary index
+@param[in,out]  offsets_heap    memory heap that can be emptied
+@param[in,out]  heap            memory heap
+@param[in,out]  entry           index entry to insert
+@param[in]      trx_id          PAGE_MAX_TRX_ID during row_log_table_apply(),
                                 or trx_id when undo log is disabled during
                                 alter copy operation or 0
-@param[in]	thr		query thread
-@param[in]	dup_chk_only	TRUE, just do duplicate check and return.
+@param[in]      thr             query thread
+@param[in]      dup_chk_only    true, just do duplicate check and return.
                                 don't execute actual insert
 @retval DB_SUCCESS on success
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
@@ -122,9 +120,9 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 
 /** Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row.
-@param[in]	index	index handler
-@param[out]	entry	index entry to make
-@param[in]	row	row
+@param[in]      index   index handler
+@param[out]     entry   index entry to make
+@param[in]      row     row
 @return DB_SUCCESS if the set is successful */
 dberr_t row_ins_index_entry_set_vals(const dict_index_t *index, dtuple_t *entry,
                                      const dtuple_t *row);
@@ -193,20 +191,22 @@ struct ins_node_t {
   ulint magic_n;
 };
 
-#define INS_NODE_MAGIC_N 15849075
+constexpr uint32_t INS_NODE_MAGIC_N = 15849075;
 
 /* Insert node types */
-#define INS_SEARCHED 0 /* INSERT INTO ... SELECT ... */
-#define INS_VALUES 1   /* INSERT INTO ... VALUES ... */
-#define INS_DIRECT                            \
-  2 /* this is for internal use in dict0crea: \
-    insert the row directly */
+/** INSERT INTO ... SELECT ... */
+constexpr uint32_t INS_SEARCHED = 0;
+/** INSERT INTO ... VALUES ... */
+constexpr uint32_t INS_VALUES = 1;
+/** this is for internal use in dict0crea: insert the row directly */
+constexpr uint32_t INS_DIRECT = 2;
 
 /* Node execution states */
-#define INS_NODE_SET_IX_LOCK 1  /* we should set an IX lock on table */
-#define INS_NODE_ALLOC_ROW_ID 2 /* row id should be allocated */
-#define INS_NODE_INSERT_ENTRIES          \
-  3 /* index entries should be built and \
-    inserted */
+/** we should set an IX lock on table */
+constexpr uint32_t INS_NODE_SET_IX_LOCK = 1;
+/** row id should be allocated */
+constexpr uint32_t INS_NODE_ALLOC_ROW_ID = 2;
+/** index entries should be built and inserted */
+constexpr uint32_t INS_NODE_INSERT_ENTRIES = 3;
 
 #endif

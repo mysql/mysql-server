@@ -157,7 +157,9 @@ SET global.read_only = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.read_only;
 --Error ER_BAD_FIELD_ERROR
-SELECT read_only = @@session.read_only;
+SELECT read_only;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.read_only;
 
 
 ##############################  

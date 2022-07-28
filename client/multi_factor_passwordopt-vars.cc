@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,11 @@
 */
 
 #include "multi_factor_passwordopt-vars.h"
-
 #include "my_getopt.h"
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"  // my_free, my_strdup
 
-char *opt_password[MAX_AUTH_FACTORS] = {0};
+char *opt_password[MAX_AUTH_FACTORS] = {nullptr};
 bool tty_password[MAX_AUTH_FACTORS] = {false};
 
 /**
@@ -70,31 +69,27 @@ void parse_command_line_password_option(const struct my_option *opt,
 }
 
 /**
-  Helper method used by clients to accept password from terminal
-*/
-void set_tty_password(MYSQL *mysql) {
-  for (unsigned int factor = 1; factor <= MAX_AUTH_FACTORS; factor++) {
-    if (tty_password[factor - 1]) {
-      char *pwd = get_tty_password(NullS);
-      mysql_options4(mysql, MYSQL_OPT_USER_PASSWORD, &factor, pwd);
-      my_free(pwd);
-    }
-  }
-}
-
-/**
   Helper method used by clients to set password in mysql->options
 */
 void set_password_options(MYSQL *mysql) {
   for (unsigned int factor = 1; factor <= MAX_AUTH_FACTORS; factor++) {
+    /**
+     If opt_password is not populated and tty_password is true
+     get password from terminal and update in opt_password
+     and set tty_password to false
+    */
+    if (tty_password[factor - 1] && !opt_password[factor - 1]) {
+      opt_password[factor - 1] = get_tty_password(NullS);
+      tty_password[factor - 1] = false;
+    }
+    /**
+    If opt_password is populated call mysql_options4()
+    */
     if (opt_password[factor - 1]) {
       mysql_options4(mysql, MYSQL_OPT_USER_PASSWORD, &factor,
                      opt_password[factor - 1]);
     }
   }
-  /* get password from terminal */
-  if (!(opt_password[0] && opt_password[1] && opt_password[2]))
-    set_tty_password(mysql);
 }
 
 void free_passwords() {

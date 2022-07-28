@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -206,7 +206,7 @@ size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length) {
       }
     }
     if (!(max_length -= length)) {
-      /* Found enough charcters;  Return found string */
+      /* Found enough characters;  Return found string */
       info->read_pos = pos;
       *to = '\0';
       return (size_t)(to - start);

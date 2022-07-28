@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,12 +82,7 @@ extern int HINT_PARSER_parse(THD *thd, Hint_scanner *scanner,
 
 static int lex_one_token(Lexer_yystype *yylval, THD *thd);
 
-/*
-  We are using pointer to this variable for distinguishing between assignment
-  to NEW row field (when parsing trigger definition) and structured variable.
-*/
-
-sys_var *trg_new_row_fake_var = (sys_var *)0x01;
+static constexpr const int MAX_SELECT_NESTING{sizeof(nesting_map) * 8 - 1};
 
 /**
   LEX_STRING constant for null-string to be used in parser and other places.
@@ -128,7 +123,8 @@ const int
         ER_BINLOG_UNSAFE_NOWAIT,
         ER_BINLOG_UNSAFE_XA,
         ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT,
-        ER_BINLOG_UNSAFE_ACL_TABLE_READ_IN_DML_DDL};
+        ER_BINLOG_UNSAFE_ACL_TABLE_READ_IN_DML_DDL,
+        ER_CREATE_SELECT_WITH_GIPK_DISALLOWED_IN_SBR};
 
 /*
   Names of the index hints (for error messages). Keep in sync with
@@ -160,7 +156,7 @@ Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
     db = db_arg;
 }
 
-bool lex_init(void) {
+bool lex_init() {
   DBUG_TRACE;
 
   for (CHARSET_INFO **cs = all_charsets;
@@ -173,7 +169,7 @@ bool lex_init(void) {
   return false;
 }
 
-void lex_free(void) {  // Call this when daemon ends
+void lex_free() {  // Call this when daemon ends
   DBUG_TRACE;
 }
 
@@ -482,6 +478,7 @@ void LEX::reset() {
   reset_exec_started();
   max_execution_time = 0;
   reparse_common_table_expr_at = 0;
+  reparse_derived_table_condition = false;
   opt_hints_global = nullptr;
   binlog_need_explicit_defaults_ts = false;
   m_extended_show = false;
@@ -492,8 +489,11 @@ void LEX::reset() {
   grant_as.cleanup();
   alter_user_attribute = enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED;
   m_is_replication_deprecated_syntax_used = false;
+  m_was_replication_command_executed = false;
 
-  plugin_var_bind_list.clear();
+  grant_if_exists = false;
+  ignore_unknown_user = false;
+  reset_rewrite_required();
 }
 
 /**
@@ -519,8 +519,8 @@ bool lex_start(THD *thd) {
   assert(lex->current_query_block() == nullptr);
   lex->m_current_query_block = lex->query_block;
 
-  lex->m_IS_table_stats.invalidate_cache();
-  lex->m_IS_tablespace_stats.invalidate_cache();
+  assert(lex->m_IS_table_stats.is_valid() == false);
+  assert(lex->m_IS_tablespace_stats.is_valid() == false);
 
   return status;
 }
@@ -546,19 +546,6 @@ void LEX::release_plugins() {
     plugin_unlock_list(nullptr, plugins.begin(), plugins.size());
     plugins.clear();
   }
-}
-
-bool LEX::add_plugin_var(Item_func_get_system_var *item) {
-  return plugin_var_bind_list.push_back(item);
-}
-
-bool LEX::rebind_plugin_vars(THD *thd) {
-  for (Item_func_get_system_var *item : plugin_var_bind_list) {
-    if (item->bind(thd)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /**
@@ -608,9 +595,8 @@ Query_expression *LEX::create_query_expr_and_block(
     THD *thd, Query_block *current_query_block, Item *where, Item *having,
     enum_parsing_context ctx) {
   if (current_query_block != nullptr &&
-      current_query_block->nest_level >= (int)MAX_SELECT_NESTING) {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0),
-             MAX_SELECT_NESTING);
+      current_query_block->nest_level >= MAX_SELECT_NESTING) {
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
     return nullptr;
   }
 
@@ -868,9 +854,8 @@ static bool consume_optimizer_hints(Lex_input_stream *lip) {
                               lip->m_digest);
     PT_hint_list *hint_list = nullptr;
     int rc = HINT_PARSER_parse(lip->m_thd, &hint_scanner, &hint_list);
-    if (rc == 2)
-      return true;  // Bison's internal OOM error
-    else if (rc == 1) {
+    if (rc == 2) return true;  // Bison's internal OOM error
+    if (rc == 1) {
       /*
         This branch is for 2 cases:
         1. YYABORT in the hint parser grammar (we use it to process OOM errors),
@@ -878,14 +863,12 @@ static bool consume_optimizer_hints(Lex_input_stream *lip) {
       */
       lip->start_token();  // adjust error message text pointer to "/*+"
       return true;
-    } else {
-      lip->yylineno = hint_scanner.get_lineno();
-      lip->yySkipn(hint_scanner.get_ptr() - lip->get_ptr());
-      lip->yylval->optimizer_hints = hint_list;  // NULL in case of syntax error
-      lip->m_digest =
-          hint_scanner.get_digest();  // NULL is digest buf. is full.
-      return false;
     }
+    lip->yylineno = hint_scanner.get_lineno();
+    lip->yySkipn(hint_scanner.get_ptr() - lip->get_ptr());
+    lip->yylval->optimizer_hints = hint_list;   // NULL in case of syntax error
+    lip->m_digest = hint_scanner.get_digest();  // NULL is digest buf. is full.
+    return false;
   } else
     return false;
 }
@@ -2254,7 +2237,7 @@ void Query_expression::exclude_level() {
     if (next) next->prev = units_last;
     units->prev = prev;
   } else {
-    // exclude currect unit from list of nodes
+    // exclude current unit from list of nodes
     if (prev) (*prev) = next;
     if (next) next->prev = prev;
   }
@@ -2293,7 +2276,7 @@ void Query_expression::exclude_tree(THD *thd) {
   // Remove the internal objects for this query expression.
   cleanup(thd, true);
   destroy();
-  // exclude currect unit from list of nodes
+  // exclude current unit from list of nodes
   if (prev) (*prev) = next;
   if (next) next->prev = prev;
 
@@ -3095,7 +3078,7 @@ bool Query_block::print_error(const THD *thd, String *str) {
   if (thd->is_error()) {
     /*
       It is possible that this query block had an optimization error, but the
-      caller didn't notice (caller evaluted this as a subquery and Item::val*()
+      caller didn't notice (caller evaluated this as a subquery and Item::val*()
       don't have an error status). In this case the query block may be broken
       and printing it may crash.
     */
@@ -3174,7 +3157,7 @@ void Query_block::print_table_references(const THD *thd, String *str,
 
       /*
         Query Rewrite Plugin will not have is_view() set even for a view. This
-        is because operations like open_table haven't happend yet. So the
+        is because operations like open_table haven't happened yet. So the
         underlying target tables will not be added, only the original
         table/view list will be reproduced. Ideally, it would be better if
         TABLE_LIST::updatable_base_table() were used here, but that isn't
@@ -3425,8 +3408,7 @@ bool accept_for_join(mem_root_deque<TABLE_LIST *> *tables,
 bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor) {
   if (t->nested_join && accept_for_join(&t->nested_join->join_list, visitor))
     return true;
-  else if (t->is_derived())
-    t->derived_query_expression()->accept(visitor);
+  if (t->is_derived()) t->derived_query_expression()->accept(visitor);
   if (walk_item(t->join_cond(), visitor)) return true;
   return false;
 }
@@ -3735,6 +3717,22 @@ bool Query_expression::set_limit(THD *thd, Query_block *provider) {
 }
 
 /**
+  Checks if this query expression has limit defined. For a query expression
+  with set operation it checks if any of the query blocks has limit defined.
+
+  @returns true if the query expression has limit.
+  false otherwise.
+*/
+bool Query_expression::has_any_limit() const {
+  if (global_parameters()->has_limit()) return true;
+  if (is_union()) {
+    for (Query_block *qb = first_query_block(); qb; qb = qb->next_query_block())
+      if (qb->has_limit()) return true;
+  }
+  return false;
+}
+
+/**
   Decide if a temporary table is needed for the UNION.
 
   @retval true  A temporary table is needed.
@@ -3923,7 +3921,7 @@ void LEX::set_trg_event_type_for_tables() {
     case SQLCOM_INSERT:
     case SQLCOM_INSERT_SELECT:
       /*
-        Basic INSERT. If there is an additional ON DUPLIATE KEY
+        Basic INSERT. If there is an additional ON DUPLICATE KEY
         UPDATE clause, it will be handled later in this method.
        */
     case SQLCOM_LOAD:
@@ -4057,7 +4055,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local) {
   Bring first local table of first most outer select to first place in global
   table list
 
-  SYNOPSYS
+  SYNOPSIS
      LEX::first_lists_tables_same()
 
   NOTES
@@ -4142,8 +4140,10 @@ void LEX::cleanup_after_one_table_open() {
   if (all_query_blocks_list != query_block) {
     /* cleunup underlying units (units of VIEW) */
     for (Query_expression *un = query_block->first_inner_query_expression(); un;
-         un = un->next_query_expression())
+         un = un->next_query_expression()) {
       un->cleanup(thd, true);
+      un->destroy();
+    }
     /* reduce all selects list to default state */
     all_query_blocks_list = query_block;
     /* remove underlying units (units of VIEW) subtree */
@@ -4862,7 +4862,7 @@ uint binlog_unsafe_map[256];
   Sets the combination given by "a" and "b" and automatically combinations
   given by other types of access, i.e. 2^(8 - 2), as unsafe.
 
-  It may happen a colision when automatically defining a combination as unsafe.
+  It may happen a collision when automatically defining a combination as unsafe.
   For that reason, a combination has its unsafe condition redefined only when
   the new_condition is greater then the old. For instance,
 
@@ -4916,7 +4916,7 @@ bool LEX::set_channel_name(LEX_CSTRING name) {
     /*
       Channel names are case insensitive. This means, even the results
       displayed to the user are converted to lower cases.
-      system_charset_info is utf8_general_ci as required by channel name
+      system_charset_info is utf8mb3_general_ci as required by channel name
       restrictions
     */
     char *buf = thd->strmake(name.str, name.length);
@@ -4933,7 +4933,7 @@ bool LEX::set_channel_name(LEX_CSTRING name) {
   which means that both conditions need to be satisfied or any of them is
   enough. For example,
 
-    . BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY means that the statment is
+    . BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY means that the statement is
     unsafe when the option is on and trx-cache is not empty;
 
     . BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF means the statement is unsafe

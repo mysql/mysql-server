@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #ifdef __cplusplus
 #include <string>
+#include <string_view>
 #endif
 
 /*
@@ -51,6 +52,14 @@ static inline std::string to_string(const LEX_STRING &str) {
 
 static inline std::string to_string(const LEX_CSTRING &str) {
   return std::string(str.str, str.length);
+}
+
+static inline std::string_view to_string_view(LEX_STRING str) {
+  return std::string_view{str.str, str.length};
+}
+
+static inline std::string_view to_string_view(LEX_CSTRING str) {
+  return std::string_view{str.str, str.length};
 }
 
 #endif  // defined(__cplusplus)

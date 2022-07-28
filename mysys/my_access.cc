@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,8 +65,8 @@ int my_access(const char *path, int amode) {
   BOOL result;
 
   result = GetFileAttributesEx(path, GetFileExInfoStandard, &fileinfo);
-  if (!result ||
-      (fileinfo.dwFileAttributes & FILE_ATTRIBUTE_READONLY) && (amode & W_OK)) {
+  if (!result || ((fileinfo.dwFileAttributes & FILE_ATTRIBUTE_READONLY) &&
+                  (amode & W_OK))) {
     errno = EACCES;
     set_my_errno(EACCES);
     return -1;
@@ -221,7 +221,7 @@ bool is_filename_allowed(const char *name [[maybe_unused]],
 #if defined(_WIN32)
 
 /*
-  Check if a path will access a reserverd file name that may cause problems
+  Check if a path will access a reserved file name that may cause problems
 
   SYNOPSIS
     check_if_legal_filename

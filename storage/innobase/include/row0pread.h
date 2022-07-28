@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -243,7 +243,7 @@ class Parallel_reader {
     /** Create BLOB heap. */
     void create_blob_heap() noexcept {
       ut_a(m_blob_heap == nullptr);
-      m_blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
+      m_blob_heap = mem_heap_create(UNIV_PAGE_SIZE, UT_LOCATION_HERE);
     }
 
     /** @return the worker thread state. */
@@ -535,7 +535,7 @@ class Parallel_reader::Scan_ctx {
   @param[in]      line          Line from where called.
   @return the block fetched from the buffer pool. */
   [[nodiscard]] buf_block_t *block_get_s_latched(const page_id_t &page_id,
-                                                 mtr_t *mtr, int line) const;
+                                                 mtr_t *mtr, size_t line) const;
 
   /** Partition the B+Tree for parallel read.
   @param[in] scan_range Range for partitioning.

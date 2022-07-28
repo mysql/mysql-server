@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -305,7 +305,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
   do {
     // get the index
     IndexPtr indexPtr;
-    c_indexPool.getPtr(indexPtr, req->tableId);
+    ndbrequire(c_indexPool.getPtr(indexPtr, req->tableId));
     // get the fragment
     FragPtr fragPtr;
     findFrag(jamBuffer(), *indexPtr.p, req->fragmentNo, fragPtr);

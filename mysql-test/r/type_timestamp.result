@@ -141,7 +141,9 @@ ix+0
 truncate table t1;
 insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
 Warnings:
+Warning	4096	Delimiter ' ' in position 19 in datetime value '0000-00-00 00:00:00 some trailer' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 'ix' at row 1
+Warning	4096	Delimiter ' ' in position 19 in datetime value '2003-01-01 00:00:00 some trailer' at row 2 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 'ix' at row 2
 select ix+0 from t1;
 ix+0
@@ -451,25 +453,6 @@ a	b	c
 drop table t1;
 End of 4.1 tests
 set time_zone= @@global.time_zone;
-CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-f3 TIMESTAMP NOT NULL default '0000-00-00 00:00:00');
-Warnings:
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-INSERT INTO t1 (f2,f3) VALUES (NOW(), "0000-00-00 00:00:00");
-INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
-INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));
-INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME('9999999999'));
-INSERT INTO t1 (f2,f3) VALUES (NOW(), TIME(NULL));
-UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
-SELECT f1,f2-f3 FROM t1;
-f1	f2-f3
-1	0
-2	0
-3	0
-4	0
-5	0
-DROP TABLE t1;
 End of 5.0 tests
 #
 # Bug #55779: select does not work properly in mysql server

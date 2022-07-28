@@ -283,6 +283,7 @@ WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 
 --echo If count optimization applies, EXPLAIN shows
 --echo "Rows fetched before execution."
+--skip_if_hypergraph  # Does not do const table optimization.
 eval EXPLAIN FORMAT=TREE $query;
 FLUSH STATUS;
 eval $query;
@@ -295,6 +296,7 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 
 --echo Optimization applies also to COUNT(expr) as long as expr is not nullable
+--skip_if_hypergraph  # Does not do const table optimization.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 

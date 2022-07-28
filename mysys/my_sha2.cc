@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,16 @@
 
 #include "sha2.h"
 
-/*  Low level digest API's are not allowed to access when FIPS mode is ON. This
- * wrapper will allow to call different sha256 methods directly.*/
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#define GEN_OPENSSL_EVP_SHA2_BRIDGE(size)                                     \
+  unsigned char *SHA_EVP##size(const unsigned char *input_ptr,                \
+                               size_t input_length,                           \
+                               char unsigned *output_ptr) {                   \
+    EVP_Digest(input_ptr, input_length, output_ptr, nullptr, EVP_sha##size(), \
+               nullptr);                                                      \
+    return (output_ptr);                                                      \
+  }
+#else /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 #define GEN_OPENSSL_EVP_SHA2_BRIDGE(size)                          \
   unsigned char *SHA_EVP##size(const unsigned char *input_ptr,     \
                                size_t input_length,                \
@@ -46,6 +54,7 @@
     EVP_MD_CTX_destroy(md_ctx);                                    \
     return (output_ptr);                                           \
   }
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
 /*
   @fn SHA_EVP512

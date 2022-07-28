@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -62,6 +62,7 @@ pfs_instr.h
 pfs_instr_class.h
 pfs_lock.h
 pfs_memory.h
+pfs_name.h
 pfs_plugin_table.h
 pfs_prepared_stmt.h
 pfs_program.h
@@ -225,6 +226,7 @@ pfs_host.cc
 pfs_instr.cc
 pfs_instr_class.cc
 pfs_memory.cc
+pfs_name.cc
 pfs_plugin_table.cc
 pfs_prepared_stmt.cc
 pfs_program.cc

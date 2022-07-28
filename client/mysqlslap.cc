@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -391,6 +391,12 @@ int main(int argc, char **argv) {
       my_end(0);
       return EXIT_FAILURE;
     }
+    if (ssl_client_check_post_connect_ssl_setup(
+            &mysql, [](const char *err) { fprintf(stderr, "%s\n", err); })) {
+      mysql_close(&mysql);
+      my_end(0);
+      return EXIT_FAILURE;
+    }
   }
   set_sql_mode(&mysql);
 
@@ -592,13 +598,14 @@ static struct my_option my_long_options[] = {
      "Generate CSV output to named file or to stdout if no file is named.",
      nullptr, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #ifdef NDEBUG
-    {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
-     GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "This is a non-debug version. Catch this and exit.", nullptr,
+     nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
-     0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"debug-info", 'T', "This is a non-debug version. Catch this and exit.",
+     nullptr, nullptr, nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #else
     {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
      &default_dbug_option, &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0,
@@ -1823,7 +1830,7 @@ int parse_option(const char *origin, option_string **stmt, char delm) {
     char *buffer_ptr;
 
     /*
-      Return an error if the length of the any of the comma seprated value
+      Return an error if the length of the any of the comma separated value
       exceeds HUGE_STRING_LENGTH.
     */
     if ((size_t)(retstr - ptr) > HUGE_STRING_LENGTH) return -1;
@@ -1859,7 +1866,7 @@ int parse_option(const char *origin, option_string **stmt, char delm) {
     const char *origin_ptr;
 
     /*
-      Return an error if the length of the any of the comma seprated value
+      Return an error if the length of the any of the comma separated value
       exceeds HUGE_STRING_LENGTH.
     */
     if (strlen(ptr) > HUGE_STRING_LENGTH) return -1;
@@ -2042,7 +2049,7 @@ int slap_connect(MYSQL *mysql) {
     if (mysql_real_connect(mysql, host, user, nullptr, create_schema_string,
                            opt_mysql_port, opt_mysql_unix_port,
                            connect_flags)) {
-      /* Connect suceeded */
+      /* Connect succeeded */
       connect_error = 0;
       break;
     }

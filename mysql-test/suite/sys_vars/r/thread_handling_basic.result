@@ -50,6 +50,6 @@ SELECT COUNT(@@GLOBAL.thread_handling);
 COUNT(@@GLOBAL.thread_handling)
 1
 1 Expected
-SELECT thread_handling = @@SESSION.thread_handling;
+SELECT thread_handling;
 ERROR 42S22: Unknown column 'thread_handling' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

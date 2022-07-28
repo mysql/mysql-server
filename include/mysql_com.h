@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@
 */
 #ifndef my_socket_defined
 #include "my_io.h"
-#include "mysql/components/services/my_io_bits.h"
+#include "mysql/components/services/bits/my_io_bits.h"
 #endif
 
 #ifndef MYSQL_ABI_CHECK
@@ -126,7 +126,7 @@
 */
 #define SCRAMBLE_LENGTH 20
 #define AUTH_PLUGIN_DATA_PART_1_LENGTH 8
-/** length of password stored in the db: new passwords are preceeded with '*'*/
+/** length of password stored in the db: new passwords are preceded with '*'*/
 #define SCRAMBLED_PASSWORD_CHAR_LENGTH (SCRAMBLE_LENGTH * 2 + 1)
 
 /**
@@ -231,7 +231,7 @@
 #define REFRESH_MASTER                                                 \
   128                            /**< Remove all bin logs in the index \
                                     and truncate the index, RESET MASTER */
-#define REFRESH_ERROR_LOG 256    /**< Rotate only the erorr log */
+#define REFRESH_ERROR_LOG 256    /**< Rotate only the error log */
 #define REFRESH_ENGINE_LOG 512   /**< Flush all storage engine logs */
 #define REFRESH_BINARY_LOG 1024  /**< Flush the binary log */
 #define REFRESH_RELAY_LOG 2048   /**< Flush the relay log */
@@ -244,7 +244,7 @@
   @sa REFRESH_READ_LOCK, handle_reload_request, close_cached_tables
 */
 #define REFRESH_FAST 32768
-#define REFRESH_USER_RESOURCES 0x80000L   /** FLISH RESOUCES. @sa ::reset_mqh */
+#define REFRESH_USER_RESOURCES 0x80000L   /** FLUSH RESOURCES. @sa ::reset_mqh */
 #define REFRESH_FOR_EXPORT 0x100000L      /** FLUSH TABLES ... FOR EXPORT */
 #define REFRESH_OPTIMIZER_COSTS 0x200000L /** FLUSH OPTIMIZER_COSTS */
 #define REFRESH_PERSIST 0x400000L         /** RESET PERSIST */
@@ -773,7 +773,7 @@
 /** a compatibility alias for CLIENT_COMPRESS */
 #define CAN_CLIENT_COMPRESS CLIENT_COMPRESS
 
-/** Gather all possible capabilites (flags) supported by the server */
+/** Gather all possible capabilities (flags) supported by the server */
 #define CLIENT_ALL_FLAGS                                                       \
   (CLIENT_LONG_PASSWORD | CLIENT_FOUND_ROWS | CLIENT_LONG_FLAG |               \
    CLIENT_CONNECT_WITH_DB | CLIENT_NO_SCHEMA | CLIENT_COMPRESS | CLIENT_ODBC | \

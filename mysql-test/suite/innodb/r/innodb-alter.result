@@ -212,9 +212,9 @@ ALTER TABLE t3 CHANGE
 `倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾Ä`
 c3 INT;
 ALTER TABLE t3 CHANGE c3 𐌀𐌁𐌂𐌃𐌄𐌅𐌆𐌇𐌈𐌉𐌊𐌋𐌌𐌍𐌎𐌏𐌐𐌑𐌒𐌓𐌔𐌕𐌖𐌗𐌘𐌙𐌚𐌛𐌜 INT;
-ERROR HY000: Invalid utf8 character string: '\xF0\x90\x8C\x80\xF0\x90\x8C\x81\xF0\x90\x8C\x82\xF0\x90\x8C\x83'
+ERROR HY000: Invalid utf8mb3 character string: '\xF0\x90\x8C\x80\xF0\x90\x8C\x81\xF0\x90\x8C\x82\xF0\x90\x8C\x83'
 ALTER TABLE t3 CHANGE c3 😲 INT;
-ERROR HY000: Invalid utf8 character string: '\xF0\x9F\x98\xB2'
+ERROR HY000: Invalid utf8mb3 character string: '\xF0\x9F\x98\xB2'
 ALTER TABLE t3 RENAME TO t2;
 SELECT st.NAME, i.NAME
 FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_TABLES i

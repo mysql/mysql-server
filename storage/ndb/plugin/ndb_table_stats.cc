@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ bool ndb_get_table_statistics(THD *thd, Ndb *ndb,
     options.optionsPresent = NdbScanOperation::ScanOptions::SO_BATCH |
                              NdbScanOperation::ScanOptions::SO_GETVALUE |
                              NdbScanOperation::ScanOptions::SO_INTERPRETED;
-    /* Set batch_size=1, as we need only one row per fragment. */
+    /* Set batch=1, as we need only one row per fragment. */
     options.batch = 1;
     options.extraGetValues = &extraGets[0];
     options.numExtraGetValues = sizeof(extraGets) / sizeof(extraGets[0]);
@@ -212,7 +212,7 @@ bool ndb_get_table_commit_count(Ndb *ndb, const NdbDictionary::Table *ndbtab,
     options.optionsPresent = NdbScanOperation::ScanOptions::SO_BATCH |
                              NdbScanOperation::ScanOptions::SO_GETVALUE |
                              NdbScanOperation::ScanOptions::SO_INTERPRETED;
-    /* Set batch_size=1, as we need only one row per fragment. */
+    /* Set batch=1, as we need only one row per fragment. */
     options.batch = 1;
     options.extraGetValues = &extraGets[0];
     options.numExtraGetValues = sizeof(extraGets) / sizeof(extraGets[0]);

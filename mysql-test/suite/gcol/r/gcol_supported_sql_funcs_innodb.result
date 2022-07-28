@@ -1208,7 +1208,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(30) GENERATED ALWAYS AS (replace(`a`,_utf8mb4'aa',_utf8mb4'bb')) VIRTUAL
+  `b` varchar(30) GENERATED ALWAYS AS (replace(`a`,_latin1'aa',_utf8mb4'bb')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('maa',default);
 select * from t1;
@@ -2431,6 +2431,8 @@ t1	CREATE TABLE `t1` (
   `b` int GENERATED ALWAYS AS (second(`a`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('10:05:03',default);
+Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '10:05:03' at row 1 is deprecated. Prefer the standard '-'.
 select * from t1;
 a	b
 2010-05-03 00:00:00	0

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,13 +34,13 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_cond_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_socket.h"
@@ -421,7 +421,7 @@ bool Per_thread_connection_handler::add_connection(Channel_info *channel_info) {
   if (!check_idle_thread_and_enqueue_connection(channel_info)) return false;
 
   /*
-    There are no idle threads avaliable to take up the new
+    There are no idle threads available to take up the new
     connection. Create a new thread to handle the connection
   */
   channel_info->set_prior_thr_create_utime();

@@ -1237,7 +1237,7 @@
         </li>
       </ul>
 
-      Ignore this guidline if your intent is to test lettercase
+      Ignore this guideline if your intent is to test lettercase
       processing for SQL statements, of course.
 
       Use lowercase for @ref PAGE_MYSQLTEST "mysqltest" commands
@@ -1254,8 +1254,8 @@
     <li>
       Break a long SQL statement into multiple lines to make it more
       readable. This means that you will need to write it using a
-      “<b>;</b>” delimiter at the end of the statement rather than
-      using “<b>`--`</b>” at the beginning because the latter style
+      <b>";"</b> delimiter at the end of the statement rather than
+      using <b>"--"</b> at the beginning because the latter style
       works only for single-line statements.
     </li>
 
@@ -3199,6 +3199,13 @@
       file.
     </li>
 
+    <li>
+      <tt>`--init-command`=<b>str</b></tt>
+
+      SQL statement passed as an argument, to execute after connecting
+      to the MYSQL server. If auto-reconnect is enabled, the statement
+      is executed again after reconnection occurs.
+    </li>
     <li>
       <tt>`--json-explain-protocol`</tt>
 
@@ -8141,81 +8148,6 @@
 
   - Google presentation:
     http://docs.google.com/present/view?id=dfsbxvm5_0f5s4pvf9
-
-  @section SECTION_INSTALL_GOOGLE_TEST Installing Google Test and Running Unit Tests
-
-  MySQL sources do not include Google Test. To install it so that you
-  can use it, use one of these approaches:
-
-  <ul>
-    <li>
-      <b><em>Install Google Test in individual source
-      trees</em></b>. Use the <b>-DENABLE_DOWNLOADS=1</b>
-      configuration option. This causes <b>CMake</b> to download
-      Google Test and install it in your source tree for you.
-    </li>
-
-    <li>
-      <b><em>Install a single instance of Google Test</em></b>.
-      MySQL requires Google Test 1.6 or higher.
-
-      <ul>
-        <li>
-          To install from a tarball, download
-          http://googlemock.googlecode.com/files/gmock-1.6.0.zip.
-        </li>
-
-        <li>
-          To download Google Test from the Subversion repository,
-          use <b>svn checkout http://googletest.googlecode.com/svn/trunk/
-          googletest-read-only</b>
-        </li>
-
-        <li>
-          If a Google Test package is available for your operating
-          system, you can install it using the package manager. For
-          example, you might be able to use <b>apt-get</b> for Debian
-          Linux.
-        </li>
-      </ul>
-
-      When Google Test has been installed, set the
-      <b>GTEST_PREFIX</b> environment variable appropriately for
-      your command interpreter. For example, use this command line for
-      <b>bash</b>:
-
-      @verbatim
-  GTEST_PREFIX=/path/to/your/install;
-  export GTEST_PREFIX
-      @endverbatim
-    </li>
-  </ul>
-
-  Installing Google Test in individual source trees is the recommended
-  method. The single-instance installation method can be used only if
-  all MySQL builds on a machine take place in the same environment
-  (same operating system, same compiler), for reasons discussed at
-  https://groups.google.com/group/googletestframework/browse_thread/thread/668eff1cebf5309d?pli=1.
-
-  At configuration time, <b>CMake</b> looks for <b>gtest.h</b>. The
-  build process compiles all Google Test-based unit tests or ignores
-  them, depending on whether <b>gtest.h</b> is found.
-
-  After the build has completed, to run the tests, change location
-  into the <b>unittest/gunit</b> directory and execute the
-  <b>ctest</b> command. It need not be invoked with any options, but
-  you can run it with the <b>`--help`</b> option to see what options
-  are available.
-
-  Another way to run the unit tests is with this command:
-
-  @verbatim
-  make test-unit
-  @endverbatim
-
-  For internal MySQL testing, PushBuild has been extended to install
-  Google Test as a separate “package”. All trees named
-  <b>mysql-trunk.*</b> are set up to depend on this package.
 
   @section SECTION_WRITING_UNIT_TESTS Writing Unit Tests for Google Test
 

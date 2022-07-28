@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
-#include "mysql/components/services/my_thread_bits.h"
+#include "mysql/components/services/bits/my_thread_bits.h"
 
 namespace mysys_lf_unittest {
 

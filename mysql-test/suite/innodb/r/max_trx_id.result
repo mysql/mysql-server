@@ -5,7 +5,7 @@
 # This way we could collect enough connections in mtr test runner to fill
 # concurrently the reservation interval (limit for mtr connections is 128).
 # Restart MySQL using the new data directory.
-# restart: --datadir=tmp/max_trx_id --log-error=my_restart.err --debug=d,trx_sys_low_trx_id_write_margin --innodb-log-file-size=4M
+# restart: --datadir=tmp/max_trx_id --log-error=my_restart.err --debug=d,trx_sys_low_trx_id_write_margin --innodb-redo-log-capacity=8M --innodb_page_size=INNODB_PAGE_SIZE
 # Create 7 connections which keep creating and comitting transactions.
 # Pause the created connections before trx_sys_mutex_enter() is called
 # before assigning trx->id.
@@ -65,14 +65,14 @@ SET DEBUG_SYNC = "now SIGNAL con_go";
 # Wait a little bit, giving a chance to corrupt the database to the resumed
 # connections (by writing down too high trx_id to some page / row).
 # Kill and restart MySQL to see if the database is not corrupted.
-# Kill and restart: --datadir=tmp/max_trx_id --log-error=my_restart.err --debug=d,trx_sys_low_trx_id_write_margin --innodb-log-file-size=4M
+# Kill and restart: --datadir=tmp/max_trx_id --log-error=my_restart.err --debug=d,trx_sys_low_trx_id_write_margin --innodb-redo-log-capacity=8M --innodb_page_size=INNODB_PAGE_SIZE
 # Update rows using a new transaction. It would crash if the transaction
 # received a trx->id which had been assigned to some other transaction
 # and written to some page/row before MySQL crashed.
 UPDATE t SET c = c + 1;
 # Check if there is no corruption if MySQL instantly crashed after using
 # the new transaction (after restart).
-# Kill and restart: --datadir=tmp/max_trx_id --log-error=my_restart.err --debug=d,trx_sys_low_trx_id_write_margin --innodb-log-file-size=4M
+# Kill and restart: --datadir=tmp/max_trx_id --log-error=my_restart.err --debug=d,trx_sys_low_trx_id_write_margin --innodb-redo-log-capacity=8M --innodb_page_size=INNODB_PAGE_SIZE
 # Update all rows using a new transaction to see if there is no assertion
 # failure on trx_id for any of the related pages.
 UPDATE t SET c = c + 1;

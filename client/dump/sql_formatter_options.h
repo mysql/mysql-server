@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ enum class enum_gtid_purged_mode : unsigned long {
 class Sql_formatter_options
     : public Mysql::Tools::Base::Options::Abstract_options_provider {
  public:
-  Sql_formatter_options(
+  explicit Sql_formatter_options(
       const Mysql_chain_element_options *mysql_chain_element_options);
 
   void create_options() override;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #include "config_builder.h"
 #include "mysql/harness/utility/string.h"
 #include "router_component_test.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 using namespace std::chrono_literals;
 
@@ -53,14 +53,14 @@ TEST_P(RouterTestBrokenConfig, ensure) {
   init_keyring(default_section, conf_dir_.name());
 
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(GetParam().sections, "\n"),
+      conf_dir_.name(), mysql_harness::join(GetParam().sections, ""),
       &default_section)};
   auto &router{
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s)};
 
   check_exit_code(router, EXIT_FAILURE);
 
-  EXPECT_THAT(router.get_full_logfile(),
+  EXPECT_THAT(router.get_logfile_content(),
               ::testing::HasSubstr(GetParam().expected_logfile_substring));
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr(GetParam().expected_stderr_substring));
@@ -244,7 +244,7 @@ static const BrokenConfigParams broken_config_params[]{
              "metadata_cache",
              {
                  {"user", "foobar"},
-                 {"bootstrap_server_address", ""},
+                 {"bootstrap_server_addresses", ""},
              }),
      },
      "list of metadata-servers is empty: 'bootstrap_server_addresses' is the "
@@ -437,6 +437,50 @@ INSTANTIATE_TEST_SUITE_P(
     });
 #endif
 
+class RouterDefaultConfigSectionTest : public RouterComponentTest {};
+
+class UnreachableDestinationRefreshIntervalOption
+    : public RouterDefaultConfigSectionTest,
+      public ::testing::WithParamInterface<std::string> {};
+
+/**
+ * @test WL14663:TS_R2_1
+ */
+TEST_P(UnreachableDestinationRefreshIntervalOption, ensure) {
+  TempDirectory conf_dir_;
+  auto default_section = get_DEFAULT_defaults();
+  const std::string unreachable_dest_refresh =
+      "unreachable_destination_refresh_interval = " + GetParam();
+
+  std::vector<std::string> sections{mysql_harness::ConfigBuilder::build_section(
+      "routing", {
+                     {"bind_address", "127.0.0.1:7001"},
+                     {"destinations", "127.0.0.1:3306"},
+                     {"mode", "read-only"},
+                     {"connect_timeout", "1"},
+                 })};
+  const std::string conf_file{
+      create_config_file(conf_dir_.name(), mysql_harness::join(sections, ""),
+                         &default_section, "test", unreachable_dest_refresh)};
+
+  auto &router{
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s)};
+
+  check_exit_code(router, EXIT_FAILURE);
+
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::HasSubstr(
+                  "Configuration error: option "
+                  "unreachable_destination_refresh_interval in [default] needs "
+                  "value between 1 and 65535 inclusive, was '" +
+                  GetParam() + "'"));
+}
+
+INSTANTIATE_TEST_SUITE_P(UnreachableDestinationRefreshIntervalOptionTest,
+                         UnreachableDestinationRefreshIntervalOption,
+                         ::testing::ValuesIn(std::vector<std::string>{
+                             "0", "-1", "65536", "10a"}));
+
 class RouterCmdlineTest : public RouterComponentTest {
  protected:
   TempDirectory conf_dir_;
@@ -514,8 +558,8 @@ TEST_F(RouterCmdlineTest, one_plugin_works) {
   std::vector<std::string> sections{
       mysql_harness::ConfigBuilder::build_section("routertestplugin_magic", {}),
   };
-  const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(sections, "\n"))};
+  const std::string conf_file{
+      create_config_file(conf_dir_.name(), mysql_harness::join(sections, ""))};
   auto &router{launch_router({"-c", conf_file})};
 
   check_exit_code(router, EXIT_SUCCESS);

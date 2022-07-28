@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -133,6 +133,15 @@ path current_path(std::error_code &ec) noexcept {
   ec = res.error();
 
   return {};
+}
+
+path current_path() {
+  std::error_code ec;
+
+  auto p = current_path(ec);
+  if (ec) throw std::system_error(ec);
+
+  return p;
 }
 
 bool remove(const path &p, std::error_code &ec) noexcept {

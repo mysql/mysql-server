@@ -2,7 +2,7 @@
 #define _EVENT_DB_REPOSITORY_H_
 
 /*
-   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,10 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
-
+#include "my_time_t.h"  // my_time_t
 class Event_basic;
 class Event_parse_data;
 class THD;
-
-typedef long my_time_t;
 
 namespace dd {
 class Schema;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -181,24 +181,31 @@ stdx::expected<std::unique_ptr<xcl::XProtocol::Message>, std::string>
 MySQLXProtocol::gr_state_changed_from_json(const std::string &json_string) {
   rapidjson::Document json_doc;
   auto result{std::make_unique<Mysqlx::Notice::GroupReplicationStateChanged>()};
-  json_doc.Parse(json_string.c_str());
-  if (json_doc.HasMember("type")) {
-    if (json_doc["type"].IsUint()) {
-      result->set_type(json_doc["type"].GetUint());
-    } else {
-      return stdx::make_unexpected(
-          "Invalid json type for field 'type', expected 'uint' got " +
-          std::to_string(json_doc["type"].GetType()));
+  json_doc.Parse(json_string.data(), json_string.size());
+
+  {
+    const auto it = json_doc.FindMember("type");
+    if (it != json_doc.MemberEnd()) {
+      if (it->value.IsUint()) {
+        result->set_type(it->value.GetUint());
+      } else {
+        return stdx::make_unexpected(
+            "Invalid json type for field 'type', expected 'uint' got " +
+            std::to_string(it->value.GetType()));
+      }
     }
   }
 
-  if (json_doc.HasMember("view_id")) {
-    if (json_doc["view_id"].IsString()) {
-      result->set_view_id(json_doc["view_id"].GetString());
-    } else {
-      return stdx::make_unexpected(
-          "Invalid json type for field 'view_id', expected 'string' got " +
-          std::to_string(json_doc["view_id"].GetType()));
+  {
+    const auto it = json_doc.FindMember("view-id");
+    if (it != json_doc.MemberEnd()) {
+      if (it->value.IsString()) {
+        result->set_view_id(it->value.GetString());
+      } else {
+        return stdx::make_unexpected(
+            "Invalid json type for field 'view_id', expected 'string' got " +
+            std::to_string(it->value.GetType()));
+      }
     }
   }
 

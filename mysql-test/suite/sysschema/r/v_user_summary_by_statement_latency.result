@@ -5,6 +5,7 @@ total	decimal(42,0)	YES		NULL
 total_latency	varchar(11)	YES		NULL	
 max_latency	varchar(11)	YES		NULL	
 lock_latency	varchar(11)	YES		NULL	
+cpu_latency	varchar(11)	YES		NULL	
 rows_sent	decimal(42,0)	YES		NULL	
 rows_examined	decimal(42,0)	YES		NULL	
 rows_affected	decimal(42,0)	YES		NULL	
@@ -17,6 +18,7 @@ total	decimal(42,0)	YES		NULL
 total_latency	decimal(42,0)	YES		NULL	
 max_latency	decimal(42,0)	YES		NULL	
 lock_latency	decimal(42,0)	YES		NULL	
+cpu_latency	decimal(42,0)	YES		NULL	
 rows_sent	decimal(42,0)	YES		NULL	
 rows_examined	decimal(42,0)	YES		NULL	
 rows_affected	decimal(42,0)	YES		NULL	

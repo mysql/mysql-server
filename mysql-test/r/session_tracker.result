@@ -843,5 +843,19 @@ session_track_state_change	ON
 SHOW VARIABLES like 'session_track_state_change';
 Variable_name	Value
 session_track_state_change	OFF
+#
+# Bug#33728209: set variable to function value cause double locking mutex & deadlock/hang
+#
+create function f() returns longtext no sql
+begin
+declare continue handler for sqlexception begin end;
+replace into asd values();
+return 'a';
+end $
+set session_track_system_variables=f();
+Warnings:
+Warning	1231	a is not a valid system variable and will be ignored.
+set session_track_system_variables=DEFAULT;
+drop function f;
 
 # End of tests

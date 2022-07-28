@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,13 +32,14 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"  // free_root
-#include "mysql/components/services/mysql_rwlock_bits.h"
-#include "mysql/components/services/psi_rwlock_bits.h"
+#include "mysql/components/services/bits/mysql_rwlock_bits.h"
+#include "mysql/components/services/bits/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "sql/locks/shared_spin_lock.h"  // Shared_spin_lock
-#include "sql/sql_list.h"                // List
-#include "sql/sql_plugin.h"              // my_plugin_(un)lock
-#include "sql/sql_plugin_ref.h"          // plugin_ref
+#include "sql/psi_memory_key.h"
+#include "sql/sql_list.h"        // List
+#include "sql/sql_plugin.h"      // my_plugin_(un)lock
+#include "sql/sql_plugin_ref.h"  // plugin_ref
 
 class Master_info;
 class String;
@@ -60,7 +61,7 @@ struct TABLE_LIST;
   `0`, again. While the value of the variable is `1`, we are also exchanging the
   `Delegate` class read-write lock by an atomic-based shared spin-lock.
 
-  This behaviour is usefull for increasing the throughtput of the master when a
+  This behaviour is useful for increasing the throughtput of the master when a
   large number of slaves is connected, by preventing the acquisition of the
   `LOCK_plugin` mutex and using a more read-friendly lock in the `Delegate`
   class, when invoking the observer's hooks.
@@ -130,7 +131,6 @@ class Delegate {
     Removes an observer from the observer list.
 
     @param observer The observer object to be added to the list
-    @param plugin The plugin the observer is being loaded from
 
     @return 0 upon success, 1 otherwise
    */
@@ -220,7 +220,7 @@ class Delegate {
   */
   lock::Shared_spin_lock m_spin_lock;
   /** Memory pool to be used to allocate the observers list */
-  MEM_ROOT memroot;
+  MEM_ROOT memroot{key_memory_delegate, 1024};
   /** Flag statign whether or not this instance was initialized */
   bool inited;
   /**
@@ -252,7 +252,7 @@ class Delegate {
   };
 
   /**
-    Increases the `info->plugin` reference counting and stores that refernce
+    Increases the `info->plugin` reference counting and stores that reference
     internally.
    */
   void acquire_plugin_ref_count(Observer_info *info);
@@ -273,6 +273,9 @@ extern PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 class Binlog_cache_storage;
 
 class Trans_delegate : public Delegate {
+  std::atomic<bool> m_rollback_transaction_on_begin{false};
+  std::atomic<bool> m_rollback_transaction_not_reached_before_commit{false};
+
  public:
   Trans_delegate()
       : Delegate(
@@ -292,6 +295,33 @@ class Trans_delegate : public Delegate {
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);
   int trans_begin(THD *thd, int &result);
+
+  /**
+    The method sets the flag that will fail the new incoming transactions and
+    allows some management queries to run. New incoming transactions are rolled
+    back.
+  */
+  int set_transactions_at_begin_must_fail();
+
+  /**
+    The method that removes the restrictions on the transactions which were
+    earlier failing due to flag set by the set_transactions_at_begin_must_fail
+    method.
+  */
+  int set_no_restrictions_at_transaction_begin();
+
+  /**
+    Method to rollback the transactions that passed the begin state but have yet
+    not reached the begin_commit stage. Transactions are not allowed to
+    broadcast instead failure is returned from before_commit function.
+  */
+  int set_transactions_not_reached_before_commit_must_fail();
+
+  /**
+    Method that allows the transactions to commit again which were earlier
+    stopped by set_transactions_not_reached_before_commit_must_fail method.
+  */
+  int set_no_restrictions_at_transactions_before_commit();
 };
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE

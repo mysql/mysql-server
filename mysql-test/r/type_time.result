@@ -3,6 +3,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (t time);
 insert into t1 values("10:22:33"),("12:34:56.78"),(10),(1234),(123456.78),(1234559.99),("1"),("1:23"),("1:23:45"), ("10.22"), ("-10  1:22:33.45"),("20 10:22:33"),("1999-02-03 20:33:34");
 Warnings:
+Warning	4096	Delimiter ' ' in position 3 in datetime value '-10  1:22:33.45' at row 11 is superfluous and is deprecated. Please remove.
 Note	1265	Data truncated for column 't' at row 13
 insert t1 values (30),(1230),("1230"),("12:30"),("12:30:35"),("1 12:30:31.32");
 select * from t1;
@@ -2736,3 +2737,124 @@ SET sql_mode = default;
 #
 # End of 5.6 tests
 #
+# Bug#32915973: Prepare DATE_ADD/DATE_SUB incorrectly returns DATETIME
+set @d_str = '2020-01-01';
+set @t_str = '01:01:01';
+set @dt_str = '2020-01-01 01:01:01';
+set @dt_tz = '2020-01-01 01:01:01+03:00';
+set @d_int = 20200101;
+set @t_int = 010101;
+set @dt_int = 20200101010101;
+set @d_dec = 20200101.0;
+set @t_dec = 010101.0;
+set @dt_dec = 20200101010101.0;
+set @d_flt = 20200101E0;
+set @t_flt = 010101E0;
+set @dt_flt = 20200101010101E0;
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @d_str;
+TIME'01:01:01' = ?
+0
+Warnings:
+Warning	1292	Truncated incorrect time value: '2020-01-01'
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @t_str;
+TIME'01:01:01' = ?
+1
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @dt_str;
+TIME'01:01:01' = ?
+1
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @dt_tz;
+TIME'01:01:01' = ?
+1
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @d_int;
+TIME'01:01:01' = ?
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '20200101'
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @t_int;
+TIME'01:01:01' = ?
+1
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @dt_int;
+TIME'01:01:01' = ?
+1
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @d_dec;
+TIME'01:01:01' = ?
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '20200101.0'
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @t_dec;
+TIME'01:01:01' = ?
+1
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @dt_dec;
+TIME'01:01:01' = ?
+1
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @d_flt;
+TIME'01:01:01' = ?
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '20200101'
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @t_flt;
+TIME'01:01:01' = ?
+1
+prepare stmt from "SELECT TIME'01:01:01' = ?";
+execute stmt using @dt_flt;
+TIME'01:01:01' = ?
+1
+deallocate prepare stmt;
+# Bug#33477883: Sig6 `value.time.time_type == MYSQL_TIMESTAMP_ERROR'
+prepare ps from "SELECT TIME'01:01:01' = ?";
+set @var = 'e';
+execute ps using @var;
+TIME'01:01:01' = ?
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: 'e'
+set @var = '';
+execute ps using @var;
+TIME'01:01:01' = ?
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: ''
+set @var = '23:59:60';
+execute ps using @var;
+TIME'01:01:01' = ?
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '23:59:60'
+# Bug#33539844: Parser for TIME values differ between plain and prepared
+CREATE TABLE t1(t TIME);
+INSERT INTO t1 VALUES ('10-11-12');
+ERROR 22007: Incorrect time value: '10-11-12' for column 't' at row 1
+SET @t = '10-11-12';
+prepare s from "INSERT INTO t1 VALUES (?)";
+execute s using @t;
+ERROR 22007: Incorrect time value: '10-11-12' for column 't' at row 1
+DROP TABLE t1;
+# Bug#33616957: Parser error for TIME values in binary protocol
+CREATE TABLE t(t TIME);
+CREATE TABLE dt(dt DATETIME);
+INSERT INTO t VALUES('2021-10-10 00:00:00.123456+01:00');
+Warnings:
+Note	1292	Incorrect time value: '2021-10-10 00:00:00.123456+01:00' for column 't' at row 1
+INSERT INTO dt VALUES('2021-10-10 00:00:00.123456+01:00');
+INSERT INTO t SELECT * FROM dt;
+prepare s from "INSERT INTO t VALUES(?)";
+set @dt='2021-10-10 00:00:00.123456+01:00';
+execute s using @dt;
+SELECT * FROM t;
+t
+02:00:00
+02:00:00
+02:00:00
+DROP TABLE t, dt;

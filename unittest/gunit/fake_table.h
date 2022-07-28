@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,6 +118,7 @@ class Fake_TABLE : public TABLE {
   uint32 write_set_buf;
   MY_BITMAP read_set_struct;
   uint32 read_set_buf;
+  uint32 tmp_set_buf;
   Field *m_field_array[MAX_TABLE_COLUMNS]{};
   Mock_field_long *m_mock_field_array[MAX_TABLE_COLUMNS];
 
@@ -143,6 +144,7 @@ class Fake_TABLE : public TABLE {
         new (&mem_root) Query_block(&mem_root, nullptr, nullptr);
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields));
     EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields));
+    EXPECT_EQ(0, bitmap_init(&tmp_set, &tmp_set_buf, s->fields));
 
     const_table = false;
     pos_in_table_list->set_tableno(highest_table_id);
@@ -270,12 +272,12 @@ class Fake_TABLE : public TABLE {
     key->table = this;
     key->flags = key->actual_flags = key_flags;
     key->actual_key_parts = key->user_defined_key_parts = 1;
-    key->key_part[0].field = column1;
-    key->key_part[0].store_length = 8;
+    key->key_part[0].init_from_field(column1);
+    ++s->key_parts;
     if (column2 != nullptr) {
       key->actual_key_parts = key->user_defined_key_parts = 2;
-      key->key_part[1].field = column2;
-      key->key_part[1].store_length = 8;
+      key->key_part[1].init_from_field(column2);
+      ++s->key_parts;
     }
     key->name = "unittest_index";
 

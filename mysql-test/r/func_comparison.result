@@ -112,7 +112,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 0	0	0	0	0	0	0	0	0	0
 execute s1 using @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv;
 a	au	b	bu	c	cu	d	du	e	eu
-0	0	0	0	0	0	0	0	1	0
+0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
@@ -208,7 +208,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 1	1	1	1	1	1	1	1	1	1
 execute s2 using @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv;
 a	au	b	bu	c	cu	d	du	e	eu
-1	1	1	1	1	1	1	1	0	1
+1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
@@ -496,7 +496,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 0	0	0	0	0	0	0	0	0	0
 execute s5 using @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv;
 a	au	b	bu	c	cu	d	du	e	eu
-0	0	0	0	0	0	0	0	1	0
+0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
@@ -592,7 +592,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 1	1	1	1	1	1	1	1	1	1
 execute s6 using @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv, @sv;
 a	au	b	bu	c	cu	d	du	e	eu
-1	1	1	1	1	1	1	1	0	1
+1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
@@ -9396,7 +9396,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
-0	0	0	0	0	0	0	0	1	0
+0	0	0	0	0	0	0	0	0	0
 SELECT i1 <> 9223372036854775808 AS a,
 u1 <> 9223372036854775808 AS au,
 i2 <> 9223372036854775808 AS b,
@@ -9492,7 +9492,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1	0	1
+1	1	1	1	1	1	1	1	1	1
 SELECT i1 < 9223372036854775808 AS a,
 u1 < 9223372036854775808 AS au,
 i2 < 9223372036854775808 AS b,
@@ -9588,7 +9588,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1	0	0
+1	1	1	1	1	1	1	1	1	0
 SELECT i1 >= 9223372036854775808 AS a,
 u1 >= 9223372036854775808 AS au,
 i2 >= 9223372036854775808 AS b,
@@ -9684,7 +9684,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
-0	0	0	0	0	0	0	0	1	1
+0	0	0	0	0	0	0	0	0	1
 SELECT i1 <= 9223372036854775808 AS a,
 u1 <= 9223372036854775808 AS au,
 i2 <= 9223372036854775808 AS b,
@@ -10556,7 +10556,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
-0	0	0	0	0	0	0	0	0	1
+0	0	0	0	0	0	0	0	0	0
 SELECT i1 <> 18446744073709551616 AS a,
 u1 <> 18446744073709551616 AS au,
 i2 <> 18446744073709551616 AS b,
@@ -10652,7 +10652,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1	1	0
+1	1	1	1	1	1	1	1	1	1
 SELECT i1 < 18446744073709551616 AS a,
 u1 < 18446744073709551616 AS au,
 i2 < 18446744073709551616 AS b,
@@ -10748,7 +10748,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1	1	0
+1	1	1	1	1	1	1	1	1	1
 SELECT i1 >= 18446744073709551616 AS a,
 u1 >= 18446744073709551616 AS au,
 i2 >= 18446744073709551616 AS b,
@@ -10844,7 +10844,7 @@ a	au	b	bu	c	cu	d	du	e	eu
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
 0	0	0	0	0	0	0	0	0	0
-0	0	0	0	0	0	0	0	0	1
+0	0	0	0	0	0	0	0	0	0
 SELECT i1 <= 18446744073709551616 AS a,
 u1 <= 18446744073709551616 AS au,
 i2 <= 18446744073709551616 AS b,
@@ -16592,6 +16592,11 @@ INSERT INTO t7 VALUES
 (0, '0001-01-01 00:00:00', '0001-01-01 00:00:00.000000'),
 (1, '2017-01-01 11:59.59', '2017-01-01 11:59.59.555555'),
 (2, '9999-12-31 23:59.59', '9999-12-31 23:59.59.999999');
+Warnings:
+Warning	4095	Delimiter '.' in position 16 in datetime value '2017-01-01 11:59.59' at row 2 is deprecated. Prefer the standard ':'.
+Warning	4095	Delimiter '.' in position 16 in datetime value '2017-01-01 11:59.59.555555' at row 2 is deprecated. Prefer the standard ':'.
+Warning	4095	Delimiter '.' in position 16 in datetime value '9999-12-31 23:59.59' at row 3 is deprecated. Prefer the standard ':'.
+Warning	4095	Delimiter '.' in position 16 in datetime value '9999-12-31 23:59.59.999999' at row 3 is deprecated. Prefer the standard ':'.
 set @dsv= "0001-01-01";
 set @tssv= "0001-01-01 00:00:00.000000";
 set @iv= 00010101;

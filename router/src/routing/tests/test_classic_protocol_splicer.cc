@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "classic_protocol_splicer.h"
+#include "classic_connection.h"
 
 #include <array>
+#include <memory>
 #include <ostream>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include <gmock/gmock-matchers.h>
@@ -36,7 +38,11 @@
 #include <openssl/ssl.h>  // SSL_CTX
 
 #include "channel.h"
+#include "connection.h"
+#include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/local.h"
+#include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysql/harness/tls_client_context.h"
@@ -44,6 +50,7 @@
 #include "mysql/harness/tls_error.h"
 #include "mysql/harness/tls_server_context.h"
 #include "openssl_version.h"
+#include "protocol/base_protocol.h"
 #include "ssl_mode.h"
 #include "test/helpers.h"  // init_test_logger
 
@@ -53,74 +60,108 @@
 #define EXPECT_NO_ERROR(x) \
   EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return (bool)v; }))
 
-std::ostream &operator<<(std::ostream &os, BasicSplicer::State st) {
-  os << BasicSplicer::state_to_string(st);
-  return os;
+using namespace std::chrono_literals;
+#if 0
+class ClassicProtocolSplicerTest : public ::testing::Test {
+ public:
+ protected:
+  MySQLRoutingContext ctx_{BaseProtocol::Type::kClassicProtocol,  // protocol
+                           "someroute",                           // name
+                           4 * 1024,               // net_buffer_length
+                           1s,                     // dest_connect_timeout
+                           1s,                     // client_connect_timeout
+                           {},                     // bind_address
+                           {"somepath"},           // bind_named_socket
+                           100,                    // max_connect_errors
+                           1024,                   // thread_stack_size
+                           SslMode::kPassthrough,  // client_ssl_mode
+                           nullptr,                // client_ssl_ctx
+                           SslMode::kAsClient,     // server_ssl_mode
+                           nullptr};
+};
+
+template <>
+inline std::vector<std::pair<std::string, std::string>>
+initial_connection_attributes<local::stream_protocol>(
+    const local::stream_protocol::endpoint &ep) {
+  return {
+      {"_client_socket", ep.path()},
+  };
 }
 
-TEST(ClassicProtocolSplicerTest, disabled_to_disabled_initial_state) {
-  ClassicProtocolSplicer splicer(
-      SslMode::kDisabled, SslMode::kDisabled, []() { return nullptr; },
-      []() { return nullptr; }, {});
+TEST_F(ClassicProtocolSplicerTest, disabled_to_disabled_initial_state) {
+  net::io_context io_ctx;
 
-  ASSERT_EQ(splicer.state(), BasicSplicer::State::SERVER_GREETING);
+  MysqlRoutingClassicConnection<net::ip::tcp, net::ip::tcp> splicer(
+      ctx_, "somedestid",            //
+      net::ip::tcp::socket{io_ctx},  // from_socket
+      net::ip::tcp::endpoint{},      // from_endpoint
+      net::ip::tcp::socket{io_ctx},  // to_socket
+      net::ip::tcp::endpoint{},      // to_endpoint
+      [](MySQLRoutingConnectionBase *) {});
 
-  EXPECT_EQ(splicer.source_ssl_mode(), SslMode::kDisabled);
-  EXPECT_EQ(splicer.dest_ssl_mode(), SslMode::kDisabled);
+  EXPECT_EQ(splicer.source_ssl_mode(), SslMode::kPassthrough);
+  EXPECT_EQ(splicer.dest_ssl_mode(), SslMode::kAsClient);
 }
 
-TEST(ClassicProtocolSplicerTest, server_greeting_empty) {
-  ClassicProtocolSplicer splicer(
-      SslMode::kDisabled, SslMode::kDisabled, []() { return nullptr; },
-      []() { return nullptr; }, {});
+TEST_F(ClassicProtocolSplicerTest, server_greeting_broken) {
+  net::io_context io_ctx;
 
-  ASSERT_EQ(splicer.state(), BasicSplicer::State::SERVER_GREETING);
+  using Connection = MysqlRoutingClassicConnection<local::stream_protocol,
+                                                   local::stream_protocol>;
+
+  Connection::client_protocol_type::socket client_sock{io_ctx};
+  Connection::client_protocol_type::socket from_sock2{io_ctx};
+
+  Connection::server_protocol_type::socket to_sock1{io_ctx};
+  Connection::server_protocol_type::socket server_sock{io_ctx};
+
+  ASSERT_TRUE(local::connect_pair(&io_ctx, client_sock, from_sock2));
+  ASSERT_TRUE(local::connect_pair(&io_ctx, to_sock1, server_sock));
+
+  Connection splicer(ctx_, "somedestid",                     //
+                     std::move(from_sock2),                  // from_socket
+                     client_sock.remote_endpoint().value(),  // from_endpoint
+                     std::move(to_sock1),                    // to_socket
+                     server_sock.remote_endpoint().value(),  // to_endpoint
+                     [](MySQLRoutingConnectionBase *) {});
+  splicer.async_run();  // should call server_greeting()
+
+  std::vector<uint8_t> broken_greeting{0x01, 0x00, 0x00, 0x00, 0x00};
+
+  server_sock.send(net::buffer(broken_greeting));
 
   // recv-buffer is empty, we should stay in the same state.
-  EXPECT_EQ(splicer.server_greeting(), BasicSplicer::State::SERVER_GREETING);
+  io_ctx.run_one();
 
-  EXPECT_EQ(splicer.server_channel()->want_recv(), 4);
+  std::vector<uint8_t> recv_buf;
+
+  auto read_res = net::read(client_sock, net::dynamic_buffer(recv_buf),
+                            net::transfer_at_least(4));
+  EXPECT_EQ(read_res, stdx::unexpected(make_error_code(net::stream_errc::eof)));
 }
 
-TEST(ClassicProtocolSplicerTest, server_greeting_partial) {
-  ClassicProtocolSplicer splicer(
-      SslMode::kDisabled, SslMode::kDisabled, []() { return nullptr; },
-      []() { return nullptr; }, {});
+TEST_F(ClassicProtocolSplicerTest, server_greeting_partial) {
+  net::io_context io_ctx;
 
-  ASSERT_EQ(splicer.state(), BasicSplicer::State::SERVER_GREETING);
+  using Connection = MysqlRoutingClassicConnection<local::stream_protocol,
+                                                   local::stream_protocol>;
 
-  const std::array<uint8_t, 4> packet = {{0x20, 0x00, 0x00, 0x00}};
+  Connection::client_protocol_type::socket client_sock{io_ctx};
+  Connection::client_protocol_type::socket from_sock2{io_ctx};
 
-  splicer.server_channel()->recv_buffer().resize(packet.size());
-  net::buffer_copy(net::buffer(splicer.server_channel()->recv_buffer()),
-                   net::buffer(packet));
+  Connection::server_protocol_type::socket to_sock1{io_ctx};
+  Connection::server_protocol_type::socket server_sock{io_ctx};
 
-  // recv-buffer is empty, we should stay in the same state.
-  EXPECT_EQ(splicer.server_greeting(), BasicSplicer::State::SERVER_GREETING);
-}
+  ASSERT_TRUE(local::connect_pair(&io_ctx, client_sock, from_sock2));
+  ASSERT_TRUE(local::connect_pair(&io_ctx, to_sock1, server_sock));
 
-TEST(ClassicProtocolSplicerTest, server_greeting_broken) {
-  ClassicProtocolSplicer splicer(
-      SslMode::kDisabled, SslMode::kDisabled, []() { return nullptr; },
-      []() { return nullptr; }, {});
-
-  ASSERT_EQ(splicer.state(), BasicSplicer::State::SERVER_GREETING);
-
-  const std::array<uint8_t, 5> packet = {{0x01, 0x00, 0x00, 0x00, 0x00}};
-
-  splicer.server_channel()->recv_buffer().resize(packet.size());
-  net::buffer_copy(net::buffer(splicer.server_channel()->recv_buffer()),
-                   net::buffer(packet));
-
-  EXPECT_EQ(splicer.server_greeting(), BasicSplicer::State::FINISH);
-}
-
-TEST(ClassicProtocolSplicerTest, server_greeting_valid) {
-  ClassicProtocolSplicer splicer(
-      SslMode::kDisabled, SslMode::kDisabled, []() { return nullptr; },
-      []() { return nullptr; }, {});
-
-  ASSERT_EQ(splicer.state(), BasicSplicer::State::SERVER_GREETING);
+  Connection splicer(ctx_, "somedestid",                     //
+                     std::move(from_sock2),                  // from_socket
+                     client_sock.remote_endpoint().value(),  // from_endpoint
+                     std::move(to_sock1),                    // to_socket
+                     server_sock.remote_endpoint().value(),  // to_endpoint
+                     [](MySQLRoutingConnectionBase *) {});
 
   const std::array<uint8_t, 0x4a + 4> packet = {
       {0x4a, 0x00, 0x00, 0x00, 0x0a, 0x38, 0x2e, 0x30, 0x2e, 0x32, 0x30, 0x00,
@@ -131,97 +172,144 @@ TEST(ClassicProtocolSplicerTest, server_greeting_valid) {
        0x69, 0x6e, 0x67, 0x5f, 0x73, 0x68, 0x61, 0x32, 0x5f, 0x70, 0x61, 0x73,
        0x73, 0x77, 0x6f, 0x72, 0x64, 0x00}};
 
-  splicer.server_channel()->recv_buffer().resize(packet.size());
-  net::buffer_copy(net::buffer(splicer.server_channel()->recv_buffer()),
-                   net::buffer(packet));
+  auto send_buf = net::buffer(packet);
 
-  EXPECT_EQ(splicer.server_greeting(), BasicSplicer::State::CLIENT_GREETING);
+  // split the packet into 2 parts at byte ... 12. Any position would be good.
+  constexpr const size_t part_split{12};
 
-  // all bytes should be consumed
-  EXPECT_EQ(splicer.server_channel()->recv_buffer().size(), 0);
+  auto send_res = server_sock.send(net::buffer(send_buf, part_split));
+  ASSERT_TRUE(send_res) << send_res.error();
+  EXPECT_EQ(send_res.value(), part_split);
+  send_buf += send_res.value();
+
+  // trigger server greeting.
+  splicer.async_run();
+
+  io_ctx.run_one();
+
+  // nothing should be sent yet.
+  auto avail_res = client_sock.available();
+  ASSERT_TRUE(avail_res) << avail_res.error();
+  EXPECT_EQ(avail_res.value(), 0);
+
+  send_res = server_sock.send(net::buffer(send_buf));
+  ASSERT_TRUE(send_res) << send_res.error();
+  EXPECT_EQ(send_res.value(), packet.size() - part_split);
+
+  io_ctx.run_one();
+  io_ctx.run_one();
+
+  avail_res = client_sock.available();
+  ASSERT_TRUE(avail_res) << avail_res.error();
+  EXPECT_EQ(avail_res.value(), packet.size());
 }
 
-TEST(ClassicProtocolSplicerTest, server_greeting_valid_split) {
-  ClassicProtocolSplicer splicer(
-      SslMode::kDisabled, SslMode::kDisabled, []() { return nullptr; },
-      []() { return nullptr; }, {});
+TEST_F(ClassicProtocolSplicerTest, server_greeting_full) {
+  net::io_context io_ctx;
 
-  ASSERT_EQ(splicer.state(), BasicSplicer::State::SERVER_GREETING);
+  using Connection = MysqlRoutingClassicConnection<local::stream_protocol,
+                                                   local::stream_protocol>;
 
-  // all bytes, but the last 2
-  const std::array<uint8_t, 0x4a + 4 - 2> packet_part_1 = {
-      {0x4a, 0x00, 0x00, 0x00,  // header: size + seq-id=0
-       0x0a, 0x38, 0x2e, 0x30, 0x2e, 0x32, 0x30, 0x00, 0xf1, 0x03, 0x00, 0x00,
-       0x11, 0x3f, 0x0f, 0x35, 0x70, 0x2f, 0x62, 0x5b, 0x00, 0xff, 0xff, 0xff,
-       0x02, 0x00, 0xff, 0xc7, 0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-       0x00, 0x00, 0x00, 0x3c, 0x01, 0x67, 0x23, 0x0b, 0x44, 0x01, 0x2c, 0x1c,
-       0x65, 0x58, 0x57, 0x00, 0x63, 0x61, 0x63, 0x68, 0x69, 0x6e, 0x67, 0x5f,
-       0x73, 0x68, 0x61, 0x32, 0x5f, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72}};
+  Connection::client_protocol_type::socket client_sock{io_ctx};
+  Connection::client_protocol_type::socket from_sock2{io_ctx};
 
-  // ... and the last 2 bytes
-  const std::array<uint8_t, 2> packet_part_2 = {{0x64, 0x00}};
+  Connection::server_protocol_type::socket to_sock1{io_ctx};
+  Connection::server_protocol_type::socket server_sock{io_ctx};
 
-  splicer.server_channel()->recv_buffer().resize(packet_part_1.size());
-  net::buffer_copy(net::buffer(splicer.server_channel()->recv_buffer()),
-                   net::buffer(packet_part_1));
+  ASSERT_TRUE(local::connect_pair(&io_ctx, client_sock, from_sock2));
+  ASSERT_TRUE(local::connect_pair(&io_ctx, to_sock1, server_sock));
 
-  // stay in the same state
-  EXPECT_EQ(splicer.server_greeting(), BasicSplicer::State::SERVER_GREETING);
+  Connection splicer(ctx_, "somedestid",                     //
+                     std::move(from_sock2),                  // from_socket
+                     client_sock.remote_endpoint().value(),  // from_endpoint
+                     std::move(to_sock1),                    // to_socket
+                     server_sock.remote_endpoint().value(),  // to_endpoint
+                     [](MySQLRoutingConnectionBase *) {});
 
-  // nothing consumed.
-  EXPECT_EQ(splicer.server_channel()->recv_buffer().size(),
-            packet_part_1.size());
+  const std::array<uint8_t, 0x4a + 4> packet = {
+      {0x4a, 0x00, 0x00, 0x00, 0x0a, 0x38, 0x2e, 0x30, 0x2e, 0x32, 0x30, 0x00,
+       0xf1, 0x03, 0x00, 0x00, 0x11, 0x3f, 0x0f, 0x35, 0x70, 0x2f, 0x62, 0x5b,
+       0x00, 0xff, 0xff, 0xff, 0x02, 0x00, 0xff, 0xc7, 0x15, 0x00, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x01, 0x67, 0x23, 0x0b,
+       0x44, 0x01, 0x2c, 0x1c, 0x65, 0x58, 0x57, 0x00, 0x63, 0x61, 0x63, 0x68,
+       0x69, 0x6e, 0x67, 0x5f, 0x73, 0x68, 0x61, 0x32, 0x5f, 0x70, 0x61, 0x73,
+       0x73, 0x77, 0x6f, 0x72, 0x64, 0x00}};
 
-  // append the last 2 bytes to the recv-buffer.
-  const auto orig_size = splicer.server_channel()->recv_buffer().size();
-  splicer.server_channel()->recv_buffer().resize(orig_size +
-                                                 packet_part_2.size());
-  net::buffer_copy(
-      net::buffer(net::buffer(splicer.server_channel()->recv_buffer()) +
-                  orig_size),
-      net::buffer(packet_part_2));
+  auto send_buf = net::buffer(packet);
 
-  // parsing should be fine and continue.
-  EXPECT_EQ(splicer.server_greeting(), BasicSplicer::State::CLIENT_GREETING);
+  auto send_res = server_sock.send(send_buf);
+  ASSERT_TRUE(send_res) << send_res.error();
+  EXPECT_EQ(send_res.value(), packet.size());
+  send_buf += send_res.value();
 
-  // all bytes should be consumed
-  EXPECT_EQ(splicer.server_channel()->recv_buffer().size(), 0);
+  // trigger server greeting.
+  splicer.async_run();
+
+  io_ctx.run_one();
+  io_ctx.run_one();
+
+  // nothing should be sent yet.
+  auto avail_res = client_sock.available();
+  ASSERT_TRUE(avail_res) << avail_res.error();
+  EXPECT_EQ(avail_res.value(), packet.size());
 }
 
-TEST(ClassicProtocolSplicerTest, client_greeting_empty) {
-  ClassicProtocolSplicer splicer(
-      SslMode::kDisabled, SslMode::kDisabled, []() { return nullptr; },
-      []() { return nullptr; }, {});
+TEST_F(ClassicProtocolSplicerTest, client_greeting_partial) {
+  net::io_context io_ctx;
 
-  splicer.state(BasicSplicer::State::CLIENT_GREETING);
+  using Connection = MysqlRoutingClassicConnection<local::stream_protocol,
+                                                   local::stream_protocol>;
 
-  ASSERT_EQ(splicer.state(), BasicSplicer::State::CLIENT_GREETING);
+  Connection::client_protocol_type::socket client_sock{io_ctx};
+  Connection::client_protocol_type::socket from_sock2{io_ctx};
 
-  // recv-buffer is empty, we should stay in the same state.
-  EXPECT_EQ(splicer.client_greeting(), BasicSplicer::State::CLIENT_GREETING);
+  Connection::server_protocol_type::socket to_sock1{io_ctx};
+  Connection::server_protocol_type::socket server_sock{io_ctx};
 
-  EXPECT_EQ(splicer.client_channel()->want_recv(), 1);
+  ASSERT_TRUE(local::connect_pair(&io_ctx, client_sock, from_sock2));
+  ASSERT_TRUE(local::connect_pair(&io_ctx, to_sock1, server_sock));
+
+  Connection splicer(ctx_, "somedestid",                     //
+                     std::move(from_sock2),                  // from_socket
+                     client_sock.remote_endpoint().value(),  // from_endpoint
+                     std::move(to_sock1),                    // to_socket
+                     server_sock.remote_endpoint().value(),  // to_endpoint
+                     [](MySQLRoutingConnectionBase *) {});
+
+  const std::array<uint8_t, 0x4a + 4> packet = {
+      {0x4a, 0x00, 0x00, 0x00, 0x0a, 0x38, 0x2e, 0x30, 0x2e, 0x32, 0x30, 0x00,
+       0xf1, 0x03, 0x00, 0x00, 0x11, 0x3f, 0x0f, 0x35, 0x70, 0x2f, 0x62, 0x5b,
+       0x00, 0xff, 0xff, 0xff, 0x02, 0x00, 0xff, 0xc7, 0x15, 0x00, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x01, 0x67, 0x23, 0x0b,
+       0x44, 0x01, 0x2c, 0x1c, 0x65, 0x58, 0x57, 0x00, 0x63, 0x61, 0x63, 0x68,
+       0x69, 0x6e, 0x67, 0x5f, 0x73, 0x68, 0x61, 0x32, 0x5f, 0x70, 0x61, 0x73,
+       0x73, 0x77, 0x6f, 0x72, 0x64, 0x00}};
+
+  auto send_buf = net::buffer(packet);
+
+  auto send_res = server_sock.send(send_buf);
+  ASSERT_TRUE(send_res) << send_res.error();
+  EXPECT_EQ(send_res.value(), packet.size());
+  send_buf += send_res.value();
+
+  // trigger server greeting.
+  splicer.async_run();
+
+  io_ctx.run_one();
+  io_ctx.run_one();
+
+  // nothing should be sent yet.
+  auto avail_res = client_sock.available();
+  ASSERT_TRUE(avail_res) << avail_res.error();
+  EXPECT_EQ(avail_res.value(), packet.size());
+
+  const std::array<uint8_t, 4> client_greeting_partial = {
+      {0x20, 0x00, 0x00, 0x01}};
+  auto client_send_res = client_sock.send(net::buffer(client_greeting_partial));
+  ASSERT_TRUE(client_send_res) << client_send_res.error();
+  EXPECT_EQ(client_send_res.value(), client_greeting_partial.size());
 }
 
-TEST(ClassicProtocolSplicerTest, client_greeting_partial) {
-  ClassicProtocolSplicer splicer(
-      SslMode::kDisabled, SslMode::kDisabled, []() { return nullptr; },
-      []() { return nullptr; }, {});
-
-  splicer.state(BasicSplicer::State::CLIENT_GREETING);
-
-  ASSERT_EQ(splicer.state(), BasicSplicer::State::CLIENT_GREETING);
-
-  const std::array<uint8_t, 4> packet = {{0x20, 0x00, 0x00, 0x01}};
-
-  auto &recv_buf = splicer.client_channel()->recv_buffer();
-
-  recv_buf.resize(packet.size());
-  net::buffer_copy(net::buffer(recv_buf), net::buffer(packet));
-
-  // recv-buffer is empty, we should stay in the same state.
-  EXPECT_EQ(splicer.client_greeting(), BasicSplicer::State::CLIENT_GREETING);
-}
 
 TEST(ClassicProtocolSplicerTest, client_greeting_ssl) {
   TlsClientContext tls_client_ctx;
@@ -920,6 +1008,7 @@ TEST(ClassicProtocolSplicerTest, splice_passthrough_tls) {
   EXPECT_EQ(splicer.client_channel()->recv_plain_buffer().size(), 0);
   EXPECT_EQ(splicer.server_channel()->send_buffer().size(), 7);
 }
+#endif
 
 int main(int argc, char *argv[]) {
   TlsLibraryContext lib_ctx;

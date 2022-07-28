@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,10 @@
 
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"  // ::join()
-
-#include "mysqlrouter/plugin_config.h"
 
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/rest_api_component.h"
@@ -54,14 +54,16 @@ static const char kRequireRealm[]{"require_realm"};
 // one shared setting
 std::string require_realm_metadata_cache;
 
-class RestMetadataCachePluginConfig : public mysqlrouter::BasePluginConfig {
+using StringOption = mysql_harness::StringOption;
+
+class RestMetadataCachePluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string require_realm;
 
   explicit RestMetadataCachePluginConfig(
       const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        require_realm(get_option_string(section, kRequireRealm)) {}
+      : mysql_harness::BasePluginConfig(section),
+        require_realm(get_option(section, kRequireRealm, StringOption{})) {}
 
   std::string get_default(const std::string & /* option */) const override {
     return {};
@@ -852,18 +854,26 @@ static const std::array<const char *, 2> required = {{
     "rest_api",
 }};
 
+static const std::array<const char *, 1> supported_options{kRequireRealm};
+
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_metadata_cache = {
-    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "REST_METADATA_CACHE", VERSION_NUMBER(0, 0, 1),
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "REST_METADATA_CACHE",
+    VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@
 #include "sql/dd/impl/raw/raw_record.h"           // Raw_record
 #include "sql/dd/impl/sdi_impl.h"                 // sdi read/write functions
 #include "sql/dd/impl/tables/column_type_elements.h"  // Column_type_elements
-#include "sql/dd/impl/tables/columns.h"               // Colummns
+#include "sql/dd/impl/tables/columns.h"               // Columns
 #include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
 #include "sql/dd/impl/types/abstract_table_impl.h"       // Abstract_table_impl
 #include "sql/dd/impl/types/column_type_element_impl.h"  // Column_type_element_impl
@@ -64,8 +64,9 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 
 static const std::set<String_type> default_valid_option_keys = {
-    "column_format", "geom_type",         "interval_count", "not_secondary",
-    "storage",       "treat_bit_as_char", "is_array"};
+    "column_format", "geom_type", "interval_count",
+    "not_secondary", "storage",   "treat_bit_as_char",
+    "is_array",      "gipk" /* generated implicit primary key column */};
 
 ///////////////////////////////////////////////////////////////////////////
 // Column_impl implementation.

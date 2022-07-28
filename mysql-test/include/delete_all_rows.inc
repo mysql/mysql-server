@@ -51,7 +51,11 @@ INSERT INTO t1 VALUES (1), (2), (3);
 SET sql_log_bin= 0;
 
 # Assert that delete_all_rows() will be used
---let $explain_extra= query_get_value("EXPLAIN DELETE FROM t1", Extra, 1)
+# Force use of the old optimizer, since the hypergraph optimizer neither
+# supports the traditional EXPLAIN format, nor uses delete_all_rows.
+let $explain_extra = query_get_value(
+  "EXPLAIN DELETE /*+ set_var(optimizer_switch='hypergraph_optimizer=off') */
+   FROM t1", Extra, 1);
 --let $assert_text= DELETE will use delete_all_rows
 --let $assert_cond= "$explain_extra" = "Deleting all rows"
 --source include/assert.inc
@@ -84,7 +88,11 @@ INSERT INTO t1 VALUES (1), (2), (3);
 --let $explain_extra_expected= "Deleting all rows"
 # The extra info in explain will be NULL if the statement is binlogged
 # with binlog_format = ROW
---let $explain_extra= query_get_value("EXPLAIN DELETE FROM t1", Extra, 1)
+# Force use of the old optimizer, since the hypergraph optimizer neither
+# supports the traditional EXPLAIN format, nor uses delete_all_rows.
+let $explain_extra = query_get_value(
+  "EXPLAIN DELETE /*+ set_var(optimizer_switch='hypergraph_optimizer=off') */
+   FROM t1", Extra, 1);
 --let $assert_text= DELETE will use delete_all_rows
 if ($have_log_bin == ON)
 {

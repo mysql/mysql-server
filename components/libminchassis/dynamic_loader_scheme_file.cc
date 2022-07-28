@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -126,7 +126,7 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_imp::load,
 
     /* Open library. */
     void *handle = dlopen(file_name.c_str(), RTLD_NOW);
-    if (handle == NULL) {
+    if (handle == nullptr) {
       const char *errmsg;
       int error_number = dlopen_errno;
       DLERROR_GENERATE(errmsg, error_number);
@@ -142,7 +142,7 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_imp::load,
     /* Look for "list_components" function. */
     list_components_func list_func = reinterpret_cast<list_components_func>(
         dlsym(handle, COMPONENT_ENTRY_FUNC));
-    if (list_func == NULL) {
+    if (list_func == nullptr) {
       return true;
     }
 

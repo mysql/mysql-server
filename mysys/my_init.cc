@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -249,6 +249,24 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   my_init_done = false;
 } /* my_end */
 
+/**
+  Pointer to function that handles abort. It is the std's abort() by default.
+*/
+static void (*my_abort_func)() = abort;
+
+[[noreturn]] void my_abort() {
+  my_abort_func();
+  /*
+    We should not reach here, it is required only because my_abort_func() is
+    not [[noreturn]].
+  */
+  abort();
+}
+
+void set_my_abort(void (*new_my_abort_func)()) {
+  my_abort_func = new_my_abort_func;
+}
+
 #ifdef _WIN32
 /*
   my_parameter_handler
@@ -259,9 +277,11 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   e.g. iterator out-of-range, but pointing to valid memory.
 */
 
-void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
-                          const wchar_t *file, unsigned int line,
-                          uintptr_t pReserved) {
+void my_parameter_handler(const wchar_t *expression [[maybe_unused]],
+                          const wchar_t *function [[maybe_unused]],
+                          const wchar_t *file [[maybe_unused]],
+                          unsigned int line [[maybe_unused]],
+                          uintptr_t pReserved [[maybe_unused]]) {
 #ifndef NDEBUG
   fprintf(stderr,
           "my_parameter_handler errno %d "

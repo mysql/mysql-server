@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -42,12 +42,13 @@ tatype(Uint32 i){
   return "UNKNOWN";
 }
 
-bool
-printTRIG_ATTRINFO(FILE * output, const Uint32 * theData, 
-		   Uint32 len, Uint16 receiverBlockNo)
+bool printTRIG_ATTRINFO(FILE *output,
+                        const Uint32 *theData,
+                        Uint32 len,
+                        Uint16 /*receiverBlockNo*/)
 {
-  const TrigAttrInfo * const sig = (TrigAttrInfo *) theData;
-  
+  const TrigAttrInfo *const sig = (const TrigAttrInfo *)theData;
+
   fprintf(output, " TriggerId: %d Type: %s ConnectPtr: %x\n",
 	  sig->getTriggerId(),
 	  tatype(sig->getAttrInfoType()),

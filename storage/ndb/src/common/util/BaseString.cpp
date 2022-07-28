@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,6 +136,32 @@ BaseString::assign(const char* s)
     return *this;
 }
 
+BaseString& BaseString::assign(char c) { return assign(1, c); }
+
+BaseString& BaseString::assign(size_t n, char c)
+{
+  if (m_len != n)
+  {
+    if (n >= UINT_MAX)
+    {
+      errno = EINVAL;
+      return *this;
+    }
+    char* new_chr = new (std::nothrow) char[n + 1];
+    if (new_chr == nullptr)
+    {
+      errno = ENOMEM;
+      return *this;
+    }
+    delete[] m_chr;
+    m_chr = new_chr;
+    m_len = n;
+  }
+  memset(m_chr, c, n);
+  m_chr[n] = '\0';
+  return *this;
+}
+
 BaseString&
 BaseString::assign(const char* s, size_t n)
 {
@@ -189,9 +215,32 @@ BaseString::append(const char* s)
     return *this;
 }
 
-BaseString&
-BaseString::append(char c) {
-    return appfmt("%c", c);
+BaseString& BaseString::append(char c) { return append(1, c); }
+
+BaseString& BaseString::append(size_t n, char c)
+{
+  if (n == 0) return *this;
+  unsigned old_len = m_len;
+  const size_t new_len = old_len + n;
+  if (new_len >= UINT_MAX)
+  {
+    errno = EINVAL;
+    return *this;
+  }
+  char* new_chr = new (std::nothrow) char[new_len + 1];
+  if (new_chr == nullptr)
+  {
+    errno = ENOMEM;
+    return *this;
+  }
+
+  memcpy(new_chr, m_chr, old_len);
+  memset(new_chr + old_len, c, n);
+  new_chr[new_len] = '\0';
+  delete[] m_chr;
+  m_chr = new_chr;
+  m_len = new_len;
+  return *this;
 }
 
 BaseString&
@@ -406,6 +455,7 @@ BaseString::lastIndexOf(char c) const
 bool
 BaseString::starts_with(const BaseString& str) const
 {
+  if (str.m_len > m_len) return false;
   return std::strncmp(m_chr, str.m_chr, str.m_len) == 0;
 }
 
@@ -735,6 +785,9 @@ TAPTEST(BaseString)
     t.append("123");
     OK(s == "def");
     OK(t == "abc123");
+    s.assign(3, 'a');
+    s.append(2, 'b');
+    OK(s == "aaabb");
     s.assign("");
     t.assign("");
     for (unsigned i = 0; i < 1000; i++) {
@@ -791,7 +844,7 @@ TAPTEST(BaseString)
 
       BaseString base1("123abc");
       BaseString sub1("123abcdef");
-      OK(base1.starts_with(sub1) == false)
+      OK(base1.starts_with(sub1) == false);
 
       BaseString base2("123abcdef");
       BaseString sub2("");

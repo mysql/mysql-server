@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger)
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 
 ADD_LIBRARY(ndbNDBT STATIC
   AtrtClient.cpp

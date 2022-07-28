@@ -32,7 +32,7 @@ SELECT @@global.innodb_thread_concurrency;
 1
 SET @@global.innodb_thread_concurrency = 1000;
 Warnings:
-Warning	1210	Current innodb_thread_concurrency is too big for safety of log files. Consider decreasing it or increase number of log files.
+Warning	1210	Current innodb_thread_concurrency is too big for safety of redo log files. Consider decreasing it or increasing innodb_redo_log_capacity.
 SELECT @@global.innodb_thread_concurrency;
 @@global.innodb_thread_concurrency
 1000
@@ -66,7 +66,7 @@ SELECT @@global.innodb_thread_concurrency;
 SET @@global.innodb_thread_concurrency = 1001;
 Warnings:
 Warning	1292	Truncated incorrect innodb_thread_concurrency value: '1001'
-Warning	1210	Current innodb_thread_concurrency is too big for safety of log files. Consider decreasing it or increase number of log files.
+Warning	1210	Current innodb_thread_concurrency is too big for safety of redo log files. Consider decreasing it or increasing innodb_redo_log_capacity.
 SELECT @@global.innodb_thread_concurrency;
 @@global.innodb_thread_concurrency
 1000

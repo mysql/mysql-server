@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,62 +24,56 @@
   @file
   File containing constants that can be used throughout the server.
 
-  @note This file shall not contain any includes of any kinds.
+  @note This file shall not contain any includes of sql/xxx.h files.
 */
 
 #ifndef SQL_CONST_INCLUDED
 #define SQL_CONST_INCLUDED
 
-#include "my_inttypes.h"
+#include <float.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#define LIBLEN FN_REFLEN - FN_LEN /* Max l{ngd p} dev */
-/**
-  The maximum length of a key in the table definition cache.
+#include <limits>
 
-  The key consists of the schema name, a '\0' character, the table
-  name and a '\0' character. Hence NAME_LEN * 2 + 1 + 1.
+#include "my_config.h"     // MAX_INDEXES
+#include "my_table_map.h"  // table_map
 
-  Additionally, the key can be suffixed with either 4 + 4 extra bytes
-  for slave tmp tables, or with a single extra byte for tables in a
-  secondary storage engine. Add 4 + 4 to account for either of these
-  suffixes.
-*/
-#define MAX_DBKEY_LENGTH (NAME_LEN * 2 + 1 + 1 + 4 + 4)
-#define MAX_ALIAS_NAME 256
-#define MAX_FIELD_NAME 34 /* Max colum name length +2 */
-#define MAX_SYS_VAR_LENGTH 32
-#define MAX_KEY MAX_INDEXES  /* Max used keys */
-#define MAX_REF_PARTS 16U    /* Max parts used as ref */
-#define MAX_KEY_LENGTH 3072U /* max possible key */
-#define MAX_REFLENGTH 8      /* Max length for record ref */
+constexpr const int MAX_ALIAS_NAME{256};
+constexpr const int MAX_FIELD_NAME{34}; /* Max column name length +2 */
 
-#define MAX_MBWIDTH 3 /* Max multibyte sequence */
-#define MAX_FIELD_CHARLENGTH 255
-#define MAX_FIELD_VARCHARLENGTH 65535
-#define MAX_FIELD_BLOBLENGTH UINT_MAX32 /* cf field_blob::get_length() */
+constexpr const unsigned int MAX_KEY{MAX_INDEXES}; /* Max used keys */
+constexpr const unsigned int MAX_REF_PARTS{16};    /* Max parts used as ref */
+constexpr const unsigned int MAX_KEY_LENGTH{3072}; /* max possible key */
+
+constexpr const int MAX_FIELD_CHARLENGTH{255};
+constexpr const int MAX_FIELD_VARCHARLENGTH{65535};
+
+/* cf Field_blob::get_length() */
+constexpr const unsigned int MAX_FIELD_BLOBLENGTH{
+    std::numeric_limits<uint32_t>::max()};
+
 /**
   CHAR and VARCHAR fields longer than this number of characters are converted
   to BLOB.
   Non-character fields longer than this number of bytes are converted to BLOB.
   Comparisons should be '>' or '<='.
 */
-#define CONVERT_IF_BIGGER_TO_BLOB 512 /* Used for CREATE ... SELECT */
+constexpr const int CONVERT_IF_BIGGER_TO_BLOB{512};
 
-/* Max column width +1 */
-#define MAX_FIELD_WIDTH (MAX_FIELD_CHARLENGTH * MAX_MBWIDTH + 1)
+/** Max column width + 1. 3 is mbmaxlen for utf8mb3 */
+constexpr const int MAX_FIELD_WIDTH{MAX_FIELD_CHARLENGTH * 3 + 1};
 
-#define MAX_BIT_FIELD_LENGTH 64 /* Max length in bits for bit fields */
-
-#define MAX_DATE_WIDTH 10                /* YYYY-MM-DD */
-#define MAX_TIME_WIDTH 10                /* -838:59:59 */
-#define MAX_TIME_FULL_WIDTH 23           /* -DDDDDD HH:MM:SS.###### */
-#define MAX_DATETIME_FULL_WIDTH 29       /* YYYY-MM-DD HH:MM:SS.###### AM */
-#define MAX_DATETIME_WIDTH 19            /* YYYY-MM-DD HH:MM:SS */
-#define MAX_DATETIME_COMPRESSED_WIDTH 14 /* YYYYMMDDHHMMSS */
-
-#define DATE_INT_DIGITS 8      /* YYYYMMDD       */
-#define TIME_INT_DIGITS 7      /* hhhmmss        */
-#define DATETIME_INT_DIGITS 14 /* YYYYMMDDhhmmss */
+/** YYYY-MM-DD */
+constexpr const int MAX_DATE_WIDTH{10};
+/** -838:59:59 */
+constexpr const int MAX_TIME_WIDTH{10};
+/** -DDDDDD HH:MM:SS.###### */
+constexpr const int MAX_TIME_FULL_WIDTH{23};
+/** YYYY-MM-DD HH:MM:SS.###### AM */
+constexpr const int MAX_DATETIME_FULL_WIDTH{29};
+/** YYYY-MM-DD HH:MM:SS */
+constexpr const int MAX_DATETIME_WIDTH{19};
 
 /**
   MAX_TABLES and xxx_TABLE_BIT are used in optimization of table factors and
@@ -101,195 +95,73 @@
   element, such as a random function or a non-deterministic function.
   Expressions containing this bit cannot be evaluated once and then cached,
   they must be evaluated at latest possible point.
+  RAND_TABLE_BIT is also piggy-backed to avoid moving Item_func_reject_if
+  from its join condition. This usage is similar to its use by
+  Item_is_not_null_test.
   MAX_TABLES_FOR_SIZE adds the pseudo bits and is used for sizing purposes only.
 */
-#define MAX_TABLES_FOR_SIZE (sizeof(table_map) * 8)  ///< Use for sizing ONLY
-#define MAX_TABLES (MAX_TABLES_FOR_SIZE - 3)         ///< Max tables in join
-#define INNER_TABLE_BIT (((table_map)1) << (MAX_TABLES + 0))
-#define OUTER_REF_TABLE_BIT (((table_map)1) << (MAX_TABLES + 1))
-#define RAND_TABLE_BIT (((table_map)1) << (MAX_TABLES + 2))
-#define PSEUDO_TABLE_BITS \
-  (INNER_TABLE_BIT | OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)
-#define MAX_FIELDS 4096 /* Maximum number of columns */
-#define MAX_PARTITIONS 8192
+/** Use for sizing ONLY */
+constexpr const size_t MAX_TABLES_FOR_SIZE{sizeof(table_map) * 8};
 
-#define MAX_ENUM_VALUES 65535         /* Max number of enumeration values */
-#define MAX_INTERVAL_VALUE_LENGTH 255 /* Max length of enum/set values */
+/** Max tables in join */
+constexpr const size_t MAX_TABLES{MAX_TABLES_FOR_SIZE - 3};
 
-#define MAX_SELECT_NESTING (sizeof(nesting_map) * 8 - 1)
+constexpr const table_map INNER_TABLE_BIT{1ULL << (MAX_TABLES + 0)};
+constexpr const table_map OUTER_REF_TABLE_BIT{1ULL << (MAX_TABLES + 1)};
+constexpr const table_map RAND_TABLE_BIT{1ULL << (MAX_TABLES + 2)};
+constexpr const table_map PSEUDO_TABLE_BITS{
+    INNER_TABLE_BIT | OUTER_REF_TABLE_BIT | RAND_TABLE_BIT};
 
-#define DEFAULT_SORT_MEMORY (256UL * 1024UL)
-#define MIN_SORT_MEMORY (32UL * 1024UL)
+/** Maximum number of columns */
+constexpr const int MAX_FIELDS{4096};
+constexpr const int MAX_PARTITIONS{8192};
 
-/* Some portable defines */
+/** Max length of enum/set values */
+constexpr const int MAX_INTERVAL_VALUE_LENGTH{255};
 
-#define STRING_BUFFER_USUAL_SIZE 80
+constexpr const size_t MIN_SORT_MEMORY{32 * 1024};
 
-/* Memory allocated when parsing a statement / saving a statement */
-#define MEM_ROOT_BLOCK_SIZE 8192
-#define MEM_ROOT_PREALLOC 8192
-#define TRANS_MEM_ROOT_BLOCK_SIZE 4096
-#define TRANS_MEM_ROOT_PREALLOC 4096
+constexpr const size_t STRING_BUFFER_USUAL_SIZE{80};
 
-#define DEFAULT_ERROR_COUNT 1024
-#define EXTRA_RECORDS 10      /* Extra records in sort */
-#define SCROLL_EXTRA 5        /* Extra scroll-rows. */
-#define FERR -1               /* Error from my_functions */
-#define CREATE_MODE 0         /* Default mode on new files */
-#define NAMES_SEP_CHAR '\377' /* Char to sep. names */
+/** Memory allocated when parsing a statement */
+constexpr const size_t MEM_ROOT_BLOCK_SIZE{8192};
 
-#define READ_RECORD_BUFFER (uint)(IO_SIZE * 8) /* Pointer_buffer_size */
-#define DISK_BUFFER_SIZE (uint)(IO_SIZE * 16)  /* Size of diskbuffer */
+/** Default mode on new files */
+constexpr const int CREATE_MODE{0};
 
-/***************************************************************************
-  Configuration parameters
-****************************************************************************/
-
-#define ACL_CACHE_SIZE 256
-#define MAX_PASSWORD_LENGTH 32
-#define HOST_CACHE_SIZE 128
-#define MAX_ACCEPT_RETRY 10  // Test accept this many times
-#define MAX_FIELDS_BEFORE_HASH 32
-#define USER_VARS_HASH_SIZE 16
-#define TABLE_OPEN_CACHE_MIN 400
-#define TABLE_OPEN_CACHE_DEFAULT 4000
-static const ulong TABLE_DEF_CACHE_DEFAULT = 400;
-static const ulong SCHEMA_DEF_CACHE_DEFAULT = 256;
-static const ulong STORED_PROGRAM_DEF_CACHE_DEFAULT = 256;
-static const ulong TABLESPACE_DEF_CACHE_DEFAULT = 256;
-static const ulong EVENT_DEF_CACHE_DEFAULT = 256;
+constexpr const size_t MAX_PASSWORD_LENGTH{32};
 
 /**
-  Maximum number of connections default value.
-  151 is larger than Apache's default max children,
-  to avoid "too many connections" error in a common setup.
-*/
-#define MAX_CONNECTIONS_DEFAULT 151
-/**
-  We must have room for at least 400 table definitions in the table
-  cache, since otherwise there is no chance prepared
-  statements that use these many tables can work.
-  Prepared statements use table definition cache ids (table_map_id)
-  as table version identifiers. If the table definition
-  cache size is less than the number of tables used in a statement,
-  the contents of the table definition cache is guaranteed to rotate
-  between a prepare and execute. This leads to stable validation
-  errors. In future we shall use more stable version identifiers,
-  for now the only solution is to ensure that the table definition
-  cache can contain at least all tables of a given statement.
-*/
-static const ulong TABLE_DEF_CACHE_MIN = 400;
-static const ulong SCHEMA_DEF_CACHE_MIN = 256;
-static const ulong STORED_PROGRAM_DEF_CACHE_MIN = 256;
-static const ulong TABLESPACE_DEF_CACHE_MIN = 256;
-static const ulong EVENT_DEF_CACHE_MIN = 256;
-
-/*
   Stack reservation.
   Feel free to raise this by the smallest amount you can to get the
   "execution_constants" test to pass.
 */
 #if defined HAVE_UBSAN && SIZEOF_CHARP == 4
-#define STACK_MIN_SIZE 30000  // Abort if less stack during eval.
+constexpr const long STACK_MIN_SIZE{30000};  // Abort if less stack during eval.
 #else
-#define STACK_MIN_SIZE 20000  // Abort if less stack during eval.
+constexpr const long STACK_MIN_SIZE{20000};  // Abort if less stack during eval.
 #endif
-
-#define STACK_MIN_SIZE_FOR_OPEN 1024 * 80
 
 constexpr const int STACK_BUFF_ALLOC{352};  ///< For stack overrun checks
 
-#ifndef MYSQLD_NET_RETRY_COUNT
-#define MYSQLD_NET_RETRY_COUNT 10  ///< Abort read after this many int.
-#endif
+constexpr const size_t ACL_ALLOC_BLOCK_SIZE{1024};
+constexpr const size_t TABLE_ALLOC_BLOCK_SIZE{1024};
 
-#define QUERY_ALLOC_BLOCK_SIZE 8192
-#define QUERY_ALLOC_PREALLOC_SIZE 8192
-#define TRANS_ALLOC_BLOCK_SIZE 4096
-#define TRANS_ALLOC_PREALLOC_SIZE 4096
-#define RANGE_ALLOC_BLOCK_SIZE 4096
-#define ACL_ALLOC_BLOCK_SIZE 1024
-#define UDF_ALLOC_BLOCK_SIZE 1024
-#define TABLE_ALLOC_BLOCK_SIZE 1024
-#define WARN_ALLOC_BLOCK_SIZE 2048
+constexpr const int PRECISION_FOR_DOUBLE{53};
+constexpr const int PRECISION_FOR_FLOAT{24};
 
-/*
-  The following parameters is to decide when to use an extra cache to
-  optimise seeks when reading a big table in sorted order
-*/
-#define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (10L * 1024 * 1024)
-#define MIN_ROWS_TO_USE_TABLE_CACHE 100
-#define MIN_ROWS_TO_USE_BULK_INSERT 100
+/** -[digits].E+## */
+constexpr const int MAX_FLOAT_STR_LENGTH{FLT_DIG + 6};
+/** -[digits].E+### */
+constexpr const int MAX_DOUBLE_STR_LENGTH{DBL_DIG + 7};
 
-/*
-  For sequential disk seeks the cost formula is:
-    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST * #blocks_to_skip
-
-  The cost of average seek
-    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
-*/
-#define DISK_SEEK_BASE_COST (0.9)
-
-#define BLOCKS_IN_AVG_SEEK 128
-
-#define DISK_SEEK_PROP_COST (0.1 / BLOCKS_IN_AVG_SEEK)
-
-/**
-  Number of rows in a reference table when refereed through a not unique key.
-  This value is only used when we don't know anything about the key
-  distribution.
-*/
-#define MATCHING_ROWS_IN_OTHER_TABLE 10
-
-#define MY_CHARSET_BIN_MB_MAXLEN 1
-
-/** Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used). */
-#define KEY_DEFAULT_PACK_LENGTH 8
-
-/** Characters shown for the command in 'show processlist'. */
-#define PROCESS_LIST_WIDTH 100
-/* Characters shown for the command in 'information_schema.processlist' */
-#define PROCESS_LIST_INFO_WIDTH 65535
-
-#define PRECISION_FOR_DOUBLE 53
-#define PRECISION_FOR_FLOAT 24
-
-/* -[digits].E+## */
-#define MAX_FLOAT_STR_LENGTH (FLT_DIG + 6)
-/* -[digits].E+### */
-#define MAX_DOUBLE_STR_LENGTH (DBL_DIG + 7)
-
-/*
-  Default time to wait before aborting a new client connection
-  that does not respond to "initial server greeting" timely
-*/
-#define CONNECT_TIMEOUT 10
-
-/* The following can also be changed from the command line */
-#define DEFAULT_CONCURRENCY 10
-#define DELAYED_LIMIT 100 /**< pause after xxx inserts */
-#define DELAYED_QUEUE_SIZE 1000
-#define DELAYED_WAIT_TIMEOUT 5 * 60 /**< Wait for delayed insert */
-
-#define LONG_TIMEOUT ((ulong)3600L * 24L * 365L)
+constexpr const unsigned long LONG_TIMEOUT{3600 * 24 * 365};
 
 /**
   Maximum length of time zone name that we support (Time zone name is
   char(64) in db). mysqlbinlog needs it.
 */
 #define MAX_TIME_ZONE_NAME_LENGTH (NAME_LEN + 1)
-
-#if defined(_WIN32)
-#define INTERRUPT_PRIOR -2
-#define CONNECT_PRIOR -1
-#define WAIT_PRIOR 0
-#define QUERY_PRIOR 2
-#else
-#define INTERRUPT_PRIOR 10
-#define CONNECT_PRIOR 9
-#define WAIT_PRIOR 8
-#define QUERY_PRIOR 6
-#endif /* _WIN32 */
 
 /*
   Flags below are set when we perform
@@ -298,79 +170,65 @@ constexpr const int STACK_BUFF_ALLOC{352};  ///< For stack overrun checks
   evaluation at context analysis stage.
 */
 
-/*
+/**
   Don't evaluate this subquery during statement prepare even if
   it's a constant one. The flag is switched off in the end of
   mysqld_stmt_prepare.
 */
-#define CONTEXT_ANALYSIS_ONLY_PREPARE 1
-/*
+constexpr const uint8_t CONTEXT_ANALYSIS_ONLY_PREPARE{1};
+/**
   Special Query_block::prepare mode: changing of query is prohibited.
   When creating a view, we need to just check its syntax omitting
   any optimizations: afterwards definition of the view will be
   reconstructed by means of ::print() methods and written to
   to an .frm file. We need this definition to stay untouched.
 */
-#define CONTEXT_ANALYSIS_ONLY_VIEW 2
-/*
+constexpr const uint8_t CONTEXT_ANALYSIS_ONLY_VIEW{2};
+/**
   Don't evaluate this subquery during derived table prepare even if
   it's a constant one.
 */
-#define CONTEXT_ANALYSIS_ONLY_DERIVED 4
+constexpr const uint8_t CONTEXT_ANALYSIS_ONLY_DERIVED{4};
 
-/* @@optimizer_switch flags. These must be in sync with optimizer_switch_typelib
+/**
+   @@optimizer_switch flags.
+   These must be in sync with optimizer_switch_typelib
  */
-#define OPTIMIZER_SWITCH_INDEX_MERGE (1ULL << 0)
-#define OPTIMIZER_SWITCH_INDEX_MERGE_UNION (1ULL << 1)
-#define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION (1ULL << 2)
-#define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT (1ULL << 3)
-#define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 4)
-#define OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN (1ULL << 5)
+constexpr const uint64_t OPTIMIZER_SWITCH_INDEX_MERGE{1ULL << 0};
+constexpr const uint64_t OPTIMIZER_SWITCH_INDEX_MERGE_UNION{1ULL << 1};
+constexpr const uint64_t OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION{1ULL << 2};
+constexpr const uint64_t OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT{1ULL << 3};
+constexpr const uint64_t OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN{1ULL << 4};
+constexpr const uint64_t OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN{1ULL << 5};
 /** If this is off, MRR is never used. */
-#define OPTIMIZER_SWITCH_MRR (1ULL << 6)
+constexpr const uint64_t OPTIMIZER_SWITCH_MRR{1ULL << 6};
 /**
    If OPTIMIZER_SWITCH_MRR is on and this is on, MRR is used depending on a
    cost-based choice ("automatic"). If OPTIMIZER_SWITCH_MRR is on and this is
    off, MRR is "forced" (i.e. used as long as the storage engine is capable of
    doing it).
 */
-#define OPTIMIZER_SWITCH_MRR_COST_BASED (1ULL << 7)
-#define OPTIMIZER_SWITCH_BNL (1ULL << 8)
-#define OPTIMIZER_SWITCH_BKA (1ULL << 9)
-#define OPTIMIZER_SWITCH_MATERIALIZATION (1ULL << 10)
-#define OPTIMIZER_SWITCH_SEMIJOIN (1ULL << 11)
-#define OPTIMIZER_SWITCH_LOOSE_SCAN (1ULL << 12)
-#define OPTIMIZER_SWITCH_FIRSTMATCH (1ULL << 13)
-#define OPTIMIZER_SWITCH_DUPSWEEDOUT (1ULL << 14)
-#define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED (1ULL << 15)
-#define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS (1ULL << 16)
-#define OPTIMIZER_SWITCH_COND_FANOUT_FILTER (1ULL << 17)
-#define OPTIMIZER_SWITCH_DERIVED_MERGE (1ULL << 18)
-#define OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES (1ULL << 19)
-#define OPTIMIZER_SKIP_SCAN (1ULL << 20)
-#define OPTIMIZER_SWITCH_HASH_JOIN (1ULL << 21)
-#define OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED (1ULL << 22)
-#define OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX (1ULL << 23)
-#define OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER (1ULL << 24)
-#define OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN (1ULL << 25)
-#define OPTIMIZER_SWITCH_LAST (1ULL << 26)
-
-// Including the switch in this set, makes its default 'on'
-#define OPTIMIZER_SWITCH_DEFAULT                                          \
-  (OPTIMIZER_SWITCH_INDEX_MERGE | OPTIMIZER_SWITCH_INDEX_MERGE_UNION |    \
-   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION |                              \
-   OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT |                               \
-   OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |                           \
-   OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | OPTIMIZER_SWITCH_MRR |     \
-   OPTIMIZER_SWITCH_MRR_COST_BASED | OPTIMIZER_SWITCH_BNL |               \
-   OPTIMIZER_SWITCH_MATERIALIZATION | OPTIMIZER_SWITCH_SEMIJOIN |         \
-   OPTIMIZER_SWITCH_LOOSE_SCAN | OPTIMIZER_SWITCH_FIRSTMATCH |            \
-   OPTIMIZER_SWITCH_DUPSWEEDOUT | OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED |  \
-   OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS |                                \
-   OPTIMIZER_SWITCH_COND_FANOUT_FILTER | OPTIMIZER_SWITCH_DERIVED_MERGE | \
-   OPTIMIZER_SKIP_SCAN | OPTIMIZER_SWITCH_HASH_JOIN |                     \
-   OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX |                               \
-   OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN)
+constexpr const uint64_t OPTIMIZER_SWITCH_MRR_COST_BASED{1ULL << 7};
+constexpr const uint64_t OPTIMIZER_SWITCH_BNL{1ULL << 8};
+constexpr const uint64_t OPTIMIZER_SWITCH_BKA{1ULL << 9};
+constexpr const uint64_t OPTIMIZER_SWITCH_MATERIALIZATION{1ULL << 10};
+constexpr const uint64_t OPTIMIZER_SWITCH_SEMIJOIN{1ULL << 11};
+constexpr const uint64_t OPTIMIZER_SWITCH_LOOSE_SCAN{1ULL << 12};
+constexpr const uint64_t OPTIMIZER_SWITCH_FIRSTMATCH{1ULL << 13};
+constexpr const uint64_t OPTIMIZER_SWITCH_DUPSWEEDOUT{1ULL << 14};
+constexpr const uint64_t OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED{1ULL << 15};
+constexpr const uint64_t OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS{1ULL << 16};
+constexpr const uint64_t OPTIMIZER_SWITCH_COND_FANOUT_FILTER{1ULL << 17};
+constexpr const uint64_t OPTIMIZER_SWITCH_DERIVED_MERGE{1ULL << 18};
+constexpr const uint64_t OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES{1ULL << 19};
+constexpr const uint64_t OPTIMIZER_SKIP_SCAN{1ULL << 20};
+constexpr const uint64_t OPTIMIZER_SWITCH_HASH_JOIN{1ULL << 21};
+constexpr const uint64_t OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED{1ULL << 22};
+constexpr const uint64_t OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX{1ULL << 23};
+constexpr const uint64_t OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER{1ULL << 24};
+constexpr const uint64_t OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN{1ULL
+                                                                     << 25};
+constexpr const uint64_t OPTIMIZER_SWITCH_LAST{1ULL << 26};
 
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED };
 
@@ -381,36 +239,36 @@ enum enum_mark_columns {
   MARK_COLUMNS_TEMP
 };
 
-/*
+/**
   Exit code used by mysqld_exit, exit and _exit function
   to indicate successful termination of mysqld.
 */
-#define MYSQLD_SUCCESS_EXIT 0
-/*
+constexpr const int MYSQLD_SUCCESS_EXIT{0};
+/**
   Exit code used by mysqld_exit, exit and _exit function to
   signify unsuccessful termination of mysqld. The exit
   code signifies the server should NOT BE RESTARTED AUTOMATICALLY
   by init systems like systemd.
 */
-#define MYSQLD_ABORT_EXIT 1
-/*
+constexpr const int MYSQLD_ABORT_EXIT{1};
+/**
   Exit code used by mysqld_exit, exit and _exit function to
   signify unsuccessful termination of mysqld. The exit code
   signifies the server should be RESTARTED AUTOMATICALLY by
   init systems like systemd.
 */
-#define MYSQLD_FAILURE_EXIT 2
-/*
+constexpr const int MYSQLD_FAILURE_EXIT{2};
+/**
   Exit code used by mysqld_exit, my_thread_exit function which allows
   for external programs like systemd, mysqld_safe to restart mysqld
-  server. The exit code  16 is choosen so it is safe as InnoDB code
+  server. The exit code 16 is chosen so it is safe as InnoDB code
   exit directly with values like 3.
 */
-#define MYSQLD_RESTART_EXIT 16
+constexpr const int MYSQLD_RESTART_EXIT{16};
 
-#define UUID_LENGTH (8 + 1 + 4 + 1 + 4 + 1 + 4 + 1 + 12)
+constexpr const size_t UUID_LENGTH{8 + 1 + 4 + 1 + 4 + 1 + 4 + 1 + 12};
 
-/*
+/**
   This enumeration type is used only by the function find_item_in_list
   to return the info on how an item has been resolved against a list
   of possibly aliased items.
@@ -449,7 +307,7 @@ inline bool operator&(enum_walk lhs, enum_walk rhs) {
 
 class Item;
 /// Processor type for {Item,Query_block[_UNIT],Table_function}::walk
-typedef bool (Item::*Item_processor)(uchar *arg);
+using Item_processor = bool (Item::*)(unsigned char *);
 
 /// Enumeration for Query_block::condition_context.
 /// If the expression being resolved belongs to a condition clause (WHERE, etc),

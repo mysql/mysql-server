@@ -763,7 +763,9 @@ SET @@session.debug_sync = "now SIGNAL continue_begin_register_replica";
 --connection server_2
 --source include/wait_for_slave_io_to_start.inc
 
+--disable_warnings
 SET @@global.replica_parallel_workers = @save_replica_parallel_workers;
+--enable_warnings
 SET @@global.replica_net_timeout = @save_replica_net_timeout;
 --connection server_1
 --source include/restore_binlog.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,5 +51,6 @@ void Password_option::password_callback(char *argument) {
   unsigned int factor = 0;
   if (strcmp(opt.name, "password"))
     factor = opt.name[strlen("password")] - '0' - 1;
-  *this->m_destination_value = std::optional<string>(opt_password[factor]);
+  if (opt_password[factor] != nullptr)
+    *this->m_destination_value = std::optional<string>(opt_password[factor]);
 }

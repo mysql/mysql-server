@@ -1878,8 +1878,16 @@ SUBPARTITION s2,
 SUBPARTITION s3 data directory='MYSQL_TMP_DIR/sp3_dir'
 ));
 insert into t2 values(1,'1987-05-12 '),(2,'1987-05-14');
+Warnings:
+Warning	4096	Delimiter ' ' in position 10 in datetime value '1987-05-12 ' at row 1 is superfluous and is deprecated. Please remove.
+Warning	4096	Delimiter ' ' in position 10 in datetime value '1987-05-12 ' at row 1 is superfluous and is deprecated. Please remove.
 insert into t2 values(3,'1997-05-10 '),(4,'1997-05-18');
+Warnings:
+Warning	4096	Delimiter ' ' in position 10 in datetime value '1997-05-10 ' at row 1 is superfluous and is deprecated. Please remove.
+Warning	4096	Delimiter ' ' in position 10 in datetime value '1997-05-10 ' at row 1 is superfluous and is deprecated. Please remove.
 insert into t1 values(1,'1987-05-10 '),(2,'1987-05-08');
+Warnings:
+Warning	4096	Delimiter ' ' in position 10 in datetime value '1987-05-10 ' at row 1 is superfluous and is deprecated. Please remove.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1972,6 +1980,8 @@ t2#P#p0#SP#s0.ibd
 t2#P#p1#SP#s3.ibd
 delete from t1;
 insert into t1 values(3,'1997-05-8 '),(4,'1997-05-16');
+Warnings:
+Warning	4096	Delimiter ' ' in position 9 in datetime value '1997-05-8 ' at row 1 is superfluous and is deprecated. Please remove.
 ALTER TABLE t2 EXCHANGE PARTITION s3 WITH TABLE t1;
 SELECT * FROM t1;
 id	purchased

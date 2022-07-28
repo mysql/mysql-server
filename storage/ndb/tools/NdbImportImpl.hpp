@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -767,6 +767,8 @@ public:
     void state_send() override;
     void state_poll() override;
     void asynch_callback(Tx* tx);
+    void set_auto_inc_val(const Attr& attr, Row *row,
+                          Uint64 val, Error& error);
   };
 
   // diag team

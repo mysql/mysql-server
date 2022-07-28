@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,9 +59,7 @@ Trigger_impl::Trigger_impl()
       m_table(nullptr),
       m_client_collation_id(INVALID_OBJECT_ID),
       m_connection_collation_id(INVALID_OBJECT_ID),
-      m_schema_collation_id(INVALID_OBJECT_ID) {
-  m_last_altered = m_created = {0, 0};
-}
+      m_schema_collation_id(INVALID_OBJECT_ID) {}
 
 Trigger_impl::Trigger_impl(Table_impl *table)
     : m_event_type(enum_event_type::ET_INSERT),
@@ -71,9 +69,7 @@ Trigger_impl::Trigger_impl(Table_impl *table)
       m_table(table),
       m_client_collation_id(INVALID_OBJECT_ID),
       m_connection_collation_id(INVALID_OBJECT_ID),
-      m_schema_collation_id(INVALID_OBJECT_ID) {
-  m_last_altered = m_created = {0, 0};
-}
+      m_schema_collation_id(INVALID_OBJECT_ID) {}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -189,8 +185,8 @@ void Trigger_impl::debug_print(String_type &outb) const {
      << "m_action_order: " << m_action_order << "; "
      << "m_action_statement: " << m_action_statement << "; "
      << "m_action_statement_utf8: " << m_action_statement_utf8 << "; "
-     << "m_created: " << m_created.tv_sec << "; "
-     << "m_last_altered: " << m_last_altered.tv_sec << "; "
+     << "m_created: " << m_created.m_tv_sec << "; "
+     << "m_last_altered: " << m_last_altered.m_tv_sec << "; "
      << "m_sql_mode: " << m_sql_mode << "; "
      << "m_definer_user: " << m_definer_user << "; "
      << "m_definer_host: " << m_definer_host << "; "

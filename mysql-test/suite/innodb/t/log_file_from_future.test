@@ -1,0 +1,50 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# This test checks scenario of recovery executed on data directory in which the last redo file is "from future" (flushed_to_disk_lsn has not been advanced to reach it yet)
+
+--echo # Prepare schema used in the tests.
+--source include/ib_log_spammer_init.inc
+
+let MYSQLD_DATADIR = `select @@datadir`;
+
+--echo # Wait until next redo file is being created...
+
+--echo # Create connection which generates spam to the redo log.
+--connect(C1,localhost,root,,test)
+--send CALL log_spammer()
+--connect(C2,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+SET GLOBAL DEBUG = '+d,syncpoint_log_before_file_marked_as_full';
+
+SET DEBUG_SYNC = 'now WAIT_FOR reached_log_before_file_marked_as_full';
+
+let REDO_PERL_OUT_FILE = $MYSQLTEST_VARDIR/log/perl_out.inc;
+
+perl;
+    require 'include/ib_redo_log_files.inc';
+    my $fpath = '';
+    for my $f (log_get_non_tmp_files()) {
+        $fpath = $f;
+    }
+    open my $fh, '+>', $ENV{'REDO_PERL_OUT_FILE'} or die "open failed: $!\n";
+    syswrite($fh, "let REDO_FILE=$fpath;\n") > 0 or die "write failed: $!\n";
+    close $fh or die "close failed: $!\n";
+EOF
+
+--source $REDO_PERL_OUT_FILE
+
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+--source include/kill_and_restart_mysqld.inc
+
+let SEARCH_PATTERN=Marked the current redo log file .* as incomplete;
+--source include/search_pattern.inc
+
+let MYSQLD_DATADIR =;
+
+--echo # Cleanup.
+SET DEBUG_SYNC = 'RESET';
+--source include/ib_log_spammer_cleanup.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1322,7 +1322,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
     const Ndb_dbname_guard dbname_guard(ndb, parent_db);
 
     Ndb_table_guard parent_tab(ndb, parent_db, parent_name);
-    if (parent_tab.get_table() == 0) {
+    if (parent_tab.get_table() == nullptr) {
       if (!thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
         const NdbError &error = parent_tab.getNdbError();
         push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -1677,8 +1677,8 @@ int ha_ndbcluster::inplace__drop_fks(THD *thd, Ndb *ndb, const char *dbname,
   }
 
   Ndb_table_guard srctab(ndb, dbname, tabname);
-  if (srctab.get_table() == 0) {
-    assert(false);  // Why ??
+  if (srctab.get_table() == nullptr) {
+    assert(false);  // Could not find the NDB table being altered
     return 0;
   }
 

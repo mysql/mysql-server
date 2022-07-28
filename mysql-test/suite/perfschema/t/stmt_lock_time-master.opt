@@ -1,0 +1,6 @@
+--slow-query-log=ON
+--log-queries-not-using-indexes=ON
+--long-query-time=10
+--min-examined-row-limit=0
+--log-throttle-queries-not-using-indexes=0
+

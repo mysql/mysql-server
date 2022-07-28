@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,13 +37,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0rec.h"
 #include "trx0undo.h"
 
-/** Gets the offset of the DB_TRX_ID field, in bytes relative to the origin of
- a clustered index record.
- @return offset of DATA_TRX_ID */
-static inline ulint row_get_trx_id_offset(
-    const dict_index_t *index, /*!< in: clustered index */
-    const ulint *offsets)      /*!< in: record offsets */
-{
+static inline ulint row_get_trx_id_offset(const dict_index_t *index,
+                                          const ulint *offsets) {
   ulint pos;
   ulint offset;
   ulint len;
@@ -53,20 +48,16 @@ static inline ulint row_get_trx_id_offset(
 
   pos = index->get_sys_col_pos(DATA_TRX_ID);
 
-  offset = rec_get_nth_field_offs(offsets, pos, &len);
+  offset = rec_get_nth_field_offs(index, offsets, pos, &len);
 
   ut_ad(len == DATA_TRX_ID_LEN);
 
   return (offset);
 }
 
-/** Reads the trx id field from a clustered index record.
- @return value of the field */
-static inline trx_id_t row_get_rec_trx_id(
-    const rec_t *rec,          /*!< in: record */
-    const dict_index_t *index, /*!< in: clustered index */
-    const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
-{
+static inline trx_id_t row_get_rec_trx_id(const rec_t *rec,
+                                          const dict_index_t *index,
+                                          const ulint *offsets) {
   ulint offset;
 
   ut_ad(index->is_clustered());
@@ -81,13 +72,9 @@ static inline trx_id_t row_get_rec_trx_id(
   return (trx_read_trx_id(rec + offset));
 }
 
-/** Reads the roll pointer field from a clustered index record.
- @return value of the field */
-static inline roll_ptr_t row_get_rec_roll_ptr(
-    const rec_t *rec,          /*!< in: record */
-    const dict_index_t *index, /*!< in: clustered index */
-    const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
-{
+static inline roll_ptr_t row_get_rec_roll_ptr(const rec_t *rec,
+                                              const dict_index_t *index,
+                                              const ulint *offsets) {
   ulint offset;
 
   ut_ad(index->is_clustered());
@@ -102,21 +89,10 @@ static inline roll_ptr_t row_get_rec_roll_ptr(
   return (trx_read_roll_ptr(rec + offset + DATA_TRX_ID_LEN));
 }
 
-/** When an insert or purge to a table is performed, this function builds
- the entry to be inserted into or purged from an index on the table.
- @return index entry which should be inserted or purged, or NULL if the
- externally stored columns in the clustered index record are
- unavailable and ext != NULL */
-static inline dtuple_t *row_build_index_entry(
-    const dtuple_t *row,       /*!< in: row which should be
-                               inserted or purged */
-    const row_ext_t *ext,      /*!< in: externally stored column
-                               prefixes, or NULL */
-    const dict_index_t *index, /*!< in: index on the table */
-    mem_heap_t *heap)          /*!< in: memory heap from which
-                               the memory for the index entry
-                               is allocated */
-{
+static inline dtuple_t *row_build_index_entry(const dtuple_t *row,
+                                              const row_ext_t *ext,
+                                              const dict_index_t *index,
+                                              mem_heap_t *heap) {
   dtuple_t *entry;
 
   ut_ad(dtuple_check_typed(row));
@@ -155,7 +131,7 @@ static inline void row_build_row_ref_fast(
     field_no = *(map + i);
 
     if (field_no != ULINT_UNDEFINED) {
-      field = rec_get_nth_field(rec, offsets, field_no, &len);
+      field = rec_get_nth_field(nullptr, rec, offsets, field_no, &len);
       dfield_set_data(dfield, field, len);
     }
   }
@@ -164,14 +140,14 @@ static inline void row_build_row_ref_fast(
 /** Parse the integer data from specified data, which could be
 DATA_INT, DATA_FLOAT or DATA_DOUBLE. If the value is less than 0
 and the type is not unsigned then we reset the value to 0
-@param[in]	data		data to read
-@param[in]	len		length of data
-@param[in]	mtype		mtype of data
-@param[in]	unsigned_type	if the data is unsigned
+@param[in]      data            data to read
+@param[in]      len             length of data
+@param[in]      mtype           mtype of data
+@param[in]      unsigned_type   if the data is unsigned
 @return the integer value from the data */
-ib_uint64_t row_parse_int(const byte *data, ulint len, ulint mtype,
-                          bool unsigned_type) {
-  ib_uint64_t value = 0;
+uint64_t row_parse_int(const byte *data, ulint len, ulint mtype,
+                       bool unsigned_type) {
+  uint64_t value = 0;
 
   switch (mtype) {
     case DATA_INT:
@@ -186,14 +162,14 @@ ib_uint64_t row_parse_int(const byte *data, ulint len, ulint mtype,
       /* Cast float value to int64_t first, before casting to unsigned,
          to avoid UBSAN warnings. */
       value =
-          static_cast<ib_uint64_t>(static_cast<int64_t>(mach_float_read(data)));
+          static_cast<uint64_t>(static_cast<int64_t>(mach_float_read(data)));
       break;
 
     case DATA_DOUBLE: {
       ut_a(len == sizeof(double));
       double dblval = mach_double_read(data);
       value = std::signbit(dblval) ? static_cast<int64_t>(dblval)
-                                   : static_cast<ib_uint64_t>(dblval);
+                                   : static_cast<uint64_t>(dblval);
       break;
     }
     default:

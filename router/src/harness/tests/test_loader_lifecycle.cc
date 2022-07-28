@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,17 +54,6 @@
 #include "my_config.h"
 
 ////////////////////////////////////////
-// Harness include files
-#include "exception.h"
-#include "lifecycle.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/loader.h"
-#include "mysql/harness/logging/registry.h"
-#include "mysql/harness/plugin.h"
-#include "test/helpers.h"
-#include "utilities.h"
-
-////////////////////////////////////////
 // Third-party include files
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
@@ -85,6 +74,18 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+////////////////////////////////////////
+// Harness include files
+#include "exception.h"
+#include "lifecycle.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/loader.h"
+#include "mysql/harness/logging/registry.h"
+#include "mysql/harness/plugin.h"
+#include "mysql/harness/utility/string.h"
+#include "test/helpers.h"
+#include "utilities.h"
 
 // see loader.cc for more info on this define
 #ifndef _WIN32
@@ -170,9 +171,19 @@ class TestLoader : public Loader {
     config_.fill_and_check();
   }
 
+  void load_all() { Loader::load_all(); }
+
+  std::exception_ptr main_loop() { return Loader::main_loop(); }
+  std::exception_ptr init_all() { return Loader::init_all(); }
+  void start_all() { return Loader::start_all(); }
+  std::exception_ptr run() { return Loader::run(); }
+  std::exception_ptr deinit_all() { return Loader::deinit_all(); }
+
+  std::list<std::string> order() const { return this->order_; }
+
   // Loader::load_all() with ability to disable functions
   void load_all(int switches) {
-    Loader::load_all();
+    load_all();
     init_lifecycle_plugin(switches);
   }
 
@@ -282,7 +293,7 @@ class LifecycleTest : public BasicConsoleOutputTest {
 
   void init_test_without_lifecycle_plugin(std::istream &config_text) {
     loader_.read(config_text);
-    loader_.Loader::load_all();
+    loader_.load_all();
     clear_log();
   }
 
@@ -450,7 +461,7 @@ TEST_F(LifecycleTest, Simple_None) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -481,7 +492,7 @@ TEST_F(LifecycleTest, Simple_AllFunctions) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -549,7 +560,7 @@ TEST_F(LifecycleTest, Simple_Init) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -582,7 +593,7 @@ TEST_F(LifecycleTest, Simple_StartStop) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -640,7 +651,7 @@ TEST_F(LifecycleTest, Simple_StartStopBlocking) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -697,7 +708,7 @@ TEST_F(LifecycleTest, Simple_Start) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -747,7 +758,7 @@ TEST_F(LifecycleTest, Simple_Stop) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -793,7 +804,7 @@ TEST_F(LifecycleTest, Simple_Deinit) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -855,7 +866,7 @@ TEST_F(LifecycleTest, ThreeInstances_NoError) {
       kPluginNameLifecycle3,
       kPluginNameLifecycle,
   };
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -929,7 +940,7 @@ TEST_F(LifecycleTest, BothLifecycles_NoError) {
       kPluginNameLifecycle,
       kPluginNameLifecycle2,
   };
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -1112,7 +1123,7 @@ TEST_F(LifecycleTest, ThreeInstances_InitFails) {
       kPluginNameMagic,
       kPluginNameLifecycle3,
   };
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -1175,7 +1186,7 @@ TEST_F(LifecycleTest, BothLifecycles_InitFails) {
       kPluginNameMagic,
       kPluginNameLifecycle3,
   };
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -1243,7 +1254,7 @@ TEST_F(LifecycleTest, ThreeInstances_Start1Fails) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -1312,7 +1323,7 @@ TEST_F(LifecycleTest, ThreeInstances_Start2Fails) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -1387,7 +1398,7 @@ TEST_F(LifecycleTest, ThreeInstances_Start3Fails) {
 
   const std::list<std::string> initialized = {
       "logger", kPluginNameMagic, kPluginNameLifecycle3, kPluginNameLifecycle};
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -1467,7 +1478,7 @@ TEST_F(LifecycleTest, ThreeInstances_2StartsFail) {
       kPluginNameLifecycle3,
       kPluginNameLifecycle,
   };
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 
@@ -1671,7 +1682,7 @@ TEST_F(LifecycleTest, ThreeInstances_StartStopDeinitFail) {
       kPluginNameLifecycle3,
       kPluginNameLifecycle,
   };
-  EXPECT_EQ(initialized, loader_.order_);
+  EXPECT_EQ(initialized, loader_.order());
 
   refresh_log();
 

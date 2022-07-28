@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 // AddressSanitizer gets confused by the default, MemoryPoolAllocator
 // Solaris sparc also gets crashes

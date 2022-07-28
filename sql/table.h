@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,8 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_table_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_table_bits.h"
 #include "sql/dd/types/foreign_key.h"  // dd::Foreign_key::enum_rule
 #include "sql/enum_query_type.h"       // enum_query_type
 #include "sql/key.h"
@@ -110,7 +110,7 @@ struct TABLE_LIST;
 struct TABLE_SHARE;
 struct handlerton;
 struct Name_resolution_context;
-typedef int8 plan_idx;
+using plan_idx = int;
 
 namespace dd {
 class Table;
@@ -249,7 +249,7 @@ class Default_object_creation_ctx : public Object_creation_ctx {
     connection_cl stores the value of collation_connection session
     variable. Both character set and collation attributes are used.
 
-    Connection collation is included into query context, becase it defines
+    Connection collation is included into query context, because it defines
     the character set and collation of text literals in internal
     representation of query (item-objects).
   */
@@ -742,7 +742,7 @@ struct TABLE_SHARE {
   Field **field{nullptr};
   Field **found_next_number_field{nullptr};
   KEY *key_info{nullptr};    /* data of keys defined for the table */
-  uint *blob_field{nullptr}; /* Index to blobs in Field arrray*/
+  uint *blob_field{nullptr}; /* Index to blobs in Field array */
 
   uchar *default_values{nullptr};      /* row with default values */
   LEX_STRING comment{nullptr, 0};      /* Comment about table */
@@ -898,8 +898,8 @@ struct TABLE_SHARE {
     are in use by storage engine.
 
     @note db_options_in_use is normally copy of db_create_options but can
-          be overriden by SE. E.g. MyISAM does this at handler::open() and
-          hander::info() time.
+          be overridden by SE. E.g. MyISAM does this at handler::open() and
+          handler::info() time.
   */
   uint db_options_in_use{0};
   uint rowid_field_offset{0}; /* Field_nr +1 to rowid field */
@@ -1286,7 +1286,7 @@ class Blob_mem_storage {
     truncated_value = false;
   }
   /**
-     Fuction creates duplicate of 'from'
+     Function creates duplicate of 'from'
      string in 'storage' MEM_ROOT.
 
      @param from           string to copy
@@ -1449,7 +1449,7 @@ struct TABLE {
   Key_map covering_keys;
   Key_map quick_keys;
 
-  /* Merge keys are all keys that had a column reffered to in the query */
+  /* Merge keys are all keys that had a column referred to in the query */
   Key_map merge_keys;
 
   /*
@@ -1668,7 +1668,6 @@ struct TABLE {
     If set, indicate that the table is not replicated by the server.
   */
   bool no_replicate{false};
-  bool no_cache{false};
   /* To signal that the table is associated with a HANDLER statement */
   bool open_by_handler{false};
   /**
@@ -1705,7 +1704,7 @@ struct TABLE {
     @note This member can be set only by thread that owns/has opened the
           table and while holding its THD::LOCK_thd_data lock.
           It can be read without locking by this owner thread, or by some other
-          thread concurrently after acquring owner's THD::LOCK_thd_data.
+          thread concurrently after acquiring owner's THD::LOCK_thd_data.
 
     @note The TABLE will not be reopened under LOCK TABLES in
           close_thread_tables().
@@ -1766,7 +1765,7 @@ struct TABLE {
   SortingIterator *duplicate_removal_iterator{nullptr};
 
   /**
-    The result of applying a unique opertion (by row ID) to the table, if done.
+    The result of applying a unique operation (by row ID) to the table, if done.
     In particular, this is done in some forms of index merge.
   */
   Sort_result unique_result;
@@ -1844,7 +1843,7 @@ struct TABLE {
   bool alloc_tmp_keys(uint new_key_count, uint new_key_part_count,
                       bool modify_share);
   bool add_tmp_key(Field_map *key_parts, bool invisible, bool modify_share);
-  void copy_tmp_key(int old_idx, bool modify_share);
+  void move_tmp_key(int old_idx, bool modify_share);
   void drop_unused_tmp_keys(bool modify_share);
 
   void set_keyread(bool flag);
@@ -2034,26 +2033,17 @@ struct TABLE {
   const Cost_model_table *cost_model() const { return &m_cost_model; }
 
   /**
-    Fix table's generated columns' (GC) and/or default expressions
+    Bind all the table's value generator columns in all the forms:
+    stored/virtual GC, default expressions and checked constraints.
 
     @details When a table is opened from the dictionary, the Value Generator
-    expressions are fixed during opening (see fix_value_generators_fields()).
+    expressions are bound during opening (see fix_value_generator_fields()).
     After query execution, Item::cleanup() is called on them
     (see cleanup_value_generator_items()). When the table is opened from the
-    table cache, the Value Generetor(s) need to be fixed again and this
+    table cache, the Value Generetor(s) need to be bound again and this
     function does that.
-
-    @param[in] thd     the current thread
   */
-  void refix_value_generator_items(THD *thd);
-
-  /**
-    Helper function for refix_value_generator_items() that fixes one column's
-    expression (be it GC or default expression) and check constraint expression.
-
-    @param[in,out] g_expr       the expression who's items needs to be fixed
-  */
-  void refix_inner_value_generator_items(Value_generator *g_expr);
+  void bind_value_generators_to_fields();
 
   /**
     Clean any state in items associated with generated columns to be ready for
@@ -2353,7 +2343,7 @@ struct ST_FIELD_INFO {
      combine them using the bitwise or operator @c |. Both flags are
      defined in table.h.
    */
-  uint field_flags;  // Field atributes(maybe_null, signed, unsigned etc.)
+  uint field_flags;  // Field attributes (maybe_null, signed, unsigned etc.)
   const char *old_name;
   uint open_method;  // Not used
 };
@@ -2363,7 +2353,7 @@ struct ST_SCHEMA_TABLE {
   ST_FIELD_INFO *fields_info;
   /* Fill table with data */
   int (*fill_table)(THD *thd, TABLE_LIST *tables, Item *cond);
-  /* Handle fileds for old SHOW */
+  /* Handle fields for old SHOW */
   int (*old_format)(THD *thd, ST_SCHEMA_TABLE *schema_table);
   int (*process_table)(THD *thd, TABLE_LIST *tables, TABLE *table, bool res,
                        LEX_CSTRING db_name, LEX_CSTRING table_name);
@@ -3183,13 +3173,9 @@ struct TABLE_LIST {
   /// Check if we can push outer where condition to this derived table
   bool can_push_condition_to_derived(THD *thd);
 
-  /// Get derived table expression
-  Item *get_derived_expr(uint expr_index);
-
-  /// Get cloned item for a derived table column. This creates the clone
-  /// and resolves it in the context provided.
-  Item *get_clone_for_derived_expr(THD *thd, Item *item,
-                                   Name_resolution_context *context);
+  /// Return the number of hidden fields added for the temporary table
+  /// created for this derived table.
+  uint get_hidden_field_count_for_derived() const;
 
   /// Clean up the query expression for a materialized derived table
   void cleanup_derived(THD *thd);
@@ -3408,6 +3394,8 @@ struct TABLE_LIST {
 
   const Lock_descriptor &lock_descriptor() const { return m_lock_descriptor; }
 
+  bool is_derived_unfinished_materialization() const;
+
  private:
   /**
     The members below must be kept aligned so that (1 << m_tableno) == m_map.
@@ -3603,12 +3591,6 @@ struct TABLE_LIST {
   ulonglong algorithm{0};
   ulonglong view_suid{0};   ///< view is suid (true by default)
   ulonglong with_check{0};  ///< WITH CHECK OPTION
-  /**
-    Context that is used to resolve a merged derived table's
-    fields. Needed when a field from a merged derived table
-    is cloned. Used during condition pushdown to derived tables.
-  */
-  Name_resolution_context *m_merged_derived_context{nullptr};
 
  private:
   /// The view algorithm that is actually used, if this is a view.
@@ -4023,7 +4005,7 @@ static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap
 
 /*
   Variant of the above : handle both read and write sets.
-  Provide for the possiblity of the read set being the same as the write set
+  Provide for the possibility of the read set being the same as the write set
 */
 static inline void dbug_tmp_use_all_columns(
     TABLE *table [[maybe_unused]], my_bitmap_map **save [[maybe_unused]],
@@ -4049,24 +4031,30 @@ static inline void dbug_tmp_restore_column_maps(
 void init_mdl_requests(TABLE_LIST *table_list);
 
 /**
-   Unpacks the definition of a generated column, default expression or check
-   constraint expression passed as argument. Parses the text obtained from
-   TABLE_SHARE and produces an Item.
+   Unpacks the definition of a value generator in all its forms: generated
+   column, default expression or checked constraint.
+   The function parses the text definition of this expression, resolves its
+   items and runs validation and calculates the base_columns_map which is used
+   for tracking the columns the expression depends on.
 
-  @param thd                  Thread handler
-  @param table                Table with the checked field
-  @param val_generator        The expression to unpack.
-  @param source               Source of value generator(a generated column,
-                              a regular column with generated default value or
-                              a check constraint).
-  @param source_name          Name of the source (generated column, a reguler
-                              column with generated default value or a check
-                              constraint).
-  @param field                Pointer to Field object
-  @param is_create_table      Indicates that table is opened as part
-                              of CREATE or ALTER and does not yet exist in SE
-  @param error_reported       updated flag for the caller that no other error
-                              messages are to be generated.
+  @param[in] thd               Thread handler
+  @param[in] table             Table having the value generator to be unpacked
+  @param[in,out] val_generator Contains the expression in string format, and,
+                               if successful will be replaced by the parser
+                               with a new one having the unpacked expression.
+  @param[in] source            Source of value generator(a generated column,
+                               a regular column with generated default value or
+                               a check constraint).
+  @param[in] source_name       Name of the source (generated column, a regular
+                               column with generated default value or a check
+                               constraint).
+  @param[in] field             The column the value generator depends on. Can
+                               be null for checked constraints which do not
+                               depend on a single column.
+  @param[in] is_create_table   Indicates that table is opened as part
+                               of CREATE or ALTER and does not yet exist in SE
+  @param[out] error_reported   updated flag for the caller that no other error
+                               messages are to be generated.
 
   @retval true Failure.
   @retval false Success.

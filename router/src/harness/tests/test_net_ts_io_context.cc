@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ TEST(NetTS_io_context, poll_io_service_poll_one_empty) {
 
 TEST(NetTS_io_context, work_guard_blocks_run) {
   // prepare the io-service
-  auto io_service = std::make_unique<MockIoService>();
+  auto io_service = std::make_unique<::testing::StrictMock<MockIoService>>();
 
   // succeed the open
   EXPECT_CALL(*io_service, open);
@@ -124,8 +124,9 @@ TEST(NetTS_io_context, work_guard_blocks_run) {
       .WillRepeatedly(
           Return(stdx::make_unexpected(make_error_code(std::errc::timed_out))));
 
-  net::io_context io_ctx(std::make_unique<MockSocketService>(),
-                         std::move(io_service));
+  net::io_context io_ctx(
+      std::make_unique<::testing::StrictMock<MockSocketService>>(),
+      std::move(io_service));
 
   // work guard is need to trigger the poll_one() as otherwise the run() would
   // just leave as there is no work to do without blocking
@@ -137,7 +138,7 @@ TEST(NetTS_io_context, work_guard_blocks_run) {
 
 TEST(NetTS_io_context, io_service_open_fails) {
   // prepare the io-service
-  auto io_service = std::make_unique<MockIoService>();
+  auto io_service = std::make_unique<::testing::StrictMock<MockIoService>>();
 
   EXPECT_CALL(*io_service, open)
       .WillOnce(Return(stdx::make_unexpected(
@@ -145,8 +146,9 @@ TEST(NetTS_io_context, io_service_open_fails) {
 
   // no call to poll_one
 
-  net::io_context io_ctx(std::make_unique<MockSocketService>(),
-                         std::move(io_service));
+  net::io_context io_ctx(
+      std::make_unique<::testing::StrictMock<MockSocketService>>(),
+      std::move(io_service));
 
   EXPECT_EQ(
       io_ctx.open_res(),
@@ -167,7 +169,7 @@ TEST(NetTS_io_context, run_one_until_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -213,7 +215,7 @@ TEST(NetTS_io_context, run_one_for_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -259,7 +261,7 @@ TEST(NetTS_io_context, run_until_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -306,7 +308,7 @@ TEST(NetTS_io_context, run_for_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {

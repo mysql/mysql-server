@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 #include <algorithm>
 #include <atomic>
 #include <functional>
@@ -115,6 +116,7 @@
 #include "sql/sql_db.h"  // get_default_db_collation
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"  // QEP_TAB
+#include "sql/sql_gipk.h"      // table_has_generated_invisible_primary_key
 #include "sql/sql_lex.h"       // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
@@ -586,7 +588,7 @@ bool Sql_cmd_show_processlist::execute_inner(THD *thd) {
                           thd->security_context()->check_access(PROCESS_ACL)
                               ? NullS
                               : thd->security_context()->priv_user().str,
-                          m_verbose);
+                          m_verbose, true);
     return false;
   }
 }
@@ -633,7 +635,7 @@ bool Sql_cmd_show_replicas::check_privileges(THD *thd) {
 }
 
 bool Sql_cmd_show_replicas::execute_inner(THD *thd) {
-  return show_slave_hosts(thd);
+  return show_replicas(thd);
 }
 
 bool Sql_cmd_show_replica_status::check_privileges(THD *thd) {
@@ -1182,7 +1184,8 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
   if (table_list->is_view())
     view_store_create_info(thd, table_list, &buffer);
   else if (store_create_info(thd, table_list, &buffer, nullptr,
-                             false /* show_database */))
+                             false /* show_database */,
+                             true /* SHOW CREATE TABLE */))
     goto exit;
 
   if (table_list->is_view()) {
@@ -1222,8 +1225,9 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
     protocol->store(table_list->view_creation_ctx->get_client_cs()->csname,
                     system_charset_info);
 
-    protocol->store(table_list->view_creation_ctx->get_connection_cl()->name,
-                    system_charset_info);
+    protocol->store(
+        table_list->view_creation_ctx->get_connection_cl()->m_coll_name,
+        system_charset_info);
   } else
     protocol->store_string(buffer.ptr(), buffer.length(), buffer.charset());
 
@@ -1263,7 +1267,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     db_access = DB_OP_ACLS;
   else {
     if (sctx->get_active_roles()->size() > 0 && dbname != nullptr) {
-      db_access = sctx->db_acl({dbname, strlen(dbname)});
+      db_access = (sctx->db_acl({dbname, strlen(dbname)}) |
+                   sctx->master_access(dbname ? dbname : ""));
     } else {
       db_access = (acl_get(thd, sctx->host().str, sctx->ip().str,
                            sctx->priv_user().str, dbname, false) |
@@ -1330,7 +1335,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     if (!(create.default_table_charset->state & MY_CS_PRIMARY) ||
         create.default_table_charset == &my_charset_utf8mb4_0900_ai_ci) {
       buffer.append(STRING_WITH_LEN(" COLLATE "));
-      buffer.append(create.default_table_charset->name);
+      buffer.append(create.default_table_charset->m_coll_name);
     }
     buffer.append(STRING_WITH_LEN(" */"));
   }
@@ -1851,12 +1856,18 @@ static void print_foreign_key_info(THD *thd, const LEX_CSTRING *db,
                           that it is different from the current database.
                           If false, then do not print the database before
                           the table name.
+  @param for_show_create_stmt  If true, then build CREATE TABLE statement for
+                               SHOW CREATE TABLE statement. If false, then
+                               store_create_info() is invoked to build CREATE
+                               TABLE statement while logging event to binlog.
+
 
   @returns true if error, false otherwise.
 */
 
 bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                       HA_CREATE_INFO *create_info_arg, bool show_database) {
+                       HA_CREATE_INFO *create_info_arg, bool show_database,
+                       bool for_show_create_stmt) {
   char tmp[MAX_FIELD_WIDTH], buff[128], def_value_buf[MAX_FIELD_WIDTH];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
@@ -1935,13 +1946,34 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     });
   }
 
-  for (ptr = table->field; (field = *ptr); ptr++) {
+  /*
+    When building CREATE TABLE statement for the SHOW CREATE TABLE (i.e.
+    for_show_create_stmt = true), skip generated invisible primary key
+    if system variable 'show_gipk_in_create_table_and_information_schema' is set
+    to OFF.
+  */
+  bool skip_gipk =
+      (for_show_create_stmt &&
+       table_has_generated_invisible_primary_key(table) &&
+       !thd->variables.show_gipk_in_create_table_and_information_schema);
+
+  Field **first_field = table->field;
+  /*
+    Generated invisible primary key column is placed at the first position.
+    So skip first column when skip_gipk is set.
+  */
+  assert(!table_has_generated_invisible_primary_key(table) ||
+         is_generated_invisible_primary_key_column_name(
+             (*first_field)->field_name));
+  if (skip_gipk) first_field++;
+
+  for (ptr = first_field; (field = *ptr); ptr++) {
     // Skip hidden system fields.
     if (field->is_hidden_by_system()) continue;
 
     enum_field_types field_type = field->real_type();
 
-    if (ptr != table->field) packet->append(STRING_WITH_LEN(",\n"));
+    if (ptr != first_field) packet->append(STRING_WITH_LEN(",\n"));
 
     packet->append(STRING_WITH_LEN("  "));
     append_identifier(thd, packet, field->field_name,
@@ -1990,7 +2022,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
           (field->charset() == &my_charset_utf8mb4_0900_ai_ci &&
            share->table_charset != &my_charset_utf8mb4_0900_ai_ci)) {
         packet->append(STRING_WITH_LEN(" COLLATE "));
-        packet->append(field->charset()->name);
+        packet->append(field->charset()->m_coll_name);
       }
     }
 
@@ -2093,12 +2125,22 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   key_info = table->key_info;
+  /*
+    Primary key is always at the first position in the keys list. Skip printing
+    primary key definition when skip_gipk is set.
+  */
+  assert(!table_has_generated_invisible_primary_key(table) ||
+         ((key_info->user_defined_key_parts == 1) &&
+          is_generated_invisible_primary_key_column_name(
+              key_info->key_part->field->field_name)));
+  if (skip_gipk) key_info++;
+
   /* Allow update_create_info to update row type */
   create_info.row_type = share->row_type;
   file->update_create_info(&create_info);
   primary_key = share->primary_key;
 
-  for (uint i = 0; i < share->keys; i++, key_info++) {
+  for (uint i = skip_gipk ? 1 : 0; i < share->keys; i++, key_info++) {
     KEY_PART_INFO *key_part = key_info->key_part;
     bool found_primary = false;
     packet->append(STRING_WITH_LEN(",\n  "));
@@ -2282,13 +2324,17 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       and NEXT_ID > 1 (the default).  We must not print the clause
       for engines that do not support this as it would break the
       import of dumps, but as of this writing, the test for whether
-      AUTO_INCREMENT columns are allowed and wether AUTO_INCREMENT=...
+      AUTO_INCREMENT columns are allowed and whether AUTO_INCREMENT=...
       is supported is identical, !(file->table_flags() & HA_NO_AUTO_INCREMENT))
       Because of that, we do not explicitly test for the feature,
       but may extrapolate its existence from that of an AUTO_INCREMENT column.
+
+      If table has a generated invisible primary key and skip_gipk is set,
+      then we should not print the AUTO_INCREMENT as AUTO_INCREMENT column
+      (generated invisible primary key column) is skipped with this setting.
     */
 
-    if (create_info.auto_increment_value > 1) {
+    if (create_info.auto_increment_value > 1 && !skip_gipk) {
       char *end;
       packet->append(STRING_WITH_LEN(" AUTO_INCREMENT="));
       end = longlong10_to_str(create_info.auto_increment_value, buff, 10);
@@ -2303,11 +2349,11 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       if (!create_info_arg ||
           (create_info_arg->used_fields & HA_CREATE_USED_DEFAULT_CHARSET)) {
         packet->append(STRING_WITH_LEN(" DEFAULT CHARSET="));
-        packet->append(replace_utf8_utf8mb3(share->table_charset->csname));
+        packet->append(share->table_charset->csname);
         if (!(share->table_charset->state & MY_CS_PRIMARY) ||
             share->table_charset == &my_charset_utf8mb4_0900_ai_ci) {
           packet->append(STRING_WITH_LEN(" COLLATE="));
-          packet->append(table->s->table_charset->name);
+          packet->append(table->s->table_charset->m_coll_name);
         }
       }
     }
@@ -2351,7 +2397,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       end = longlong10_to_str(share->stats_sample_pages, buff, 10);
       packet->append(buff, (uint)(end - buff));
     }
-    /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
+    /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compatibility */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
@@ -2400,7 +2446,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                          share->encrypt_type.length);
       } else {
         /*
-          We print ENCRYPTION='N' only incase user did not explicitly
+          We print ENCRYPTION='N' only in case user did not explicitly
           provide ENCRYPTION clause and schema has default_encryption 'Y'.
           In other words, if there is no ENCRYPTION clause supplied, then
           it is always unencrypted table. Server always maintains
@@ -2653,19 +2699,14 @@ static const char *thread_state_info(THD *invoking_thd, THD *inspected_thd) {
   if (inspected_thd->get_protocol()->get_rw_status()) {
     if (inspected_thd->get_protocol()->get_rw_status() == 2)
       return "Sending to client";
-    else if (inspected_thd->get_command() == COM_SLEEP)
-      return "";
-    else
-      return "Receiving from client";
+    if (inspected_thd->get_command() == COM_SLEEP) return "";
+    return "Receiving from client";
   } else {
     MUTEX_LOCK(lock, &inspected_thd->LOCK_current_cond);
     const char *proc_info = inspected_thd->proc_info_session(invoking_thd);
-    if (proc_info)
-      return proc_info;
-    else if (inspected_thd->current_cond.load())
-      return "Waiting on cond";
-    else
-      return nullptr;
+    if (proc_info) return proc_info;
+    if (inspected_thd->current_cond.load()) return "Waiting on cond";
+    return nullptr;
   }
 }
 
@@ -2693,50 +2734,59 @@ class List_process_list : public Do_THD_Impl {
 
   void operator()(THD *inspect_thd) override {
     DBUG_TRACE;
-    Security_context *inspect_sctx = inspect_thd->security_context();
-    LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
-    LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
-    LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
+
+    thread_info *thd_info = nullptr;
 
     {
-      MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-      if ((!(inspect_thd->get_protocol() &&
-             inspect_thd->get_protocol()->connection_alive()) &&
-           !inspect_thd->system_thread) ||
-          (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                      strcmp(inspect_sctx_user.str, m_user)))) {
-        return;
+      MUTEX_LOCK(grd_secctx, &inspect_thd->LOCK_thd_security_ctx);
+
+      Security_context *inspect_sctx = inspect_thd->security_context();
+
+      LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
+      LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
+      LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
+
+      {
+        MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
+
+        if ((!(inspect_thd->get_protocol() &&
+               inspect_thd->get_protocol()->connection_alive()) &&
+             !inspect_thd->system_thread) ||
+            (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
+                        strcmp(inspect_sctx_user.str, m_user)))) {
+          return;
+        }
       }
-    }
 
-    thread_info *thd_info = new (m_client_thd->mem_root) thread_info;
+      thd_info = new (m_client_thd->mem_root) thread_info;
 
-    /* ID */
-    thd_info->thread_id = inspect_thd->thread_id();
+      /* ID */
+      thd_info->thread_id = inspect_thd->thread_id();
 
-    /* USER */
-    if (inspect_sctx_user.str)
-      thd_info->user = m_client_thd->mem_strdup(inspect_sctx_user.str);
-    else if (inspect_thd->system_thread)
-      thd_info->user = "system user";
-    else
-      thd_info->user = "unauthenticated user";
+      /* USER */
+      if (inspect_sctx_user.str)
+        thd_info->user = m_client_thd->mem_strdup(inspect_sctx_user.str);
+      else if (inspect_thd->system_thread)
+        thd_info->user = "system user";
+      else
+        thd_info->user = "unauthenticated user";
 
-    /* HOST */
-    if (inspect_thd->peer_port &&
-        (inspect_sctx_host.length || inspect_sctx->ip().length) &&
-        m_client_thd->security_context()->host_or_ip().str[0]) {
-      char *host =
-          static_cast<char *>(m_client_thd->alloc(HOST_AND_PORT_LENGTH));
-      if (host)
-        snprintf(host, HOST_AND_PORT_LENGTH, "%s:%u",
-                 inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
-      thd_info->host = host;
-    } else
-      thd_info->host = m_client_thd->mem_strdup(
-          inspect_sctx_host_or_ip.str[0]
-              ? inspect_sctx_host_or_ip.str
-              : inspect_sctx_host.length ? inspect_sctx_host.str : "");
+      /* HOST */
+      if (inspect_thd->peer_port &&
+          (inspect_sctx_host.length || inspect_sctx->ip().length) &&
+          m_client_thd->security_context()->host_or_ip().str[0]) {
+        char *host =
+            static_cast<char *>(m_client_thd->alloc(HOST_AND_PORT_LENGTH + 1));
+        if (host)
+          snprintf(host, HOST_AND_PORT_LENGTH + 1, "%s:%u",
+                   inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
+        thd_info->host = host;
+      } else
+        thd_info->host = m_client_thd->mem_strdup(
+            inspect_sctx_host_or_ip.str[0]
+                ? inspect_sctx_host_or_ip.str
+                : inspect_sctx_host.length ? inspect_sctx_host.str : "");
+    }  // We've copied the security context, so release the lock.
 
     DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data", {
       if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
@@ -2811,7 +2861,19 @@ class List_process_list : public Do_THD_Impl {
   }
 };
 
-void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
+/**
+  List running processes (actually connected sessions).
+
+  @param thd        thread handle.
+  @param user       Username of connected client.
+  @param verbose    if false, limit output to PROCESS_LIST_WIDTH characters.
+  @param has_cursor if true, called from a command object that handles
+                    terminatation of sending to client, otherwise terminate
+                    explicitly with my_eof() call.
+*/
+
+void mysqld_list_processes(THD *thd, const char *user, bool verbose,
+                           bool has_cursor) {
   Item *field;
   mem_root_deque<Item *> field_list(thd->mem_root);
   Thread_info_array thread_infos(thd->mem_root);
@@ -2847,7 +2909,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   // Return list sorted by thread_id.
   std::sort(thread_infos.begin(), thread_infos.end(), thread_info_compare());
 
-  time_t now = my_time(0);
+  time_t now = time(nullptr);
   for (size_t ix = 0; ix < thread_infos.size(); ++ix) {
     thread_info *thd_info = thread_infos.at(ix);
     protocol->start_row();
@@ -2869,7 +2931,16 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
                     thd_info->query_string.charset());
     if (protocol->end_row()) break; /* purecov: inspected */
   }
-  if (thd->lex->query_block != nullptr)
+  /*
+    "show" commands that are implemented as subclass of Sql_cmd_show_noplan
+    usually call my_eof() directly, as they don't have a cursor implementation.
+    However, SHOW PROCESSLIST has one implementation using PFS that uses
+    a regular join plan, and another that calls this function, so inherits
+    from Sql_cmd_show.
+    The following code is necessary to prevent my_eof() from being called twice
+    when this function is called as part of Sql_cmd execution.
+  */
+  if (has_cursor)
     thd->lex->unit->query_result()->send_eof(thd);
   else
     my_eof(thd);
@@ -2897,59 +2968,69 @@ class Fill_process_list : public Do_THD_Impl {
 
   void operator()(THD *inspect_thd) override {
     DBUG_TRACE;
-    Security_context *inspect_sctx = inspect_thd->security_context();
-    LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
-    LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
-    LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
-    const char *client_priv_user =
-        m_client_thd->security_context()->priv_user().str;
-    const char *user =
-        m_client_thd->security_context()->check_access(PROCESS_ACL)
-            ? NullS
-            : client_priv_user;
+
+    TABLE *table;
+    const char *val = nullptr;
 
     {
-      MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-      if ((!inspect_thd->get_protocol()->connection_alive() &&
-           !inspect_thd->system_thread) ||
-          (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                    strcmp(inspect_sctx_user.str, user))))
-        return;
-    }
-    DBUG_EXECUTE_IF(
-        "test_fill_proc_with_x_root",
-        if (0 == strcmp(inspect_sctx_user.str, "x_root")) {
-          DEBUG_SYNC(m_client_thd, "fill_proc_list_with_x_root");
-        });
+      MUTEX_LOCK(grd_secctx, &inspect_thd->LOCK_thd_security_ctx);
 
-    TABLE *table = m_tables->table;
-    restore_record(table, s->default_values);
+      Security_context *inspect_sctx = inspect_thd->security_context();
 
-    /* ID */
-    table->field[0]->store((ulonglong)inspect_thd->thread_id(), true);
+      LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
+      LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
+      LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
 
-    /* USER */
-    const char *val = nullptr;
-    if (inspect_sctx_user.str)
-      val = inspect_sctx_user.str;
-    else if (inspect_thd->system_thread)
-      val = "system user";
-    else
-      val = "unauthenticated user";
-    table->field[1]->store(val, strlen(val), system_charset_info);
+      const char *client_priv_user =
+          m_client_thd->security_context()->priv_user().str;
+      const char *user =
+          m_client_thd->security_context()->check_access(PROCESS_ACL)
+              ? NullS
+              : client_priv_user;
 
-    /* HOST */
-    if (inspect_thd->peer_port &&
-        (inspect_sctx_host.length || inspect_sctx->ip().length) &&
-        m_client_thd->security_context()->host_or_ip().str[0]) {
-      char host[HOST_AND_PORT_LENGTH];
-      snprintf(host, HOST_AND_PORT_LENGTH, "%s:%u", inspect_sctx_host_or_ip.str,
-               inspect_thd->peer_port);
-      table->field[2]->store(host, strlen(host), system_charset_info);
-    } else
-      table->field[2]->store(inspect_sctx_host_or_ip.str,
-                             inspect_sctx_host_or_ip.length,
-                             system_charset_info);
+      {
+        MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
+        if ((!inspect_thd->get_protocol()->connection_alive() &&
+             !inspect_thd->system_thread) ||
+            (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
+                      strcmp(inspect_sctx_user.str, user))))
+          return;
+      }
+
+      DBUG_EXECUTE_IF(
+          "test_fill_proc_with_x_root",
+          if (0 == strcmp(inspect_sctx_user.str, "x_root")) {
+            DEBUG_SYNC(m_client_thd, "fill_proc_list_with_x_root");
+          });
+
+      table = m_tables->table;
+      restore_record(table, s->default_values);
+
+      /* ID */
+      table->field[0]->store((ulonglong)inspect_thd->thread_id(), true);
+
+      /* USER */
+      if (inspect_sctx_user.str)
+        val = inspect_sctx_user.str;
+      else if (inspect_thd->system_thread)
+        val = "system user";
+      else
+        val = "unauthenticated user";
+      table->field[1]->store(val, strlen(val), system_charset_info);
+
+      /* HOST */
+      if (inspect_thd->peer_port &&
+          (inspect_sctx_host.length || inspect_sctx->ip().length) &&
+          m_client_thd->security_context()->host_or_ip().str[0]) {
+        char host[HOST_AND_PORT_LENGTH + 1];
+        snprintf(host, HOST_AND_PORT_LENGTH + 1, "%s:%u",
+                 inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
+        table->field[2]->store(host, strlen(host), system_charset_info);
+      } else
+        table->field[2]->store(inspect_sctx_host_or_ip.str,
+                               inspect_sctx_host_or_ip.length,
+                               system_charset_info);
+    }  // We've copied the security context, so release the lock.
 
     DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data", {
       if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
@@ -2957,6 +3038,7 @@ class Fill_process_list : public Do_THD_Impl {
         DEBUG_SYNC(m_client_thd,
                    "processlist_after_LOCK_thd_list_before_LOCK_thd_data");
     });
+
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
     const char *db = inspect_thd->db().str;
@@ -3306,13 +3388,10 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
   const CHARSET_INFO *value_charset;
 
   if (show_type == SHOW_SYS) {
-    LEX_STRING null_lex_str;
-    null_lex_str.str = nullptr;  // For sys_var->value_ptr()
-    null_lex_str.length = 0;
     sys_var *var = ((sys_var *)variable->value);
     show_type = var->show_type();
     value = pointer_cast<const char *>(
-        var->value_ptr(running_thd, target_thd, value_type, &null_lex_str));
+        var->value_ptr(running_thd, target_thd, value_type, {}));
     value_charset = var->charset(target_thd);
   } else {
     value = variable->value;
@@ -3776,6 +3855,21 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
   show_table->use_all_columns();  // Required for default
   restore_record(show_table, s->default_values);
 
+  /*
+    If a primary key is generated for the table then hide definition of a
+    generated invisible primary key when system variable
+    show_gipk_in_create_table_and_information_schema is set to OFF.
+  */
+  if (table_has_generated_invisible_primary_key(show_table) &&
+      !thd->variables.show_gipk_in_create_table_and_information_schema) {
+    /*
+      Generated invisible primary key column is placed at the first position.
+      So skip first column.
+    */
+    assert(is_generated_invisible_primary_key_column_name((*ptr)->field_name));
+    ptr++;
+  }
+
   for (; (field = *ptr); ptr++) {
     const uchar *pos;
     char tmp[MAX_FIELD_WIDTH];
@@ -3800,7 +3894,8 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
     // COLLATION_NAME
     if (field->has_charset()) {
       table->field[TMP_TABLE_COLUMNS_COLLATION_NAME]->store(
-          field->charset()->name, strlen(field->charset()->name), cs);
+          field->charset()->m_coll_name, strlen(field->charset()->m_coll_name),
+          cs);
       table->field[TMP_TABLE_COLUMNS_COLLATION_NAME]->set_notnull();
     }
 
@@ -3990,7 +4085,26 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
     show_table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK |
                            HA_STATUS_TIME);
 
-  for (uint i = 0; i < show_table->s->keys; i++, key_info++) {
+  uint i = 0;
+  /*
+    If a primary key is generated for the table then hide definition of a
+    generated invisible primary key when system variable
+    show_gipk_in_create_table_and_information_schema is set to OFF.
+  */
+  if (table_has_generated_invisible_primary_key(show_table) &&
+      !thd->variables.show_gipk_in_create_table_and_information_schema) {
+    /*
+      Primary key is always at the first position in the keys list. Skip
+      printing primary key definition.
+    */
+    assert((key_info->user_defined_key_parts == 1) &&
+           (is_generated_invisible_primary_key_column_name(
+               key_info->key_part->field->field_name)));
+    i++;
+    key_info++;
+  }
+
+  for (; i < show_table->s->keys; i++, key_info++) {
     KEY_PART_INFO *key_part = key_info->key_part;
     const char *str;
     for (uint j = 0; j < key_info->user_defined_key_parts; j++, key_part++) {
@@ -4195,7 +4309,7 @@ struct schema_table_ref {
 };
 
 /*
-  Find schema_tables elment by name
+  Find schema_tables element by name
 
   SYNOPSIS
     find_schema_table_in_plugin()
@@ -4208,7 +4322,7 @@ struct schema_table_ref {
 */
 static bool find_schema_table_in_plugin(THD *, plugin_ref plugin,
                                         void *p_table) {
-  schema_table_ref *p_schema_table = (schema_table_ref *)p_table;
+  auto *p_schema_table = (schema_table_ref *)p_table;
   const char *table_name = p_schema_table->table_name;
   ST_SCHEMA_TABLE *schema_table = plugin_data<ST_SCHEMA_TABLE *>(plugin);
   DBUG_TRACE;
@@ -4223,7 +4337,7 @@ static bool find_schema_table_in_plugin(THD *, plugin_ref plugin,
 }
 
 /*
-  Find schema_tables elment by name
+  Find schema_tables element by name
 
   SYNOPSIS
     find_schema_table()
@@ -4657,8 +4771,7 @@ struct run_hton_fill_schema_table_args {
 };
 
 static bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin, void *arg) {
-  struct run_hton_fill_schema_table_args *args =
-      (run_hton_fill_schema_table_args *)arg;
+  auto *args = (run_hton_fill_schema_table_args *)arg;
   handlerton *hton = plugin_data<handlerton *>(plugin);
   if (hton->fill_is_table && hton->state == SHOW_OPTION_YES)
     hton->fill_is_table(hton, thd, args->tables, args->cond,
@@ -4720,7 +4833,7 @@ ST_FIELD_INFO tmp_table_keys_fields_info[] = {
 
 /**
   Grantee is of form 'user'@'hostname', so add +1 for '@' and +4 for the
-  single qoutes.
+  single quotes.
 */
 static const int GRANTEE_MAX_CHAR_LENGTH =
     USERNAME_CHAR_LENGTH + 1 + HOSTNAME_LENGTH + 4;
@@ -4769,7 +4882,7 @@ ST_FIELD_INFO open_tables_fields_info[] = {
 ST_FIELD_INFO processlist_fields_info[] = {
     {"ID", 21, MYSQL_TYPE_LONGLONG, 0, MY_I_S_UNSIGNED, "Id", 0},
     {"USER", USERNAME_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, "User", 0},
-    {"HOST", HOST_AND_PORT_LENGTH - 1, MYSQL_TYPE_STRING, 0, 0, "Host", 0},
+    {"HOST", HOST_AND_PORT_LENGTH, MYSQL_TYPE_STRING, 0, 0, "Host", 0},
     {"DB", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, "Db", 0},
     {"COMMAND", 16, MYSQL_TYPE_STRING, 0, 0, "Command", 0},
     {"TIME", 7, MYSQL_TYPE_LONG, 0, 0, "Time", 0},
@@ -5294,7 +5407,6 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
       ptr++;
     }
   }
-  return;
 }
 
 /**

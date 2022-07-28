@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,14 +27,16 @@
 #include <stdexcept>
 #include <string>
 
+#include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 
+#include "destination.h"
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "router_test_helpers.h"  // ASSERT_THROW_LIKE
-#include "test/helpers.h"         // init_test_logger
+#include "tcp_address.h"
+#include "test/helpers.h"  // init_test_logger
 
-using metadata_cache::InstanceStatus;
 using metadata_cache::LookupResult;
 using metadata_cache::ServerMode;
 using InstanceVector = std::vector<metadata_cache::ManagedInstance>;
@@ -91,6 +93,10 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
                void(metadata_cache::AcceptorUpdateHandlerInterface *));
   MOCK_METHOD1(remove_acceptor_handler_listener,
                void(metadata_cache::AcceptorUpdateHandlerInterface *));
+  MOCK_METHOD1(add_md_refresh_listener,
+               void(metadata_cache::MetadataRefreshListenerInterface *));
+  MOCK_METHOD1(remove_md_refresh_listener,
+               void(metadata_cache::MetadataRefreshListenerInterface *));
 
   MOCK_METHOD0(enable_fetch_auth_metadata, void());
   MOCK_METHOD0(force_cache_update, void());
@@ -101,8 +107,6 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
       std::pair<bool, std::pair<std::string, rapidjson::Document>>(
           const std::string &));
 
-  MOCK_METHOD2(mark_instance_reachability,
-               void(const std::string &, InstanceStatus));
   MOCK_METHOD2(wait_primary_failover,
                bool(const std::string &, const std::chrono::seconds &));
 
@@ -144,6 +148,8 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
 
   RefreshStatus get_refresh_status() override { return {}; }
 
+  MOCK_METHOD1(set_instance_factory, void(metadata_factory_t cb));
+
  public:
   void fill_instance_vector(const InstanceVector &iv) { instance_vector_ = iv; }
 
@@ -171,7 +177,7 @@ class DestMetadataCacheTest : public ::testing::Test {
     metadata_cache_api_.fill_instance_vector(iv);
   }
 
-  MetadataCacheAPIStub metadata_cache_api_;
+  ::testing::StrictMock<MetadataCacheAPIStub> metadata_cache_api_;
   net::io_context io_ctx_;
 };
 
@@ -1049,6 +1055,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
       {"uuid2", metadata_cache::ServerMode::ReadOnly, "3307", 3307, 33070},
   });
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, add_md_refresh_listener(_));
   dest_mc_group.start(nullptr);
 
   // new metadata - no primary
@@ -1071,6 +1079,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
   metadata_cache_api_.trigger_instances_change_callback();
 
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, remove_md_refresh_listener(_));
 }
 
 /**
@@ -1093,6 +1103,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
 
   fill_instance_vector(instances);
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, add_md_refresh_listener(_));
   dest_mc_group.start(nullptr);
 
   // new metadata - 2 primaries
@@ -1107,8 +1119,12 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
     ASSERT_THAT(
         nodes,
         ::testing::ElementsAre(
-            instances[0].host + ":" + std::to_string(instances[0].port),
-            instances[1].host + ":" + std::to_string(instances[1].port)));
+            ::testing::Field(&AvailableDestination::address,
+                             mysql_harness::TCPAddress{instances[0].host,
+                                                       instances[0].port}),
+            ::testing::Field(&AvailableDestination::address,
+                             mysql_harness::TCPAddress{instances[1].host,
+                                                       instances[1].port})));
 
     ASSERT_TRUE(disconnect);
     ASSERT_STREQ("metadata change", disconnect_reason.c_str());
@@ -1118,6 +1134,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
   metadata_cache_api_.trigger_instances_change_callback();
 
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, remove_md_refresh_listener(_));
 }
 
 /**
@@ -1141,6 +1159,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
 
   fill_instance_vector(instances);
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, add_md_refresh_listener(_));
   dest_mc_group.start(nullptr);
 
   // remove last node, leaving only the one primary
@@ -1154,9 +1174,11 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
     // no secondaries and we are role=SECONDARY
     // by default we allow existing connections to the primary so it should
     // be in the allowed nodes
-    ASSERT_THAT(nodes,
-                ::testing::ElementsAre(instances[0].host + ":" +
-                                       std::to_string(instances[0].port)));
+    ASSERT_THAT(
+        nodes,
+        ::testing::ElementsAre(::testing::Field(
+            &AvailableDestination::address,
+            mysql_harness::TCPAddress{instances[0].host, instances[0].port})));
     ASSERT_TRUE(disconnect);
     ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;
@@ -1165,6 +1187,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
   metadata_cache_api_.trigger_instances_change_callback();
 
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, remove_md_refresh_listener(_));
 }
 
 /**
@@ -1189,6 +1213,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
 
   fill_instance_vector(instances);
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, add_md_refresh_listener(_));
   dest_mc_group.start(nullptr);
 
   // let's stick to the 'old' md so we have single primary and single secondary
@@ -1200,9 +1226,11 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
     // one secondary and we are role=SECONDARY
     // we have disconnect_on_promoted_to_primary=yes configured so primary is
     // not allowed
-    ASSERT_THAT(nodes,
-                ::testing::ElementsAre(instances[1].host + ":" +
-                                       std::to_string(instances[1].port)));
+    ASSERT_THAT(
+        nodes,
+        ::testing::ElementsAre(::testing::Field(
+            &AvailableDestination::address,
+            mysql_harness::TCPAddress{instances[1].host, instances[1].port})));
     ASSERT_TRUE(disconnect);
     ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;
@@ -1211,6 +1239,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
   metadata_cache_api_.trigger_instances_change_callback();
 
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, remove_md_refresh_listener(_));
 }
 
 /**
@@ -1242,6 +1272,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
 
   fill_instance_vector(instances);
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, add_md_refresh_listener(_));
   dest_mc_group.start(nullptr);
 
   // let's stick to the 'old' md so we have single primary and single secondary
@@ -1252,9 +1284,11 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
     // one secondary and we are role=SECONDARY
     // disconnect_on_promoted_to_primary=yes overrides previous value in
     // configuration so primary is not allowed
-    ASSERT_THAT(nodes,
-                ::testing::ElementsAre(instances[1].host + ":" +
-                                       std::to_string(instances[1].port)));
+    ASSERT_THAT(
+        nodes,
+        ::testing::ElementsAre(::testing::Field(
+            &AvailableDestination::address,
+            mysql_harness::TCPAddress{instances[1].host, instances[1].port})));
     ASSERT_TRUE(disconnect);
     ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;
@@ -1263,6 +1297,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
   metadata_cache_api_.trigger_instances_change_callback();
 
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, remove_md_refresh_listener(_));
 }
 
 /**
@@ -1284,6 +1320,8 @@ TEST_F(DestMetadataCacheTest,
       {"uuid2", metadata_cache::ServerMode::ReadOnly, "3307", 3307, 33070},
   });
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, add_md_refresh_listener(_));
   dest_mc_group.start(nullptr);
 
   // new empty metadata
@@ -1306,6 +1344,8 @@ TEST_F(DestMetadataCacheTest,
   // because md servers are not reachable as disconnect_on_metadata_unavailable
   // is set to 'no' (by default) we are not expected to force the disconnects
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, remove_md_refresh_listener(_));
 }
 
 /**
@@ -1330,6 +1370,8 @@ TEST_F(DestMetadataCacheTest,
       {"uuid2", metadata_cache::ServerMode::ReadOnly, "3307", 3307, 33070},
   });
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, add_md_refresh_listener(_));
   dest_mc_group.start(nullptr);
 
   // new empty metadata
@@ -1353,6 +1395,8 @@ TEST_F(DestMetadataCacheTest,
   // disconnect_on_metadata_unavailable=yes we are expected to call the users
   // (routing) callbacks to force the disconnects
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
+  EXPECT_CALL(metadata_cache_api_, remove_md_refresh_listener(_));
 }
 
 /*****************************************/
@@ -1366,7 +1410,9 @@ TEST_F(DestMetadataCacheTest, InvalidServerNodeRole) {
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
           &metadata_cache_api_),
-      std::runtime_error, "Invalid server role in metadata cache routing");
+      std::runtime_error,
+      "The role in '?role=INVALID' does not contain one of the valid role "
+      "names: PRIMARY, SECONDARY, PRIMARY_AND_SECONDARY");
 }
 
 TEST_F(DestMetadataCacheTest, UnsupportedRoutingStrategy) {
@@ -1515,13 +1561,15 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupMultipleUris) {
     mysqlrouter::URI uri(
         "metadata-cache://test/default?role=SECONDARY,metadata-cache://test2/"
         "default?role=SECONDARY");
-    ASSERT_THROW_LIKE(DestMetadataCacheGroup dest(
-                          io_ctx_, "metadata_cache_name",
-                          routing::RoutingStrategy::kUndefined, uri.query,
-                          Protocol::Type::kClassicProtocol),
-                      std::runtime_error,
-                      "Invalid server role in metadata cache routing "
-                      "'SECONDARY,metadata-cache://test2/default?role'");
+    ASSERT_THROW_LIKE(
+        DestMetadataCacheGroup dest(io_ctx_, "metadata_cache_name",
+                                    routing::RoutingStrategy::kUndefined,
+                                    uri.query,
+                                    Protocol::Type::kClassicProtocol),
+        std::runtime_error,
+        "The role in '?role=SECONDARY,metadata-cache://test2/default?role' "
+        "does not contain one of the valid role names: PRIMARY, SECONDARY, "
+        "PRIMARY_AND_SECONDARY");
   }
 }
 

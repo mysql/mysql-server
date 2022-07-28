@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@
 */
 
 /*
-   This file is basicly tis620 character sets with some extra functions
+   This file is basically tis620 character sets with some extra functions
    for tis-620 handling
 */
 
@@ -582,7 +582,7 @@ static size_t thai2sortable(uchar *tstr, size_t len) {
   string
 
   NOTE:
-    We can't cut strings at end \0 as this would break comparision with
+    We can't cut strings at end \0 as this would break comparison with
     LIKE characters, where the min range is stored as end \0
 
   Arg: 2 Strings and it compare length
@@ -668,10 +668,10 @@ ret:
 }
 
 /*
-  strnxfrm replacment, convert Thai string to sortable string
+  strnxfrm replacement, convert Thai string to sortable string
 
   Arg: Destination buffer, source string, dest length and source length
-  Ret: Conveted string size
+  Ret: Converted string size
 */
 
 static size_t my_strnxfrm_tis620(const CHARSET_INFO *cs, uchar *dst,
@@ -929,7 +929,7 @@ CHARSET_INFO my_charset_tis620_thai_ci = {
     0,                                               /* number    */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state     */
     "tis620",                                        /* cs name    */
-    "tis620_thai_ci",                                /* name      */
+    "tis620_thai_ci",                                /* m_coll_name */
     "TIS620 Thai",                                   /* comment   */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */
@@ -964,7 +964,7 @@ CHARSET_INFO my_charset_tis620_bin = {
     0,                              /* number    */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state     */
     "tis620",                       /* cs name    */
-    "tis620_bin",                   /* name      */
+    "tis620_bin",                   /* m_coll_name */
     "TIS620 Thai",                  /* comment   */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */

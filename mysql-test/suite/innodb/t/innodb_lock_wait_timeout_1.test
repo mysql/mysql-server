@@ -211,6 +211,8 @@ connection con1;
 begin;
 --echo # Since there is another distinct record in the derived table
 --echo # the previous matching record in t1 -- (2,null) -- was unlocked.
+--skip_if_hypergraph  # Could get lock timeout, depending on the plan of the
+                      # multi-table delete statement above.
 delete from t1;
 --echo # We will need the contents of the table again.
 rollback;

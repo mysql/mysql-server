@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -348,6 +348,7 @@ enum Log_event_type {
 
   TRANSACTION_PAYLOAD_EVENT = 40,
 
+  HEARTBEAT_LOG_EVENT_V2 = 41,
   /**
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers

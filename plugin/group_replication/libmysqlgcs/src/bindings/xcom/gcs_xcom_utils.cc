@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -640,10 +640,10 @@ bool is_parameters_syntax_correct(
       // Verify if the input value is a valid number
       (xcom_cache_size_str->size() == 0 || !is_number(*xcom_cache_size_str) ||
        // Check that it is not lower than the min value allowed for the var
-       strtoull(xcom_cache_size_str->c_str(), nullptr, 10) <
-           MIN_XCOM_MAX_CACHE_SIZE ||
+       (strtoull(xcom_cache_size_str->c_str(), nullptr, 10) <
+        MIN_XCOM_MAX_CACHE_SIZE) ||
        // Check that it is not higher than the max value allowed
-       strtoull(xcom_cache_size_str->c_str(), nullptr, 10) > ULONG_MAX ||
+       (strtoull(xcom_cache_size_str->c_str(), nullptr, 10) > ULONG_MAX) ||
        // Check that it is within the range of values allowed for the var
        // type. This is need in addition to the check above because of
        // overflows.

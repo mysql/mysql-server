@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysys_err.h"  // for testing of OOM
-#include "sql/json_dom.h"
+#include "sql-common/json_dom.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 
@@ -75,8 +75,9 @@ static void do_check_json_compliance(const char *str, size_t length) {
 
   const char *errmsg = nullptr;
   size_t errpos = 0;
-  Json_dom_ptr dom = Json_dom::parse(json_document.data(), json_document.size(),
-                                     &errmsg, &errpos);
+  Json_dom_ptr dom = Json_dom::parse(
+      json_document.data(), json_document.size(), [](const char *, size_t) {},
+      [] { ASSERT_TRUE(false); });
   ASSERT_NE(nullptr, dom) << "Parse error: " << errmsg
                           << "\nError position: " << errpos << "\nDocument:\n"
                           << json_document;

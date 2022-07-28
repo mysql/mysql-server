@@ -2,12 +2,12 @@
 .\"     Title: ndb_select_all
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_SELECT_ALL" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_SELECT_ALL" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -132,9 +132,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -152,9 +152,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--database=dbname\fR,
+\fB--database=name\fR,
 .PP
-\fB \fR\fB-d\fR\fB \fR
+\fB \fR\fB-d name\fR\fB \fR
 T}:T{
 Name of database in which table is found
 T}:T{
@@ -192,7 +192,7 @@ T{
 .PP
 \fB--delimiter=char\fR,
 .PP
-\fB \fR\fB-D\fR\fB \fR
+\fB \fR\fB-D char\fR\fB \fR
 T}:T{
 Set column delimiter
 T}:T{
@@ -214,8 +214,8 @@ T{
 .PP
 \fB \fR\fB--disk\fR\fB \fR
 T}:T{
-Print disk references (useful only for Disk Data tables having
-              nonindexed columns)
+Print disk references (useful only for Disk Data tables having unindexed
+              columns)
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -240,7 +240,7 @@ T}:T{
 T}
 T{
 .PP
-\fB--header\fR,
+\fB--header[=value]\fR,
 .PP
 \fB \fR\fB-h\fR\fB \fR
 T}:T{
@@ -253,7 +253,7 @@ T{
 .PP
 \fB--lock=#\fR,
 .PP
-\fB \fR\fB-l\fR\fB \fR
+\fB \fR\fB-l #\fR\fB \fR
 T}:T{
 Lock type
 T}:T{
@@ -282,9 +282,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -295,9 +295,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -346,7 +346,7 @@ T{
 .PP
 \fB--order=index\fR,
 .PP
-\fB \fR\fB-o\fR\fB \fR
+\fB \fR\fB-o index\fR\fB \fR
 T}:T{
 Sort resultset according to index having this name
 T}:T{
@@ -357,7 +357,7 @@ T{
 .PP
 \fB--parallelism=#\fR,
 .PP
-\fB \fR\fB-p\fR\fB \fR
+\fB \fR\fB-p #\fR\fB \fR
 T}:T{
 Degree of parallelism
 T}:T{
@@ -560,7 +560,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -938,7 +938,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -972,7 +972,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type
@@ -1254,7 +1254,7 @@ Output from the equivalent invocation of
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_select_all \-c localhost fish \-d ctest1\fR
+$> \fB\&./ndb_select_all \-c localhost fish \-d ctest1\fR
 id      name
 3       [shark]
 6       [puffer]
@@ -1303,7 +1303,7 @@ options:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_select_all \-d ctest1 dogs \-o ix \-z \-\-gci \-\-disk\fR
+$> \fB\&./ndb_select_all \-d ctest1 dogs \-o ix \-z \-\-gci \-\-disk\fR
 GCI     id name          breed        DISK_REF
 834461  2  [Scooby\-Doo]  [Great Dane] [ m_file_no: 0 m_page: 98 m_page_idx: 0 ]
 834878  4  [Rosscoe]     [Mutt]       [ m_file_no: 0 m_page: 98 m_page_idx: 16 ]
@@ -1318,7 +1318,7 @@ NDBT_ProgramExit: 0 \- OK
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

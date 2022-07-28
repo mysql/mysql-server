@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,6 +164,7 @@ struct HASH_LINK {
   uint requests;           /* number of requests for the page      */
 };
 
+// clang-format off
 /* simple states of a block */
 #define BLOCK_ERROR 1           /* an error occurred when performing file i/o */
 #define BLOCK_READ 2            /* file block is in the block buffer         */
@@ -175,6 +176,7 @@ struct HASH_LINK {
 #define BLOCK_IN_EVICTION 128   /* block is selected for eviction            */
 #define BLOCK_IN_FLUSHWRITE 256 /* block is in write to file */
 #define BLOCK_FOR_UPDATE 512    /* block is selected for buffer modification */
+// clang-format on
 
 /* page status, returned by find_key_block */
 #define PAGE_READ 0
@@ -1587,7 +1589,7 @@ restart:
           (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_REASSIGNED))) {
       /*
         Free block as we are going to write directly to file.
-        Although we have an exlusive lock for the updated key part,
+        Although we have an exclusive lock for the updated key part,
         the control can be yielded by the current thread as we might
         have unfinished readers of other key parts in the block
         buffer. Still we are guaranteed not to have any readers
@@ -2095,7 +2097,7 @@ static void read_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       return_buffer       return pointer to the key cache buffer with the data
 
   RETURN VALUE
-    Returns address from where the data is placed if sucessful, 0 - otherwise.
+    Returns address from where the data is placed if successful, 0 - otherwise.
 
   NOTES.
     The function ensures that a block of data of size length from file
@@ -2659,7 +2661,7 @@ int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
         The block to be written must not be marked BLOCK_REASSIGNED.
         Otherwise it could be freed in dirty state or reused without
         another flush during eviction. It must also not be in flush.
-        Otherwise the old contens may have been flushed already and
+        Otherwise the old contents may have been flushed already and
         the flusher could clear BLOCK_CHANGED without flushing the
         new changes again.
       */
@@ -2871,7 +2873,7 @@ static void free_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
   /*
     Unregister the block request and link the block into the LRU ring.
     This enables eviction for the block. If the LRU ring was empty and
-    threads are waiting for a block, then the block wil be handed over
+    threads are waiting for a block, then the block will be handed over
     for eviction immediately. Otherwise we will unlink it from the LRU
     ring again, without releasing the lock in between. So decrementing
     the request counter and updating statistics are the only relevant
@@ -2939,7 +2941,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
   mysql_mutex_unlock(&keycache->cache_lock);
   /*
      As all blocks referred in 'cache' are marked by BLOCK_IN_FLUSH
-     we are guarunteed no thread will change them
+     we are guaranteed no thread will change them
   */
   std::sort(cache, cache + count, [](const BLOCK_LINK *a, const BLOCK_LINK *b) {
     return a->hash_link->diskpos < b->hash_link->diskpos;
@@ -3598,14 +3600,16 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
     0 on success (always because it can't fail)
 */
 
-int reset_key_cache_counters(const char *name [[maybe_unused]],
+int reset_key_cache_counters(std::string_view name [[maybe_unused]],
                              KEY_CACHE *key_cache) {
   DBUG_TRACE;
   if (!key_cache->key_cache_inited) {
-    DBUG_PRINT("info", ("Key cache %s not initialized.", name));
+    DBUG_PRINT("info", ("Key cache %.*s not initialized.",
+                        static_cast<int>(name.size()), name.data()));
     return 0;
   }
-  DBUG_PRINT("info", ("Resetting counters for key cache %s.", name));
+  DBUG_PRINT("info", ("Resetting counters for key cache %.*s.",
+                      static_cast<int>(name.size()), name.data()));
 
   key_cache->global_blocks_changed = 0;   /* Key_blocks_not_flushed */
   key_cache->global_cache_r_requests = 0; /* Key_read_requests */

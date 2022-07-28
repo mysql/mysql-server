@@ -9,9 +9,11 @@ COUNT(@@innodb_page_cleaners)
 SET @@GLOBAL.innodb_page_cleaners=1;
 ERROR HY000: Variable 'innodb_page_cleaners' is a read only variable
 Expected error 'Read-only variable'
-SELECT innodb_page_cleaners = @@SESSION.innodb_page_cleaners;
+SELECT innodb_page_cleaners;
 ERROR 42S22: Unknown column 'innodb_page_cleaners' in 'field list'
-Expected error 'Read-only variable'
+Expected error 'Unknown column'
+SELECT @@SESSION.innodb_page_cleaners;
+ERROR HY000: Variable 'innodb_page_cleaners' is a GLOBAL variable
 SELECT @@GLOBAL.innodb_page_cleaners = VARIABLE_VALUE
 FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_page_cleaners';

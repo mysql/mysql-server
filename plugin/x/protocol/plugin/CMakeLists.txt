@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ ADD_CUSTOM_COMMAND(
   VERBATIM
 )
 
-ADD_CUSTOM_TARGET(xprotocol_tags
+MY_ADD_CUSTOM_TARGET(xprotocol_tags
   DEPENDS
   xprotocol_plugin
   "${MYSQLX_GENERATE_DIR}/${PROTOC_PLUGIN_GENERATED_HDR}"

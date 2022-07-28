@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 int Sql_service_context::start_result_metadata(uint ncols, uint,
                                                const CHARSET_INFO *resultcs) {
   DBUG_TRACE;
-  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
+  DBUG_PRINT("info", ("resultcs->m_coll_name: %s", resultcs->m_coll_name));
   if (resultset) {
     resultset->set_cols(ncols);
     resultset->set_charset(resultcs);

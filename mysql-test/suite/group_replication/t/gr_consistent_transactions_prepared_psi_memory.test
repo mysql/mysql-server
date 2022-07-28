@@ -1,0 +1,323 @@
+################################################################################
+# This test verifies following for 'consistent_transactions_prepared'
+# and 'consistent_transactions_waiting' event:
+# - Verify that entries corresponding to the
+#   'consistent_transactions_prepared' and
+#   'consistent_transactions_waiting' performance schema
+#   instrumented memory are in the memory table only during the
+#   execution of the group replication plugin.
+# - Verify that the sum of bytes allocated is greater than zero for a
+#   transaction and zero after transaction is finished.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables for the event
+#    consistent_transactions_prepared.
+# 2. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables for the event
+#    consistent_transactions_waiting.
+# 3. Create two tables on the group.
+# 4. Lock table t1 on server2 to block a future update.
+# 5. Execute transaction T1, the transaction will block on
+#    server2 due to the table lock.
+# 6. Wait until T1 is delivered to server2.
+# 7. Execute a write transaction T2 on server2 with
+#    group_replication_consistency= 'BEFORE_AND_AFTER' , it
+#    will wait for T1 commit and will make new transactions
+#    wait for T2.
+# 8. Force server1 to block between T2 prepare and commit.
+# 9. Unblock T1 on server2.
+# 10. Wait until T2 reaches prepare on server1 and then
+#     verify that the number of bytes allocated for
+#     consistent_members_that_prepare_transaction
+#     event is greater than 0.
+# 11. Now that T2 is prepared on server1 but it is not yet
+#     committed, new transactions (T3) are hold on server1.
+#     Also it verifies that the number of bytes allocated
+#     for consistent_transactions_waiting event is
+#     greater than 0.
+# 12. Unblock T2 prepare on server1.
+# 13. Validate data.
+# 14. Clean up and stop GR on server 1.
+# 15. Verify that the entries corresponding to the instrumented
+#     consistent_transactions_prepared remain in the
+#     tables after stopping GR.
+# 16. Verify that the entries corresponding to the instrumented
+#     consistent_transactions_waiting remain in the
+#     tables after stopping GR.
+# 17. Verify that the number of bytes allocated for
+#     consistent_transactions_prepared
+#     event must be 0.
+# 18. Verify that the number of bytes allocated for
+#     consistent_transactions_waiting
+#     event must be 0.
+# 19. Clean up.
+################################################################################
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Verify that the entries corresponding to the
+--echo #    instrumented memory are in the setup instruments
+--echo #    table and the memory summary tables for the event
+--echo #    consistent_transactions_prepared.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_prepared';
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_prepared in the setup_instruments table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/consistent_transactions_prepared"
+--source include/assert.inc
+
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions_prepared';
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_prepared in the memory_summary_global_by_event_name table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_prepared"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Verify that the entries corresponding to the
+--echo #    instrumented memory are in the setup instruments
+--echo #    table and the memory summary tables for the event
+--echo #    consistent_transactions_waiting.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_waiting';
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_waiting in the setup_instruments table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/consistent_transactions_waiting"
+--source include/assert.inc
+
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions_waiting';
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_waiting in the memory_summary_global_by_event_name table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_waiting"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Create two tables on the group.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Lock table t1 on server2 to block a future update.
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+LOCK table t1 READ;
+
+
+--echo
+--echo ############################################################
+--echo # 5. Execute transaction T1, the transaction will block on
+--echo #    server2 due to the table lock.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+COMMIT;
+
+
+--echo
+--echo ############################################################
+--echo # 6. Wait until T1 is delivered to server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked=3 AND count_transactions_remote_in_applier_queue=1
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Execute a write transaction T2 on server2 with
+--echo #    group_replication_consistency= 'BEFORE_AND_AFTER' , it
+--echo #    will wait for T1 commit and will make new transactions
+--echo #    wait for T2.
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
+--send UPDATE t2 SET c1=99 WHERE c1=1
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state='Executing hook on transaction begin.' AND info='UPDATE t2 SET c1=99 WHERE c1=1'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 8. Force server1 to block between T2 prepare and commit.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_after_applier_prepare';
+
+
+--echo
+--echo ############################################################
+--echo # 9. Unblock T1 on server2.
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+UNLOCK TABLES;
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+# Get transaction T1 outcome.
+--reap
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+
+--echo
+--echo ############################################################
+--echo # 10. Wait until T2 reaches prepare on server1 and then
+--echo #     verify that the number of bytes allocated for
+--echo #     consistent_members_that_prepare_transaction
+--echo #     event is greater than 0.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_applier_prepare_waiting";
+
+--let $assert_text= 'The sum of bytes allocated must be greater than 0'
+--let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_prepared"] > 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 11. Now that T2 is prepared on server1 but it is not yet
+--echo #     committed, new transactions (T3) are hold on server1.
+--echo #     Also it verifies that the number of bytes allocated
+--echo #     for consistent_transactions_waiting event is
+--echo #     greater than 0.
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+--send SELECT COUNT(*) AS count FROM t2 WHERE c1=99
+
+# server1 is waiting for T2 to commit
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='Executing hook on transaction begin.' AND info="SELECT COUNT(*) AS count FROM t2 WHERE c1=99"
+--source include/wait_condition.inc
+
+--let $assert_text= 'The sum of bytes allocated must be greater than 0'
+--let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_waiting"] > 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 12. Unblock T2 prepare on server1.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+# Signal debug sync to continue.
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
+SET DEBUG_SYNC= 'now SIGNAL signal.after_applier_prepare_continue';
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+# Get transaction T3 outcome.
+--reap
+
+
+--echo
+--echo ############################################################
+--echo # 13. Validate data.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= 'There is 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is 1 value in table t2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t2 WHERE c1=99, count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'There is 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is 1 value in table t2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t2 WHERE c1=99, count, 1] = 1
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+--let $diff_tables=server1:t2, server2:t2
+--source include/diff_tables.inc
+
+
+--echo
+--echo ############################################################
+--echo # 14. Clean up and stop GR on server 1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+DROP TABLE t2;
+--source include/stop_group_replication.inc
+--source include/uninstall_group_replication_plugin.inc
+
+--echo
+--echo ##############################################################
+--echo # 15. Verify that the entries corresponding to the instrumented
+--echo #     consistent_transactions_prepared remain in the
+--echo #     tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_prepared';
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_prepared in the setup_instruments table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/consistent_transactions_prepared"
+--source include/assert.inc
+
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_prepared in the memory_summary_global_by_event_name table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_prepared"
+--source include/assert.inc
+
+
+--echo
+--echo ##############################################################
+--echo # 16. Verify that the entries corresponding to the instrumented
+--echo #     consistent_transactions_waiting remain in the
+--echo #     tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_waiting';
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_waiting in the setup_instruments table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/consistent_transactions_waiting"
+--source include/assert.inc
+
+--let $assert_text= 'There should be 1 entry corresponding to the consistent_transactions_waiting in the memory_summary_global_by_event_name table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_waiting"
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 17. Verify that the number of bytes allocated for
+--echo #     consistent_transactions_prepared
+--echo #     event must be 0.
+--let $assert_text= 'The sum of bytes allocated must be zero after stopping GR'
+--let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_prepared"
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 18. Verify that the number of bytes allocated for
+--echo #     consistent_transactions_waiting
+--echo #     event must be 0.
+--let $assert_text= 'The sum of bytes allocated must be zero after stopping GR'
+--let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/consistent_transactions_waiting"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 19. Clean up.
+--source include/install_group_replication_plugin.inc
+--source include/group_replication_end.inc

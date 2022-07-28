@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ struct row_user_defined_functions {
 
 class PFS_index_user_defined_functions : public PFS_engine_index {
  public:
-  PFS_index_user_defined_functions(PFS_engine_key *key_1)
+  explicit PFS_index_user_defined_functions(PFS_engine_key *key_1)
       : PFS_engine_index(key_1) {}
 
   ~PFS_index_user_defined_functions() override = default;

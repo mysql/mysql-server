@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,8 @@ static const char *charset_list[] = {
 
     "ujis_japanese_ci",   "ujis_bin",
 
-    "utf8_general_ci",    "utf8_unicode_ci", "utf8_bin",
+    "utf8mb3_general_ci", "utf8mb3_unicode_ci",
+    "utf8mb3_bin",
 };
 
 class LikeRangeTest : public ::testing::TestWithParam<const char *> {

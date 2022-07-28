@@ -28,7 +28,8 @@ FROM performance_schema.error_log;
 COUNT(*)=0
 1
 SET @@global.log_error_services=DEFAULT;
-UNINSTALL COMPONENT 'file://component_log_sink_test';
+DELETE FROM mysql.component
+WHERE component_urn='file://component_log_sink_test';
 
 # Now add a specific row to the table and show it's there
 # a) with error-log file

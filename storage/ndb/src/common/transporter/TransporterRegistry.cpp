@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include <TransporterRegistry.hpp>
@@ -71,8 +72,7 @@ class TransporterReceiveWatchdog
 {
 public:
 #ifdef NDEBUG
-  TransporterReceiveWatchdog(TransporterReceiveHandle& recvdata)
-  {}
+ TransporterReceiveWatchdog(TransporterReceiveHandle & /*recvdata*/) {}
 
 #else
   TransporterReceiveWatchdog(TransporterReceiveHandle& recvdata)
@@ -193,7 +193,7 @@ fallback:
 }
 
 bool
-TransporterReceiveData::epoll_add(Transporter *t)
+TransporterReceiveData::epoll_add(Transporter *t [[maybe_unused]])
 {
   assert(m_transporters.get(t->getTransporterIndex()));
 #if defined(HAVE_EPOLL_CREATE)
@@ -2391,9 +2391,9 @@ TransporterRegistry::isSendBlocked(NodeId nodeId) const
   return m_sendBlocked.get(nodeId);
 }
 
-void
-TransporterRegistry::blockSend(TransporterReceiveHandle& recvdata,
-                               NodeId nodeId)
+void TransporterRegistry::blockSend(TransporterReceiveHandle &recvdata
+                                    [[maybe_unused]],
+                                    NodeId nodeId)
 {
 #ifdef VM_TRACE
   TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
@@ -2406,9 +2406,9 @@ TransporterRegistry::blockSend(TransporterReceiveHandle& recvdata,
   m_sendBlocked.set(nodeId);
 }
 
-void
-TransporterRegistry::unblockSend(TransporterReceiveHandle& recvdata,
-                                 NodeId nodeId)
+void TransporterRegistry::unblockSend(TransporterReceiveHandle &recvdata
+                                      [[maybe_unused]],
+                                      NodeId nodeId)
 {
 #ifdef VM_TRACE
   TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
@@ -3357,7 +3357,6 @@ TransporterRegistry::start_clients_thread()
 	  if (!connected && t->get_s_port() <= 0) // Port is dynamic
           {
 	    int server_port= 0;
-	    struct ndb_mgm_reply mgm_reply;
             unlockMultiTransporters();
 
             DBUG_PRINT("info", ("connection to node %d should use "
@@ -3377,8 +3376,7 @@ TransporterRegistry::start_clients_thread()
 						     t->getRemoteNodeId(),
 						     t->getLocalNodeId(),
 						     CFG_CONNECTION_SERVER_PORT,
-						     &server_port,
-						     &mgm_reply);
+                                                     &server_port);
 
 	      DBUG_PRINT("info",("Got dynamic port %d for %d -> %d (ret: %d)",
 				 server_port,t->getRemoteNodeId(),
@@ -4027,7 +4025,7 @@ void
 calculate_send_buffer_level(Uint64 node_send_buffer_size,
                             Uint64 total_send_buffer_size,
                             Uint64 total_used_send_buffer_size,
-                            Uint32 num_threads,
+                            Uint32 /*num_threads*/,
                             SB_LevelType &level)
 {
   Uint64 percentage =

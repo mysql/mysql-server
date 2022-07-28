@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2021, Oracle and/or its affiliates.
+Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -73,7 +73,7 @@ struct Alloc : public allocator_traits<false> {
    */
   template <bool Zero_initialized>
   static inline void *alloc(std::size_t size) noexcept {
-    return Alloc_fn<Zero_initialized>::alloc(size);
+    return Alloc_fn::alloc<Zero_initialized>(size);
   }
 
   /** Reallocates the given area of memory. Behaves as std::realloc()
@@ -85,7 +85,7 @@ struct Alloc : public allocator_traits<false> {
       operation failed.
    */
   static inline void *realloc(void *ptr, std::size_t size) noexcept {
-    return std::realloc(ptr, size);
+    return Alloc_fn::realloc(ptr, size);
   }
 
   /** Releases storage dynamically allocated through
@@ -94,7 +94,7 @@ struct Alloc : public allocator_traits<false> {
       @param[in] ptr Pointer to storage allocated through
       Alloc::alloc() or Alloc::realloc()
    */
-  static inline void free(void *ptr) noexcept { std::free(ptr); }
+  static inline void free(void *ptr) noexcept { Alloc_fn::free(ptr); }
 };
 
 /** Specialization of allocation routines for non-extended alignment types
@@ -161,7 +161,7 @@ struct Alloc_arr : public allocator_traits<false> {
   template <bool Zero_initialized>
   static inline void *alloc(std::size_t size) noexcept {
     const auto total_len = size + Alloc_arr::metadata_len;
-    auto mem = Alloc_fn<Zero_initialized>::alloc(total_len);
+    auto mem = Alloc_fn::alloc<Zero_initialized>(total_len);
     *(static_cast<datalen_t *>(mem)) = size;
     return static_cast<uint8_t *>(mem) + Alloc_arr::metadata_len;
   }
@@ -172,7 +172,7 @@ struct Alloc_arr : public allocator_traits<false> {
    */
   static inline void free(void *ptr) noexcept {
     if (unlikely(!ptr)) return;
-    std::free(deduce(ptr));
+    Alloc_fn::free(deduce(ptr));
   }
 
   /** Returns the size of an array in bytes.
@@ -264,7 +264,6 @@ struct Alloc_pfs : public allocator_traits<true> {
       requested alignment.
 
       @param[in] size Size of storage (in bytes) requested to be allocated.
-      @param[in] alignment Alignment requirement for storage to be allocated.
       @param[in] key PSI memory key to be used for PFS memory instrumentation.
       @return Pointer to the allocated storage. nullptr if dynamic storage
       allocation failed.
@@ -273,7 +272,7 @@ struct Alloc_pfs : public allocator_traits<true> {
   static inline void *alloc(std::size_t size,
                             pfs_metadata::pfs_memory_key_t key) {
     const auto total_len = size + Alloc_pfs::metadata_len;
-    auto mem = Alloc_fn<Zero_initialized>::alloc(total_len);
+    auto mem = Alloc_fn::alloc<Zero_initialized>(total_len);
     if (unlikely(!mem)) return nullptr;
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -303,8 +302,9 @@ struct Alloc_pfs : public allocator_traits<true> {
         * If new size of storage requested is 0, then behavior is as if
           Alloc_pfs::free() had been called.
 
-      @param[in] ptr  Pointer to the memory to be reallocated.
+      @param[in] data Pointer to the memory to be reallocated.
       @param[in] size New size of storage (in bytes) requested to be allocated.
+      @param[in] key PSI memory key to be used for PFS memory instrumentation.
       @return Pointer to the reallocated storage. nullptr if dynamic storage
       allocation or reallocation failed or if new size requested was 0.
    */
@@ -334,7 +334,7 @@ struct Alloc_pfs : public allocator_traits<true> {
 
     // Otherwise, continue with the plain realloc
     const auto total_len = size + Alloc_pfs::metadata_len;
-    auto mem = std::realloc(deduce(data), total_len);
+    auto mem = Alloc_fn::realloc(deduce(data), total_len);
     if (unlikely(!mem)) return nullptr;
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -377,7 +377,7 @@ struct Alloc_pfs : public allocator_traits<true> {
     // Here we make use of the offset which has been encoded by
     // Alloc_pfs::alloc() to be able to deduce the original pointer and
     // simply forward it to std::free.
-    std::free(deduce(data));
+    Alloc_fn::free(deduce(data));
   }
 
   /** Returns the number of bytes requested to be allocated.

@@ -32,10 +32,10 @@
 --source include/search_pattern.inc
 
 
-# 2. Start the server to test 'utf8mb3' and 'utf8_general_ci'.
+# 2. Start the server to test 'utf8mb3' and 'utf8mb3_general_ci'.
 # The server should warn about command line parameters and exit immediately on the uninitialized datadir:
 --error 1
---exec $MYSQLD $MYSQLD_ARGS --character_set_server=utf8mb3 --character-set-filesystem=utf8mb3  --collation-server=utf8_general_ci 2>&1
+--exec $MYSQLD $MYSQLD_ARGS --character_set_server=utf8mb3 --character-set-filesystem=utf8mb3  --collation-server=utf8mb3_general_ci 2>&1
 
 --echo # Warning on --character-set-server=utf8mb3:
 --let SEARCH_PATTERN= \[Warning\] \[MY-[0-9]+\] \[Server\] --character-set-server: The character set UTF8MB3 is deprecated and will be removed in a future release\. Please consider using UTF8MB4 instead\.
@@ -45,8 +45,8 @@
 --let SEARCH_PATTERN= \[Warning\] \[MY-[0-9]+\] \[Server\] --character-set-filesystem: The character set UTF8MB3 is deprecated and will be removed in a future release\. Please consider using UTF8MB4 instead\.
 --source include/search_pattern.inc
 
---echo # Warning on --collation-server=utf8_general_ci:
---let SEARCH_PATTERN= \[Warning\] \[MY-[0-9]+\] \[Server\] --collation-server: 'utf8_general_ci' is a collation of the deprecated character set UTF8MB3\. Please consider using UTF8MB4 with an appropriate collation instead\.
+--echo # Warning on --collation-server=utf8mb3_general_ci:
+--let SEARCH_PATTERN= \[Warning\] \[MY-[0-9]+\] \[Server\] --collation-server: 'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3\. Please consider using UTF8MB4 with an appropriate collation instead\.
 --source include/search_pattern.inc
 
 # Cleanup

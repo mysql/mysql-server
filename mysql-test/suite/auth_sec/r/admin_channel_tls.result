@@ -38,9 +38,6 @@ VALUE	Yes
 #    new sessions get the new vals Save the defaults in admin_conn
 # Restarting server with admin interface with TLS support
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
 # Check if ssl is still turned on after reload
 SELECT LENGTH(VARIABLE_VALUE) > 0 FROM performance_schema.session_status
 WHERE VARIABLE_NAME='Ssl_cipher';
@@ -49,15 +46,11 @@ LENGTH(VARIABLE_VALUE) > 0
 # check if old sessions continue
 SET @must_be_present= 'present';
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
 # Success criteria: value must be present
 SELECT @must_be_present;
 @must_be_present
 present
 SET @orig_admin_ssl_cipher = @@global.admin_ssl_cipher;
-SET @orig_admin_tls_version = @@global.admin_tls_version;
 # check if the session has the original values
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
@@ -77,11 +70,7 @@ Variable_name	Value
 Ssl_cipher	orig_cipher;
 # in default connection
 SET GLOBAL admin_ssl_cipher = @orig_ssl_cipher;
-SET GLOBAL admin_tls_version = @orig_tls_version;
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
 # new values effective only after RELOAD TLS
 # Save the defaults
 SET @orig_admin_ssl_cipher = @@global.admin_ssl_cipher;
@@ -111,8 +100,6 @@ gizmo
 # Must pass with a warning and disable TLS
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin NO ROLLBACK ON ERROR;
 Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
 Warning	3888	Failed to set up SSL because of the following SSL library error: SSL_CTX_set_default_verify_paths failed
 # Must show 'gizmo'
 SELECT VALUE FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_ca' AND VALUE = 'gizmo';
@@ -122,9 +109,6 @@ gizmo
 # Reset
 SET GLOBAL admin_ssl_ca = @orig_admin_ssl_ca;
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
 # Must pass
 SET GLOBAL admin_ssl_ca = 'gizmo';
 SET GLOBAL admin_ssl_cert = 'gizmo';
@@ -135,6 +119,7 @@ SET GLOBAL admin_ssl_crlpath = 'gizmo';
 SET GLOBAL admin_ssl_cipher = 'gizmo';
 SET GLOBAL admin_tls_ciphersuites = 'gizmo';
 SET GLOBAL admin_tls_version = 'gizmo';
+ERROR 42000: Variable 'admin_tls_version' can't be set to the value of 'gizmo'
 # Must fail
 SET SESSION admin_ssl_ca = 'gizmo';
 ERROR HY000: Variable 'admin_ssl_ca' is a GLOBAL variable and should be set with SET GLOBAL
@@ -157,7 +142,7 @@ ERROR HY000: Variable 'admin_tls_version' is a GLOBAL variable and should be set
 # Must return more than 1
 SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin';
 COUNT(*)
-28
+29
 # 4. Main channel and Admin channel can be independent of
 #    each other wrt TLS context
 # Restarting server with admin interface with TLS support
@@ -189,9 +174,6 @@ COUNT(*)
 1
 # Setting admin certs to different value
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
 # Admin certs won't match but regular certs will
 SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'current_tls_ca' AND VALUE = @orig_admin_ssl_ca;
 COUNT(*)
@@ -215,29 +197,14 @@ SET GLOBAL admin_ssl_ca = @orig_admin_ssl_ca;
 SET GLOBAL admin_ssl_cert = @orig_admin_ssl_cert;
 SET GLOBAL admin_ssl_key = @orig_admin_ssl_key;
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
 # Syntax check
 ALTER INSTANCE RELOAD TLS FOR CHANNEL haha;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
 ALTER INSTANCE RELOAD TLS FOR CHANNEL haha NO ROLLBACK ON ERROR;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
 ALTER INSTANCE RELOAD TLS FOR CHANNEL MySqL_AdMin;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_MAIN;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 ALTER INSTANCE RELOAD TLS FOR CHANNEL MySqL_AdMin NO ROLLBACK ON ERROR;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_admin. Please use TLSv1.2 or higher.
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_MAIN NO ROLLBACK ON ERROR;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 # Cleanup
 DROP USER admin_user;

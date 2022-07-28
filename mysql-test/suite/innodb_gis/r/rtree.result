@@ -878,15 +878,3 @@ INSERT INTO `address` VALUES (1,'47 MySakila Drive',NULL,'Alberta',300,'','',/*!
 (605,'1325 Fukuyama Street','','Heilongjiang',537,'27107','288241215394',/*!50705 0x00000000010100000017540A70700160401E1C47077F7D4740,*/'2014-09-25 22:30:44');
 COMMIT;
 DROP TABLE address;
-CREATE TABLE events ( geo LINESTRING NOT NULL SRID 0,
-SPATIAL KEY spatialkey (geo));
-INSERT INTO events(geo)
-VALUES(ST_Geomfromtext('LINESTRING(0 0, 1 0)'));
-SELECT * FROM events FORCE INDEX(spatialkey) WHERE MBRINTERSECTS(geo,
-ST_Geomfromtext('LINESTRING( -10 0, -9 0)'));
-geo
-SELECT index_name,count_read FROM performance_schema .
-table_io_waits_summary_by_index_usage WHERE INDEX_NAME LIKE 'spatialkey';
-index_name	count_read
-spatialkey	0
-DROP TABLE events;

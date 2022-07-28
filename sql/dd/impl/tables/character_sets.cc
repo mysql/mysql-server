@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,13 +67,13 @@ Character_sets::Character_sets() {
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
-                             String_type(name_collation()->name));
+                             String_type(name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_DEFAULT_COLLATION_ID,
                          "FIELD_DEFAULT_COLLATION_ID",
                          "default_collation_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",
                          "comment VARCHAR(2048)"
-                         " COLLATE utf8_general_ci NOT NULL");
+                         " COLLATE utf8mb3_general_ci NOT NULL");
   m_target_def.add_field(FIELD_MB_MAX_LENGTH, "FIELD_MB_MAX_LENGTH",
                          "mb_max_length INT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");

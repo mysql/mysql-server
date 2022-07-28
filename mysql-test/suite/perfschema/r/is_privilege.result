@@ -1,0 +1,51 @@
+CREATE USER test@localhost;
+SELECT table_name FROM information_schema.TABLES WHERE TABLE_SCHEMA='performance_schema' ORDER BY table_name;
+TABLE_NAME
+global_status
+global_variables
+persisted_variables
+processlist
+session_account_connect_attrs
+session_status
+session_variables
+variables_info
+GRANT SELECT ON performance_schema.cond_instances TO test@localhost;
+GRANT SELECT ON performance_schema.setup_consumers TO test@localhost;
+GRANT SELECT ON performance_schema.accounts TO test@localhost;
+GRANT SELECT ON performance_schema.setup_objects TO test@localhost;
+SELECT table_name FROM information_schema.TABLES WHERE TABLE_SCHEMA='performance_schema' ORDER BY table_name;
+TABLE_NAME
+accounts
+cond_instances
+global_status
+global_variables
+persisted_variables
+processlist
+session_account_connect_attrs
+session_status
+session_variables
+setup_consumers
+setup_objects
+variables_info
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA='performance_schema'
+  AND TABLE_NAME IN ('accounts', 'cond_instances', 'setup_consumers',
+'setup_objects', 'processlist', 'global_status')
+ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION, COLUMN_NAME;
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION
+performance_schema	accounts	USER	1
+performance_schema	accounts	HOST	2
+performance_schema	accounts	CURRENT_CONNECTIONS	3
+performance_schema	accounts	TOTAL_CONNECTIONS	4
+performance_schema	cond_instances	NAME	1
+performance_schema	cond_instances	OBJECT_INSTANCE_BEGIN	2
+performance_schema	setup_consumers	NAME	1
+performance_schema	setup_consumers	ENABLED	2
+performance_schema	setup_objects	OBJECT_TYPE	1
+performance_schema	setup_objects	OBJECT_SCHEMA	2
+performance_schema	setup_objects	OBJECT_NAME	3
+performance_schema	setup_objects	ENABLED	4
+performance_schema	setup_objects	TIMED	5
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM test@localhost;
+DROP USER test@localhost;

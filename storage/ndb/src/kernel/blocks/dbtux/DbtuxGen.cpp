@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #define DBTUX_GEN_CPP
+#include "util/require.h"
 #include "Dbtux.hpp"
 
 #include <signaldata/NodeStateSignalData.hpp>
@@ -141,7 +142,7 @@ Dbtux::Dbtux(Block_context& ctx,
     &c_scanLockPool;
   c_transient_pools[DBTUX_SCAN_BOUND_TRANSIENT_POOL_INDEX] =
     &c_scanBoundPool;
-  NDB_STATIC_ASSERT(c_transient_pool_count == 3);
+  static_assert(c_transient_pool_count == 3);
   c_transient_pools_shrinking.clear();
 }
 
@@ -228,7 +229,7 @@ Dbtux::execCONTINUEB(Signal* signal)
   case TuxContinueB::DropIndex: // currently unused
     {
       IndexPtr indexPtr;
-      c_indexPool.getPtr(indexPtr, data[1]);
+      ndbrequire(c_indexPool.getPtr(indexPtr, data[1]));
       dropIndex(signal, indexPtr, data[2], data[3]);
     }
     break;
@@ -477,12 +478,12 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
    * Index id is physical array index.  We seize and initialize all
    * index records now.
    */
-  IndexPtr indexPtr;
   while (1) {
     jam();
     refresh_watch_dog();
-    c_indexPool.seize(indexPtr);
-    if (indexPtr.i == RNIL) {
+    IndexPtr indexPtr;
+    if (!c_indexPool.seize(indexPtr))
+    {
       jam();
       break;
     }

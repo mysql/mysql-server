@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1979,7 +1979,7 @@ search_done:
 
       if (col_value->value_len != 0) {
         if (!col_value->is_str) {
-          ib_ulint_t int_len;
+          uint64_t int_len;
           memset(int_buf, 0, sizeof int_buf);
 
           int_len =

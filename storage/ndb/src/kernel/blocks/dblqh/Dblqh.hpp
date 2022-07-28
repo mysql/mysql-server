@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 #ifndef DBLQH_H
 #define DBLQH_H
 
-#ifndef DBLQH_STATE_EXTRACT
 #include <pc.hpp>
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
@@ -37,6 +36,7 @@
 #include <atomic>
 
 #include <NodeBitmask.hpp>
+#include "kernel/DblqhState.hpp"
 #include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/LCP.hpp>
 #include <signaldata/LqhTransConf.hpp>
@@ -63,8 +63,6 @@ class Dbtux;
 class Lgman;
 
 class FsReadWriteReq;
-
-#endif // DBLQH_STATE_EXTRACT
 
 #define JAM_FILE_ID 450
 
@@ -465,15 +463,12 @@ class FsReadWriteReq;
 
 
 class Dblqh 
-#ifndef DBLQH_STATE_EXTRACT
   : public SimulatedBlock
-#endif
 {
   friend class DblqhProxy;
   friend class Backup;
 public:
 
-#ifndef DBLQH_STATE_EXTRACT
 private:
   Uint32 m_acc_block;
   Uint32 m_tup_block;
@@ -1234,6 +1229,8 @@ public:
   typedef Ptr<GcpRecord> GcpRecordPtr;
 
   struct HostRecord {
+    Bitmask<(MAX_NDBMT_LQH_THREADS+1+31)/32> lqh_pack_mask;
+    Bitmask<(MAX_NDBMT_TC_THREADS+1+31)/32> tc_pack_mask;
     struct PackedWordsContainer lqh_pack[MAX_NDBMT_LQH_THREADS+1];
     struct PackedWordsContainer tc_pack[MAX_NDBMT_TC_THREADS+1];
     Uint8 inPackedList;
@@ -1974,13 +1971,14 @@ public:
 
   void check_cache_page_ptr_i(LogPartRecord *logPartPtrP, Uint32 cachePagePtrI)
   {
-    ndbrequire(cachePagePtrI < logPartPtrP->logPageCount);
+    ndbrequire(cachePagePtrI < logPartPtrP->logPageFileSize);
   }
   void check_log_page_ptr_i(LogPartRecord *logPartPtrP, Uint32 logPagePtrI)
   {
     LogPartRecord::RedoPageCache *cache = &logPartPtrP->m_redo_page_cache;
     ndbrequire(logPagePtrI >= cache->m_first_page &&
-               logPagePtrI < (cache->m_first_page + logPartPtrP->logPageCount));
+               logPagePtrI <
+                   (cache->m_first_page + logPartPtrP->logPageFileSize));
   }
   Uint32 get_cache_i_val(LogPartRecord *logPartPtrP, Uint32 logPagePtrI)
   {
@@ -2528,7 +2526,6 @@ public:
     bool m_restore_started;
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
-#endif // DBLQH_STATE_EXTRACT
   struct TcConnectionrec {
     enum LogWriteState {
       NOT_STARTED = 0,
@@ -2544,45 +2541,56 @@ public:
       ABORT_FROM_TC = 4,
       ABORT_FROM_LQH = 5
     };
+    /*
+     * TransactionState is exposed in Ndbinfo::OPERATIONS_TABLEID, values must
+     * match.  New values added to TransactionState must also be added in
+     * dblqh_tcconnect_state and g_dblqh_tcconnect_state_desc.
+     */
     enum TransactionState {
-      IDLE = 0,
+      IDLE = dblqh_tcconnect_state::IDLE, // 0
 
       /* -------------------------------------------------------------------- */
       // Transaction in progress states
       /* -------------------------------------------------------------------- */
-      WAIT_ACC = 1,
-      WAIT_TUP = 4,
-      LOG_QUEUED = 6,
-      PREPARED = 7,
-      LOG_COMMIT_WRITTEN_WAIT_SIGNAL = 8,
-      LOG_COMMIT_QUEUED_WAIT_SIGNAL = 9,
+      WAIT_ACC = dblqh_tcconnect_state::WAIT_ACC, // 1
+      WAIT_TUP = dblqh_tcconnect_state::WAIT_TUP, // 4
+      LOG_QUEUED = dblqh_tcconnect_state::LOG_QUEUED, // 6
+      PREPARED = dblqh_tcconnect_state::PREPARED, // 7
+      LOG_COMMIT_WRITTEN_WAIT_SIGNAL =
+        dblqh_tcconnect_state::LOG_COMMIT_WRITTEN_WAIT_SIGNAL, // 8
+      LOG_COMMIT_QUEUED_WAIT_SIGNAL =
+        dblqh_tcconnect_state::LOG_COMMIT_QUEUED_WAIT_SIGNAL, // 9
       
       /* -------------------------------------------------------------------- */
       // Commit in progress states
       /* -------------------------------------------------------------------- */
-      LOG_COMMIT_QUEUED = 11,
+      LOG_COMMIT_QUEUED = dblqh_tcconnect_state::LOG_COMMIT_QUEUED, // 11
       // COMMIT_QUEUED = 12 no longer used
-      COMMITTED = 13,
-      WAIT_TUP_COMMIT= 35,
+      COMMITTED = dblqh_tcconnect_state::COMMITTED, // 13
+      WAIT_TUP_COMMIT= dblqh_tcconnect_state::WAIT_TUP_COMMIT, // 35
       
       /* -------------------------------------------------------------------- */
       // Abort in progress states
       /* -------------------------------------------------------------------- */
-      WAIT_ACC_ABORT = 14,
+      WAIT_ACC_ABORT = dblqh_tcconnect_state::WAIT_ACC_ABORT, // 14
       // ABORT_QUEUED = 15, no longer used
-      LOG_ABORT_QUEUED = 18,
-      WAIT_TUP_TO_ABORT = 19,
+      LOG_ABORT_QUEUED = dblqh_tcconnect_state::LOG_ABORT_QUEUED, // 18
+      WAIT_TUP_TO_ABORT = dblqh_tcconnect_state::WAIT_TUP_TO_ABORT, // 19
       
       /* -------------------------------------------------------------------- */
       // Scan in progress states
       /* -------------------------------------------------------------------- */
-      SCAN_STATE_USED = 21,
-      SCAN_TUPKEY = 30,
-      COPY_TUPKEY = 31,
+      SCAN_STATE_USED = dblqh_tcconnect_state::SCAN_STATE_USED, // 21
+      SCAN_TUPKEY = dblqh_tcconnect_state::SCAN_TUPKEY, // 30
+      COPY_TUPKEY = dblqh_tcconnect_state::COPY_TUPKEY, // 31
 
-      TC_NOT_CONNECTED = 32,
-      PREPARED_RECEIVED_COMMIT = 33, // Temporary state in write commit log
-      LOG_COMMIT_WRITTEN = 34        // Temporary state in write commit log
+      TC_NOT_CONNECTED = dblqh_tcconnect_state::TC_NOT_CONNECTED, // 32
+
+      // Temporary state in write commit log
+      PREPARED_RECEIVED_COMMIT =
+        dblqh_tcconnect_state::PREPARED_RECEIVED_COMMIT, // 33
+      // Temporary state in write commit log
+      LOG_COMMIT_WRITTEN = dblqh_tcconnect_state::LOG_COMMIT_WRITTEN, // 34
     };
     enum ConnectState {
       DISCONNECTED = 0,
@@ -2590,7 +2598,6 @@ public:
       COPY_CONNECTED = 2,
       LOG_CONNECTED = 3
     };
-#ifndef DBLQH_STATE_EXTRACT
     static constexpr Uint32 TYPE_ID = RT_DBLQH_TC_CONNECT;
     Uint32 m_magic;
     Uint32 ptrI;
@@ -2851,10 +2858,8 @@ public:
       Local_key m_disk_ref[2];
     } m_nr_delete;
     Uint32 accOpPtr; /* for scan lock take over */
-#endif // DBLQH_STATE_EXTRACT
   }; /* p2c: size = 308 bytes */
 
-#ifndef DBLQH_STATE_EXTRACT
   static constexpr Uint32 DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0;
   Uint32 ctcConnectReservedCount;
   Uint32 ctcConnectReserved;
@@ -3315,6 +3320,13 @@ private:
                    CommitLogRecord* commitLogRecord,
                    LogPageRecordPtr & logPagePtr,
                    LogPartRecord *logPartPtrP);
+  Uint32 getHashKey(UintR Transid1,
+                    UintR Transid2,
+                    UintR TcOprec);
+  Uint32 getHashIndex(UintR Transid1,
+                      UintR Transid2,
+                      UintR TcOprec);
+  Uint32 getHashIndex(TcConnectionrec *regTcPtr);
   int  findTransaction(UintR Transid1,
                        UintR Transid2,
                        UintR TcOprec,
@@ -3561,10 +3573,11 @@ private:
                   Uint32 errcode,
                   TcConnectionrecPtr);
   void localAbortStateHandlerLab(Signal* signal, TcConnectionrecPtr);
-  void writePrepareLog(Signal* signal, TcConnectionrecPtr, bool);
+  void writePrepareLog(Signal* signal, TcConnectionrecPtr);
   void writePrepareLog_problems(Signal* signal,
                                 const TcConnectionrecPtr,
                                 LogPartRecord *logPartPtrP);
+  void doWritePrepareLog(Signal* signal, TcConnectionrecPtr);
   void update_log_problem(Signal*, LogPartRecord*, Uint32 problem, bool);
   void takeOverErrorLab(Signal* signal, TcConnectionrecPtr);
   bool checkTransporterOverloaded(Signal* signal,
@@ -3786,8 +3799,10 @@ private:
   void remove_commit_marker(TcConnectionrec * const regTcPtr);
   // Initialisation
   void initData();
-  void initRecords(const ndb_mgm_configuration_iterator *mgm_cfg);
-protected:
+  void initRecords(const ndb_mgm_configuration_iterator* mgm_cfg,
+                   Uint64 logPageFilesize);
+
+ protected:
   bool getParam(const char* name, Uint32* count) override;
 
 public:
@@ -4050,8 +4065,6 @@ private:
   LogFileOperationRecord *logFileOperationRecord;
   UintR clfoFileSize;
 
-  UintR clogPageFileSize;
-
 #define ZPAGE_REF_FILE_SIZE 20
   PageRefRecord *pageRefRecord;
   UintR cfirstfreePageRef;
@@ -4271,9 +4284,10 @@ private:
 /* ACTUALLY USED FOR ALL ABORTS COMMANDED BY TC.                             */
 /* ------------------------------------------------------------------------- */
   UintR preComputedRequestInfoMask;
-#define TRANSID_HASH_SIZE 4096
-  UintR ctransidHash[TRANSID_HASH_SIZE];
-  
+
+  Uint32 *ctransidHash;
+  Uint32 ctransidHashSize;
+
   Uint32 c_diskless;
   Uint32 c_o_direct;
   Uint32 c_o_direct_sync_flag;
@@ -4490,6 +4504,8 @@ public:
   void execSET_LOCAL_LCP_ID_CONF(Signal*);
   void execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal*);
   void execCUT_REDO_LOG_TAIL_REQ(Signal*);
+
+  bool c_encrypted_filesystem;
 
   /**
    * Variable keeping track of which GCI to keep in REDO log
@@ -4892,10 +4908,8 @@ public:
     const Uint32 ldm_instance_count,
     const ndb_mgm_configuration_iterator * mgm_cfg,
     const bool use_reserved);
-#endif
 };
 
-#ifndef DBLQH_STATE_EXTRACT
 inline bool
 Dblqh::check_expand_shrink_ongoing(Uint32 tableId, Uint32 fragId)
 {
@@ -5473,7 +5487,6 @@ inline void Dblqh::unlock_log_part(LogPartRecord *logPartPtrP)
     NdbMutex_Unlock(&logPartPtrP->m_log_part_mutex);
   }
 }
-#endif
 
 #undef JAM_FILE_ID
 

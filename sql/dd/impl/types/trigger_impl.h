@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,17 +161,17 @@ class Trigger_impl : virtual public Entity_object_impl, virtual public Trigger {
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  timeval created() const override { return m_created; }
+  my_timeval created() const override { return m_created; }
 
-  void set_created(timeval created) override { m_created = created; }
+  void set_created(my_timeval created) override { m_created = created; }
 
   /////////////////////////////////////////////////////////////////////////
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  timeval last_altered() const override { return m_last_altered; }
+  my_timeval last_altered() const override { return m_last_altered; }
 
-  void set_last_altered(timeval last_altered) override {
+  void set_last_altered(my_timeval last_altered) override {
     m_last_altered = last_altered;
   }
 
@@ -269,8 +269,8 @@ class Trigger_impl : virtual public Entity_object_impl, virtual public Trigger {
   uint m_action_order;
 
   ulonglong m_sql_mode;
-  timeval m_created;
-  timeval m_last_altered;
+  my_timeval m_created;
+  my_timeval m_last_altered;
 
   String_type m_action_statement_utf8;
   String_type m_action_statement;

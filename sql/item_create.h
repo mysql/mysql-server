@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 
 #include <cstddef>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "my_inttypes.h"         // uint
 #include "sql/parse_location.h"  // POS
@@ -47,7 +48,6 @@ class THD;
 struct Cast_type;
 struct CHARSET_INFO;
 struct udf_func;
-enum enum_field_types : int;
 enum class Json_on_response_type : uint16;
 
 /* For type casts */

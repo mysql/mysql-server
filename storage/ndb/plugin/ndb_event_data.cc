@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns,
   bitmap_init(&pk_bitmap, nullptr, num_columns);
 
   // Initialize mem_root where the shadow_table will be allocated
-  init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 1024, 0);
+  init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 1024);
 }
 
 Ndb_event_data::~Ndb_event_data() {
@@ -57,8 +57,6 @@ Ndb_event_data::~Ndb_event_data() {
 
   bitmap_free(&stored_columns);
   bitmap_free(&pk_bitmap);
-
-  mem_root.Clear();
 }
 
 /*

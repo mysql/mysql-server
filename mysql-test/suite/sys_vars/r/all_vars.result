@@ -20,6 +20,8 @@ authentication_policy
 authentication_policy
 binlog_encryption
 binlog_encryption
+binlog_expire_logs_auto_purge
+binlog_expire_logs_auto_purge
 binlog_rotate_encryption_master_key_at_startup
 binlog_rotate_encryption_master_key_at_startup
 cte_max_recursion_depth
@@ -60,6 +62,8 @@ master_verify_checksum
 master_verify_checksum
 max_length_for_sort_data
 max_length_for_sort_data
+optimizer_max_subgraph_pairs
+optimizer_max_subgraph_pairs
 partial_revokes
 partial_revokes
 password_require_current
@@ -164,8 +168,8 @@ terminology_use_previous
 terminology_use_previous
 tls_ciphersuites
 tls_ciphersuites
-tls_version
-tls_version
 use_secondary_engine
+xa_detach_on_prepare
+xa_detach_on_prepare
 drop table t1;
 drop table t2;

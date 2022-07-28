@@ -3,7 +3,7 @@
 
 #Suppress following messages from myslqd log
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log files to be encrypted.");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 --enable_query_log
 

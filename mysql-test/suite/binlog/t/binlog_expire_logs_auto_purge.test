@@ -1,0 +1,160 @@
+# ==== Purpose ====
+#
+# This test file includes test cases for the feature that automatically
+# purges binary log files according to some time criteria.
+#
+# ==== Requirements ====
+#
+# See inline.
+#
+# ==== References ====
+#
+# WL#14930: Add a new variable binlog_expire_logs_auto_purge
+#
+
+# Test in this file is binlog format agnostic, thus no need to rerun
+# it for every format.
+--source include/have_binlog_format_row.inc
+--source include/not_windows.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $saved_binlog_expire_logs_seconds= `SELECT @@GLOBAL.binlog_expire_logs_seconds`
+--let $saved_expire_logs_days= `SELECT @@GLOBAL.expire_logs_days`
+--let $saved_binlog_expire_logs_auto_purge= `SELECT @@GLOBAL.binlog_expire_logs_auto_purge`
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--let $retention_time_in_seconds = 3
+--let $sleep_time_in_seconds = `SELECT $retention_time_in_seconds * 2`
+
+SET @@global.expire_logs_days = 0;
+
+#
+# ASSERT: If binlog_expire_logs_auto_purge is set to OFF, then the server
+#         MUST not purge automatically any binary log file, independently of
+#         binlog_expire_logs_seconds value.
+#
+
+# disable automatic purge
+SET @@global.binlog_expire_logs_auto_purge = OFF;
+# create new log file
+--let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--let $second_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+# set a low expiration window
+--eval SET GLOBAL binlog_expire_logs_seconds=$retention_time_in_seconds
+
+# sleep
+--sleep $sleep_time_in_seconds
+
+# force a rotation, so that auto purge has a chance to try to kick in
+FLUSH LOGS;
+
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+--file_exists $MYSQLD_DATADIR/$second_binlog_file
+
+#
+# ASSERT: If binlog_expire_logs_auto_purge is set to ON, then the server
+#         MUST purge automatically binary log files according to the
+#         binlog_expire_logs_seconds setting.
+#
+SET @@global.binlog_expire_logs_auto_purge = ON;
+
+# since we have already slept sometime in the previous assertion
+# on rotation the files shall be deleted because they have already
+# aged the expiration time
+FLUSH LOGS;
+--error 1
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+--error 1
+--file_exists $MYSQLD_DATADIR/$second_binlog_file
+
+#
+# ASSERT: If binlog_expire_logs_auto_purge is set to ON and both
+#         binlog_expire_logs_seconds and expire_logs_days are set to 0,
+#         then binary log files SHALL NOT be automatically purged.
+#
+
+# Set automatic purge period to 0 and verify that files
+# are not purged
+SET @@global.binlog_expire_logs_auto_purge = ON;
+SET @@global.binlog_expire_logs_seconds = 0;
+
+# create new log file
+--let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--let $second_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+
+# sleep
+--sleep $sleep_time_in_seconds
+
+# force a rotation, so that auto purge has a chance to try to kick in
+# but it won't purge because the purge window is configured to be 0
+# seconds
+FLUSH LOGS;
+
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+--file_exists $MYSQLD_DATADIR/$second_binlog_file
+
+#
+# ASSERT: If binlog_expire_logs_auto_purge is set to OFF, PURGE BINARY
+#         LOGS TO SHALL NOT be affected by the option.
+#
+
+SET @@global.binlog_expire_logs_auto_purge = OFF;
+
+# create new log file
+--let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--let $second_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+
+--replace_result $second_binlog_file SECOND_BINLOG_FILE
+--eval PURGE BINARY LOGS TO '$second_binlog_file'
+
+# file must have been purged
+--error 1
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+
+#
+# ASSERT: If binlog_expire_logs_auto_purge is set to OFF, PURGE BINARY
+#         LOGS BEFORE SHALL NOT be affected by the option.
+#
+
+SET @@global.binlog_expire_logs_auto_purge = OFF;
+SET @@global.binlog_expire_logs_auto_purge = 0;
+
+# create new log file
+--let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--let $second_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+
+# just sleep a couple of seconds to not have the statement issued
+# at the "same time" the files were created/rotated.
+--sleep 2
+--let $date=`select NOW()`
+# sleep a couple of seconds more before rotating, so that we
+# do not risk purging the active log (which would happen If
+# rotation was fast enough to happen whithin the NOW() second)
+# and then it would issue a warning, causing the test to fail
+# sporadically
+--sleep 2
+FLUSH LOGS;
+--replace_result $date DATE
+--eval PURGE BINARY LOGS BEFORE '$date'
+FLUSH LOGS;
+
+# files must have been purged
+--error 1
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+
+# files must have been purged
+--error 1
+--file_exists $MYSQLD_DATADIR/$second_binlog_file
+
+# clean up
+--eval SET GLOBAL binlog_expire_logs_seconds=$saved_binlog_expire_logs_seconds
+--eval SET GLOBAL binlog_expire_logs_auto_purge=$saved_binlog_expire_logs_auto_purge
+--eval SET GLOBAL expire_logs_days=$saved_expire_logs_days
+RESET MASTER;

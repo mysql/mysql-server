@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "clone0snapshot.h"
 #include "clone0clone.h"
+#include "log0log.h" /* log_get_lsn */
 #include "page0zip.h"
 #include "sql/handler.h"
 
@@ -42,7 +43,7 @@ const uint MAX_CLONES_PER_SNAPSHOT = 1;
 
 Clone_Snapshot::Clone_Snapshot(Clone_Handle_Type hdl_type,
                                Ha_clone_type clone_type, uint arr_idx,
-                               ib_uint64_t snap_id)
+                               uint64_t snap_id)
     : m_snapshot_handle_type(hdl_type),
       m_snapshot_type(clone_type),
       m_snapshot_id(snap_id),
@@ -72,7 +73,8 @@ Clone_Snapshot::Clone_Snapshot(Clone_Handle_Type hdl_type,
       m_enable_pfs(false) {
   mutex_create(LATCH_ID_CLONE_SNAPSHOT, &m_snapshot_mutex);
 
-  m_snapshot_heap = mem_heap_create(SNAPSHOT_MEM_INITIAL_SIZE);
+  m_snapshot_heap =
+      mem_heap_create(SNAPSHOT_MEM_INITIAL_SIZE, UT_LOCATION_HERE);
 
   m_chunk_size_pow2 = SNAPSHOT_DEF_CHUNK_SIZE_POW2;
   m_block_size_pow2 = SNAPSHOT_DEF_BLOCK_SIZE_POW2;
@@ -98,12 +100,13 @@ void Clone_Snapshot::get_state_info(bool do_estimate,
 
   state_desc->m_is_start = true;
   state_desc->m_is_ack = false;
-  state_desc->m_estimate = 0;
-  state_desc->m_estimate_disk = 0;
 
   if (do_estimate) {
     state_desc->m_estimate = m_monitor.get_estimate();
     state_desc->m_estimate_disk = m_data_bytes_disk;
+  } else {
+    state_desc->m_estimate = 0;
+    state_desc->m_estimate_disk = 0;
   }
 
   switch (m_snapshot_state) {
@@ -117,22 +120,16 @@ void Clone_Snapshot::get_state_info(bool do_estimate,
 
     case CLONE_SNAPSHOT_REDO_COPY:
       state_desc->m_num_files = num_redo_files();
-
-      /* Minimum of two redo files need to be created. */
-      if (state_desc->m_num_files < 2) {
-        state_desc->m_num_files = 2;
-      }
       break;
 
     case CLONE_SNAPSHOT_DONE:
-      [[fallthrough]];
-
     case CLONE_SNAPSHOT_INIT:
       state_desc->m_num_files = 0;
       break;
 
     default:
-      ut_ad(false);
+      state_desc->m_num_files = 0;
+      ut_d(ut_error);
   }
 }
 
@@ -171,7 +168,7 @@ void Clone_Snapshot::set_state_info(Clone_Desc_State *state_desc) {
     m_monitor.init_state(PSI_NOT_INSTRUMENTED, m_enable_pfs);
 
   } else {
-    ut_ad(false);
+    ut_d(ut_error);
   }
 }
 
@@ -242,7 +239,7 @@ bool Clone_Snapshot::is_aborted() const {
 }
 
 void Clone_Snapshot::set_abort() {
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
   m_aborted = true;
   ib::info(ER_IB_CLONE_OPERATION) << "Clone Snapshot aborted";
 }
@@ -271,7 +268,7 @@ Clone_Snapshot::State_transit::State_transit(Clone_Snapshot *snapshot,
 
 Clone_Snapshot::State_transit::~State_transit() {
   if (m_error == 0) {
-    m_snapshot->end_transit(m_error);
+    m_snapshot->end_transit();
   }
 
   ut_ad(!m_snapshot->in_transit_state());
@@ -328,7 +325,7 @@ int Clone_Snapshot::iterate_files(File_Cbk_Func &&func) {
 }
 
 int Clone_Snapshot::iterate_data_files(File_Cbk_Func &&func) {
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
 
   for (auto file_ctx : m_data_file_vector) {
     auto err = func(file_ctx);
@@ -442,7 +439,7 @@ int Clone_Snapshot::get_next_block(uint chunk_num, uint &block_num,
   /* Find number of blocks in current chunk. */
   if (chunk_num == file_meta->m_end_chunk) {
     /* If it is last chunk, we need to adjust the size. */
-    ib_uint64_t size_in_pages;
+    uint64_t size_in_pages;
     uint aligned_sz;
 
     ut_ad(file_meta->m_file_size >= start_offset);
@@ -472,9 +469,9 @@ int Clone_Snapshot::get_next_block(uint chunk_num, uint &block_num,
   ut_ad(block_num < num_blocks);
 
   /* Calculate the offset of next block. */
-  ib_uint64_t block_offset;
+  uint64_t block_offset;
 
-  block_offset = static_cast<ib_uint64_t>(block_num);
+  block_offset = static_cast<uint64_t>(block_num);
   block_offset *= block_size();
 
   data_offset = chunk_offset + block_offset;
@@ -529,7 +526,7 @@ void Clone_Snapshot::update_block_size(uint buff_size) {
 }
 
 uint32_t Clone_Snapshot::get_blocks_per_chunk() const {
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
   uint32_t num_blocks = 0;
 
   switch (m_snapshot_state) {
@@ -569,11 +566,10 @@ int Clone_Snapshot::change_state(Clone_Desc_State *state_desc,
   switch (new_state) {
     case CLONE_SNAPSHOT_NONE:
     case CLONE_SNAPSHOT_INIT:
-      ut_ad(false);
-
       err = ER_INTERNAL_ERROR;
       my_error(err, MYF(0), "Innodb Clone Snapshot Invalid state");
-      break;
+      ut_d(ut_error);
+      ut_o(break);
 
     case CLONE_SNAPSHOT_FILE_COPY:
       ib::info(ER_IB_CLONE_OPERATION) << "Clone State BEGIN FILE COPY";
@@ -695,7 +691,7 @@ int Clone_Snapshot::get_next_page(uint chunk_num, uint &block_num,
   ut_ad(file_meta->m_space_id == clone_page.m_space_id);
 
   /* Data offset could be beyond 32 BIT integer. */
-  data_offset = static_cast<ib_uint64_t>(clone_page.m_page_no);
+  data_offset = static_cast<uint64_t>(clone_page.m_page_no);
   data_offset *= page_size.physical();
 
   auto file_index = file_meta->m_file_index;
@@ -741,48 +737,42 @@ int Clone_Snapshot::get_next_page(uint chunk_num, uint &block_num,
 
 bool Clone_Snapshot::encrypt_key_in_log_header(byte *log_header,
                                                uint32_t header_len) {
-  byte encryption_key[Encryption::KEY_LEN];
-  byte encryption_iv[Encryption::KEY_LEN];
-
-  size_t offset = LOG_ENCRYPTION + LOG_HEADER_CREATOR_END;
+  size_t offset = LOG_ENCRYPTION + LOG_HEADER_ENCRYPTION_INFO_OFFSET;
   ut_a(offset + Encryption::INFO_SIZE <= header_len);
 
   auto encryption_info = log_header + offset;
 
   /* Get log Encryption Key and IV. */
-  Encryption_key e_key{encryption_key, encryption_iv};
-  auto success = Encryption::decode_encryption_info(
-      dict_sys_t::s_invalid_space_id, e_key, encryption_info, false);
+  Encryption_metadata encryption_metadata;
+  auto success = Encryption::decode_encryption_info(encryption_metadata,
+                                                    encryption_info, false);
 
   if (success) {
     /* Encrypt with master key and fill encryption information. */
-    success = Encryption::fill_encryption_info(
-        &encryption_key[0], &encryption_iv[0], encryption_info, false, true);
+    success = Encryption::fill_encryption_info(encryption_metadata, true,
+                                               encryption_info);
   }
   return (success);
 }
 
 bool Clone_Snapshot::encrypt_key_in_header(const page_size_t &page_size,
                                            byte *page_data) {
-  byte encryption_key[Encryption::KEY_LEN];
-  byte encryption_iv[Encryption::KEY_LEN];
-
   auto offset = fsp_header_get_encryption_offset(page_size);
   ut_ad(offset != 0 && offset + Encryption::INFO_SIZE <= UNIV_PAGE_SIZE);
 
   auto encryption_info = page_data + offset;
 
   /* Get tablespace Encryption Key and IV. */
-  Encryption_key e_key{encryption_key, encryption_iv};
-  auto success = Encryption::decode_encryption_info(
-      dict_sys_t::s_invalid_space_id, e_key, encryption_info, false);
+  Encryption_metadata encryption_metadata;
+  auto success = Encryption::decode_encryption_info(encryption_metadata,
+                                                    encryption_info, false);
   if (!success) {
     return (false);
   }
 
   /* Encrypt with master key and fill encryption information. */
-  success = Encryption::fill_encryption_info(
-      &encryption_key[0], &encryption_iv[0], encryption_info, false, true);
+  success = Encryption::fill_encryption_info(encryption_metadata, true,
+                                             encryption_info);
   if (!success) {
     return (false);
   }
@@ -802,9 +792,8 @@ void Clone_Snapshot::decrypt_key_in_header(const Clone_File_Meta *file_meta,
   byte encryption_info[Encryption::INFO_SIZE];
 
   /* Get tablespace encryption information. */
-  Encryption::fill_encryption_info(file_meta->m_encryption_key,
-                                   file_meta->m_encryption_iv, encryption_info,
-                                   false, false);
+  Encryption::fill_encryption_info(file_meta->m_encryption_metadata, false,
+                                   encryption_info);
 
   /* Set encryption information in page. */
   auto offset = fsp_header_get_encryption_offset(page_size);
@@ -835,26 +824,27 @@ void Clone_Snapshot::page_update_for_flush(const page_size_t &page_size,
 }
 
 /** Set Page encryption information for IORequest.
-@param[in,out]	request		IO request
-@param[in]	page_id		page id
-@param[in]	file_ctx	clone file context */
+@param[in,out]  request         IO request
+@param[in]      page_id         page id
+@param[in]      file_ctx        clone file context */
 static void set_page_encryption(IORequest &request, const page_id_t &page_id,
                                 const Clone_file_ctx *file_ctx) {
   auto file_meta = file_ctx->get_file_meta_read();
 
   /* Page zero is never encrypted. Need to also check the FSP encryption
   flag in case decryption is in progress. */
-  if (file_meta->m_encrypt_type == Encryption::NONE ||
+  if (!file_meta->can_encrypt() ||
       !FSP_FLAGS_GET_ENCRYPTION(file_meta->m_fsp_flags) ||
       page_id.page_no() == 0) {
     request.clear_encrypted();
     return;
   }
 
-  request.encryption_key(file_meta->m_encryption_key, Encryption::KEY_LEN,
-                         file_meta->m_encryption_iv);
+  request.encryption_key(file_meta->m_encryption_metadata.m_key,
+                         file_meta->m_encryption_metadata.m_key_len,
+                         file_meta->m_encryption_metadata.m_iv);
 
-  request.encryption_algorithm(Encryption::AES);
+  request.encryption_algorithm(file_meta->m_encryption_metadata.m_type);
 }
 
 int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
@@ -874,7 +864,7 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
   we would like to serialize with page flush to disk. */
   auto block =
       buf_page_get_gen(page_id, page_size, RW_SX_LATCH, nullptr,
-                       Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+                       Page_fetch::POSSIBLY_FREED, UT_LOCATION_HERE, &mtr);
   auto bpage = &block->page;
 
   buf_page_mutex_enter(block);
@@ -912,7 +902,7 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
       static_cast<lsn_t>(mach_read_from_8(page_data + FIL_PAGE_LSN));
 
   /* First page of a encrypted tablespace. */
-  if (file_meta->m_encrypt_type != Encryption::NONE && page_id.page_no() == 0) {
+  if (file_meta->can_encrypt() && page_id.page_no() == 0) {
     /* Update unencrypted tablespace key in page 0 to be send over
     SSL connection. */
     decrypt_key_in_header(file_meta, page_size, page_data);
@@ -950,9 +940,9 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
 
   if (reporter.is_corrupted() || page_lsn > cur_lsn ||
       (page_checksum != 0 && page_lsn == 0)) {
-    ut_ad(false);
     my_error(ER_INTERNAL_ERROR, MYF(0), "Innodb Clone Corrupt Page");
     err = ER_INTERNAL_ERROR;
+    ut_d(ut_error);
   }
 
   auto encrypted_data = page_data + data_size;
@@ -1022,7 +1012,7 @@ Clone_file_ctx *Clone_Snapshot::get_file_ctx(uint32_t chunk_num,
       file = get_redo_file_ctx(chunk_num, hint_index);
       break;
     default:
-      ut_ad(false); /* purecov: deadcode */
+      ut_d(ut_error); /* purecov: deadcode */
   }
   return file;
 }
@@ -1067,8 +1057,8 @@ Clone_file_ctx *Clone_Snapshot::get_page_file_ctx(uint32_t chunk_num,
   auto file_index = m_data_file_map[clone_page.m_space_id];
   if (file_index == 0) {
     /* purecov: begin deadcode */
-    ut_ad(false);
-    return nullptr;
+    ut_d(ut_error);
+    ut_o(return nullptr);
     /* purecov: end */
   }
   --file_index;
@@ -1089,7 +1079,12 @@ void Clone_file_ctx::get_file_name(std::string &name) const {
   /* Add file name extension. */
   switch (m_extension) {
     case Extension::REPLACE:
-      name.append(CLONE_INNODB_REPLACED_FILE_EXTN);
+      if (m_meta.m_space_id == dict_sys_t::s_log_space_id) {
+        const auto [directory, file] = Fil_path::split(name);
+        name = directory + CLONE_INNODB_REPLACED_FILE_EXTN + file;
+      } else {
+        name.append(CLONE_INNODB_REPLACED_FILE_EXTN);
+      }
       break;
 
     case Extension::DDL:
@@ -1105,7 +1100,7 @@ void Clone_file_ctx::get_file_name(std::string &name) const {
 bool Clone_Snapshot::begin_ddl_state(Clone_notify::Type type, space_id_t space,
                                      bool no_wait, bool check_intr,
                                      int &error) {
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
   error = 0;
   bool blocked = false;
 
@@ -1117,8 +1112,8 @@ bool Clone_Snapshot::begin_ddl_state(Clone_notify::Type type, space_id_t space,
       case CLONE_SNAPSHOT_NONE:
         /* purecov: begin deadcode */
         /* Clone must have started at this point. */
-        ut_ad(false);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
         /* purecov: end */
 
       case CLONE_SNAPSHOT_INIT:
@@ -1186,8 +1181,8 @@ bool Clone_Snapshot::begin_ddl_state(Clone_notify::Type type, space_id_t space,
         break;
       default:
         /* purecov: begin deadcode */
-        ut_ad(false);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
         /* purecov: end */
     }
     break;
@@ -1205,7 +1200,7 @@ bool Clone_Snapshot::begin_ddl_state(Clone_notify::Type type, space_id_t space,
 
 void Clone_Snapshot::end_ddl_state(Clone_notify::Type type, space_id_t space) {
   /* Caller is responsible to call if we have blocked state change. */
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
   auto state = get_state();
 
   if (state == CLONE_SNAPSHOT_FILE_COPY || state == CLONE_SNAPSHOT_PAGE_COPY) {
@@ -1246,7 +1241,7 @@ void Clone_Snapshot::get_wait_mesg(Wait_type wait_type, std::string &info,
       error.assign("Clone wait for DDL file operation timed out");
       break;
     default:
-      ut_ad(false); /* purecov: deadcode */
+      ut_d(ut_error); /* purecov: deadcode */
   }
 }
 
@@ -1338,7 +1333,7 @@ int Clone_Snapshot::wait(Wait_type wait_type, const Clone_file_ctx *ctx,
       default:
         /* purecov: begin deadcode */
         wait = false;
-        ut_ad(false);
+        ut_d(ut_error);
         /* purecov: end */
     }
 
@@ -1383,9 +1378,9 @@ int Clone_Snapshot::wait(Wait_type wait_type, const Clone_file_ctx *ctx,
 
   if (!err && is_timeout) {
     /* purecov: begin deadcode */
-    ut_ad(false);
     err = ER_INTERNAL_ERROR;
     my_error(err, MYF(0), error_mesg.c_str());
+    ut_d(ut_error);
     /* purecov: end */
   }
   return err;
@@ -1518,8 +1513,8 @@ int Clone_Snapshot::begin_ddl_file(Clone_notify::Type type, space_id_t space,
 
   if (file_index == 0) {
     /* purecov: begin deadcode */
-    ut_ad(false);
-    return 0;
+    ut_d(ut_error);
+    ut_o(return 0);
     /* purecov: end */
   }
   --file_index;
@@ -1569,8 +1564,8 @@ void Clone_Snapshot::end_ddl_file(Clone_notify::Type type, space_id_t space) {
 
   if (file_index == 0) {
     /* purecov: begin deadcode */
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
     /* purecov: end */
   }
   --file_index;
@@ -1630,14 +1625,14 @@ int Clone_Snapshot::pin_file(Clone_file_ctx *file_ctx, bool &handle_delete) {
   if (!blocks_clone(file_ctx)) {
     /* Check and update deleted state. */
     if (file_ctx->deleted()) {
-      IB_mutex_guard guard(&m_snapshot_mutex);
+      IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
       handle_delete = update_deleted_state(file_ctx);
     }
     return 0;
   }
   file_ctx->unpin();
 
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
 
   if (!blocks_clone(file_ctx)) {
     /* purecov: begin inspected */

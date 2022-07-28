@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,13 +110,13 @@ class Ref_ptr {
   /**
     Star operator to access the underlying object of type `T`.
 
-    @return A refernce to the underlying object of type `T`.
+    @return A reference to the underlying object of type `T`.
    */
   T &operator*() const;
   /**
     Resets the managed reference and stops managing any pointer.
 
-    @return A reference to `this` object, or chaining purposes.
+    @return A reference to `this` object, for chaining purposes.
    */
   Ref_ptr<T> &reset();
   /**

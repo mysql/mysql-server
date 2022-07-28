@@ -9,7 +9,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 [connection server1]
-SET @@GLOBAL.group_replication_unreachable_majority_timeout= 30;
+SET @@GLOBAL.group_replication_unreachable_majority_timeout= 150;
 [connection server2]
 [connection server3]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -36,7 +36,7 @@ INSERT INTO t1 VALUES (2);
 # The server's super_read_only mode should be disabled
 include/assert.inc [The super_read_only mode should be 0.]
 #
-# 5. After 30 seconds everything is still fine
+# 5. After 150 seconds everything is still fine
 #
 include/gr_wait_for_member_state.inc
 #

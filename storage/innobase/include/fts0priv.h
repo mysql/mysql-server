@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,8 +57,8 @@ enum fts_table_state_enum {
 
 typedef enum fts_table_state_enum fts_table_state_t;
 
-/** The default time to wait for the background thread (in microseconds). */
-#define FTS_MAX_BACKGROUND_THREAD_WAIT_US 10000
+/** The default time to wait for the background thread. */
+constexpr std::chrono::milliseconds FTS_MAX_BACKGROUND_THREAD_WAIT{10};
 
 /** Maximum number of iterations to wait before we complain */
 #define FTS_BACKGROUND_THREAD_WAIT_COUNT 1000
@@ -141,8 +141,8 @@ void fts_get_table_name(
 /** Construct the name of an ancillary FTS table for the given table in
 5.7 compatible format. Caller must allocate enough memory(usually size
 of MAX_FULL_NAME_LEN) for param 'table_name'
-@param[in]	fts_table	Auxiliary table object
-@param[in,out]	table_name	aux table name */
+@param[in]      fts_table       Auxiliary table object
+@param[in,out]  table_name      aux table name */
 void fts_get_table_name_5_7(const fts_table_t *fts_table, char *table_name);
 
 /** Construct the column specification part of the SQL string for selecting the
@@ -187,8 +187,8 @@ dberr_t fts_doc_fetch_by_doc_id(
 /** Callback function for fetch that stores the text of an FTS document,
  converting each column to UTF-16.
  @return always false */
-ibool fts_query_expansion_fetch_doc(void *row,       /*!< in: sel_node_t* */
-                                    void *user_arg); /*!< in: fts_doc_t* */
+bool fts_query_expansion_fetch_doc(void *row,       /*!< in: sel_node_t* */
+                                   void *user_arg); /*!< in: fts_doc_t* */
 
 /********************************************************************
 Write out a single word's data as new entry/entries in the INDEX table.
@@ -204,12 +204,12 @@ Write out a single word's data as new entry/entries in the INDEX table.
 1. for ngram token, check whether the token contains any words in stopwords
 2. for non-ngram token, check if it's stopword or less than fts_min_token_size
 or greater than fts_max_token_size.
-@param[in]	token		token string
-@param[in]	stopwords	stopwords rb tree
-@param[in]	is_ngram	is ngram parser
-@param[in]	cs		token charset
-@retval true	if it is not stopword and length in range
-@retval false	if it is stopword or length not in range */
+@param[in]      token           token string
+@param[in]      stopwords       stopwords rb tree
+@param[in]      is_ngram        is ngram parser
+@param[in]      cs              token charset
+@retval true    if it is not stopword and length in range
+@retval false   if it is stopword or length not in range */
 bool fts_check_token(const fts_string_t *token, const ib_rbt_t *stopwords,
                      bool is_ngram, const CHARSET_INFO *cs);
 
@@ -240,14 +240,14 @@ dberr_t fts_index_fetch_nodes(
 
 /** Compare two fts_trx_table_t instances, we actually compare the
 table id's here.
-@param[in]	v1	id1
-@param[in]	v2	id2
+@param[in]      v1      id1
+@param[in]      v2      id2
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 static inline int fts_trx_table_cmp(const void *v1, const void *v2);
 
 /** Compare a table id with a trx_table_t table id.
-@param[in]	p1	id1
-@param[in]	p2	id2
+@param[in]      p1      id1
+@param[in]      p2      id2
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 static inline int fts_trx_table_id_cmp(const void *p1, const void *p2);
 
@@ -345,15 +345,13 @@ void fts_cache_append_deleted_doc_ids(
     const fts_cache_t *cache, /*!< in: cache to use */
     ib_vector_t *vector);     /*!< in: append to this vector */
 /** Wait for the background thread to start. We poll to detect change
- of state, which is acceptable, since the wait should happen only
- once during startup.
- @return true if the thread started else false (i.e timed out) */
-ibool fts_wait_for_background_thread_to_start(
-    dict_table_t *table, /*!< in: table to which the thread
-                         is attached */
-    ulint max_wait);     /*!< in: time in microseconds, if set
-                         to 0 then it disables timeout
-                         checking */
+of state, which is acceptable, since the wait should happen only
+once during startup.
+@param[in] table table to which the thread is attached
+@param[in] max_wait Time to wait. If set to 0 then it disables timeout checking
+@return true if the thread started else false (i.e timed out) */
+bool fts_wait_for_background_thread_to_start(
+    dict_table_t *table, std::chrono::microseconds max_wait);
 /** Search the index specific cache for a particular FTS index.
  @return the index specific cache else NULL */
 [[nodiscard]] fts_index_cache_t *fts_find_index_cache(
@@ -362,16 +360,17 @@ ibool fts_wait_for_background_thread_to_start(
 
 /** Write the table id to the given buffer (including final NUL). Buffer must
 be at least FTS_AUX_MIN_TABLE_ID_LENGTH bytes long.
-@param[in]	id		a table/index id
-@param[in]	str		buffer to write the id to
+@param[in]      id              a table/index id
+@param[in]      str             buffer to write the id to
 @return number of bytes written */
 static inline int fts_write_object_id(ib_id_t id, char *str);
 
 /** Read the table id from the string generated by fts_write_object_id().
- @return true if parse successful */
-[[nodiscard]] static inline ibool fts_read_object_id(
-    ib_id_t *id,      /*!< out: a table id */
-    const char *str); /*!< in: buffer to read from */
+@param[out] id  Table ID.
+@param[in]  str Buffer to read from.
+@return true if parse successful */
+[[nodiscard]] static inline bool fts_read_object_id(ib_id_t *id,
+                                                    const char *str);
 
 /** Get the table id.
  @return number of bytes written */

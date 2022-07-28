@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ class XComNetworkProviderTest : public GcsBaseTest {
 TEST_F(XComNetworkProviderTest, StartAndStopTestMissingPort) {
   Xcom_network_provider net_provider;
 
-  ASSERT_TRUE(net_provider.start());
+  ASSERT_TRUE(net_provider.start().first);
   net_provider.stop();
 }
 
@@ -47,7 +47,7 @@ TEST_F(XComNetworkProviderTest, StartAndStopTest) {
   params.port = 12345;
   net_provider.configure(params);
 
-  ASSERT_FALSE(net_provider.start());
+  ASSERT_FALSE(net_provider.start().first);
 
   // Make sure that the first one has started correctly
   My_xp_util::sleep_seconds(5);
@@ -64,12 +64,12 @@ TEST_F(XComNetworkProviderTest, StartAgainAndStopTest) {
   params.port = 12345;
   net_provider.configure(params);
 
-  ASSERT_FALSE(net_provider.start());
+  ASSERT_FALSE(net_provider.start().first);
 
   // Make sure that the first one has started correctly
   My_xp_util::sleep_seconds(5);
 
-  ASSERT_TRUE(net_provider.start());
+  ASSERT_TRUE(net_provider.start().first);
 
   net_provider.stop();
 }
@@ -81,12 +81,12 @@ TEST_F(XComNetworkProviderTest, StartAndStopTestWithError) {
   net_provider1.configure(params);
   net_provider2.configure(params);
 
-  ASSERT_FALSE(net_provider1.start());
+  ASSERT_FALSE(net_provider1.start().first);
 
   // Make sure that the first one has started correctly
   My_xp_util::sleep_seconds(5);
 
-  ASSERT_TRUE(net_provider2.start());
+  ASSERT_TRUE(net_provider2.start().first);
 
   net_provider1.stop();
 }
@@ -98,7 +98,7 @@ TEST_F(XComNetworkProviderTest, CreateConnectionToSelfTest) {
   params.port = 12345;
   net_provider.configure(params);
 
-  ASSERT_FALSE(net_provider.start());
+  ASSERT_FALSE(net_provider.start().first);
 
   // Make sure that it has started correctly
   My_xp_util::sleep_seconds(5);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -204,7 +204,7 @@ dberr_t Parallel_reader_adapter::process_rows(
   rec_offs_init(offsets_);
 
   offsets = rec_get_offsets(reader_ctx->m_rec, reader_ctx->index(), offsets,
-                            ULINT_UNDEFINED, &heap);
+                            ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   const auto next_rec = ctx->m_n_read % m_batch_size;
 
@@ -217,8 +217,8 @@ dberr_t Parallel_reader_adapter::process_rows(
     /* If there is any pending records, then we should not overwrite the
     partition ID with a different one. */
     if (pending(ctx) && ctx->m_partition_id != reader_ctx->partition_id()) {
-      ut_ad(false);
       err = DB_ERROR;
+      ut_d(ut_error);
     } else {
       ++ctx->m_n_read;
       ctx->m_partition_id = reader_ctx->partition_id();

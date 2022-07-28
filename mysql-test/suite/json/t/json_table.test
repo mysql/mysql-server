@@ -302,7 +302,7 @@ SELECT * FROM JSON_TABLE(CAST(CAST("11:22:33" AS TIME) AS JSON),
                          '$' COLUMNS (dt DATE PATH '$')) as tt;
 SELECT * FROM JSON_TABLE(CAST(CAST("11:22:33" AS TIME) AS JSON),
                          '$' COLUMNS (dt TIME PATH '$')) as tt;
-SELECT * FROM JSON_TABLE(CAST(CAST("2001.02.03" AS DATE) AS JSON),
+SELECT * FROM JSON_TABLE(CAST(CAST("2001-02-03" AS DATE) AS JSON),
                          '$' COLUMNS (dt DATE PATH '$')) as tt;
 
 CREATE VIEW v AS 
@@ -1514,3 +1514,21 @@ SELECT HEX(a) FROM JSON_TABLE(
 --error ER_DUP_FIELDNAME
 SELECT * FROM
   JSON_TABLE('{}', '$' COLUMNS (o FOR ORDINALITY, O FOR ORDINALITY)) jt;
+
+--echo #
+--echo # Bug#33351497: JSON_TABLE function report duplicate column name
+--echo #
+
+# Used to compare only the first 64 bytes of the column names and
+# incorrectly report duplicate column name.
+
+SELECT * FROM JSON_TABLE('[1, 2]', '$' COLUMNS (
+  测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa INT PATH '$[0]',
+  测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb INT PATH '$[1]')
+) AS jt;
+
+--echo #
+--echo # Bug#33414235: Item_row::illegal_method_call const: Assertion `0' failed.
+--echo #
+--error ER_OPERAND_COLUMNS
+SELECT 1 FROM JSON_TABLE(ROW(1, 2), '$' COLUMNS (o FOR ORDINALITY)) AS jt;

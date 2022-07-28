@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@ extern st_ndb_slave_state g_ndb_slave_state;
 #include "storage/ndb/plugin/ndb_mi.h"
 
 extern ulong opt_ndb_slave_conflict_role;
+extern bool opt_ndb_applier_allow_skip_epoch;
 
 typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Column NDBCOL;
@@ -803,6 +804,27 @@ void st_ndb_slave_state::resetPerAttemptCounters() {
 }
 
 /**
+   saveServerId
+
+   Remember we have see server_id when writing into ndb_apply_status
+   This is so we can avoid overwriting any epochs when applying statements
+*/
+void st_ndb_slave_state::saveServerId(Uint32 server_id) {
+  // Just insert the server_id, most of the time it will already exist and thus
+  // the insert will have no effect
+  source_server_ids.insert(server_id);
+}
+
+/**
+   seenServerId
+
+   Check if we have already written an epoch from a server_id
+ */
+bool st_ndb_slave_state::seenServerId(Uint32 server_id) const {
+  return source_server_ids.count(server_id) != 0;
+}
+
+/**
    atTransactionAbort()
 
    Called by Slave SQL thread during transaction abort.
@@ -1054,23 +1076,43 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       if (!current_master_server_epoch_committed) {
         /**
            We've moved onto a new epoch without committing
-           the last - probably a bug in transaction retry
+           the last - could be a bug, or perhaps the user
+           has configured slave-skip-errors?
         */
-        ndb_log_error(
-            "NDB Replica: SQL thread stopped as attempting to "
-            "apply new epoch %llu/%llu (%llu) while lower "
-            "received epoch %llu/%llu (%llu) has not been "
-            "committed.  Source Server id : %u.  "
-            "Group Source Log : %s  "
-            "Group Source Log Pos : %." PRIu64,
-            next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
-            current_master_server_epoch >> 32,
-            current_master_server_epoch & 0xffffffff,
-            current_master_server_epoch, master_server_id,
-            ndb_mi_get_group_master_log_name(),
-            ndb_mi_get_group_master_log_pos());
-        /* Stop the slave */
-        return false;
+        if (!opt_ndb_applier_allow_skip_epoch) {
+          ndb_log_error(
+              "NDB Replica: SQL thread stopped as attempting to "
+              "apply new epoch %llu/%llu (%llu) while lower "
+              "received epoch %llu/%llu (%llu) has not been "
+              "committed.  Source Server id : %u.  "
+              "Group Source Log : %s  "
+              "Group Source Log Pos : %." PRIu64,
+              next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
+              current_master_server_epoch >> 32,
+              current_master_server_epoch & 0xffffffff,
+              current_master_server_epoch, master_server_id,
+              ndb_mi_get_group_master_log_name(),
+              ndb_mi_get_group_master_log_pos());
+          /* Stop the slave */
+          return false;
+        } else {
+          ndb_log_warning(
+              "NDB Replica: SQL thread attempting to "
+              "apply new epoch %llu/%llu (%llu) while lower "
+              "received epoch %llu/%llu (%llu) has not been "
+              "committed.  Source Server id : %u.  "
+              "Group Source Log : %s  "
+              "Group Source Log Pos : %." PRIu64
+              ".  "
+              "Continuing as ndb_applier_allow_skip_epoch set.",
+              next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
+              current_master_server_epoch >> 32,
+              current_master_server_epoch & 0xffffffff,
+              current_master_server_epoch, master_server_id,
+              ndb_mi_get_group_master_log_name(),
+              ndb_mi_get_group_master_log_pos());
+          /* Continue */
+        }
       } else {
         /* Normal case of next epoch after committing last */
       }
@@ -1092,6 +1134,10 @@ int st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
                                            Uint64 row_epoch,
                                            bool is_row_server_id_local) {
   DBUG_TRACE;
+
+  /* Save any remote server_id seen */
+  saveServerId(row_server_id);
+
   if (row_server_id == master_server_id) {
     /* This is an apply status write from the immediate master */
 
@@ -1138,6 +1184,9 @@ void st_ndb_slave_state::atResetSlave() {
   max_rep_epoch = 0;
   last_conflicted_epoch = 0;
   last_stable_epoch = 0;
+
+  /* Forget any source server_id's seen */
+  source_server_ids.clear();
 
   /* Reset current master server epoch
    * This avoids warnings when replaying a lower
@@ -1695,7 +1744,7 @@ static int row_conflict_fn_old(NDB_CONFLICT_FN_SHARE *cfn_share,
   return r;
 }
 
-static int row_conflict_fn_max_update_only(
+static int row_conflict_fn_max_interpreted_program(
     NDB_CONFLICT_FN_SHARE *cfn_share, enum_conflicting_op_type,
     const NdbRecord *data_record, const uchar *, const uchar *new_data,
     const MY_BITMAP *, const MY_BITMAP *ai_cols, NdbInterpretedCode *code) {
@@ -1788,9 +1837,9 @@ static int row_conflict_fn_max(NDB_CONFLICT_FN_SHARE *cfn_share,
       abort();
       return 1;
     case UPDATE_ROW:
-      return row_conflict_fn_max_update_only(cfn_share, op_type, data_record,
-                                             old_data, new_data, bi_cols,
-                                             ai_cols, code);
+      return row_conflict_fn_max_interpreted_program(
+          cfn_share, op_type, data_record, old_data, new_data, bi_cols, ai_cols,
+          code);
     case DELETE_ROW:
       /* Can't use max of new image, as there's no new image
        * for DELETE
@@ -1828,13 +1877,62 @@ static int row_conflict_fn_max_del_win(
       abort();
       return 1;
     case UPDATE_ROW:
-      return row_conflict_fn_max_update_only(cfn_share, op_type, data_record,
-                                             old_data, new_data, bi_cols,
-                                             ai_cols, code);
+      return row_conflict_fn_max_interpreted_program(
+          cfn_share, op_type, data_record, old_data, new_data, bi_cols, ai_cols,
+          code);
     case DELETE_ROW:
       /* This variant always lets a received DELETE_ROW
        * succeed.
        */
+      return 0;
+    default:
+      abort();
+      return 1;
+  }
+}
+
+/**
+ *  CFT_NDB_MAX_INS:
+ */
+
+static int row_conflict_fn_max_ins(NDB_CONFLICT_FN_SHARE *cfn_share,
+                                   enum_conflicting_op_type op_type,
+                                   const NdbRecord *data_record,
+                                   const uchar *old_data, const uchar *new_data,
+                                   const MY_BITMAP *bi_cols,
+                                   const MY_BITMAP *ai_cols,
+                                   NdbInterpretedCode *code) {
+  switch (op_type) {
+    case WRITE_ROW:
+    case UPDATE_ROW:
+      return row_conflict_fn_max_interpreted_program(
+          cfn_share, op_type, data_record, old_data, new_data, bi_cols, ai_cols,
+          code);
+    case DELETE_ROW:
+      return row_conflict_fn_old(cfn_share, op_type, data_record, old_data,
+                                 new_data, bi_cols, ai_cols, code);
+    default:
+      abort();
+      return 1;
+  }
+}
+
+/**
+ * CFT_NDB_MAX_DEL_WIN_INS:
+ */
+
+static int row_conflict_fn_max_del_win_ins(
+    NDB_CONFLICT_FN_SHARE *cfn_share, enum_conflicting_op_type op_type,
+    const NdbRecord *data_record, const uchar *old_data, const uchar *new_data,
+    const MY_BITMAP *bi_cols, const MY_BITMAP *ai_cols,
+    NdbInterpretedCode *code) {
+  switch (op_type) {
+    case WRITE_ROW:
+    case UPDATE_ROW:
+      return row_conflict_fn_max_interpreted_program(
+          cfn_share, op_type, data_record, old_data, new_data, bi_cols, ai_cols,
+          code);
+    case DELETE_ROW:
       return 0;
     default:
       abort();
@@ -2023,6 +2121,10 @@ static const st_conflict_fn_arg_def epoch_fn_args[] = {
     {CFAT_END, false}};
 
 static const st_conflict_fn_def conflict_fns[] = {
+    {"NDB$MAX_INS", CFT_NDB_MAX_INS, &resolve_col_args[0],
+     row_conflict_fn_max_ins, CF_USE_INTERP_WRITE},
+    {"NDB$MAX_DEL_WIN_INS", CFT_NDB_MAX_DEL_WIN_INS, &resolve_col_args[0],
+     row_conflict_fn_max_del_win_ins, CF_USE_INTERP_WRITE},
     {"NDB$MAX_DELETE_WIN", CFT_NDB_MAX_DEL_WIN, &resolve_col_args[0],
      row_conflict_fn_max_del_win, 0},
     {"NDB$MAX", CFT_NDB_MAX, &resolve_col_args[0], row_conflict_fn_max, 0},
@@ -2304,7 +2406,9 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
   switch (conflict_fn->type) {
     case CFT_NDB_MAX:
     case CFT_NDB_OLD:
-    case CFT_NDB_MAX_DEL_WIN: {
+    case CFT_NDB_MAX_DEL_WIN:
+    case CFT_NDB_MAX_INS:
+    case CFT_NDB_MAX_DEL_WIN_INS: {
       if (num_args != 1) {
         snprintf(msg, msg_len, "Incorrect arguments to conflict function");
         DBUG_PRINT("info", ("%s", msg));
@@ -2454,6 +2558,12 @@ SHOW_VAR ndb_status_conflict_variables[] = {
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"fn_max_del_win",
      (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"fn_max_ins",
+     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_INS],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"fn_max_del_win_ins",
+     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN_INS],
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"fn_epoch",
      (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH],

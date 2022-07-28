@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,12 @@ SET(REPLICATION_SOURCES
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/none.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/control_events.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/event_reader.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/gtids/gtid.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/gtids/gtidset.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/load_data_events.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/rows_event.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/statement_events.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/trx_boundary_parser.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/uuid.cpp
   )
 

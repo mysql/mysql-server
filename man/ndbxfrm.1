@@ -2,12 +2,12 @@
 .\"     Title: ndbxfrm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBXFRM" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBXFRM" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -69,6 +69,8 @@ lB l l
 lB l l
 lB l l
 lB l l
+lB l l
+lB l l
 lB l l.
 T{
 .PP
@@ -83,7 +85,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--decrypt-password=string\fR\fB \fR
+\fB \fR\fB--decrypt-password=password\fR\fB \fR
 T}:T{
 Use this password to decrypt file
 T}:T{
@@ -92,7 +94,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--decrypt-password-from-stdin[=value]\fR\fB \fR
+\fB \fR\fB--decrypt-password-from-stdin\fR\fB \fR
 T}:T{
 Get decryption password in a secure fashion from STDIN
 T}:T{
@@ -128,9 +130,28 @@ T}:T{
 T}
 T{
 .PP
+\fB \fR\fB--encrypt-block-size=#\fR\fB \fR
+T}:T{
+Size of input data chunks encrypted as a unit. Used with XTS, set to
+              zero for CBC mode
+T}:T{
+.PP
+ADDED: NDB 8.0.29
+T}
+T{
+.PP
+\fB \fR\fB--encrypt-cipher=#\fR\fB \fR
+T}:T{
+Encryption cipher: 1 for CBC, 2 for XTS
+T}:T{
+.PP
+ADDED: NDB 8.0.29
+T}
+T{
+.PP
 \fB--encrypt-kdf-iter-count=#\fR,
 .PP
-\fB \fR\fB-k\fR\fB \fR
+\fB \fR\fB-k #\fR\fB \fR
 T}:T{
 Number of iterations used in key definition
 T}:T{
@@ -139,7 +160,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--encrypt-password=string\fR\fB \fR
+\fB \fR\fB--encrypt-password=password\fR\fB \fR
 T}:T{
 Use this password to encrypt file
 T}:T{
@@ -148,7 +169,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--encrypt-password-from-stdin[=value]\fR\fB \fR
+\fB \fR\fB--encrypt-password-from-stdin\fR\fB \fR
 T}:T{
 Get encryption password in a secure fashion from STDIN
 T}:T{
@@ -406,6 +427,36 @@ Also read groups with concat(group, suffix)\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-encrypt\-block\-size=\fR\fB\fI#\fR\fR
+Size of input data chunks that are encrypted as a unit\&. Used with XTS; set to
+0
+(the default) for CBC mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-encrypt\-cipher=\fR\fB\fI#\fR\fR
+Cipher used for encryption\&. Set to
+1
+for CBC mode (the default), or
+2
+for XTS\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-encrypt\-kdf\-iter\-count=\fR\fB\fI#\fR\fR,
 \fB\-k \fR\fB\fI#\fR\fR
 When encrypting a file, specifies the number of iterations to use for the encryption key\&. Requires the
@@ -438,7 +489,8 @@ Uses any of the printable ASCII characters except
 ",
 $,
 %,
-\e, and
+\e,
+`, and
 ^
 .RE
 .sp
@@ -463,10 +515,6 @@ Is no more than 256 characters in length
 .\}
 Is enclosed by single or double quotation marks
 .RE
-.sp
-It is possible but not recommended to use an empty password (\*(Aq\*(Aq
-or
-"")\&.
 .RE
 .sp
 .RS 4
@@ -552,7 +600,7 @@ Example:
 .RS 4
 .\}
 .nf
-shell> \fBndbxfrm \-i BACKUP\-10\-0\&.5\&.Data BACKUP\-10\&.5\&.ctl BACKUP\-10\&.5\&.log\fR
+$> \fBndbxfrm \-i BACKUP\-10\-0\&.5\&.Data BACKUP\-10\&.5\&.ctl BACKUP\-10\&.5\&.log\fR
 File=BACKUP\-10\-0\&.5\&.Data, compression=no, encryption=yes
 File=BACKUP\-10\&.5\&.ctl, compression=no, encryption=yes
 File=BACKUP\-10\&.5\&.log, compression=no, encryption=yes
@@ -702,7 +750,7 @@ are the old and new passwords, respectively; both of these must be quoted\&. The
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

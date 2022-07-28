@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ class Acl_table_intact : public System_table_intact {
   static const TABLE_FIELD_DEF mysql_acl_table_defs[];
 };
 
-int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
+int handle_grant_table(THD *, TABLE_LIST *tables, ACL_TABLES table_no,
                        bool drop, LEX_USER *user_from, LEX_USER *user_to);
 
 #endif /* SQL_USER_TABLE_INCLUDED */

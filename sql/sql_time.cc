@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -183,7 +183,9 @@ bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
                                      ErrConvString(str), l_time->time_type,
                                      NullS))
       return true;
+    if (ret_val) status.squelch_deprecation();
   }
+  check_deprecated_datetime_format(current_thd, str->charset(), status);
 
   if (ret_val) return true;
   return convert_time_zone_displacement(thd->time_zone(), l_time);
@@ -208,7 +210,8 @@ static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
     if (!*warnings) /* Neither sets warnings in case of ZERO DATE */
       *warnings |= MYSQL_TIME_WARN_TRUNCATED;
     return true;
-  } else if (ltime->time_type == MYSQL_TIMESTAMP_DATE) {
+  }
+  if (ltime->time_type == MYSQL_TIMESTAMP_DATE) {
     /*
       Generate a warning in case of DATE with fractional part:
         20011231.1234 -> '2001-12-31'
@@ -222,6 +225,25 @@ static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
                                                 (flags & TIME_FRAC_TRUNCATE));
   }
   return false;
+}
+
+/**
+  Convert decimal value to datetime.
+
+  @param       decimal The value to convert from.
+  @param[out]  ltime   The variable to convert to.
+  @param       flags   Conversion flags.
+
+  @returns false on success, true if not convertible to datetime.
+*/
+bool decimal_to_datetime(const my_decimal *decimal, MYSQL_TIME *ltime,
+                         my_time_flags_t flags) {
+  lldiv_t lld;
+  if (my_decimal2lldiv_t(0, decimal, &lld)) {
+    return true;
+  }
+  int warnings = 0;
+  return lldiv_t_to_datetime(lld, ltime, flags, &warnings);
 }
 
 /**
@@ -254,6 +276,24 @@ bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
       return true;
   }
   return rc;
+}
+
+/**
+  Convert double value to datetime.
+
+  @param       nr      The value to convert from.
+  @param[out]  ltime   The variable to convert to.
+  @param       flags   Conversion flags.
+
+  @returns false on success, true if not convertible to datetime.
+*/
+bool double_to_datetime(double nr, MYSQL_TIME *ltime, my_time_flags_t flags) {
+  lldiv_t lld;
+  if (double2lldiv_t(nr, &lld)) {
+    return true;
+  }
+  int warnings = 0;
+  return lldiv_t_to_datetime(lld, ltime, flags, &warnings);
 }
 
 /**
@@ -333,6 +373,24 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings) {
 
 /**
   Convert decimal number to TIME
+
+  @param      decimal  The number to convert from.
+  @param[out] ltime          The variable to convert to.
+
+  @returns false on success, true if not convertible to time.
+*/
+bool decimal_to_time(const my_decimal *decimal, MYSQL_TIME *ltime) {
+  lldiv_t lld;
+  int warnings = 0;
+
+  if (my_decimal2lldiv_t(0, decimal, &lld)) {
+    return true;
+  }
+  return lldiv_t_to_time(lld, ltime, &warnings);
+}
+
+/**
+  Convert decimal number to TIME
   @param      decimal  The number to convert from.
   @param[out] ltime          The variable to convert to.
 
@@ -358,6 +416,23 @@ bool my_decimal_to_time_with_warn(const my_decimal *decimal,
       return true;
   }
   return rc;
+}
+
+/**
+  Convert double number to TIME
+
+  @param      nr      The number to convert from.
+  @param[out] ltime   The variable to convert to.
+
+  @returns false on success, true if not convertible to time.
+*/
+bool double_to_time(double nr, MYSQL_TIME *ltime) {
+  lldiv_t lld;
+  if (double2lldiv_t(nr, &lld) != E_DEC_OK) {
+    return true;
+  }
+  int warnings = 0;
+  return lldiv_t_to_time(lld, ltime, &warnings);
 }
 
 /**
@@ -437,8 +512,7 @@ bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime) {
 */
 bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
                                               const Time_zone &tz,
-                                              struct timeval *tm,
-                                              int *warnings) {
+                                              my_timeval *tm, int *warnings) {
   if (!ltime->month) /* Zero date */
   {
     assert(!ltime->year && !ltime->day);
@@ -450,19 +524,20 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
       *warnings |= MYSQL_TIME_WARN_TRUNCATED;
       return true;
     }
-    tm->tv_sec = tm->tv_usec = 0;  // '0000-00-00 00:00:00.000000'
+    tm->m_tv_sec = tm->m_tv_usec = 0;  // '0000-00-00 00:00:00.000000'
     return false;
   }
 
   bool is_in_dst_time_gap = false;
-  if (!(tm->tv_sec = tz.TIME_to_gmt_sec(ltime, &is_in_dst_time_gap))) {
+  if (!(tm->m_tv_sec = tz.TIME_to_gmt_sec(ltime, &is_in_dst_time_gap))) {
     /*
       Date was outside of the supported timestamp range.
       For example: '3001-01-01 00:00:00' or '1000-01-01 00:00:00'
     */
     *warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
     return true;
-  } else if (is_in_dst_time_gap) {
+  }
+  if (is_in_dst_time_gap) {
     /*
       Set MYSQL_TIME_WARN_INVALID_TIMESTAMP warning to indicate
       that date was fine but pointed to winter/summer time switch gap.
@@ -471,7 +546,7 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
     */
     *warnings |= MYSQL_TIME_WARN_INVALID_TIMESTAMP;
   }
-  tm->tv_usec = ltime->second_part;
+  tm->m_tv_usec = ltime->second_part;
   return false;
 }
 
@@ -502,7 +577,7 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
   @return False on success, true on error.
 */
 bool datetime_to_timeval(const MYSQL_TIME *ltime, const Time_zone &tz,
-                         struct timeval *tm, int *warnings) {
+                         my_timeval *tm, int *warnings) {
   return check_date(*ltime, non_zero_date(*ltime), TIME_NO_ZERO_IN_DATE,
                     warnings) ||
          datetime_with_no_zero_in_date_to_timeval(ltime, tz, tm, warnings);
@@ -531,7 +606,7 @@ bool str_to_time_with_warn(String *str, MYSQL_TIME *l_time) {
                                      NullS))
       return true;
   }
-
+  check_deprecated_datetime_format(current_thd, str->charset(), status);
   if (!ret_val)
     if (convert_time_zone_displacement(thd->time_zone(), l_time)) return true;
 
@@ -581,7 +656,7 @@ const char *get_date_time_format_str(const Known_date_time_format *format,
    @page DEFAULT_TIME_FUNCS Functions to create default time/date/datetime
    strings
    @note
-    For the moment the Date_time_format argument is ignored becasue
+    For the moment the Date_time_format argument is ignored because
     MySQL doesn't support comparing of date/time/datetime strings that
     are not in arbutary order as dates are compared as strings in some
     context)

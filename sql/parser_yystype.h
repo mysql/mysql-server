@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,6 @@ class PT_field_def_base;
 class PT_frame;
 class PT_group;
 class PT_insert_values_list;
-class PT_internal_variable_name;
 class PT_into_destination;
 class PT_isolation_level;
 class PT_item_list;
@@ -96,7 +95,6 @@ class PT_key_part_specification;
 class PT_limit_clause;
 class PT_locking_clause;
 class PT_locking_clause_list;
-class PT_option_value_following_option_type;
 class PT_option_value_list_head;
 class PT_option_value_no_option_type;
 class PT_order;
@@ -117,6 +115,7 @@ class PT_role_or_privilege;
 class PT_select_var;
 class PT_select_var_list;
 class PT_set;
+class PT_set_scoped_system_variable;
 class PT_start_option_value_list;
 class PT_start_option_value_list_following_option_type;
 class PT_sub_partition;
@@ -333,6 +332,11 @@ enum class Explain_format_type {
   TREE_WITH_EXECUTE
 };
 
+struct Bipartite_name {
+  LEX_CSTRING prefix;  ///< prefix is optional: prefix.str can be nullptr
+  LEX_CSTRING name;
+};
+
 // Compatibility with Bison 2.3:
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
@@ -449,8 +453,7 @@ union YYSTYPE {
   PT_table_reference *table_reference;
   PT_joined_table *join_table;
   PT_joined_table_type join_type;
-  PT_internal_variable_name *internal_variable_name;
-  PT_option_value_following_option_type *option_value_following_option_type;
+  PT_set_scoped_system_variable *option_value_following_option_type;
   PT_option_value_no_option_type *option_value_no_option_type;
   PT_option_value_list_head *option_value_list;
   PT_start_option_value_list *start_option_value_list;
@@ -697,6 +700,7 @@ union YYSTYPE {
     Create_col_name_list *column_list;
   } insert_update_values_reference;
   my_thread_id query_id;
+  Bipartite_name bipartite_name;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");

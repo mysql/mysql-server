@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ using Char_stringstream_template =
   Instantiation of std::basic_stringstream with the same allocator as
   String_type. This is needed since a std::basic_stringstream::str()
   returns a basic_string allocated with its own allocator. Note that
-  this also means that it is diffcult to use a different PSI key for
+  this also means that it is difficult to use a different PSI key for
   the stream memory as that would mean the return type of
   Stringstream_type::str() would be different and incompatible with
   String_type.

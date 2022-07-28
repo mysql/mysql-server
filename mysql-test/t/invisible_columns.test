@@ -183,3 +183,22 @@ SELECT id, name FROM t1;
 DROP TABLE t1;
 
 SET SESSION DEFAULT_STORAGE_ENGINE= DEFAULT;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Bug#33781534 - I_S.KEY_COLUMN_USAGE does not lists invisible columns
+--echo #                which has key constraints.
+--echo #------------------------------------------------------------------------
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY INVISIBLE, f2 INT UNIQUE INVISIBLE,
+                 f3 INT, FOREIGN KEY (f2) REFERENCES t1(f1));
+SHOW CREATE TABLE t1;
+--echo # Columns with invisible attribute are listed by the INFORMATION_SCHEMA.COLUMNS.
+--sorted_result
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='t1';
+--echo # Without fix, following query returns empty resultset. With fix, key columns
+--echo # with invisible attribute should be listed.
+--sorted_result
+SELECT TABLE_NAME, CONSTRAINT_NAME, COLUMN_NAME, REFERENCED_COLUMN_NAME
+       FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME='t1';
+DROP TABLE t1;

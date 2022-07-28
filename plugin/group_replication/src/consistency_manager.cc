@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ Transaction_consistency_info::Transaction_consistency_info(
     my_thread_id thread_id, bool local_transaction, const rpl_sid *sid,
     rpl_sidno sidno, rpl_gno gno,
     enum_group_replication_consistency_level consistency_level,
-    std::list<Gcs_member_identifier> *members_that_must_prepare_the_transaction)
+    Members_list *members_that_must_prepare_the_transaction)
     : m_thread_id(thread_id),
       m_local_transaction(local_transaction),
       m_sid_specified(sid != nullptr ? true : false),
@@ -62,6 +62,13 @@ Transaction_consistency_info::Transaction_consistency_info(
   } else {
     m_sid.clear();
   }
+
+  m_members_that_must_prepare_the_transaction_lock = std::make_unique<
+      Checkable_rwlock>(
+#ifdef HAVE_PSI_INTERFACE
+      key_GR_RWLOCK_transaction_consistency_info_members_that_must_prepare_the_transaction
+#endif
+  );
 }
 
 Transaction_consistency_info::~Transaction_consistency_info() {
@@ -90,10 +97,14 @@ Transaction_consistency_info::get_consistency_level() {
 }
 
 bool Transaction_consistency_info::is_a_single_member_group() {
+  Checkable_rwlock::Guard g(*m_members_that_must_prepare_the_transaction_lock,
+                            Checkable_rwlock::READ_LOCK);
   return 0 == m_members_that_must_prepare_the_transaction->size();
 }
 
 bool Transaction_consistency_info::is_the_transaction_prepared_remotely() {
+  Checkable_rwlock::Guard g(*m_members_that_must_prepare_the_transaction_lock,
+                            Checkable_rwlock::READ_LOCK);
   return m_transaction_prepared_remotely ||
          m_members_that_must_prepare_the_transaction->empty();
 }
@@ -121,8 +132,14 @@ int Transaction_consistency_info::after_applier_prepare(
        m_consistency_level, m_transaction_prepared_locally,
        m_transaction_prepared_remotely, member_status));
 
-  // Only ONLINE members do acknowledge transactions prepare.
-  if (Group_member_info::MEMBER_ONLINE != member_status) {
+  m_members_that_must_prepare_the_transaction_lock->rdlock();
+  const bool needs_to_acknowledge =
+      std::find(m_members_that_must_prepare_the_transaction->begin(),
+                m_members_that_must_prepare_the_transaction->end(),
+                local_member_info->get_gcs_member_id()) !=
+      m_members_that_must_prepare_the_transaction->end();
+  m_members_that_must_prepare_the_transaction_lock->unlock();
+  if (!needs_to_acknowledge) {
     return 0;
   }
 
@@ -173,9 +190,13 @@ int Transaction_consistency_info::handle_remote_prepare(
        m_consistency_level, m_transaction_prepared_locally,
        m_transaction_prepared_remotely));
 
+  m_members_that_must_prepare_the_transaction_lock->wrlock();
   m_members_that_must_prepare_the_transaction->remove(gcs_member_id);
+  const bool members_that_must_prepare_the_transaction_empty =
+      m_members_that_must_prepare_the_transaction->empty();
+  m_members_that_must_prepare_the_transaction_lock->unlock();
 
-  if (m_members_that_must_prepare_the_transaction->empty()) {
+  if (members_that_must_prepare_the_transaction_empty) {
     m_transaction_prepared_remotely = true;
 
     if (m_transaction_prepared_locally) {
@@ -222,7 +243,20 @@ int Transaction_consistency_info::handle_member_leave(
 }
 
 Transaction_consistency_manager::Transaction_consistency_manager()
-    : m_plugin_stopping(true), m_primary_election_active(false) {
+    : m_map(
+          Malloc_allocator<std::pair<const Transaction_consistency_manager_key,
+                                     Transaction_consistency_info *>>(
+              key_consistent_transactions)),
+      m_prepared_transactions_on_my_applier(
+          Malloc_allocator<Transaction_consistency_manager_key>(
+              key_consistent_transactions_prepared)),
+      m_new_transactions_waiting(
+          Malloc_allocator<my_thread_id>(key_consistent_transactions_waiting)),
+      m_delayed_view_change_events(
+          Malloc_allocator<Transaction_consistency_manager_pevent_pair>(
+              key_consistent_transactions_delayed_view_change)),
+      m_plugin_stopping(true),
+      m_primary_election_active(false) {
   m_map_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
       key_GR_RWLOCK_transaction_consistency_manager_map
@@ -277,6 +311,7 @@ int Transaction_consistency_manager::after_certification(
   int error = 0;
   Transaction_consistency_manager_key key(transaction_info->get_sidno(),
                                           transaction_info->get_gno());
+
   m_map_lock->wrlock();
 
   typename Transaction_consistency_manager_map::iterator it = m_map.find(key);
@@ -310,6 +345,17 @@ int Transaction_consistency_manager::after_certification(
     error = 1;
     /* purecov: end */
   }
+
+  DBUG_EXECUTE_IF("group_replication_consistency_manager_after_certification", {
+    const char act[] =
+        "now signal "
+        "signal.group_replication_consistency_manager_after_certification_"
+        "reached "
+        "wait_for "
+        "signal.group_replication_consistency_manager_after_certification_"
+        "continue";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  };);
 
   DBUG_PRINT("info",
              ("gtid: %d:%" PRId64 "; consistency_level: %d; ",
@@ -473,7 +519,8 @@ int Transaction_consistency_manager::handle_remote_prepare(
 
   int result = transaction_info->handle_remote_prepare(gcs_member_id);
 
-  if (transaction_info->is_transaction_prepared_locally()) {
+  if (transaction_info->is_transaction_prepared_locally() &&
+      transaction_info->is_the_transaction_prepared_remotely()) {
     auto it = m_delayed_view_change_events.begin();
     while (it != m_delayed_view_change_events.end()) {
       Transaction_consistency_manager_key view_key = it->second;
@@ -492,7 +539,9 @@ int Transaction_consistency_manager::handle_remote_prepare(
         }
         m_delayed_view_change_events.erase(it++);
         if (error) {
-          abort_plugin_process("unable to log the View_change_log_event");
+          LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_LOG_VIEW_CHANGE);
+          m_map_lock->unlock();
+          return 1;
         }
       } else {
         ++it;
@@ -666,10 +715,22 @@ int Transaction_consistency_manager::transaction_begin_sync_before_execution(
     /* purecov: end */
   }
 
-  DBUG_PRINT("info", ("waiting for channel_wait_until_apply_queue_applied()"));
+  std::string applier_retrieved_gtids;
+  Replication_thread_api applier_channel("group_replication_applier");
+  if (applier_channel.get_retrieved_gtid_set(applier_retrieved_gtids)) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_SET_EXTRACT_ERROR);
+    return ER_GRP_TRX_CONSISTENCY_BEFORE;
+  }
 
-  if (channel_wait_until_apply_queue_applied("group_replication_applier",
-                                             timeout) < 0) {
+  DBUG_PRINT("info", ("waiting for wait_for_gtid_set_committed()"));
+
+  /*
+    We want to keep the current thd stage info of
+    "Executing hook on transaction begin.", thence we disable
+    `update_thd_status`.
+  */
+  if (wait_for_gtid_set_committed(applier_retrieved_gtids.c_str(), timeout,
+                                  false /* update_thd_status */)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRX_WAIT_FOR_GROUP_GTID_EXECUTED,
                  thread_id);

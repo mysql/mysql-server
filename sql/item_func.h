@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -217,6 +217,7 @@ class Item_func : public Item_result_field {
     NOT_FUNC,
     NOT_ALL_FUNC,
     NOW_FUNC,
+    FROM_DAYS_FUNC,
     TRIG_COND_FUNC,
     SUSERVAR_FUNC,
     GUSERVAR_FUNC,
@@ -280,6 +281,7 @@ class Item_func : public Item_result_field {
     DATEADD_FUNC,
     FROM_UNIXTIME_FUNC,
     CONVERT_TZ_FUNC,
+    LAST_DAY_FUNC,
     UNIX_TIMESTAMP_FUNC,
     TIME_TO_SEC_FUNC,
     TIMESTAMPDIFF_FUNC,
@@ -292,7 +294,8 @@ class Item_func : public Item_result_field {
     JSON_UNQUOTE_FUNC,
     MEMBER_OF_FUNC,
     STRCMP_FUNC,
-    TRUE_FUNC
+    TRUE_FUNC,
+    FALSE_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -392,6 +395,33 @@ class Item_func : public Item_result_field {
     args[2] = c;
     args[3] = d;
     args[4] = e;
+  }
+  Item_func(Item *a, Item *b, Item *c, Item *d, Item *e, Item *f) {
+    if (alloc_args(*THR_MALLOC, 6)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    args[3] = d;
+    args[4] = e;
+    args[5] = f;
+    m_accum_properties = 0;
+    add_accum_properties(a);
+    add_accum_properties(b);
+    add_accum_properties(c);
+    add_accum_properties(d);
+    add_accum_properties(e);
+    add_accum_properties(f);
+  }
+  Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e,
+            Item *f)
+      : Item_result_field(pos) {
+    if (alloc_args(*THR_MALLOC, 6)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    args[3] = d;
+    args[4] = e;
+    args[5] = f;
   }
   explicit Item_func(mem_root_deque<Item *> *list) {
     set_arguments(list, false);
@@ -616,8 +646,6 @@ class Item_func : public Item_result_field {
   /// or if it should be placed as a filter after the join.
   virtual bool contains_only_equi_join_condition() const { return false; }
 
-  bool ensure_multi_equality_fields_are_available_walker(uchar *) override;
-
  protected:
   /**
     Whether or not an item should contribute to the filtering effect
@@ -696,9 +724,7 @@ class Item_func : public Item_result_field {
     }
     return false;
   }
-  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
-    return false;
-  }
+  bool is_valid_for_pushdown(uchar *arg) override;
   bool check_column_in_window_functions(uchar *arg) override;
   bool check_column_in_group_by(uchar *arg) override;
 
@@ -948,7 +974,7 @@ class Item_int_func : public Item_func {
   enum Item_result result_type() const override { return INT_RESULT; }
   /*
     Concerning PS-param types,
-    resolve_type(THD *) is not overidden here, as experience shows that for
+    resolve_type(THD *) is not overridden here, as experience shows that for
     most child classes of this class, VARCHAR is the best default
   */
 };
@@ -956,19 +982,17 @@ class Item_int_func : public Item_func {
 class Item_func_connection_id final : public Item_int_func {
   typedef Item_int_func super;
 
-  longlong value;
-
  public:
   Item_func_connection_id(const POS &pos) : Item_int_func(pos) {}
 
+  table_map get_initial_pseudo_tables() const override {
+    return INNER_TABLE_BIT;
+  }
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return "connection_id"; }
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **ref) override;
-  longlong val_int() override {
-    assert(fixed);
-    return value;
-  }
+  longlong val_int() override;
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
@@ -1621,6 +1645,7 @@ class Item_rollup_group_item final : public Item_func {
   enum Functype functype() const override { return ROLLUP_GROUP_ITEM_FUNC; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  bool eq(const Item *item, bool binary_cmp) const override;
 
   // Used by AggregateIterator.
   void set_current_rollup_level(int level) { m_current_rollup_level = level; }
@@ -1761,13 +1786,17 @@ class Item_func_ord final : public Item_int_func {
 
 class Item_func_find_in_set final : public Item_int_func {
   String value, value2;
-  uint enum_value;
-  ulonglong enum_bit;
+  /*
+    if m_enum_value is non-zero, it indicates the index of the value of
+    argument 0 in the set in argument 1, given that argument 0 is
+    a constant value and argument 1 is a field of type SET.
+  */
+  uint m_enum_value{0};
   DTCollation cmp_collation;
 
  public:
   Item_func_find_in_set(const POS &pos, Item *a, Item *b)
-      : Item_int_func(pos, a, b), enum_value(0) {}
+      : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "find_in_set"; }
   bool resolve_type(THD *) override;
@@ -2439,8 +2468,7 @@ class Item_func_gtid_subset final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "gtid_subset"; }
   bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, -1)) return true;
-    set_nullable(false);
+    if (param_type_is_default(thd, 0, ~0U)) return true;
     return false;
   }
   bool is_bool_func() const override { return true; }
@@ -2567,6 +2595,8 @@ class Item_func_is_visible_dd_object : public Item_int_func {
       : Item_int_func(pos, a) {}
   Item_func_is_visible_dd_object(const POS &pos, Item *a, Item *b)
       : Item_int_func(pos, a, b) {}
+  Item_func_is_visible_dd_object(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_int_func(pos, a, b, c) {}
   longlong val_int() override;
   const char *func_name() const override { return "is_visible_dd_object"; }
   bool resolve_type(THD *) override {
@@ -3129,7 +3159,7 @@ class user_var_entry {
     @param type           type of new value
     @param cs             charset info for new value
     @param dv             derivation for new value
-    @param unsigned_arg   indiates if a value of type INT_RESULT is unsigned
+    @param unsigned_arg   indicates if a value of type INT_RESULT is unsigned
 
     @note Sets error and fatal error if allocation fails.
 
@@ -3396,26 +3426,23 @@ class Audit_global_variable_get_event {
 };
 
 class Item_func_get_system_var final : public Item_var_func {
-  sys_var *var;
-  enum_var_type var_type, orig_var_type;
-  LEX_STRING component;
+  const enum_var_type var_scope;
   longlong cached_llval;
   double cached_dval;
   String cached_strval;
   bool cached_null_value;
   query_id_t used_query_id;
   uchar cache_present;
-  Sys_var_tracker var_tracker;
+  const System_variable_tracker var_tracker;
 
   template <typename T>
-  longlong get_sys_var_safe(THD *thd);
+  longlong get_sys_var_safe(THD *thd, sys_var *var);
 
   friend class Audit_global_variable_get_event;
 
  public:
-  Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
-                           LEX_STRING *component_arg, const char *name_arg,
-                           size_t name_len_arg);
+  Item_func_get_system_var(const System_variable_tracker &,
+                           enum_var_type scope);
   enum Functype functype() const override { return GSYSVAR_FUNC; }
   table_map get_initial_pseudo_tables() const override {
     return INNER_TABLE_BIT;
@@ -3424,7 +3451,10 @@ class Item_func_get_system_var final : public Item_var_func {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool is_non_const_over_literals(uchar *) override { return true; }
-  enum Item_result result_type() const override;
+  enum Item_result result_type() const override {
+    assert(fixed);
+    return type_to_result(data_type());
+  }
   double val_real() override;
   longlong val_int() override;
   String *val_str(String *) override;
@@ -3434,9 +3464,14 @@ class Item_func_get_system_var final : public Item_var_func {
   /* TODO: fix to support views */
   const char *func_name() const override { return "get_system_var"; }
   bool eq(const Item *item, bool binary_cmp) const override;
+  bool is_valid_for_pushdown(uchar *arg [[maybe_unused]]) override {
+    // Expressions which have system variables cannot be pushed as of
+    // now because Item_func_get_system_var::print does not print the
+    // original expression which leads to an incorrect clone.
+    return true;
+  }
 
   void cleanup() override;
-  bool bind(THD *thd);
 };
 
 class JOIN;
@@ -3673,7 +3708,7 @@ class Item_func_match final : public Item_real_func {
   bool simple_expression;
   /**
      true if MATCH function is used in WHERE condition only.
-     Used to dermine what hints can be used for FT handler.
+     Used to determine what hints can be used for FT handler.
      Note that only master MATCH function has valid value.
      it's ok since only master function is involved in the hint processing.
   */
@@ -3807,7 +3842,7 @@ class Item_func_sp final : public Item_func {
   sp_head *m_sp{nullptr};
   /// The result field of the concrete stored function.
   Field *sp_result_field{nullptr};
-  /// @returns true when function execution is deterministic
+  /// true when function execution is deterministic
   bool m_deterministic{false};
 
   bool execute();
@@ -3841,49 +3876,12 @@ class Item_func_sp final : public Item_func {
 
   Item_result result_type() const override;
 
-  longlong val_int() override {
-    if (execute() || null_value) return (longlong)0;
-    return sp_result_field->val_int();
-  }
-
-  double val_real() override {
-    if (execute() || null_value) return 0.0;
-    return sp_result_field->val_real();
-  }
-
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
-    if (execute() || null_value) return true;
-    return sp_result_field->get_date(ltime, fuzzydate);
-  }
-
-  bool get_time(MYSQL_TIME *ltime) override {
-    if (execute() || null_value) return true;
-
-    return sp_result_field->get_time(ltime);
-  }
-
-  my_decimal *val_decimal(my_decimal *dec_buf) override {
-    if (execute() || null_value) return nullptr;
-    return sp_result_field->val_decimal(dec_buf);
-  }
-
-  String *val_str(String *str) override {
-    String buf;
-    char buff[20];
-    buf.set(buff, 20, str->charset());
-    buf.length(0);
-    if (execute() || null_value) return nullptr;
-    /*
-      result_field will set buf pointing to internal buffer
-      of the resul_field. Due to this it will change any time
-      when SP is executed. In order to prevent occasional
-      corruption of returned value, we make here a copy.
-    */
-    sp_result_field->val_str(&buf);
-    str->copy(buf);
-    return str;
-  }
-
+  longlong val_int() override;
+  double val_real() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  my_decimal *val_decimal(my_decimal *dec_buf) override;
+  String *val_str(String *str) override;
   bool val_json(Json_wrapper *result) override;
 
   bool change_context_processor(uchar *arg) override {
@@ -4004,8 +4002,39 @@ class Item_func_internal_is_enabled_role : public Item_int_func {
   }
 };
 
-Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
-                     LEX_STRING component, bool unsafe_for_replication);
+/**
+  Create new Item_func_get_system_var object
+
+  @param pc     Parse context
+
+  @param scope  Scope of the variable (GLOBAL, SESSION, PERSISTENT ...)
+
+  @param prefix Empty LEX_CSTRING{} or the left hand side of the composite
+                variable name, e.g.:
+                * component name of the component-registered variable
+                * name of MyISAM Multiple Key Cache.
+
+  @param suffix Name of the variable (if prefix is empty) or the right
+                hand side of the composite variable name, e.g.:
+                * name of the component-registered variable
+                * property name of MyISAM Multiple Key Cache variable.
+
+  @param unsafe_for_replication force writing this system variable to binlog
+                (if not written yet)
+
+  @returns new item on success, otherwise nullptr
+*/
+Item *get_system_variable(Parse_context *pc, enum_var_type scope,
+                          const LEX_CSTRING &prefix, const LEX_CSTRING &suffix,
+                          bool unsafe_for_replication);
+
+inline Item *get_system_variable(Parse_context *pc, enum_var_type scope,
+                                 const LEX_CSTRING &trivial_name,
+                                 bool unsafe_for_replication) {
+  return get_system_variable(pc, scope, {}, trivial_name,
+                             unsafe_for_replication);
+}
+
 extern bool check_reserved_words(const char *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
@@ -4016,6 +4045,14 @@ Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
 
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value);
 
+bool is_function_of_type(const Item *item, Item_func::Functype type);
+
 extern bool volatile mqh_used;
+
+/// Checks if "item" is a function of the specified type.
+bool is_function_of_type(const Item *item, Item_func::Functype type);
+
+/// Checks if "item" contains a function of the specified type.
+bool contains_function_of_type(Item *item, Item_func::Functype type);
 
 #endif /* ITEM_FUNC_INCLUDED */

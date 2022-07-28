@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,8 @@
 #include <string>
 #include <vector>
 
+#include "my_compiler.h"  // MY_ATTRIBUTE
+
 namespace mysql_harness {
 namespace utility {
 std::vector<std::string> HARNESS_EXPORT wrap_string(const std::string &to_wrap,
@@ -54,6 +56,10 @@ bool HARNESS_EXPORT ends_with(const std::string &str,
  */
 bool HARNESS_EXPORT starts_with(const std::string &str,
                                 const std::string &prefix);
+
+HARNESS_EXPORT
+MY_ATTRIBUTE((format(printf, 1, 2)))
+std::string string_format(const char *format, ...);
 
 }  // namespace utility
 

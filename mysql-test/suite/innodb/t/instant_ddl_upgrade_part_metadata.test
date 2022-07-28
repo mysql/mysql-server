@@ -1,0 +1,247 @@
+##########################################################################
+# Test script to test DD Metadata after UPGRADE from older version
+# partition table (not) having INSTANT ADD columns.
+##########################################################################
+
+--source include/not_valgrind.inc
+--source include/have_lowercase0.inc
+
+# ------------------------------------------------------------
+# Tables created on earlier version with following
+# ------------------------------------------------------------
+#  CREATE TABLE t1_part (c1 INT, c2 CHAR(10))
+#    PARTITION BY RANGE(c1) (
+#      PARTITION p0 VALUES LESS THAN (100),
+#      PARTITION p1 VALUES LESS THAN (200));
+#  INSERT INTO t1_part VALUES(10, "r1c2");
+#
+#  CREATE TABLE t2_part (c1 INT, c2 CHAR(10))
+#    PARTITION BY RANGE(c1) (
+#      PARTITION p0 VALUES LESS THAN (100),
+#      PARTITION p1 VALUES LESS THAN (200));
+#  INSERT INTO t2_part VALUES(10, "r1c2");
+#
+#  CREATE TABLE t3_part (c1 INT, c2 CHAR(10))
+#    PARTITION BY RANGE(c1) (
+#      PARTITION p0 VALUES LESS THAN (100),
+#      PARTITION p1 VALUES LESS THAN (200));
+#  INSERT INTO t3_part VALUES(10, "r1c2");
+#  ALTER TABLE t3_part ADD COLUMN c3 CHAR(10) DEFAULT "def_c3", ALGORITHM=INSTANT;
+#  INSERT INTO t3_part VALUES(110, "r1c2", "c3");
+#  ALTER TABLE t3_part ADD PARTITION (PARTITION p2 VALUES LESS THAN (300));
+#  ALTER TABLE t3_part ADD COLUMN c4 CHAR(10) DEFAULT "def_c4", ALGORITHM=INSTANT;
+# ------------------------------------------------------------
+
+--echo # ------------------------------------------------------------
+--echo # Start server with old datadir with
+--echo #   Table t1_part and t2_part
+--echo #     having 2 partitions p0 and p1
+--echo #     having c1, c2 normal columns
+--echo #       +------+------+
+--echo #       | c1   | c2   |
+--echo #       +------+------+
+--echo #       | 10   | r1c2 |
+--echo #       +------+------+
+--echo #
+--echo #   Table t3_part (partition p0, p1)
+--echo #     having c1, c2 normal columns
+--echo #     having c3 INSTANT ADD column with default value
+--echo #     partition p2 added.
+--echo #     having c4 INSTANT ADD column with default value
+--echo #       +------+------+--------+--------+
+--echo #       | c1   | c2   | c3     | c4     |
+--echo #       +------+------+--------+--------+
+--echo #       |   10 | r1c2 | def_c3 | def_c4 |
+--echo #       +------+------+--------+--------+
+--echo # ------------------------------------------------------------
+
+--echo # Stop the running the server
+--source include/shutdown_mysqld.inc
+
+--echo # Copy and unzip the datadir.
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/data_instant_ddl_upgrade.zip $MYSQL_TMP_DIR/data_instant_ddl_upgrade.zip
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_instant_ddl_upgrade.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server against the unzipped datadir
+--replace_result $DATADIR DATADIR
+--let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+--echo # ------------------------------------------------------------
+--echo # TEST 1 : Old version tables have no INSTANT ADD Columns
+--echo # ------------------------------------------------------------
+
+--echo # ------------------------------------------------------------
+--echo # Check metadata of upgraded table t1_part [c1, c2]
+--echo # Expectation : New INSTANT METADATA is not present.
+--echo # ------------------------------------------------------------
+--let $table_name=t1_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # ------------------------------------------------------------
+--echo # INSTANT DROP a column and check metadata t1_part [c1, -c2]
+--echo # Expectation : New INSTANT METADATA is populated.
+--echo # ------------------------------------------------------------
+ALTER TABLE t1_part DROP COLUMN c2, ALGORITHM=INSTANT;
+--let $table_name=t1_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # ------------------------------------------------------------
+--echo # Check metadata of upgraded table t2_part [c1, c2]
+--echo # Expectation : New INSTANT METADATA is not present.
+--echo # ------------------------------------------------------------
+--let $table_name=t2_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # ------------------------------------------------------------
+--echo # INSTANT ADD a column and check metadata t2_part [c1, c2, +c3]
+--echo # Expectation : New INSTANT METADATA is populated.
+--echo # ------------------------------------------------------------
+ALTER TABLE t2_part ADD COLUMN c3 CHAR(10) DEFAULT "c3_def", ALGORITHM=INSTANT;
+--let $table_name=t2_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # ------------------------------------------------------------
+--echo # INSTANT DROP a column and check metadata t2_part [c1, -c2, c3]
+--echo # Expectation : New INSTANT METADATA is updated.
+--echo # ------------------------------------------------------------
+ALTER TABLE t2_part DROP COLUMN c2, ALGORITHM=INSTANT;
+--let $table_name=t2_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+DROP TABLE t1_part;
+DROP TABLE t2_part;
+
+--echo # ------------------------------------------------------------
+--echo # TEST 2 : Old version tables have INSTANT ADD Columns
+--echo # ------------------------------------------------------------
+
+--echo # ------------------------------------------------------------
+--echo # Check metadata of upgraded table t3_part [c1, c2, c3, c4]
+--echo # Expectation : Old INSTANT METADATA is present and has
+--echo #               different INSTANT_COLS for p2.
+--echo #               No default value for c3 for p2.
+--echo #               New INSTANT METADATA is not present.
+--echo # ------------------------------------------------------------
+--let $table_name=t3_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # -----------------------------------------------------------------------
+--echo # INSTANT ADD a new column and check metadata t3_part [c1, c2, c3, c4, +c5]
+--echo # Expectation : Old INSTANT METADATA stays same.
+--echo #               New INSTANT METADATA is populated.
+--echo #               Default value for c5 in each partition.
+--echo # -----------------------------------------------------------------------
+ALTER TABLE t3_part ADD COLUMN c5 CHAR(10) DEFAULT "c5_def", ALGORITHM=INSTANT;
+--let $table_name=t3_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # --------------------------------------------------------------------
+--echo # Add a new partition p3.
+--echo # Expectation : Old INSTANT METADATA stays same.
+--echo #               Default value for c5 in each partition.
+--echo # -----------------------------------------------------------------------
+ALTER TABLE t3_part ADD PARTITION (PARTITION p3 VALUES LESS THAN (400));
+--let $table_name=t3_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # --------------------------------------------------------------------
+--echo # INSTANT DROP a normal column and check metadata t3_part [c1, -c2, c3, c4, c5]
+--echo # Expectation : Old INSTANT METADATA stays same.
+--echo #               New INSTANT METADATA is updated.
+--echo # ---------------------------------------------------------------------
+ALTER TABLE t3_part DROP COLUMN c2, ALGORITHM=INSTANT;
+--let $table_name=t3_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # -----------------------------------------------------------------------
+--echo # INSTANT DROP an INSTANT column and check metadata t3_part [c1, ~c2, ~c3, c4, c5]
+--echo # Expectation : Old INSTANT METADATA stays same.
+--echo #               New INSTANT METADATA is updated.
+--echo # -----------------------------------------------------------------------
+ALTER TABLE t3_part DROP COLUMN c3, ALGORITHM=INSTANT;
+--let $table_name=t3_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # -----------------------------------------------------------------------------
+--echo # INSTANT DROP newly added column and check metadata t3_part [c1, ~c2, ~c3, c4, -c5]
+--echo # Expectation : Old INSTANT METADATA stays same.
+--echo #               New INSTANT METADATA is updated.
+--echo # -----------------------------------------------------------------------------
+ALTER TABLE t3_part DROP COLUMN c5, ALGORITHM=INSTANT;
+--let $table_name=t3_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+DROP TABLE t3_part;
+
+--echo # -------------------------------------------------
+--echo # TEST 3 : New tables with INSTANT ADD/DROP Columns
+--echo # -------------------------------------------------
+CREATE TABLE t1_part (c1 INT, c2 CHAR(10)) PARTITION BY RANGE(c1) (PARTITION p0 VALUES LESS THAN (100), PARTITION p1 VALUES LESS THAN (200));
+INSERT INTO t1_part VALUES(10, "r1c2");
+
+--echo # ------------------------------------------------------------
+--echo # Check metadata of table t1_part [c1, c2]
+--echo # Expectation : Old INSTANT METADATA is not present
+--echo #               New INSTANT METADATA is not present.
+--echo # ------------------------------------------------------------
+--let $table_name=t1_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # -----------------------------------------------------------------------
+--echo # INSTANT DROP a column and check metadata t1_part [c1, -c2]
+--echo # Expectation : Old INSTANT METADATA is not present.
+--echo #               New INSTANT METADATA is populated.
+--echo # -----------------------------------------------------------------------
+ALTER TABLE t1_part DROP COLUMN c2, ALGORITHM=INSTANT;
+--let $table_name=t1_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # -----------------------------------------------------------------------
+--echo # INSTANT ADD a column and check metadata t1_part [c1, ~c2, +c3]
+--echo # Expectation : Old INSTANT METADATA not present.
+--echo #               New INSTANT METADATA is updated.
+--echo # -----------------------------------------------------------------------
+ALTER TABLE t1_part ADD COLUMN c3 CHAR(10) DEFAULT "c3_def", ALGORITHM=INSTANT;
+--let $table_name=t1_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # --------------------------------------------------------------------
+--echo # Add a new partition p2.
+--echo # Expectation : Old INSTANT METADATA not present.
+--echo #               New INSTANT METADATA is updated.
+--echo #               Default value for c3 in each partition.
+--echo # -----------------------------------------------------------------------
+ALTER TABLE t1_part ADD PARTITION (PARTITION p2 VALUES LESS THAN (300));
+--let $table_name=t1_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+--echo # ----------------------------------------------------------------------------
+--echo # INSTANT DROP the INSTANT ADD column and check metadata t1_part [c1, ~c2, -c3]
+--echo # Expectation : Old INSTANT METADATA is not present.
+--echo #               New INSTANT METADATA is updated.
+--echo # ----------------------------------------------------------------------------
+ALTER TABLE t1_part DROP COLUMN c3, ALGORITHM=INSTANT;
+--let $table_name=t1_part
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+DROP TABLE t1_part;
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade.zip
+--force-rmdir $MYSQL_TMP_DIR/data
+--remove_file $MYSQL_TMP_DIR/data_instant_ddl_upgrade.zip
+
+--echo # Restarting server to restore server state
+let $restart_parameters =;
+--source include/start_mysqld.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ class Ndb_sql_metadata_table : public Ndb_util_table {
   bool define_table_ndb(NdbDictionary::Table &table,
                         unsigned mysql_version) const override;
 
-  bool define_indexes(unsigned int mysql_version) const override;
+  bool create_indexes(const NdbDictionary::Table &table) const override;
 
  public:
   Ndb_sql_metadata_table(class Thd_ndb *);

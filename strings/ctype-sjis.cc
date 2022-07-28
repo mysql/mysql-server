@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -17992,7 +17992,7 @@ static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_sjis,
                                                 mbcharlen_sjis,
                                                 my_numchars_mb,
-                                                my_charpos_mb,
+                                                my_charpos_mb3,
                                                 my_well_formed_len_sjis,
                                                 my_lengthsp_8bit,
                                                 my_numcells_sjis,
@@ -18023,7 +18023,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM |
         MY_CS_NONASCII,   /* state */
     "sjis",               /* cs name    */
-    "sjis_japanese_ci",   /* name */
+    "sjis_japanese_ci",   /* m_coll_name */
     "Shift-JIS Japanese", /* comment    */
     nullptr,              /* tailoring */
     nullptr,              /* coll_param */
@@ -18058,7 +18058,7 @@ CHARSET_INFO my_charset_sjis_bin = {
     0,                                               /* number */
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_NONASCII, /* state  */
     "sjis",                                          /* cs name    */
-    "sjis_bin",                                      /* name */
+    "sjis_bin",                                      /* m_coll_name */
     "Shift-JIS Japanese",                            /* comment    */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -734,13 +734,13 @@ ER_XA_RECOVER_FOUND_TRX_IN_SE
 ER_XA_RECOVER_FOUND_XA_TRX
   eng "Found %d prepared XA transactions"
 
-ER_XA_IGNORING_XID
+OBSOLETE_ER_XA_IGNORING_XID
   eng "ignore xid %s"
 
-ER_XA_COMMITTING_XID
+OBSOLETE_ER_XA_COMMITTING_XID
   eng "commit xid %s"
 
-ER_XA_ROLLING_BACK_XID
+OBSOLETE_ER_XA_ROLLING_BACK_XID
   eng "rollback xid %s"
 
 ER_XA_STARTING_RECOVERY
@@ -2645,7 +2645,7 @@ ER_TURNING_LOGGING_OFF_FOR_THE_DURATION
 ER_BINLOG_FAILED_TO_RUN_AFTER_FLUSH_HOOK
   eng "Failed to run 'after_flush' hooks"
 
-ER_BINLOG_CRASH_RECOVERY_FAILED
+OBSOLETE_ER_BINLOG_CRASH_RECOVERY_FAILED
   eng "Crash recovery failed. Either correct the problem (if it's, for example, out of memory error) and restart, or delete (or rename) binary log and start mysqld with --tc-heuristic-recover={commit|rollback}"
 
 ER_BINLOG_WARNING_SUPPRESSED
@@ -2840,7 +2840,7 @@ ER_ACCESS_DENIED_ERROR_WITH_PASSWORD
 ER_ACCESS_DENIED_FOR_USER_ACCOUNT_LOCKED
   eng "Access denied for user '%-.48s'@'%-.64s'. Account is locked."
 
-ER_MUST_CHANGE_EXPIRED_PASSWORD
+OBSOLETE_ER_MUST_CHANGE_EXPIRED_PASSWORD
   eng "Your password has expired. To log in you must change it using a client that supports expired passwords."
 
 ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE
@@ -3374,7 +3374,7 @@ ER_THREAD_POOL_CON_HANDLER_INIT_FAILED
 ER_THREAD_POOL_INIT_FAILED
   eng "Failed to initialize thread pool plugin."
 
-ER_THREAD_POOL_PLUGIN_STARTED
+OBSOLETE_ER_THREAD_POOL_PLUGIN_STARTED
   eng "Thread pool plugin started successfully with parameters: thread_pool_size = %lu, thread_pool_algorithm = %s, thread_pool_stall_limit = %u, thread_pool_prio_kickup_timer = %u, thread_pool_max_unused_threads = %u, thread_pool_high_priority_connection = %d."
 
 ER_THREAD_POOL_CANNOT_SET_THREAD_SPECIFIC_DATA
@@ -5694,7 +5694,7 @@ ER_IB_MSG_53
   eng "%s"
 
 ER_IB_MSG_54
-  eng "%s"
+  eng "Failed to set NUMA memory policy of buffer pool page frames with mbind(%p,%zu,%s,...,...,%s) failed with %s"
 
 ER_IB_MSG_55
   eng "%s"
@@ -6353,22 +6353,22 @@ ER_IB_MSG_272
 ER_IB_MSG_273
   eng "Can't read encryption key from file %s!"
 
-ER_IB_MSG_274
+OBSOLETE_ER_IB_MSG_274
   eng "Cannot close file %s, because n_pending_flushes %zu"
 
-ER_IB_MSG_275
+OBSOLETE_ER_IB_MSG_275
   eng "Cannot close file %s, because modification count %lld != flush count %lld"
 
-ER_IB_MSG_276
+OBSOLETE_ER_IB_MSG_276
   eng "Cannot close file %s, because it is in use"
 
-ER_IB_MSG_277
+OBSOLETE_ER_IB_MSG_277
   eng "Open file list len in shard %zu is %llu"
 
 ER_IB_MSG_278
   eng "Tablespace %s, waiting for IO to stop for %lld seconds"
 
-ER_IB_MSG_279
+OBSOLETE_ER_IB_MSG_279
   eng "%s"
 
 ER_IB_MSG_280
@@ -6384,12 +6384,12 @@ ER_IB_MSG_283
   eng "%s"
 
 ER_IB_MSG_284
-  eng "You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all log files and all system tablespace files open for the whole time mysqld is running, and needs to open also some .ibd files if the file-per-table storage model is used. Current open files %zu, max allowed open files %zu."
+  eng "You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all redo log files and all system tablespace files open for the whole time mysqld is running, and needs to open also some .ibd files if the file-per-table storage model is used. Current open files %zu, max allowed open files %zu."
 
 ER_IB_MSG_285
   eng "Max tablespace id is too high, %lu"
 
-ER_IB_MSG_286
+ER_IB_WARN_ACCESSING_NONEXISTINC_SPACE
   eng "Trying to access missing tablespace %lu"
 
 ER_IB_MSG_287
@@ -6512,7 +6512,7 @@ ER_IB_MSG_325
 ER_IB_MSG_326
   eng "%s"
 
-ER_IB_MSG_327
+OBSOLETE_ER_IB_MSG_327
   eng "%s"
 
 ER_IB_MSG_328
@@ -7136,10 +7136,10 @@ ER_IB_MSG_533
 ER_IB_MSG_534
   eng "%s"
 
-ER_IB_MSG_535
+OBSOLETE_ER_IB_MSG_535
   eng "%s"
 
-ER_IB_MSG_536
+OBSOLETE_ER_IB_MSG_536
   eng "%s"
 
 ER_IB_MSG_537
@@ -7440,7 +7440,7 @@ ER_IB_MSG_635
   eng "%s"
 
 ER_IB_MSG_636
-  eng "%s"
+  eng "Blocked High Priority Transaction (ID %llu, Thread ID %s) forces rollback of the blocking transaction (ID %llu - %s)."
 
 ER_IB_MSG_637
   eng "%s"
@@ -7449,7 +7449,7 @@ ER_IB_MSG_638
   eng "%s"
 
 ER_IB_MSG_639
-  eng "%s"
+  eng "Blocked High Priority Transaction (Thread ID %s) waking up the blocking transaction (ID %llu) by pretending it's a deadlock victim."
 
 OBSOLETE_ER_IB_MSG_640
   eng "%s"
@@ -7625,31 +7625,31 @@ ER_IB_MSG_696
 ER_IB_MSG_697
   eng "Set innodb_force_recovery to ignore this error."
 
-ER_IB_MSG_698
-  eng "The log file may have been corrupt and it is possible that the log scan did not proceed far enough in recovery! Please run CHECK TABLE on your InnoDB tables to check that they are ok! If mysqld crashes after this recovery; %s"
+ER_IB_MSG_LOG_CORRUPT
+  eng "The redo log file may have been corrupt and it is possible that the log scan did not proceed far enough in recovery! Please run CHECK TABLE on your InnoDB tables to check that they are ok! If mysqld crashes after this recovery; %s"
 
 ER_IB_MSG_699
   eng "%llu pages with log records were left unprocessed!"
 
-ER_IB_MSG_700
-  eng "%s"
+ER_IB_MSG_LOG_FORMAT_OLD_AND_LOG_CORRUPTED
+  eng "Upgrade after a crash is not supported. This redo log was created with %s, and it appears corrupted. Please follow the instructions at %s"
 
-ER_IB_MSG_701
-  eng "%s"
+ER_IB_MSG_LOG_FORMAT_OLD_AND_NO_CLEAN_SHUTDOWN
+  eng "Upgrade is not supported after a crash or shutdown with innodb_fast_shutdown = 2. This redo log was created with %s, and it appears logically non empty. Please follow the instructions at %s"
 
 OBSOLETE_ER_IB_MSG_702
-  eng "Invalid redo log header checksum."
+  eng "%s"
 
 OBSOLETE_ER_IB_MSG_703
-  eng "Unsupported redo log format (%lu). The redo log was created before MySQL 5.7.9"
+  eng "%s"
 
-ER_IB_MSG_704
-  eng "Redo log format is v%lu. The redo log was created before MySQL 8.0.3."
+ER_IB_MSG_LOG_FORMAT_BEFORE_8_0_30
+  eng "Redo log format is v%lu. The redo log was created before MySQL 8.0.30."
 
-ER_IB_MSG_705
-  eng "Unknown redo log format (%lu). Please follow the instructions at %s upgrading-downgrading.html."
+ER_IB_MSG_LOG_FILE_FORMAT_UNKNOWN
+  eng "Unknown redo log format (v%lu) in file %s. Please follow the instructions at %s"
 
-ER_IB_MSG_706
+ER_IB_MSG_RECOVERY_CHECKPOINT_NOT_FOUND
   eng "No valid checkpoint found (corrupted redo log). You can try --innodb-force-recovery=6 as a last resort."
 
 ER_IB_MSG_707
@@ -7692,9 +7692,9 @@ ER_IB_MSG_719
   eng "Could not extend tablespace: %lu space name: %s to new size: %lu pages during recovery."
 
 ER_IB_MSG_720
-  eng "Log block %llu at lsn %llu has valid header, but checksum field contains %lu, should be %lu."
+  eng "Log block %lu at lsn %llu has valid header, but checksum field contains %lu, should be %lu."
 
-ER_IB_MSG_721
+ER_IB_MSG_RECOVERY_SKIPPED_IN_READ_ONLY_MODE
   eng "Recovery skipped, --innodb-read-only set!"
 
 ER_IB_MSG_722
@@ -7718,28 +7718,28 @@ ER_IB_MSG_727
 ER_IB_MSG_728
   eng "The user has set SRV_FORCE_NO_LOG_REDO on, skipping log redo"
 
-ER_IB_MSG_729
+ER_IB_MSG_LOG_FILES_CREATED_BY_MEB_AND_READ_ONLY_MODE
   eng "Cannot restore from mysqlbackup, InnoDB running in read-only mode!"
 
-ER_IB_MSG_730
-  eng "The log file was created by mysqlbackup --apply-log at %s. The following crash recovery is part of a normal restore."
+ER_IB_MSG_LOG_FILES_CREATED_BY_MEB
+  eng "The redo log file was created by mysqlbackup --apply-log at %s. The following crash recovery is part of a normal restore."
 
-ER_IB_MSG_731
+ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE
   eng "Opening cloned database"
 
-ER_IB_MSG_732
+ER_IB_MSG_LOG_FORMAT_OLD
   eng "Redo log is from an earlier version, v%lu."
 
-ER_IB_MSG_733
+ER_IB_MSG_LOG_FORMAT_NOT_SUPPORTED
   eng "Redo log format v%lu not supported. Current supported format is v%lu."
 
-ER_IB_MSG_734
-  eng "Are you sure you are using the right ib_logfiles to start up the database? Log sequence number in the ib_logfiles is %llu, less than the log sequence number in the first system tablespace file header, %llu."
+ER_IB_MSG_RECOVERY_CHECKPOINT_FROM_BEFORE_CLEAN_SHUTDOWN
+  eng "Are you sure you are using the right redo log files to start up the database? Log sequence number in the redo log files is %llu, less than the log sequence number in the first system tablespace file header, %llu."
 
-ER_IB_MSG_735
-  eng "The log sequence number %llu in the system tablespace does not match the log sequence number %llu in the ib_logfiles!"
+ER_IB_MSG_RECOVERY_IS_NEEDED
+  eng "The log sequence number %llu in the system tablespace does not match the log sequence number %llu in the redo log files!"
 
-ER_IB_MSG_736
+ER_IB_MSG_RECOVERY_IN_READ_ONLY
   eng "Can't initiate database recovery, running in read-only-mode."
 
 ER_IB_MSG_737
@@ -8714,32 +8714,32 @@ ER_IB_MSG_1059
 ER_IB_MSG_1060
   eng "'%s' not a regular file."
 
-ER_IB_MSG_1061
+ER_IB_MSG_LOG_FILE_OS_CREATE_FAILED
   eng "Cannot create %s"
 
-ER_IB_MSG_1062
-  eng "Setting log file %s size to %llu MB. Progress : %u%%"
+ER_IB_MSG_FILE_RESIZE
+  eng "Setting file %s size to %llu MB. Progress : %u%%"
 
-ER_IB_MSG_1063
-  eng "Cannot set log file %s to size %llu MB"
+ER_IB_MSG_LOG_FILE_RESIZE_FAILED
+  eng "Cannot resize redo log file %s to %llu MB (%s)"
 
-ER_IB_MSG_1064
-  eng "Cannot create log files in read-only mode"
+ER_IB_MSG_LOG_FILES_CREATE_AND_READ_ONLY_MODE
+  eng "Cannot create redo log files in read-only mode (--innodb-read-only)."
 
 ER_IB_MSG_1065
   eng "Redo log encryption is enabled, but the keyring is not loaded."
 
-ER_IB_MSG_1066
-  eng "Cannot create file for log file %s."
+ER_IB_MSG_LOG_FILE_PREPARE_ON_CREATE_FAILED
+  eng "Failed to create redo log file %s (error: %d) for start LSN %llu"
 
-ER_IB_MSG_1067
+OBSOLETE_ER_IB_MSG_1067
   eng "Renaming log file %s to %s"
 
-ER_IB_MSG_1068
-  eng "New log files created, LSN=%llu"
+ER_IB_MSG_LOG_FILES_INITIALIZED
+  eng "New redo log files created, LSN=%llu"
 
-ER_IB_MSG_1069
-  eng "Unable to open '%s'."
+ER_IB_MSG_LOG_FILE_OPEN_FAILED
+  eng "Unable to open '%s' (error: %d)."
 
 ER_IB_MSG_1070
   eng "Cannot create construction log file '%s' for undo tablespace '%s'."
@@ -8849,8 +8849,8 @@ ER_IB_MSG_1104
 ER_IB_MSG_1105
   eng "Plugin initialization aborted %swith error %s."
 
-ER_IB_MSG_1106
-  eng "Waiting for %llu buffer page I/Os to complete"
+ER_IB_MSG_BUF_PENDING_IO
+  eng "Waiting for %zu buffer page I/Os to complete."
 
 ER_IB_MSG_1107
   eng "PUNCH HOLE support available"
@@ -8936,32 +8936,32 @@ ER_IB_MSG_1133
 ER_IB_MSG_1134
   eng "Could not open or create the system tablespace. If you tried to add new data files to the system tablespace, and it failed here, you should now edit innodb_data_file_path in my.cnf back to what it was, and remove the new ibdata files InnoDB created in this failed attempt. InnoDB only wrote those files full of zeros, but did not yet use them in any way. But be careful: do not remove old data files which contain your precious data!"
 
-ER_IB_MSG_1135
-  eng "Cannot create log files because data files are corrupt or the database was not shut down cleanly after creating the data files."
+ER_IB_MSG_DATA_DIRECTORY_NOT_INITIALIZED_OR_CORRUPTED
+  eng "Cannot create redo log files because data files are corrupt or the database was not shut down cleanly after creating the data files."
 
-ER_IB_MSG_1136
-  eng "Only one log file found"
+ER_IB_MSG_LOG_FILES_INVALID_SET
+  eng "Only one redo log file found"
 
-ER_IB_MSG_1137
-  eng "Log file %s size %llu is not a multiple of innodb_page_size"
+ER_IB_MSG_LOG_FILE_SIZE_INVALID
+  eng "The redo log file %s size %llu is not a multiple of innodb_page_size"
 
-ER_IB_MSG_1138
-  eng "Log file %s is of different size %llu bytes than other log files %llu bytes!"
+ER_IB_MSG_LOG_FILES_DIFFERENT_SIZES
+  eng "The redo log file %s is of different size %llu bytes than other log files %llu bytes!"
 
 ER_IB_MSG_1139
   eng "Use --innodb-directories to find the tablespace files. If that fails then use --innodb-force-recovery=1 to ignore this and to permanently lose all changes to the missing tablespace(s)"
 
-ER_IB_MSG_1140
-  eng "The log file may have been corrupt and it is possible that the log scan or parsing did not proceed far enough in recovery. Please run CHECK TABLE on your InnoDB tables to check that they are ok! It may be safest to recover your InnoDB database from a backup!"
+ER_IB_MSG_RECOVERY_CORRUPT
+  eng "The redo log file may have been corrupt and it is possible that the log scan or parsing did not proceed far enough in recovery. Please run CHECK TABLE on your InnoDB tables to check that they are ok! It may be safest to recover your InnoDB database from a backup!"
 
-ER_IB_MSG_1141
-  eng "Cannot resize log files in read-only mode."
+ER_IB_MSG_LOG_FILES_RESIZE_ON_START_IN_READ_ONLY_MODE
+  eng "Cannot resize redo log files in read-only mode. Provide --innodb_redo_log_capacity >= %lluMB or start without --innodb-read-only."
 
 ER_IB_MSG_1142
   eng "Cannot open DD tablespace."
 
-ER_IB_MSG_1143
-  eng "Starting to delete and rewrite log files."
+ER_IB_MSG_LOG_FILES_REWRITING
+  eng "Starting to delete and rewrite redo log files."
 
 ER_IB_MSG_1144
   eng "Undo from 5.7 found. It will be purged"
@@ -9165,7 +9165,7 @@ ER_IB_MSG_1210
   eng "%s"
 
 ER_IB_MSG_1211
-  eng "%s"
+  eng "Blocked High Priority Transaction (ID %llu, Thread ID %s) killed the blocking transaction (ID %llu - %s) by rolling it back."
 
 ER_IB_MSG_1212
   eng "%s"
@@ -9179,8 +9179,8 @@ ER_IB_MSG_1214
 ER_IB_MSG_1215
   eng "%s"
 
-ER_IB_MSG_1216
-  eng "%s"
+ER_IB_MSG_LOG_FILES_RESIZE_ON_START
+  eng "Resizing redo log from %lluM to %lluM (LSN=%llu) synchronously. If this takes too long, consider starting the server with large --innodb_redo_log_capacity, and resizing the redo log online using SET."
 
 ER_IB_MSG_1217
   eng "%s"
@@ -9227,23 +9227,23 @@ OBSOLETE_ER_IB_MSG_1230
 ER_IB_MSG_1231
   eng "%s"
 
-ER_IB_MSG_1232
+OBSOLETE_ER_IB_MSG_1232
   eng "%s"
 
 ER_IB_MSG_1233
   eng "%s"
 
-ER_IB_MSG_1234
-  eng "%s"
+ER_IB_MSG_LOG_WRITER_OUT_OF_SPACE
+  eng "Out of space in the redo log. Checkpoint LSN: %llu. Consider increasing innodb_redo_log_capacity."
 
 ER_IB_MSG_1235
   eng "%s"
 
-ER_IB_MSG_1236
-  eng "%s"
+ER_IB_MSG_LOG_WRITER_ABORTS_LOG_ARCHIVER
+  eng "Log writer waited too long for redo-archiver to advance (1 second). There are unarchived: %llu bytes. Archiver LSN: %llu. Aborted the redo-archiver. Consider increasing innodb_redo_log_capacity."
 
-ER_IB_MSG_1237
-  eng "%s"
+ER_IB_MSG_LOG_WRITER_WAITING_FOR_ARCHIVER
+  eng "Log writer is waiting for redo-archiver to catch up unarchived: %llu bytes. Archiver LSN: %llu. Consider increasing innodb_redo_log_capacity."
 
 ER_IB_MSG_1238
   eng "%s"
@@ -9251,19 +9251,19 @@ ER_IB_MSG_1238
 ER_IB_MSG_1239
   eng "%s"
 
-ER_IB_MSG_1240
+OBSOLETE_ER_IB_MSG_1240
   eng "%s"
 
 ER_IB_MSG_1241
   eng "%s"
 
-ER_IB_MSG_1242
-  eng "Can't set redo log tablespace to be encrypted in read-only mode."
+ER_IB_MSG_LOG_FILES_CANNOT_ENCRYPT_IN_READ_ONLY
+  eng "Can't set redo log files to be encrypted in read-only mode."
 
-ER_IB_MSG_1243
-  eng "Can't set redo log tablespace to be encrypted."
+ER_IB_MSG_LOG_FILES_ENCRYPTION_INIT_FAILED
+  eng "Can't set redo log files to be encrypted."
 
-ER_IB_MSG_1244
+OBSOLETE_ER_IB_MSG_1244
   eng "Can't set redo log tablespace to be encrypted."
 
 ER_IB_MSG_1245
@@ -9287,8 +9287,8 @@ ER_IB_MSG_1250
 ER_IB_MSG_1251
   eng "Waiting for page_cleaner to finish flushing of buffer pool."
 
-ER_IB_MSG_1252
-  eng "Waiting for %lu buffer page I/Os to complete."
+ER_IB_MSG_BUF_PENDING_IO_ON_SHUTDOWN
+  eng "Shutdown is waiting for %zu buffer page I/Os to complete."
 
 ER_IB_MSG_1253
   eng "MySQL has requested a very fast shutdown without flushing the InnoDB buffer pool to data files. At the next mysqld startup InnoDB will do a crash recovery!"
@@ -9323,17 +9323,17 @@ ER_IB_MSG_1262
 ER_IB_MSG_1263
   eng "%s"
 
-ER_IB_MSG_1264
-  eng "%s"
+ER_IB_MSG_LOG_FILE_HEADER_INVALID_CHECKSUM
+  eng "Invalid redo log header checksum."
 
-ER_IB_MSG_1265
-  eng "%s"
+ER_IB_MSG_LOG_FORMAT_BEFORE_5_7_9
+  eng "Unsupported redo log format (v%lu). The redo log was created before MySQL 5.7.9"
 
 ER_IB_MSG_1266
   eng "%s"
 
-ER_IB_MSG_1267
-  eng "%s"
+ER_IB_MSG_LOG_PARAMS_CONCURRENCY_MARGIN_UNSAFE
+  eng "Cannot continue operation. The innodb_redo_log_capacity=%lluM is too small for the innodb_thread_concurrency=%lu. The capacity of redo should be >= %lluM. To get mysqld running, set innodb_thread_concurrency to a smaller value or increase innodb_redo_log_capacity. %s"
 
 ER_IB_MSG_1268
   eng "%s"
@@ -9341,8 +9341,8 @@ ER_IB_MSG_1268
 ER_IB_MSG_1269
   eng "%s"
 
-ER_IB_MSG_1270
-  eng "%s"
+ER_IB_MSG_THREAD_CONCURRENCY_CHANGED
+  eng "User has set innodb_thread_concurrency to %lu."
 
 ER_RPL_SLAVE_SQL_THREAD_STOP_CMD_EXEC_TIMEOUT
   eng "STOP SLAVE command execution is incomplete: Slave SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
@@ -10797,8 +10797,8 @@ ER_NDBINFO_NOT_UPGRADING_SCHEMA
 ER_NDBINFO_UPGRADING_SCHEMA_FAIL
   eng "Failed to upgrade ndbinfo schema."
 
-ER_IB_MSG_CREATE_LOG_FILE
-  eng "Creating log file %s"
+OBSOLETE_ER_IB_MSG_CREATE_LOG_FILE
+  eng "%s"
 
 ER_IB_MSG_INNODB_START_INITIALIZE
   eng "InnoDB initialization has started."
@@ -11307,10 +11307,10 @@ ER_GRP_RPL_MEMBER_ACTION_DISABLED
 ER_GRP_RPL_MEMBER_ACTIONS_RESET
   eng "Member actions configuration was reset."
 
-ER_DEPRECATED_TLS_VERSION_SESSION
+OBSOLETE_ER_DEPRECATED_TLS_VERSION_SESSION
   eng "Accepted a connection with deprecated protocol '%s' for account `%s`@`%s` from host `%s`. Client supplied username `%s`"
 
-ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL
+OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL
   eng "A deprecated TLS version %s is enabled for channel %s"
 
 ER_FIREWALL_DEPRECATED_USER_PROFILE
@@ -11556,6 +11556,350 @@ ER_MFA_USER_ATTRIBUTES_CORRUPT
 
 ER_MFA_PLUGIN_NOT_LOADED
   eng "Plugin \'%-.192s\' is not loaded; Ignoring user"
+
+ER_WARN_DEPRECATED_CHARSET_OPTION
+  eng "%s: The character set %s is deprecated and will be removed in a future release. Please consider using %s instead."
+
+ER_WARN_DEPRECATED_COLLATION_OPTION
+  eng "%s: '%-.64s' is a collation of the deprecated character set %s. Please consider using %s with an appropriate collation instead."
+
+ER_REGEXP_MISSING_ICU_DATADIR
+  eng "Missing data directory for ICU regular expressions: %s."
+
+ER_IB_WARN_MANY_NON_LRU_FILES_OPENED
+  eng "More than 90%% of files opened out of the innodb_open_files limit are files that are not easy to close. The performance of system may degrade. Consider increasing value of the innodb_open_files system variable. There are %zu such files opened out of the total limit for all files opened of %zu."
+
+ER_IB_MSG_TRYING_TO_OPEN_FILE_FOR_LONG_TIME
+  eng "Trying to open a file for %lld seconds. Configuration only allows for %zu open files. Consider setting innobase_open_files higher."
+
+ER_GLOBAL_CONN_LIMIT
+  eng "Connection closed. Global connection memory limit %llu bytes exceeded. Consumed %llu bytes."
+
+ER_CONN_LIMIT
+  eng "Connection closed. Connection memory limit %llu bytes exceeded. Consumed %llu bytes."
+
+ER_WARN_AUDIT_LOG_DISABLED
+  eng "Audit Log is disabled. Enable it with audit_log_disable = false."
+
+ER_INVALID_TLS_VERSION
+  eng "Option --tls-version or --admin-tls-version is set to an invalid value %s."
+
+ER_RPL_RELAY_LOG_RECOVERY_GTID_ONLY
+  eng "Relay log recovery on channel with GTID_ONLY=1. The channel will switch to a new relay log and the GTID protocol will be used to replicate unapplied transactions."
+
+ER_KEYRING_OKV_STANDBY_SERVER_COUNT_EXCEEDED
+  eng "Number of STANDBY_SERVER values exceeded maximum limit of 64."
+
+ER_WARN_MIGRATION_EMPTY_SOURCE_KEYRING
+  eng "Source keyring does not have any keys to migrate."
+
+ER_WARN_CANNOT_PERSIST_SENSITIVE_VARIABLES
+  eng "Cannot persist SENSITIVE system variables because keyring component support is unavailable and persist_sensitive_variables_in_plaintext is set to OFF. Please make sure that keyring services are active and required keys are available."
+
+ER_CANNOT_INTERPRET_PERSISTED_SENSITIVE_VARIABLES
+  eng "Cannot interpret persisted SENSITIVE system variables. Please make sure that keyring services are active and required keys are available."
+
+ER_PERSISTED_VARIABLES_KEYRING_SUPPORT_REQUIRED
+  eng "Keyring has to be loaded through manifest file in order to support secure storage for persisted variables"
+
+ER_PERSISTED_VARIABLES_MASTER_KEY_NOT_FOUND
+  eng "Could not find master key %s in keyring"
+
+ER_PERSISTED_VARIABLES_MASTER_KEY_CANNOT_BE_GENERATED
+  eng "A new master key %s could not be generated"
+
+ER_PERSISTED_VARIABLES_ENCRYPTION_FAILED
+  eng "Failed to encrypt %s using %s"
+
+ER_PERSISTED_VARIABLES_DECRYPTION_FAILED
+  eng "Failed to decrypt %s using %s"
+
+ER_PERSISTED_VARIABLES_LACK_KEYRING_SUPPORT
+  eng "Persisting SENSITIVE variables in encrypted form requires keyring component loaded through manifest file."
+
+ER_MY_MALLOC_USING_JEMALLOC
+  eng "Using jemalloc.dll for my_malloc and ut::malloc etc."
+
+ER_MY_MALLOC_USING_STD_MALLOC
+  eng "%s."
+
+ER_MY_MALLOC_LOADLIBRARY_FAILED
+  eng "%s."
+
+ER_MY_MALLOC_GETPROCADDRESS_FAILED
+  eng "%s."
+
+ER_ACCOUNT_WITH_EXPIRED_PASSWORD
+  eng "Password for the account '%-.48s'@'%-.64s' has expired. To log in, either change it using a client that supports expired passwords or send the change request to an administrator."
+
+ER_THREAD_POOL_PLUGIN_STARTED
+  eng "Thread pool plugin started successfully with parameters: %s"
+
+ER_THREAD_POOL_DEDICATED_LISTENERS_INVALID
+  eng "thread_pool_dedicated_listeners cannot be set unless thread_pool_max_transactions_limit > 0"
+
+ER_IB_DBLWR_BYTES_INFO
+  eng "%s"
+
+ER_IB_RDBLWR_BYTES_INFO
+  eng "%s"
+
+ER_IB_MSG_LOG_FILE_IS_EMPTY
+  eng "The redo log file %s is empty, which indicates it was not generated by InnoDB or become corrupted. Please restore the correct file or try recovering without the redo files, in read-only mode, by providing --innodb-force-recovery=6."
+
+ER_IB_MSG_LOG_FILE_TOO_SMALL
+  eng "The redo log file %s is smaller than %llu bytes, which indicates it was not generated by InnoDB or become corrupted. Please restore the correct file."
+
+ER_IB_MSG_LOG_FILE_TOO_BIG
+  eng "The redo log file %s is larger than %llu bytes, which indicates it was not generated by InnoDB or become corrupted. Please restore the correct file."
+
+ER_IB_MSG_LOG_FILE_HEADER_READ_FAILED
+  eng "Failed to read header of the redo log file %s"
+
+ER_IB_MSG_LOG_INIT_DIR_NOT_EMPTY_WONT_INITIALIZE
+  eng "--initialize specified but the redo log directory %s has redo log files inside. Aborting."
+
+ER_IB_MSG_LOG_INIT_DIR_LIST_FAILED
+  eng "Failed to list redo log files in the redo log directory %s"
+
+ER_IB_MSG_LOG_INIT_DIR_MISSING_SUBDIR
+  eng "Neither found %s subdirectory, nor %s* files in %s"
+
+ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE_AND_READ_ONLY_MODE
+  eng "Cannot restore cloned data directory, InnoDB running in read-only mode!"
+
+ER_IB_MSG_LOG_WRITER_WRITE_FAILED
+  eng "Error %d encountered when writing to the redo log file: %s."
+
+ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE
+  eng "Redo log writer is waiting for a new redo log file. Consider increasing innodb_redo_log_capacity."
+
+ER_IB_MSG_RECOVERY_CHECKPOINT_OUTSIDE_LOG_FILE
+  eng "Found checkpoint LSN %llu in a redo log file %s, but the file represents range of LSN values [%llu, %llu), so the file is corrupted."
+
+ER_IB_MSG_LOG_WRITER_ENTERED_EXTRA_MARGIN
+  eng "Redo log is running out of free space, pausing user threads... Consider increasing innodb_redo_log_capacity."
+
+ER_IB_MSG_LOG_WRITER_EXITED_EXTRA_MARGIN
+  eng "Redo log reclaimed some free space, resuming user threads."
+
+ER_IB_MSG_LOG_PARAMS_FILE_SIZE_UNUSED
+  eng "Ignored deprecated configuration parameter innodb_log_file_size. Used innodb_redo_log_capacity instead."
+
+ER_IB_MSG_LOG_PARAMS_N_FILES_UNUSED
+  eng "Ignored deprecated configuration parameter innodb_log_files_in_group. Used innodb_redo_log_capacity instead."
+
+ER_IB_MSG_LOG_UPGRADE_FORCED_RECV
+  eng "Cannot upgrade format (v%lu) of redo log files when innodb-force-recovery > 0."
+
+ER_IB_MSG_LOG_UPGRADE_IN_READ_ONLY_MODE
+  eng "Cannot upgrade format (v%lu) of redo log files in read-only mode (--innodb-read-only)."
+
+ER_IB_MSG_LOG_UPGRADE_CLONED_DB
+  eng "Cannot upgrade format (v%lu) of redo log files on cloned data directory. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
+
+ER_IB_MSG_LOG_UPGRADE_UNINITIALIZED_FILES
+  eng "Cannot upgrade format (v%lu) of redo log files because they are marked as uninitialized. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
+
+ER_IB_MSG_LOG_UPGRADE_CORRUPTION__UNEXPECTED
+  eng "Cannot upgrade format (v%lu) of redo log files when the redo log is corrupted. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
+
+ER_IB_MSG_LOG_UPGRADE_NON_PERSISTED_DD_METADATA__UNEXPECTED
+  eng "Cannot upgrade format (v%lu) of redo log files when there is non-persisted DD metadata in redo. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
+
+ER_IB_MSG_LOG_UPGRADE_FLUSH_FAILED__UNEXPECTED
+  eng "Cannot upgrade format (v%lu) of redo log files, because InnoDB failed to reach state in which redo log is logically empty. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
+
+ER_IB_MSG_LOG_FILES_RESIZE_ON_START_FAILED__UNEXPECTED
+  eng "Failed to resize the redo log synchronously, because InnoDB failed to reach state in which redo log is logically empty. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
+
+ER_IB_MSG_LOG_FILE_FOREIGN_UUID
+  eng "The redo log file %s comes from other data directory than redo log file %s."
+
+ER_IB_MSG_LOG_FILE_INVALID_START_LSN
+  eng "The redo log file %s has invalid start_lsn %llu."
+
+ER_IB_MSG_LOG_FILE_INVALID_LSN_RANGES
+  eng "The redo log file %s has start_lsn %llu but expected %llu (end_lsn of the previous redo log file)."
+
+ER_IB_MSG_LOG_FILE_MISSING_FOR_ID
+  eng "Missing redo log file %s (with start_lsn = %llu)."
+
+ER_IB_MSG_LOG_CHECKPOINT_FOUND
+  eng "The latest found checkpoint is at lsn = %llu in redo log file %s."
+
+ER_IB_MSG_LOG_FILES_CAPACITY_CHANGED
+  eng "User has set innodb_redo_log_capacity to %lluM."
+
+ER_IB_MSG_LOG_FILES_RESIZE_REQUESTED
+  eng "Redo log has been requested to resize from %lluM to %lluM."
+
+ER_IB_MSG_LOG_FILES_RESIZE_CANCELLED
+  eng "Redo log resize has been cancelled."
+
+ER_IB_MSG_LOG_FILES_RESIZE_FINISHED
+  eng "Redo log has been resized to %lluM."
+
+ER_IB_MSG_LOG_FILES_UPGRADE
+  eng "Upgrading redo log: %lluM, LSN=%llu."
+
+ER_IB_MSG_LOG_FILE_MARK_CURRENT_AS_INCOMPLETE
+  eng "Marked the current redo log file %s as incomplete."
+
+ER_IB_MSG_LOG_FILE_REMOVE_FAILED
+  eng "Failed to remove redo log file %s."
+
+ER_IB_MSG_LOG_FILE_RENAME_ON_CREATE_FAILED
+  eng "Failed to rename %s when creating redo log file %s (error: %d)"
+
+ER_IB_MSG_LOG_FILES_CREATED_BY_UNKNOWN_CREATOR
+  eng "Redo log files created by unknown creator %s."
+
+ER_IB_MSG_LOG_FILES_FOUND_MISSING
+  eng "Found existing redo log files, but at least one is missing. It is unknown if recovery could reach physically consistent state. Please consider restoring from backup or providing --innodb-force-recovery > 0."
+
+ER_IB_MSG_LOG_FILE_FORMAT_TOO_NEW
+  eng "Found redo log file %s which has format (v%lu) and is stored outside #innodb_redo."
+
+ER_IB_MSG_LOG_FILE_FORMAT_TOO_OLD
+  eng "Found redo log file %s which has format (v%lu) and is stored inside #innodb_redo."
+
+ER_IB_MSG_LOG_FILE_DIFFERENT_FORMATS
+  eng "Found redo log files with different formats: %s has format v%lu, %s has format v%lu."
+
+ER_IB_MSG_LOG_PRE_8_0_30_MISSING_FILE0
+  eng "Missing ib_logfile0 in the directory %s."
+
+ER_IB_MSG_LOG_PFS_ACQUIRE_SERVICES_FAILED
+  eng "Failed to initialize services required to handle redo log PFS tables."
+
+ER_IB_MSG_LOG_PFS_CREATE_TABLES_FAILED
+  eng "Failed to create redo log PFS tables."
+
+ER_IB_MSG_LOG_FILE_TRUNCATE
+  eng "Truncating redo log file %s..."
+
+ER_IB_MSG_LOG_FILE_UNUSED_RESIZE_FAILED
+  eng "Failed to resize unused redo log file %s to %llu MB (%s)."
+
+ER_IB_MSG_LOG_FILE_UNUSED_REMOVE_FAILED
+  eng "Failed to remove unused redo log file %s."
+
+ER_IB_MSG_LOG_FILE_UNUSED_RENAME_FAILED
+  eng "Failed to rename unused redo log file %s to %s."
+
+ER_IB_MSG_LOG_FILE_UNUSED_MARK_AS_IN_USE_FAILED
+  eng "Failed to mark unused redo log file %s as in use (by renaming to %s)."
+
+ER_IB_MSG_LOG_FILE_MARK_AS_UNUSED_FAILED
+  eng "Failed to mark redo log file %s as unused (by renaming to %s)."
+
+ER_IB_MSG_LOG_PARAMS_DEDICATED_SERVER_IGNORED
+  eng "Option innodb_dedicated_server is ignored for innodb_redo_log_capacity, because innodb_redo_log_capacity, innodb_log_file_size or innodb_log_files_in_group is specified explicitly. Redo log capacity: %lluM."
+
+ER_IB_MSG_LOG_PARAMS_LEGACY_USAGE
+  eng "Deprecated configuration parameters innodb_log_file_size and/or innodb_log_files_in_group have been used to compute innodb_redo_log_capacity=%llu. Please use innodb_redo_log_capacity instead."
+
+ER_GRP_RPL_FAILED_TO_LOG_VIEW_CHANGE
+  eng "This member was unable to log the View_change_log_event into the binary log, hence it will leave the group. Please check that there is available disk space and add the member back to the group."
+
+ER_BINLOG_CRASH_RECOVERY_MALFORMED_LOG
+  eng "Found invalid event sequence while recovering from binary log file '%s', between positions %llu and %llu: %s. The recovery process was stopped early and no transaction was recovered. Side effects may be transactions in an inconsistent state between the binary log and the storage engines, or transactions kept by storage engines in a prepared state (possibly holding locks). Either fix the issues with the binary log or, to release possibly acquired locks, disable the binary log during server recovery. Note that disabling the binary log may lead to loss of transactions that were already acknowledged as successful to client connections and may have been replicated to other servers in the topology."
+
+ER_BINLOG_CRASH_RECOVERY_ERROR_RETURNED_SE
+  eng "Storage engines failed to recover one or more transactions. The recovery process was stopped early, check previous messages for the details on failed transactions. Side effects may be transactions in an inconsistent state between the binary log and the storage engines, or transactions kept by storage engines in a prepared state (possibly holding locks). Either fix the issues with the storage engine (out-of-memory, no disk space, etc) or, to release possibly acquired locks held by XA transactions, disable the binary log during server recovery and check consistency between storage engines and binary log files."
+
+ER_BINLOG_CRASH_RECOVERY_ENGINE_RESULTS
+  eng "Crash recovery finished in %s engine. %s"
+
+ER_BINLOG_CRASH_RECOVERY_COMMIT_FAILED
+  eng "Failed to commit %s in %s, with failure code %s."
+
+ER_BINLOG_CRASH_RECOVERY_ROLLBACK_FAILED
+  eng "Failed to rollback %s in %s, with failure code %s."
+
+ER_BINLOG_CRASH_RECOVERY_PREPARE_FAILED
+  eng "Failed to prepare %s in %s, with failure code %s."
+ER_COMPONENT_EE_SYS_VAR_REGISTRATION_FAILURE
+  eng "Cannot register variable '%s'. Please check if it is not already registered by another component."
+
+ER_COMPONENT_EE_SYS_VAR_DEREGISTRATION_FAILURE
+  eng "Cannot unregister variable '%s'. Please check if it was registered properly in the first place."
+
+ER_COMPONENT_EE_FUNCTION_REGISTRATION_FAILURE
+  eng "Cannot register function '%s'. Please check if it is not already registered."
+
+ER_COMPONENT_EE_FUNCTION_DEREGISTRATION_FAILURE
+  eng "Cannot unregister function '%s'. Please check if it was registered properly in the first place."
+
+ER_COMPONENT_EE_FUNCTION_INVALID_ARGUMENTS
+  eng "Invalid arguments to function '%s'. Expected values: %s."
+
+ER_COMPONENT_EE_FUNCTION_INVALID_ALGORITHM
+  eng "Invalid algorithm value '%.20s' in function %s."
+
+ER_COMPONENT_EE_FUNCTION_KEY_LENGTH_OUT_OF_RANGE
+  eng "Invalid key length '%d' for function '%s' with algorithm '%.20s'. Please provide a value between [%d, %d]."
+
+ER_COMPONENT_EE_FUNCTION_PRIVATE_KEY_GENERATION_FAILURE
+  eng "Failed to generate private key of length '%d' with algorithm '%.20s' in function '%s'. More details about the error would have been logged before this message."
+
+ER_COMPONENT_EE_FUNCTION_PUBLIC_KEY_GENERATION_FAILURE
+  eng "Failed to generate public key with algorithm '%.20s' for given private key in function '%s'. More details about the error would have been logged before this message."
+
+ER_COMPONENT_EE_DATA_LENGTH_OUT_OF_RAGE
+  eng "Invalid data length '%d' (in bytes) for function '%s' with algorithm '%.20s'. The maximum support data length for given private key is %d (in bytes)."
+
+ER_COMPONENT_EE_DATA_ENCRYPTION_ERROR
+  eng "Could not encrypt data in function '%s' using algorithm '%.20s'. Data length was '%d' bytes. More details about the error would have been logged before this message."
+
+ER_COMPONENT_EE_DATA_DECRYPTION_ERROR
+  eng "Could not decrypt data in function '%s' using algorithm '%.20s'. Data length was '%d' bytes. More details about the error would have been logged before this message."
+
+ER_COMPONENT_EE_DATA_SIGN_ERROR
+  eng "Could not sign data in function '%s' using algorithm '%.20s' and digest type '%.20s'. More details about the error would have logged before this message."
+
+ER_COMPONENT_EE_OPENSSL_ERROR
+  eng "Received OpenSSL error in function '%s' for algorithm '%s': '%s'"
+
+ER_COMPONENT_EE_INSUFFICIENT_LENGTH
+  eng "In function '%s' with algorithm '%s': insufficient output buffer length '%zu'. Required length '%zu'."
+
+ER_SYSTEMD_NOTIFY_DEBUG
+  eng "%s%s"
+
+ER_TMP_SESSION_FOR_VAR
+  eng "Setting session values for system variables only makes sense in a user session (failed to set '%.256s')."
+
+ER_BUILD_ID
+  eng "BuildID[sha1]=%s"
+
+ER_THREAD_POOL_CANNOT_REGISTER_DYNAMIC_PRIVILEGE
+  eng "Failed to register dynamic privilege %s."
+
+ER_IB_MSG_LOG_WRITER_WAIT_ON_CONSUMER
+  eng "Redo log writer is waiting for %s redo log consumer which is currently reading LSN=%llu preventing reclamation of subsequent portion of the redo log. Consider increasing innodb_redo_log_capacity."
+
+ER_CONDITIONAL_DEBUG
+  eng "%s"
+
+ER_IB_MSG_PARSE_OLD_REDO_INDEX_VERSION
+  eng "Recovery: Generating index information for INSTANT DDL Table in 8.0.29 format"
+
+ER_RES_GRP_FAILED_TO_SWITCH_RESOURCE_GROUP
+  eng "Failed to switch resource group. %s".
+
+ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_GLOBAL_LOCK
+  eng "Failed to switch resource group. Could not acquire resource groups global lock."
+
+ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_LOCK
+  eng "Failed to switch resource group. Could not acquire lock on resource group %s."
+
+ER_RES_GRP_SWITCH_FAILED_UNABLE_TO_APPLY_RES_GRP
+  eng "Failed to switch resource group. Unable to apply resource group controller %s."
+
+ER_IB_MSG_CLEAR_INSTANT_DROP_COLUMN_METADATA
+  eng "Failed to clear instant drop column metadata for table %s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,7 @@ class log_service_imp {
     Open a new instance.
 
     @returns  <0        a new instance could not be created
-    @returns  =0        success, returned hande is valid
+    @returns  =0        success, returned handle is valid
   */
   static DEFINE_METHOD(log_service_error, open,
                        (log_line * ll, void **instance));

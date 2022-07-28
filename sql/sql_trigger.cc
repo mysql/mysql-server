@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <string.h>
+
 #include <string>
 #include <utility>
 
@@ -289,11 +290,16 @@ TABLE *Sql_cmd_ddl_trigger_common::open_and_lock_subj_table(
   Close all open instances of a trigger's table, reopen it if needed,
   invalidate SP-cache and possibly write a statement to binlog.
 
-  @param[in] thd         Current thread context
-  @param[in] db_name     Database name where trigger's table defined
-  @param[in] table       Table associated with a trigger
-  @param[in] stmt_query  Query string to write to binlog
-  @param[in] binlog_stmt Should the statement be binlogged?
+  @param[in] thd                     Current thread context
+  @param[in] db_name                 Database name where trigger's table
+                                     defined
+  @param[in] table                   Table associated with a trigger
+  @param[in] stmt_query              Query string to write to binlog
+  @param[in] binlog_stmt             Should the statement be binlogged?
+  @param[in] trg_created_or_dropped  Set to true if trigger is created or
+                                     dropped. Set to false if the statement
+                                     failed or the trigger already existed in
+                                     case of CREATE TRIGGER IF NOT EXISTS.
 
   @return Operation status.
     @retval false Success
@@ -301,7 +307,8 @@ TABLE *Sql_cmd_ddl_trigger_common::open_and_lock_subj_table(
 */
 
 static bool finalize_trigger_ddl(THD *thd, const char *db_name, TABLE *table,
-                                 const String &stmt_query, bool binlog_stmt) {
+                                 const String &stmt_query, bool binlog_stmt,
+                                 bool trg_created_or_dropped) {
   close_all_tables_for_name(thd, table->s, false, nullptr);
   /*
     Reopen the table if we were under LOCK TABLES.
@@ -310,17 +317,18 @@ static bool finalize_trigger_ddl(THD *thd, const char *db_name, TABLE *table,
   */
   thd->locked_tables_list.reopen_tables(thd);
   /*
-    Invalidate SP-cache. That's needed because triggers may change list of
-    pre-locking tables.
+    Invalidate SP-cache if trigger was created or dropped. This is needed
+    because triggers may change list of pre-locking tables.
   */
-  sp_cache_invalidate();
+  if (trg_created_or_dropped) sp_cache_invalidate();
 
   if (!binlog_stmt) return false;
 
   thd->add_to_binlog_accessed_dbs(db_name);
 
   DEBUG_SYNC(thd, "trigger_ddl_stmt_before_write_to_binlog");
-  return write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length(), true);
+  return write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length(),
+                       trg_created_or_dropped);
 }
 
 void Sql_cmd_ddl_trigger_common::restore_original_mdl_state(
@@ -430,10 +438,14 @@ bool Sql_cmd_create_trigger::execute(THD *thd) {
   String stmt_query;
   stmt_query.set_charset(system_charset_info);
 
-  bool result = table->triggers->create_trigger(thd, &stmt_query);
+  bool trigger_already_exists = false;
+  bool result = table->triggers->create_trigger(
+      thd, &stmt_query,
+      thd->lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS,
+      trigger_already_exists);
 
   result |= finalize_trigger_ddl(thd, m_trigger_table->db, table, stmt_query,
-                                 !result);
+                                 !result, !(result || trigger_already_exists));
 
   DBUG_EXECUTE_IF("simulate_create_trigger_failure", {
     result = true;
@@ -555,7 +567,8 @@ bool Sql_cmd_drop_trigger::execute(THD *thd) {
   if (!result)
     result = stmt_query.append(thd->query().str, thd->query().length);
 
-  result |= finalize_trigger_ddl(thd, tables->db, table, stmt_query, !result);
+  result |= finalize_trigger_ddl(thd, tables->db, table, stmt_query, !result,
+                                 !result);
 
   DBUG_EXECUTE_IF("simulate_drop_trigger_failure", {
     result = true;

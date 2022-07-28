@@ -1,0 +1,91 @@
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
+# restore mysql tables from 8.0.27
+SHOW KEYS FROM mysql.db;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+db	0	PRIMARY	1	Host	A	1	NULL	NULL		BTREE			YES	NULL
+db	0	PRIMARY	2	Db	A	1	NULL	NULL		BTREE			YES	NULL
+db	0	PRIMARY	3	User	A	1	NULL	NULL		BTREE			YES	NULL
+db	1	User	1	User	A	1	NULL	NULL		BTREE			YES	NULL
+SHOW KEYS FROM mysql.tables_priv;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tables_priv	0	PRIMARY	1	Host	A	1	NULL	NULL		BTREE			YES	NULL
+tables_priv	0	PRIMARY	2	Db	A	1	NULL	NULL		BTREE			YES	NULL
+tables_priv	0	PRIMARY	3	User	A	1	NULL	NULL		BTREE			YES	NULL
+tables_priv	0	PRIMARY	4	Table_name	A	1	NULL	NULL		BTREE			YES	NULL
+tables_priv	1	Grantor	1	Grantor	A	1	NULL	NULL		BTREE			YES	NULL
+SHOW KEYS FROM mysql.columns_priv;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+columns_priv	0	PRIMARY	1	Host	A	1	NULL	NULL		BTREE			YES	NULL
+columns_priv	0	PRIMARY	2	Db	A	1	NULL	NULL		BTREE			YES	NULL
+columns_priv	0	PRIMARY	3	User	A	1	NULL	NULL		BTREE			YES	NULL
+columns_priv	0	PRIMARY	4	Table_name	A	1	NULL	NULL		BTREE			YES	NULL
+columns_priv	0	PRIMARY	5	Column_name	A	1	NULL	NULL		BTREE			YES	NULL
+SHOW KEYS FROM mysql.procs_priv;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+procs_priv	0	PRIMARY	1	Host	A	0	NULL	NULL		BTREE			YES	NULL
+procs_priv	0	PRIMARY	2	Db	A	0	NULL	NULL		BTREE			YES	NULL
+procs_priv	0	PRIMARY	3	User	A	0	NULL	NULL		BTREE			YES	NULL
+procs_priv	0	PRIMARY	4	Routine_name	A	0	NULL	NULL		BTREE			YES	NULL
+procs_priv	0	PRIMARY	5	Routine_type	A	0	NULL	NULL		BTREE			YES	NULL
+procs_priv	1	Grantor	1	Grantor	A	0	NULL	NULL		BTREE			YES	NULL
+# Restart server without upgrade option
+# restart
+# Restart server with upgrade option
+# restart:--upgrade=force
+SHOW KEYS FROM mysql.db;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+db	0	PRIMARY	1	Host	A	1	NULL	NULL		BTREE			YES	NULL
+db	0	PRIMARY	2	User	A	1	NULL	NULL		BTREE			YES	NULL
+db	0	PRIMARY	3	Db	A	1	NULL	NULL		BTREE			YES	NULL
+db	1	User	1	User	A	1	NULL	NULL		BTREE			YES	NULL
+SHOW KEYS FROM mysql.tables_priv;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tables_priv	0	PRIMARY	1	Host	A	1	NULL	NULL		BTREE			YES	NULL
+tables_priv	0	PRIMARY	2	User	A	1	NULL	NULL		BTREE			YES	NULL
+tables_priv	0	PRIMARY	3	Db	A	1	NULL	NULL		BTREE			YES	NULL
+tables_priv	0	PRIMARY	4	Table_name	A	1	NULL	NULL		BTREE			YES	NULL
+tables_priv	1	Grantor	1	Grantor	A	1	NULL	NULL		BTREE			YES	NULL
+SHOW KEYS FROM mysql.columns_priv;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+columns_priv	0	PRIMARY	1	Host	A	1	NULL	NULL		BTREE			YES	NULL
+columns_priv	0	PRIMARY	2	User	A	1	NULL	NULL		BTREE			YES	NULL
+columns_priv	0	PRIMARY	3	Db	A	1	NULL	NULL		BTREE			YES	NULL
+columns_priv	0	PRIMARY	4	Table_name	A	1	NULL	NULL		BTREE			YES	NULL
+columns_priv	0	PRIMARY	5	Column_name	A	1	NULL	NULL		BTREE			YES	NULL
+SHOW KEYS FROM mysql.procs_priv;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+procs_priv	0	PRIMARY	1	Host	A	0	NULL	NULL		BTREE			YES	NULL
+procs_priv	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES	NULL
+procs_priv	0	PRIMARY	3	Db	A	0	NULL	NULL		BTREE			YES	NULL
+procs_priv	0	PRIMARY	4	Routine_name	A	0	NULL	NULL		BTREE			YES	NULL
+procs_priv	0	PRIMARY	5	Routine_type	A	0	NULL	NULL		BTREE			YES	NULL
+procs_priv	1	Grantor	1	Grantor	A	0	NULL	NULL		BTREE			YES	NULL
+CREATE USER wl14965_u2;
+GRANT ALL ON test.* to wl14965_u2;
+SHOW GRANTS FOR wl14965_u2;
+Grants for wl14965_u2@%
+GRANT USAGE ON *.* TO `wl14965_u2`@`%`
+GRANT ALL PRIVILEGES ON `test`.* TO `wl14965_u2`@`%`
+DROP USER wl14965_u2;
+# ensure that key_len is 351 which includes length of host(255) + user(96)
+EXPLAIN SELECT * FROM mysql.db WHERE host='' AND user='';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	db	NULL	ref	PRIMARY,User	PRIMARY	351	const,const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysql`.`db`.`Host` AS `Host`,`mysql`.`db`.`Db` AS `Db`,`mysql`.`db`.`User` AS `User`,`mysql`.`db`.`Select_priv` AS `Select_priv`,`mysql`.`db`.`Insert_priv` AS `Insert_priv`,`mysql`.`db`.`Update_priv` AS `Update_priv`,`mysql`.`db`.`Delete_priv` AS `Delete_priv`,`mysql`.`db`.`Create_priv` AS `Create_priv`,`mysql`.`db`.`Drop_priv` AS `Drop_priv`,`mysql`.`db`.`Grant_priv` AS `Grant_priv`,`mysql`.`db`.`References_priv` AS `References_priv`,`mysql`.`db`.`Index_priv` AS `Index_priv`,`mysql`.`db`.`Alter_priv` AS `Alter_priv`,`mysql`.`db`.`Create_tmp_table_priv` AS `Create_tmp_table_priv`,`mysql`.`db`.`Lock_tables_priv` AS `Lock_tables_priv`,`mysql`.`db`.`Create_view_priv` AS `Create_view_priv`,`mysql`.`db`.`Show_view_priv` AS `Show_view_priv`,`mysql`.`db`.`Create_routine_priv` AS `Create_routine_priv`,`mysql`.`db`.`Alter_routine_priv` AS `Alter_routine_priv`,`mysql`.`db`.`Execute_priv` AS `Execute_priv`,`mysql`.`db`.`Event_priv` AS `Event_priv`,`mysql`.`db`.`Trigger_priv` AS `Trigger_priv` from `mysql`.`db` where ((`mysql`.`db`.`User` = '') and (`mysql`.`db`.`Host` = ''))
+EXPLAIN SELECT * FROM mysql.tables_priv WHERE host='' AND user='';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tables_priv	NULL	ref	PRIMARY	PRIMARY	351	const,const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysql`.`tables_priv`.`Host` AS `Host`,`mysql`.`tables_priv`.`Db` AS `Db`,`mysql`.`tables_priv`.`User` AS `User`,`mysql`.`tables_priv`.`Table_name` AS `Table_name`,`mysql`.`tables_priv`.`Grantor` AS `Grantor`,`mysql`.`tables_priv`.`Timestamp` AS `Timestamp`,`mysql`.`tables_priv`.`Table_priv` AS `Table_priv`,`mysql`.`tables_priv`.`Column_priv` AS `Column_priv` from `mysql`.`tables_priv` where ((`mysql`.`tables_priv`.`User` = '') and (`mysql`.`tables_priv`.`Host` = ''))
+EXPLAIN SELECT * FROM mysql.columns_priv WHERE host='' AND user='';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	columns_priv	NULL	ref	PRIMARY	PRIMARY	351	const,const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysql`.`columns_priv`.`Host` AS `Host`,`mysql`.`columns_priv`.`Db` AS `Db`,`mysql`.`columns_priv`.`User` AS `User`,`mysql`.`columns_priv`.`Table_name` AS `Table_name`,`mysql`.`columns_priv`.`Column_name` AS `Column_name`,`mysql`.`columns_priv`.`Timestamp` AS `Timestamp`,`mysql`.`columns_priv`.`Column_priv` AS `Column_priv` from `mysql`.`columns_priv` where ((`mysql`.`columns_priv`.`User` = '') and (`mysql`.`columns_priv`.`Host` = ''))
+EXPLAIN SELECT * FROM mysql.procs_priv WHERE host='' AND user='';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	procs_priv	NULL	ref	PRIMARY	PRIMARY	351	const,const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysql`.`procs_priv`.`Host` AS `Host`,`mysql`.`procs_priv`.`Db` AS `Db`,`mysql`.`procs_priv`.`User` AS `User`,`mysql`.`procs_priv`.`Routine_name` AS `Routine_name`,`mysql`.`procs_priv`.`Routine_type` AS `Routine_type`,`mysql`.`procs_priv`.`Grantor` AS `Grantor`,`mysql`.`procs_priv`.`Proc_priv` AS `Proc_priv`,`mysql`.`procs_priv`.`Timestamp` AS `Timestamp` from `mysql`.`procs_priv` where ((`mysql`.`procs_priv`.`User` = '') and (`mysql`.`procs_priv`.`Host` = ''))
+DROP DATABASE wl14965;

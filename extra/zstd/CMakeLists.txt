@@ -50,11 +50,20 @@ ADD_CONVENIENCE_LIBRARY(zstd
   INCLUDE_DIRECTORIES ${ZSTD_VERSION_DIR}/lib/common
   )
 
+# In case we have OPTIMIZE_DEBUG_BUILDS:BOOL=ON
+# This seems to be a gcc12 bug, the combination
+# FORCE_INLINE_TEMPLATE and -Og breaks the build.
+STRING(REPLACE " -Og " "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
 IF(HAS_MISSING_PROFILE)
   TARGET_COMPILE_OPTIONS(zstd_objlib PRIVATE ${HAS_MISSING_PROFILE})
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wdocumentation" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
 
 #-----------------------------------------------------------------------------
 # Add extra compilation flags

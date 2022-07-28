@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,14 +108,14 @@ static struct my_option my_long_options[] = {
      &opt_compress, &opt_compress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
      0, nullptr},
 #ifdef NDEBUG
-    {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
-     GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "This is a non-debug version. Catch this and exit.", nullptr,
+     nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-info", OPT_DEBUG_INFO,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #else
     {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", nullptr,
      nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -409,7 +409,7 @@ static int lock_table(MYSQL *mysql, int tablecount, char **raw_tablename) {
     dynstr_append(&query, " WRITE,");
   }
   if (mysql_real_query(mysql, query.str, (ulong)(query.length - 1)))
-    return db_error(mysql); /* We shall countinue here, if --force was given */
+    return db_error(mysql); /* We shall continue here, if --force was given */
   return 0;
 }
 
@@ -469,6 +469,11 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *) {
                            opt_mysql_unix_port, 0))) {
     ignore_errors = false; /* NO RETURN FROM db_error */
     db_error(mysql);
+    if (mysql) mysql_close(mysql);
+    return nullptr;
+  }
+  if (ssl_client_check_post_connect_ssl_setup(
+          mysql, [](const char *err) { fprintf(stderr, "%s\n", err); })) {
     if (mysql) mysql_close(mysql);
     return nullptr;
   }
@@ -539,7 +544,7 @@ static char *field_escape(char *to, const char *from, uint length) {
       end_backslashes ^= 1; /* find odd number of backslashes */
     else {
       if (*from == '\'' && !end_backslashes)
-        *to++ = *from; /* We want a dublicate of "'" for MySQL */
+        *to++ = *from; /* We want a duplicate of "'" for MySQL */
       end_backslashes = 0;
     }
   }
@@ -566,7 +571,7 @@ static void *worker_thread(void *arg) {
   if (mysql_query(mysql, "/*!40101 set @@character_set_database=binary */;") &&
       (error = db_error(mysql))) {
     if (exitcode == 0) exitcode = error;
-    /* We shall countinue here, if --force was given */
+    /* We shall continue here, if --force was given */
     goto error;
   }
 
@@ -686,7 +691,7 @@ int main(int argc, char **argv) {
                     "/*!40101 set @@character_set_database=binary */;") &&
         (error = db_error(mysql))) {
       if (exitcode == 0) exitcode = error;
-      /* We shall countinue here, if --force was given */
+      /* We shall continue here, if --force was given */
       goto end;
     }
 

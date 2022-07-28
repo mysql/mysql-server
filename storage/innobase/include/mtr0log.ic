@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,16 +64,16 @@ static inline void mlog_close(
   mtr->get_log()->close(ptr);
 }
 
-/** Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
+/** Concatenates 1 - 4 bytes to the mtr log. The value is not compressed. */
 static inline void mlog_catenate_ulint(
     mtr_buf_t *mtr_buf, /*!< in/out: buffer to write */
     ulint val,          /*!< in: value to write */
     mlog_id_t type)     /*!< in: type of value to write */
 {
-  ut_ad(MLOG_1BYTE == 1);
-  ut_ad(MLOG_2BYTES == 2);
-  ut_ad(MLOG_4BYTES == 4);
-  ut_ad(MLOG_8BYTES == 8);
+  static_assert(MLOG_1BYTE == 1);
+  static_assert(MLOG_2BYTES == 2);
+  static_assert(MLOG_4BYTES == 4);
+  static_assert(MLOG_8BYTES == 8);
 
   byte *ptr = mtr_buf->push<byte *>(type);
 
@@ -92,7 +92,7 @@ static inline void mlog_catenate_ulint(
   }
 }
 
-/** Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
+/** Concatenates 1 - 4 bytes to the mtr log. The value is not compressed. */
 static inline void mlog_catenate_ulint(
     mtr_t *mtr,     /*!< in/out: mtr */
     ulint val,      /*!< in: value to write */
@@ -106,7 +106,7 @@ static inline void mlog_catenate_ulint(
   mlog_catenate_ulint(mtr->get_log(), val, type);
 }
 
-/** Catenates a compressed ulint to mlog. */
+/** Concatenates a compressed ulint to mlog. */
 static inline void mlog_catenate_ulint_compressed(
     mtr_t *mtr, /*!< in: mtr */
     ulint val)  /*!< in: value to write */
@@ -125,8 +125,8 @@ static inline void mlog_catenate_ulint_compressed(
 
 /** Catenates a compressed 64-bit integer to mlog. */
 static inline void mlog_catenate_ull_compressed(
-    mtr_t *mtr,      /*!< in: mtr */
-    ib_uint64_t val) /*!< in: value to write */
+    mtr_t *mtr,   /*!< in: mtr */
+    uint64_t val) /*!< in: value to write */
 {
   byte *log_ptr = nullptr;
 
@@ -159,12 +159,12 @@ static inline byte *mlog_write_initial_dict_log_record(mlog_id_t type,
 }
 
 /** Writes a log record about an operation.
-@param[in]	type		Redo log record type
-@param[in]	space_id	Tablespace identifier
-@param[in]	page_no		Page number
-@param[in,out]	log_ptr		Current end of mini-transaction log
-@param[in,out]	mtr		Mini-transaction
-@return	end of mini-transaction log */
+@param[in]      type            Redo log record type
+@param[in]      space_id        Tablespace identifier
+@param[in]      page_no         Page number
+@param[in,out]  log_ptr         Current end of mini-transaction log
+@param[in,out]  mtr             Mini-transaction
+@return end of mini-transaction log */
 static inline byte *mlog_write_initial_log_record_low(mlog_id_t type,
                                                       space_id_t space_id,
                                                       page_no_t page_no,

@@ -327,6 +327,9 @@ while ($_rpl_server)
 --let $_rpl_server_count=
 --let $rpl_multi_source= 0
 
+# cleanup any files created by JSON iterators
+--source include/destroy_json_functions.inc
+
 # Do not restore connection, because we have disconnected it.
 --let $skip_restore_connection= 1
 --let $include_filename= rpl_end.inc

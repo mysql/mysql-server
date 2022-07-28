@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ TEST_F(mem0mem, memheapistop) {
 
 #define INITIAL_HEAP_SIZE 512
 
-  heap = mem_heap_create(INITIAL_HEAP_SIZE);
+  heap = mem_heap_create(INITIAL_HEAP_SIZE, UT_LOCATION_HERE);
 
   str_in_heap = mem_heap_strdup(heap, str);
 
@@ -103,7 +103,7 @@ TEST_F(mem0mem, memheapreplace) {
   void *p5;
   const ulint p5_size = 256;
 
-  heap = mem_heap_create(1024);
+  heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   p1 = mem_heap_alloc(heap, p1_size);
   p2 = mem_heap_alloc(heap, p2_size);

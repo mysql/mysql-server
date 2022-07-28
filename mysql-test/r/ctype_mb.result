@@ -6,8 +6,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
-  `c2` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT ''
+  `c1` varchar(4) CHARACTER SET utf8mb3 NOT NULL DEFAULT '',
+  `c2` varchar(4) CHARACTER SET utf8mb3 NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM t1;
 ALTER TABLE t1 ADD c3 CHAR(4) CHARACTER SET utf8;
@@ -16,9 +16,9 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
-  `c2` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
-  `c3` char(4) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
+  `c1` varchar(4) CHARACTER SET utf8mb3 NOT NULL DEFAULT '',
+  `c2` varchar(4) CHARACTER SET utf8mb3 NOT NULL DEFAULT '',
+  `c3` char(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t1 VALUES ('aaaabbbbccccdddd','aaaabbbbccccdddd','aaaabbbbccccdddd');
 Warnings:
@@ -35,7 +35,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(4) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `a` char(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   KEY `key_a` (`a`(3))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ANALYZE TABLE t1;
@@ -63,7 +63,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(4) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `a` char(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   KEY `key_a` (`a`(3))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ANALYZE TABLE t1;

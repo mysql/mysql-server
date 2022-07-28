@@ -37,26 +37,26 @@ let $SECONDARY_SERVER_PORT= query_get_value('select @secondary_server_port as v'
 
 # Now set it up
 # Stop Slave @ Secondary
-STOP SLAVE;
+STOP REPLICA;
 # Clear Secondary Binlog
 RESET MASTER;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 # Stop Slave @ Primary 
-STOP SLAVE;
+STOP REPLICA;
 # Clear Primary Binlog
 RESET MASTER;
 
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SECONDARY_SERVER_PORT,SOURCE_USER="root"
 
 # Start Primary replicating from Secondary
-START SLAVE;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$PRIMARY_SERVER_PORT,SOURCE_USER="root"
 
 # Start Secondary replicating from Primary
-START SLAVE;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
@@ -241,7 +241,7 @@ call test.doit(200);
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 # TODO : Reenable with new slave counts
 #--source suite/ndb_rpl/include/ndb_init_replica_counts.inc
-start slave;
+start replica;
 
 --source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
@@ -296,6 +296,9 @@ eval insert into mysql.ndb_replication values
 --disable_query_log
 # Only need suppress here, as table creation fails due to this.
 call mtr.add_suppression("NDB Replica: .* Too many extra Gci bits at .*");
+call mtr.add_suppression(".*engine for 't3' doesn't have this option");
+call mtr.add_suppression(".*engine for 't4' doesn't have this option");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 --enable_query_log
 
 --error ER_CONFLICT_FN_PARSE_ERROR
@@ -322,7 +325,7 @@ drop table mysql.ndb_replication;
 --echo -- Attempt to get system back in pre-test state
 # Note use of fixed connection names here.
 --connection master
-stop slave;
-reset slave;
+stop replica;
+reset replica;
 
 --source include/rpl_end.inc

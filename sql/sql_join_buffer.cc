@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,18 @@ static void filter_gcol_for_dynamic_range_scan(const QEP_TAB *tab) {
       // Make a bitmap of which fields this covering index can read
       table->mark_columns_used_by_index_no_reset(key, &range_read_set,
                                                  UINT_MAX);
-
+      // If this is a unique index, server does not extend it with primary
+      // key even though storage engine does. So, this key might be marked
+      // as covering although the "key_info" for the key contains only
+      // the user defined keyparts. See add_pk_parts_to_sk(). So we might
+      // set the read set wrongly above. Correct it below by marking fields
+      // part of the primary key as needed.
+      if ((table->key_info[key].flags & HA_NOSAME) &&
+          (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
+          (table->s->primary_key < MAX_KEY)) {
+        table->mark_columns_used_by_index_no_reset(table->s->primary_key,
+                                                   &range_read_set, UINT_MAX);
+      }
       // Compute the minimal read_set that must be included in the join buffer
       bitmap_intersect(table->read_set, &range_read_set);
     }

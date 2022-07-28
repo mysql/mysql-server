@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2021, Oracle and/or its affiliates.
+Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -91,7 +91,7 @@ struct sync_cell_t {
                            requested */
   std::thread::id thread_id{}; /*!< thread id of this waiting
                             thread */
-  bool waiting = false;        /*!< TRUE if the thread has already
+  bool waiting = false;        /*!< true if the thread has already
                        called sync_array_event_wait
                        on this cell */
   int64_t signal_count = 0;    /*!< We capture the signal_count
@@ -104,7 +104,13 @@ struct sync_cell_t {
                            wait call. */
 
   /** Time when the thread reserved the wait cell. */
-  ib_time_monotonic_t reservation_time = 0;
+  std::chrono::steady_clock::time_point reservation_time{};
+  /** Odd value means it is currently on-stack in a DFS search for cycles.
+  Even value means it was completely processed.
+  It is set to (odd) arr->last_scan when first visited, and then incremented
+  again when all of its children are processed (and thus it is processed, too).
+  @see arr->last_scan */
+  uint64_t last_scan{0};
 };
 
 /* NOTE: It is allowed for a thread to wait for an event allocated for
@@ -118,7 +124,7 @@ struct sync_array_t {
   Creates a synchronization wait array. It is protected by a mutex
   which is automatically reserved when the functions operating on it
   are called.
-  @param[in]	num_cells	Number of cells to create */
+  @param[in]    num_cells       Number of cells to create */
   sync_array_t(ulint num_cells) UNIV_NOTHROW;
 
   /** Destructor */
@@ -139,6 +145,14 @@ struct sync_array_t {
                          since creation of the array */
   ulint next_free_slot;  /*!< the next free cell in the array */
   ulint first_free_slot; /*!< the last slot that was freed */
+  /** It is incremented by one at the beginning of search for deadlock cycles,
+  and then again after the scan has finished.
+  If during a scan we visit a cell with cell->last_scan == arr->last_scan it
+  means it is already on the stack, and thus a cycle was found.
+  If we visit a cell with cell->last_scan == arr->last_scan+1 it means it was
+  already fully processed and no deadlock was found "below" it.
+  If it has some other value, the cell wasn't visited by this scan before.*/
+  uint64_t last_scan{0};
 };
 
 /** Locally stored copy of srv_sync_array_size */
@@ -148,8 +162,8 @@ extern ulint sync_array_size;
 mutexes and read-write locks */
 extern sync_array_t **sync_wait_array;
 
-#define sync_array_exit(a) mutex_exit(&(a)->mutex)
-#define sync_array_enter(a) mutex_enter(&(a)->mutex)
+static inline void sync_array_exit(sync_array_t *a) { mutex_exit(&a->mutex); }
+static inline void sync_array_enter(sync_array_t *a) { mutex_enter(&a->mutex); }
 
 /** Gets the nth cell in array.
  @param[in] arr Sync array to get cell from.
@@ -161,4 +175,4 @@ sync_cell_t *sync_array_get_nth_cell(sync_array_t *arr, ulint n);
  @param[in] file File where to print.
  @param[in] cell Sync array cell to report.
  */
-void sync_array_cell_print(FILE *file, sync_cell_t *cell);
+void sync_array_cell_print(FILE *file, const sync_cell_t *cell);

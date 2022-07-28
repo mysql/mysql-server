@@ -484,12 +484,16 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES ('6'),('6');
 
---error ER_SUBQUERY_NO_1_ROW
+# The hypergraph optimizer does not evaluate the subquery during
+# optimization, and does not get an error.
+--disable_result_log
+--error 0, ER_SUBQUERY_NO_1_ROW
 EXPLAIN FORMAT=tree SELECT 1 WHERE (
   SELECT 1
   FROM t1 LEFT JOIN t1 AS t2 ON 'f' IN ( SELECT f1 FROM t1 )
   WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t3.f1='a' )
 );
+--enable_result_log
 
 DROP TABLE t1;
 
@@ -927,6 +931,7 @@ let $query =
 # Verify that we get a query plan with semijoin materialization.
 # If the optimizer chooses a different strategy, consider deleting this test.
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex /  \(cost=[\ 0-9.*0-9\ ]*/\ (/
 eval EXPLAIN FORMAT=tree $query;
 
 # Order depends on the query plan.
@@ -1706,3 +1711,127 @@ WHERE a NOT IN (
 );
 
 DROP TABLE t1;
+
+--echo # Bug#33952115: Semijoin may give wrong result
+
+CREATE TABLE t1(c0 int);
+INSERT INTO t1 VALUES(NULL), (1), (NULL), (2), (NULL), (3);
+ANALYZE TABLE t1;
+
+let $query=
+SELECT t1.c0 AS ref0
+FROM t1
+WHERE t1.c0 IN (SELECT t2.c0 AS ref1
+                FROM t1 as t2
+                WHERE t2.c0 NOT IN (SELECT t3.c0 AS ref2
+                                    FROM t1 as t3
+                                    WHERE t3.c0
+                                   )
+                      = t2.c0
+               );
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # Bug#33957233: Incorrect inner hash join when using materialization
+
+CREATE TABLE t0 (
+  c0 INTEGER
+);
+
+INSERT INTO t0 VALUES
+ (321108437), (-64596961), (329053785), (1983), (NULL), (NULL),
+ (1936), (-543970881), (NULL), (NULL), (-1945919442), (NULL), (1230052719);
+
+ANALYZE TABLE t0;
+
+let $query=
+SELECT t0.c0
+FROM t0
+WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref1
+                    FROM t0
+                    WHERE t0.c0 IN (SELECT t0.c0
+                                    FROM t0
+                                    WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref3
+                                                        FROM t0
+                                                       )
+                                          = t0.c0
+                                   )
+                   );
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t0;
+
+--echo # Bug#33755139: prepare stmt query return error record
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, NULL);
+
+CREATE TABLE t2(c INTEGER, d INTEGER);
+INSERT INTO t2 VALUES(2, 2);
+
+SELECT a FROM t1 WHERE b =ALL (SELECT d FROM t2 WHERE c = 1);
+
+SELECT a FROM t1 WHERE b =ALL (SELECT d FROM t2 WHERE c = 2);
+
+prepare ps FROM "
+SELECT a FROM t1 WHERE b =ALL (SELECT d FROM t2 WHERE c = ?)";
+SET @v = 1;
+execute ps using @v;
+SET @v = 2;
+execute ps using @v;
+
+deallocate prepare ps;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34060289 optimizer rewrites view and turns left joins into inner joins
+--echo #
+
+CREATE TABLE vt1 (c1 INT);
+CREATE TABLE vt2 (c1 INT);
+
+CREATE TABLE vt3 (c1 INT NOT NULL AUTO_INCREMENT, c2 INT,
+                  c3 INT, c4 INT, c5 INT, PRIMARY KEY (c1));
+INSERT INTO vt3 (c2,c3) VALUES (1,1);
+
+CREATE TABLE vt4 (c1 INT);
+INSERT INTO vt4 (c1) VALUES (1);
+
+CREATE VIEW v1 AS
+SELECT vt3.c2 AS vc1, vt3.c3 AS vc2, vt4.c1 AS vc3
+ FROM (((vt3 LEFT JOIN vt1 ON vt1.c1 = vt3.c5)
+         LEFT JOIN vt2 ON vt3.c4= vt2.c1) JOIN vt4);
+
+CREATE TABLE t1 (c1 INT, c2 CHAR(2));
+INSERT INTO t1 VALUES (1, '01');
+
+CREATE TABLE t2 (c2 INT, c3 INT);
+INSERT INTO t2 VALUES (1, null);
+
+let $query =
+SELECT *
+FROM v1
+WHERE (v1.vc3 IN (SELECT c1 FROM t1 WHERE c2='01'))
+       AND (null IS null OR v1.vc1 IN (SELECT c2 FROM t2 WHERE c3=null))
+       AND (null IS null OR v1.vc2 IN (null));
+
+# expecting the same result in all the cases
+SET optimizer_switch="derived_merge=off";
+eval $query;
+
+SET optimizer_switch="derived_merge=on";
+eval $query;
+
+SELECT *
+FROM v1
+WHERE (vc3 IN (SELECT c1 FROM t1 WHERE c2='01'))
+       AND (null IS null OR v1.vc1 IN (SELECT c2 FROM t2 WHERE c3=null));
+
+DROP VIEW v1;
+DROP TABLE vt1, vt2, vt3, vt4, t1, t2;

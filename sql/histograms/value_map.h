@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_VALUE_MAP_INCLUDED
 #define HISTOGRAMS_VALUE_MAP_INCLUDED
 
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,9 @@ class Mem_root_allocator;
 namespace histograms {
 
 class Histogram;
+template <class T>
+struct SingletonBucket;
+
 namespace equi_height {
 template <class T>
 class Bucket;
@@ -81,16 +84,62 @@ struct Histogram_comparator {
     return std::less<T>()(lhs, rhs);
   }
 
+  /**
+    Used by std::lower_bound when computing equal-to and less-than selectivity
+    to find the first bucket with an upper bound that is not less than b.
+  */
   template <class T>
   bool operator()(const equi_height::Bucket<T> &a, const T &b) const {
     return Histogram_comparator()(a.get_upper_inclusive(), b);
   }
 
+  /**
+   * Same as above, but for singleton histogram buckets.
+   */
+  template <class T>
+  bool operator()(const SingletonBucket<T> &a, const T &b) const {
+    return Histogram_comparator()(a.value, b);
+  }
+
+  /**
+    Used by std::upper_bound when computing greater-than selectivity in order to
+    find the first bucket with an upper bound that is greater than a.
+    Notice that the comparison function used by std::lower_bound and
+    std::upper_bound have the collection element as the first and second
+    argument, respectively.
+  */
+  template <class T>
+  bool operator()(const T &a, const equi_height::Bucket<T> &b) const {
+    return Histogram_comparator()(a, b.get_upper_inclusive());
+  }
+
+  /**
+   * Same as above, but for singleton histogram buckets.
+   */
+  template <class T>
+  bool operator()(const T &a, const SingletonBucket<T> &b) const {
+    return Histogram_comparator()(a, b.value);
+  }
+
+  /**
+    Used by std::is_sorted to verify that equi-height histogram buckets are
+    stored in sorted order. We consider bucket a = [a1, a2] to be less than
+    bucket b = [b1, b2]  if a2 < b1.
+  */
   template <class T>
   bool operator()(const equi_height::Bucket<T> &a,
                   const equi_height::Bucket<T> &b) const {
     return Histogram_comparator()(a.get_upper_inclusive(),
                                   b.get_lower_inclusive());
+  }
+
+  /**
+   * Same as above, but for singleton histogram buckets.
+   */
+  template <class T>
+  bool operator()(const SingletonBucket<T> &a,
+                  const SingletonBucket<T> &b) const {
+    return Histogram_comparator()(a.value, b.value);
   }
 };
 
@@ -128,8 +177,7 @@ class Value_map_base {
   MEM_ROOT m_mem_root;
 
  public:
-  Value_map_base(const CHARSET_INFO *charset, double sampling_rate,
-                 Value_map_type data_type);
+  Value_map_base(const CHARSET_INFO *charset, Value_map_type data_type);
 
   virtual ~Value_map_base() = default;
 
@@ -208,7 +256,7 @@ class Value_map_base {
   Value_map class.
 
   This class works as a map. It is a collection of [key, count], where "count"
-  is the number of occurances of "key". The class abstracts away things like
+  is the number of occurrences of "key". The class abstracts away things like
   duplicate checking and the underlying container.
 */
 template <class T>
@@ -221,9 +269,8 @@ class Value_map final : public Value_map_base {
   value_map_type m_value_map;
 
  public:
-  Value_map(const CHARSET_INFO *charset, Value_map_type data_type,
-            double sampling_rate = 0.0)
-      : Value_map_base(charset, sampling_rate, data_type),
+  Value_map(const CHARSET_INFO *charset, Value_map_type data_type)
+      : Value_map_base(charset, data_type),
         m_value_map(typename value_map_type::allocator_type(&m_mem_root)) {}
 
   size_t size() const override { return m_value_map.size(); }

@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.version_comment);
 COUNT(@@GLOBAL.version_comment)
 1
 1 Expected
-SELECT version_comment = @@SESSION.version_comment;
+SELECT version_comment;
 ERROR 42S22: Unknown column 'version_comment' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

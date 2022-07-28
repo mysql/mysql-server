@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -262,6 +262,11 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT,
                             &c_defaults.m_o_direct);
 
+  Uint32 encrypted_filesystem = 0;
+  ndb_mgm_get_int_parameter(
+      p, CFG_DB_ENCRYPTED_FILE_SYSTEM, &encrypted_filesystem);
+  c_encrypted_filesystem = encrypted_filesystem;
+
   ndb_mgm_get_int64_parameter(p, CFG_DB_MIN_DISK_WRITE_SPEED,
 			      &c_defaults.m_disk_write_speed_min);
   ndb_mgm_get_int64_parameter(p, CFG_DB_MAX_DISK_WRITE_SPEED,
@@ -362,11 +367,12 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_fragmentPool.setSize(noBackups * noFrags + 2);
   c_deleteLcpFilePool.setSize(noDeleteLcpFile);
 
+  c_tableMapSize = noBackups * noTables;
   c_tableMap = (Uint32*)allocRecord("c_tableMap",
                                     sizeof(Uint32),
-                                    noBackups * noTables);
+                                    c_tableMapSize);
 
-  for (Uint32 i = 0; i < (noBackups * noTables); i++)
+  for (Uint32 i = 0; i < c_tableMapSize; i++)
   {
     c_tableMap[i] = RNIL;
   }

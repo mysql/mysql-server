@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@
 char *get_tty_password(const char *opt_message) {
   char to[80];
   char *pos = to, *end = to + sizeof(to) - 1;
-  int i = 0;
+
   DBUG_TRACE;
   _cputs(opt_message ? opt_message : "Enter password: ");
   for (;;) {

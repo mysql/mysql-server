@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,7 +122,7 @@ void comma_maybe(String *str, bool *comma) {
 }
 
 /**
-  Append a key/value pair to a string, with an optional preceeding comma.
+  Append a key/value pair to a string, with an optional preceding comma.
   For numeric values.
 
   @param[in,out]   str                  The string to append to
@@ -232,7 +232,7 @@ int lex_user_comp(LEX_USER *l1, LEX_USER *l2) {
     return (key > 0 ? 1 : 0);
 }
 /**
-  Util method which does the real rewrite of the SQL statment.
+  Util method which does the real rewrite of the SQL statement.
   If a Rewriter is available for the specified SQL command then
   the rewritten query will be stored in the String rlb; otherwise,
   the string will just be cleared.
@@ -358,7 +358,8 @@ void mysql_rewrite_query(THD *thd, Consumer_type type /*= Consumer_type::LOG */,
   // We should not come through here twice for the same query.
   assert(thd->rewritten_query().length() == 0);
 
-  if (thd->lex->contains_plaintext_password) {
+  if (thd->lex->contains_plaintext_password ||
+      thd->lex->is_rewrite_required()) {
     rewrite_query(thd, type, params, rlb);
     if (rlb.length() > 0) thd->swap_rewritten_query(rlb);
     // The previous rewritten query is in rlb now, which now goes out of scope.
@@ -470,7 +471,7 @@ void Rewriter_user::rewrite_in_memory_user_application_user_metadata(
 }
 
 /**
-  Default implementaiton of the the rewriter for user applicatiton
+  Default implementation of the the rewriter for user applicatiton
   user metadata.
   @param [in]       lex    LEX struct to know if the clause was specified
   @param [in, out]  str    The string in which the clause is suffixed
@@ -481,7 +482,7 @@ void Rewriter_create_user::rewrite_user_application_user_metadata(
 }
 
 /**
-  Default implementaiton of the the rewriter for user applicatiton
+  Default implementation of the the rewriter for user applicatiton
   user metadata.
   @param [in]       lex    LEX struct to know if the clause was specified
   @param [in, out]  str    The string in which the clause is suffixed
@@ -1052,7 +1053,7 @@ bool Rewriter_show_create_user::rewrite(String &rlb) const {
 }
 
 /**
-  Overrides implementaiton of the the rewriter for user application
+  Overrides implementation of the the rewriter for user application
   user metadata. This is needed because we have to read the
   ATTRIBUTE data from disk.
   @param [in]       lex    LEX struct to know if the clause was specified
@@ -1186,17 +1187,21 @@ Rewriter_set::Rewriter_set(THD *thd, Consumer_type type)
   @retval        false   otherwise
 */
 bool Rewriter_set::rewrite(String &rlb) const {
+  String local_rlb;
   LEX *lex = m_thd->lex;
   List_iterator_fast<set_var_base> it(lex->var_list);
   set_var_base *var;
   bool comma = false;
 
-  rlb.append(STRING_WITH_LEN("SET "));
+  local_rlb.append(STRING_WITH_LEN("SET "));
 
   while ((var = it++)) {
-    comma_maybe(&rlb, &comma);
-    var->print(m_thd, &rlb);
+    comma_maybe(&local_rlb, &comma);
+    if (var->print(m_thd, &local_rlb) == false) {
+      return false;
+    }
   }
+  rlb.takeover(local_rlb);
   return true;
 }
 
@@ -1405,7 +1410,7 @@ bool Rewriter_grant::rewrite(String &rlb) const {
     AS ... clause is added in following cases
     1. User has explicitly executed GRANT ... AS ...
        In this case we write it as it.
-    2. --partial_revokes is ON and we are rewritting
+    2. --partial_revokes is ON and we are rewriting
        GRANT for binary log.
   */
   if (grant_params != nullptr) {

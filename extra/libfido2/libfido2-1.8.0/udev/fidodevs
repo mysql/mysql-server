@@ -1,0 +1,126 @@
+# Copyright (c) 2020 Yubico AB. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# After modifying this file, regenerate 70-u2f.rules:
+# ./genrules.awk fidodevs > 70-u2f.rules
+
+# List of known vendors. Sorted by vendor ID.
+
+vendor STMICRO		0x0483	STMicroelectronics
+vendor INFINEON		0x058b	Infineon Technologies
+vendor SYNAPTICS	0x06cb	Synaptics Inc.
+vendor FEITIAN		0x096e	Feitian Technologies Co., Ltd.
+vendor YUBICO		0x1050	Yubico AB
+vendor SILICON		0x10c4	Silicon Laboratories, Inc.
+vendor PIDCODES		0x1209	pid.codes
+vendor GOOGLE		0x18d1	Google Inc.
+vendor VASCO		0x1a44	VASCO Data Security NV
+vendor OPENMOKO		0x1d50	OpenMoko, Inc.
+vendor NEOWAVE		0x1e0d	NEOWAVE
+vendor EXCELSECU	0x1ea8	Shenzhen Excelsecu Data Technology Co., Ltd.
+vendor NXP		0x1fc9	NXP Semiconductors
+vendor CLAYLOGIC	0x20a0	Clay Logic
+vendor ALLADIN		0x24dc	Aladdin Software Security R.D.
+vendor PLUGUP		0x2581	Plug‐up
+vendor BLUINK		0x2abe	Bluink Ltd
+vendor LEDGER		0x2c97	LEDGER
+vendor HYPERSECU	0x2ccf	Hypersecu Information Systems, Inc.
+vendor EWBM		0x311f	eWBM Co., Ltd.
+vendor GOTRUST		0x32a3	GoTrustID Inc.
+vendor UNKNOWN1		0x4c4d	Unknown vendor
+vendor SATOSHI		0x534c	SatoshiLabs
+
+# List of known products. Grouped by vendor; sorted by product ID.
+
+product STMICRO 	0xa2ac	ellipticSecure MIRKey
+product STMICRO 	0xa2ca	Unknown product
+product STMICRO		0xcdab	Unknown product
+
+product INFINEON	0x022d	Infineon FIDO
+
+product SYNAPTICS	0x0088	Kensington VeriMark
+
+product FEITIAN		0x0850	FS ePass FIDO
+product FEITIAN		0x0852	Unknown product
+product FEITIAN		0x0853	Unknown product
+product FEITIAN		0x0854	Unknown product
+product FEITIAN		0x0856	Unknown product
+product FEITIAN		0x0858	Unknown product
+product FEITIAN		0x085a	FS MultiPass FIDO U2F
+product FEITIAN		0x085b	Unknown product
+product FEITIAN		0x085d	Unknown product
+product FEITIAN		0x0866  BioPass FIDO2 K33
+product FEITIAN		0x0867  BioPass FIDO2 K43
+product FEITIAN		0x0880	Hypersecu HyperFIDO
+
+product YUBICO		0x0113	YubiKey NEO FIDO
+product YUBICO		0x0114	YubiKey NEO OTP+FIDO
+product YUBICO		0x0115	YubiKey NEO FIDO+CCID
+product YUBICO		0x0116	YubiKey NEO OTP+FIDO+CCID
+product YUBICO		0x0120	Security Key by Yubico
+product YUBICO		0x0121	Unknown product
+product YUBICO		0x0200	Gnubby U2F
+product YUBICO		0x0402	YubiKey 4 FIDO
+product YUBICO		0x0403	YubiKey 4 OTP+FIDO
+product YUBICO		0x0406	YubiKey 4 FIDO+CCID
+product YUBICO		0x0407	YubiKey 4 OTP+FIDO+CCID
+product YUBICO		0x0410	YubiKey Plus
+
+product SILICON		0x8acf	U2F Zero
+
+product PIDCODES	0x5070	SoloKeys SoloHacker
+product PIDCODES	0x50b0	SoloKeys SoloBoot
+product PIDCODES	0x53c1	SatoshiLabs TREZOR
+
+product GOOGLE		0x5026	Google Titan U2F
+
+product VASCO		0x00bb	VASCO SecureClick
+
+product OPENMOKO	0x60fc	OnlyKey (FIDO2/U2F)
+
+product NEOWAVE		0xf1ae	Neowave Keydo AES
+product NEOWAVE		0xf1d0	Neowave Keydo
+
+product EXCELSECU	0xf025	Thethis Key
+product EXCELSECU	0xfc25	ExcelSecu FIDO2 Security Key
+
+product NXP		0xf143	GoTrust Idem Key
+
+product CLAYLOGIC	0x4287	Nitrokey FIDO U2F
+product CLAYLOGIC	0x42b1	Nitrokey FIDO2
+product CLAYLOGIC	0x42b2	Nitrokey 3C NFC
+product CLAYLOGIC	0x42b3	Safetech SafeKey
+product CLAYLOGIC	0x42d4	CanoKey
+
+product ALLADIN		0x0101	JaCarta U2F
+product ALLADIN		0x0501	JaCarta U2F
+
+product PLUGUP		0xf1d0	Happlink Security Key
+
+product BLUINK		0x1002	Bluink Key
+
+product LEDGER		0x0000  Ledger Blue
+product LEDGER		0x0001	Ledger Nano S Old firmware
+product LEDGER		0x0004	Ledger Nano X Old firmware
+product LEDGER		0x0011  Ledger Blue
+product LEDGER		0x0015  Ledger Blue Legacy
+product LEDGER		0x1011	Ledger Nano S
+product LEDGER		0x1015	Ledger Nano S Legacy
+product LEDGER		0x4011	Ledger Nano X
+product LEDGER		0x4015	Ledger Nano X Legacy
+
+product HYPERSECU	0x0880	Hypersecu HyperFIDO
+
+product EWBM		0x4a1a	TrustKey Solutions FIDO2 G310
+product EWBM		0x4c2a	TrustKey Solutions FIDO2 G320
+product EWBM		0x5c2f	eWBM FIDO2 Goldengate G500
+product EWBM		0xa6e9	TrustKey Solutions FIDO2 T120
+product EWBM		0xa7f9	TrustKey Solutions FIDO2 T110
+product EWBM		0xf47c	eWBM FIDO2 Goldengate G450
+
+product GOTRUST		0x3201	Idem Key
+
+product UNKNOWN1	0xf703	Longmai mFIDO
+
+product SATOSHI		0x0001	SatoshiLabs TREZOR

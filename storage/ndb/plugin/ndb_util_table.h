@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,9 @@
 
 class NdbRecAttr;
 class Thd_ndb;
+namespace dd {
+class Table;
+}
 
 // Base class used for working with tables created in NDB by the
 // ndbcluster plugin
@@ -66,6 +69,7 @@ class Ndb_util_table {
   bool check_column_exist(const char *name) const;
 
   bool check_column_varbinary(const char *name) const;
+  bool check_column_varchar(const char *name) const;
   bool check_column_binary(const char *name) const;
   bool check_column_unsigned(const char *name) const;
   bool check_column_bigunsigned(const char *name) const;
@@ -94,9 +98,17 @@ class Ndb_util_table {
   bool create_table_in_NDB(const NdbDictionary::Table &new_table) const;
   bool drop_table_in_NDB(const NdbDictionary::Table &old_table) const;
 
-  virtual bool define_indexes(unsigned int mysql_version) const;
-  bool create_index(const NdbDictionary::Index &) const;
-  bool create_primary_ordered_index() const;
+  virtual bool create_indexes(const NdbDictionary::Table &new_table) const;
+  bool create_index(const NdbDictionary::Table &new_table,
+                    const NdbDictionary::Index &new_index) const;
+  bool create_primary_ordered_index(
+      const NdbDictionary::Table &new_table) const;
+
+  virtual bool create_events_in_NDB(const NdbDictionary::Table &new_table
+                                    [[maybe_unused]]) const {
+    return true;
+  }
+  bool create_event_in_NDB(const NdbDictionary::Event &new_event) const;
 
   /**
     @brief Code to be executed before upgrading the table.
@@ -233,6 +245,14 @@ class Ndb_util_table {
      @return true if table was upgraded successfully
    */
   bool upgrade();
+
+  /**
+     @brief Check if table need to be reinstalled in DD.
+     This mechanism can be used to rewrite the table definition in DD without
+     changing the physical table in NDB.
+     @return true if reinstall is needed
+   */
+  virtual bool need_reinstall(const dd::Table *) const { return false; }
 
   /**
      @brief Create DDL for creating the table definition

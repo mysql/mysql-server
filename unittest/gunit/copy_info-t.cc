@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ class Mock_field : public Field_long {
   explicit Mock_field(uchar auto_flags_arg)
       : Field_long(nullptr, 0, nullptr, 0, auto_flags_arg, "", false, false) {}
 
-  MOCK_METHOD1(store_timestamp, void(const timeval *));
+  MOCK_METHOD1(store_timestamp, void(const my_timeval *));
 };
 
 /*

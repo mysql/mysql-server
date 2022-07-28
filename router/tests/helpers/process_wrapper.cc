@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,124 +25,155 @@
 #include "process_wrapper.h"
 
 #include <algorithm>
-#include <sstream>
+#include <array>
+#include <system_error>
 #include <thread>
 #include <vector>
 
+#include "mysql/harness/string_utils.h"  // split_string
+
 using namespace std::chrono_literals;
 
-namespace {
+ProcessWrapper::ProcessWrapper(
+    const std::string &app_cmd, const std::vector<std::string> &args,
+    const std::vector<std::pair<std::string, std::string>> &env_vars,
+    bool include_stderr, OutputResponder &output_responder)
+    : launcher_(app_cmd, args, env_vars, include_stderr),
+      output_responder_(output_responder) {
+  launcher_.start();
+  output_reader_ = std::thread([&]() {
+    while (!output_reader_stop_) {
+      try {
+        read_and_autorespond_to_output(5ms);
+        if (output_reader_stop_) break;
+        std::this_thread::sleep_for(5ms);
+      } catch (const std::system_error &e) {
+        if (std::errc::resource_unavailable_try_again == e.code() ||
+            std::errc::permission_denied == e.code()) {
+          continue;
+        }
 
-template <typename Out>
-void split_str(const std::string &input, Out result, char delim = ' ') {
-  std::stringstream ss;
-  ss.str(input);
-  std::string item;
-  while (std::getline(ss, item, delim)) {
-    *(result++) = item;
-  }
-}
-
-std::vector<std::string> split_str(const std::string &s, char delim = ' ') {
-  std::vector<std::string> elems;
-  split_str(s, std::back_inserter(elems), delim);
-  return elems;
-}
-
-}  // namespace
-
-int ProcessWrapper::wait_for_exit(std::chrono::milliseconds timeout) {
-  if (exit_code_set_) return exit_code();
-
-  // wait_for_exit() is a convenient short name, but a little unclear with
-  // respect to what this function actually does
-  return wait_for_exit_while_reading_and_autoresponding_to_output(timeout);
+        // if the underlying process went away we may get "Bad file descriptor"
+        // exception here
+        if (std::errc::bad_file_descriptor == e.code() ||
+            std::errc::invalid_argument == e.code()) {
+          break;
+        }
+        throw;
+      }
+    }
+  });
 }
 
 int ProcessWrapper::kill() {
   try {
-    exit_code_ = launcher_.kill();
-    exit_code_set_ = true;
-  } catch (std::exception &e) {
+    exit_status_ = launcher_.kill();
+    stop_output_reader_thread();
+  } catch (const std::exception &e) {
     fprintf(stderr, "failed killing process %s: %s\n",
             launcher_.get_cmd_line().c_str(), e.what());
     return 1;
   }
 
-  return exit_code_;
+  if (auto code = exit_status_->exited()) {
+    return *code;
+  } else {
+    throw std::runtime_error("signalled?");
+  }
 }
 
-int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
-    std::chrono::milliseconds timeout) {
-  namespace ch = std::chrono;
+mysql_harness::ProcessLauncher::exit_status_type ProcessWrapper::native_kill() {
+  try {
+    exit_status_ = launcher_.kill();
+    stop_output_reader_thread();
+  } catch (const std::exception &e) {
+    fprintf(stderr, "failed killing process %s: %s\n",
+            launcher_.get_cmd_line().c_str(), e.what());
+    return {1};
+  }
+
+  return exit_status_.value();
+}
+
+int ProcessWrapper::wait_for_exit(std::chrono::milliseconds timeout) {
+  auto exit_code = native_wait_for_exit(timeout);
+
+  if (auto code = exit_code.exited()) {
+    return *code;
+  } else {
+    throw std::runtime_error("signalled?");
+  }
+}
+
+mysql_harness::ProcessLauncher::exit_status_type
+ProcessWrapper::native_wait_for_exit(std::chrono::milliseconds timeout) {
+  if (exit_status_) return native_exit_code();
+
+  using clock_type = std::chrono::steady_clock;
+
   auto step = 1ms;
   if (getenv("WITH_VALGRIND")) {
     timeout *= 10;
     step *= 200;
   }
-  ch::time_point<ch::steady_clock> timeout_timestamp =
-      ch::steady_clock::now() + timeout;
 
-  // We alternate between non-blocking read() and non-blocking waitpid() here.
-  // Reading/autoresponding must be done, because the child might be blocked on
-  // them (for example, it might block on password prompt), and therefore won't
-  // exit until we deal with its output.
-  std::exception_ptr eptr;
-  exit_code_set_ = false;
+  const auto end_time = clock_type::now() + timeout;
+
+  // The child might be blocked on input/output (for example password prompt),
+  // so we wait giving a output thread a change to deal with it
+
   do {
-    read_and_autorespond_to_output(0ms);
+    auto exit_status_res = launcher_.exit_code();
 
-    try {
-      // throws std::runtime_error or std::system_error
-      exit_code_ = launcher_.wait(0ms);
-      exit_code_set_ = true;
-      break;
-    } catch (const std::system_error &e) {
-      eptr = std::current_exception();
+    if (exit_status_res) {
+      exit_status_ = *exit_status_res;
 
-      if (e.code() != std::errc::timed_out) {
-        break;
-      }
-    } catch (const std::runtime_error &) {
-      eptr = std::current_exception();
-      break;
+      // the child exited, but there might still be some data left in the pipe
+      // to read, so let's consume it all
+      stop_output_reader_thread();
+      while (read_and_autorespond_to_output(step,
+                                            /*autoresponder_enabled=*/false))
+        ;
+      return exit_status_.value();
     }
 
-    std::this_thread::sleep_for(step);
-  } while (ch::steady_clock::now() < timeout_timestamp);
+    const auto ec = exit_status_res.error();
 
-  if (exit_code_set_) {
-    // the child exited, but there might still be some data left in the pipe to
-    // read, so let's consume it all
-    while (read_and_autorespond_to_output(step, false))
-      ;  // false = disable autoresponder
-    return exit_code_;
-  } else {
-    // we timed out waiting for child
-    std::rethrow_exception(eptr);
-  }
+    if (ec != std::errc::timed_out) throw std::system_error(ec);
+
+    std::this_thread::sleep_for(step);
+  } while (clock_type::now() < end_time);
+
+  throw std::system_error(make_error_code(std::errc::timed_out));
 }
 
 bool ProcessWrapper::expect_output(const std::string &str, bool regex,
                                    std::chrono::milliseconds timeout) {
-  auto now = std::chrono::steady_clock::now();
-  auto until = now + timeout;
+  auto step = 5ms;
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+    step *= 10;
+  }
+
+  const auto until = std::chrono::steady_clock::now() + timeout;
   for (;;) {
+    bool has_exited = has_exit_code();
+
     if (output_contains(str, regex)) return true;
 
-    now = std::chrono::steady_clock::now();
-
-    if (now > until) {
+    // no need to wait any longer, as there is no further output
+    // as the process has already exited.
+    if (has_exited || (std::chrono::steady_clock::now() > until)) {
       return false;
     }
 
-    if (!read_and_autorespond_to_output(
-            std::chrono::duration_cast<std::chrono::milliseconds>(until - now)))
-      return false;
+    std::this_thread::sleep_for(step);
   }
 }
 
 bool ProcessWrapper::output_contains(const std::string &str, bool regex) const {
+  std::lock_guard<std::mutex> output_lock(output_mtx_);
+
   if (!regex) {
     return execute_output_raw_.find(str) != std::string::npos;
   }
@@ -153,44 +184,47 @@ bool ProcessWrapper::output_contains(const std::string &str, bool regex) const {
 
 bool ProcessWrapper::read_and_autorespond_to_output(
     std::chrono::milliseconds timeout, bool autoresponder_enabled /*= true*/) {
-  char cmd_output[kReadBufSize] = {
-      0};  // hygiene (cmd_output[bytes_read] = 0 would suffice)
+  std::array<char, kReadBufSize> read_buf = {0};
 
   // blocks until timeout expires (very likely) or until at least one byte is
   // read (unlikely) throws std::runtime_error on read error
   int bytes_read =
-      launcher_.read(cmd_output, kReadBufSize - 1,
+      launcher_.read(read_buf.data(), read_buf.size() - 1,
                      timeout);  // cmd_output may contain multiple lines
 
-  if (bytes_read > 0) {
+  if (bytes_read <= 0) return false;
+
 #ifdef _WIN32
-    // On Windows we get \r\n instead of \n, so we need to get rid of the \r
-    // everywhere. As surprising as it is, WIN32API doesn't provide the
-    // automatic conversion:
-    // https://stackoverflow.com/questions/18294650/win32-changing-to-binary-mode-childs-stdout-pipe
-    {
-      char *new_end = std::remove(cmd_output, cmd_output + bytes_read, '\r');
-      *new_end = '\0';
-      bytes_read = new_end - cmd_output;
-    }
+  // On Windows we get \r\n instead of \n, so we need to get rid of the \r
+  // everywhere. As surprising as it is, WIN32API doesn't provide the
+  // automatic conversion:
+  // https://stackoverflow.com/questions/18294650/win32-changing-to-binary-mode-childs-stdout-pipe
+  {
+    char *new_end =
+        std::remove(read_buf.data(), read_buf.data() + bytes_read, '\r');
+    *new_end = '\0';
+    bytes_read = new_end - read_buf.data();
+  }
 #endif
 
+  std::string_view cmd_output(read_buf.data(), bytes_read);
+  {
+    std::lock_guard<std::mutex> output_lock(output_mtx_);
     execute_output_raw_ += cmd_output;
-
-    if (autoresponder_enabled)
-      autorespond_to_matching_lines(bytes_read, cmd_output);
-
-    return true;
-  } else {
-    return false;
   }
+
+  if (autoresponder_enabled) {
+    autorespond_to_matching_lines(cmd_output);
+  }
+
+  return true;
 }
 
-void ProcessWrapper::autorespond_to_matching_lines(int bytes_read,
-                                                   char *cmd_output) {
+void ProcessWrapper::autorespond_to_matching_lines(
+    const std::string_view &cmd_output) {
   // returned lines do not contain the \n
   std::vector<std::string> lines =
-      split_str(std::string(cmd_output, cmd_output + bytes_read), '\n');
+      mysql_harness::split_string(cmd_output, '\n');
   if (lines.empty()) return;
 
   // it is possible that the last line from the previous call did not match
@@ -220,14 +254,27 @@ void ProcessWrapper::autorespond_to_matching_lines(int bytes_read,
 }
 
 bool ProcessWrapper::autorespond_on_matching_pattern(const std::string &line) {
-  for (const auto &response : output_responses_) {
-    const std::string &output = response.first;
-    if (line.substr(0, output.size()) == output) {
-      const char *resp = response.second.c_str();
-      launcher_.write(resp, strlen(resp));
-      return true;
-    }
+  const std::string resp = output_responder_(line);
+  if (!resp.empty()) {
+    launcher_.write(resp.c_str(), resp.length());
+    return true;
   }
 
   return false;
+}
+
+std::string ProcessWrapper::get_logfile_content(
+    const std::string &file_name /*= ""*/,
+    const std::string &file_path /*= ""*/, size_t lines_limit /*= 0*/) const {
+  const std::string path = file_path.empty() ? logging_dir_ : file_path;
+  const std::string name = file_name.empty() ? logging_file_ : file_name;
+
+  if (name.empty()) return "";
+
+  const auto content = get_file_output(name, path);
+
+  if (lines_limit > 0)
+    return mysql_harness::limit_lines(content, lines_limit, "<snap>\n");
+  else
+    return content;
 }

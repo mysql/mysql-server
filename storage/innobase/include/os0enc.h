@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,9 @@ void deinit_keyring_services(SERVICE_TYPE(registry) * reg_srv);
 // Forward declaration.
 class IORequest;
 struct Encryption_key;
+
+// Forward declaration.
+struct Encryption_metadata;
 
 /** Encryption algorithm. */
 class Encryption {
@@ -213,6 +216,18 @@ class Encryption {
   @param[in,out]  value Encryption value */
   static void random_value(byte *value) noexcept;
 
+  /** Copy the given encryption metadata to the given Encryption_metadata
+  object, if both key != nullptr and iv != nullptr. Generate randomly the
+  new metadata, if both key == nullptr and iv == nullptr, and store it to
+  the given Encryption_metadata object. Cannot be called with key, iv such
+  that: (key == nullptr) != (iv == nullptr).
+  @param[in]  type      encryption algorithm type to store
+  @param[in]  key       encryption key to copy or nullptr to generate
+  @param[in]  iv        encryption iv to copy or nullptr to generate
+  @param[out] metadata  filled Encryption_metadata object */
+  static void set_or_generate(Type type, byte *key, byte *iv,
+                              Encryption_metadata &metadata);
+
   /** Create new master key for key rotation.
   @param[in,out]  master_key  master key */
   static void create_master_key(byte **master_key) noexcept;
@@ -231,15 +246,13 @@ class Encryption {
                              byte **master_key) noexcept;
 
   /** Fill the encryption information.
-  @param[in]      key           encryption key
-  @param[in]      iv            encryption iv
-  @param[in,out]  encrypt_info  encryption information
-  @param[in]      is_boot       if it's for bootstrap
-  @param[in]      encrypt_key   encrypt with master key
+  @param[in]      encryption_metadata  encryption metadata (key,iv)
+  @param[in]      encrypt_key          encrypt with master key
+  @param[out]     encrypt_info         encryption information
   @return true if success. */
-  static bool fill_encryption_info(const byte *key, const byte *iv,
-                                   byte *encrypt_info, bool is_boot,
-                                   bool encrypt_key) noexcept;
+  static bool fill_encryption_info(
+      const Encryption_metadata &encryption_metadata, bool encrypt_key,
+      byte *encrypt_info) noexcept;
 
   /** Get master key from encryption information
   @param[in]      encrypt_info  encryption information
@@ -249,18 +262,61 @@ class Encryption {
   @param[in,out]  master_key    master key
   @return position after master key id or uuid, or the old position
   if can't get the master key. */
-  static byte *get_master_key_from_info(byte *encrypt_info, Version version,
-                                        uint32_t *m_key_id, char *srv_uuid,
-                                        byte **master_key) noexcept;
+  static const byte *get_master_key_from_info(const byte *encrypt_info,
+                                              Version version,
+                                              uint32_t *m_key_id,
+                                              char *srv_uuid,
+                                              byte **master_key) noexcept;
 
-  /** Decoding the encryption info from the first page of a tablespace.
+  /** Checks if encryption info bytes represent data encrypted by the given
+  version of the encryption mechanism.
+  @param[in]  encryption_info       encryption info bytes
+  @param[in]  version_magic_bytes   magic bytes which represent version
+                                    of the encryption mechanism, for example:
+                                    Encryption::KEY_MAGIC_V3
+  @return result of the check */
+  static bool is_encrypted_with_version(
+      const byte *encryption_info, const char *version_magic_bytes) noexcept;
+
+  /** Checks if encryption info bytes represent data encrypted by version V3
+  of the encryption mechanism.
+  @param[in]  encryption_info       encryption info bytes
+  @return result of the check */
+  static bool is_encrypted_with_v3(const byte *encryption_info) noexcept;
+
+  /** Checks if encryption info bytes represent data encrypted by any of known
+  versions of the encryption mechanism. Note, that if the encryption_info is
+  read from file created by a newer MySQL version, it could be considered to be
+  unknown for this MySQL version, and this function would return false.
+  @param[in]  encryption_info       encryption info bytes
+  @return result of the check */
+  static bool is_encrypted(const byte *encryption_info) noexcept;
+
+  /** Decoding the encryption info from the given array of bytes,
+  which are assumed not to be related to any particular tablespace.
+  @param[out]     encryption_metadata  decoded encryption metadata
+  @param[in]      encryption_info      encryption info to decode
+  @param[in]      decrypt_key          decrypt key using master key
+  @return true if success */
+  static bool decode_encryption_info(Encryption_metadata &encryption_metadata,
+                                     const byte *encryption_info,
+                                     bool decrypt_key) noexcept;
+
+  /** Decoding the encryption info from the given array of bytes,
+  which are assumed to be related to a given tablespace (unless
+  space_id == dict_sys_t::s_invalid_space_id). The given tablespace
+  is noted down in s_tablespaces_to_reencrypt if the encryption info
+  became succesfuly decrypted using the master key and the space_id
+  is not dict_sys_t::s_invalid_space_id. For such tablespaces the
+  encryption info is later re-encrypted using the rotated master key
+  in innobase_dict_recover().
   @param[in]      space_id        Tablespace id
   @param[in,out]  e_key           key, iv
-  @param[in]      encryption_info encryption info
+  @param[in]      encryption_info encryption info to decode
   @param[in]      decrypt_key     decrypt key using master key
   @return true if success */
   static bool decode_encryption_info(space_id_t space_id, Encryption_key &e_key,
-                                     byte *encryption_info,
+                                     const byte *encryption_info,
                                      bool decrypt_key) noexcept;
 
   /** Encrypt the redo log block.
@@ -308,10 +364,9 @@ class Encryption {
                             will be copied to this page
   @param[in]      src_len   source data length
   @param[in,out]  dst       scratch area to use for decryption
-  @param[in]      dst_len   size of the scratch area in bytes
   @return DB_SUCCESS or error code */
   dberr_t decrypt_log(const IORequest &type, byte *src, ulint src_len,
-                      byte *dst, ulint dst_len) noexcept;
+                      byte *dst) noexcept;
 
   /** Decrypt the page data contents. Page type must be
   FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
@@ -391,6 +446,23 @@ class Encryption {
 
   /** Current uuid of server instance */
   static char s_uuid[SERVER_UUID_LEN + 1];
+};
+
+/** Encryption metadata. */
+struct Encryption_metadata {
+  /** Encrypt type */
+  Encryption::Type m_type{Encryption::NONE};
+
+  /** Encrypt key */
+  byte m_key[Encryption::KEY_LEN];
+
+  /** Encrypt key length */
+  size_t m_key_len{0};
+
+  /** Encrypt initial vector */
+  byte m_iv[Encryption::KEY_LEN];
+
+  bool can_encrypt() const { return m_type != Encryption::NONE; }
 };
 
 struct Encryption_key {

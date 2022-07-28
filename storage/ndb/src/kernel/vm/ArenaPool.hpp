@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef ARENA_POOL_HPP
 #define ARENA_POOL_HPP
 
+#include "util/require.h"
 #include <ndbd_exit_codes.h>
 #include <NdbOut.hpp> // For template ArenaPool former cpp-file
 #include "Pool.hpp"

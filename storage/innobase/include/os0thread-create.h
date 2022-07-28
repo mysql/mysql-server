@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -71,21 +71,22 @@ class MySQL_thread {
  public:
 #ifdef UNIV_PFS_THREAD
   /** Constructor for the Runnable object.
-  @param[in]	pfs_key		Performance schema key
-  @param[in]	pfs_seqnum	Performance schema sequence number */
+  @param[in]    pfs_key         Performance schema key
+  @param[in]    pfs_seqnum      Performance schema sequence number */
   explicit MySQL_thread(mysql_pfs_key_t pfs_key, PSI_thread_seqnum pfs_seqnum)
       : m_pfs_key(pfs_key), m_pfs_seqnum(pfs_seqnum) {}
 #else
   /** Constructor for the Runnable object.
-  @param[in]	pfs_key		Performance schema key (ignored)
-  @param[in]	pfs_seqnum	Performance schema sequence number */
+  @param[in]    pfs_key         Performance schema key (ignored)
+  @param[in]    pfs_seqnum      Performance schema sequence number */
   explicit MySQL_thread(mysql_pfs_key_t, PSI_thread_seqnum) {}
 #endif /* UNIV_PFS_THREAD */
 
  protected:
   /** Register the thread with the server */
   void preamble() {
-    my_thread_init();
+    const bool ret = my_thread_init();
+    ut_a(!ret);
 
 #if defined(UNIV_PFS_THREAD) && !defined(UNIV_HOTBACKUP)
     if (m_pfs_key.m_value != PFS_NOT_INSTRUMENTED.m_value) {
@@ -136,14 +137,14 @@ class MySQL_thread {
 class Runnable : public MySQL_thread {
  public:
   /** Constructor for the Runnable object.
-  @param[in]	pfs_key		Performance schema key
-  @param[in]	pfs_seqnum	Performance schema sequence number */
+  @param[in]    pfs_key         Performance schema key
+  @param[in]    pfs_seqnum      Performance schema sequence number */
   explicit Runnable(mysql_pfs_key_t pfs_key, PSI_thread_seqnum pfs_seqnum)
       : MySQL_thread(pfs_key, pfs_seqnum) {}
 
   /** Method to execute the callable
-  @param[in]	f		Callable object
-  @param[in]	args		Variable number of args to F
+  @param[in]    f               Callable object
+  @param[in]    args            Variable number of args to F
   @retval f return value. */
   template <typename F, typename... Args>
   dberr_t operator()(F &&f, Args &&... args) {
@@ -165,8 +166,8 @@ with the PFS and the Server threading infrastructure. */
 class Detached_thread : public MySQL_thread {
  public:
   /** Constructor for the detached thread.
-  @param[in]	pfs_key		Performance schema key
-  @param[in]	pfs_seqnum	Performance schema sequence number */
+  @param[in]    pfs_key         Performance schema key
+  @param[in]    pfs_seqnum      Performance schema sequence number */
   explicit Detached_thread(mysql_pfs_key_t pfs_key,
                            PSI_thread_seqnum pfs_seqnum)
       : MySQL_thread(pfs_key, pfs_seqnum) {
@@ -174,8 +175,8 @@ class Detached_thread : public MySQL_thread {
   }
 
   /** Method to execute the callable
-  @param[in]	f		Callable object
-  @param[in]	args		Variable number of args to F */
+  @param[in]    f               Callable object
+  @param[in]    args            Variable number of args to F */
   template <typename F, typename... Args>
   void operator()(F &&f, Args &&... args) {
     while (m_thread.state() == IB_thread::State::NOT_STARTED) {
@@ -239,14 +240,14 @@ class Detached_thread : public MySQL_thread {
 };
 
 /** Check if thread is stopped
-@param[in]	thread Thread handle.
+@param[in]      thread Thread handle.
 @return true if the thread has started, finished tasks and stopped. */
 inline bool thread_is_stopped(const IB_thread &thread) {
   return thread.state() == IB_thread::State::STOPPED;
 }
 
 /** Check if thread is active
-@param[in]	thread Thread handle.
+@param[in]      thread Thread handle.
 @return true if the thread is active. */
 inline bool thread_is_active(const IB_thread &thread) {
   switch (thread.state()) {
@@ -292,10 +293,10 @@ assign the received object to any of variables/fields which you later could
 access to check thread's state. You are allowed to either move or copy that
 object (any number of copies is allowed). After assigning you are allowed to
 start the thread by calling start() on any of those objects.
-@param[in]	pfs_key   Performance schema thread key
-@param[in]	pfs_seqnum  Performance schema thread sequence number
-@param[in]	f         Callable instance
-@param[in]	args      Zero or more args
+@param[in]      pfs_key   Performance schema thread key
+@param[in]      pfs_seqnum  Performance schema thread sequence number
+@param[in]      f         Callable instance
+@param[in]      args      Zero or more args
 @return Object which allows to start the created thread, monitor its state and
         wait until the thread is finished. */
 template <typename F, typename... Args>
@@ -323,11 +324,11 @@ IB_thread create_detached_thread(mysql_pfs_key_t pfs_key,
 #endif /* UNIV_PFS_THREAD */
 
 /** Parallel for loop over a container.
-@param[in]	pfs_key  Performance schema thread key
-@param[in]	c        Container to iterate over in parallel
-@param[in]	n        Number of threads to create
-@param[in]	f        Callable instance
-@param[in]	args     Zero or more args */
+@param[in]      pfs_key  Performance schema thread key
+@param[in]      c        Container to iterate over in parallel
+@param[in]      n        Number of threads to create
+@param[in]      f        Callable instance
+@param[in]      args     Zero or more args */
 template <typename Container, typename F, typename... Args>
 void par_for(mysql_pfs_key_t pfs_key, const Container &c, size_t n, F &&f,
              Args &&... args) {

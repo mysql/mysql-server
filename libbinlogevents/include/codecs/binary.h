@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,8 @@
 #ifndef CODECS_BINARY_INCLUDED
 #define CODECS_BINARY_INCLUDED
 
-#include "base.h"
 #include "libbinlogevents/include/binary_log.h"
+#include "libbinlogevents/include/codecs/base.h"
 
 namespace binary_log {
 namespace codecs {
@@ -58,6 +58,25 @@ class Base_codec : public binary_log::codecs::Codec {
  */
 class Transaction_payload : public Base_codec {
  public:
+  /**
+    The on-the-wire fields
+   */
+  enum fields {
+    /** Marks the end of the payload header. */
+    OTW_PAYLOAD_HEADER_END_MARK = 0,
+
+    /** The payload field */
+    OTW_PAYLOAD_SIZE_FIELD = 1,
+
+    /** The compression type field */
+    OTW_PAYLOAD_COMPRESSION_TYPE_FIELD = 2,
+
+    /** The uncompressed size field */
+    OTW_PAYLOAD_UNCOMPRESSED_SIZE_FIELD = 3,
+
+    /** Other fields are appended here. */
+  };
+
   Transaction_payload() = default;
   /**
      This member function shall decode the contents of the buffer provided and
@@ -79,6 +98,61 @@ class Transaction_payload : public Base_codec {
      This member function shall encode the contents of the event referenced and
      store the result in the buffer provided. Note that the event referenced
      needs to be of type TRANSACTION_PAYLOAD_EVENT.
+
+     @param from the event to encode.
+     @param to the buffer where to store the encoded event.
+     @param size the size of the buffer.
+
+     @return a pair containing the amount of bytes encoded and whether there was
+             an error or not.
+  */
+  std::pair<std::size_t, bool> encode(const Binary_log_event &from,
+                                      unsigned char *to,
+                                      std::size_t size) const override;
+};
+
+/**
+  Binary codec for the heartbeat log event.
+ */
+class Heartbeat : public Base_codec {
+ public:
+  /**
+    The on-the-wire fields
+   */
+  enum fields {
+    /** Marks the end of the fields. */
+    OTW_HB_HEADER_END_MARK = 0,
+
+    /** The log file name */
+    OTW_HB_LOG_FILENAME_FIELD = 1,
+
+    /** The log position field */
+    OTW_HB_LOG_POSITION_FIELD = 2,
+
+    /** Other fields are appended here. */
+  };
+
+  Heartbeat() {}
+  /**
+     This member function shall decode the contents of the buffer provided and
+     fill in the event referenced. Note that the event provided needs to be of
+     type HEARTBEAT_EVENT_V2.
+
+     @param from the buffer to decode
+     @param size the size of the buffer to decode.
+     @param to the event to store the decoded information into.
+
+     @return a pair containing the amount of bytes decoded and whether there was
+             an error or not. False if no error, true otherwise.
+   */
+  std::pair<std::size_t, bool> decode(const unsigned char *from,
+                                      std::size_t size,
+                                      Binary_log_event &to) const override;
+
+  /**
+     This member function shall encode the contents of the event referenced and
+     store the result in the buffer provided. Note that the event referenced
+     needs to be of type HEARTBEAT_EVENT_V2.
 
      @param from the event to encode.
      @param to the buffer where to store the encoded event.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
   @file mysys/my_lib.cc
 */
 
-/* TODO: check for overun of memory for names. */
+/* TODO: check for overrun of memory for names. */
 
 #include <errno.h>
 #include <string.h>
@@ -109,7 +109,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
                        ALIGN_SIZE(sizeof(Entries_array)))
       MEM_ROOT(key_memory_MY_DIR, NAMES_START_SIZE);
   ;
-  /* MY_DIR structure is allocated and completly initialized at this point */
+  /* MY_DIR structure is allocated and completely initialized at this point */
   result = (MY_DIR *)buffer;
 
   tmp_file = strend(tmp_path);
@@ -191,7 +191,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
   struct _finddata_t find;
   ushort mode;
   char tmp_path[FN_REFLEN], *tmp_file, attrib;
-  __int64 handle;
+  __int64 handle = -1;
   void *rawmem = NULL;
 
   DBUG_TRACE;
@@ -221,7 +221,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
                        ALIGN_SIZE(sizeof(Entries_array)))
       MEM_ROOT(key_memory_MY_DIR, NAMES_START_SIZE);
 
-  /* MY_DIR structure is allocated and completly initialized at this point */
+  /* MY_DIR structure is allocated and completely initialized at this point */
   result = (MY_DIR *)buffer;
 
   if ((handle = _findfirst(tmp_path, &find)) == -1L) {

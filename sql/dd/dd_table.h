@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +190,7 @@ bool table_exists(dd::cache::Dictionary_client *client, const char *schema_name,
   tablespace.
 
   @param thd            Thread context.
-  @param schema_name    Name of the schema where tha table is located.
+  @param schema_name    Name of the schema where the table is located.
   @param table_name     Name of the table.
   @param create_info    Table options, e.g. the tablespace name.
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -83,11 +83,11 @@ namespace lob {
 const ulint MAX_SIZE = UINT32_MAX;
 
 /** The compressed LOB is stored as a collection of zlib streams.  The
- * uncompressed LOB is divided into chunks of size Z_CHUNK_SIZE and each of
- * these chunks are compressed individually and stored as compressed LOB.
+uncompressed LOB is divided into chunks of size Z_CHUNK_SIZE and each of
+these chunks are compressed individually and stored as compressed LOB.
 data. */
-#define KB128 (128 * 1024)
-#define Z_CHUNK_SIZE KB128
+constexpr uint32_t KB128 = 128 * 1024;
+constexpr uint32_t Z_CHUNK_SIZE = KB128;
 
 /** The reference in a field for which data is stored on a different page.
 The reference is at the end of the 'locally' stored part of the field.
@@ -209,7 +209,7 @@ struct ref_t {
   static const ulint LOB_SMALL_CHANGE_THRESHOLD = 100;
 
   /** Constructor.
-  @param[in]	ptr	Pointer to the external field reference. */
+  @param[in]    ptr     Pointer to the external field reference. */
   explicit ref_t(byte *ptr) : m_ref(ptr) {}
 
   /** For compressed LOB, if the length is less than or equal to Z_CHUNK_SIZE
@@ -221,32 +221,26 @@ struct ref_t {
   static bool use_single_z_stream(ulint len) { return (len <= Z_CHUNK_SIZE); }
 
   /** Check if this LOB is big enough to do partial update.
-  @param[in]	page_size	the page size
-  @param[in]	lob_length	the size of BLOB in bytes.
+  @param[in]    page_size       the page size
+  @param[in]    lob_length      the size of BLOB in bytes.
   @return true if LOB is big enough, false otherwise. */
-  static bool is_big(const page_size_t &page_size, const ulint lob_length) {
+  static bool is_big(const page_size_t &page_size [[maybe_unused]],
+                     const ulint lob_length [[maybe_unused]]) {
     /* Disable a performance optimization */
-    return (true);
-
-    const ulint limit = page_size.physical() * LOB_BIG_THRESHOLD_SIZE;
-    return (lob_length >= limit);
+    return true;
   }
 
   /** Check if this LOB is big enough to do partial update.
-  @param[in]	page_size	the page size
+  @param[in]    page_size       the page size
   @return true if LOB is big enough, false otherwise. */
-  bool is_big(const page_size_t &page_size) const {
+  bool is_big(const page_size_t &page_size [[maybe_unused]]) const {
     /* Disable a performance optimization */
-    return (true);
-
-    const ulint limit = page_size.physical() * LOB_BIG_THRESHOLD_SIZE;
-    const ulint lob_length = length();
-    return (lob_length >= limit);
+    return true;
   }
 
   /** Parse the LOB reference object and copy data into the given
   ref_mem_t object.
-  @param[out]	obj	LOB reference memory object. */
+  @param[out]   obj     LOB reference memory object. */
   void parse(ref_mem_t &obj) const {
     obj.m_space_id = space_id();
     obj.m_page_no = page_no();
@@ -259,17 +253,17 @@ struct ref_t {
   }
 
   /** Copy the LOB reference into the given memory location.
-  @param[out]	field_ref	write LOB reference in this
+  @param[out]   field_ref       write LOB reference in this
                                   location.*/
   void copy(byte *field_ref) const { memcpy(field_ref, m_ref, SIZE); }
 
   /** Check whether the stored external field reference is equal to the
   given field reference.
-  @param[in]	ptr	supplied external field reference. */
+  @param[in]    ptr     supplied external field reference. */
   bool is_equal(const byte *ptr) const { return (m_ref == ptr); }
 
   /** Set the external field reference to the given memory location.
-  @param[in]	ptr	the new external field reference. */
+  @param[in]    ptr     the new external field reference. */
   void set_ref(byte *ptr) { m_ref = ptr; }
 
   /** Check if the field reference is made of zeroes except the being_modified
@@ -342,7 +336,7 @@ struct ref_t {
   }
 
   /** Check if the current blob is being modified
-  @param[in]	field_ref	blob field reference
+  @param[in]    field_ref       blob field reference
   @return true if it is being modified, false otherwise. */
   bool static is_being_modified(const byte *field_ref) {
     const ulint byte_val = mach_read_from_1(field_ref + BTR_EXTERN_LEN);
@@ -424,10 +418,10 @@ struct ref_t {
   }
 
   /** Update the information stored in the external field reference.
-  @param[in]	space_id	the space identifier.
-  @param[in]	page_no		the page number.
-  @param[in]	offset		the offset within the page_no
-  @param[in]	mtr		the mini trx or NULL. */
+  @param[in]    space_id        the space identifier.
+  @param[in]    page_no         the page number.
+  @param[in]    offset          the offset within the page_no
+  @param[in]    mtr             the mini trx or NULL. */
   void update(space_id_t space_id, ulint page_no, ulint offset, mtr_t *mtr) {
     set_space_id(space_id, mtr);
     set_page_no(page_no, mtr);
@@ -435,29 +429,29 @@ struct ref_t {
   }
 
   /** Set the space_id in the external field reference.
-  @param[in]	space_id	the space identifier.
-  @param[in]	mtr		mini-trx or NULL. */
+  @param[in]    space_id        the space identifier.
+  @param[in]    mtr             mini-trx or NULL. */
   void set_space_id(const space_id_t space_id, mtr_t *mtr) {
     mlog_write_ulint(m_ref + BTR_EXTERN_SPACE_ID, space_id, MLOG_4BYTES, mtr);
   }
 
   /** Set the page number in the external field reference.
-  @param[in]	page_no	the page number.
-  @param[in]	mtr	mini-trx or NULL. */
+  @param[in]    page_no the page number.
+  @param[in]    mtr     mini-trx or NULL. */
   void set_page_no(const ulint page_no, mtr_t *mtr) {
     mlog_write_ulint(m_ref + BTR_EXTERN_PAGE_NO, page_no, MLOG_4BYTES, mtr);
   }
 
   /** Set the offset information in the external field reference.
-  @param[in]	offset	the offset.
-  @param[in]	mtr	mini-trx or NULL. */
+  @param[in]    offset  the offset.
+  @param[in]    mtr     mini-trx or NULL. */
   void set_offset(const ulint offset, mtr_t *mtr) {
     mlog_write_ulint(m_ref + BTR_EXTERN_OFFSET, offset, MLOG_4BYTES, mtr);
   }
 
   /** Set the length of blob in the external field reference.
-  @param[in]	len	the blob length .
-  @param[in]	mtr	mini-trx or NULL. */
+  @param[in]    len     the blob length .
+  @param[in]    mtr     mini-trx or NULL. */
   void set_length(const ulint len, mtr_t *mtr) {
     ut_ad(len <= MAX_SIZE);
     mlog_write_ulint(m_ref + BTR_EXTERN_LEN + 4, len, MLOG_4BYTES, mtr);
@@ -496,7 +490,7 @@ struct ref_t {
 
   /** Check if the LOB can be partially updated. This is done by loading
   the first page of LOB and looking at the flags.
-  @param[in]	index	the index to which LOB belongs.
+  @param[in]    index   the index to which LOB belongs.
   @return true if LOB is partially updatable, false otherwise.*/
   bool is_lob_partially_updatable(const dict_index_t *index) const;
 
@@ -510,16 +504,16 @@ struct ref_t {
                                     const page_size_t &page_size);
 
   /** Load the first page of LOB and read its page type.
-  @param[in]	index			the index object.
-  @param[in]	page_size		the page size of LOB.
-  @param[out]	is_partially_updatable	is the LOB partially updatable.
+  @param[in]    index                   the index object.
+  @param[in]    page_size               the page size of LOB.
+  @param[out]   is_partially_updatable  is the LOB partially updatable.
   @return the page type of first page of LOB.*/
   ulint get_lob_page_info(const dict_index_t *index,
                           const page_size_t &page_size,
                           bool &is_partially_updatable) const;
 
   /** Print this LOB reference into the given output stream.
-  @param[in]	out	the output stream.
+  @param[in]    out     the output stream.
   @return the output stream. */
   std::ostream &print(std::ostream &out) const;
 
@@ -533,8 +527,8 @@ struct ref_t {
 
 /** Overload the global output stream operator to easily print the
 lob::ref_t object into the output stream.
-@param[in,out]	out		the output stream.
-@param[in]	obj		the lob::ref_t object to be printed
+@param[in,out]  out             the output stream.
+@param[in]      obj             the lob::ref_t object to be printed
 @return the output stream. */
 inline std::ostream &operator<<(std::ostream &out, const ref_t &obj) {
   return (obj.print(out));
@@ -568,83 +562,91 @@ TODO: If the allocation extends the tablespace, it will not be redo logged, in
 any mini-transaction.  Tablespace extension should be redo-logged, so that
 recovery will not fail when the big_rec was written to the extended portion of
 the file, in case the file was somehow truncated in the crash.
-@param[in]	trx		the trx doing LOB store. If unavailable it
+@param[in]      trx             the trx doing LOB store. If unavailable it
                                 could be nullptr.
-@param[in,out]	pcur		a persistent cursor. if btr_mtr is restarted,
+@param[in,out]  pcur            a persistent cursor. if btr_mtr is restarted,
                                 then this can be repositioned.
-@param[in]	upd		update vector
-@param[in,out]	offsets		rec_get_offsets() on pcur. the "external in
+@param[in]      upd             update vector
+@param[in,out]  offsets         rec_get_offsets() on pcur. the "external in
                                 offsets will correctly correspond storage"
                                 flagsin offsets will correctly correspond to
                                 rec when this function returns
-@param[in]	big_rec_vec	vector containing fields to be stored
+@param[in]      big_rec_vec     vector containing fields to be stored
                                 externally
-@param[in,out]	btr_mtr		mtr containing the latches to the clustered
+@param[in,out]  btr_mtr         mtr containing the latches to the clustered
                                 index. can be committed and restarted.
-@param[in]	op		operation code
+@param[in]      op              operation code
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 [[nodiscard]] dberr_t btr_store_big_rec_extern_fields(
     trx_t *trx, btr_pcur_t *pcur, const upd_t *upd, ulint *offsets,
     const big_rec_t *big_rec_vec, mtr_t *btr_mtr, opcode op);
 
 /** Copies an externally stored field of a record to mem heap.
-@param[in]	trx		the current transaction.
-@param[in]	index		the clustered index
-@param[in]	rec		record in a clustered index; must be
+@param[in]      trx             the current transaction.
+@param[in]      index           the clustered index
+@param[in]      rec             record in a clustered index; must be
                                 protected by a lock or a page latch
-@param[in]	offsets		array returned by rec_get_offsets()
-@param[in]	page_size	BLOB page size
-@param[in]	no		field number
-@param[out]	len		length of the field
-@param[out]	lob_version	version of lob that has been copied */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI Indexes */
-#endif /* UNIV_DEBUG */
-/**
-@param[in,out]	heap		mem heap
+@param[in]      offsets         array returned by rec_get_offsets()
+@param[in]      page_size       BLOB page size
+@param[in]      no              field number
+@param[out]     len             length of the field
+@param[out]     lob_version     version of lob that has been copied
+@param[in]      is_sdi          true for SDI Indexes
+@param[in,out]  heap            mem heap
+@param[in]      is_rebuilt      true if rebuilt
 @return the field copied to heap, or NULL if the field is incomplete */
 byte *btr_rec_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, const rec_t *rec,
     const ulint *offsets, const page_size_t &page_size, ulint no, ulint *len,
-    size_t *lob_version,
-#ifdef UNIV_DEBUG
-    bool is_sdi,
-#endif /* UNIV_DEBUG */
-    mem_heap_t *heap);
+    size_t *lob_version, IF_DEBUG(bool is_sdi, ) mem_heap_t *heap,
+    bool is_rebuilt);
 
-#ifdef UNIV_DEBUG
-#define btr_rec_copy_externally_stored_field(                        \
-    trx, index, rec, offsets, page_size, no, len, ver, is_sdi, heap) \
-  btr_rec_copy_externally_stored_field_func(                         \
-      trx, index, rec, offsets, page_size, no, len, ver, is_sdi, heap)
-#else /* UNIV_DEBUG */
-#define btr_rec_copy_externally_stored_field(                         \
-    trx, index, rec, offsets, page_size, no, len, ver, is_sdi, heap)  \
-  btr_rec_copy_externally_stored_field_func(trx, index, rec, offsets, \
-                                            page_size, no, len, ver, heap)
-#endif /* UNIV_DEBUG */
+static inline byte *btr_rec_copy_externally_stored_field(
+    trx_t *trx, const dict_index_t *index, const rec_t *rec,
+    const ulint *offsets, const page_size_t &page_size, ulint no, ulint *len,
+    size_t *ver, bool is_sdi [[maybe_unused]], mem_heap_t *heap) {
+  return btr_rec_copy_externally_stored_field_func(
+      trx, index, rec, offsets, page_size, no, len, ver,
+      IF_DEBUG(is_sdi, ) heap, false);
+}
 
 /** Gets the offset of the pointer to the externally stored part of a field.
-@param[in]	offsets		array returned by rec_get_offsets()
-@param[in]	n		index of the external field
+@param[in]      index           Index
+@param[in]      offsets         array returned by rec_get_offsets()
+@param[in]      n               index of the external field
 @return offset of the pointer to the externally stored part */
-ulint btr_rec_get_field_ref_offs(const ulint *offsets, ulint n);
+ulint btr_rec_get_field_ref_offs(const dict_index_t *index,
+                                 const ulint *offsets, ulint n);
 
 /** Gets a pointer to the externally stored part of a field.
+@param[in] index index
 @param rec record
 @param offsets rec_get_offsets(rec)
 @param n index of the externally stored field
 @return pointer to the externally stored part */
-#define btr_rec_get_field_ref(rec, offsets, n) \
-  ((rec) + lob::btr_rec_get_field_ref_offs(offsets, n))
+static inline const byte *btr_rec_get_field_ref(const dict_index_t *index,
+                                                const byte *rec,
+                                                const ulint *offsets, ulint n) {
+  return rec + lob::btr_rec_get_field_ref_offs(index, offsets, n);
+}
+
+/** Gets a pointer to the externally stored part of a field.
+@param index record descriptor
+@param rec record
+@param offsets rec_get_offsets(rec)
+@param n index of the externally stored field
+@return pointer to the externally stored part */
+static inline byte *btr_rec_get_field_ref(const dict_index_t *index, byte *rec,
+                                          const ulint *offsets, ulint n) {
+  return rec + lob::btr_rec_get_field_ref_offs(index, offsets, n);
+}
 
 /** Deallocate a buffer block that was reserved for a BLOB part.
-@param[in]	index	Index
-@param[in]	block	Buffer block
-@param[in]	all	TRUE=remove also the compressed page
+@param[in]      index   Index
+@param[in]      block   Buffer block
+@param[in]      all     true=remove also the compressed page
                         if there is one
-@param[in]	mtr	Mini-transaction to commit */
+@param[in]      mtr     Mini-transaction to commit */
 void blob_free(dict_index_t *index, buf_block_t *block, bool all, mtr_t *mtr);
 
 /** The B-tree context under which the LOB operation is done. */
@@ -686,7 +688,7 @@ class BtrContext {
     ut_ad(m_pcur == nullptr || rec_offs_validate());
     ut_ad(m_block == nullptr || m_rec == nullptr ||
           m_block->frame == page_align(m_rec));
-    ut_ad(m_pcur == nullptr || m_rec == btr_pcur_get_rec(m_pcur));
+    ut_ad(m_pcur == nullptr || m_rec == m_pcur->get_rec());
   }
 
   /** Constructor **/
@@ -702,7 +704,7 @@ class BtrContext {
         m_btr_page_no(FIL_NULL) {
     ut_ad(m_pcur == nullptr || rec_offs_validate());
     ut_ad(m_block->frame == page_align(m_rec));
-    ut_ad(m_pcur == nullptr || m_rec == btr_pcur_get_rec(m_pcur));
+    ut_ad(m_pcur == nullptr || m_rec == m_pcur->get_rec());
   }
 
   /** Copy Constructor **/
@@ -720,19 +722,19 @@ class BtrContext {
   The ownership must be transferred to the updated record which is
   inserted elsewhere in the index tree. In purge only the owner of
   externally stored field is allowed to free the field.
-  @param[in]	update		update vector. */
+  @param[in]    update          update vector. */
   void disown_inherited_fields(const upd_t *update);
 
   /** Sets the ownership bit of an externally stored field in a record.
-  @param[in]		i		field number
-  @param[in]		val		value to set */
-  void set_ownership_of_extern_field(ulint i, ibool val) {
+  @param[in]            i               field number
+  @param[in]            val             value to set */
+  void set_ownership_of_extern_field(ulint i, bool val) {
     byte *data;
     ulint local_len;
 
-    data =
-        const_cast<byte *>(rec_get_nth_field(m_rec, m_offsets, i, &local_len));
-    ut_ad(rec_offs_nth_extern(m_offsets, i));
+    data = const_cast<byte *>(
+        rec_get_nth_field(m_index, m_rec, m_offsets, i, &local_len));
+    ut_ad(rec_offs_nth_extern(m_index, m_offsets, i));
     ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
     local_len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -765,33 +767,35 @@ class BtrContext {
     }
 
     for (ulint i = 0; i < n; i++) {
-      if (rec_offs_nth_extern(m_offsets, i)) {
-        set_ownership_of_extern_field(i, TRUE);
+      if (rec_offs_nth_extern(m_index, m_offsets, i)) {
+        set_ownership_of_extern_field(i, true);
       }
     }
   }
 
   /** Frees the externally stored fields for a record.
-  @param[in]	trx_id		transaction identifier whose LOB is
+  @param[in]    trx_id          transaction identifier whose LOB is
                                   being freed.
-  @param[in]	undo_no		undo number within a transaction whose
+  @param[in]    undo_no         undo number within a transaction whose
                                   LOB is being freed.
-  @param[in]	rollback	performing rollback?
-  @param[in]	rec_type	undo record type.
-  @param[in]	node		purge node or nullptr */
+  @param[in]    rollback        performing rollback?
+  @param[in]    rec_type        undo record type.
+  @param[in]    node            purge node or nullptr */
   void free_externally_stored_fields(trx_id_t trx_id, undo_no_t undo_no,
                                      bool rollback, ulint rec_type,
                                      purge_node_t *node);
 
   /** Frees the externally stored fields for a record, if the field
   is mentioned in the update vector.
-  @param[in]	trx_id		the transaction identifier.
-  @param[in]	undo_no		undo number within a transaction whose
+  @param[in]    trx_id          the transaction identifier.
+  @param[in]    undo_no         undo number within a transaction whose
                                   LOB is being freed.
-  @param[in]	update		update vector
-  @param[in]	rollback	performing rollback? */
+  @param[in]    update          update vector
+  @param[in]    rollback        performing rollback?
+  @param[in]    big_rec_vec     big record vector */
   void free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
-                                  const upd_t *update, bool rollback);
+                                  const upd_t *update, bool rollback,
+                                  big_rec_t *big_rec_vec);
 
   /** Gets the compressed page descriptor
   @return the compressed page descriptor. */
@@ -812,21 +816,21 @@ class BtrContext {
   /** Check if there is a need to recalculate the context information.
   @return true if there is a need to recalculate, false otherwise. */
   bool need_recalc() const {
-    return ((m_pcur != nullptr) && (m_rec != btr_pcur_get_rec(m_pcur)));
+    return ((m_pcur != nullptr) && (m_rec != m_pcur->get_rec()));
   }
 
   /** Get the clustered index record pointer.
   @return clustered index record pointer. */
   rec_t *rec() const {
-    ut_ad(m_pcur == nullptr || m_rec == btr_pcur_get_rec(m_pcur));
+    ut_ad(m_pcur == nullptr || m_rec == m_pcur->get_rec());
     return (m_rec);
   }
 
   /** Get the LOB reference for the given field number.
-  @param[in]	field_no	field number.
+  @param[in]    field_no        field number.
   @return LOB reference (aka external field reference).*/
   byte *get_field_ref(ulint field_no) const {
-    return (btr_rec_get_field_ref(m_rec, get_offsets(), field_no));
+    return (btr_rec_get_field_ref(m_index, m_rec, get_offsets(), field_no));
   }
 
 #ifdef UNIV_DEBUG
@@ -855,11 +859,11 @@ class BtrContext {
   @return will not return if any blob reference is invalid. */
   bool are_all_blobrefs_valid() const {
     for (ulint i = 0; i < rec_offs_n_fields(m_offsets); i++) {
-      if (!rec_offs_nth_extern(m_offsets, i)) {
+      if (!rec_offs_nth_extern(m_index, m_offsets, i)) {
         continue;
       }
 
-      byte *field_ref = btr_rec_get_field_ref(rec(), m_offsets, i);
+      byte *field_ref = btr_rec_get_field_ref(m_index, rec(), m_offsets, i);
 
       ref_t blobref(field_ref);
 
@@ -919,7 +923,7 @@ class BtrContext {
   void rec_block_fix() {
     m_rec_offset = page_offset(m_rec);
     m_btr_page_no = page_get_page_no(buf_block_get_frame(m_block));
-    buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
+    buf_block_buf_fix_inc(m_block, UT_LOCATION_HERE);
   }
 
   /** Decrement the buffer fix count of the clustered index record block,
@@ -937,10 +941,10 @@ class BtrContext {
     page_size_t page_size(dict_table_page_size(table()));
     page_cur_t *page_cur = &m_pcur->m_btr_cur.page_cur;
 
-    mtr_x_lock(dict_index_get_lock(index()), m_mtr);
+    mtr_x_lock(dict_index_get_lock(index()), m_mtr, UT_LOCATION_HERE);
 
-    page_cur->block =
-        btr_block_get(page_id, page_size, RW_X_LATCH, index(), m_mtr);
+    page_cur->block = btr_block_get(page_id, page_size, RW_X_LATCH,
+                                    UT_LOCATION_HERE, index(), m_mtr);
 
     page_cur->rec = buf_block_get_frame(page_cur->block) + m_rec_offset;
 
@@ -956,7 +960,8 @@ class BtrContext {
   /** Restore the position of the persistent cursor. */
   void restore_position() {
     ut_ad(m_pcur->m_rel_pos == BTR_PCUR_ON);
-    bool ret = btr_pcur_restore_position(m_pcur->m_latch_mode, m_pcur, m_mtr);
+    bool ret =
+        m_pcur->restore_position(m_pcur->m_latch_mode, m_mtr, UT_LOCATION_HERE);
 
     ut_a(ret);
 
@@ -1002,9 +1007,9 @@ class BtrContext {
   }
 
   /** Mark the nth field as externally stored.
-  @param[in]	field_no	the field number. */
+  @param[in]    field_no        the field number. */
   void make_nth_extern(ulint field_no) {
-    rec_offs_make_nth_extern(m_offsets, field_no);
+    rec_offs_make_nth_extern(m_index, m_offsets, field_no);
   }
 
   /** Get the log mode of the btr mtr.
@@ -1039,7 +1044,7 @@ class BtrContext {
   buf_block_t *block() const { return (m_block); }
 
   /** Save the position of the persistent cursor. */
-  void store_position() { btr_pcur_store_position(m_pcur, m_mtr); }
+  void store_position() { m_pcur->store_position(m_mtr); }
 
   /** Check if there is enough space in log file. Commit and re-start the
   mini-transaction. */
@@ -1052,8 +1057,8 @@ class BtrContext {
   /** Recalculate some of the members after restoring the persistent
   cursor. */
   void recalc() {
-    m_block = btr_pcur_get_block(m_pcur);
-    m_rec = btr_pcur_get_rec(m_pcur);
+    m_block = m_pcur->get_block();
+    m_rec = m_pcur->get_rec();
     m_btr_page_no = page_get_page_no(buf_block_get_frame(m_block));
     m_rec_offset = page_offset(m_rec);
 
@@ -1070,7 +1075,11 @@ class BtrContext {
                             mtr);
   }
 
+  /** The btr mtr that is holding the latch on the B-tree index page
+  containing the clustered index record.*/
   mtr_t *m_mtr;
+
+  /** Persistent cursor positioned on the clustered index record.*/
   btr_pcur_t *m_pcur;
   dict_index_t *m_index;
   rec_t *m_rec;
@@ -1089,8 +1098,8 @@ class BtrContext {
 to carry out a LOB operation. */
 struct InsertContext : public BtrContext {
   /** Constructor
-  @param[in]	btr_ctx		b-tree context for lob operation.
-  @param[in]	big_rec_vec	array of blobs */
+  @param[in]    btr_ctx         b-tree context for lob operation.
+  @param[in]    big_rec_vec     array of blobs */
   InsertContext(const BtrContext &btr_ctx, const big_rec_t *big_rec_vec)
       : BtrContext(btr_ctx), m_big_rec_vec(big_rec_vec) {}
 
@@ -1103,7 +1112,7 @@ struct InsertContext : public BtrContext {
   ulint get_big_rec_vec_size() { return (m_big_rec_vec->n_fields); }
 
   /** The B-tree Context */
-  // const BtrContext	m_btr_ctx;
+  // const BtrContext   m_btr_ctx;
 
   /** vector containing fields to be stored externally */
   const big_rec_t *m_big_rec_vec;
@@ -1112,10 +1121,10 @@ struct InsertContext : public BtrContext {
 /** Information about data stored in one BLOB page. */
 struct blob_page_info_t {
   /** Constructor.
-  @param[in]	page_no		the BLOB page number.
-  @param[in]	bytes		amount of uncompressed BLOB data
+  @param[in]    page_no         the BLOB page number.
+  @param[in]    bytes           amount of uncompressed BLOB data
                                   in BLOB page in bytes.
-  @param[in]	zbytes		amount of compressed BLOB data
+  @param[in]    zbytes          amount of compressed BLOB data
                                   in BLOB page in bytes. */
   blob_page_info_t(page_no_t page_no, uint bytes, uint zbytes)
       : m_page_no(page_no), m_bytes(bytes), m_zbytes(zbytes) {}
@@ -1128,20 +1137,20 @@ struct blob_page_info_t {
   }
 
   /** Print this blob_page_into_t object into the given output stream.
-  @param[in]	out	the output stream.
+  @param[in]    out     the output stream.
   @return the output stream. */
   std::ostream &print(std::ostream &out) const;
 
   /** Set the compressed data size in bytes.
-  @param[in]	bytes	the new compressed data size. */
+  @param[in]    bytes   the new compressed data size. */
   void set_compressed_size(uint bytes) { m_zbytes = bytes; }
 
   /** Set the uncompressed data size in bytes.
-  @param[in]	bytes	the new uncompressed data size. */
+  @param[in]    bytes   the new uncompressed data size. */
   void set_uncompressed_size(uint bytes) { m_bytes = bytes; }
 
   /** Set the page number.
-  @param[in]	page_no		the page number */
+  @param[in]    page_no         the page number */
   void set_page_no(page_no_t page_no) { m_page_no = page_no; }
 
  private:
@@ -1166,7 +1175,7 @@ struct blob_dir_t {
   typedef std::vector<blob_page_info_t>::const_iterator const_iterator;
 
   /** Print this blob directory into the given output stream.
-  @param[in]	out	the output stream.
+  @param[in]    out     the output stream.
   @return the output stream. */
   std::ostream &print(std::ostream &out) const;
 
@@ -1174,7 +1183,7 @@ struct blob_dir_t {
   void clear() { m_pages.clear(); }
 
   /** Append the given blob page information.
-  @param[in]	page	the blob page information to be added.
+  @param[in]    page    the blob page information to be added.
   @return DB_SUCCESS on success, error code on failure. */
   dberr_t add(const blob_page_info_t &page) {
     m_pages.push_back(page);
@@ -1187,8 +1196,8 @@ struct blob_dir_t {
 
 /** Overloading the global output operator to print the blob_dir_t
 object into an output stream.
-@param[in,out]	out	the output stream.
-@param[in]	obj	the object to be printed.
+@param[in,out]  out     the output stream.
+@param[in]      obj     the object to be printed.
 @return the output stream. */
 inline std::ostream &operator<<(std::ostream &out, const blob_dir_t &obj) {
   return (obj.print(out));
@@ -1197,27 +1206,19 @@ inline std::ostream &operator<<(std::ostream &out, const blob_dir_t &obj) {
 /** The context information for reading a single BLOB */
 struct ReadContext {
   /** Constructor
-  @param[in]	page_size	page size information.
-  @param[in]	data		'internally' stored part of the field
+  @param[in]    page_size       page size information.
+  @param[in]    data            'internally' stored part of the field
                                   containing also the reference to the
                                   external part; must be protected by
                                   a lock or a page latch.
-  @param[in]	prefix_len	length of BLOB data stored inline in
+  @param[in]    prefix_len      length of BLOB data stored inline in
                                   the clustered index record, including
                                   the blob reference.
-  @param[out]	buf		the output buffer.
-  @param[in]	len		the output buffer length. */
-#ifdef UNIV_DEBUG
-  /**
-  @param[in]	is_sdi		true for SDI Indexes. */
-#endif /* UNIV_DEBUG */
+  @param[out]   buf             the output buffer.
+  @param[in]    len             the output buffer length.
+  @param[in]    is_sdi          true for SDI Indexes. */
   ReadContext(const page_size_t &page_size, const byte *data, ulint prefix_len,
-              byte *buf, ulint len
-#ifdef UNIV_DEBUG
-              ,
-              bool is_sdi
-#endif /* UNIV_DEBUG */
-              )
+              byte *buf, ulint len IF_DEBUG(, bool is_sdi))
       : m_page_size(page_size),
         m_data(data),
         m_local_len(prefix_len),
@@ -1225,12 +1226,7 @@ struct ReadContext {
                   BTR_EXTERN_FIELD_REF_SIZE),
         m_buf(buf),
         m_len(len),
-        m_lob_version(0)
-#ifdef UNIV_DEBUG
-        ,
-        m_is_sdi(is_sdi)
-#endif /* UNIV_DEBUG */
-  {
+        m_lob_version(0) IF_DEBUG(, m_is_sdi(is_sdi)) {
     read_blobref();
   }
 
@@ -1381,18 +1377,26 @@ struct Reader {
 /** The context information when the delete operation on LOB is
 taking place. */
 struct DeleteContext : public BtrContext {
-  /** Constructor. */
+  /** Constructor.
+  @param[in]  btr  the B-tree context of the blob operation.
+  @param[in]  field_ref  reference to a blob
+  @param[in]  field_no   field containing the blob.
+  @param[in]  rollback   true if it is rollback, false if it is purge. */
   DeleteContext(const BtrContext &btr, byte *field_ref, ulint field_no,
-                bool rollback)
-      : BtrContext(btr),
-        m_blobref(field_ref),
-        m_field_no(field_no),
-        m_rollback(rollback),
-        m_page_size(table() == nullptr ? get_page_size()
-                                       : dict_table_page_size(table())) {
-    m_blobref.parse(m_blobref_mem);
-  }
+                bool rollback);
 
+  /** Constructor.
+  @param[in]  btr  the B-tree context of the blob operation.
+  @param[in]  rollback   true if it is rollback, false if it is purge. */
+  DeleteContext(const BtrContext &btr, bool rollback);
+
+  /** Update the delete context to point to a different blob.
+  @param[in]  field_ref  blob reference
+  @param[in]  field_no   the field that contains the blob. */
+  void set_blob(byte *field_ref, ulint field_no);
+
+  /** Check if the blob reference is valid.
+  @return true if valid, false otherwise. */
   bool is_ref_valid() const {
     return (m_blobref_mem.m_page_no == m_blobref.page_no());
   }
@@ -1424,7 +1428,7 @@ struct DeleteContext : public BtrContext {
     rec_t *clust_rec = rec();
     if (clust_rec != nullptr) {
       const byte *v2 =
-          btr_rec_get_field_ref(clust_rec, get_offsets(), m_field_no);
+          btr_rec_get_field_ref(m_index, clust_rec, get_offsets(), m_field_no);
 
       ut_ad(m_blobref.is_equal(v2));
     }
@@ -1446,25 +1450,82 @@ struct DeleteContext : public BtrContext {
   /** Is this operation part of rollback? */
   bool m_rollback;
 
+  /** The page size of the tablespace.*/
   page_size_t m_page_size;
+
+  /** Add a buffer block that is to be freed.
+  @param[in]  block  buffer block to be freed.*/
+  void add_lob_block(buf_block_t *block);
+
+  /** Free all the stored lob blocks. */
+  void free_lob_blocks();
+
+  /** Destructor. Just add some asserts to ensure that resources are freed. */
+  ~DeleteContext();
 
  private:
   /** Memory copy of the original LOB reference. */
   ref_mem_t m_blobref_mem;
 
+  using Block_vector = std::vector<buf_block_t *, ut::allocator<buf_block_t *>>;
+
+  /** The buffer blocks of lob to be freed. */
+  Block_vector m_lob_blocks;
+
   /** Obtain the page size from the tablespace flags.
   @return the page size. */
-  page_size_t get_page_size() const {
-    bool found;
-    space_id_t space_id = m_blobref.space_id();
-    const page_size_t &tmp = fil_space_get_page_size(space_id, &found);
-    ut_ad(found);
-    return (tmp);
-  }
+  page_size_t get_page_size() const;
 };
 
+inline DeleteContext::DeleteContext(const BtrContext &btr, bool rollback)
+    : DeleteContext(btr, nullptr, 0, rollback) {}
+
+inline DeleteContext::DeleteContext(const BtrContext &btr, byte *field_ref,
+                                    ulint field_no, bool rollback)
+    : BtrContext(btr),
+      m_blobref(field_ref),
+      m_field_no(field_no),
+      m_rollback(rollback),
+      m_page_size(table() == nullptr ? get_page_size()
+                                     : dict_table_page_size(table())) {
+  if (field_ref != nullptr) {
+    m_blobref.parse(m_blobref_mem);
+  }
+}
+
+inline void DeleteContext::set_blob(byte *field_ref, ulint field_no) {
+  m_blobref.set_ref(field_ref);
+  m_field_no = field_no;
+  if (field_ref != nullptr) {
+    m_blobref.parse(m_blobref_mem);
+  }
+}
+
+inline page_size_t DeleteContext::get_page_size() const {
+  bool found;
+  space_id_t space_id = m_blobref.space_id();
+  const page_size_t &tmp = fil_space_get_page_size(space_id, &found);
+  ut_ad(found);
+  return tmp;
+}
+
+inline DeleteContext::~DeleteContext() { ut_ad(m_lob_blocks.empty()); }
+
+inline void DeleteContext::add_lob_block(buf_block_t *block) {
+  ut_ad(mtr_memo_contains_flagged(m_mtr, block, MTR_MEMO_PAGE_X_FIX));
+  m_lob_blocks.push_back(block);
+}
+
+inline void DeleteContext::free_lob_blocks() {
+  for (auto block_ptr : m_lob_blocks) {
+    ut_ad(mtr_memo_contains_flagged(m_mtr, block_ptr, MTR_MEMO_PAGE_X_FIX));
+    btr_page_free_low(m_index, block_ptr, ULINT_UNDEFINED, m_mtr);
+  }
+  m_lob_blocks.clear();
+}
+
 /** Determine if an operation on off-page columns is an update.
-@param[in]	op	type of BLOB operation.
+@param[in]      op      type of BLOB operation.
 @return true if op != OPCODE_INSERT */
 inline bool btr_lob_op_is_update(opcode op) {
   switch (op) {
@@ -1478,120 +1539,108 @@ inline bool btr_lob_op_is_update(opcode op) {
       break;
   }
 
-  ut_ad(0);
-  return (FALSE);
+  ut_d(ut_error);
+  ut_o(return false);
 }
-
-#ifdef UNIV_DEBUG
-#define btr_copy_externally_stored_field_prefix(              \
-    trx, index, buf, len, page_size, data, is_sdi, local_len) \
-  btr_copy_externally_stored_field_prefix_func(               \
-      trx, index, buf, len, page_size, data, is_sdi, local_len)
-
-#define btr_copy_externally_stored_field(trx, index, len, ver, data,           \
-                                         page_size, local_len, is_sdi, heap)   \
-  btr_copy_externally_stored_field_func(trx, index, len, ver, data, page_size, \
-                                        local_len, is_sdi, heap)
-
-#else /* UNIV_DEBUG */
-#define btr_copy_externally_stored_field_prefix(                     \
-    trx, index, buf, len, page_size, data, is_sdi, local_len)        \
-  btr_copy_externally_stored_field_prefix_func(trx, index, buf, len, \
-                                               page_size, data, local_len)
-
-#define btr_copy_externally_stored_field(trx, index, len, ver, data,           \
-                                         page_size, local_len, is_sdi, heap)   \
-  btr_copy_externally_stored_field_func(trx, index, len, ver, data, page_size, \
-                                        local_len, heap)
-#endif /* UNIV_DEBUG */
 
 /** Copies the prefix of an externally stored field of a record.
 The clustered index record must be protected by a lock or a page latch.
-@param[in]	trx		the current transaction object if available
+@param[in]      trx             the current transaction object if available
 or nullptr.
-@param[in]	index		the clust index in which lob is read.
-@param[out]	buf		the field, or a prefix of it
-@param[in]	len		length of buf, in bytes
-@param[in]	page_size	BLOB page size
-@param[in]	data		'internally' stored part of the field
-                                containing also the reference to the external
-                                part; must be protected by a lock or a page
-                                latch. */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI indexes */
-#endif /* UNIV_DEBUG */
-/**
-@param[in]	local_len	length of data, in bytes
-@return the length of the copied field, or 0 if the column was being
-or has been deleted */
-ulint btr_copy_externally_stored_field_prefix_func(trx_t *trx,
-                                                   const dict_index_t *index,
-                                                   byte *buf, ulint len,
-                                                   const page_size_t &page_size,
-                                                   const byte *data,
-#ifdef UNIV_DEBUG
-                                                   bool is_sdi,
-#endif /* UNIV_DEBUG */
-                                                   ulint local_len);
-
-/** Copies an externally stored field of a record to mem heap.
-The clustered index record must be protected by a lock or a page latch.
-@param[in]	trx		the current trx object or nullptr
-@param[in]	index		the clust index in which lob is read.
-@param[out]	len		length of the whole field
-@param[out]	lob_version	LOB version number.
-@param[in]	data		'internally' stored part of the field
+@param[in]      index           the clust index in which lob is read.
+@param[out]     buf             the field, or a prefix of it
+@param[in]      len             length of buf, in bytes
+@param[in]      page_size       BLOB page size
+@param[in]      data            'internally' stored part of the field
                                 containing also the reference to the external
                                 part; must be protected by a lock or a page
                                 latch.
-@param[in]	page_size	BLOB page size
-@param[in]	local_len	length of data
-@param[in]	is_sdi		true for SDI Indexes
-@param[in,out]	heap		mem heap
+@param[in]      is_sdi          true for SDI indexes
+@param[in]      local_len       length of data, in bytes
+@return the length of the copied field, or 0 if the column was being
+or has been deleted */
+ulint btr_copy_externally_stored_field_prefix_func(
+    trx_t *trx, const dict_index_t *index, byte *buf, ulint len,
+    const page_size_t &page_size, const byte *data,
+    IF_DEBUG(bool is_sdi, ) ulint local_len);
+
+/** Copies an externally stored field of a record to mem heap.
+The clustered index record must be protected by a lock or a page latch.
+@param[in]      trx             the current trx object or nullptr
+@param[in]      index           the clust index in which lob is read.
+@param[out]     len             length of the whole field
+@param[out]     lob_version     LOB version number.
+@param[in]      data            'internally' stored part of the field
+                                containing also the reference to the external
+                                part; must be protected by a lock or a page
+                                latch.
+@param[in]      page_size       BLOB page size
+@param[in]      local_len       length of data
+@param[in]      is_sdi          true for SDI Indexes
+@param[in,out]  heap            mem heap
 @return the whole field copied to heap */
 byte *btr_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, ulint *len, size_t *lob_version,
     const byte *data, const page_size_t &page_size, ulint local_len,
     IF_DEBUG(bool is_sdi, ) mem_heap_t *heap);
 
+static inline ulint btr_copy_externally_stored_field_prefix(
+    trx_t *trx, const dict_index_t *index, byte *buf, ulint len,
+    const page_size_t &page_size, const byte *data, bool is_sdi,
+    ulint local_len) {
+  return btr_copy_externally_stored_field_prefix_func(
+      trx, index, buf, len, page_size, data, IF_DEBUG(is_sdi, ) local_len);
+}
+static inline byte *btr_copy_externally_stored_field(
+    trx_t *trx, const dict_index_t *index, ulint *len, size_t *ver,
+    const byte *data, const page_size_t &page_size, ulint local_len,
+    bool is_sdi, mem_heap_t *heap) {
+  return btr_copy_externally_stored_field_func(trx, index, len, ver, data,
+                                               page_size, local_len,
+                                               IF_DEBUG(is_sdi, ) heap);
+}
+
 /** Gets the externally stored size of a record, in units of a database page.
-@param[in]	rec	record
-@param[in]	offsets	array returned by rec_get_offsets()
+@param[in]      index   index
+@param[in]      rec     record
+@param[in]      offsets array returned by rec_get_offsets()
 @return externally stored part, in units of a database page */
-ulint btr_rec_get_externally_stored_len(const rec_t *rec, const ulint *offsets);
+ulint btr_rec_get_externally_stored_len(const dict_index_t *index,
+                                        const rec_t *rec, const ulint *offsets);
 
 /** Purge an LOB (either of compressed or uncompressed).
-@param[in]	ctx		the delete operation context information.
-@param[in]	index		clustered index in which LOB is present
-@param[in]	trxid		the transaction that is being purged.
-@param[in]	undo_no		during rollback to savepoint, purge only upto
+@param[in]      ctx             the delete operation context information.
+@param[in]      index           clustered index in which LOB is present
+@param[in]      trxid           the transaction that is being purged.
+@param[in]      undo_no         during rollback to savepoint, purge only upto
                                 this undo number.
-@param[in]	rec_type	undo record type.
-@param[in]	uf		the update vector for the field.
-@param[in]	node		the purge node or nullptr. */
+@param[in]      rec_type        undo record type.
+@param[in]      uf              the update vector for the field.
+@param[in]      node            the purge node or nullptr. */
 void purge(lob::DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
            undo_no_t undo_no, ulint rec_type, const upd_field_t *uf,
            purge_node_t *node);
 
 /** Update a portion of the given LOB.
-@param[in]	ctx		update operation context information.
-@param[in]	trx		the transaction that is doing the modification.
-@param[in]	index		the clustered index containing the LOB.
-@param[in]	upd		update vector
-@param[in]	field_no	the LOB field number
-@param[in]	blobref		LOB reference stored in clust record.
+@param[in]      ctx             update operation context information.
+@param[in]      trx             the transaction that is doing the
+modification.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      upd             update vector
+@param[in]      field_no        the LOB field number
+@param[in]      blobref         LOB reference stored in clust record.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                const upd_t *upd, ulint field_no, ref_t blobref);
 
 /** Update a portion of the given LOB.
-@param[in]	ctx		update operation context information.
-@param[in]	trx		the transaction that is doing the modification.
-@param[in]	index		the clustered index containing the LOB.
-@param[in]	upd		update vector
-@param[in]	field_no	the LOB field number
-@param[in]	blobref		LOB reference stored in clust record.
+@param[in]      ctx             update operation context information.
+@param[in]      trx             the transaction that is doing the
+modification.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      upd             update vector
+@param[in]      field_no        the LOB field number
+@param[in]      blobref         LOB reference stored in clust record.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                  const upd_t *upd, ulint field_no, ref_t blobref);
@@ -1607,16 +1656,16 @@ void print(trx_t *trx, dict_index_t *index, std::ostream &out, ref_t ref,
 
 /** Import the given LOB.  Update the creator trx id and the modifier trx
 id to the given import trx id.
-@param[in]	index	clustered index containing the lob.
-@param[in]	field_ref	the lob reference.
-@param[in]	trx_id		the import trx id. */
+@param[in]      index   clustered index containing the lob.
+@param[in]      field_ref       the lob reference.
+@param[in]      trx_id          the import trx id. */
 void z_import(const dict_index_t *index, byte *field_ref, trx_id_t trx_id);
 
 /** Import the given LOB.  Update the creator trx id and the modifier trx
 id to the given import trx id.
-@param[in]	index	clustered index containing the lob.
-@param[in]	field_ref	the lob reference.
-@param[in]	trx_id		the import trx id. */
+@param[in]      index   clustered index containing the lob.
+@param[in]      field_ref       the lob reference.
+@param[in]      trx_id          the import trx id. */
 void import(const dict_index_t *index, byte *field_ref, trx_id_t trx_id);
 
 #ifdef UNIV_DEBUG

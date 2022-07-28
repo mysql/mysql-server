@@ -49,7 +49,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_clusterset_all_nodes_by_clusterset_id",
       "router_clusterset_present",
       "router_bootstrap_target_type",
-      "router_clusterset_select_cluster_instances",
       "router_clusterset_select_cluster_info_by_primary_role",
       "router_clusterset_select_cluster_info_by_gr_uuid",
       "router_clusterset_select_gr_primary_member",

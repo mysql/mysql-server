@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <vector>
 
@@ -38,10 +39,7 @@
 #include <fcntl.h>
 #endif
 
-#ifdef _WIN32
-#include <aclapi.h>
-#endif
-
+#include "mysql/harness/access_rights.h"
 #include "mysql/harness/stdx/expected.h"
 
 namespace mysql_harness {
@@ -119,12 +117,12 @@ class HARNESS_EXPORT Path {
    * Construct a path
    *
    * @param path Non-empty string denoting the path.
+   * @throws std::invalid_argument
    */
-  /** @overload */                // throws std::invalid_argument
-  Path(const std::string &path);  // NOLINT(runtime/explicit)
+  Path(std::string path);
 
-  /** @overload */         // throws std::invalid_argument
-  Path(const char *path);  // NOLINT(runtime/explicit)
+  Path(std::string_view path) : Path(std::string(path)) {}
+  Path(const char *path) : Path(std::string(path)) {}
 
   /**
    * Create a path from directory, basename, and extension.
@@ -242,9 +240,6 @@ class HARNESS_EXPORT Path {
    * @param other Path component to be appended to the path
    */
   Path join(const Path &other) const;
-
-  /** @overload */
-  Path join(const char *other) const { return join(Path(other)); }
 
   /**
    * Returns the canonical form of the path, resolving relative paths.
@@ -537,30 +532,6 @@ std::string get_plugin_dir(const std::string &runtime_dir);
 
 HARNESS_EXPORT
 std::string get_tests_data_dir(const std::string &runtime_dir);
-
-#ifdef _WIN32
-/**
- * Deleter for smart pointers pointing to objects allocated with `std::malloc`.
- */
-template <typename T>
-class StdFreeDeleter {
- public:
-  void operator()(T *ptr) { std::free(ptr); }
-};
-
-/**
- * Retrieves file's DACL security descriptor.
- *
- * @param[in] file_name File name.
- *
- * @return File's DACL security descriptor.
- *
- * @throw std::exception Failed to retrieve security descriptor.
- */
-HARNESS_EXPORT std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)>
-get_security_descriptor(const std::string &file_name);
-
-#endif
 
 #ifndef _WIN32
 using perm_mode = mode_t;

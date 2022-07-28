@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,6 +264,9 @@
 #define CFG_DB_NUM_CPUS               676
 #define CFG_DB_AUTO_THREAD_CONFIG     677
 #define CFG_DB_TRP_KEEP_ALIVE_SEND_INTERVAL 678
+
+#define CFG_DB_TRANS_ERROR_LOGLEVEL 679
+#define CFG_DB_ENCRYPTED_FILE_SYSTEM  680
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

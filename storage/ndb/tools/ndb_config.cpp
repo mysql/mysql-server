@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,10 +75,12 @@
 #include <mgmapi.h>
 #include "storage/ndb/include/mgmcommon/NdbMgm.hpp"
 #include "../src/mgmapi/mgmapi_configuration.hpp"
-#include "../src/mgmsrv/ConfigInfo.hpp"
+#include "mgmcommon/ConfigInfo.hpp"
+#include "mgmcommon/InitConfigFileParser.hpp"
 #include <NdbAutoPtr.hpp>
 #include <NdbTCP.h>
 #include <inttypes.h>
+#include "util/cstrbuf.h"
 
 #include "my_alloc.h"
 
@@ -107,37 +109,37 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_config"),
   { "nodes", NDB_OPT_NOSHORT, "Print nodes",
-    (uchar**) &g_nodes, (uchar**) &g_nodes,
+    &g_nodes, &g_nodes,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "connections", NDB_OPT_NOSHORT, "Print connections",
-    (uchar**) &g_connections, (uchar**) &g_connections,
+    &g_connections, &g_connections,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "system", NDB_OPT_NOSHORT, "Print system",
-    (uchar**) &g_system, (uchar**) &g_system,
+    &g_system, &g_system,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "query", 'q', "Query option(s)",
-    (uchar**) &g_query, (uchar**) &g_query,
+    &g_query, &g_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "host", NDB_OPT_NOSHORT, "Host",
-    (uchar**) &g_host, (uchar**) &g_host,
+    &g_host, &g_host,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "type", NDB_OPT_NOSHORT, "Type of node/connection",
-    (uchar**) &g_type, (uchar**) &g_type,
+    &g_type, &g_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "nodeid", NDB_OPT_NOSHORT, "Nodeid",
-    (uchar**) &g_nodeid, (uchar**) &g_nodeid,
+    &g_nodeid, &g_nodeid,
     0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "fields", 'f', "Field separator",
-    (uchar**) &g_field_delimiter, (uchar**) &g_field_delimiter,
+    &g_field_delimiter, &g_field_delimiter,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "rows", 'r', "Row separator",
-    (uchar**) &g_row_delimiter, (uchar**) &g_row_delimiter,
+    &g_row_delimiter, &g_row_delimiter,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "config-file", NDB_OPT_NOSHORT, "Path to config.ini",
-    (uchar**) &g_config_file, (uchar**) &g_config_file,
+    &g_config_file, &g_config_file,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "mycnf", NDB_OPT_NOSHORT, "Read config from my.cnf",
-    (uchar**) &g_mycnf, (uchar**) &g_mycnf,
+    &g_mycnf, &g_mycnf,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "cluster-config-suffix", NDB_OPT_NOSHORT,
     "Override defaults-group-suffix when reading cluster configuration in "
@@ -145,19 +147,19 @@ static struct my_option my_long_options[] =
     &g_cluster_config_suffix, &g_cluster_config_suffix,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "configinfo", NDB_OPT_NOSHORT, "Print configinfo",
-    (uchar**) &g_configinfo, (uchar**) &g_configinfo,
+    &g_configinfo, &g_configinfo,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "xml", NDB_OPT_NOSHORT, "Print configinfo in xml format",
-    (uchar**) &g_xml, (uchar**) &g_xml,
+    &g_xml, &g_xml,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "config_from_node", NDB_OPT_NOSHORT, "Use current config from node with given nodeid",
-    (uchar**) &g_config_from_node, (uchar**) &g_config_from_node,
+    &g_config_from_node, &g_config_from_node,
     0, GET_INT, REQUIRED_ARG, INT_MIN, INT_MIN, 0, 0, 0, 0},
   { "query_all", 'a', "Query all the options",
-    (uchar**)&g_query_all, (uchar**)&g_query_all,
+    &g_query_all, &g_query_all,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "diff_default", NDB_OPT_NOSHORT, "print parameters that are different from default",
-    (uchar**)&g_diff_default, (uchar**)&g_diff_default,
+    &g_diff_default, &g_diff_default,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -380,7 +382,6 @@ print_diff(const ndb_mgm_configuration_iterator& iter)
   Uint64 val64;
   const char* config_value;
   const char* node_type = nullptr;
-  char str[300] = {0};
 
   if (iter.get(CFG_TYPE_OF_SECTION, &val32) == 0)
   {
@@ -418,58 +419,41 @@ print_diff(const ndb_mgm_configuration_iterator& iter)
         ||
         (g_section == CFG_SECTION_SYSTEM))
     {
+      cstrbuf<20 + 1> str_buf; // enough for 64-bit decimal number
+      const char* str = nullptr;
       if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &val32) == 0)
       {
-        sprintf(str, "%u", val32);
+        require(str_buf.appendf("%u", val32) == 0);
+        str = str_buf.c_str();
       }
       else if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &val64) == 0)
       {
-        sprintf(str, "%llu", val64);
+        require(str_buf.appendf("%ju", uintmax_t{val64}) == 0);
+        str = str_buf.c_str();
       }
       else if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &config_value) == 0)
       {
-        strncpy(str, config_value,300);
+        str = config_value;
       }
       else
       {
         continue;
       }
+      require(str != nullptr);
 
       if ((MANDATORY != ConfigInfo::m_ParamInfo[p]._default)
           && (ConfigInfo::m_ParamInfo[p]._default)
           && strlen(ConfigInfo::m_ParamInfo[p]._default) > 0
-          && !strcmp(node_type, ConfigInfo::m_ParamInfo[p]._section)
-          && strcmp(str, ConfigInfo::m_ParamInfo[p]._default)          )
+          && strcmp(node_type, ConfigInfo::m_ParamInfo[p]._section) == 0
+          && strcmp(str, ConfigInfo::m_ParamInfo[p]._default) != 0)
       {
-        char parse_str[300] = {0};
-        bool convert_bytes = false;
-        uint64 memory_convert = 0;
-        uint64 def_value = 0;
-        uint len = strlen(ConfigInfo::m_ParamInfo[p]._default) - 1;
-        strncpy(parse_str, ConfigInfo::m_ParamInfo[p]._default,299);
-        if (parse_str[len] == 'M' || parse_str[len] == 'm')
+        Uint64 value;
+        if (InitConfigFileParser::convertStringToUint64(str, value))
         {
-          memory_convert = 1048576;
-          convert_bytes = true;
-        }
-        if (parse_str[len] == 'K' || parse_str[len] == 'k')
-        {
-          memory_convert = 1024;
-          convert_bytes = true;
-        }
-        if (parse_str[len] == 'G' || parse_str[len] == 'g')
-        {
-          memory_convert = 1099511627776ULL;
-          convert_bytes = true;
-        }
-
-        if (convert_bytes)
-        {
-          parse_str[len] = '\0';
-          def_value = atoi(parse_str);
-          memory_convert = memory_convert * def_value;
-          BaseString::snprintf(parse_str, 299, "%" PRIu64, memory_convert);
-          if (!strcmp(str, parse_str))
+          const char* def_str = ConfigInfo::m_ParamInfo[p]._default;
+          Uint64 def_value;
+          require(InitConfigFileParser::convertStringToUint64(def_str, def_value));
+          if (value == def_value)
           {
             continue;
           }
@@ -870,7 +854,7 @@ noconnect:
   return conf;
 }
 
-#include "../src/mgmsrv/Config.hpp"
+#include "mgmcommon/Config.hpp"
 #include <EventLogger.hpp>
 
 

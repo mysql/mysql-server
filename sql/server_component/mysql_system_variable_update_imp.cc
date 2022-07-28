@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/server_component/mysql_system_variable_update_imp.h"
 
 #include <string.h>
+#include <string_view>
 
 #include <mysql/components/minimal_chassis.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_string.h>
 #include <mysql/psi/mysql_rwlock.h>
 #include <sql/auto_thd.h>
@@ -146,7 +148,7 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_string_imp::set,
     THD *thd;
     std::unique_ptr<Storing_auto_THD> athd = nullptr;
     enum_var_type var_type = sysvar_type(variable_type);
-    if (var_type == OPT_DEFAULT) return true;
+    if (var_type == OPT_DEFAULT) var_type = OPT_GLOBAL;
 
     /* Use either the THD provided or create a temporary one */
     if (hthd)
@@ -154,7 +156,11 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_string_imp::set,
     else {
       /* A session variable update for a temporary THD has no effect
          and is not supported. */
-      if (var_type == OPT_SESSION) return true;
+      if (var_type == OPT_SESSION) {
+        String *name = reinterpret_cast<String *>(variable_name);
+        LogErr(ERROR_LEVEL, ER_TMP_SESSION_FOR_VAR, name->c_ptr_safe());
+        return true;
+      }
       athd.reset(new Storing_auto_THD());
       thd = athd->get_THD();
     }
@@ -169,8 +175,9 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_string_imp::set,
     Item *value_str = new (thd->mem_root)
         Item_string(value->c_ptr_safe(), value->length(), value->charset());
 
-    LEX_CSTRING base_name = {base ? base->c_ptr_safe() : nullptr,
-                             base ? base->length() : 0};
+    std::string_view prefix{base ? base->ptr() : nullptr,
+                            base ? base->length() : 0};
+    std::string_view suffix{name->ptr(), name->length()};
 
     /* Set a temporary lock wait timeout before updating the system variable.
        Some system variables, such as super-read-only, can be blocked by other
@@ -179,13 +186,9 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_string_imp::set,
     */
     Lock_wait_timeout lock_wait_timeout(thd, timeout);
 
-    mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-
-    /* Find the system variable */
-    sys_var *sysvar = intern_find_sys_var(name->c_ptr_safe(), name->length());
-    if (!sysvar) {
-      mysql_rwlock_unlock(&LOCK_system_variables_hash);
-      my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), name->c_ptr_safe());
+    System_variable_tracker var_tracker =
+        System_variable_tracker::make_tracker(prefix, suffix);
+    if (var_tracker.access_system_variable(thd)) {
       lex_end(thd->lex);
       thd->lex = lex_save;
       return true;
@@ -193,13 +196,11 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_string_imp::set,
     /* Create a list of system variables to be updated (a list of one) */
     List<set_var_base> sysvar_list;
     sysvar_list.push_back(new (thd->mem_root)
-                              set_var(var_type, sysvar, base_name, value_str));
+                              set_var(var_type, var_tracker, value_str));
     /* Update the system variable */
     if (sql_set_variables(thd, &sysvar_list, false)) {
       result = true;
     }
-
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
     lex_end(thd->lex);
     thd->lex = lex_save;

@@ -17,7 +17,7 @@
 --disable_query_log
 call mtr.add_suppression("Resizing redo log");
 call mtr.add_suppression("Starting to delete and rewrite");
-call mtr.add_suppression("New log files created");
+call mtr.add_suppression("New redo log files created");
 
 --enable_query_log
 

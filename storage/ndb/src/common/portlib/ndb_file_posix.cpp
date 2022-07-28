@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "ndb_config.h" // HAVE_POSIX_FALLOCATE, HAVE_XFS_XFS_H
 
 #include "portlib/ndb_file.h"
@@ -74,10 +75,7 @@ int ndb_file::write_forward(const void* buf, ndb_file::size_t count)
   if (ret >= 0)
   {
     assert(ndb_file::size_t(ret) == count);
-    if (!m_synced_on_write)
-    {
-      m_write_byte_count.fetch_add(ret);
-    }
+    if (do_sync_after_write(ret) == -1) return -1;
   }
   return ret;
 }
@@ -92,10 +90,7 @@ int ndb_file::write_pos(const void* buf, ndb_file::size_t count, ndb_file::off_t
   if (ret >= 0)
   {
     assert(ndb_file::size_t(ret) == count);
-    if (!m_synced_on_write)
-    {
-      m_write_byte_count.fetch_add(ret);
-    }
+    if (do_sync_after_write(ret) == -1) return -1;
   }
   return ret;
 }
@@ -305,23 +300,10 @@ int ndb_file::open(const char name[], unsigned flags)
   if (bad_flags != 0) abort();
 
   m_open_flags = 0;
-  m_sync_on_write = false;
-  m_synced_on_write = false;
+  m_write_need_sync = false;
+  m_os_syncs_each_write = false;
 
   if (flags & FsOpenReq::OM_APPEND) m_open_flags |= O_APPEND;
-#ifdef O_SYNC
-  if (flags & FsOpenReq::OM_SYNC)
-  {
-    m_open_flags |= O_SYNC;
-    m_synced_on_write = true;
-  }
-#else
-  if (flags & FsOpenReq::OM_SYNC)
-  {
-    m_sync_on_write = true;
-    m_synced_on_write = true;
-  }
-#endif
   switch (flags & FsOpenReq::OM_READ_WRITE_MASK)
   {
   case FsOpenReq::OM_READONLY:
@@ -467,7 +449,7 @@ int ndb_file::set_direct_io(bool assume_implicit_datasync)
    * call will be skipped.
    */
 
-  m_synced_on_write |= assume_implicit_datasync;
+  m_os_syncs_each_write |= assume_implicit_datasync;
   return 0;
 }
 
@@ -520,7 +502,7 @@ int ndb_file::detect_direct_io_block_size_and_alignment()
 
 int ndb_file::reopen_with_sync(const char name[])
 {
-  if (m_synced_on_write)
+  if (m_os_syncs_each_write)
   {
     /*
      * If already synced on write by for example implicit by direct I/O mode no
@@ -539,14 +521,14 @@ int ndb_file::reopen_with_sync(const char name[])
     {
       ::close(m_handle);
       m_handle = fd;
-      m_synced_on_write = true;
+      m_os_syncs_each_write = true;
       return 0;
     }
   }
 #endif
 
   // If turning on O_SYNC failed fall back on explicit fsync
-  m_sync_on_write = true;
+  m_write_need_sync = true;
 
   return 0;
 }

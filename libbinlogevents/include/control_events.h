@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ namespace binary_log {
   @class Rotate_event
 
   When a binary log file exceeds a size limit, a ROTATE_EVENT is written
-  at the end of the file that points to the next file in the squence.
+  at the end of the file that points to the next file in the sequence.
   This event is information for the slave to know the name of the next
   binary log it is going to receive.
 
@@ -266,7 +266,7 @@ class Format_description_event : public Binary_log_event {
   uint8_t common_header_len;
   /*
     The list of post-headers' lengths followed
-    by the checksum alg decription byte
+    by the checksum alg description byte
   */
   std::vector<uint8_t> post_header_len;
   unsigned char server_version_split[ST_SERVER_VER_SPLIT_LEN];
@@ -394,7 +394,7 @@ class Stop_event : public Binary_log_event {
 /**
   @class Incident_event
 
-   Class representing an incident, an occurance out of the ordinary,
+   Class representing an incident, an occurrence out of the ordinary,
    that happened on the master.
 
    The event is used to inform the slave that something out of the
@@ -539,7 +539,7 @@ class Xid_event : public Binary_log_event {
   @class XA_prepare_event
 
   An XA_prepare event is generated for a XA prepared transaction.
-  Like Xid_event it contans XID of the *prepared* transaction.
+  Like Xid_event it contains XID of the *prepared* transaction.
 
   @section XA_prepare_event_binary_format Binary Format
 
@@ -583,6 +583,7 @@ class XA_prepare_event : public Binary_log_event {
   */
   static const int MY_XIDDATASIZE = 128;
 
+ public:
   struct MY_XID {
     long formatID;
     long gtrid_length;
@@ -624,6 +625,19 @@ class XA_prepare_event : public Binary_log_event {
   void print_event_info(std::ostream &) override {}
   void print_long_info(std::ostream &) override {}
 #endif
+  /**
+    Whether or not this `XA_prepare_event` represents an `XA COMMIT ONE
+    PHASE`.
+
+    @return true if it's an `XA COMMIT ONE PHASE`, false otherwise.
+   */
+  bool is_one_phase() const;
+  /**
+    Retrieves the content of `my_xid` member variable.
+
+    @return The const-reference to the `my_xid` member variable.
+   */
+  MY_XID const &get_xid() const;
 };
 
 /**
@@ -718,26 +732,6 @@ class Transaction_payload_event : public Binary_log_event {
       delete;
   Transaction_payload_event(const Transaction_payload_event &) = delete;
 
- public:
-  /**
-    The on-the-wire fields
-   */
-  enum fields {
-    /** Marks the end of the payload header. */
-    OTW_PAYLOAD_HEADER_END_MARK = 0,
-
-    /** The payload field */
-    OTW_PAYLOAD_SIZE_FIELD = 1,
-
-    /** The compression type field */
-    OTW_PAYLOAD_COMPRESSION_TYPE_FIELD = 2,
-
-    /** The uncompressed size field */
-    OTW_PAYLOAD_UNCOMPRESSED_SIZE_FIELD = 3,
-
-    /** Other fields are appended here. */
-  };
-
  protected:
   /**
     The raw bytes which are the data that this event contains.
@@ -776,7 +770,6 @@ class Transaction_payload_event : public Binary_log_event {
   static const int MAX_DATA_LENGTH = COMPRESSION_TYPE_MAX_LENGTH +
                                      PAYLOAD_SIZE_MAX_LENGTH +
                                      UNCOMPRESSED_SIZE_MAX_LENGTH;
-
   /**
     Creates @c Transaction_payload_event with the given data which has the
     given size.
@@ -1106,6 +1099,8 @@ class Gtid_event : public Binary_log_event {
   static const std::int64_t GNO_END = INT64_MAX;
 
  public:
+  std::int64_t get_gno() const { return gtid_info_struct.rpl_gtid_gno; }
+  Uuid get_uuid() const { return Uuid_parent_struct; }
   /// Total length of post header
   static const int POST_HEADER_LENGTH =
       ENCODED_FLAG_LENGTH +               /* flags */
@@ -1351,7 +1346,7 @@ class Transaction_context_event : public Binary_log_event {
   <tr>
     <td>seq_number</td>
     <td>8 bytes integer</td>
-    <td>Variable to identify the next sequence number to be alloted to the
+    <td>Variable to identify the next sequence number to be allotted to the
   certified transaction.</td>
   </tr>
 
@@ -1367,7 +1362,7 @@ class Transaction_context_event : public Binary_log_event {
 class View_change_event : public Binary_log_event {
  public:
   /**
-    Decodes the view_change_log_event generated incase a server enters or
+    Decodes the view_change_log_event generated in case a server enters or
     leaves the group.
 
     <pre>
@@ -1424,16 +1419,98 @@ class View_change_event : public Binary_log_event {
 };
 
 /**
+  @class Heartbeat_event_v2
+
+  Replication event to ensure to replica that source is alive.
+  The event is originated by source's dump thread and sent straight to
+  replica without being logged. Slave itself does not store it in relay log
+  but rather uses a data for immediate checks and throws away the event.
+
+  Two members of the class m_log_filename and m_log_position comprise
+  @see the rpl_event_coordinates instance. The coordinates that a heartbeat
+  instance carries correspond to the last event source has sent from
+  its binlog.
+
+  Also this event will be generated only for the source server with
+  version > 8.0.26
+
+  @section Heartbeat_event_v2_binary_format Binary Format
+
+  The Body has one component:
+
+  <table>
+  <caption>Body for Heartbeat_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>m_log_filename</td>
+    <td>String variable to store the binlog name</td>
+    <td>Name of the current binlog being written to.</td>
+  </tr>
+  <tr>
+    <td>m_log_pos</td>
+    <td>8 byte unsigned integar</td>
+    <td>Name of the current binlog being written to.</td>
+  </tr>
+  </table>
+*/
+
+class Heartbeat_event_v2 : public Binary_log_event {
+ public:
+  /**
+    Sent by a source to a replica to let the replica know that the source is
+    still alive. Events of this type do not appear in the binary or relay logs.
+    They are generated on a source server by the thread that dumps events and
+    sent straight to the replica without ever being written to the binary log.
+
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
+  */
+  Heartbeat_event_v2(const char *buf, const Format_description_event *fde);
+
+  /**
+    Creates an empty heartbeat event.
+   */
+  Heartbeat_event_v2();
+
+  virtual ~Heartbeat_event_v2() override = default;
+
+  // Set the binlog filename
+  void set_log_filename(const std::string name);
+  // Set the position
+  void set_log_position(uint64_t position);
+  // Return the binlog filename
+  const std::string get_log_filename() const;
+  // Return the position
+  uint64_t get_log_position() const;
+
+  // Return the max length of an encoded packet.
+  static uint64_t max_encoding_length();
+#ifndef HAVE_MYSYS
+  virtual void print_event_info(std::ostream &info) override;
+  virtual void print_long_info(std::ostream &info) override;
+#endif
+ protected:
+  std::string m_log_filename{};
+  uint64_t m_log_position{0};
+};
+
+/**
   @class Heartbeat_event
 
-  Replication event to ensure to slave that master is alive.
-  The event is originated by master's dump thread and sent straight to
-  slave without being logged. Slave itself does not store it in relay log
+  Replication event to ensure to replica that source is alive.
+  The event is originated by source's dump thread and sent straight to
+  replica without being logged. Slave itself does not store it in relay log
   but rather uses a data for immediate checks and throws away the event.
 
   Two members of the class log_ident and Binary_log_event::log_pos comprise
   @see the rpl_event_coordinates instance. The coordinates that a heartbeat
-  instance carries correspond to the last event master has sent from
+  instance carries correspond to the last event source has sent from
   its binlog.
 
   @section Heartbeat_event_binary_format Binary Format
@@ -1460,17 +1537,19 @@ class View_change_event : public Binary_log_event {
 class Heartbeat_event : public Binary_log_event {
  public:
   /**
-    Sent by a master to a slave to let the slave know that the master is
+    Sent by a source to a replica to let the replica know that the source is
     still alive. Events of this type do not appear in the binary or relay logs.
-    They are generated on a master server by the thread that dumps events and
-    sent straight to the slave without ever being written to the binary log.
+    They are generated on a source server by the thread that dumps events and
+    sent straight to the replica without ever being written to the binary log.
 
     @param buf  Contains the serialized event.
     @param fde  An FDE event (see Rotate_event constructor for more info).
   */
   Heartbeat_event(const char *buf, const Format_description_event *fde);
 
+  // Return the file name
   const char *get_log_ident() { return log_ident; }
+  // Return the length of file name
   unsigned int get_ident_len() { return ident_len; }
 
  protected:

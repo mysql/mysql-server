@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,8 +94,8 @@ void msg_link_delete(msg_link **link_p) {
   msg_link *link = *link_p;
   /* IFDBG(D_NONE, FN; PTREXP(link);); */
   link_into(link_out(&link->l), &msg_link_list);
-  replace_pax_msg(&link->p, NULL);
-  *link_p = NULL;
+  replace_pax_msg(&link->p, nullptr);
+  *link_p = nullptr;
   /* IFDBG(D_NONE, FN; STRLIT("insert in free list ");
    * dbg_linkage(&msg_link_list));
    */
@@ -106,9 +106,9 @@ static void msg_link_free(msg_link **link_p) {
   msg_link *link = *link_p;
   /* IFDBG(D_NONE, FN; STRLIT("msg_link_free link %p",(void*)link);); */
   link_out(&link->l);
-  replace_pax_msg(&link->p, NULL);
+  replace_pax_msg(&link->p, nullptr);
   free(link);
-  *link_p = NULL;
+  *link_p = nullptr;
 }
 
 void empty_msg_list(linkage *l) {

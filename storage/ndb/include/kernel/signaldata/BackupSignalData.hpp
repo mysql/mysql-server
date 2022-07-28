@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,19 +63,6 @@ private:
   Uint32 inputBackupId;
 };
 
-struct EncryptionPasswordData
-{
-  Uint32 password_length;
-  // one byte extra for trailing null, but for keep alignment make it four extra
-  alignas(Uint32) char encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 4];
-
-  EncryptionPasswordData()
-  {
-    password_length = 0;
-    memset(encryption_password, 0, sizeof(encryption_password));
-  }
-};
-
 class BackupData {
   /**
    * Sender(s)
@@ -101,7 +88,7 @@ public:
     MaxWrite   = 4, // Maximum write as multiple of blocksize
     
     // Max throughput
-    // Parallell files
+    // Parallel files
     
     NoOfTables = 1000,
     TableName  = 1001  // char*

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -315,7 +315,7 @@ SafeCounter::done() const {
 inline
 bool
 SafeCounter::clearWaitingFor(Uint32 nodeId) {
-  if(m_count > 0 && m_nodes.get(nodeId)){
+  if(m_count > 0 && nodeId <= MAX_DATA_NODE_ID && m_nodes.get(nodeId)){
     m_count--;
     m_nodes.clear(nodeId);
     return (m_count == 0);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@
 #ifndef TRIGGER_H_INCLUDED
 #define TRIGGER_H_INCLUDED
 
-#include "my_config.h"
-
 #include <string.h>
+
+#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -84,7 +84,47 @@ class Trigger {
       const LEX_CSTRING &connection_cl_name, const LEX_CSTRING &db_cl_name,
       enum_trigger_event_type trg_event_type,
       enum_trigger_action_time_type trg_time_type, uint action_order,
-      timeval created_timestamp);
+      my_timeval created_timestamp);
+
+  /**
+    Constructs CREATE TRIGGER statement taking into account a value of
+    the DEFINER clause.
+
+    The point of this method is to create canonical forms of CREATE TRIGGER
+    statement for writing into the binlog.
+
+    @note
+    A statement for the binlog form must preserve FOLLOWS/PRECEDES clause
+    if it was in the original statement. The reason for that difference is this:
+
+      - the Data Dictionary preserves the trigger execution order
+    (action_order), thus FOLLOWS/PRECEDES clause is not needed.
+
+      - moreover, FOLLOWS/PRECEDES clause usually makes problem in mysqldump,
+        because CREATE TRIGGER statement will have a reference to
+    not-yet-existing trigger (which is about to be created right after this
+    one).
+
+      - thus, FOLLOWS/PRECEDES must not be stored in the Data Dictionary.
+
+      - on the other hand, the binlog contains statements in the user order (as
+        the user executes them). Thus, it is important to preserve
+        FOLLOWS/PRECEDES clause if the user has specified it so that the trigger
+        execution order on master and slave will be the same.
+
+    @param thd                thread context
+    @param[out] binlog_query  well-formed CREATE TRIGGER statement for putting
+                              into binlog (after successful execution)
+    @param def_user           user part of a definer value
+    @param def_host           host part of a definer value
+
+    @return Operation status.
+      @retval false Success
+      @retval true  Failure
+  */
+  static bool construct_create_trigger_stmt_with_definer(
+      THD *thd, String *binlog_query, const LEX_CSTRING &def_user,
+      const LEX_CSTRING &def_host);
 
  public:
   bool execute(THD *thd);
@@ -140,10 +180,11 @@ class Trigger {
   const LEX_CSTRING &get_action_time_as_string() const;
 
   bool is_created_timestamp_null() const {
-    return m_created_timestamp.tv_sec == 0 && m_created_timestamp.tv_usec == 0;
+    return m_created_timestamp.m_tv_sec == 0 &&
+           m_created_timestamp.m_tv_usec == 0;
   }
 
-  timeval get_created_timestamp() const { return m_created_timestamp; }
+  my_timeval get_created_timestamp() const { return m_created_timestamp; }
 
   ulonglong get_action_order() const { return m_action_order; }
 
@@ -183,7 +224,7 @@ class Trigger {
           const LEX_CSTRING &connection_cl_name, const LEX_CSTRING &db_cl_name,
           enum_trigger_event_type event_type,
           enum_trigger_action_time_type action_time, uint action_order,
-          timeval created_timestamp);
+          my_timeval created_timestamp);
 
  public:
   ~Trigger();
@@ -273,7 +314,7 @@ class Trigger {
 
     There is special value -- zero means CREATED is not set (NULL).
   */
-  timeval m_created_timestamp;
+  my_timeval m_created_timestamp;
 
   /**
     Action_order value for the trigger. Action_order is the ordinal position

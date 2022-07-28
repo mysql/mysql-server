@@ -163,7 +163,9 @@ SET global.automatic_sp_privileges = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.automatic_sp_privileges;
 --Error ER_BAD_FIELD_ERROR
-SELECT automatic_sp_privileges = @@session.automatic_sp_privileges;
+SELECT automatic_sp_privileges;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.automatic_sp_privileges;
 
 
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,14 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <regex>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -54,10 +56,13 @@
 #include "my_inttypes.h"  // ssize_t
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts.h"
+#include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/socket.h"
+#include "mysql/harness/stdx/filesystem.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 using mysql_harness::Path;
 using namespace std::chrono_literals;
@@ -83,7 +88,7 @@ Path get_cmake_source_dir() {
 
   if (env_value == nullptr) {
     // try a few places
-    result = Path(get_cwd()).join("..");
+    result = Path(stdx::filesystem::current_path().native()).join("..");
     result = Path(result).real_path();
   } else {
     result = Path(env_value).real_path();
@@ -113,98 +118,6 @@ Path get_envvar_path(const std::string &envvar, Path alternative = Path()) {
   }
   return result;
 }
-
-const std::string get_cwd() {
-  char buffer[FILENAME_MAX];
-  if (!getcwd(buffer, FILENAME_MAX)) {
-    throw std::runtime_error("getcwd failed: " + std::string(strerror(errno)));
-  }
-  return std::string(buffer);
-}
-
-const std::string change_cwd(std::string &dir) {
-  auto cwd = get_cwd();
-#ifndef _WIN32
-  if (chdir(dir.c_str()) == -1) {
-#else
-  if (!SetCurrentDirectory(dir.c_str())) {
-#endif
-    throw std::runtime_error("chdir failed: " + mysqlrouter::get_last_error());
-  }
-  return cwd;
-}
-
-size_t read_bytes_with_timeout(int sockfd, void *buffer, size_t n_bytes,
-                               uint64_t timeout_in_ms) {
-  // returns epoch time (aka unix time, etc), expressed in milliseconds
-  auto get_epoch_in_ms = []() -> uint64_t {
-    using namespace std::chrono;
-    time_point<system_clock> now = system_clock::now();
-    return static_cast<uint64_t>(
-        duration_cast<milliseconds>(now.time_since_epoch()).count());
-  };
-
-  // calculate deadline time
-  uint64_t now_in_ms = get_epoch_in_ms();
-  uint64_t deadline_epoch_in_ms = now_in_ms + timeout_in_ms;
-
-  // read until 1 of 3 things happen: enough bytes were read, we time out or
-  // read() fails
-  size_t bytes_read = 0;
-  while (true) {
-#ifndef _WIN32
-    ssize_t res = read(sockfd, static_cast<char *>(buffer) + bytes_read,
-                       n_bytes - bytes_read);
-#else
-    WSASetLastError(0);
-    ssize_t res = recv(sockfd, static_cast<char *>(buffer) + bytes_read,
-                       n_bytes - bytes_read, 0);
-#endif
-
-    if (res == 0) {  // reached EOF?
-      return bytes_read;
-    }
-
-    if (get_epoch_in_ms() > deadline_epoch_in_ms) {
-      throw std::runtime_error("read() timed out");
-    }
-
-    if (res == -1) {
-#ifndef _WIN32
-      if (errno != EAGAIN) {
-        throw std::runtime_error(std::string("read() failed: ") +
-                                 strerror(errno));
-      }
-#else
-      int err_code = WSAGetLastError();
-      if (err_code != 0) {
-        throw std::runtime_error("recv() failed with error: " +
-                                 get_last_error(err_code));
-      }
-
-#endif
-    } else {
-      bytes_read += static_cast<size_t>(res);
-      if (bytes_read >= n_bytes) {
-        assert(bytes_read == n_bytes);
-        return bytes_read;
-      }
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-}
-
-#ifdef _WIN32
-std::string get_last_error(int err_code) {
-  char message[512];
-  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
-                    FORMAT_MESSAGE_ALLOCATE_BUFFER,
-                nullptr, err_code, LANG_NEUTRAL, message, sizeof(message),
-                nullptr);
-  return std::string(message);
-}
-#endif
 
 void init_windows_sockets() {
 #ifdef _WIN32
@@ -274,8 +187,8 @@ bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
     auto sock_id =
         socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
     if (sock_id < 0) {
-      throw std::runtime_error("wait_for_port_ready(): socket() failed: " +
-                               std::to_string(mysqlrouter::get_socket_errno()));
+      throw std::system_error(net::impl::socket::last_error_code(),
+                              "wait_for_port_ready(): socket() failed");
     }
     std::shared_ptr<void> exit_close_socket(
         nullptr, [&](void *) { close_socket(sock_id); });
@@ -292,13 +205,11 @@ bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
       // if the address is not available, it is a client side problem.
 #ifdef _WIN32
       if (WSAGetLastError() == WSAEADDRNOTAVAIL) {
-        throw std::system_error(mysqlrouter::get_socket_errno(),
-                                std::system_category());
+        throw std::system_error(net::impl::socket::last_error_code());
       }
 #else
       if (errno == EADDRNOTAVAIL) {
-        throw std::system_error(mysqlrouter::get_socket_errno(),
-                                std::generic_category());
+        throw std::system_error(net::impl::socket::last_error_code());
       }
 #endif
       const auto step = std::min(timeout, step_ms);
@@ -337,14 +248,14 @@ inline bool is_port_available_fallback(const uint16_t port) {
 
 bool is_port_available(const uint16_t port) {
 #if defined(__linux__)
-  const std::string &netstat_cmd{"netstat -tnl"};
+  const std::string netstat_cmd{"netstat -tnl"};
 #elif defined(_WIN32)
-  const std::string &netstat_cmd{"netstat -p tcp -n -a | findstr LISTEN"};
+  const std::string netstat_cmd{"netstat -p tcp -n -a"};
 #elif defined(__sun)
-  const std::string &netstat_cmd{"netstat -na -P tcp | grep LISTEN"};
+  const std::string netstat_cmd{"netstat -na -P tcp"};
 #else
   // BSD and MacOS
-  const std::string &netstat_cmd{"netstat -p tcp -an | grep LISTEN"};
+  const std::string netstat_cmd{"netstat -p tcp -an"};
 #endif
 
   TempDirectory temp_dir;
@@ -379,8 +290,8 @@ bool is_port_available(const uint16_t port) {
     //  SunOS
     //  *.XYZ                 *.*              0      0  256000      0 LISTEN
     //  127.0.0.1.XYZ         *.*              0      0  256000      0 LISTEN
-    if (pattern_found(
-            line, "[\\*,0,127]\\..*[.:]" + std::to_string(port) + "[^\\d]?")) {
+    if (pattern_found(line, "[\\*,0,127]\\..*[.:]" + std::to_string(port) +
+                                "[^\\d].*LISTEN")) {
       return false;
     }
   }
@@ -600,7 +511,7 @@ void connect_client_and_query_port(unsigned router_port, std::string &out_port,
 // Wait for the nth occurence of the log_regex in the log_file with the timeout
 // If it's found returns the full line containing the log_regex
 // If the timeout has been reached returns unexpected
-static stdx::expected<std::string, void> wait_log_line(
+static std::optional<std::string> wait_log_line(
     const std::string &log_file, const std::string &log_regex,
     const unsigned n_occurence = 1,
     const std::chrono::milliseconds timeout = 1s) {
@@ -620,20 +531,20 @@ static stdx::expected<std::string, void> wait_log_line(
 
     if (std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - start_timestamp) >= timeout) {
-      return stdx::make_unexpected();
+      return std::nullopt;
     }
     std::this_thread::sleep_for(kStep);
   } while (true);
 }
 
-stdx::expected<std::chrono::time_point<std::chrono::system_clock>, void>
+std::optional<std::chrono::time_point<std::chrono::system_clock>>
 get_log_timestamp(const std::string &log_file, const std::string &log_regex,
                   const unsigned occurence,
                   const std::chrono::milliseconds timeout) {
   // first wait for the nth occurence of the pattern
   const auto log_line = wait_log_line(log_file, log_regex, occurence, timeout);
   if (!log_line) {
-    return log_line.get_unexpected();
+    return std::nullopt;
   }
 
   const std::string log_line_str = log_line.value();
@@ -641,10 +552,10 @@ get_log_timestamp(const std::string &log_file, const std::string &log_regex,
   // 2020-06-09 03:53:26.027 foo bar
   if (!pattern_found(log_line_str,
                      "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}.*")) {
-    return stdx::make_unexpected();
+    return std::nullopt;
   }
 
-  // extract the timestamp prefix and conver to the duration
+  // extract the timestamp prefix and convert to the duration
   std::string timestamp_str =
       log_line_str.substr(0, strlen("2020-06-09 03:53:26.027"));
   std::tm tm{};

@@ -59,8 +59,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Now perform multiple consecutive updates on the Secondary
 update test.t1 set b="Elephant house" where a=1;
 update test.t1 set b="Beach house" where a=1;
@@ -77,8 +75,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 --------------------------------------------
 Test 2 : Normal Insert from Secondary Master
 --------------------------------------------
@@ -105,8 +101,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -------------------------------
 Test 3 : Insert-Insert conflict
 -------------------------------
@@ -133,8 +127,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -173,8 +165,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -194,8 +184,6 @@ SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
 a	b
@@ -240,8 +228,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, still missing
 select * from test.t1 order by a;
 a	b
@@ -286,8 +272,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, should be as inserted
 select * from test.t1 order by a;
 a	b
@@ -335,8 +319,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
 a	b
@@ -411,8 +393,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	3	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
 ------------------------------------------------
@@ -463,8 +443,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master (none)
 select * from test.t1 order by a;
 a	b
@@ -529,8 +507,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on Secondary Master, as set
 select * from test.t1 order by a;
 a	b
@@ -590,8 +566,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 Conflict algorithm counter diff :
 ndb_conflict_fn_epoch2
 12
@@ -626,8 +600,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 drop table test.t1;
 drop table test.t2;
 drop table test.t1$EX;
@@ -664,8 +636,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Now perform multiple consecutive updates on the Secondary
 update test.t1 set b="Elephant house" where a=1;
 update test.t1 set b="Beach house" where a=1;
@@ -682,8 +652,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 --------------------------------------------
 Test 2 : Normal Insert from Secondary Master
 --------------------------------------------
@@ -710,8 +678,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -------------------------------
 Test 3 : Insert-Insert conflict
 -------------------------------
@@ -738,8 +704,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -778,8 +742,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -799,8 +761,6 @@ SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
 a	b
@@ -845,8 +805,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, still missing
 select * from test.t1 order by a;
 a	b
@@ -891,8 +849,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, should be as inserted
 select * from test.t1 order by a;
 a	b
@@ -940,8 +896,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
 a	b
@@ -1016,8 +970,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	3	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
 ------------------------------------------------
@@ -1068,8 +1020,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master (none)
 select * from test.t1 order by a;
 a	b
@@ -1134,8 +1084,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on Secondary Master, as set
 select * from test.t1 order by a;
 a	b
@@ -1195,8 +1143,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 Conflict algorithm counter diff :
 ndb_conflict_fn_epoch2
 12
@@ -1231,8 +1177,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 drop table test.t1;
 drop table test.t2;
 drop table test.t1$EX;
@@ -1269,8 +1213,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Now perform multiple consecutive updates on the Secondary
 update test.t1 set b="Elephant house" where a=1;
 update test.t1 set b="Beach house" where a=1;
@@ -1287,8 +1229,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 --------------------------------------------
 Test 2 : Normal Insert from Secondary Master
 --------------------------------------------
@@ -1315,8 +1255,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -------------------------------
 Test 3 : Insert-Insert conflict
 -------------------------------
@@ -1343,8 +1281,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -1383,8 +1319,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -1404,8 +1338,6 @@ SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
 a	b
@@ -1450,8 +1382,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, still missing
 select * from test.t1 order by a;
 a	b
@@ -1496,8 +1426,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, should be as inserted
 select * from test.t1 order by a;
 a	b
@@ -1545,8 +1473,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
 a	b
@@ -1621,8 +1547,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	3	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
 ------------------------------------------------
@@ -1673,8 +1597,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master (none)
 select * from test.t1 order by a;
 a	b
@@ -1739,8 +1661,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on Secondary Master, as set
 select * from test.t1 order by a;
 a	b
@@ -1800,8 +1720,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 Conflict algorithm counter diff :
 ndb_conflict_fn_epoch2
 12
@@ -1836,8 +1754,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 drop table test.t1;
 drop table test.t2;
 drop table test.t1$EX;
@@ -1874,8 +1790,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Now perform multiple consecutive updates on the Secondary
 update test.t1 set b="Elephant house" where a=1;
 update test.t1 set b="Beach house" where a=1;
@@ -1892,8 +1806,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 --------------------------------------------
 Test 2 : Normal Insert from Secondary Master
 --------------------------------------------
@@ -1920,8 +1832,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -------------------------------
 Test 3 : Insert-Insert conflict
 -------------------------------
@@ -1948,8 +1858,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -1988,8 +1896,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -2009,8 +1915,6 @@ SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
 a	b
@@ -2055,8 +1959,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, still missing
 select * from test.t1 order by a;
 a	b
@@ -2101,8 +2003,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, should be as inserted
 select * from test.t1 order by a;
 a	b
@@ -2150,8 +2050,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
 a	b
@@ -2226,8 +2124,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	2	NULL
 1	3	#	#	2	NULL
 1	3	#	#	3	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
 ------------------------------------------------
@@ -2278,8 +2174,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master (none)
 select * from test.t1 order by a;
 a	b
@@ -2344,8 +2238,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on Secondary Master, as set
 select * from test.t1 order by a;
 a	b
@@ -2405,8 +2297,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 Conflict algorithm counter diff :
 ndb_conflict_fn_epoch2
 12
@@ -2441,8 +2331,6 @@ server_id	master_server_id	master_epoch	count	a	d
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
 1	3	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 drop table test.t1;
 drop table test.t2;
 drop table test.t1$EX;
@@ -2487,8 +2375,6 @@ ndb_conflict_fn_epoch2
 Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 SELECT * FROM `t1$EX` ORDER BY a, d;
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -2530,9 +2416,7 @@ COMMIT;
 end%
 call test.doit(200);
 -- Restart slave on Primary Cluster
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+start replica;
 -- Show data on Primary Cluster (should have row inserted on Secondary)
 select * from test.t1 where a=1;
 a	b	c
@@ -2585,12 +2469,8 @@ flush logs;
 flush logs;
 drop table mysql.ndb_replication;
 -- Attempt to get system back in pre-test state
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+stop replica;
+reset replica;
 include/rpl_end.inc
 Next we have Cluster A as Secondary, Cluster B as Primary
 SET GLOBAL ndb_applier_conflict_role="NONE";
@@ -2641,8 +2521,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Now perform multiple consecutive updates on the Secondary
 update test.t1 set b="Elephant house" where a=1;
 update test.t1 set b="Beach house" where a=1;
@@ -2659,8 +2537,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 --------------------------------------------
 Test 2 : Normal Insert from Secondary Master
 --------------------------------------------
@@ -2687,8 +2563,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -------------------------------
 Test 3 : Insert-Insert conflict
 -------------------------------
@@ -2715,8 +2589,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -2755,8 +2627,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -2776,8 +2646,6 @@ SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
 a	b
@@ -2822,8 +2690,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, still missing
 select * from test.t1 order by a;
 a	b
@@ -2868,8 +2734,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, should be as inserted
 select * from test.t1 order by a;
 a	b
@@ -2917,8 +2781,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
 a	b
@@ -2993,8 +2855,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	3	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
 ------------------------------------------------
@@ -3045,8 +2905,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master (none)
 select * from test.t1 order by a;
 a	b
@@ -3111,8 +2969,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on Secondary Master, as set
 select * from test.t1 order by a;
 a	b
@@ -3172,8 +3028,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 Conflict algorithm counter diff :
 ndb_conflict_fn_epoch2
 12
@@ -3208,8 +3062,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 drop table test.t1;
 drop table test.t2;
 drop table test.t1$EX;
@@ -3246,8 +3098,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Now perform multiple consecutive updates on the Secondary
 update test.t1 set b="Elephant house" where a=1;
 update test.t1 set b="Beach house" where a=1;
@@ -3264,8 +3114,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 --------------------------------------------
 Test 2 : Normal Insert from Secondary Master
 --------------------------------------------
@@ -3292,8 +3140,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -------------------------------
 Test 3 : Insert-Insert conflict
 -------------------------------
@@ -3320,8 +3166,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -3360,8 +3204,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -3381,8 +3223,6 @@ SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
 a	b
@@ -3427,8 +3267,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, still missing
 select * from test.t1 order by a;
 a	b
@@ -3473,8 +3311,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, should be as inserted
 select * from test.t1 order by a;
 a	b
@@ -3522,8 +3358,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
 a	b
@@ -3598,8 +3432,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	3	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
 ------------------------------------------------
@@ -3650,8 +3482,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master (none)
 select * from test.t1 order by a;
 a	b
@@ -3716,8 +3546,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on Secondary Master, as set
 select * from test.t1 order by a;
 a	b
@@ -3777,8 +3605,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 Conflict algorithm counter diff :
 ndb_conflict_fn_epoch2
 12
@@ -3813,8 +3639,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 drop table test.t1;
 drop table test.t2;
 drop table test.t1$EX;
@@ -3851,8 +3675,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Now perform multiple consecutive updates on the Secondary
 update test.t1 set b="Elephant house" where a=1;
 update test.t1 set b="Beach house" where a=1;
@@ -3869,8 +3691,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 --------------------------------------------
 Test 2 : Normal Insert from Secondary Master
 --------------------------------------------
@@ -3897,8 +3717,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -------------------------------
 Test 3 : Insert-Insert conflict
 -------------------------------
@@ -3925,8 +3743,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -3965,8 +3781,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -3986,8 +3800,6 @@ SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
 a	b
@@ -4032,8 +3844,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, still missing
 select * from test.t1 order by a;
 a	b
@@ -4078,8 +3888,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, should be as inserted
 select * from test.t1 order by a;
 a	b
@@ -4127,8 +3935,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
 a	b
@@ -4203,8 +4009,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	3	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
 ------------------------------------------------
@@ -4255,8 +4059,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master (none)
 select * from test.t1 order by a;
 a	b
@@ -4321,8 +4123,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on Secondary Master, as set
 select * from test.t1 order by a;
 a	b
@@ -4382,8 +4182,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 Conflict algorithm counter diff :
 ndb_conflict_fn_epoch2
 12
@@ -4418,8 +4216,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 drop table test.t1;
 drop table test.t2;
 drop table test.t1$EX;
@@ -4456,8 +4252,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Now perform multiple consecutive updates on the Secondary
 update test.t1 set b="Elephant house" where a=1;
 update test.t1 set b="Beach house" where a=1;
@@ -4474,8 +4268,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 --------------------------------------------
 Test 2 : Normal Insert from Secondary Master
 --------------------------------------------
@@ -4502,8 +4294,6 @@ SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -------------------------------
 Test 3 : Insert-Insert conflict
 -------------------------------
@@ -4530,8 +4320,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -4570,8 +4358,6 @@ server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -4591,8 +4377,6 @@ SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
 a	b
@@ -4637,8 +4421,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, still missing
 select * from test.t1 order by a;
 a	b
@@ -4683,8 +4465,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, should be as inserted
 select * from test.t1 order by a;
 a	b
@@ -4732,8 +4512,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
 a	b
@@ -4808,8 +4586,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	2	NULL
 3	1	#	#	2	NULL
 3	1	#	#	3	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
 ------------------------------------------------
@@ -4860,8 +4636,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Examine data on Secondary Master (none)
 select * from test.t1 order by a;
 a	b
@@ -4926,8 +4700,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 -- Check data on Secondary Master, as set
 select * from test.t1 order by a;
 a	b
@@ -4987,8 +4759,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 Conflict algorithm counter diff :
 ndb_conflict_fn_epoch2
 12
@@ -5023,8 +4793,6 @@ server_id	master_server_id	master_epoch	count	a	d
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
 3	1	#	#	4	NULL
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 drop table test.t1;
 drop table test.t2;
 drop table test.t1$EX;
@@ -5069,8 +4837,6 @@ ndb_conflict_fn_epoch2
 Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 SELECT * FROM `t1$EX` ORDER BY a, d;
-SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-SELECT * FROM `t2$EX` ORDER BY a, d;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -5112,9 +4878,7 @@ COMMIT;
 end%
 call test.doit(200);
 -- Restart slave on Primary Cluster
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+start replica;
 -- Show data on Primary Cluster (should have row inserted on Secondary)
 select * from test.t1 where a=1;
 a	b	c
@@ -5167,12 +4931,8 @@ flush logs;
 flush logs;
 drop table mysql.ndb_replication;
 -- Attempt to get system back in pre-test state
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+stop replica;
+reset replica;
 include/rpl_end.inc
 SET GLOBAL ndb_applier_conflict_role="NONE";
 SET GLOBAL ndb_applier_conflict_role="NONE";

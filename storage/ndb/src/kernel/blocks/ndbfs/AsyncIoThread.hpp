@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "MemoryChannel.hpp"
 #include <signaldata/BuildIndxImpl.hpp>
 #include <NdbTick.h>
+#include "util/ndb_openssl_evp.h"
 
 // Use this define if you want printouts from AsyncFile class
 //#define DEBUG_ASYNCFILE
@@ -48,6 +49,7 @@ void printErrorAndFlags(Uint32 used_flags);
 const int ERR_ReadUnderflow = 1000;
 
 class AsyncFile;
+class AsyncIoThread;
 struct Block_context;
 
 class Request
@@ -115,8 +117,17 @@ public:
       Uint32 milliseconds;
     } suspend;
   } par;
-  int error;
-
+  struct {
+    int code;
+    int line;
+    const char* file;
+    const char* func;
+  } error;
+  void set_error(int code, int line, const char* file, const char* func) {
+    error = { code, line, file, func};
+  }
+#define NDBFS_SET_REQUEST_ERROR(req,code) \
+          ((req)->set_error((code), __LINE__, __FILE__, __func__))
   void set(BlockReference userReference,
 	   Uint32 userPointer,
 	   Uint16 filePointer);
@@ -125,6 +136,7 @@ public:
   Uint16 theFilePointer;
    // Information for open, needed if the first open action fails.
   AsyncFile* file;
+  AsyncIoThread* thread;
   Uint32 theTrace;
   bool m_do_bind;
 
@@ -190,6 +202,11 @@ private:
   NdbMutex* theStartMutexPtr;
   NdbCondition* theStartConditionPtr;
 
+  /*
+   * Keep an encryption context for reuse for thread unbound files since
+   * recreating EVP_CIPHER_CTX is slow.
+   */
+  ndb_openssl_evp::operation m_openssl_evp_op;
   /**
    * Alloc mem in FS thread
    */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,12 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_thread_service.h>
 
-#define REQUIRES_PSI_THREAD_SERVICE REQUIRES_SERVICE(psi_thread_v5)
+#define REQUIRES_PSI_THREAD_SERVICE REQUIRES_SERVICE(psi_thread_v6)
 #define REQUIRES_PSI_THREAD_SERVICE_PLACEHOLDER \
-  REQUIRES_SERVICE_PLACEHOLDER(psi_thread_v5)
+  REQUIRES_SERVICE_PLACEHOLDER(psi_thread_v6)
 
 extern REQUIRES_PSI_THREAD_SERVICE_PLACEHOLDER;
 
-#define PSI_THREAD_CALL(M) mysql_service_psi_thread_v5->M
+#define PSI_THREAD_CALL(M) mysql_service_psi_thread_v6->M
 
 #endif /* COMPONENTS_SERVICES_PSI_THREAD_H */

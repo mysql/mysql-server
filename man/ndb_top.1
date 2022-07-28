@@ -2,12 +2,12 @@
 .\"     Title: ndb_top
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_TOP" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_TOP" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -227,9 +227,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--host[=name]\fR,
+\fB--host=string\fR,
 .PP
-\fB \fR\fB-h\fR\fB \fR
+\fB \fR\fB-h string\fR\fB \fR
 T}:T{
 Host name or IP address of MySQL Server to connect to
 T}:T{
@@ -267,9 +267,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--node-id[=#]\fR,
+\fB--node-id=#\fR,
 .PP
-\fB \fR\fB-n\fR\fB \fR
+\fB \fR\fB-n #\fR\fB \fR
 T}:T{
 Watch node having this node ID
 T}:T{
@@ -289,9 +289,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--password[=password]\fR,
+\fB--password=password\fR,
 .PP
-\fB \fR\fB-p\fR\fB \fR
+\fB \fR\fB-p password\fR\fB \fR
 T}:T{
 Connect using this password
 T}:T{
@@ -300,9 +300,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--port[=#]\fR,
+\fB--port=#\fR,
 .PP
-\fB-P\fR
+\fB-P #\fR
 (>=7.6.6)
 T}:T{
 Port number to use when connecting to MySQL Server
@@ -321,9 +321,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--sleep-time[=seconds]\fR,
+\fB--sleep-time=#\fR,
 .PP
-\fB \fR\fB-s\fR\fB \fR
+\fB \fR\fB-s #\fR\fB \fR
 T}:T{
 Time to wait between display refreshes, in seconds
 T}:T{
@@ -332,9 +332,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--socket\fR,
+\fB--socket=path\fR,
 .PP
-\fB \fR\fB-S\fR\fB \fR
+\fB \fR\fB-S path\fR\fB \fR
 T}:T{
 Socket file to use for connection
 T}:T{
@@ -375,9 +375,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--user[=name]\fR,
+\fB--user=name\fR,
 .PP
-\fB \fR\fB-u\fR\fB \fR
+\fB \fR\fB-u name\fR\fB \fR
 T}:T{
 Connect as this MySQL user
 T}:T{
@@ -400,23 +400,11 @@ Additional Options
 \fB\-c\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --color
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -539,23 +527,11 @@ Also read groups with concat(group, suffix)\&.
 \fB\-g\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --graph
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -578,23 +554,11 @@ must be true; both options may be true\&.
 \fB\-?\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --help
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -619,7 +583,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---host[=name]
+--host=string
 T}
 T{
 Type
@@ -682,23 +646,11 @@ Read given path from login file\&.
 \fB\-m\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --measured-load
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -747,7 +699,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---node-id[=#]
+--node-id=#
 T}
 T{
 Type
@@ -776,23 +728,11 @@ Watch the data node having this node ID\&.
 \fB\-o\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --os-load
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -819,12 +759,12 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---password[=password]
+--password=password
 T}
 T{
 Type
 T}:T{
-Boolean
+String
 T}
 T{
 Default Value
@@ -859,7 +799,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---port[=#]
+--port=#
 T}
 T{
 Type
@@ -920,7 +860,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---sleep-time[=seconds]
+--sleep-time=#
 T}
 T{
 Type
@@ -955,7 +895,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---socket
+--socket=path
 T}
 T{
 Type
@@ -984,23 +924,11 @@ Use the specified socket file for the connection\&.
 \fB\-r\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --sort
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -1021,23 +949,11 @@ to disable\&.
 \fB\-t\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --text
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1061,23 +977,11 @@ in previous versions of NDB Cluster, but this is no longer supported\&.)
 \fB\-\-usage\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --usage
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -1103,7 +1007,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---user[=name]
+--user=name
 T}
 T{
 Type
@@ -1132,7 +1036,7 @@ data node under a moderate load\&. Here, the program has been invoked using
 \fB\-x\fR
 to provide both text and graph output:
 .PP
-\fBFigure\ \&23.26.\ \&ndb_top Running in Terminal\fR
+\fBFigure\ \&23.25.\ \&ndb_top Running in Terminal\fR
 .sp
 .RS 4
 [IMAGE]\&\s-2\u[1]\d\s+2
@@ -1148,7 +1052,7 @@ also shows spin times for threads, displayed in green\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

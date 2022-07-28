@@ -793,7 +793,7 @@ columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_
 from information_schema.statistics join information_schema.columns using(table_name,column_name) where table_name='user';
 TABLE_NAME	COLUMN_NAME	TABLE_CATALOG	TABLE_SCHEMA	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLLATION	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	TABLE_CATALOG	TABLE_SCHEMA	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 user	Host	def	mysql	0	mysql	PRIMARY	1	A	NULL	NULL		BTREE		def	mysql		NO	char	255	255	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references	
-user	User	def	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		def	mysql		NO	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references	
+user	User	def	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		def	mysql		NO	char	32	96	NULL	NULL	utf8mb3	utf8mb3_bin	char(32)	PRI		select,insert,update,references	
 drop table t1;
 drop table t2;
 drop table t3;
@@ -1822,7 +1822,7 @@ from t t1;
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)  (cost=1.75 rows=4)
+    -> Aggregate: count(0)  (cost=1.75 rows=1)
         -> Nested loop left join  (cost=1.35 rows=4)
             -> Table scan on t2  (cost=0.45 rows=2)
             -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1849,7 +1849,7 @@ EXPLAIN
     -> Temporary table with deduplication  (cost=1.91..3.17 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
         -> Select #2 (subquery in projection; dependent)
-            -> Aggregate: count(0)  (cost=1.75 rows=4)
+            -> Aggregate: count(0)  (cost=1.75 rows=1)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1875,7 +1875,7 @@ from v1;
 EXPLAIN
 -> Table scan on t  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)  (cost=1.75 rows=4)
+    -> Aggregate: count(0)  (cost=1.75 rows=1)
         -> Nested loop left join  (cost=1.35 rows=4)
             -> Table scan on t2  (cost=0.45 rows=2)
             -> Filter: (t3.a > (t2.a - t.a))  (cost=0.35 rows=2)
@@ -1901,9 +1901,9 @@ from t t1;
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Table scan on dt  (cost=0.64..2.55 rows=4)
-        -> Materialize  (cost=2.79..4.70 rows=4)
-            -> Aggregate: count(0)  (cost=1.75 rows=4)
+    -> Table scan on dt  (cost=2.51..2.51 rows=1)
+        -> Materialize  (cost=4.36..4.36 rows=1)
+            -> Aggregate: count(0)  (cost=1.75 rows=1)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1935,12 +1935,12 @@ lateral
 from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt;
 EXPLAIN
--> Nested loop inner join  (cost=7.85 rows=8)
+-> Nested loop inner join  (cost=7.25 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=0.64..2.55 rows=4)
-        -> Materialize (invalidate on row from t1)  (cost=2.79..4.70 rows=4)
-            -> Aggregate: count(0)  (cost=1.75 rows=4)
+    -> Table scan on dt  (cost=2.51..2.51 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=4.36..4.36 rows=1)
+            -> Aggregate: count(0)  (cost=1.75 rows=1)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1964,12 +1964,12 @@ lateral
 from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt;
 EXPLAIN
--> Nested loop inner join  (cost=7.85 rows=8)
+-> Nested loop inner join  (cost=7.25 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=0.64..2.55 rows=4)
-        -> Materialize (invalidate on row from t1)  (cost=2.79..4.70 rows=4)
-            -> Aggregate: count(0)  (cost=1.75 rows=4)
+    -> Table scan on dt  (cost=2.51..2.51 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=4.36..4.36 rows=1)
+            -> Aggregate: count(0)  (cost=1.75 rows=1)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1994,12 +1994,12 @@ from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt
 on true;
 EXPLAIN
--> Nested loop inner join  (cost=7.85 rows=8)
+-> Nested loop inner join  (cost=7.25 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=0.64..2.55 rows=4)
-        -> Materialize (invalidate on row from t1)  (cost=2.79..4.70 rows=4)
-            -> Aggregate: count(0)  (cost=1.75 rows=4)
+    -> Table scan on dt  (cost=2.51..2.51 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=4.36..4.36 rows=1)
+            -> Aggregate: count(0)  (cost=1.75 rows=1)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -2105,6 +2105,8 @@ d TINYBLOB,
 PRIMARY KEY (a),
 KEY i0001 (c,d(163))
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t VALUES (1,'',1,'1');
 INSERT INTO t VALUES (0x03ffffffffffff,'2',0,'2');
 SELECT t2.b FROM t AS t1
@@ -2632,3 +2634,155 @@ f1	pk	blobfield	pk	blobfield
 3	4		4	NULL
 3	4		NULL	NULL
 DROP TABLE t1, t2;
+#
+# Bug #33148480: HG-OPTIMIZER: HIT ASSERT IN GETNODEMAPFROMTABLEMAP() WHILE MAKEJOINHYPERGRAPH
+#
+CREATE TABLE t ( a INTEGER, b INTEGER );
+SELECT *
+FROM
+t AS t1
+JOIN (
+t AS t2
+LEFT JOIN t AS t3 ON t2.a = t3.a AND t2.b = t3.b
+JOIN t AS t4 ON t2.b = t4.a AND t2.b = t4.b
+) ON t1.b = t2.b;
+a	b	a	b	a	b	a	b
+DROP TABLE t;
+#
+# Bug #33264928: Multi-equality is not fully applied by hypergraph optimizer with cycles
+#
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (3, 2);
+CREATE TABLE t2 ( a INTEGER, b INTEGER, KEY (a) );
+INSERT INTO t2 VALUES (3, 0);
+INSERT INTO t2 VALUES (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0);
+CREATE TABLE t3 ( a INTEGER, b INTEGER, c INTEGER );
+INSERT INTO t3 VALUES (1, 0, 2);
+ANALYZE TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+SELECT
+t2.b, t3.a, t3.b
+FROM t1
+JOIN t2 ON t1.a = t2.a
+JOIN t3 ON t1.b = t3.c AND t2.b = t3.a
+WHERE t2.b = t3.b;
+b	a	b
+DROP TABLE t1, t2, t3;
+#
+# Bug #33330728: HYPERGRAPH: ASSERTION `RIGHT_PATH->TYPE == ACCESSPATH::ZERO_ROWS' FAILED
+#
+CREATE TABLE t1 ( a INTEGER );
+SELECT
+1
+FROM
+t1
+JOIN t1 AS t2
+LEFT JOIN (
+t1 AS t3
+JOIN ( SELECT * FROM t1 WHERE FALSE ) AS empty_subq
+) ON empty_subq.a = t3.a
+WHERE NOT EXISTS (SELECT 9) OR empty_subq.a = t2.a;
+1
+DROP TABLE t1;
+#
+# Bug #33383388: ASSERT: `!IsBitSet(it->second, left_path->applied_sargable_join_predicates())'
+#
+CREATE TABLE t1 ( a INTEGER, b INTEGER, KEY (b) );
+INSERT INTO t1 VALUES (1,1), (2,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT 1
+FROM
+t1
+JOIN (t1 AS t2 LEFT JOIN t1 AS t3 ON t2.b = t3.b) ON (t2.b = t3.b OR t1.a = 125)
+WHERE
+t1.a = 143;
+1
+DROP TABLE t1;
+#
+# Bug #32950670: Potentially wrong results
+#
+CREATE TABLE t1 (i SMALLINT, INDEX a (i));
+CREATE TABLE t2 (i SMALLINT UNSIGNED);
+INSERT INTO t1 VALUES (-32768), (32767);
+INSERT INTO t2 VALUES (65535);
+SELECT * FROM t1 JOIN t2 ON t2.i > t1.i;
+i	i
+-32768	65535
+32767	65535
+DROP TABLE t1, t2;
+#
+# Bug #33506809: Duplicate edges in the hypergraph
+#
+CREATE TABLE t1 ( a INTEGER );
+CREATE TABLE t2 ( a INTEGER, b INTEGER, c INTEGER );
+CREATE TABLE t3 ( a INTEGER );
+CREATE TABLE t4 ( a INTEGER, b INTEGER, c INTEGER );
+SELECT
+1
+FROM
+t1
+JOIN t2 ON t1.a = t2.a
+JOIN t3 ON t2.a = t3.a
+JOIN t4 ON t3.a = t4.a AND t2.b = t4.b AND t2.c = t4.c;
+1
+DROP TABLE t1,t2,t3,t4;
+#
+# Bug #33544652: WL#14806 fd_set == it_and_inserted.first->second.active_functional_dependencies
+#
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+a INTEGER,
+INDEX (pk)
+);
+SELECT
+1
+FROM
+t1
+LEFT JOIN t1 AS t2 ON t1.a = t2.a
+JOIN t1 AS t3 ON t2.a = t3.a
+WHERE
+t2.a < t2.a OR t2.pk IS NULL
+GROUP BY t2.a;
+1
+DROP TABLE t1;
+#
+# Bug #33603493: Multiple equalities get lost in hypergraph join optimizer pushdown
+#
+CREATE TABLE t1 ( a INTEGER );
+INSERT INTO t1 VALUES (5);
+CREATE TABLE t2 ( a INTEGER, b INTEGER );
+INSERT INTO t2 VALUES (6, 1);
+CREATE TABLE t3 ( a INTEGER, b INTEGER );
+INSERT INTO t3 VALUES (2, 1);
+SELECT t1.a AS field1, t2.a AS field2
+FROM
+t1
+JOIN t2 ON t1.a = t2.a
+WHERE t2.b IN (
+SELECT inner_a1.b
+FROM t3 AS inner_a1 JOIN t3 AS inner_a2 ON inner_a1.b = inner_a2.b
+WHERE inner_a1.a = t2.a
+);
+field1	field2
+DROP TABLE t1, t2, t3;
+#
+# Bug#33611740: Hypergraph optimizer loses conditions in pushdown
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a INTEGER);
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 (a INTEGER);
+INSERT INTO t3 VALUES (1);
+CREATE TABLE t4 (a INTEGER);
+INSERT INTO t4 VALUES (2);
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN (t3 JOIN t4 ON t3.a = t4.a)
+ON t4.a = t2.a) ON t1.a = t2.a;
+a	a	a	a
+1	1	NULL	NULL
+DROP TABLE t1, t2, t3, t4;

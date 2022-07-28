@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,21 +25,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _list_h_
-#define _list_h_
+#ifndef MY_LIST_INCLUDED
+#define MY_LIST_INCLUDED
 
 /**
   @file include/my_list.h
 */
 
 typedef struct LIST {
-#if defined(__cplusplus) && __cplusplus >= 201103L
-  struct LIST *prev{nullptr}, *next{nullptr};
-  void *data{nullptr};
-#else
   struct LIST *prev, *next;
   void *data;
-#endif
 } LIST;
 
 typedef int (*list_walk_action)(void *, void *);
@@ -54,4 +49,4 @@ extern int list_walk(LIST *, list_walk_action action, unsigned char *argument);
 
 #define list_rest(a) ((a)->next)
 
-#endif
+#endif  // MY_LIST_INCLUDED

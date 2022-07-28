@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,64 +26,14 @@
 # interface without implementing a connection to the underlying metadata node.
 # The MockMetadata class does the functionality of the Metadata class.
 
-SET(METADATA_CACHE_TESTS_HELPER
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata_ar.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata_gr.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/metadata_cache.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/metadata_cache_ar.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/metadata_cache_gr.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cache_api.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/plugin_config.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/group_replication_metadata.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/gr_notifications_listener.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata.cc
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata_factory.cc
-)
+STATICLIB_FROM_TARGET(metadata_cache_export_all metadata_cache)
+TARGET_COMPILE_DEFINITIONS(metadata_cache_export_all
+  PUBLIC METADATA_CACHE_STATIC_DEFINE=1)
 
 
-SET(include_dirs
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
-  ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
-  ${PROJECT_SOURCE_DIR}/tests/helpers
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  test_metadata.cc
   )
-
-# We do not link to the metadata cache libraries since the sources are
-# already built as part of the test libraries.
-IF(WIN32)
-  ADD_LIBRARY(metadata_cache_tests STATIC ${METADATA_CACHE_TESTS_HELPER})
-  TARGET_LINK_LIBRARIES(metadata_cache_tests
-    router_lib
-    metadata_cache
-    mysqlclient
-    mysqlxclient_lite
-    mysqlxmessages_lite
-    ${PROTOBUF_LITE_LIBRARY}
-    )
-  TARGET_COMPILE_DEFINITIONS(metadata_cache_tests
-    PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-  TARGET_COMPILE_DEFINITIONS(metadata_cache_tests
-    PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
-ELSE()
-  ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
-  TARGET_LINK_LIBRARIES(metadata_cache_tests
-    router_lib
-    mysqlclient
-    mysqlxclient_lite
-    mysqlxmessages_lite
-    ${PROTOBUF_LITE_LIBRARY}
-    )
-ENDIF()
-
-SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(metadata_cache_tests)
-
-SET_TARGET_PROPERTIES(metadata_cache_tests PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY
-  ${CMAKE_BINARY_DIR}/library_output_directory)
-
-
-TARGET_INCLUDE_DIRECTORIES(metadata_cache_tests PRIVATE ${include_dirs})
 
 SET(TEST_MODULE metadata_cache)
 FOREACH(test_file
@@ -92,54 +42,35 @@ FOREACH(test_file
     test_instance_attributes.cc
     test_metadata.cc
     test_metadata_cache.cc
-    test_plugin_config.cc
     )
-  add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
-             MODULE ${TEST_MODULE}
-             LIB_DEPENDS
-               metadata_cache_tests
-               test-helpers
-             INCLUDE_DIRS
-               ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
-               ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
-               ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
-               ${PROJECT_SOURCE_DIR}/tests/helpers
-               ${PROJECT_SOURCE_DIR}/src/harness/shared/include
+  ADD_TEST_FILE(
+    ${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+    MODULE ${TEST_MODULE}
+    LIB_DEPENDS
+      metadata_cache_export_all
+      test-helpers
+    INCLUDE_DIRS
+      ../src
+      ${CMAKE_CURRENT_SOURCE_DIR}/helper
+    EXTRA_SOURCES
+      ${CMAKE_CURRENT_SOURCE_DIR}/helper/mock_metadata.cc
+      ${CMAKE_CURRENT_SOURCE_DIR}/helper/mock_metadata_factory.cc
 )
 ENDFOREACH()
 
-ROUTERTEST_GET_TARGET(test_target "test_cache_plugin.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-
-ROUTERTEST_GET_TARGET(test_target "test_metadata_cache.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-
-ROUTERTEST_GET_TARGET(test_target "test_cache_plugin.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
-ROUTERTEST_GET_TARGET(test_target "test_metadata_cache.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
-ROUTERTEST_GET_TARGET(test_target "test_metadata.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-ROUTERTEST_GET_TARGET(test_target "test_metadata.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
-ROUTERTEST_GET_TARGET(test_target "test_failover.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-ROUTERTEST_GET_TARGET(test_target "test_failover.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
-ROUTERTEST_GET_TARGET(test_target "test_plugin_config.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-ROUTERTEST_GET_TARGET(test_target "test_plugin_config.cc" ${TEST_MODULE})
-TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
+ADD_TEST_FILE(test_plugin_config.cc
+  EXTRA_SOURCES
+    ../src/plugin_config.cc
+  MODULE ${TEST_MODULE}
+  LIB_DEPENDS
+    metadata_cache
+    test-helpers
+  )
+ROUTERTEST_GET_TARGET(T "test_plugin_config.cc" "${TEST_MODULE}")
+TARGET_COMPILE_DEFINITIONS(${T}
+  PRIVATE
+  METADATA_CACHE_PLUGIN_STATIC_DEFINE=1
+  )
 
 # TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
 STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

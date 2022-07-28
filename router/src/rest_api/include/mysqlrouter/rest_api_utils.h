@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef MYSQLROUTER_REST_API_UTILS_INCLUDED
 #define MYSQLROUTER_REST_API_UTILS_INCLUDED
 
+#include <chrono>
 #include <map>
 #include <string>
 
@@ -34,8 +35,8 @@
 
 #include <rapidjson/document.h>
 
+#include "mysql/harness/utility/string.h"  // string_format()
 #include "mysqlrouter/http_request.h"
-#include "mysqlrouter/utils.h"  // string_format()
 
 /**
  * send a JsonProblem HTTP response.
@@ -138,7 +139,7 @@ rapidjson::GenericValue<Encoding, AllocatorType> json_value_from_timepoint(
   auto usec = std::chrono::duration_cast<std::chrono::microseconds>(
       tp - std::chrono::system_clock::from_time_t(cur));
 
-  std::string iso8601_datetime{mysqlrouter::string_format(
+  std::string iso8601_datetime{mysql_harness::utility::string_format(
       "%04d-%02d-%02dT%02d:%02d:%02d.%06ldZ", cur_gmtime.tm_year + 1900,
       cur_gmtime.tm_mon + 1, cur_gmtime.tm_mday, cur_gmtime.tm_hour,
       cur_gmtime.tm_min, cur_gmtime.tm_sec,

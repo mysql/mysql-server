@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -883,8 +883,9 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                     // collation
                     if (!context->expecting_collation(
                             item->collation.collation)) {
-                      DBUG_PRINT("info", ("Found non-matching collation %s",
-                                          item->collation.collation->name));
+                      DBUG_PRINT("info",
+                                 ("Found non-matching collation %s",
+                                  item->collation.collation->m_coll_name));
                       context->supported = false;
                     }
                   }
@@ -1010,8 +1011,9 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                   // same
                   if (!context->expecting_collation(
                           item->collation.collation)) {
-                    DBUG_PRINT("info", ("Found non-matching collation %s",
-                                        item->collation.collation->name));
+                    DBUG_PRINT("info",
+                               ("Found non-matching collation %s",
+                                item->collation.collation->m_coll_name));
                     context->supported = false;
                     break;
                   }

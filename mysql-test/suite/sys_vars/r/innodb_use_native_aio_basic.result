@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_use_native_aio);
 COUNT(@@GLOBAL.innodb_use_native_aio)
 1
 1 Expected
-SELECT innodb_use_native_aio = @@SESSION.innodb_use_native_aio;
+SELECT innodb_use_native_aio;
 ERROR 42S22: Unknown column 'innodb_use_native_aio' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

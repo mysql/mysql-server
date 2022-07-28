@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -171,6 +171,18 @@ static inline void mysql_thread_set_peer_port(uint port [[maybe_unused]]) {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   struct PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_peer_port)(psi, port);
+#endif
+}
+
+/**
+  @def mysql_thread_set_secondary_engine()
+  Set the EXECUTION_ENGINE attribute for the thread instrumentation.
+  @param secondary True for SECONDARY, false for PRIMARY.
+*/
+static inline void mysql_thread_set_secondary_engine(bool secondary
+                                                     [[maybe_unused]]) {
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_secondary_engine)(secondary);
 #endif
 }
 

@@ -1,0 +1,9 @@
+# The --skip-host-cache is deprecated in favor of SET GLOBAL host_cache_size=0
+call mtr.add_suppression("Failed to set up host cache because of the following error");
+
+--echo # WL#14359: deprecated --skip-host-cache
+--let $assert_select = use SET GLOBAL host_cache_size=0 instead.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count = 1
+--let $assert_text = Found a --skip-host-cache deprecation message in the log
+--source include/assert_grep.inc

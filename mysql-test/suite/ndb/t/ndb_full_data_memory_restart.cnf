@@ -1,0 +1,12 @@
+!include suite/ndb/my.cnf
+
+[cluster_config.1]
+PartitionsPerNode=1
+ThreadConfig=main,rep,recv,ldm={count=1}
+DataMemory=5M
+
+[cluster_config.ndbd.1.1]
+MinFreePct=5
+
+[cluster_config.ndbd.2.1]
+MinFreePct=10

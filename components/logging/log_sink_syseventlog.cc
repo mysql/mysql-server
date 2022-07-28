@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -480,7 +480,9 @@ static int sysvar_install_tag(void) {
   assert(buffer_tag == nullptr);
 
   if (mysql_service_component_sys_variable_register->register_variable(
-          MY_NAME, OPT_TAG, PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
+          MY_NAME, OPT_TAG,
+          PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC |
+              PLUGIN_VAR_PERSIST_AS_READ_ONLY,
           "When logging issues using the host operating system's " LOG_TYPE ", "
           "tag the entries from this particular MySQL server with this ident. "
           "This will help distinguish entries from MySQL servers co-existing "
@@ -610,7 +612,9 @@ static int sysvar_install_fac(void) {
   values_fac.def_val = const_cast<char *>(LOG_DAEMON_NAME);
 
   if (mysql_service_component_sys_variable_register->register_variable(
-          MY_NAME, OPT_FAC, PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
+          MY_NAME, OPT_FAC,
+          PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC |
+              PLUGIN_VAR_PERSIST_AS_READ_ONLY,
           "When logging issues using the host operating system's syslog, "
           "identify as a facility of the given type (to aid in log filtering).",
           sysvar_check_fac, sysvar_update_fac, (void *)&values_fac,
@@ -697,7 +701,7 @@ static int sysvar_install_pid(void) {
 
   // register variable
   if (mysql_service_component_sys_variable_register->register_variable(
-          MY_NAME, OPT_PID, PLUGIN_VAR_BOOL,
+          MY_NAME, OPT_PID, PLUGIN_VAR_BOOL | PLUGIN_VAR_PERSIST_AS_READ_ONLY,
           "When logging issues using the host operating system's log "
           "(\"" LOG_TYPE "\"), include this MySQL server's process ID (PID). "
           "This setting does not affect MySQL's own error log file.",
@@ -908,7 +912,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::flush,
 /**
   Open a new instance.
 
-  @returns  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @returns  LOG_SERVICE_SUCCESS        success, returned handle is valid
   @returns  otherwise                  a new instance could not be created
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,

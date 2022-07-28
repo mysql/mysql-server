@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTCACHE_INCLUDED
 
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #include <assert.h>
 #include <stddef.h>
 
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/opt_costconstants.h"  // Cost_model_constants
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,7 +34,7 @@ namespace lob {
 class zInserter : private BaseInserter {
  public:
   /** Constructor.
-  @param[in]	ctx	blob operation context. */
+  @param[in]    ctx     blob operation context. */
   zInserter(InsertContext *ctx) : BaseInserter(ctx), m_heap(nullptr) {}
 
   /** Destructor. */
@@ -50,12 +50,12 @@ class zInserter : private BaseInserter {
   dberr_t write();
 
   /** Write one blob field data.
-  @param[in]	blob_j	the blob field number
+  @param[in]    blob_j  the blob field number
   @return DB_SUCCESS on success, error code on failure. */
   dberr_t write_one_blob(size_t blob_j);
 
   /** Cleanup after completing the write of compressed BLOB.
-  @param[in]	validate	if true, validate all the
+  @param[in]    validate        if true, validate all the
                                   lob references. if false,
                                   skip this validation.
   @return DB_SUCCESS on success, error code on failure. */
@@ -72,8 +72,8 @@ class zInserter : private BaseInserter {
 
   /** Write the page type of the BLOB page and also generate the
   redo log record.
-  @param[in]	blob_page	the BLOB page
-  @param[in]	nth_blob_page	the count of BLOB page from
+  @param[in]    blob_page       the BLOB page
+  @param[in]    nth_blob_page   the count of BLOB page from
                                   the beginning of the BLOB. */
   void log_page_type(page_t *blob_page, ulint nth_blob_page) {
     page_type_t page_type;
@@ -121,18 +121,15 @@ class zInserter : private BaseInserter {
 
   /** Write one blob page.  This function will be repeatedly called
   with an increasing nth_blob_page to completely write a BLOB.
-  @param[in]	blob_j		the jth blob object of the record.
-  @param[in]	field		the big record field.
-  @param[in]	nth_blob_page	count of the BLOB page (starting from 1).
+  @param[in]    field           the big record field.
+  @param[in]    nth_blob_page   count of the BLOB page (starting from 1).
   @return code as returned by the zlib. */
-  int write_single_blob_page(size_t blob_j, big_rec_field_t &field,
-                             ulint nth_blob_page);
+  int write_single_blob_page(big_rec_field_t &field, ulint nth_blob_page);
 
   /** Write first blob page.
-  @param[in]	blob_j		the jth blob object of the record.
-  @param[in]	field		the big record field.
+  @param[in]    field           the big record field.
   @return code as returned by the zlib. */
-  int write_first_page(size_t blob_j, big_rec_field_t &field);
+  int write_first_page(big_rec_field_t &field);
 
   /** Verify that all pointers to externally stored columns in the record
   is be valid.  If validation fails, this function doesn't return.
@@ -141,11 +138,12 @@ class zInserter : private BaseInserter {
     const ulint *offsets = m_ctx->get_offsets();
 
     for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
-      if (!rec_offs_nth_extern(offsets, i)) {
+      if (!rec_offs_nth_extern(m_ctx->index(), offsets, i)) {
         continue;
       }
 
-      byte *field_ref = btr_rec_get_field_ref(m_ctx->rec(), offsets, i);
+      byte *field_ref =
+          btr_rec_get_field_ref(m_ctx->index(), m_ctx->rec(), offsets, i);
 
       ref_t blobref(field_ref);
 
@@ -161,7 +159,7 @@ class zInserter : private BaseInserter {
 
   /** For the given blob field, update its length in the blob reference
   which is available in the clustered index record.
-  @param[in]	field	the concerned blob field. */
+  @param[in]    field   the concerned blob field. */
   void update_length_in_blobref(big_rec_field_t &field);
 
   /** Make the current page as next page of previous page.  In other
@@ -172,13 +170,13 @@ class zInserter : private BaseInserter {
 
   /** Write one small blob field data. Refer to ref_t to determine
   the definition of small blob.
-  @param[in]	blob_j	the blob field number
+  @param[in]    blob_j  the blob field number
   @return DB_SUCCESS on success, error code on failure. */
   dberr_t write_one_small_blob(size_t blob_j);
 
  private:
   /** Add the BLOB page information to the directory
-  @param[in]	page_info	BLOB page information. */
+  @param[in]    page_info       BLOB page information. */
   void add_to_blob_dir(const blob_page_info_t &page_info) {
     m_dir.add(page_info);
   }

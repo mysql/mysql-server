@@ -1,0 +1,33 @@
+##########################################################################
+# Test script to test miscellaneous for table having INSTANT
+# ADD/DROP columns.
+#
+# This test is to be run in debug mode only and with debug flag
+##########################################################################
+
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace for table .* is set as discarded");
+--enable_query_log
+
+--echo ##############################################
+--echo # Test instant ADD/DROP COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = REDUNDANT;
+--source suite/innodb/include/instant_ddl_misc.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for DYNAMIC format
+--echo ############################################
+let $row_format = DYNAMIC;
+--source suite/innodb/include/instant_ddl_misc.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for COMPACT format
+--echo ############################################
+let $row_format = COMPACT;
+--source suite/innodb/include/instant_ddl_misc.inc
+

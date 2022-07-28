@@ -11,6 +11,11 @@
 # need debug build to be able to set a deterministic server uuid
 --source include/have_debug.inc
 
+# Session tracking output will be different when without xa_detach_on_prepare
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 1
+--source include/only_with_option.inc
+
 RESET MASTER;
 
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -139,8 +139,8 @@ extern ut_crc32_func_t ut_crc32;
 when converting byte sequence to integers - flips each full aligned 8-byte chunk
 within the buf, but not the initial and trailing unaligned fragments.
 ut_crc32_init() needs to be called at least once before calling this function.
-@param[in]	buf	data over which to calculate CRC32
-@param[in]	len	data length
+@param[in]      buf     data over which to calculate CRC32
+@param[in]      len     data length
 @return calculated hash */
 uint32_t ut_crc32_legacy_big_endian(const byte *buf, size_t len);
 

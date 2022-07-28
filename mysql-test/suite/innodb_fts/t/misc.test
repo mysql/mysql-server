@@ -1354,7 +1354,7 @@ CREATE TABLE articles (
 # Repeatedly insert/delete records, the ranking should be the same for
 # each of them
 INSERT INTO articles (title,body) VALUES ('Test Article','blah blah
-blah'),("Matt's Noise",'this is noisy'),('February Weather','It was terrible
+blah'),('Matt''s Noise','this is noisy'),('February Weather','It was terrible
 this year.'),('Peter Pan','Tis a kids story.'),('Test1','nada'),('Database
 database database','foo database database database'),('Database article
 title','body with lots of words.'),('myfulltext database', 'my test fulltext
@@ -1550,3 +1550,13 @@ SELECT * FROM t1 WHERE MATCH (a) AGAINST ('good *' IN NATURAL LANGUAGE MODE WITH
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g* database' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#33409351: regression: change_to_use_tmp_fields_except_sums:
+--echo #               Assertion `!thd->is_error()' failed.
+--echo #
+
+CREATE TABLE t (a VARCHAR(10), FULLTEXT (a));
+--error ER_PARSE_ERROR
+SELECT ANY_VALUE(MATCH (a) AGAINST ('<' IN BOOLEAN MODE)), COUNT(*) FROM t;
+DROP TABLE t;

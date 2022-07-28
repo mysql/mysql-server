@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include "sql/key.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
+#include "sql/sql_select.h"
 #include "sql/table.h"
 #include "template_utils.h"
 
@@ -68,21 +69,49 @@ using std::string;
   Returns -1.0 if no index was found. Lifted from
   Item_equal::get_filtering_effect.
  */
-static double EstimateFieldSelectivity(Field *field, string *trace) {
+static double EstimateFieldSelectivity(Field *field, double *selectivity_cap,
+                                       string *trace) {
   const TABLE *table = field->table;
   double selectivity = -1.0;
   for (uint j = 0; j < table->s->keys; j++) {
-    if (field->key_start.is_set(j) &&
-        table->key_info[j].has_records_per_key(0)) {
-      double field_selectivity =
-          static_cast<double>(table->key_info[j].records_per_key(0)) /
-          table->file->stats.records;
-      if (trace != nullptr) {
-        *trace +=
-            StringPrintf(" - found candidate index %s with selectivity %f\n",
-                         table->key_info[j].name, field_selectivity);
+    KEY *key = &table->key_info[j];
+
+    if (field->key_start.is_set(j)) {
+      if (key->has_records_per_key(0)) {
+        double field_selectivity =
+            static_cast<double>(table->key_info[j].records_per_key(0)) /
+            table->file->stats.records;
+        if (trace != nullptr) {
+          *trace +=
+              StringPrintf(" - found candidate index %s with selectivity %f\n",
+                           table->key_info[j].name, field_selectivity);
+        }
+        selectivity = std::max(selectivity, field_selectivity);
       }
-      selectivity = std::max(selectivity, field_selectivity);
+
+      // This is a less precise version of the single-row check in
+      // CostingReceiver::ProposeRefAccess(). If true, we know that this index
+      // can at most have selectivity 1/N, and we can use that as a global cap.
+      // Importantly, unlike the capping in the EQ_REF code, this capping is
+      // consistent between nested-loop index plans and hash join. Ideally, we'd
+      // also support multi-predicate selectivities here and get rid of the
+      // entire EQ_REF-specific code, but that requires a more holistic
+      // selectivity handling (for multipart indexes) and pulling out some of
+      // the sargable code for precise detection of null-rejecting predicates.
+      //
+      // Note that since we're called only for field = field here, which
+      // is null-rejecting, we don't have a check for HA_NULL_PART_KEY.
+      const bool single_row = Overlaps(actual_key_flags(key), HA_NOSAME) &&
+                              key->actual_key_parts == 1;
+      if (single_row) {
+        if (trace != nullptr) {
+          *trace += StringPrintf(
+              " - capping selectivity to %f since index is unique\n",
+              1.0 / table->file->stats.records);
+        }
+        *selectivity_cap =
+            std::min(*selectivity_cap, 1.0 / table->file->stats.records);
+      }
     }
   }
 
@@ -115,25 +144,51 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   // to find a better selectivity estimate. We look for indexes on both
   // fields, and pick the least selective (see EstimateFieldSelectivity()
   // for why).
+  double selectivity_cap = 1.0;
   if (condition->type() == Item::FUNC_ITEM &&
       down_cast<Item_func *>(condition)->functype() == Item_func::EQ_FUNC) {
     Item_func_eq *eq = down_cast<Item_func_eq *>(condition);
-    Item *left = eq->arguments()[0];
-    Item *right = eq->arguments()[1];
-    if (left->type() == Item::FIELD_ITEM && right->type() == Item::FIELD_ITEM) {
-      double selectivity = -1.0;
-      for (Field *field : {down_cast<Item_field *>(left)->field,
-                           down_cast<Item_field *>(right)->field}) {
-        selectivity =
-            std::max(selectivity, EstimateFieldSelectivity(field, trace));
-      }
-      if (selectivity >= 0.0) {
-        if (trace != nullptr) {
-          *trace +=
-              StringPrintf(" - used an index for %s, selectivity = %.3f\n",
-                           ItemToString(condition).c_str(), selectivity);
+    if (eq->source_multiple_equality != nullptr &&
+        eq->source_multiple_equality->get_const() == nullptr) {
+      // To get consistent selectivities, we want all equalities that come from
+      // the same multiple equality to use information from all of the tables.
+      condition = eq->source_multiple_equality;
+    } else {
+      Item *left = eq->arguments()[0];
+      Item *right = eq->arguments()[1];
+      if (left->type() == Item::FIELD_ITEM &&
+          right->type() == Item::FIELD_ITEM) {
+        double selectivity = -1.0;
+        for (Field *field : {down_cast<Item_field *>(left)->field,
+                             down_cast<Item_field *>(right)->field}) {
+          selectivity = std::max(
+              selectivity,
+              EstimateFieldSelectivity(field, &selectivity_cap, trace));
         }
-        return selectivity;
+        if (selectivity >= 0.0) {
+          selectivity = std::min(selectivity, selectivity_cap);
+          if (trace != nullptr) {
+            *trace +=
+                StringPrintf(" - used an index for %s, selectivity = %.3f\n",
+                             ItemToString(condition).c_str(), selectivity);
+          }
+          return selectivity;
+        }
+      } else if (left->type() == Item::FIELD_ITEM) {
+        // field = <anything> (except field = field).
+        //
+        // We ignore the estimated selectivity (the item itself will do index
+        // dives if possible, that should be better than what we will get from
+        // our field = field estimation), but we want to get the cap if there's
+        // a unique index, as this will make us get consistent (if not always
+        // correct!) row estimates for all EQ_REF accesses over single-column
+        // indexes.
+        EstimateFieldSelectivity(down_cast<Item_field *>(left)->field,
+                                 &selectivity_cap, trace);
+      } else if (right->type() == Item::FIELD_ITEM) {
+        // Same, for <anything> = field.
+        EstimateFieldSelectivity(down_cast<Item_field *>(right)->field,
+                                 &selectivity_cap, trace);
       }
     }
   }
@@ -148,8 +203,8 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   //   |ACB| = |A| * |C| * |B| * S_ac * S_bc
   //
   // (where S_ab means selectivity of joining A with B, etc.)
-  // which immediately gives S_ac = S_bc, and similar equations give
-  // S_ab = S_ac and so on.
+  // which immediately gives S_ab = S_bc, and similar equations give
+  // S_ac = S_bc and so on.
   //
   // So all the selectivities in the multi-equality must be the same!
   // However, if you go to a database with real-world data, you will see that
@@ -178,10 +233,12 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
 
     double selectivity = -1.0;
     for (Item_field &field : equal->get_fields()) {
-      selectivity =
-          std::max(selectivity, EstimateFieldSelectivity(field.field, trace));
+      selectivity = std::max(
+          selectivity,
+          EstimateFieldSelectivity(field.field, &selectivity_cap, trace));
     }
     if (selectivity >= 0.0) {
+      selectivity = std::min(selectivity, selectivity_cap);
       if (trace != nullptr) {
         *trace += StringPrintf(" - used an index for %s, selectivity = %.3f\n",
                                ItemToString(condition).c_str(), selectivity);
@@ -196,7 +253,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   // is intrinsically locked to the old join optimizer's way of thinking,
   // where one made a long chain of (left-deep) nested tables, and selectivity
   // estimation would be run for the entire WHERE condition at all points
-  // in that chain. In such a situation, it would be neccessary to know which
+  // in that chain. In such a situation, it would be necessary to know which
   // tables were already in the chain and which would not, and multiple
   // equalities would also be resolved through this mechanism. In the hypergraph
   // optimizer, we no longer have a chain, and always estimate selectivity for
@@ -211,6 +268,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
       /*fields_to_ignore=*/&empty,
       /*rows_in_table=*/1000.0);
 
+  selectivity = std::min(selectivity, selectivity_cap);
   if (trace != nullptr) {
     *trace += StringPrintf(" - fallback selectivity for %s = %.3f\n",
                            ItemToString(condition).c_str(), selectivity);

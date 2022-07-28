@@ -1,0 +1,108 @@
+--enable_warnings
+# This test requires a small amount of not easily closeable InnoDB files. The
+# UNDO tablespaces are such not easily closeable files, so we limit runs to ones
+# that use the default amount of such.
+--source include/have_innodb_default_undo_tablespaces.inc
+
+--enable_query_log
+
+# Create some non-LRU files so there exists the limit value that can't be set.
+let $i = 9;
+while ($i >= 0)
+{
+  let $sql = CREATE UNDO TABLESPACE undo_00$i ADD DATAFILE 'undo_00$i.ibu';
+  --eval $sql
+  --dec $i
+}
+
+
+SET @start_global_value = @@GLOBAL.innodb_open_files;
+SELECT @start_global_value;
+
+#
+# incorrect types
+#
+--error ER_CANT_INITIALIZE_UDF
+SELECT innodb_set_open_files_limit(1.1);
+--error ER_CANT_INITIALIZE_UDF
+SELECT innodb_set_open_files_limit(1e1);
+--error ER_CANT_INITIALIZE_UDF
+SELECT innodb_set_open_files_limit('AUTO');
+--error ER_CANT_INITIALIZE_UDF
+SELECT innodb_set_open_files_limit();
+--error ER_CANT_INITIALIZE_UDF
+SELECT innodb_set_open_files_limit(1, 2);
+--error ER_CANT_INITIALIZE_UDF
+SELECT innodb_set_open_files_limit(1, 2, 3, 4);
+--error ER_CANT_INITIALIZE_UDF
+SELECT innodb_set_open_files_limit(NULL);
+# Verify the value was not changed.
+select @@global.innodb_open_files;
+
+
+#
+# Too small values
+#
+--error ER_WRONG_ARGUMENTS
+SELECT innodb_set_open_files_limit(-3);
+--error ER_WRONG_ARGUMENTS
+SELECT innodb_set_open_files_limit(1);
+--error ER_WRONG_ARGUMENTS
+SELECT innodb_set_open_files_limit(3);
+--error ER_WRONG_ARGUMENTS
+SELECT innodb_set_open_files_limit(9);
+
+#
+# Too high values
+#
+--error ER_WRONG_ARGUMENTS
+SELECT innodb_set_open_files_limit(2147483648);
+--error ER_WRONG_ARGUMENTS
+SELECT innodb_set_open_files_limit(12342147483647);
+
+
+#
+# Set value on the limit.
+#
+--error ER_WRONG_ARGUMENTS
+SELECT innodb_set_open_files_limit(10);
+--error ER_WRONG_ARGUMENTS
+SELECT innodb_set_open_files_limit(14);
+
+# If the following (or above) query fails, check the error messages, you need
+# to adjust the value of 14 and 15 to match current limit.
+SELECT innodb_set_open_files_limit(15);
+--error ER_WRONG_ARGUMENTS
+SELECT innodb_set_open_files_limit(14);
+
+#
+# Set correct values.
+#
+SELECT innodb_set_open_files_limit(2147483647);
+SELECT innodb_set_open_files_limit(4000);
+SELECT innodb_set_open_files_limit(150);
+
+#
+# Cleanup
+#
+let $i = 9;
+while ($i >= 0)
+{
+  let $sql = ALTER UNDO TABLESPACE undo_00$i SET INACTIVE;
+  --eval $sql
+  --dec $i
+}
+
+let $i = 9;
+while ($i >= 0)
+{
+  let $inactive_undo_space = undo_00$i;
+  source include/wait_until_undo_space_is_empty.inc;
+  let $sql = DROP UNDO TABLESPACE undo_00$i;
+  --eval $sql
+
+  --dec $i
+}
+
+SELECT innodb_set_open_files_limit(@start_global_value);
+SELECT @@GLOBAL.innodb_open_files;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +39,9 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -147,14 +147,14 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue);
     1   s > t
 */
 
-int sortcmp_lex_string(LEX_CSTRING s, LEX_CSTRING t, CHARSET_INFO *cs) {
+int sortcmp_lex_string(LEX_CSTRING s, LEX_CSTRING t, const CHARSET_INFO *cs) {
   return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(s.str), s.length,
                                pointer_cast<const uchar *>(t.str), t.length);
 }
 
 /*
   Reconstructs interval expression from interval type and expression
-  value that is in form of a value of the smalles entity:
+  value that is in form of a value of the smallest entity:
   For
     YEAR_MONTH - expression is in months
     DAY_MINUTE - expression is in minutes
@@ -563,6 +563,13 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
       trans_commit_stmt(thd) || trans_commit(thd))
     goto err_with_rollback;
 
+  if (new_dbname != nullptr) {
+    /* RENAME: Drop the old event instrumentation. */
+    MYSQL_DROP_SP(to_uint(enum_sp_type::EVENT), parse_data->dbname.str,
+                  parse_data->dbname.length, parse_data->name.str,
+                  parse_data->name.length);
+  }
+
   // Update element in event queue.
   if (event_queue && new_element != nullptr) {
     /*
@@ -717,7 +724,7 @@ bool Events::lock_schema_events(THD *thd, const dd::Schema &schema) {
   /*
     Ensure that we don't hold memory used by MDL_requests after locks have
     been acquired. This reduces memory usage in cases when we have DROP
-    DATABASE tha needs to drop lots of different objects.
+    DATABASE that needs to drop lots of different objects.
   */
   MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
 
@@ -816,14 +823,14 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
                          system_charset_info);
   protocol->store_string(show_str.c_ptr(), show_str.length(),
                          et->m_creation_ctx->get_client_cs());
-  const char *csname =
-      replace_utf8_utf8mb3(et->m_creation_ctx->get_client_cs()->csname);
+  const char *csname = et->m_creation_ctx->get_client_cs()->csname;
   protocol->store_string(csname, strlen(csname), system_charset_info);
-  protocol->store_string(et->m_creation_ctx->get_connection_cl()->name,
-                         strlen(et->m_creation_ctx->get_connection_cl()->name),
-                         system_charset_info);
-  protocol->store_string(et->m_creation_ctx->get_db_cl()->name,
-                         strlen(et->m_creation_ctx->get_db_cl()->name),
+  protocol->store_string(
+      et->m_creation_ctx->get_connection_cl()->m_coll_name,
+      strlen(et->m_creation_ctx->get_connection_cl()->m_coll_name),
+      system_charset_info);
+  protocol->store_string(et->m_creation_ctx->get_db_cl()->m_coll_name,
+                         strlen(et->m_creation_ctx->get_db_cl()->m_coll_name),
                          system_charset_info);
 
   if (protocol->end_row()) return true;

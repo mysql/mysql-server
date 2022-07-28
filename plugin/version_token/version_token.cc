@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -194,7 +194,7 @@ static bool is_blank_string(char *input) {
   Check if user either has SUPER or VERSION_TOKEN_ADMIN privileges
   @param thd Thread handle
 
-  @return succcess state
+  @return success state
     @retval true User has the required privileges
     @retval false User has not the required privileges
 */
@@ -420,7 +420,7 @@ static int parse_vtokens(char *input, enum command type) {
 }
 
 /**
-  Audit API entry point for the version token pluign
+  Audit API entry point for the version token plugin
 
   Plugin audit function to compare session version tokens with
   the global ones.
@@ -431,7 +431,7 @@ static int parse_vtokens(char *input, enum command type) {
   compare their values with the ones found. Throws errors if not
   found or the version values do not match. See parse_vtokens().
   At query end (MYSQL_AUDIT_GENERAL_STATUS currently) it releases
-  the GET_LOCK shared locks it has aquired.
+  the GET_LOCK shared locks it has acquired.
 
   @param thd          The current thread
   @param event_class  audit API event class
@@ -553,7 +553,7 @@ static int version_tokens_init(void *arg [[maybe_unused]]) {
     // Lock for version number.
     cleanup_lock.activate();
   }
-  bool ret = false;
+  mysql_service_status_t ret = 0;
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
   {
     my_service<SERVICE_TYPE(dynamic_privilege_register)> service(

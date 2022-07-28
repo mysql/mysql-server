@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,13 +82,6 @@ typedef enum enum_log_service_chistics {
   /** Service can parse lines in the format it outputs. Services flagged
       this must also be flagged LOG_SERVICE_SINK | LOG_SERVICE_PFS_SUPPORT! */
   LOG_SERVICE_LOG_PARSER = 2048,
-
-  /** Service is a special sink used during start-up that buffers log-events
-      until the log service pipeline is fully set up, at which point we'll
-      flush (that is, filter and prints) the buffered events.
-      Services flagged this must also be flagged LOG_SERVICE_SINK! */
-  LOG_SERVICE_BUFFER = 8192
-
 } log_service_chistics;
 
 /**
@@ -203,7 +196,7 @@ DECLARE_METHOD(log_service_error, flush, (void **instance));
                      the server/logging framework. It must be released
                      on close.
 
-  @returns  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @returns  LOG_SERVICE_SUCCESS        success, returned handle is valid
   @returns  otherwise                  a new instance could not be created
 */
 DECLARE_METHOD(log_service_error, open, (log_line * ll, void **instance));

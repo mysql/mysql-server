@@ -7,14 +7,29 @@ DROP TABLE IF EXISTS `龗龗龗`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET collation_connection = ucs2_general_ci;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = ucs2 engine=INNODB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = ucs2 engine=INNODB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = ucs2 engine=INNODB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = ucs2 engine=INNODB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = ucs2 engine=INNODB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = ucs2 engine=INNODB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO `ｱｱｱ` VALUES ('ｱｱｱｱｱ'),('ｲｲｲｲｲ'),('ｳｳｳｳｳ');
 INSERT INTO `あああ` VALUES ('あああああ'),('いいいいい'),('ううううう');
 INSERT INTO `龖龖龖` VALUES ('丂丂丂丂丂'),('丄丄丄丄丄'),('丅丅丅丅丅');
@@ -172,11 +187,23 @@ DROP TABLE `いいい`;
 DROP TABLE `龖龖龖`;
 DROP TABLE `龗龗龗`;
 CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = ucs2 engine=MYISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = ucs2 engine=MYISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = ucs2 engine=MYISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = ucs2 engine=MYISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = ucs2 engine=MYISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = ucs2 engine=MYISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO `ｱｱｱ` VALUES ('ｱｱｱｱｱ'),('ｲｲｲｲｲ'),('ｳｳｳｳｳ');
 INSERT INTO `あああ` VALUES ('あああああ'),('いいいいい'),('ううううう');
 INSERT INTO `龖龖龖` VALUES ('丂丂丂丂丂'),('丄丄丄丄丄'),('丅丅丅丅丅');
@@ -334,11 +361,23 @@ DROP TABLE `いいい`;
 DROP TABLE `龖龖龖`;
 DROP TABLE `龗龗龗`;
 CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = ucs2 engine=MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = ucs2 engine=MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = ucs2 engine=MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = ucs2 engine=MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = ucs2 engine=MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = ucs2 engine=MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO `ｱｱｱ` VALUES ('ｱｱｱｱｱ'),('ｲｲｲｲｲ'),('ｳｳｳｳｳ');
 INSERT INTO `あああ` VALUES ('あああああ'),('いいいいい'),('ううううう');
 INSERT INTO `龖龖龖` VALUES ('丂丂丂丂丂'),('丄丄丄丄丄'),('丅丅丅丅丅');

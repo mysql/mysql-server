@@ -183,7 +183,9 @@ DROP TABLE gtable;
 SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 --source include/stop_slave.inc
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
+--disable_warnings
 SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
+--enable_warnings
 SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
 --source include/start_slave.inc
 --source include/rpl_end.inc

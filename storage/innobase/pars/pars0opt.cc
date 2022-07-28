@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -77,7 +77,7 @@ static int opt_invert_cmp_op(int op) /*!< in: operator */
  in a join is accessed. If this is the case, it can possibly be used in an
  index search for the nth table.
  @return true if already determined */
-static ibool opt_check_exp_determined_before(
+static bool opt_check_exp_determined_before(
     que_node_t *exp,      /*!< in: expression */
     sel_node_t *sel_node, /*!< in: select node */
     ulint nth_table)      /*!< in: nth table will be accessed */
@@ -97,13 +97,13 @@ static ibool opt_check_exp_determined_before(
 
     while (arg) {
       if (!opt_check_exp_determined_before(arg, sel_node, nth_table)) {
-        return (FALSE);
+        return false;
       }
 
       arg = que_node_get_next(arg);
     }
 
-    return (TRUE);
+    return true;
   }
 
   ut_a(que_node_get_type(exp) == QUE_NODE_SYMBOL);
@@ -111,18 +111,18 @@ static ibool opt_check_exp_determined_before(
   sym_node = static_cast<sym_node_t *>(exp);
 
   if (sym_node->token_type != SYM_COLUMN) {
-    return (TRUE);
+    return true;
   }
 
   for (i = 0; i < nth_table; i++) {
     table = sel_node_get_nth_plan(sel_node, i)->table;
 
     if (sym_node->table == table) {
-      return (TRUE);
+      return true;
     }
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Looks in a comparison condition if a column value is already restricted by
@@ -379,9 +379,9 @@ static inline ulint opt_calc_n_fields_from_goodness(
  ...
  @return search mode */
 static inline page_cur_mode_t opt_op_to_search_mode(
-    ibool asc, /*!< in: TRUE if the rows should be fetched in an
+    bool asc, /*!< in: true if the rows should be fetched in an
                ascending order */
-    ulint op)  /*!< in: operator '=', PARS_GE_TOKEN, ... */
+    ulint op) /*!< in: operator '=', PARS_GE_TOKEN, ... */
 {
   if (op == '=' || op == PARS_LIKE_TOKEN_EXACT ||
       op == PARS_LIKE_TOKEN_PREFIX || op == PARS_LIKE_TOKEN_SUFFIX ||
@@ -410,8 +410,8 @@ static inline page_cur_mode_t opt_op_to_search_mode(
 
 /** Determines if a node is an argument node of a function node.
  @return true if is an argument */
-static ibool opt_is_arg(que_node_t *arg_node, /*!< in: possible argument node */
-                        func_node_t *func_node) /*!< in: function node */
+static bool opt_is_arg(que_node_t *arg_node, /*!< in: possible argument node */
+                       func_node_t *func_node) /*!< in: function node */
 {
   que_node_t *arg;
 
@@ -419,13 +419,13 @@ static ibool opt_is_arg(que_node_t *arg_node, /*!< in: possible argument node */
 
   while (arg) {
     if (arg == arg_node) {
-      return (TRUE);
+      return true;
     }
 
     arg = que_node_get_next(arg);
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Decides if the fetching of rows should be made in a descending order, and
@@ -494,8 +494,8 @@ static void opt_search_plan_for_table(
 
   plan->table = table;
   plan->asc = sel_node->asc;
-  plan->pcur_is_open = FALSE;
-  plan->cursor_at_end = FALSE;
+  plan->pcur_is_open = false;
+  plan->cursor_at_end = false;
 
   /* Calculate goodness for each index of the table */
 
@@ -547,15 +547,15 @@ static void opt_search_plan_for_table(
 
   if (best_index->is_clustered() &&
       (plan->n_exact_match >= dict_index_get_n_unique(best_index))) {
-    plan->unique_search = TRUE;
+    plan->unique_search = true;
   } else {
-    plan->unique_search = FALSE;
+    plan->unique_search = false;
   }
 
   plan->old_vers_heap = nullptr;
 
-  btr_pcur_init(&(plan->pcur));
-  btr_pcur_init(&(plan->clust_pcur));
+  plan->pcur.init();
+  plan->clust_pcur.init();
 }
 
 /** Looks at a comparison condition and decides if it can, and need, be tested
@@ -741,8 +741,8 @@ static void opt_determine_and_normalize_test_conds(
  column occurrence we are looking at is in the column list, in which case
  nothing is done. */
 void opt_find_all_cols(
-    ibool copy_val,            /*!< in: if TRUE, new found columns are
-                               added as columns to copy */
+    bool copy_val,             /*!< in: if true, new found columns are
+                                added as columns to copy */
     dict_index_t *index,       /*!< in: index of the table to use */
     sym_node_list_t *col_list, /*!< in: base node of a list where
                                to add new found columns */
@@ -817,7 +817,7 @@ void opt_find_all_cols(
     col_pos = index->get_col_pos(sym_node->col_no);
 
     if (col_pos == ULINT_UNDEFINED) {
-      plan->must_get_clust = TRUE;
+      plan->must_get_clust = true;
     }
 
     sym_node->field_nos[SYM_SEC_FIELD_NO] = col_pos;
@@ -861,7 +861,7 @@ static void opt_find_copy_cols(
 
     plan = sel_node_get_nth_plan(sel_node, i);
 
-    opt_find_all_cols(TRUE, plan->index, &(plan->columns), plan, search_cond);
+    opt_find_all_cols(true, plan->index, &(plan->columns), plan, search_cond);
   }
 }
 
@@ -880,25 +880,25 @@ static void opt_classify_cols(sel_node_t *sel_node, /*!< in: select node */
   /* The final value of the following field will depend on the
   environment of the select statement: */
 
-  plan->must_get_clust = FALSE;
+  plan->must_get_clust = false;
 
   UT_LIST_INIT(plan->columns);
 
-  /* All select list columns should be copied: therefore TRUE as the
+  /* All select list columns should be copied: therefore true as the
   first argument */
 
   for (exp = sel_node->select_list; exp != nullptr;
        exp = que_node_get_next(exp)) {
-    opt_find_all_cols(TRUE, plan->index, &(plan->columns), plan, exp);
+    opt_find_all_cols(true, plan->index, &(plan->columns), plan, exp);
   }
 
   opt_find_copy_cols(sel_node, i,
                      static_cast<func_node_t *>(sel_node->search_cond));
 
   /* All remaining columns in the search condition are temporary
-  columns: therefore FALSE */
+  columns: therefore false */
 
-  opt_find_all_cols(FALSE, plan->index, &plan->columns, plan,
+  opt_find_all_cols(false, plan->index, &plan->columns, plan,
                     static_cast<func_node_t *>(sel_node->search_cond));
 }
 
@@ -923,7 +923,7 @@ static void opt_clust_access(sel_node_t *sel_node, /*!< in: select node */
   /* The final value of the following field depends on the environment
   of the select statement: */
 
-  plan->no_prefetch = FALSE;
+  plan->no_prefetch = false;
 
   if (index->is_clustered()) {
     plan->clust_map = nullptr;
@@ -970,7 +970,7 @@ static void opt_clust_access(sel_node_t *sel_node, /*!< in: select node */
 
 #ifdef UNIV_SQL_DEBUG
 /** Print info of a query plan.
-@param[in,out]	sel_node	select node */
+@param[in,out]  sel_node        select node */
 static void opt_print_query_plan(sel_node_t *sel_node);
 #endif
 
@@ -994,7 +994,7 @@ void opt_search_plan(sel_node_t *sel_node) /*!< in: parsed select node */
   table_node = sel_node->table_list;
 
   if (sel_node->order_by == nullptr) {
-    sel_node->asc = TRUE;
+    sel_node->asc = true;
   } else {
     order_by = sel_node->order_by;
 
@@ -1044,7 +1044,7 @@ void opt_search_plan(sel_node_t *sel_node) /*!< in: parsed select node */
 
 #ifdef UNIV_SQL_DEBUG
 /** Print info of a query plan.
-@param[in,out]	sel_node	select node */
+@param[in,out]  sel_node        select node */
 static void opt_print_query_plan(sel_node_t *sel_node) {
   plan_t *plan;
   ulint n_fields;
