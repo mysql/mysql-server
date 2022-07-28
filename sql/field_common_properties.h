@@ -153,6 +153,8 @@ inline bool is_temporal_type_with_time(enum_field_types type) {
   @retval false  If field type is not temporal type with date part.
 */
 inline bool is_temporal_type_with_date(enum_field_types type) {
+  // A type which is_temporal_type() but not is_temporal_type_with_date() ?
+  assert(type != MYSQL_TYPE_NEWDATE);
   switch (type) {
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_DATETIME:
