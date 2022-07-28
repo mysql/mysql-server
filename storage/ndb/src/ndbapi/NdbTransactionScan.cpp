@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,16 @@
  * int  receiveSCAN_TABREF(NdbApiSignal* aSignal)
  *
  *  This means the scan could not be started, set status(s) to indicate 
- *  the failure
+ *  the failure. Note that scan requests are asynchronous, i.e. we do not
+ *  wait for the CONF or REF to be returned. Which also imples that a REF-error
+ *  could be received into a scan operation while the client is in the midts
+ *  of doing other work, e.g. handling results from other operations in the
+ *  same transaction.
+ *
+ *  To avoid transaction errors appearing 'out of the blue', such asynch
+ *  errors are set only on the operation when they are received. Only when
+ *  processing the scan results with ::nextResult(), operational errors are
+ *  propogated to the transaction level.
  *
  ****************************************************************************/
 int			
@@ -46,7 +55,8 @@ NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal* aSignal){
   if (checkState_TransId(&ref->transId1)) {
     if (theScanningOp) {
       theScanningOp->execCLOSE_SCAN_REP();
-      theScanningOp->setErrorCode(ref->errorCode);
+      // Do not ::setErrorCode() yet! - See comment in header
+      theScanningOp->theError.code = ref->errorCode;
       if(!ref->closeNeeded){
         return 0;
       }
