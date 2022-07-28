@@ -400,6 +400,8 @@ Warning	1292	Incorrect date value: '1901' for column 'd' at row 1
 SELECT LEAST(y, d) FROM t1;
 LEAST(y, d)
 1901
+Warnings:
+Warning	1292	Incorrect date value: '1901' for column 'd' at row 1
 SELECT LEAST(i, y, v) FROM t1;
 LEAST(i, y, v)
 1

@@ -1521,10 +1521,7 @@ class Item_func_min_max : public Item_func_numhybrid {
   }
 
   /// Returns true if arguments to this function should be compared as dates.
-  bool compare_as_dates() const {
-    return temporal_item != nullptr &&
-           is_temporal_type_with_date(temporal_item->data_type());
-  }
+  bool compare_as_dates() const;
 
   /// Returns true if at least one of the arguments was of temporal type.
   bool has_temporal_arg() const { return temporal_item; }
