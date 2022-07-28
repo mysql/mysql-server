@@ -78,7 +78,10 @@ class TestRestApiEnable : public RouterComponentTest {
     set_globals();
 
     custom_port = port_pool_.get_next_available();
-    router_port = port_pool_.get_next_available();
+    router_port_rw = port_pool_.get_next_available();
+    router_port_ro = port_pool_.get_next_available();
+    router_port_x_rw = port_pool_.get_next_available();
+    router_port_x_ro = port_pool_.get_next_available();
 
     setup_paths();
   }
@@ -88,8 +91,6 @@ class TestRestApiEnable : public RouterComponentTest {
         "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
         "-d",
         temp_test_dir.name(),
-        "--conf-base-port",
-        std::to_string(router_port),
         "--conf-set-option=DEFAULT.logging_folder=" + get_logging_dir().str(),
         "--conf-set-option=logger.level=DEBUG",
     };
@@ -345,7 +346,10 @@ class TestRestApiEnable : public RouterComponentTest {
   uint16_t cluster_node_port;
   uint16_t cluster_http_port;
   uint16_t custom_port;
-  uint16_t router_port;
+  uint16_t router_port_rw;
+  uint16_t router_port_ro;
+  uint16_t router_port_x_rw;
+  uint16_t router_port_x_ro;
   uint16_t default_rest_port{8443};
   ProcessWrapper *cluster_node;
 
@@ -638,7 +642,7 @@ TEST_P(OverlappingHttpsPort,
 
 INSTANTIATE_TEST_SUITE_P(
     CheckOverlappingHttpsPort, OverlappingHttpsPort,
-    ::testing::Values(&TestRestApiEnable::router_port,
+    ::testing::Values(&TestRestApiEnable::router_port_rw,
                       &TestRestApiEnable::cluster_node_port));
 
 /**
@@ -958,7 +962,10 @@ class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
     }
 
     cluster_node_port = gr_members[0].second;
-    router_port = port_pool_.get_next_available();
+    router_port_rw = port_pool_.get_next_available();
+    router_port_ro = port_pool_.get_next_available();
+    router_port_x_rw = port_pool_.get_next_available();
+    router_port_x_ro = port_pool_.get_next_available();
   }
 
  private:
@@ -987,13 +994,13 @@ TEST_F(TestRestApiEnableBootstrapFailover,
   auto &router_bootstrap = do_bootstrap({
       "--conf-set-option=http_server.port=" + std::to_string(rest_port),
       "--conf-set-option=routing:bootstrap_rw.bind_port=" +
-          std::to_string(port_pool_.get_next_available()),
+          std::to_string(router_port_rw),
       "--conf-set-option=routing:bootstrap_ro.bind_port=" +
-          std::to_string(port_pool_.get_next_available()),
+          std::to_string(router_port_ro),
       "--conf-set-option=routing:bootstrap_x_rw.bind_port=" +
-          std::to_string(port_pool_.get_next_available()),
+          std::to_string(router_port_x_rw),
       "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
-          std::to_string(port_pool_.get_next_available()),
+          std::to_string(router_port_x_ro),
   });
   EXPECT_THAT(router_bootstrap.get_full_output(),
               ::testing::HasSubstr("trying to connect to"));
