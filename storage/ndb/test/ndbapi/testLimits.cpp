@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -931,14 +931,19 @@ int testSegmentedSectionScan(NDBT_Context* ctx, NDBT_Step* step){
 
   CHECKEQUAL(0, scan->setInterpretedCode(&prog));
 
-  /* Api doesn't seem to wait for result of scan request */
   CHECKEQUAL(0, trans->execute(NdbTransaction::NoCommit));
 
+  // Scan errors arrive asynchronously into the ScanOperation.
+  // However, errors should not become visible on the Transaction object
+  // until after the nextResult-wait.
+  CHECKEQUAL(0, trans->getNdbError().code);
+  NdbSleep_MilliSleep(10);    // Not even after a long sleep.
   CHECKEQUAL(0, trans->getNdbError().code);
 
   CHECKEQUAL(-1, scan->nextResult());
   
   CHECKEQUAL(217, scan->getNdbError().code);
+  CHECKEQUAL(217, trans->getNdbError().code);
 
   trans->close();
 
@@ -1037,15 +1042,20 @@ int testDropSignalFragments(NDBT_Context* ctx, NDBT_Step* step){
     
     CHECKEQUAL(0, scan->setInterpretedCode(&prog));
     
-    /* Api doesn't seem to wait for result of scan request */
     CHECKEQUAL(0, trans->execute(NdbTransaction::NoCommit));
-    
+
+    // Scan errors arrive asynchronously into the ScanOperation.
+    // However, they should not become visible on the Transaction object
+    // until after the nextResult-wait.
+    CHECKEQUAL(0, trans->getNdbError().code);
+    NdbSleep_MilliSleep(10);    // Not even after a long sleep.
     CHECKEQUAL(0, trans->getNdbError().code);
 
     CHECKEQUAL(-1, scan->nextResult());
     
     int expectedResult= subcase.expectedRc;
     CHECKEQUAL(expectedResult, scan->getNdbError().code);
+    CHECKEQUAL(expectedResult, trans->getNdbError().code);
 
     scan->close();
     
