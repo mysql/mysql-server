@@ -8930,14 +8930,19 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     sync_error = result.first;
   }
 
-  if (update_binlog_end_pos_after_sync) {
+  if (update_binlog_end_pos_after_sync && flush_error == 0 && sync_error == 0) {
     THD *tmp_thd = final_queue;
     const char *binlog_file = nullptr;
     my_off_t pos = 0;
-    while (tmp_thd->next_to_commit != nullptr)
+
+    while (tmp_thd != nullptr) {
+      if (tmp_thd->commit_error == THD::CE_NONE) {
+        tmp_thd->get_trans_fixed_pos(&binlog_file, &pos);
+      }
       tmp_thd = tmp_thd->next_to_commit;
-    if (flush_error == 0 && sync_error == 0) {
-      tmp_thd->get_trans_fixed_pos(&binlog_file, &pos);
+    }
+
+    if (binlog_file != nullptr && pos > 0) {
       update_binlog_end_pos(binlog_file, pos);
     }
   }
