@@ -4799,7 +4799,7 @@ bool CreateTemporaryTableForFullTextFunctions(
   }
 
   // Materialize all non-aggregate expressions in the ORDER BY clause.
-  for (ORDER *order = query_block->order_list.first; order != nullptr;
+  for (ORDER *order = join->order.order; order != nullptr;
        order = order->next) {
     CollectItemsToMaterializeForFullTextAggregation(*order->item,
                                                     &items_to_materialize);
@@ -5276,24 +5276,6 @@ void ApplyHavingCondition(THD *thd, Item *having_cond, Query_block *query_block,
   *root_candidates = std::move(new_root_candidates);
 }
 
-/**
-  Creates a reduced ordering for the ordering or grouping specified by
-  "ordering_idx". It is assumed that the ordering happens after all joins and
-  filters, so that all functional dependencies are active. All parts of the
-  ordering that are made redundant by functional dependencies, are removed.
-
-  The returned ordering may be empty if all elements are redundant. This happens
-  if all elements are constants, or have predicates that ensure they are
-  constant.
- */
-Ordering ReduceFinalOrdering(THD *thd, const LogicalOrderings &orderings,
-                             int ordering_idx) {
-  Ordering full_ordering = orderings.ordering(ordering_idx);
-  return orderings.ReduceOrdering(
-      full_ordering, /*all_fds=*/true,
-      thd->mem_root->ArrayAlloc<OrderElement>(full_ordering.size()));
-}
-
 AccessPath MakeSortPathForDistinct(
     THD *thd, AccessPath *root_path, int ordering_idx,
     bool aggregation_is_unordered, const LogicalOrderings &orderings,
@@ -5349,7 +5331,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     bool force_sort_rowids, Prealloced_array<AccessPath *, 4> root_candidates,
     string *trace) {
   JOIN *join = query_block->join;
-  assert(join->select_distinct || query_block->is_ordered());
+  assert(join->select_distinct || join->order.order != nullptr);
 
   if (root_candidates.empty()) {
     // Nothing to do if the secondary engine has rejected all candidates.
@@ -5499,18 +5481,12 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   }
 
   // Apply ORDER BY, if applicable.
-  if (query_block->is_ordered()) {
+  if (join->order.order != nullptr) {
     Mem_root_array<TABLE *> tables = CollectTables(
         thd, root_candidates[0]);  // Should be same for all paths.
     if (trace != nullptr) {
       *trace += "Applying sort for ORDER BY\n";
     }
-
-    // Remove those parts of the final ordering that are redundant when all the
-    // functional dependencies are applied.
-    ORDER *final_order = BuildSortAheadOrdering(
-        thd, &orderings,
-        ReduceFinalOrdering(thd, orderings, order_by_ordering_idx));
 
     // If we have LIMIT or OFFSET, we apply them here. This is done so that we
     // can push the LIMIT clause down to the SORT node in order to let Filesort
@@ -5521,11 +5497,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      // No sort is needed if the ORDER BY clause is completely redundant
-      // (final_order == nullptr), or if the candidate already follows the
+      // No sort is needed if the candidate already follows the
       // required ordering.
-      if (final_order == nullptr ||
-          orderings.DoesFollowOrder(root_path->ordering_state,
+      if (orderings.DoesFollowOrder(root_path->ordering_state,
                                     order_by_ordering_idx)) {
         if (limit_rows != HA_POS_ERROR || offset_rows != 0) {
           root_path = NewLimitOffsetAccessPath(
@@ -5552,7 +5526,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         sort_path->sort().unwrap_rollup = false;
         sort_path->sort().limit =
             push_limit_to_filesort ? limit_rows : HA_POS_ERROR;
-        sort_path->sort().order = final_order;
+        sort_path->sort().order = join->order.order;
         EstimateSortCost(sort_path);
 
         // If this is a DELETE or UPDATE statement, row IDs must be preserved
@@ -6222,7 +6196,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
   // Figure out if any later sort will need row IDs.
   bool need_rowid = false;
-  if (query_block->is_explicitly_grouped() || query_block->is_ordered() ||
+  if (query_block->is_explicitly_grouped() || join->order.order != nullptr ||
       join->select_distinct || !join->m_windows.is_empty()) {
     // NOTE: This is distinct from SortWillBeOnRowId(), as it also checks blob
     // fields arising from blob-generating functions on non-blob fields.
@@ -6623,7 +6597,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       "Applying filter for window function in2exists conditions\n", trace,
       &root_candidates, &receiver);
 
-  if (join->select_distinct || query_block->is_ordered()) {
+  if (join->select_distinct || join->order.order != nullptr) {
     // UPDATE and DELETE must preserve row IDs through ORDER BY in order to keep
     // track of which rows to update or delete.
     const bool force_sort_rowids = update_delete_target_tables != 0;
@@ -6638,7 +6612,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   // Apply LIMIT and OFFSET, if applicable. If the query block is ordered, they
   // are already applied by ApplyDistinctAndOrder().
   Query_expression *query_expression = join->query_expression();
-  if (!query_block->is_ordered() &&
+  if (join->order.order == nullptr &&
       (query_expression->select_limit_cnt != HA_POS_ERROR ||
        query_expression->offset_limit_cnt != 0)) {
     if (trace != nullptr) {
