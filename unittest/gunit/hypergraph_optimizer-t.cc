@@ -3922,6 +3922,9 @@ TEST_F(HypergraphOptimizerTest, ElideRedundantPartsOfSortKey) {
   }
   EXPECT_THAT(order_items, ElementsAre("t1.x", "t1.y", "t2.y"));
 
+  // Expect the redundant elements to be removed from join->order as well.
+  EXPECT_EQ(query_block->join->order.order, root->sort().order);
+
   query_block->cleanup(/*full=*/true);
 }
 
@@ -3941,6 +3944,9 @@ TEST_F(HypergraphOptimizerTest, ElideRedundantSortAfterGrouping) {
   // Expect that there is no SORT on top of the AGGREGATE node, because the
   // ordering requested by the ORDER BY clause is ensured by the predicate.
   EXPECT_EQ(AccessPath::AGGREGATE, root->type);
+
+  // The ORDER BY clause should be optimized away altogether.
+  EXPECT_EQ(nullptr, query_block->join->order.order);
 }
 
 TEST_F(HypergraphOptimizerTest, ElideRedundantSortForDistinct) {

@@ -1938,7 +1938,8 @@ class Query_block : public Query_term {
 
   /**
     ORDER BY clause.
-    This list may be mutated during optimization (by remove_const()),
+    This list may be mutated during optimization (by remove_const() in the old
+    optimizer or by RemoveRedundantOrderElements() in the hypergraph optimizer),
     so for prepared statements, we keep a copy of the ORDER.next pointers in
     order_list_ptrs, and re-establish the original list before each execution.
   */
@@ -1947,7 +1948,8 @@ class Query_block : public Query_term {
 
   /**
     GROUP BY clause.
-    This list may be mutated during optimization (by remove_const()),
+    This list may be mutated during optimization (by remove_const() in the old
+    optimizer or by RemoveRedundantOrderElements() in the hypergraph optimizer),
     so for prepared statements, we keep a copy of the ORDER.next pointers in
     group_list_ptrs, and re-establish the original list before each execution.
   */

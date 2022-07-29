@@ -324,6 +324,68 @@ static void CanonicalizeGrouping(Ordering *ordering) {
                    ordering->begin());
 }
 
+/**
+  Find the ORDER objects pointing corresponding to a given OrderElement. That
+  is, return the first ORDER that has the same item and direction as the given
+  OrderElement. It is assumed that there is a corresponding one.
+ */
+static ORDER *FindOrderElementInORDER(OrderElement element, ORDER *order,
+                                      const LogicalOrderings &orderings) {
+  const Item *search_item = orderings.item(element.item);
+  while (true) {
+    assert(order != nullptr);
+    if (*order->item == search_item && element.direction == order->direction) {
+      return order;
+    }
+    order = order->next;
+  }
+}
+
+/**
+  Remove all redundant elements from a chain of ORDERs by modifying the next
+  pointers in the intrusive list.
+
+  @param order Pointer to the first element of the original ORDER BY clause.
+  @param reduced_ordering An Ordering object that contains only the
+         non-redundant elements of "order".
+  @param orderings The logical orderings.
+
+  @return Pointer to the first element of the reduced ordering.
+ */
+static ORDER *RemoveRedundantOrderElements(ORDER *order,
+                                           Ordering reduced_ordering,
+                                           const LogicalOrderings &orderings) {
+  ORDER *first = nullptr;
+  ORDER *prev = nullptr;
+  ORDER *current = order;
+
+  for (OrderElement element : reduced_ordering) {
+    ORDER *next = FindOrderElementInORDER(element, current, orderings);
+    assert(next != nullptr);
+    if (first == nullptr) {
+      first = next;
+    } else {
+      prev->next = next;
+    }
+    prev = next;
+    current = next->next;
+  }
+
+  if (prev != nullptr) {
+    prev->next = nullptr;
+  }
+
+  return first;
+}
+
+Ordering ReduceFinalOrdering(THD *thd, const LogicalOrderings &orderings,
+                             int ordering_idx) {
+  Ordering full_ordering = orderings.ordering(ordering_idx);
+  return orderings.ReduceOrdering(
+      full_ordering, /*all_fds=*/true,
+      thd->mem_root->ArrayAlloc<OrderElement>(full_ordering.size()));
+}
+
 void BuildInterestingOrders(
     THD *thd, JoinHypergraph *graph, Query_block *query_block,
     LogicalOrderings *orderings,
@@ -654,6 +716,17 @@ void BuildInterestingOrders(
   if (*order_by_ordering_idx != -1) {
     *order_by_ordering_idx =
         orderings->RemapOrderingIndex(*order_by_ordering_idx);
+
+    // See if we're able to eliminate any redundant elements completely from the
+    // ORDER BY clause. If so, store the reduced ordering in join->order.
+    if (const Ordering reduced_ordering =
+            ReduceFinalOrdering(thd, *orderings, *order_by_ordering_idx);
+        reduced_ordering.size() < query_block->order_list.elements) {
+      query_block->join->order = ORDER_with_src(
+          RemoveRedundantOrderElements(query_block->join->order.order,
+                                       reduced_ordering, *orderings),
+          query_block->join->order.src);
+    }
   }
   if (*group_by_ordering_idx != -1) {
     *group_by_ordering_idx =
