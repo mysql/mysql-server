@@ -5482,6 +5482,11 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
   // Apply ORDER BY, if applicable.
   if (join->order.order != nullptr) {
+    if (root_candidates.empty()) {
+      // The secondary engine has rejected all candidates.
+      assert(receiver.HasSecondaryEngineCostHook());
+      return root_candidates;
+    }
     Mem_root_array<TABLE *> tables = CollectTables(
         thd, root_candidates[0]);  // Should be same for all paths.
     if (trace != nullptr) {
