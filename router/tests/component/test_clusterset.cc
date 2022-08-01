@@ -701,7 +701,7 @@ TEST_P(UnknownClusterSetTargetClusterTest, UnknownClusterSetTargetCluster) {
   SCOPED_TRACE("// Prepare the dynamic state file for the Router");
   auto &router = launch_router(EXIT_SUCCESS, -1s);
 
-  EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error, 2s));
+  EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error, 20s));
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[1].nodes[0].http_port, 2));
@@ -769,7 +769,7 @@ TEST_F(ClusterSetTest, TargetClusterEmptyInMetadata) {
   EXPECT_TRUE(wait_log_contains(router,
                                 "Target cluster for router_id=1 not set, using "
                                 "'primary' as a target cluster",
-                                2s));
+                                20s));
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[1].nodes[0].http_port, 2));
