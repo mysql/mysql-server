@@ -5422,6 +5422,8 @@ INSTANTIATE_TEST_SUITE_P(
          AccessPath::FILTER, true},
         {"SELECT t1.x FROM t1 GROUP BY t1.x HAVING COUNT(*) > 5 ORDER BY t1.x",
          AccessPath::FILTER, true},
+        {"SELECT 1 FROM t1 GROUP BY t1.x ORDER BY SUM(t1.y)",
+         AccessPath::STREAM, true},
     })));
 
 INSTANTIATE_TEST_SUITE_P(
