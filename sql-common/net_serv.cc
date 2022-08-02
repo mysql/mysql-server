@@ -1351,7 +1351,7 @@ static bool net_read_raw_loop(NET *net, size_t count) {
   if (server_ext) timeout_on_full_packet = server_ext->timeout_on_full_packet;
 #endif
 
-  time_t start_time;
+  time_t start_time = 0;
   if (timeout_on_full_packet) start_time = time(&start_time);
   while (count) {
     size_t recvcnt = vio_read(net->vio, buf, count);
