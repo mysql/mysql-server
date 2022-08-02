@@ -21,7 +21,7 @@ SET GLOBAL group_replication_force_members= "";
 #    parallel session (server1), it will fail.
 [connection server1]
 SET GLOBAL group_replication_force_members= "";
-ERROR 42000: Variable 'group_replication_force_members' can't be set to the value of ''
+ERROR HY000: The 'SET GLOBAL group_replication_force_members=value' command encountered a failure. There is one group_replication_force_members operation already ongoing.
 
 ############################################################
 # 3. Resume set value to

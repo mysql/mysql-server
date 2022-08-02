@@ -47,7 +47,7 @@ SET @@GLOBAL.DEBUG='d,group_replication_wait_on_check_force_members';
 --echo #    parallel session (server1), it will fail.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_GROUP_REPLICATION_FORCE_MEMBERS_COMMAND_FAILURE
 SET GLOBAL group_replication_force_members= "";
 
 

@@ -487,15 +487,16 @@ enum enum_gcs_error Gcs_operations::send_transaction_message(
   return error;
 }
 
-int Gcs_operations::force_members(const char *members) {
+Gcs_operations::enum_force_members_state Gcs_operations::force_members(
+    const char *members) {
   DBUG_TRACE;
-  int error = 0;
+  enum_force_members_state error = FORCE_MEMBERS_OK;
   gcs_operations_lock->wrlock();
 
   if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
-    error = 1;
+    error = FORCE_MEMBERS_ER_MEMBER_NOT_ONLINE;
     goto end;
     /* purecov: end */
   }
@@ -506,7 +507,7 @@ int Gcs_operations::force_members(const char *members) {
   */
   if (leave_coordination_leaving) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBERS_WHEN_LEAVING);
-    error = 1;
+    error = FORCE_MEMBERS_ER_MEMBERS_WHEN_LEAVING;
     goto end;
   }
 
@@ -520,7 +521,7 @@ int Gcs_operations::force_members(const char *members) {
     if (gcs_management == nullptr) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
-      error = 1;
+      error = FORCE_MEMBERS_ER_INTERNAL_ERROR;
       goto end;
       /* purecov: end */
     }
@@ -541,7 +542,7 @@ int Gcs_operations::force_members(const char *members) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET_ERROR,
                    members);
-      error = 1;
+      error = FORCE_MEMBERS_ER_VALUE_SET_ERROR;
       view_change_notifier.cancel_view_modification();
       remove_view_notifer(&view_change_notifier);
       goto end;
@@ -553,13 +554,13 @@ int Gcs_operations::force_members(const char *members) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_TIME_OUT,
                    members);
-      error = 1;
+      error = FORCE_MEMBERS_ER_TIMEOUT_ON_WAIT_FOR_VIEW;
       /* purecov: end */
     }
     remove_view_notifer(&view_change_notifier);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
-    error = 1;
+    error = FORCE_MEMBERS_ER_MEMBER_NOT_ONLINE;
     goto end;
   }
 

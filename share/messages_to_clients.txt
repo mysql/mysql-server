@@ -9818,6 +9818,9 @@ ER_COMMAND_SERVICE_BACKEND_FAILED
 ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS
   eng "The PRIVILEGE_CHECKS_USER for channel '%.192s' would need FILE privilege to execute a LOAD DATA INFILE statement replicated in statement format. Consider using binlog_format=ROW on master. If the replicated events are trusted, recover from the failure by temporarily granting FILE to the PRIVILEGE_CHECKS_USER."
 
+ER_GROUP_REPLICATION_FORCE_MEMBERS_COMMAND_FAILURE
+  eng "The 'SET GLOBAL group_replication_force_members=%s' command encountered a failure. %s"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

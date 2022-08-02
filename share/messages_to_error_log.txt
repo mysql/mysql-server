@@ -5132,10 +5132,10 @@ ER_GRP_RPL_FLOW_CTRL_MAX_QUOTA_SMALLER_THAN_MIN_QUOTAS
 ER_GRP_RPL_INVALID_SSL_RECOVERY_STRING
   eng "The given value for recovery ssl option 'group_replication_%s' is invalid as its length is beyond the limit"
 
-ER_GRP_RPL_SUPPORTS_ONLY_ONE_FORCE_MEMBERS_SET
+OBSOLETE_ER_GRP_RPL_SUPPORTS_ONLY_ONE_FORCE_MEMBERS_SET
   eng "There is one group_replication_force_members operation already ongoing"
 
-ER_GRP_RPL_FORCE_MEMBERS_SET_UPDATE_NOT_ALLOWED
+OBSOLETE_ER_GRP_RPL_FORCE_MEMBERS_SET_UPDATE_NOT_ALLOWED
   eng "group_replication_force_members can only be updated when Group Replication is running and a majority of the members are unreachable"
 
 ER_GRP_RPL_GRP_COMMUNICATION_INIT_WITH_CONF
