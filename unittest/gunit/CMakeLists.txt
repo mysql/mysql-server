@@ -304,6 +304,7 @@ SET(SERVER_TESTS
   wild_case_compare
   ha_info_iterator
   xid_extract
+  log_event_status_size
 )
 
 DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
