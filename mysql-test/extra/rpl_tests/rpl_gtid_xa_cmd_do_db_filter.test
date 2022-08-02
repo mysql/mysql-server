@@ -1,0 +1,207 @@
+# ==== Purpose ====
+# The purpose of this test is to check XA END, XA PREPARE or XA COMMIT
+# are not filtered by do-db filters.
+#
+# ==== Usage ====
+#
+# --let $rpl_use_before_xa_cmd = [XA END|XA PREPARE|XA COMMIT]
+# --source extra/rpl_tests/rpl_gtid_xa_cmd_do_db_filter.test
+#
+# Parameters:
+# $rpl_use_before_xa_cmd
+#   - If this variable is set to 'XA END',
+#     it would add 'USE test' before XA END command.
+#   - If this variable is set to 'XA PREPARE',
+#     it would add 'USE test' before XA PREPARE command.
+#   - If this variable is set to 'XA COMMIT',
+#     it would add 'USE test' before XA COMMIT command.
+#
+# ==== Implementation ====
+# 0. The test requires two servers: source and replica.
+# 1. Setup scenario:
+# i. Create database 'dodb' on the source.
+# ii. Create table t in dodb database on the source.
+# iii. Sync to replica.
+# 2. On replica: Stop replica and create do_db replication filter for
+#    database 'dbdb'. All other databases except dodb will be ignored.
+#    Start replica.
+# 3. On source: Start a new XA transaction, insert data in dodb.t table.
+#
+# If replication filter needs to be tested before 'XA END'
+# i.e. $rpl_use_before_xa_cmd = 'XA END',
+# then below step 4 is applied:
+# 4. Change default database to 'test' using 'USE test' command.
+#    The 'dodb' database was added to do_db replication filter in
+#    step2. Execute 'XA END' to suspend current XA transaction.
+#    Note: Subsequent XA commands 'XA END' and 'XA PREPARE' should
+#    not fail.
+#
+# Else if replication filter needs to be tested before 'XA PREPARE'
+# i.e. $rpl_use_before_xa_cmd = 'XA PREPARE',
+# then below step 4.i., 4.ii. and 4.iii. are applied:
+# 4.i. Execute 'XA END' to suspend current transaction. Change
+#      default database to 'test' using 'USE test' command. The
+#      'dodb' database was added to do_db replication filter in
+#      Execute 'XA PREPARE' to prepare the XA transaction.
+# 4.ii. The XA transaction is successful can be checked using
+#       XA RECOVER. The xid value for the XA transaction will not be
+#       listed by XA RECOVER when the transaction is terminated.
+# 4.iii. On source execute 'XA COMMIT' to commit the XA transaction.
+#
+# Else if replication filter needs to be tested before 'XA COMMIT'
+# i.e. $rpl_use_before_xa_cmd = 'XA COMMIT',
+# then below step 4.i. and 4.ii. are applied:
+# 4.i. Execute 'XA END' and 'PREPARE' to put the transaction in
+#      prepared state. Change default database to 'test' using
+#      'USE test' command. The 'dodb' database was added todo_db
+#      replication filter in step2. Execute 'XA COMMIT' to commit
+#      the XA transaction.
+# 4.ii. The XA transaction is successful can be checked using XA RECOVER.
+#       The xid value for the XA transaction will not be listed by
+#       XA RECOVER when the transaction is terminated.
+#
+# 5. The XA transaction is successful can be checked using XA RECOVER.
+#    The xid value for the XA transaction will not be listed by
+#    XA RECOVER when the transaction is terminated.
+# 6. Confirm data is replicated successfully.
+# 7. Cleanup.
+#
+#
+# ==== Requirements ====
+#
+# Replication  Filters should not be applied for XA START, XA END, XA COMMIT,
+# and XA ROLLBACK commands.
+#
+# ==== References ====
+#
+# Bug#33764808: Filters should not be applied to XA statements
+
+if ($rpl_use_before_xa_cmd == '') {
+  --die ERROR: $rpl_use_before_xa_cmd parameter needed to determine XA command before which replication filter needs to be applied.
+}
+
+--source include/master-slave.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements*");
+SET SESSION sql_log_bin = 1;
+
+--echo # 1. Setup scenario:
+--echo # i. Create database 'dodb' on the source.
+--echo # ii. Create table t in dodb database on the source.
+--echo # iii. Sync to replica.
+--echo #
+CREATE DATABASE dodb;
+CREATE TABLE dodb.t (a INT);
+--source include/sync_slave_sql_with_master.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements*");
+SET SESSION sql_log_bin = 1;
+
+
+--echo # 2. On replica: Stop replica and create do_db replication filter for
+--echo #    database 'dbdb'. All other databases except dodb will be ignored.
+--echo #    Start replica.
+--echo #
+--source include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB = (dodb);
+--source include/start_slave.inc
+
+
+--echo # 3. On source: Start a new XA transaction, insert data in dodb.t table.
+--echo #
+--source include/rpl_connection_master.inc
+USE dodb;
+XA START 'a';
+--disable_warnings
+INSERT INTO dodb.t VALUES (1);
+--enable_warnings
+
+
+if ($rpl_use_before_xa_cmd == 'XA END')
+{
+  --echo # 4. Change default database to 'test' using 'USE test' command.
+  --echo #    The 'dodb' database was added to do_db replication filter in
+  --echo #    step2. Execute 'XA END' to suspend current XA transaction.
+  --echo #    Note: Subsequent XA commands 'XA END' and 'XA PREPARE' should
+  --echo #    not fail.
+  --echo #
+  USE test;
+  XA END 'a';
+  XA PREPARE 'a';
+  XA COMMIT 'a';
+  --source include/sync_slave_sql_with_master.inc
+}
+
+if ($rpl_use_before_xa_cmd == 'XA PREPARE')
+{
+  --echo # 4.i. Execute 'XA END' to suspend current transaction. Change
+  --echo #      default database to 'test' using 'USE test' command. The
+  --echo #      'dodb' database was added to do_db replication filter in
+  --echo #      Execute 'XA PREPARE' to prepare the XA transaction.
+  --echo #
+
+  XA END 'a';
+
+  USE test;
+  XA PREPARE 'a';
+  --source include/sync_slave_sql_with_master.inc
+
+  --echo # 4.ii. The XA transaction is successful can be checked using
+  --echo #       XA RECOVER. The xid value for the XA transaction will not be
+  --echo #       listed by XA RECOVER when the transaction is terminated.
+  --echo #
+  --let $expected_prepared_xa_count = 1
+  --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+  --echo # 4.iii. On source execute 'XA COMMIT' to commit the XA transaction.
+  --echo #
+  --source include/rpl_connection_master.inc
+  XA COMMIT 'a';
+  --source include/sync_slave_sql_with_master.inc
+}
+
+if ($rpl_use_before_xa_cmd == 'XA COMMIT')
+{
+  --echo # 4.i. Execute 'XA END' and 'PREPARE' to put the transaction in
+  --echo #      prepared state. Change default database to 'test' using
+  --echo #      'USE test' command. The 'dodb' database was added todo_db
+  --echo #      replication filter in step2. Execute 'XA COMMIT' to commit
+  --echo #      the XA transaction.
+  --echo #
+
+  XA END 'a';
+  XA PREPARE 'a';
+
+  USE test;
+  XA COMMIT 'a';
+  --source include/sync_slave_sql_with_master.inc
+
+
+  --echo # 4.ii. The XA transaction is successful can be checked using XA RECOVER.
+  --echo #       The xid value for the XA transaction will not be listed by
+  --echo #       XA RECOVER when the transaction is terminated.
+  --echo #
+  --let $expected_prepared_xa_count = 0
+  --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+}
+
+
+--echo # 5. Confirm data is replicated successfully.
+--echo #
+--let $assert_text= 'There is a value 1 in table t'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM dodb.t WHERE a = 1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo # 6. Cleanup.
+--echo #
+--source include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB = ();
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP DATABASE dodb;
+
+--source include/rpl_end.inc
