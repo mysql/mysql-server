@@ -263,8 +263,7 @@ RelationalExpression *MakeRelationalExpression(THD *thd, const Table_ref *tl) {
     return ret;
   } else {
     // A join or multijoin.
-    return MakeRelationalExpressionFromJoinList(thd,
-                                                tl->nested_join->join_list);
+    return MakeRelationalExpressionFromJoinList(thd, tl->nested_join->m_tables);
   }
 }
 
@@ -289,7 +288,7 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
     join->left = ret;
     if (tl->is_sj_or_aj_nest()) {
       join->right =
-          MakeRelationalExpressionFromJoinList(thd, tl->nested_join->join_list);
+          MakeRelationalExpressionFromJoinList(thd, tl->nested_join->m_tables);
       join->type = tl->is_sj_nest() ? RelationalExpression::SEMIJOIN
                                     : RelationalExpression::ANTIJOIN;
     } else {
@@ -2296,7 +2295,7 @@ string PrintJoinList(const mem_root_deque<Table_ref *> &join_list, int level) {
                           join_types[tbl->outer_join]);
     }
     if (tbl->nested_join != nullptr) {
-      str += PrintJoinList(tbl->nested_join->join_list, level + 1);
+      str += PrintJoinList(tbl->nested_join->m_tables, level + 1);
     }
   }
   return str;
@@ -3286,7 +3285,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     // It's only useful for debugging, not as much for understanding what's
     // going on.
     *trace += "Join list after simplification:\n";
-    *trace += PrintJoinList(query_block->top_join_list, /*level=*/0);
+    *trace += PrintJoinList(query_block->m_table_nest, /*level=*/0);
     *trace += "\n";
   }
 
@@ -3339,7 +3338,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   }
 
   RelationalExpression *root =
-      MakeRelationalExpressionFromJoinList(thd, query_block->top_join_list);
+      MakeRelationalExpressionFromJoinList(thd, query_block->m_table_nest);
   int num_companion_sets = 0;
   int table_num_to_companion_set[MAX_TABLES];
   ComputeCompanionSets(root, /*current_set=*/-1, &num_companion_sets,

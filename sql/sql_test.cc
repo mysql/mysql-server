@@ -441,7 +441,7 @@ int Dbug_table_list_dumper::dump_graph(Query_block *query_block,
   }
 
   mem_root_deque<Table_ref *> *plist;
-  tbl_lists.push_back(&query_block->top_join_list);
+  tbl_lists.push_back(&query_block->m_table_nest);
   while (tbl_lists.pop_first(&plist)) {
     fprintf(out, "\"%p\" [\n", plist);
     fprintf(out, "  bgcolor = \"\"");

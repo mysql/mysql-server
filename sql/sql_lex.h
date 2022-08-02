@@ -1954,10 +1954,10 @@ class Query_block : public Query_term {
     should be changed only when THD::LOCK_query_plan mutex is taken.
   */
   JOIN *join{nullptr};
-  /// join list of the top level
-  mem_root_deque<Table_ref *> top_join_list;
-  /// list for the currently parsed join
-  mem_root_deque<Table_ref *> *join_list;
+  /// Set of table references contained in outer-most join nest
+  mem_root_deque<Table_ref *> m_table_nest;
+  /// Pointer to the set of table references in the currently active join
+  mem_root_deque<Table_ref *> *m_current_table_nest;
   /// table embedding the above list
   Table_ref *embedding{nullptr};
   /**
@@ -1967,7 +1967,7 @@ class Query_block : public Query_term {
     Use Table_ref::next_leaf to traverse the list.
   */
   Table_ref *leaf_tables{nullptr};
-  // Last table for LATERAL join, used by table functions
+  /// Last table for LATERAL join, used by table functions
   Table_ref *end_lateral_table{nullptr};
 
   /// LIMIT clause, NULL if no limit is given
@@ -2034,12 +2034,14 @@ class Query_block : public Query_term {
     list during split_sum_func
   */
   uint select_n_having_items{0};
-  uint cond_count{0};  ///< number of arguments of and/or/xor in where/having/on
-  /// Number of predicates after preparation
+  /// Number of arguments of and/or/xor in where/having/on
   uint saved_cond_count{0};
-  uint between_count{0};  ///< number of between predicates in where/having/on
-  uint max_equal_elems{
-      0};  ///< maximal number of elements in multiple equalities
+  /// Number of predicates after preparation
+  uint cond_count{0};
+  /// Number of between predicates in where/having/on
+  uint between_count{0};
+  /// Maximal number of elements in multiple equalities
+  uint max_equal_elems{0};
 
   /**
     Number of Item_sum-derived objects in this SELECT. Keeps count of

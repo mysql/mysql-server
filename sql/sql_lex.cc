@@ -2135,8 +2135,8 @@ Query_block::Query_block(MEM_ROOT *mem_root, Item *where, Item *having)
       ftfunc_list(&ftfunc_list_alloc),
       sj_nests(mem_root),
       first_context(&context),
-      top_join_list(mem_root),
-      join_list(&top_join_list),
+      m_table_nest(mem_root),
+      m_current_table_nest(&m_table_nest),
       m_where_cond(where),
       m_having_cond(having) {}
 
@@ -2810,7 +2810,7 @@ void Table_ref::print(const THD *thd, String *str,
                       enum_query_type query_type) const {
   if (nested_join) {
     str->append('(');
-    print_join(thd, str, &nested_join->join_list, query_type);
+    print_join(thd, str, &nested_join->m_tables, query_type);
     str->append(')');
   } else {
     const char *cmp_name;  // Name to compare with alias
@@ -2978,7 +2978,7 @@ void Query_block::print_update(const THD *thd, String *str,
     print_limit(thd, str, query_type);
   } else {
     // Multi table update
-    print_join(thd, str, &top_join_list, query_type);
+    print_join(thd, str, &m_table_nest, query_type);
     str->append(STRING_WITH_LEN(" set "));
     print_update_list(thd, str, query_type, fields,
                       *sql_cmd_update->update_value_list);
@@ -3013,7 +3013,7 @@ void Query_block::print_delete(const THD *thd, String *str,
     // Multi table delete
     print_table_references(thd, str, parent_lex->query_tables, query_type);
     str->append(STRING_WITH_LEN(" from "));
-    print_join(thd, str, &top_join_list, query_type);
+    print_join(thd, str, &m_table_nest, query_type);
     print_where_cond(thd, str, query_type);
   }
 }
@@ -3294,7 +3294,7 @@ void Query_block::print_from_clause(const THD *thd, String *str,
   if (m_table_list.elements) {
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
-    print_join(thd, str, &top_join_list, query_type);
+    print_join(thd, str, &m_table_nest, query_type);
   } else if (m_where_cond) {
     /*
       "SELECT 1 FROM DUAL WHERE 2" should not be printed as
@@ -3424,7 +3424,7 @@ bool accept_for_join(mem_root_deque<Table_ref *> *tables,
 }
 
 bool accept_table(Table_ref *t, Select_lex_visitor *visitor) {
-  if (t->nested_join && accept_for_join(&t->nested_join->join_list, visitor))
+  if (t->nested_join && accept_for_join(&t->nested_join->m_tables, visitor))
     return true;
   if (t->is_derived()) t->derived_query_expression()->accept(visitor);
   if (walk_item(t->join_cond(), visitor)) return true;
@@ -3438,7 +3438,8 @@ bool Query_block::accept(Select_lex_visitor *visitor) {
   }
 
   // From clause
-  if (m_table_list.elements != 0 && accept_for_join(join_list, visitor))
+  if (m_table_list.elements != 0 &&
+      accept_for_join(m_current_table_nest, visitor))
     return true;
 
   // Where clause
@@ -4438,7 +4439,7 @@ static bool get_optimizable_join_conditions(
   for (Table_ref *table : join_list) {
     NESTED_JOIN *const nested_join = table->nested_join;
     if (nested_join &&
-        get_optimizable_join_conditions(thd, nested_join->join_list))
+        get_optimizable_join_conditions(thd, nested_join->m_tables))
       return true;
     Item *const jc = table->join_cond();
     if (jc && !thd->stmt_arena->is_regular()) {
@@ -4487,7 +4488,7 @@ bool Query_block::get_optimizable_conditions(THD *thd, Item **new_where,
     } else
       *new_having = m_having_cond;
   }
-  return get_optimizable_join_conditions(thd, top_join_list);
+  return get_optimizable_join_conditions(thd, m_table_nest);
 }
 
 Subquery_strategy Query_block::subquery_strategy(const THD *thd) const {
@@ -4538,7 +4539,7 @@ void Query_block::update_semijoin_strategies(THD *thd) {
       Fetch hints from last table in semijoin nest, as join_list has the
       convention to list join operators' arguments in reverse order.
     */
-    Table_ref *table = sj_nest->nested_join->join_list.back();
+    Table_ref *table = sj_nest->nested_join->m_tables.back();
     /*
       Do not respect opt_hints_qb for secondary engine optimization.
       Secondary storage engines may not support all strategies that are
@@ -4643,7 +4644,7 @@ static bool walk_join_condition(mem_root_deque<Table_ref *> *tables,
       return true;
 
     if (table->nested_join != nullptr &&
-        walk_join_condition(&table->nested_join->join_list, processor, walk,
+        walk_join_condition(&table->nested_join->m_tables, processor, walk,
                             arg))
       return true;
   }
@@ -4669,8 +4670,8 @@ bool Query_block::walk(Item_processor processor, enum_walk walk, uchar *arg) {
     if (item->walk(processor, walk, arg)) return true;
   }
 
-  if (join_list != nullptr &&
-      walk_join_condition(join_list, processor, walk, arg))
+  if (m_current_table_nest != nullptr &&
+      walk_join_condition(m_current_table_nest, processor, walk, arg))
     return true;
 
   if ((walk & enum_walk::SUBQUERY)) {

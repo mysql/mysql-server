@@ -3612,8 +3612,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
           update_const_equal_items(thd, embedded->join_cond_optim(), tab))
         return 1;
       embedding = embedded->embedding;
-    } while (embedding &&
-             embedding->nested_join->join_list.front() == embedded);
+    } while (embedding && embedding->nested_join->m_tables.front() == embedded);
   }
 
   return 0;

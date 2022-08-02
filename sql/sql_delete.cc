@@ -362,8 +362,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     COND_EQUAL *cond_equal = nullptr;
     Item::cond_result result;
 
-    if (optimize_cond(thd, &conds, &cond_equal, query_block->join_list,
-                      &result))
+    if (optimize_cond(thd, &conds, &cond_equal,
+                      query_block->m_current_table_nest, &result))
       return true;
     if (result == Item::COND_FALSE)  // Impossible where
     {
@@ -781,8 +781,8 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     multitable = true;
 
   if (multitable) {
-    if (!select->top_join_list.empty())
-      propagate_nullability(&select->top_join_list, false);
+    if (!select->m_table_nest.empty())
+      propagate_nullability(&select->m_table_nest, false);
 
     Prepared_stmt_arena_holder ps_holder(thd);
     result = new (thd->mem_root) Query_result_delete;
@@ -803,7 +803,8 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
 
   // Precompute and store the row types of NATURAL/USING joins.
   if (select->leaf_table_count >= 2 &&
-      setup_natural_join_row_types(thd, select->join_list, &select->context))
+      setup_natural_join_row_types(thd, select->m_current_table_nest,
+                                   &select->context))
     return true;
 
   // Enable the following code if allowing LIMIT with multi-table DELETE

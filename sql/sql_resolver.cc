@@ -188,7 +188,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
 
   Query_expression *const unit = master_query_expression();
 
-  if (!top_join_list.empty()) propagate_nullability(&top_join_list, false);
+  if (!m_table_nest.empty()) propagate_nullability(&m_table_nest, false);
 
   /*
     Determine whether it is suggested to merge immediate derived tables, based
@@ -255,7 +255,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
 
   // Precompute and store the row types of NATURAL/USING joins.
   if (leaf_table_count >= 2 &&
-      setup_natural_join_row_types(thd, join_list, &context))
+      setup_natural_join_row_types(thd, m_current_table_nest, &context))
     return true;
 
   Mem_root_array<Item_exists_subselect *> sj_candidates_local(thd->mem_root);
@@ -740,7 +740,7 @@ bool Query_block::apply_local_transforms(THD *thd, bool prune) {
     If query block contains one or more merged derived tables/views,
     walk through lists of columns in select lists and remove unused columns.
   */
-  if (derived_table_count) delete_unused_merged_columns(&top_join_list);
+  if (derived_table_count) delete_unused_merged_columns(&m_table_nest);
 
   for (Query_expression *unit = first_inner_query_expression(); unit;
        unit = unit->next_query_expression())
@@ -748,10 +748,10 @@ bool Query_block::apply_local_transforms(THD *thd, bool prune) {
       if (qt->query_block()->apply_local_transforms(thd, true)) return true;
 
   // Convert all outer joins to inner joins if possible
-  if (simplify_joins(thd, &top_join_list, true, false, &m_where_cond))
+  if (simplify_joins(thd, &m_table_nest, true, false, &m_where_cond))
     return true;
-  if (record_join_nest_info(&top_join_list)) return true;
-  build_bitmap_for_nested_joins(&top_join_list, 0);
+  if (record_join_nest_info(&m_table_nest)) return true;
+  build_bitmap_for_nested_joins(&m_table_nest, 0);
 
   /*
     Here are the reasons why we do the following check here (i.e. late).
@@ -829,7 +829,7 @@ static void update_used_tables_for_join(mem_root_deque<Table_ref *> *tables) {
       table_ref->join_cond()->update_used_tables();
 
     if (table_ref->nested_join != nullptr)
-      update_used_tables_for_join(&table_ref->nested_join->join_list);
+      update_used_tables_for_join(&table_ref->nested_join->m_tables);
   }
 }
 
@@ -840,7 +840,8 @@ void Query_block::update_used_tables() {
   for (Item *item : visible_fields()) {
     item->update_used_tables();
   }
-  if (join_list != nullptr) update_used_tables_for_join(join_list);
+  if (m_current_table_nest != nullptr)
+    update_used_tables_for_join(m_current_table_nest);
   if (where_cond() != nullptr) where_cond()->update_used_tables();
   for (ORDER *group = group_list.first; group; group = group->next)
     (*group->item)->update_used_tables();
@@ -1687,8 +1688,8 @@ bool Query_block::setup_conds(THD *thd) {
   }
 
   // Resolve all join condition clauses
-  if (!top_join_list.empty() &&
-      setup_join_cond(thd, &top_join_list, it_is_update))
+  if (!m_table_nest.empty() &&
+      setup_join_cond(thd, &m_table_nest, it_is_update))
     return true;
 
   is_item_list_lookup = save_is_item_list_lookup;
@@ -1715,7 +1716,7 @@ bool Query_block::setup_join_cond(THD *thd, mem_root_deque<Table_ref *> *tables,
   for (Table_ref *tr : *tables) {
     // Traverse join conditions recursively
     if (tr->nested_join != nullptr &&
-        setup_join_cond(thd, &tr->nested_join->join_list, in_update))
+        setup_join_cond(thd, &tr->nested_join->m_tables, in_update))
       return true;
 
     Item **ref = tr->join_cond_ref();
@@ -1766,12 +1767,12 @@ bool Query_block::setup_join_cond(THD *thd, mem_root_deque<Table_ref *> *tables,
 
 void Query_block::reset_nj_counters(mem_root_deque<Table_ref *> *join_list) {
   DBUG_TRACE;
-  if (join_list == nullptr) join_list = &top_join_list;
+  if (join_list == nullptr) join_list = &m_table_nest;
   for (Table_ref *table : *join_list) {
     NESTED_JOIN *nested_join;
     if ((nested_join = table->nested_join)) {
       nested_join->nj_counter = 0;
-      reset_nj_counters(&nested_join->join_list);
+      reset_nj_counters(&nested_join->m_tables);
     }
   }
 }
@@ -1967,7 +1968,7 @@ bool Query_block::simplify_joins(THD *thd,
            the corresponding join condition is added to JC.
         */
         if (simplify_joins(
-                thd, &nested_join->join_list,
+                thd, &nested_join->m_tables,
                 false,  // not 'top' as it's not WHERE.
                 // SJ nests can dissolve into upper SJ or anti SJ nests:
                 in_sj || table->is_sj_or_aj_nest(), &join_cond, changelog))
@@ -1981,7 +1982,7 @@ bool Query_block::simplify_joins(THD *thd,
       nested_join->used_tables = (table_map)0;
       nested_join->not_null_tables = (table_map)0;
       // This recursively confronts "cond" with each member of the nest
-      if (simplify_joins(thd, &nested_join->join_list,
+      if (simplify_joins(thd, &nested_join->m_tables,
                          top,  // if it was WHERE it still is
                          in_sj || table->is_sj_or_aj_nest(), cond, changelog))
         return true;
@@ -2136,14 +2137,14 @@ bool Query_block::simplify_joins(THD *thd,
       *changelog |= SEMIJOIN;
     } else if (nested_join && !table->join_cond()) {
       *changelog |= PAREN_REMOVAL;
-      for (Table_ref *tbl : nested_join->join_list) {
+      for (Table_ref *tbl : nested_join->m_tables) {
         tbl->embedding = table->embedding;
         tbl->join_list = table->join_list;
         tbl->dep_tables |= table->dep_tables;
       }
       li = join_list->erase(li);
-      li = join_list->insert(li, nested_join->join_list.begin(),
-                             nested_join->join_list.end());
+      li = join_list->insert(li, nested_join->m_tables.begin(),
+                             nested_join->m_tables.end());
 
       // Don't advance li; we want to process the newly added tables.
       continue;
@@ -2194,7 +2195,7 @@ bool Query_block::record_join_nest_info(mem_root_deque<Table_ref *> *tables) {
       continue;
     }
 
-    if (record_join_nest_info(&table->nested_join->join_list)) return true;
+    if (record_join_nest_info(&table->nested_join->m_tables)) return true;
     /*
       sj_inner_tables is set properly later in pull_out_semijoin_tables().
       This assignment is required in case pull_out_semijoin_tables()
@@ -2316,7 +2317,7 @@ static void fix_tables_after_pullout(Query_block *parent_query_block,
     tr->nested_join->sj_corr_tables |= lateral_deps;
     tr->nested_join->sj_depends_on |= lateral_deps;
 
-    for (Table_ref *child : tr->nested_join->join_list) {
+    for (Table_ref *child : tr->nested_join->m_tables) {
       fix_tables_after_pullout(parent_query_block, removed_query_block, child,
                                table_adjust, lateral_deps);
     }
@@ -2383,7 +2384,7 @@ void Query_block::fix_after_pullout(Query_block *parent_query_block,
     table_adjust and lateral_deps are 0 because we're not merging these tables
     up.
   */
-  for (Table_ref *tr : top_join_list) {
+  for (Table_ref *tr : m_table_nest) {
     fix_tables_after_pullout(parent_query_block, removed_query_block, tr,
                              /*table_adjust=*/0, /*lateral_deps=*/0);
   }
@@ -2770,7 +2771,7 @@ bool walk_join_list(mem_root_deque<Table_ref *> &list,
   for (Table_ref *tl : list) {
     if (action(tl)) return true;
     if (tl->nested_join != nullptr &&
-        walk_join_list(tl->nested_join->join_list, action))
+        walk_join_list(tl->nested_join->m_tables, action))
       return true;
   }
   return false;
@@ -2948,7 +2949,7 @@ static bool build_sj_exprs(THD *thd, mem_root_deque<Item *> *sj_outer_exprs,
 bool Query_block::convert_subquery_to_semijoin(
     THD *thd, Item_exists_subselect *subq_pred) {
   Table_ref *emb_tbl_nest = nullptr;
-  mem_root_deque<Table_ref *> *emb_join_list = &top_join_list;
+  mem_root_deque<Table_ref *> *emb_join_list = &m_table_nest;
   DBUG_TRACE;
 
   assert(subq_pred->substype() == Item_subselect::IN_SUBS ||
@@ -2986,7 +2987,7 @@ bool Query_block::convert_subquery_to_semijoin(
         The sj-nest will be inserted into the brackets nest.
       */
       emb_tbl_nest = subq_pred->embedding_join_nest;
-      emb_join_list = &emb_tbl_nest->nested_join->join_list;
+      emb_join_list = &emb_tbl_nest->nested_join->m_tables;
     } else if (!subq_pred->embedding_join_nest->outer_join) {
       /*
         We're dealing with
@@ -2997,7 +2998,7 @@ bool Query_block::convert_subquery_to_semijoin(
         parent. This is ok because tblX is joined as an inner join.
       */
       emb_tbl_nest = subq_pred->embedding_join_nest->embedding;
-      if (emb_tbl_nest) emb_join_list = &emb_tbl_nest->nested_join->join_list;
+      if (emb_tbl_nest) emb_join_list = &emb_tbl_nest->nested_join->m_tables;
     } else {
       Table_ref *outer_tbl = subq_pred->embedding_join_nest;
       /*
@@ -3027,10 +3028,10 @@ bool Query_block::convert_subquery_to_semijoin(
           outer_tbl->join_list, this);
       if (wrap_nest == nullptr) return true;
 
-      wrap_nest->nested_join->join_list.push_back(outer_tbl);
+      wrap_nest->nested_join->m_tables.push_back(outer_tbl);
 
       outer_tbl->embedding = wrap_nest;
-      outer_tbl->join_list = &wrap_nest->nested_join->join_list;
+      outer_tbl->join_list = &wrap_nest->nested_join->m_tables;
 
       /*
         wrap_nest will take place of outer_tbl, so move the outer join flag
@@ -3064,7 +3065,7 @@ bool Query_block::convert_subquery_to_semijoin(
         Ok now wrap_nest 'contains' outer_tbl and we're ready to add the
         semi-join nest into it
       */
-      emb_join_list = &wrap_nest->nested_join->join_list;
+      emb_join_list = &wrap_nest->nested_join->m_tables;
       emb_tbl_nest = wrap_nest;
     }
   }
@@ -3124,9 +3125,9 @@ bool Query_block::convert_subquery_to_semijoin(
 
     // Go through tables of emb_join_list, insert them in wrap_nest
     for (Table_ref *outer_tbl : *emb_join_list) {
-      wrap_nest->nested_join->join_list.push_back(outer_tbl);
+      wrap_nest->nested_join->m_tables.push_back(outer_tbl);
       outer_tbl->embedding = wrap_nest;
-      outer_tbl->join_list = &wrap_nest->nested_join->join_list;
+      outer_tbl->join_list = &wrap_nest->nested_join->m_tables;
     }
     // FROM clause is now only the new left nest
     emb_join_list->clear();
@@ -3218,7 +3219,7 @@ bool Query_block::convert_subquery_to_semijoin(
   if (subq_query_block->active_options() & OPTION_SCHEMA_TABLE)
     add_base_options(OPTION_SCHEMA_TABLE);
 
-  if (outer_join) propagate_nullability(&sj_nest->nested_join->join_list, true);
+  if (outer_join) propagate_nullability(&sj_nest->nested_join->m_tables, true);
 
   nested_join->sj_outer_exprs.clear();
   nested_join->sj_inner_exprs.clear();
@@ -3254,7 +3255,7 @@ bool Query_block::convert_subquery_to_semijoin(
       return true;
 
     if (walk_join_list(
-            subq_query_block->top_join_list, [&](Table_ref *tr) -> bool {
+            subq_query_block->m_table_nest, [&](Table_ref *tr) -> bool {
               return !tr->is_inner_table_of_outer_join() && tr->join_cond() &&
                      subq_query_block->decorrelate_condition(sj_decor, tr);
             }))
@@ -3267,7 +3268,7 @@ bool Query_block::convert_subquery_to_semijoin(
   // Merge subquery's name resolution contexts into parent's
   merge_contexts(subq_query_block);
 
-  repoint_contexts_of_join_nests(subq_query_block->top_join_list);
+  repoint_contexts_of_join_nests(subq_query_block->m_table_nest);
 
   // Update table map for semi-join nest's WHERE condition and join conditions
   fix_tables_after_pullout(this, subq_query_block, sj_nest, 0, 0);
@@ -3279,7 +3280,7 @@ bool Query_block::convert_subquery_to_semijoin(
   nested_join->sj_corr_tables =
       (sj_cond != nullptr ? sj_cond->used_tables() & outer_tables_map : 0);
 
-  walk_join_list(subq_query_block->top_join_list, [&](Table_ref *tr) -> bool {
+  walk_join_list(subq_query_block->m_table_nest, [&](Table_ref *tr) -> bool {
     if (tr->join_cond())
       nested_join->sj_corr_tables |=
           tr->join_cond()->used_tables() & outer_tables_map;
@@ -3562,7 +3563,7 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
 
   // Propagate nullability for derived tables within outer joins:
   if (derived_table->is_inner_table_of_outer_join())
-    propagate_nullability(&derived_table->nested_join->join_list, true);
+    propagate_nullability(&derived_table->nested_join->m_tables, true);
 
   select_n_having_items += derived_query_block->select_n_having_items;
 
@@ -3581,7 +3582,7 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
   // Merge subquery's name resolution contexts into parent's
   merge_contexts(derived_query_block);
 
-  repoint_contexts_of_join_nests(derived_query_block->top_join_list);
+  repoint_contexts_of_join_nests(derived_query_block->m_table_nest);
 
   // Leaf tables have been shuffled, so update table numbers for them
   remap_tables(thd);
@@ -3991,7 +3992,7 @@ bool Query_block::flatten_subqueries(THD *thd) {
 /**
   Propagate nullability into inner tables of outer join operation
 
-  @param tables  List of tables and join nests, start at top_join_list
+  @param tables  List of tables and join nests, start at m_table_nest
   @param nullable  true: Set all underlying tables as nullable
 */
 void propagate_nullability(mem_root_deque<Table_ref *> *tables, bool nullable) {
@@ -3999,7 +4000,7 @@ void propagate_nullability(mem_root_deque<Table_ref *> *tables, bool nullable) {
     if (tr->table && !tr->table->is_nullable() && (nullable || tr->outer_join))
       tr->table->set_nullable();
     if (tr->nested_join == nullptr) continue;
-    propagate_nullability(&tr->nested_join->join_list,
+    propagate_nullability(&tr->nested_join->m_tables,
                           nullable || tr->outer_join);
   }
 }
@@ -4050,7 +4051,7 @@ void Query_block::repoint_contexts_of_join_nests(
   for (Table_ref *tbl : join_list) {
     tbl->query_block = this;
     if (tbl->nested_join)
-      repoint_contexts_of_join_nests(tbl->nested_join->join_list);
+      repoint_contexts_of_join_nests(tbl->nested_join->m_tables);
   }
 }
 
@@ -5219,7 +5220,7 @@ void Query_block::delete_unused_merged_columns(
         }
       }
     }
-    delete_unused_merged_columns(&tl->nested_join->join_list);
+    delete_unused_merged_columns(&tl->nested_join->m_tables);
   }
 }
 
@@ -5529,7 +5530,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
     }
     // Walk the FROM clause to gather any outer-correlated derived table or join
     // condition.
-    walk_join_list(subs_query_block->top_join_list, [&](Table_ref *tr) -> bool {
+    walk_join_list(subs_query_block->m_table_nest, [&](Table_ref *tr) -> bool {
       if (tr->join_cond()) new_used_tables |= tr->join_cond()->used_tables();
       if (tr->is_derived() && tr->uses_materialization())
         new_used_tables |= tr->derived_query_expression()->m_lateral_deps;
@@ -5743,7 +5744,7 @@ Table_ref *Query_block::synthesize_derived(THD *thd, Query_expression *unit,
     if (join_cond != nullptr) {
       // impossible if table subquery:
       assert(derived_table->m_was_scalar_subquery);
-      if (nest_derived(thd, join_cond, join_list, derived_table))
+      if (nest_derived(thd, join_cond, m_current_table_nest, derived_table))
         return nullptr;
     } else {
       // The derived table is not for a subquery in a join condition
@@ -6094,10 +6095,10 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     new_derived->sj_candidates = sj_candidates;
     sj_candidates = nullptr;
 
-    assert(join_list == &top_join_list);
-    new_derived->top_join_list = std::move(top_join_list);
-    top_join_list.clear();
-    new_derived->join_list = &new_derived->top_join_list;
+    assert(m_current_table_nest == &m_table_nest);
+    new_derived->m_table_nest = std::move(m_table_nest);
+    m_table_nest.clear();
+    new_derived->m_current_table_nest = &new_derived->m_table_nest;
     new_derived->leaf_tables = leaf_tables;
     new_derived->leaf_table_count = leaf_table_count;
     leaf_tables = nullptr;
@@ -6110,7 +6111,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       return true; /* purecov: inspected */
     new_slu->set_query_result(tl->derived_result);
 
-    top_join_list.push_back(tl);
+    m_table_nest.push_back(tl);
 
     // Update this query block's and the derived table's query block's name
     // resolution contexts
@@ -6534,7 +6535,7 @@ static bool walk_join_conditions(mem_root_deque<Table_ref *> &list,
       if (action(tl->join_cond_ref())) return true;
     }
     if (tl->nested_join != nullptr &&
-        walk_join_conditions(tl->nested_join->join_list, action, info))
+        walk_join_conditions(tl->nested_join->m_tables, action, info))
       return true; /* purecov: inspected */
   }
   info->m_join_condition_context = nullptr;
@@ -6616,7 +6617,7 @@ bool Query_block::nest_derived(THD *thd, Item *join_cond,
       *nested_join_list,
       [join_cond, &nested_join_list](Table_ref *tr) mutable -> bool {
         if (tr->join_cond() == join_cond) {
-          nested_join_list = &tr->embedding->nested_join->join_list;
+          nested_join_list = &tr->embedding->nested_join->m_tables;
           return true;  // break off walk
         }
         return false;
@@ -7425,7 +7426,7 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
 
   // Collect from join conditions
   if (walk_join_conditions(
-          top_join_list,
+          m_table_nest,
           [&](Item **expr_p) mutable -> bool {
             subqueries.m_location =
                 Item::Collect_scalar_subquery_info::L_JOIN_COND;
@@ -7617,7 +7618,7 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     // Replace in join conditions?
     if (subquery.m_location & Item::Collect_scalar_subquery_info::L_JOIN_COND) {
       if (walk_join_conditions(
-              top_join_list,
+              m_table_nest,
               [&](Item **expr_p) mutable -> bool {
                 subqueries.m_location =
                     Item::Collect_scalar_subquery_info::L_JOIN_COND;

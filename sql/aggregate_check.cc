@@ -441,7 +441,7 @@ bool Group_check::is_fd_on_source(Item *item) {
     // Build En+2
     uint last_fd = fd.size();
 
-    find_fd_in_joined_table(select->join_list);  // [OUTER] JOIN ON
+    find_fd_in_joined_table(select->m_current_table_nest);  // [OUTER] JOIN ON
 
     if (select->where_cond())  // WHERE
       find_fd_in_cond(select->where_cond(), 0, false);
@@ -1122,7 +1122,7 @@ void Group_check::find_fd_in_joined_table(
     table_map used_tables;
     NESTED_JOIN *nested_join = table->nested_join;
     if (nested_join) {
-      find_fd_in_joined_table(&nested_join->join_list);
+      find_fd_in_joined_table(&nested_join->m_tables);
       used_tables = nested_join->used_tables;
     } else
       used_tables = table->map();

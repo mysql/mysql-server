@@ -7787,7 +7787,7 @@ Field *find_field_in_table_ref(THD *thd, Table_ref *table_list,
       in the table references used by NATURAL/USING the join.
     */
     if (table_name && table_name[0]) {
-      for (Table_ref *table : table_list->nested_join->join_list) {
+      for (Table_ref *table : table_list->nested_join->m_tables) {
         if ((fld = find_field_in_table_ref(
                  thd, table, name, length, item_name, db_name, table_name, ref,
                  want_privilege, allow_rowid, field_index_ptr,
@@ -8723,7 +8723,7 @@ static bool store_natural_using_join_columns(THD *thd,
     and materializes the row types of NATURAL/USING joins in a
     bottom-up manner until it reaches the Table_ref elements that
     represent the top-most NATURAL/USING joins. The procedure should be
-    applied to each element of Query_block::top_join_list (i.e. to each
+    applied to each element of Query_block::m_table_nest (i.e. to each
     top-level element of the FROM clause).
 
   IMPLEMENTATION
@@ -8746,8 +8746,8 @@ static bool store_top_level_join_columns(THD *thd, Table_ref *table_ref,
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   /* Call the procedure recursively for each nested table reference. */
-  if (table_ref->nested_join && !table_ref->nested_join->join_list.empty()) {
-    auto nested_it = table_ref->nested_join->join_list.begin();
+  if (table_ref->nested_join && !table_ref->nested_join->m_tables.empty()) {
+    auto nested_it = table_ref->nested_join->m_tables.begin();
     Table_ref *same_level_left_neighbor = *nested_it++;
     Table_ref *same_level_right_neighbor = nullptr;
     /* Left/right-most neighbors, possibly at higher levels in the join tree. */
@@ -8756,8 +8756,8 @@ static bool store_top_level_join_columns(THD *thd, Table_ref *table_ref,
     while (same_level_left_neighbor) {
       Table_ref *cur_table_ref = same_level_left_neighbor;
       same_level_left_neighbor =
-          (nested_it == table_ref->nested_join->join_list.end()) ? nullptr
-                                                                 : *nested_it++;
+          (nested_it == table_ref->nested_join->m_tables.end()) ? nullptr
+                                                                : *nested_it++;
       /*
         Pick the parent's left and right neighbors if there are no immediate
         neighbors at the same level.
@@ -8783,8 +8783,8 @@ static bool store_top_level_join_columns(THD *thd, Table_ref *table_ref,
   */
   if (table_ref->is_natural_join) {
     assert(table_ref->nested_join &&
-           table_ref->nested_join->join_list.size() == 2);
-    auto operand_it = table_ref->nested_join->join_list.begin();
+           table_ref->nested_join->m_tables.size() == 2);
+    auto operand_it = table_ref->nested_join->m_tables.begin();
     /*
       Notice that the order of join operands depends on whether table_ref
       represents a LEFT or a RIGHT join. In a RIGHT join, the operands are
@@ -9181,8 +9181,8 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
   however the former has to return columns of T1 then of T2,
   while the latter has to return T2's then T1's.
   The conversion has been complete: the lists 'next_local',
-  'next_name_resolution_table' and Query_block::join_list are as if the user
-  had typed the second query.
+  'next_name_resolution_table' and Query_block::m_current_table_nest are as if
+  the user had typed the second query.
 
   Now to the behaviour of this iterator.
 
@@ -9222,7 +9222,7 @@ class Tables_in_user_order_iterator {
     }
     m_next = nullptr;
     m_vec = new std::vector<Table_ref *>;
-    fill_vec(*m_query_block->join_list);
+    fill_vec(*m_query_block->m_current_table_nest);
   }
   ~Tables_in_user_order_iterator() {
     delete m_vec;
@@ -9258,7 +9258,7 @@ class Tables_in_user_order_iterator {
     if (tr->is_leaf_for_name_resolution())  // stop diving here
       return m_vec->push_back(tr);
     if (tr->nested_join != nullptr)  // do dive
-      fill_vec(tr->nested_join->join_list);
+      fill_vec(tr->nested_join->m_tables);
   }
   // Query block which owns the FROM clause to search in
   Query_block *m_query_block{nullptr};

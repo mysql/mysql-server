@@ -415,8 +415,8 @@ bool JOIN::optimize(bool finalize_access_paths) {
   }
 
   if (where_cond || query_block->outer_join) {
-    if (optimize_cond(thd, &where_cond, &cond_equal,
-                      &query_block->top_join_list, &query_block->cond_value)) {
+    if (optimize_cond(thd, &where_cond, &cond_equal, &query_block->m_table_nest,
+                      &query_block->cond_value)) {
       error = 1;
       DBUG_PRINT("error", ("Error from optimize_cond"));
       return true;
@@ -4385,7 +4385,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     for (Table_ref *table : *join_list) {
       if (table->join_cond_optim()) {
         mem_root_deque<Table_ref *> *nested_join_list =
-            table->nested_join ? &table->nested_join->join_list : nullptr;
+            table->nested_join ? &table->nested_join->m_tables : nullptr;
         Item *join_cond;
         if (build_equal_items(thd, table->join_cond_optim(), &join_cond,
                               inherited, do_inherit, nested_join_list,
@@ -4927,7 +4927,7 @@ uint build_bitmap_for_nested_joins(mem_root_deque<Table_ref *> *join_list,
       if (table->join_cond()) {
         assert(first_unused < sizeof(nested_join_map) * 8);
         nested_join->nj_map = (nested_join_map)1 << first_unused++;
-        nested_join->nj_total = nested_join->join_list.size();
+        nested_join->nj_total = nested_join->m_tables.size();
       } else if (table->is_sj_nest()) {
         NESTED_JOIN *const outer_nest =
             table->embedding ? table->embedding->nested_join : nullptr;
@@ -4937,12 +4937,12 @@ uint build_bitmap_for_nested_joins(mem_root_deque<Table_ref *> *join_list,
           table count.
         */
         if (outer_nest)
-          outer_nest->nj_total += (nested_join->join_list.size() - 1);
+          outer_nest->nj_total += (nested_join->m_tables.size() - 1);
       } else
         assert(false);
 
       first_unused =
-          build_bitmap_for_nested_joins(&nested_join->join_list, first_unused);
+          build_bitmap_for_nested_joins(&nested_join->m_tables, first_unused);
     }
   }
   return first_unused;
@@ -6030,7 +6030,7 @@ static bool check_skip_records_in_range_qualification(JOIN_TAB *tab, THD *thd) {
           !select->has_ft_funcs() &&                            // F1.c
           (!select->is_grouped() && !select->is_distinct()) &&  // F1.d
           !select->is_ordered() &&                              // F1.e
-          select->join_list->size() == 1 &&                     // F2
+          select->m_current_table_nest->size() == 1 &&          // F2
           !thd->lex->is_explain());                             // F3
 }
 
@@ -6624,7 +6624,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
       t2 cannot be pulled out because t3 depends on it.
     */
     table_map dep_tables = 0;
-    for (Table_ref *tbl : sj_nest->nested_join->join_list) {
+    for (Table_ref *tbl : sj_nest->nested_join->m_tables) {
       if (tbl->dep_tables & sj_nest->nested_join->used_tables)
         dep_tables |= tbl->dep_tables;
     }
@@ -6636,7 +6636,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
     bool pulled_a_table;
     do {
       pulled_a_table = false;
-      for (Table_ref *tbl : sj_nest->nested_join->join_list) {
+      for (Table_ref *tbl : sj_nest->nested_join->m_tables) {
         if (tbl->table && !(pulled_tables & tbl->map()) &&
             !(dep_tables & tbl->map())) {
           if (find_eq_ref_candidate(
@@ -6669,13 +6669,13 @@ static bool pull_out_semijoin_tables(JOIN *join) {
     if (pulled_tables) {
       mem_root_deque<Table_ref *> *upper_join_list =
           (sj_nest->embedding != nullptr)
-              ? &sj_nest->embedding->nested_join->join_list
-              : &join->query_block->top_join_list;
+              ? &sj_nest->embedding->nested_join->m_tables
+              : &join->query_block->m_table_nest;
 
       Prepared_stmt_arena_holder ps_arena_holder(join->thd);
 
-      for (auto child_li = sj_nest->nested_join->join_list.begin();
-           child_li != sj_nest->nested_join->join_list.end();) {
+      for (auto child_li = sj_nest->nested_join->m_tables.begin();
+           child_li != sj_nest->nested_join->m_tables.end();) {
         Table_ref *tbl = *child_li;
         if (tbl->table && !(sj_nest->nested_join->used_tables & tbl->map())) {
           /*
@@ -6683,7 +6683,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
             update join_list and embedding pointers but keep next[_local]
             pointers.
           */
-          child_li = sj_nest->nested_join->join_list.erase(child_li);
+          child_li = sj_nest->nested_join->m_tables.erase(child_li);
 
           upper_join_list->push_back(tbl);
 
@@ -7815,7 +7815,7 @@ static bool add_key_fields_for_nj(THD *thd, JOIN *join,
                                   Table_ref *nested_join_table, Key_field **end,
                                   uint *and_level, SARGABLE_PARAM **sargables) {
   mem_root_deque<Table_ref *> &join_list =
-      nested_join_table->nested_join->join_list;
+      nested_join_table->nested_join->m_tables;
   auto li = join_list.begin();
   auto li_end = join_list.end();
   auto li2 = join_list.begin();
@@ -7834,8 +7834,8 @@ static bool add_key_fields_for_nj(THD *thd, JOIN *join,
         have_another = true;
         li2 = li;
         li2_end = li_end;
-        li = table->nested_join->join_list.begin();
-        li_end = table->nested_join->join_list.end();
+        li = table->nested_join->m_tables.begin();
+        li_end = table->nested_join->m_tables.end();
       } else {
         if (add_key_fields_for_nj(thd, join, table, end, and_level, sargables))
           return true;
@@ -8208,7 +8208,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
   }
 
   /* Process ON conditions for the nested joins */
-  for (Table_ref *tl : query_block->top_join_list) {
+  for (Table_ref *tl : query_block->m_table_nest) {
     if (tl->nested_join &&
         add_key_fields_for_nj(thd, join, tl, &end, &and_level, sargables))
       return true;

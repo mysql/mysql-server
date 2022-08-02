@@ -903,7 +903,7 @@ static bool fix_join_cond_for_insert(THD *thd, Table_ref *tr) {
 
   if (tr->nested_join == nullptr) return false;
 
-  for (Table_ref *ti : tr->nested_join->join_list) {
+  for (Table_ref *ti : tr->nested_join->m_tables) {
     if (fix_join_cond_for_insert(thd, ti)) return true; /* purecov: inspected */
   }
   return false;

@@ -4055,7 +4055,7 @@ bool check_column_grant_in_table_ref(THD *thd, Table_ref *table_ref,
       return true;
     }
   } else if (table_ref->nested_join) {
-    for (Table_ref *table : table_ref->nested_join->join_list) {
+    for (Table_ref *table : table_ref->nested_join->m_tables) {
       if (check_column_grant_in_table_ref(thd, table, name, length,
                                           want_privilege)) {
         return true;

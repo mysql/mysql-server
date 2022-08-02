@@ -242,11 +242,12 @@ void Item_subselect::accumulate_properties(Query_block *select) {
 
   if (select->where_cond()) accumulate_condition(select->where_cond());
 
-  if (select->join_list)
-    walk_join_list(*select->join_list, [this](Table_ref *tr) -> bool {
-      if (tr->join_cond()) accumulate_condition(tr->join_cond());
-      return false;
-    });
+  if (select->m_current_table_nest)
+    walk_join_list(*select->m_current_table_nest,
+                   [this](Table_ref *tr) -> bool {
+                     if (tr->join_cond()) accumulate_condition(tr->join_cond());
+                     return false;
+                   });
 
   for (ORDER *group = select->group_list.first; group; group = group->next)
     accumulate_condition(*group->item);

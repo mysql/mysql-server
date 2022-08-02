@@ -76,12 +76,12 @@ struct Semijoin_mat_optimize {
 */
 struct NESTED_JOIN {
   NESTED_JOIN()
-      : join_list(*THR_MALLOC),
+      : m_tables(*THR_MALLOC),
         sj_outer_exprs(*THR_MALLOC),
         sj_inner_exprs(*THR_MALLOC) {}
 
-  mem_root_deque<Table_ref *>
-      join_list;                /* list of elements in the nested join */
+  /// list of tables referenced in the nested join
+  mem_root_deque<Table_ref *> m_tables;
   table_map used_tables{0};     /* bitmap of tables in the nested join */
   table_map not_null_tables{0}; /* tables that rejects nulls           */
   /**

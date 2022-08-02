@@ -6153,12 +6153,12 @@ bool Query_block::init_nested_join(THD *thd) {
   DBUG_TRACE;
 
   Table_ref *const ptr = Table_ref::new_nested_join(
-      thd->mem_root, "(nested_join)", embedding, join_list, this);
+      thd->mem_root, "(nested_join)", embedding, m_current_table_nest, this);
   if (ptr == nullptr) return true;
 
-  join_list->push_front(ptr);
+  m_current_table_nest->push_front(ptr);
   embedding = ptr;
-  join_list = &ptr->nested_join->join_list;
+  m_current_table_nest = &ptr->nested_join->m_tables;
 
   return false;
 }
@@ -6183,18 +6183,18 @@ Table_ref *Query_block::end_nested_join() {
 
   assert(embedding);
   ptr = embedding;
-  join_list = ptr->join_list;
+  m_current_table_nest = ptr->join_list;
   embedding = ptr->embedding;
   nested_join = ptr->nested_join;
-  if (nested_join->join_list.size() == 1) {
-    Table_ref *embedded = nested_join->join_list.front();
-    join_list->pop_front();
-    embedded->join_list = join_list;
+  if (nested_join->m_tables.size() == 1) {
+    Table_ref *embedded = nested_join->m_tables.front();
+    m_current_table_nest->pop_front();
+    embedded->join_list = m_current_table_nest;
     embedded->embedding = embedding;
-    join_list->push_front(embedded);
+    m_current_table_nest->push_front(embedded);
     ptr = embedded;
-  } else if (nested_join->join_list.empty()) {
-    join_list->pop_front();
+  } else if (nested_join->m_tables.empty()) {
+    m_current_table_nest->pop_front();
     ptr = nullptr;  // return value
   }
   return ptr;
@@ -6213,7 +6213,7 @@ Table_ref *nest_join(THD *thd, Query_block *select, Table_ref *embedding,
   if (ptr == nullptr) return nullptr;
 
   mem_root_deque<Table_ref *> *const embedded_list =
-      &ptr->nested_join->join_list;
+      &ptr->nested_join->m_tables;
 
   for (uint i = 0; i < table_cnt; i++) {
     Table_ref *table = jlist->front();
@@ -6244,7 +6244,7 @@ Table_ref *nest_join(THD *thd, Query_block *select, Table_ref *embedding,
 */
 
 Table_ref *Query_block::nest_last_join(THD *thd, size_t table_cnt) {
-  return nest_join(thd, this, embedding, join_list, table_cnt,
+  return nest_join(thd, this, embedding, m_current_table_nest, table_cnt,
                    "(nest_last_join)");
 }
 
@@ -6263,8 +6263,8 @@ Table_ref *Query_block::nest_last_join(THD *thd, size_t table_cnt) {
 
 bool Query_block::add_joined_table(Table_ref *table) {
   DBUG_TRACE;
-  join_list->push_front(table);
-  table->join_list = join_list;
+  m_current_table_nest->push_front(table);
+  table->join_list = m_current_table_nest;
   table->embedding = embedding;
   return false;
 }

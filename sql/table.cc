@@ -4341,7 +4341,7 @@ Table_ref *Table_ref::new_nested_join(MEM_ROOT *allocator, const char *alias,
   join_nest->query_block = select;
   join_nest->nested_join->first_nested = NO_PLAN_IDX;
 
-  join_nest->nested_join->join_list.clear();
+  join_nest->nested_join->m_tables.clear();
 
   return join_nest;
 }
@@ -4355,12 +4355,12 @@ Table_ref *Table_ref::new_nested_join(MEM_ROOT *allocator, const char *alias,
 */
 
 bool Table_ref::merge_underlying_tables(Query_block *select) {
-  assert(nested_join->join_list.empty());
+  assert(nested_join->m_tables.empty());
 
-  for (Table_ref *tl : select->top_join_list) {
+  for (Table_ref *tl : select->m_table_nest) {
     tl->embedding = this;
-    tl->join_list = &nested_join->join_list;
-    nested_join->join_list.push_back(tl);
+    tl->join_list = &nested_join->m_tables;
+    nested_join->m_tables.push_back(tl);
   }
 
   return false;
@@ -4579,7 +4579,7 @@ static bool merge_join_conditions(THD *thd, Table_ref *table, Item **pcond) {
       return true; /* purecov: inspected */
   }
   if (!table->nested_join) return false;
-  for (Table_ref *tbl : table->nested_join->join_list) {
+  for (Table_ref *tbl : table->nested_join->m_tables) {
     if (tbl->is_view()) continue;
     Item *cond;
     if (merge_join_conditions(thd, tbl, &cond))
@@ -4836,7 +4836,7 @@ Table_ref *Table_ref::first_leaf_for_name_resolution() {
   for (cur_nested_join = nested_join; cur_nested_join;
        cur_nested_join = cur_table_ref->nested_join) {
     // The first operand is in the end of the list of join operands
-    cur_table_ref = cur_nested_join->join_list.back();
+    cur_table_ref = cur_nested_join->m_tables.back();
     if (cur_table_ref->is_leaf_for_name_resolution()) break;
   }
   return cur_table_ref;
@@ -4851,7 +4851,7 @@ Table_ref *Table_ref::last_leaf_for_name_resolution() {
 
   for (cur_nested_join = nested_join; cur_nested_join;
        cur_nested_join = cur_table_ref->nested_join) {
-    cur_table_ref = cur_nested_join->join_list.front();
+    cur_table_ref = cur_nested_join->m_tables.front();
     if (cur_table_ref->is_leaf_for_name_resolution()) break;
   }
   return cur_table_ref;

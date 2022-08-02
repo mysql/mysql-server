@@ -185,7 +185,7 @@ inline void ResolveQueryBlock(
   }
 
   // Find all Item_field objects, and resolve them to fields in the fake tables.
-  ResolveAllFieldsToFakeTable(query_block->top_join_list, *fake_tables);
+  ResolveAllFieldsToFakeTable(query_block->m_table_nest, *fake_tables);
 
   // Also in any conditions and subqueries within the WHERE condition.
   if (query_block->where_cond() != nullptr) {
@@ -198,7 +198,7 @@ inline void ResolveQueryBlock(
         ResolveFieldToFakeTable(item_subselect->left_expr, *fake_tables);
         Query_block *child_query_block =
             item_subselect->unit->first_query_block();
-        ResolveAllFieldsToFakeTable(child_query_block->top_join_list,
+        ResolveAllFieldsToFakeTable(child_query_block->m_table_nest,
                                     *fake_tables);
         if (child_query_block->where_cond() != nullptr) {
           ResolveFieldToFakeTable(child_query_block->where_cond(),
@@ -274,7 +274,7 @@ inline void ResolveQueryBlock(
   query_block->join->having_cond = query_block->having_cond();
   query_block->join->fields = &query_block->fields;
   query_block->join->alloc_func_list();
-  SetJoinConditions(query_block->top_join_list);
+  SetJoinConditions(query_block->m_table_nest);
   count_field_types(query_block, &query_block->join->tmp_table_param,
                     query_block->fields, /*reset_with_sum_func=*/false,
                     /*save_sum_fields=*/false);
@@ -330,7 +330,7 @@ inline void ResolveAllFieldsToFakeTable(
       ResolveFieldToFakeTable(tl->join_cond(), fake_tables);
     }
     if (tl->nested_join != nullptr) {
-      ResolveAllFieldsToFakeTable(tl->nested_join->join_list, fake_tables);
+      ResolveAllFieldsToFakeTable(tl->nested_join->m_tables, fake_tables);
     }
   }
 }
@@ -339,7 +339,7 @@ inline void SetJoinConditions(const mem_root_deque<Table_ref *> &join_list) {
   for (Table_ref *tl : join_list) {
     tl->set_join_cond_optim(tl->join_cond());
     if (tl->nested_join != nullptr) {
-      SetJoinConditions(tl->nested_join->join_list);
+      SetJoinConditions(tl->nested_join->m_tables);
     }
   }
 }

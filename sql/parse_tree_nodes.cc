@@ -873,7 +873,7 @@ Sql_cmd *PT_delete::make_cmd(THD *thd) {
     lex->query_tables = nullptr;
     lex->query_tables_last = &lex->query_tables;
   } else {
-    select->top_join_list.push_back(select->get_table_list());
+    select->m_table_nest.push_back(select->get_table_list());
   }
   Yacc_state *const yyps = &pc.thd->m_parser_state->m_yacc;
   yyps->m_lock_type = TL_READ_DEFAULT;

@@ -201,7 +201,8 @@ bool Sql_cmd_update::check_privileges(THD *thd) {
   // Query_block::check_column_privileges(), but only when fields_list
   // is no longer reused for an UPDATE statement.
 
-  if (select->join_list && check_privileges_for_join(thd, select->join_list))
+  if (select->m_current_table_nest &&
+      check_privileges_for_join(thd, select->m_current_table_nest))
     return true;
 
   thd->want_privilege = SELECT_ACL;
@@ -443,8 +444,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
     COND_EQUAL *cond_equal = nullptr;
     Item::cond_result result;
-    if (optimize_cond(thd, &conds, &cond_equal, query_block->join_list,
-                      &result))
+    if (optimize_cond(thd, &conds, &cond_equal,
+                      query_block->m_current_table_nest, &result))
       return true;
 
     if (result == Item::COND_FALSE) {
@@ -1484,8 +1485,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   Opt_trace_object trace_prepare(trace, "update_preparation");
   trace_prepare.add_select_number(select->select_number);
 
-  if (!select->top_join_list.empty())
-    propagate_nullability(&select->top_join_list, false);
+  if (!select->m_table_nest.empty())
+    propagate_nullability(&select->m_table_nest, false);
 
   if (select->setup_tables(thd, table_list, false))
     return true; /* purecov: inspected */
@@ -1555,7 +1556,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   if (multitable) select->set_sj_candidates(&sj_candidates_local);
 
   if (select->leaf_table_count >= 2 &&
-      setup_natural_join_row_types(thd, select->join_list, &select->context))
+      setup_natural_join_row_types(thd, select->m_current_table_nest,
+                                   &select->context))
     return true;
 
   if (!multitable) {
@@ -2956,7 +2958,7 @@ bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
   Query_block *const select = thd->lex->query_block;
   // Update tables
   if (select->m_table_list.elements != 0 &&
-      accept_for_join(select->join_list, visitor))
+      accept_for_join(select->m_current_table_nest, visitor))
     return true;
 
   // Update list

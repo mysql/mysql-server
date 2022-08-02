@@ -211,7 +211,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithMultiEqual) {
   COND_EQUAL *cond_equal = nullptr;
   // Generate multi-equalities.
   EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
-                             &query_block->top_join_list,
+                             &query_block->m_table_nest,
                              &query_block->cond_value));
   JOIN_TAB *map2table[3];
 
@@ -323,7 +323,7 @@ TEST_F(ConnectJoinTest, OuterJoin) {
   COND_EQUAL *cond_equal = nullptr;
   // Generate multi-equalities
   EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
-                             &query_block->top_join_list,
+                             &query_block->m_table_nest,
                              &query_block->cond_value));
   JOIN_TAB *map2table[3];
 
@@ -532,7 +532,7 @@ TEST_F(ConnectJoinTest, SemiJoinInOuterJoin) {
   COND_EQUAL *cond_equal = nullptr;
   // Generate multi-equalities
   EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
-                             &query_block->top_join_list,
+                             &query_block->m_table_nest,
                              &query_block->cond_value));
   JOIN_TAB *map2table[3];
 
@@ -654,7 +654,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithNotEqual) {
   COND_EQUAL *cond_equal = nullptr;
   // Generate multi-equalities.
   EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
-                             &query_block->top_join_list,
+                             &query_block->m_table_nest,
                              &query_block->cond_value));
   JOIN_TAB *map2table[4];
 

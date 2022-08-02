@@ -1846,7 +1846,9 @@ bool Query_block::check_column_privileges(THD *thd) {
                    pointer_cast<uchar *>(thd)))
       return true;
   }
-  if (join_list && check_privileges_for_join(thd, join_list)) return true;
+  if (m_current_table_nest &&
+      check_privileges_for_join(thd, m_current_table_nest))
+    return true;
   if (where_cond() != nullptr &&
       where_cond()->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                          pointer_cast<uchar *>(thd)))
@@ -1906,7 +1908,7 @@ bool check_privileges_for_join(THD *thd, mem_root_deque<Table_ref *> *tables) {
       return true;
 
     if (table_ref->nested_join != nullptr &&
-        check_privileges_for_join(thd, &table_ref->nested_join->join_list))
+        check_privileges_for_join(thd, &table_ref->nested_join->m_tables))
       return true;
   }
 
