@@ -46,6 +46,8 @@ FOREACH(test ${TESTS})
 ENDFOREACH()
 
 SET(SERVER_TEST_LIBS
+  # Do not link in this, ODR violations.
+  # But without it, we get missing symbols on windows....
   binlogstandalone_static
   gunit_large
   server_unittest_library
