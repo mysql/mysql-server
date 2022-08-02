@@ -1891,7 +1891,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Encryption of local checkpoint and table space files.",
     ConfigInfo::CI_USED,
-    0,
+    CI_RESTART_INITIAL,
     ConfigInfo::CI_INT,
     "0",
     "0",
