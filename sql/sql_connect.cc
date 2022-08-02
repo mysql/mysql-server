@@ -699,7 +699,7 @@ static bool login_connection(THD *thd) {
              ("login_connection called by thread %u", thd->thread_id()));
 
   /* Use "connect_timeout" value during connection phase */
-  thd->get_protocol_classic()->set_read_timeout(connect_timeout);
+  thd->get_protocol_classic()->set_read_timeout(connect_timeout, true);
   thd->get_protocol_classic()->set_write_timeout(connect_timeout);
 
   error = check_connection(thd);

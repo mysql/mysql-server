@@ -1344,7 +1344,15 @@ static bool net_read_raw_loop(NET *net, size_t count) {
   bool eof = false;
   unsigned int retry_count = 0;
   uchar *buf = net->buff + net->where_b;
+  bool timeout_on_full_packet = false;
+  bool is_packet_timeout = false;
+#ifdef MYSQL_SERVER
+  NET_SERVER *server_ext = static_cast<NET_SERVER *>(net->extension);
+  if (server_ext) timeout_on_full_packet = server_ext->timeout_on_full_packet;
+#endif
 
+  time_t start_time;
+  if (timeout_on_full_packet) start_time = time(&start_time);
   while (count) {
     size_t recvcnt = vio_read(net->vio, buf, count);
 
@@ -1367,19 +1375,26 @@ static bool net_read_raw_loop(NET *net, size_t count) {
 #ifdef MYSQL_SERVER
     thd_increment_bytes_received(recvcnt);
 #endif
+    if (timeout_on_full_packet) {
+      time_t current_time = time(&current_time);
+      if (current_time - start_time > net->read_timeout) {
+        is_packet_timeout = true;
+        break;
+      }
+    }
   }
 
   /* On failure, propagate the error code. */
   if (count) {
     /* Interrupted by a timeout? */
-    if (!eof && vio_was_timeout(net->vio))
+    if (!eof && (vio_was_timeout(net->vio) || is_packet_timeout))
       net->last_errno = ER_NET_READ_INTERRUPTED;
     else
       net->last_errno = ER_NET_READ_ERROR;
 
 #ifdef MYSQL_SERVER
     /* First packet always wait for net_wait_timeout */
-    if (net->pkt_nr == 0 && vio_was_timeout(net->vio)) {
+    if (net->pkt_nr == 0 && (vio_was_timeout(net->vio) || is_packet_timeout)) {
       net->last_errno = ER_CLIENT_INTERACTION_TIMEOUT;
       /* Socket should be closed after trying to write/send error. */
       THD *thd = current_thd;
