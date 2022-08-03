@@ -3290,7 +3290,7 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
   space->m_encryption_metadata.m_type = Encryption::NONE;
   space->encryption_op_in_progress = Encryption::Progress::NONE;
 
-  rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
+  rw_lock_create(fil_space_latch_key, &space->latch, LATCH_ID_FIL_SPACE);
 
 #ifndef UNIV_HOTBACKUP
   if (space->purpose == FIL_TYPE_TEMPORARY) {

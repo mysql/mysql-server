@@ -193,7 +193,7 @@ void btr_search_sys_create(ulint hash_size) {
         ut::make_psi_memory_key(mem_key_ahi), sizeof(rw_lock_t)));
 
     rw_lock_create(btr_search_latch_key, btr_search_latches[i],
-                   SYNC_SEARCH_SYS);
+                   LATCH_ID_BTR_SEARCH);
   }
 
   /* Step-2: Allocate hash tables. */

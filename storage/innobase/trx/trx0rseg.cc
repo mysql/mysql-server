@@ -746,7 +746,7 @@ void Rsegs::init() {
   m_latch = static_cast<rw_lock_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*m_latch)));
 
-  rw_lock_create(rsegs_lock_key, m_latch, SYNC_RSEGS);
+  rw_lock_create(rsegs_lock_key, m_latch, LATCH_ID_RSEGS);
 }
 
 /** De-initialize */

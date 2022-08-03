@@ -959,7 +959,8 @@ void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
   cache->rw_lock = static_cast<rw_lock_t *>(
       ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*cache->rw_lock)));
 
-  rw_lock_create(trx_i_s_cache_lock_key, cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
+  rw_lock_create(trx_i_s_cache_lock_key, cache->rw_lock,
+                 LATCH_ID_TRX_I_S_CACHE);
 
   cache->last_read = std::chrono::steady_clock::time_point{};
 

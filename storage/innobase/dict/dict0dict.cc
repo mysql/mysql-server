@@ -322,7 +322,8 @@ static void dict_table_stats_latch_alloc(void *table_void) {
 
   ut_a(table->stats_latch != nullptr);
 
-  rw_lock_create(dict_table_stats_key, table->stats_latch, SYNC_INDEX_TREE);
+  rw_lock_create(dict_table_stats_key, table->stats_latch,
+                 LATCH_ID_DICT_TABLE_STATS);
 }
 
 /** Deinit and free a dict_table_t's stats latch.
@@ -1023,7 +1024,7 @@ void dict_init(void) {
       buf_pool_get_curr_size() / (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
 
   rw_lock_create(dict_operation_lock_key, dict_operation_lock,
-                 SYNC_DICT_OPERATION);
+                 LATCH_ID_DICT_OPERATION);
 
 #ifndef UNIV_HOTBACKUP
   if (!srv_read_only_mode) {
@@ -2552,7 +2553,7 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   new_index->search_info = btr_search_info_create(new_index->heap);
 
   new_index->page = page_no;
-  rw_lock_create(index_tree_rw_lock_key, &new_index->lock, SYNC_INDEX_TREE);
+  rw_lock_create(index_tree_rw_lock_key, &new_index->lock, LATCH_ID_INDEX_TREE);
 
   /* The conditions listed here correspond to the simplest call-path through
   rec_get_offsets(). If they are met now, we can cache rec offsets and use the

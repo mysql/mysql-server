@@ -226,7 +226,7 @@ void trx_purge_sys_mem_create() {
   new (&purge_sys->done) purge_iter_t;
 #endif /* UNIV_DEBUG */
 
-  rw_lock_create(trx_purge_latch_key, &purge_sys->latch, SYNC_PURGE_LATCH);
+  rw_lock_create(trx_purge_latch_key, &purge_sys->latch, LATCH_ID_TRX_PURGE);
 
   mutex_create(LATCH_ID_PURGE_SYS_PQ, &purge_sys->pq_mutex);
 
@@ -2623,7 +2623,7 @@ void undo::Tablespaces::init() {
   m_latch = static_cast<rw_lock_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*m_latch)));
 
-  rw_lock_create(undo_spaces_lock_key, m_latch, SYNC_UNDO_SPACES);
+  rw_lock_create(undo_spaces_lock_key, m_latch, LATCH_ID_UNDO_SPACES);
 
   mutex_create(LATCH_ID_UNDO_DDL, &ddl_mutex);
 }

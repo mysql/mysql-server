@@ -653,8 +653,7 @@ static void log_sys_create() {
   log.sn_lock_inst = static_cast<rw_lock_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*log.sn_lock_inst)));
   new (log.sn_lock_inst) rw_lock_t;
-  rw_lock_create_func(log.sn_lock_inst, SYNC_LOG_SN, "log.sn_lock_inst",
-                      UT_LOCATION_HERE);
+  rw_lock_create_func(log.sn_lock_inst, LATCH_ID_LOG_SN, UT_LOCATION_HERE);
 #endif /* UNIV_DEBUG */
 
   /* Allocate buffers. */

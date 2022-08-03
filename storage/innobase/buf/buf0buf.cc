@@ -788,17 +788,17 @@ static void buf_block_init(
   since buffer block rwlock will be registered later in
   pfs_register_buffer_block(). */
 
-  rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, SYNC_LEVEL_VARYING);
+  rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
 
   ut_d(rw_lock_create(PFS_NOT_INSTRUMENTED, &block->debug_latch,
-                      SYNC_NO_ORDER_CHECK));
+                      LATCH_ID_BUF_BLOCK_DEBUG));
 
 #else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
-  rw_lock_create(buf_block_lock_key, &block->lock, SYNC_LEVEL_VARYING);
+  rw_lock_create(buf_block_lock_key, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
 
   ut_d(rw_lock_create(buf_block_debug_latch_key, &block->debug_latch,
-                      SYNC_NO_ORDER_CHECK));
+                      LATCH_ID_BUF_BLOCK_DEBUG));
 
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 

@@ -187,9 +187,8 @@ static rw_lock_debug_t *rw_lock_debug_create(void) {
 static void rw_lock_debug_free(rw_lock_debug_t *info) { ut::free(info); }
 #endif /* UNIV_DEBUG */
 
-void rw_lock_create_func(rw_lock_t *lock, IF_DEBUG(latch_level_t level,
-                                                   const char *cmutex_name, )
-                                              ut::Location clocation) {
+void rw_lock_create_func(rw_lock_t *lock,
+                         IF_DEBUG(latch_id_t id, ) ut::Location clocation) {
 #if !defined(UNIV_PFS_RWLOCK)
   /* It should have been created in pfs_rw_lock_create_func() */
   new (lock) rw_lock_t();
@@ -198,10 +197,6 @@ void rw_lock_create_func(rw_lock_t *lock, IF_DEBUG(latch_level_t level,
 
   /* If this is the very first time a synchronization object is
   created, then the following call initializes the sync system. */
-
-#ifdef UNIV_DEBUG
-  UT_NOT_USED(cmutex_name);
-#endif
 
   lock->lock_word = X_LOCK_DECR;
   lock->waiters = false;
@@ -213,10 +208,9 @@ void rw_lock_create_func(rw_lock_t *lock, IF_DEBUG(latch_level_t level,
 #ifdef UNIV_DEBUG
   lock->m_rw_lock = true;
 
-  lock->m_id = sync_latch_get_id(sync_latch_get_name(level));
+  lock->m_id = id;
   ut_a(lock->m_id != LATCH_ID_NONE);
 
-  lock->level = level;
 #endif /* UNIV_DEBUG */
 
   lock->clocation = clocation;

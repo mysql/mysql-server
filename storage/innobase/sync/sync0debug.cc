@@ -986,46 +986,6 @@ void LatchDebug::unlock(const latch_t *latch) UNIV_NOTHROW {
   }
 }
 
-/** Get the latch id from a latch name.
-@param[in]      name    Latch name
-@return latch id if found else LATCH_ID_NONE. */
-latch_id_t sync_latch_get_id(const char *name) {
-  LatchMetaData::const_iterator end = latch_meta.end();
-
-  /* Linear scan should be OK, this should be extremely rare. */
-
-  for (LatchMetaData::const_iterator it = latch_meta.begin(); it != end; ++it) {
-    if (*it == NULL || (*it)->get_id() == LATCH_ID_NONE) {
-      continue;
-
-    } else if (strcmp((*it)->get_name(), name) == 0) {
-      return ((*it)->get_id());
-    }
-  }
-
-  return (LATCH_ID_NONE);
-}
-
-/** Get the latch name from a sync level
-@param[in]      level           Latch level to lookup
-@return nullptr if not found. */
-const char *sync_latch_get_name(latch_level_t level) {
-  LatchMetaData::const_iterator end = latch_meta.end();
-
-  /* Linear scan should be OK, this should be extremely rare. */
-
-  for (LatchMetaData::const_iterator it = latch_meta.begin(); it != end; ++it) {
-    if (*it == NULL || (*it)->get_id() == LATCH_ID_NONE) {
-      continue;
-
-    } else if ((*it)->get_level() == level) {
-      return ((*it)->get_name());
-    }
-  }
-
-  return (nullptr);
-}
-
 /** Check if it is OK to acquire the latch.
 @param[in]      latch   latch type */
 void sync_check_lock_validate(const latch_t *latch) {
@@ -1417,8 +1377,8 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(ROW_DROP_LIST, SYNC_NO_ORDER_CHECK, row_drop_list_mutex_key);
 
-  LATCH_ADD_RWLOCK(INDEX_ONLINE_LOG, SYNC_INDEX_ONLINE_LOG,
-                   index_online_log_key);
+  LATCH_ADD_MUTEX(INDEX_ONLINE_LOG, SYNC_INDEX_ONLINE_LOG,
+                  index_online_log_key);
 
   LATCH_ADD_MUTEX(WORK_QUEUE, SYNC_WORK_QUEUE, PFS_NOT_INSTRUMENTED);
 

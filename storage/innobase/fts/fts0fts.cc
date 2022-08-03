@@ -534,10 +534,10 @@ fts_cache_t *fts_cache_create(
 
   cache->cache_heap = heap;
 
-  rw_lock_create(fts_cache_rw_lock_key, &cache->lock, SYNC_FTS_CACHE);
+  rw_lock_create(fts_cache_rw_lock_key, &cache->lock, LATCH_ID_FTS_CACHE);
 
   rw_lock_create(fts_cache_init_rw_lock_key, &cache->init_lock,
-                 SYNC_FTS_CACHE_INIT);
+                 LATCH_ID_FTS_CACHE_INIT);
 
   mutex_create(LATCH_ID_FTS_DELETE, &cache->deleted_lock);
 

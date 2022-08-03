@@ -65,7 +65,7 @@ class Sharded_rw_lock {
 #ifdef UNIV_PFS_RWLOCK
       mysql_pfs_key_t pfs_key,
 #endif
-      latch_level_t latch_level, size_t n_shards) {
+      latch_id_t latch_id, size_t n_shards) {
     ut_ad(ut_is_2pow(n_shards));
     m_n_shards = n_shards;
 
@@ -76,9 +76,9 @@ class Sharded_rw_lock {
 #ifdef UNIV_PFS_RWLOCK
                  pfs_key,
 #endif
-                 latch_level](rw_lock_t &lock) {
-      static_cast<void>(latch_level);  // clang -Wunused-lambda-capture
-      rw_lock_create(pfs_key, &lock, latch_level);
+                 latch_id](rw_lock_t &lock) {
+      static_cast<void>(latch_id);  // clang -Wunused-lambda-capture
+      rw_lock_create(pfs_key, &lock, latch_id);
     });
   }
 
@@ -169,7 +169,7 @@ class Sharded_rw_lock {
 #ifdef UNIV_PFS_RWLOCK
       mysql_pfs_key_t pfs_key,
 #endif
-      latch_level_t latch_level, size_t n_shards) {
+      latch_id_t latch_id, size_t n_shards) {
   }
 
   void free() {}
