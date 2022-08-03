@@ -1377,7 +1377,8 @@ static bool net_read_raw_loop(NET *net, size_t count) {
 #endif
     if (timeout_on_full_packet) {
       time_t current_time = time(&current_time);
-      if (current_time - start_time > net->read_timeout) {
+      if (static_cast<unsigned int>(current_time - start_time) >
+          net->read_timeout) {
         is_packet_timeout = true;
         break;
       }
