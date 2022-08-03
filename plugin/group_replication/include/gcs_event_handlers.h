@@ -235,12 +235,20 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
   int compare_member_option_compatibility() const;
 
   /**
-    Check if a member is not entering a group where an action is running
+    Check if a member is not entering a group where an action is running.
+    If action is running provide details of action.
 
-    @retval false     no group action is running
+    @param[out]  group_action_running_initiator    Group action configuration
+    initiator details
+    @param[out]  group_action_running_description  Group action configuration
+    description
+
+    @retval false  no group action is running
     @retval true   a group action is running
   */
-  bool is_group_running_a_configuration_change() const;
+  bool is_group_running_a_configuration_change(
+      std::string &group_action_running_initiator,
+      std::string &group_action_running_description) const;
 
   /**
     Check if the group is running a primary election

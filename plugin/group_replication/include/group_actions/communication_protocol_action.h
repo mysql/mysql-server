@@ -52,7 +52,6 @@ class Communication_protocol_action final : public Group_action {
       bool invoking_member, Plugin_stage_monitor_handler *stage_handler,
       Notification_context *) final;
   bool stop_action_execution(bool killed) final;
-  const char *get_action_name() final;
   Group_action_diagnostics *get_execution_info() final;
 
  private:

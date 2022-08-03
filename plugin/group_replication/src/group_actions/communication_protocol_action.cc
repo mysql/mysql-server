@@ -132,10 +132,6 @@ bool Communication_protocol_action::stop_action_execution(bool) {
   return SUCCESS;
 }
 
-const char *Communication_protocol_action::get_action_name() {
-  return "Set group communication protocol";
-}
-
 Group_action_diagnostics *Communication_protocol_action::get_execution_info() {
   return &m_diagnostics;
 }

@@ -91,13 +91,18 @@ int Asynchronous_channels_state_observer::thread_start(
   }
 
   if (plugin_is_group_replication_running() &&
-      group_action_coordinator->is_group_action_running() &&
       !param->source_connection_auto_failover &&
       !primary_election_handler->is_an_election_running()) {
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_CHANNEL_THREAD_WHEN_GROUP_ACTION_RUNNING,
-                 "IO THREAD");
-    return 1;
+    std::pair<std::string, std::string> action_initiator_and_description;
+    if (group_action_coordinator->is_group_action_running(
+            action_initiator_and_description)) {
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_CHANNEL_THREAD_WHEN_GROUP_ACTION_RUNNING,
+                   "IO THREAD", param->channel_name,
+                   action_initiator_and_description.second.c_str(),
+                   action_initiator_and_description.first.c_str());
+      return 1;
+    }
   }
 
   return 0;
@@ -169,13 +174,18 @@ int Asynchronous_channels_state_observer::applier_start(
   }
 
   if (plugin_is_group_replication_running() &&
-      group_action_coordinator->is_group_action_running() &&
       !param->source_connection_auto_failover &&
       !primary_election_handler->is_an_election_running()) {
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_CHANNEL_THREAD_WHEN_GROUP_ACTION_RUNNING,
-                 "SQL THREAD");
-    return 1;
+    std::pair<std::string, std::string> action_initiator_and_description;
+    if (group_action_coordinator->is_group_action_running(
+            action_initiator_and_description)) {
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_CHANNEL_THREAD_WHEN_GROUP_ACTION_RUNNING,
+                   "SQL THREAD", param->channel_name,
+                   action_initiator_and_description.second.c_str(),
+                   action_initiator_and_description.first.c_str());
+      return 1;
+    }
   }
 
   return 0;

@@ -1,0 +1,64 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Activate debug point that will block the group action when changing
+#    to single primary mode
+set session sql_log_bin=0;
+call mtr.add_suppression("A member is joining the group while a group configuration operation 'Change to single primary mode' is running*");
+call mtr.add_suppression("Can't start SQL THREAD for channel 'ch1' when group replication is running a group configuration operation 'Change to single primary mode'*");
+call mtr.add_suppression("Can't start IO THREAD for channel 'ch1' when group replication is running a group configuration operation 'Change to single primary mode'*");
+call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
+call mtr.add_suppression("Slave I/O for channel 'ch1': Fatal error: Failed to run 'thread_start' hook, Error_code: MY-013117");
+call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
+call mtr.add_suppression("Slave SQL for channel 'ch1': Fatal error: Failed to run 'applier_start' hook, Error_code: MY-013117");
+set session sql_log_bin=1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_2_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("A member cannot join the group while a group configuration operation 'Change to single primary mode' is running initiated by *");
+set session sql_log_bin=1;
+
+# 2. Execute action to change group to single primary mode
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+[connection server_1]
+
+# 3. START GR on server2. Server2 will go in ERROR state.
+#    A new member cannot join group while an action is being executed.
+[connection server2]
+SET GLOBAL group_replication_group_name= 'GROUP_NAME';
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+START GROUP_REPLICATION;
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 4. Start replica on server 1. Replica will fail to start.
+#    Replica cannot start while an action is being executed.
+[connection server_1]
+START REPLICA FOR CHANNEL 'ch1';
+include/wait_for_slave_io_error.inc [errno=13117]
+include/wait_for_slave_sql_error.inc [errno=13117]
+
+# 5. Unlock the action on server 1 and reap the result.
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
+SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
+[connection server1]
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+
+# 6. Assert messages are present in the logs.
+[connection server1]
+[connection server2]
+
+# 7. Cleanup
+[connection server1]
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+include/group_replication_end.inc

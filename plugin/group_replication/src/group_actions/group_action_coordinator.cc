@@ -31,19 +31,71 @@
 
 Group_action_information::Group_action_information(
     bool is_local_arg, Group_action *action,
-    Group_action_diagnostics *message_area)
+    Group_action_diagnostics *message_area,
+    Group_action_message::enum_action_initiator_and_action initiator)
     : is_local(is_local_arg),
       executing_action(action),
       execution_message_area(message_area),
-      action_result(Group_action::GROUP_ACTION_RESULT_END) {}
+      action_result(Group_action::GROUP_ACTION_RESULT_END),
+      m_action_initiator(initiator) {
+  assert(m_action_initiator > Group_action_message::ACTION_INITIATOR_UNKNOWN &&
+         m_action_initiator < Group_action_message::ACTION_INITIATOR_END);
+}
 
-Group_action_information::Group_action_information()
+Group_action_information::Group_action_information(
+    Group_action_message::enum_action_initiator_and_action initiator)
     : is_local(false),
       executing_action(nullptr),
       execution_message_area(new Group_action_diagnostics()),
-      action_result(Group_action::GROUP_ACTION_RESULT_END) {}
+      action_result(Group_action::GROUP_ACTION_RESULT_END),
+      m_action_initiator(initiator) {
+  assert(m_action_initiator > Group_action_message::ACTION_INITIATOR_UNKNOWN &&
+         m_action_initiator < Group_action_message::ACTION_INITIATOR_END);
+}
 
 Group_action_information::~Group_action_information() = default;
+
+const std::pair<std::string, std::string>
+Group_action_information::get_action_name_and_description() {
+  switch (m_action_initiator) {
+      // This type should not be used
+    case Group_action_message::ACTION_INITIATOR_UNKNOWN:
+      assert(false);
+      return std::make_pair("unknown", "unknown");
+      break;
+    case Group_action_message::ACTION_UDF_SWITCH_TO_MULTI_PRIMARY_MODE:
+      return std::make_pair(
+          "SELECT group_replication_switch_to_multi_primary_mode()",
+          "Multi primary mode migration");
+      break;
+    case Group_action_message::ACTION_UDF_SET_PRIMARY:
+      return std::make_pair("SELECT group_replication_set_as_primary()",
+                            "Primary election change");
+      break;
+    case Group_action_message::ACTION_UDF_SWITCH_TO_SINGLE_PRIMARY_MODE:
+      return std::make_pair(
+          "SELECT group_replication_switch_to_single_primary_mode()",
+          "Change to single primary mode");
+      break;
+    case Group_action_message::ACTION_UDF_SWITCH_TO_SINGLE_PRIMARY_MODE_UUID:
+      return std::make_pair(
+          "SELECT group_replication_switch_to_single_primary_mode()",
+          "Change to single primary mode");
+      break;
+    case Group_action_message::ACTION_UDF_COMMUNICATION_PROTOCOL_MESSAGE:
+      return std::make_pair(
+          "SELECT group_replication_set_communication_protocol()",
+          "Set group communication protocol");
+      break;
+    default:
+      /* This is unreachable code since actions can only be triggered from
+         member with the lower version, as such lower member versions do not
+         need to know newer actions. */
+      assert(false);
+      break;
+  }
+  return std::make_pair("unidentified", "unidentified)");
+}
 
 /**
  The 'action' / 'action information' object life cycle:
@@ -157,8 +209,15 @@ static void *launch_handler_thread(void *arg) {
   return nullptr;
 }
 
-bool Group_action_coordinator::is_group_action_running() {
-  return action_running.load();
+bool Group_action_coordinator::is_group_action_running(
+    std::pair<std::string, std::string> &initiator) {
+  bool running = false;
+  mysql_mutex_lock(&coordinator_process_lock);
+  if ((running = action_running.load())) {
+    initiator = current_executing_action->get_action_name_and_description();
+  }
+  mysql_mutex_unlock(&coordinator_process_lock);
+  return running;
 }
 
 int send_message(Group_action_message *message) {
@@ -231,7 +290,8 @@ int Group_action_coordinator::stop_coordinator_process(bool coordinator_stop,
 }
 
 int Group_action_coordinator::coordinate_action_execution(
-    Group_action *action, Group_action_diagnostics *execution_info) {
+    Group_action *action, Group_action_diagnostics *execution_info,
+    Group_action_message::enum_action_initiator_and_action initiator) {
   mysql_mutex_lock(&coordinator_process_lock);
 
   int error = 0;
@@ -283,12 +343,15 @@ int Group_action_coordinator::coordinate_action_execution(
 
   local_action_killed = false;
 
-  action_info = new Group_action_information(true, action, execution_info);
+  action_info =
+      new Group_action_information(true, action, execution_info, initiator);
   proposed_action = action_info;
 
   action->get_action_message(&start_message);
   start_message->set_group_action_message_phase(
       Group_action_message::ACTION_START_PHASE);
+
+  start_message->set_action_initiator(initiator);
 
   if (send_message(start_message)) {
     /* purecov: begin inspected */
@@ -423,7 +486,7 @@ bool Group_action_coordinator::handle_action_start_message(
 
   Group_action_information *action_info = nullptr;
   if (!is_message_sender) {
-    action_info = new Group_action_information();
+    action_info = new Group_action_information(message->get_action_initiator());
   } else {
     action_info = proposed_action;
   }
@@ -636,7 +699,7 @@ void Group_action_coordinator::terminate_action() {
   // Log what was the result of the action
   LogPluginErr(
       SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_LOCAL_TERMINATION,
-      current_executing_action->executing_action->get_action_name(),
+      current_executing_action->get_action_name_and_description().second,
       current_executing_action->execution_message_area->get_execution_message()
           .c_str());
 
@@ -740,6 +803,8 @@ int Group_action_coordinator::signal_action_terminated() {
   current_executing_action->executing_action->get_action_message(&end_message);
   end_message->set_group_action_message_phase(
       Group_action_message::ACTION_END_PHASE);
+  end_message->set_action_initiator(
+      current_executing_action->m_action_initiator);
   if (current_executing_action->execution_message_area->has_warning()) {
     end_message->set_return_value(END_ACTION_MESSAGE_WARNING_FLAG);
   }
@@ -814,8 +879,9 @@ int Group_action_coordinator::execute_group_action_handler() {
   monitoring_stage_handler.initialize_stage_monitor();
   is_group_action_being_executed = true;
 
-  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_START,
-               current_executing_action->executing_action->get_action_name());
+  LogPluginErr(
+      SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_START,
+      current_executing_action->get_action_name_and_description().second);
   while (Group_action::GROUP_ACTION_RESULT_RESTART ==
          current_executing_action->action_result) {
     current_executing_action->action_result =
@@ -829,8 +895,9 @@ int Group_action_coordinator::execute_group_action_handler() {
   }
   notify_and_reset_ctx(notification_ctx);
   is_group_action_being_executed = false;
-  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_END,
-               current_executing_action->executing_action->get_action_name());
+  LogPluginErr(
+      INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_END,
+      current_executing_action->get_action_name_and_description().second);
 
   current_executing_action->execution_message_area->set_execution_info(
       current_executing_action->executing_action->get_execution_info());
@@ -941,7 +1008,7 @@ int Group_action_coordinator::after_view_change(
     return 0;
   }
 
-  if (!is_group_action_running()) return 0;
+  if (!action_running.load()) return 0;
 
   for (Gcs_member_identifier leaving_member : leaving) {
     bool found =

@@ -84,12 +84,6 @@ class Multi_primary_migration_action : public Group_action,
   bool stop_action_execution(bool killed) override;
 
   /**
-    Returns the name of the action for debug messages and such
-    @return the action name
-  */
-  const char *get_action_name() override;
-
-  /**
     Gets the info about execution, be it success or failure
     @return the execution diagnostics object that was the message and its level
   */

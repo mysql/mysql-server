@@ -108,6 +108,9 @@ Group_member_info::Group_member_info(Group_member_info &other)
       recovery_endpoints(other.get_recovery_endpoints()),
       m_view_change_uuid(other.get_view_change_uuid()),
       m_allow_single_leader(other.get_allow_single_leader()),
+      m_group_action_running_name(other.get_group_action_running_name()),
+      m_group_action_running_description(
+          other.get_group_action_running_description()),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
       m_skip_encode_view_change_uuid(false),
@@ -319,6 +322,15 @@ void Group_member_info::encode_payload(
   char allow_single_leader_aux = m_allow_single_leader ? '1' : '0';
   encode_payload_item_char(buffer, PIT_ALLOW_SINGLE_LEADER,
                            allow_single_leader_aux);
+
+  if (group_action_running) {
+    encode_payload_item_string(buffer, PIT_GROUP_ACTION_RUNNING_NAME,
+                               m_group_action_running_name.c_str(),
+                               m_group_action_running_name.length());
+    encode_payload_item_string(buffer, PIT_GROUP_ACTION_RUNNING_DESCRIPTION,
+                               m_group_action_running_description.c_str(),
+                               m_group_action_running_description.length());
+  }
 }
 
 void Group_member_info::decode_payload(const unsigned char *buffer,
@@ -473,6 +485,22 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
           slider += payload_item_length;
           m_allow_single_leader =
               (allow_single_leader_aux == '1') ? true : false;
+        }
+        break;
+      case PIT_GROUP_ACTION_RUNNING_NAME:
+        if (slider + payload_item_length <= end) {
+          m_group_action_running_name.assign(
+              reinterpret_cast<const char *>(slider),
+              static_cast<size_t>(payload_item_length));
+          slider += payload_item_length;
+        }
+        break;
+      case PIT_GROUP_ACTION_RUNNING_DESCRIPTION:
+        if (slider + payload_item_length <= end) {
+          m_group_action_running_description.assign(
+              reinterpret_cast<const char *>(slider),
+              static_cast<size_t>(payload_item_length));
+          slider += payload_item_length;
         }
         break;
     }
@@ -675,6 +703,24 @@ bool Group_member_info::is_group_action_running() {
 void Group_member_info::set_is_group_action_running(bool is_running) {
   MUTEX_LOCK(lock, &update_lock);
   group_action_running = is_running;
+}
+
+const std::string &Group_member_info::get_group_action_running_name() {
+  return m_group_action_running_name;
+}
+
+void Group_member_info::set_group_action_running_name(
+    const std::string &group_action_running_name) {
+  m_group_action_running_name = group_action_running_name;
+}
+
+const std::string &Group_member_info::get_group_action_running_description() {
+  return m_group_action_running_description;
+}
+
+void Group_member_info::set_group_action_running_description(
+    const std::string &group_action_running_description) {
+  m_group_action_running_description = group_action_running_description;
 }
 
 bool Group_member_info::is_primary_election_running() {

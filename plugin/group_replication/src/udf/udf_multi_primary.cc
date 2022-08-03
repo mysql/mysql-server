@@ -48,7 +48,8 @@ static char *group_replication_switch_to_multi_primary_mode(
 
   Group_action_diagnostics execution_message_area;
   group_action_coordinator->coordinate_action_execution(
-      &group_action, &execution_message_area);
+      &group_action, &execution_message_area,
+      Group_action_message::ACTION_UDF_SWITCH_TO_MULTI_PRIMARY_MODE);
   if (log_group_action_result_message(
           &execution_message_area,
           "group_replication_switch_to_multi_primary_mode", result, length)) {
