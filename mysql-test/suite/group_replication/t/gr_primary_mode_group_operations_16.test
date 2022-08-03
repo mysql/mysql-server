@@ -27,10 +27,10 @@
 --echo # 1. server1 start group replication and server2 join
 
 set session sql_log_bin=0;
-call mtr.add_suppression("Can't start slave IO THREAD when group replication is running a group configuration operation.");
+call mtr.add_suppression("Can't start IO THREAD for channel 'ch3_1' when group replication is running a group configuration operation 'Change to single primary mode'*");
 call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
 call mtr.add_suppression("Slave I/O for channel 'ch3_1': Fatal error: Failed to run 'thread_start' hook, Error_code:*");
-call mtr.add_suppression("Can't start slave SQL THREAD when group replication is running a group configuration operation.");
+call mtr.add_suppression("Can't start SQL THREAD for channel 'ch3_1' when group replication is running a group configuration operation 'Change to single primary mode'*");
 call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
 call mtr.add_suppression("Slave SQL for channel 'ch3_1': Fatal error: Failed to run 'applier_start' hook, Error_code:*");
 set session sql_log_bin=1;
@@ -88,13 +88,13 @@ START SLAVE FOR CHANNEL 'ch3_1';
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count = 1
---let $assert_select = Can't start slave IO THREAD when group replication is running a group configuration operation
+--let $assert_select = Can't start IO THREAD for channel 'ch3_1' when group replication is running a group configuration operation
 --let $assert_text = Found the expected error about failure to start slave IO THREAD.
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count = 1
---let $assert_select = Can't start slave SQL THREAD when group replication is running a group configuration operation
+--let $assert_select = Can't start SQL THREAD for channel 'ch3_1' when group replication is running a group configuration operation
 --let $assert_text = Found the expected error about failure to start slave SQL THREAD.
 --source include/assert_grep.inc
 

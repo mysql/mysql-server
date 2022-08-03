@@ -113,12 +113,8 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
 
---let $assert_only_after = CURRENT_TEST: group_replication.gr_primary_mode_group_operations_09
---let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select= A member is joining the group while a group configuration operation is occurring. The member will now leave the group
---let $assert_count= 1
---let $assert_text= A member is joining the group while a group configuration operation is occurring. The member will now leave the group
---source include/assert_grep.inc
+--let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-013208' AND data LIKE "%A member is joining the group while a group configuration operation 'Change to single primary mode' is running initiated by 'SELECT group_replication_switch_to_single_primary_mode()'. The member will now leave the group.%"
+--source include/wait_condition.inc
 
 --echo
 --echo # 6. After action is executed we can add another member
@@ -127,7 +123,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 --source include/rpl_connection.inc
 
 set session sql_log_bin=0;
-call mtr.add_suppression("A member cannot join the group while a group configuration operation is running");
+call mtr.add_suppression("A member cannot join the group while a group configuration operation 'Change to single primary mode' is running initiated by *");
 set session sql_log_bin=1;
 
 --source include/start_group_replication.inc
@@ -141,7 +137,7 @@ set session sql_log_bin=1;
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 
 set session sql_log_bin=0;
-call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring.*");
+call mtr.add_suppression("A member is joining the group while a group configuration operation 'Change to single primary mode' is running*");
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server2

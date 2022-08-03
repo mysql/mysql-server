@@ -148,8 +148,14 @@ class Group_member_info : public Plugin_gcs_message {
     // Length of the paylod item: 1 byte
     PIT_ALLOW_SINGLE_LEADER = 22,
 
+    // Length of the paylod item: variable
+    PIT_GROUP_ACTION_RUNNING_NAME = 23,
+
+    // Length of the paylod item: variable
+    PIT_GROUP_ACTION_RUNNING_DESCRIPTION = 24,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 23
+    PIT_MAX = 25
   };
 
   /*
@@ -625,6 +631,36 @@ class Group_member_info : public Plugin_gcs_message {
   bool get_allow_single_leader();
 
   /**
+    Get group action name if running on the member.
+    Refer group_action_running to check if any action is running.
+    @return group action name if running on the member
+   */
+  const std::string &get_group_action_running_name();
+
+  /**
+    Set group action name if running on the member.
+    Refer group_action_running to check if any action is running.
+    @param group_action_running_name set group action name
+   */
+  void set_group_action_running_name(
+      const std::string &group_action_running_name);
+
+  /**
+    Get group action description if running on the member.
+    Refer group_action_running to check if any action is running.
+    @return group action description if running on the member
+   */
+  const std::string &get_group_action_running_description();
+
+  /**
+    Set group action description if running on the member.
+    Refer group_action_running to check if any action is running.
+    @param group_action_running_description set group action description
+   */
+  void set_group_action_running_description(
+      const std::string &group_action_running_description);
+
+  /**
     Save member view change uuid
     @param view_change_cnf uuid to be used on change views or "AUTOMATIC"
    */
@@ -674,6 +710,8 @@ class Group_member_info : public Plugin_gcs_message {
   std::string recovery_endpoints;
   std::string m_view_change_uuid;
   bool m_allow_single_leader;
+  std::string m_group_action_running_name;
+  std::string m_group_action_running_description;
 #ifndef NDEBUG
  public:
   bool skip_encode_default_table_encryption;

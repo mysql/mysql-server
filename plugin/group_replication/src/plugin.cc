@@ -3849,13 +3849,20 @@ static int check_member_weight(MYSQL_THD, SYS_VAR *, void *save,
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (plugin_is_group_replication_running() &&
-      group_action_coordinator->is_group_action_running()) {
-    my_message(ER_WRONG_VALUE_FOR_VAR,
-               "The member weight for primary elections cannot be changed "
-               "during group configuration changes.",
-               MYF(0));
-    return 1;
+  if (plugin_is_group_replication_running()) {
+    std::pair<std::string, std::string> action_initiator_and_description;
+    if (group_action_coordinator->is_group_action_running(
+            action_initiator_and_description)) {
+      std::string message(
+          "The member weight for primary elections cannot be changed while "
+          "group configuration operation '");
+      message.append(action_initiator_and_description.second);
+      message.append("' is running initiated by '");
+      message.append(action_initiator_and_description.first);
+      message.append("'.");
+      my_message(ER_WRONG_VALUE_FOR_VAR, message.c_str(), MYF(0));
+      return 1;
+    }
   }
 
   *(uint *)save =

@@ -272,10 +272,6 @@ bool Multi_primary_migration_action::stop_action_execution(bool killed) {
   return false;
 }
 
-const char *Multi_primary_migration_action::get_action_name() {
-  return "Multi primary mode migration";
-}
-
 Group_action_diagnostics *Multi_primary_migration_action::get_execution_info() {
   return &execution_message_area;
 }

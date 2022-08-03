@@ -90,7 +90,8 @@ static char *group_replication_set_as_primary(UDF_INIT *, UDF_ARGS *args,
                                        running_transactions_timeout);
   Group_action_diagnostics execution_message_area;
   group_action_coordinator->coordinate_action_execution(
-      &group_action, &execution_message_area);
+      &group_action, &execution_message_area,
+      Group_action_message::ACTION_UDF_SET_PRIMARY);
   if (log_group_action_result_message(&execution_message_area, action_name,
                                       result, length)) {
     *error = 1;
@@ -275,7 +276,11 @@ static char *group_replication_switch_to_single_primary_mode(
 
   Group_action_diagnostics execution_message_area;
   group_action_coordinator->coordinate_action_execution(
-      &group_action, &execution_message_area);
+      &group_action, &execution_message_area,
+      uuid.empty()
+          ? Group_action_message::ACTION_UDF_SWITCH_TO_SINGLE_PRIMARY_MODE
+          : Group_action_message::
+                ACTION_UDF_SWITCH_TO_SINGLE_PRIMARY_MODE_UUID);
   if (log_group_action_result_message(&execution_message_area, action_name,
                                       result, length)) {
     *error = 1;

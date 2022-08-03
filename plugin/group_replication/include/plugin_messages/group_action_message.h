@@ -46,8 +46,10 @@ class Group_action_message : public Plugin_gcs_message {
     PIT_ACTION_SET_COMMUNICATION_PROTOCOL_VERSION = 5,
     // The running_transactions_timeout field: 4 bytes
     PIT_ACTION_TRANSACTION_MONITOR_TIMEOUT = 6,
+    // The action initiator information: 4 bytes
+    PIT_ACTION_INITIATOR = 7,
     // No valid type codes can appear after this one.
-    PIT_MAX = 7
+    PIT_MAX = 8
   };
 
   /** Enum for the types of message / actions */
@@ -63,7 +65,6 @@ class Group_action_message : public Plugin_gcs_message {
     // The end of the enum
     ACTION_MESSAGE_END = 4
   };
-
   /** Enum for the phase of the action in the message */
   enum enum_action_message_phase {
     ACTION_UNKNOWN_PHASE = 0,  // This type should not be used
@@ -71,6 +72,24 @@ class Group_action_message : public Plugin_gcs_message {
     ACTION_END_PHASE = 2,      // The action was ended
     ACTION_ABORT_PHASE = 3,    // The action was aborted
     ACTION_PHASE_END = 4,      // The enum end
+  };
+
+  /** Enum to identify initiator and action. */
+  enum enum_action_initiator_and_action {
+    // This type should not be used
+    ACTION_INITIATOR_UNKNOWN = 0,  // to match with ACTION_UNKNOWN_MESSAGE
+    // Change to multi primary
+    ACTION_UDF_SWITCH_TO_MULTI_PRIMARY_MODE = 1,
+    // Change primary
+    ACTION_UDF_SET_PRIMARY = 2,
+    // Change to single primary
+    ACTION_UDF_SWITCH_TO_SINGLE_PRIMARY_MODE = 3,
+    // Change to single primary with UUID
+    ACTION_UDF_SWITCH_TO_SINGLE_PRIMARY_MODE_UUID = 4,
+    // Change GCS protocol version
+    ACTION_UDF_COMMUNICATION_PROTOCOL_MESSAGE = 5,
+    // The end of the enum
+    ACTION_INITIATOR_END = 6
   };
 
   /**
@@ -137,6 +156,21 @@ class Group_action_message : public Plugin_gcs_message {
   */
   void set_return_value(int return_value_arg) {
     return_value = return_value_arg;
+  }
+
+  /**
+    Set the action initiator.
+    @param initiator Identifier for Group action initiator
+  */
+  void set_action_initiator(const enum_action_initiator_and_action initiator) {
+    m_action_initiator = initiator;
+  }
+
+  /**
+    @return Identifier for Group action initiator
+  */
+  const enum_action_initiator_and_action &get_action_initiator() {
+    return m_action_initiator;
   }
 
   /**
@@ -211,6 +245,8 @@ class Group_action_message : public Plugin_gcs_message {
     transactions that did not reach commit stage.
   */
   int32 m_transaction_monitor_timeout{-1};
+  /** Group action identifier */
+  enum_action_initiator_and_action m_action_initiator;
 };
 
 #endif /* GROUP_ACTION_MESSAGE_INCLUDED */

@@ -277,8 +277,9 @@ static char *group_replication_set_communication_protocol(
 
   Communication_protocol_action group_action(gcs_protocol);
   Group_action_diagnostics action_diagnostics;
-  group_action_coordinator->coordinate_action_execution(&group_action,
-                                                        &action_diagnostics);
+  group_action_coordinator->coordinate_action_execution(
+      &group_action, &action_diagnostics,
+      Group_action_message::ACTION_UDF_COMMUNICATION_PROTOCOL_MESSAGE);
   if (log_group_action_result_message(
           &action_diagnostics, "group_replication_set_communication_protocol",
           result, length)) {

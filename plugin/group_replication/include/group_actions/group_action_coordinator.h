@@ -31,10 +31,20 @@
 
 class Group_action_information {
  public:
-  Group_action_information();
-  Group_action_information(bool is_local, Group_action *current_proposed_action,
-                           Group_action_diagnostics *execution_message_area);
+  Group_action_information(
+      Group_action_message::enum_action_initiator_and_action initiator);
+  Group_action_information(
+      bool is_local, Group_action *current_proposed_action,
+      Group_action_diagnostics *execution_message_area,
+      Group_action_message::enum_action_initiator_and_action initiator);
   ~Group_action_information();
+  /**
+    Provides running group action details.
+
+    @retval string  Pair: Initiator details and Group action description
+  */
+
+  const std::pair<std::string, std::string> get_action_name_and_description();
 
   /* Was it proposed locally*/
   bool is_local;
@@ -44,6 +54,8 @@ class Group_action_information {
   Group_action_diagnostics *execution_message_area;
   /* What is the action return value */
   Group_action::enum_action_execution_result action_result;
+  /* Initiator and action details */
+  Group_action_message::enum_action_initiator_and_action m_action_initiator;
 };
 
 /**
@@ -85,10 +97,13 @@ class Group_action_coordinator : public Group_event_observer {
   /** Submit an action for execution in the coordinator
     @param action         The action instance to execute in the group
     @param execution_info The result information for this action execution
+    @param initiator      Details of initiator and action
+
     @return !=0 if something wrong happened in the action
   */
-  int coordinate_action_execution(Group_action *action,
-                                  Group_action_diagnostics *execution_info);
+  int coordinate_action_execution(
+      Group_action *action, Group_action_diagnostics *execution_info,
+      Group_action_message::enum_action_initiator_and_action initiator);
 
   /**
     Asks the coordinator to stop any ongoing action
@@ -114,9 +129,11 @@ class Group_action_coordinator : public Group_event_observer {
   /**
     Returns if there is a group action running
 
+    @param[out] initiator action name and description if running
+
     @return true if an action is being executed
   */
-  bool is_group_action_running();
+  bool is_group_action_running(std::pair<std::string, std::string> &initiator);
 
   /**
     The main thread process for the action execution process

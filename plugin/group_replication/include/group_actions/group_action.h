@@ -183,12 +183,6 @@ class Group_action {
   virtual bool stop_action_execution(bool killed) = 0;
 
   /**
-    Returns the name of the action for debug messages and such
-    @return the action name
-  */
-  virtual const char *get_action_name() = 0;
-
-  /**
     Gets the info about execution, be it success or failure
     @return the execution diagnostics object that was the message and its level
   */

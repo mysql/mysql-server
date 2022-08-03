@@ -1099,10 +1099,14 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     collect_members_executed_sets(view_change_packet);
     applier_module->add_view_change_packet(view_change_packet);
 
-    if (number_of_joining_members > 0 &&
-        group_action_coordinator->is_group_action_running()) {
-      LogPluginErr(WARNING_LEVEL,
-                   ER_GRP_RPL_JOINER_EXIT_WHEN_GROUP_ACTION_RUNNING);
+    if (number_of_joining_members > 0) {
+      std::pair<std::string, std::string> action_initiator_and_description;
+      if (group_action_coordinator->is_group_action_running(
+              action_initiator_and_description))
+        LogPluginErr(WARNING_LEVEL,
+                     ER_GRP_RPL_JOINER_EXIT_WHEN_GROUP_ACTION_RUNNING,
+                     action_initiator_and_description.second.c_str(),
+                     action_initiator_and_description.first.c_str());
     }
   }
 }
@@ -1345,8 +1349,19 @@ sending:
   std::vector<uchar> data;
 
   // alert joiners that an action or election is running
-  local_member_info->set_is_group_action_running(
-      group_action_coordinator->is_group_action_running());
+  {
+    std::pair<std::string, std::string> action_initiator_and_description;
+    if (group_action_coordinator->is_group_action_running(
+            action_initiator_and_description)) {
+      local_member_info->set_is_group_action_running(true);
+      local_member_info->set_group_action_running_name(
+          action_initiator_and_description.first);
+      local_member_info->set_group_action_running_description(
+          action_initiator_and_description.second);
+    } else {
+      local_member_info->set_is_group_action_running(false);
+    }
+  }
   local_member_info->set_is_primary_election_running(
       primary_election_handler->is_an_election_running());
   Group_member_info *local_member_copy =
@@ -1526,8 +1541,12 @@ int Plugin_gcs_events_handler::check_group_compatibility(
     }
   }
 
-  if (is_group_running_a_configuration_change()) {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_JOIN_WHEN_GROUP_ACTION_RUNNING);
+  std::string action_name;
+  std::string action_description;
+  if (is_group_running_a_configuration_change(action_name,
+                                              action_description)) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_JOIN_WHEN_GROUP_ACTION_RUNNING,
+                 action_description.c_str(), action_name.c_str());
     return GROUP_REPLICATION_CONFIGURATION_ERROR;
   }
 
@@ -1794,13 +1813,17 @@ cleaning:
   return result;
 }
 
-bool Plugin_gcs_events_handler::is_group_running_a_configuration_change()
-    const {
+bool Plugin_gcs_events_handler::is_group_running_a_configuration_change(
+    std::string &group_action_running_name,
+    std::string &group_action_running_description) const {
   bool is_action_running = false;
   Group_member_info_list *all_members = group_member_mgr->get_all_members();
   for (Group_member_info *member_info : *all_members) {
     if (member_info->is_group_action_running()) {
       is_action_running = true;
+      group_action_running_name = member_info->get_group_action_running_name();
+      group_action_running_description =
+          member_info->get_group_action_running_description();
       break;
     }
   }
