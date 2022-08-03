@@ -1,0 +1,74 @@
+################################################################################
+# This test validates that even when there are concurrent select on
+# performance_schema.replication_group_member_actions table, server should work
+# fine and remain online state.
+#
+# Test:
+# 00. The test requires three servers: M1, M2 and M3.
+# 01. On M1, connection thread(T1) executes a select query on
+#     performance_schema.replication_group_member_actions table, then wait on
+#     sync point.
+# 02. Verify that T1 is waiting on sync point.
+# 03. Remove the debug flag and execute the select query from another
+#     connection.
+# 04. Signal to continue T1 and verify that all members are online.
+# 05. Cleaning up.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo #########################################################################
+--echo # 01. On M1, connection thread(T1) executes the select query on
+--echo #     performance_schema.replication_group_member_actions table, then
+--echo #     wait on sync point.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $_group_replication_action_enabled= query_get_value(SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name = 'mysql_disable_super_read_only_if_primary', enabled, 1)
+
+--let $debug_point=group_replication_wait_before_group_member_actions_read_column_value
+--source include/add_debug_point.inc
+
+--send SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name = 'mysql_disable_super_read_only_if_primary'
+
+--echo
+--echo #########################################################################
+--echo # 02. Verify that T1 is waiting on sync point.
+--connect (server_1_2,127.0.0.1,root,,test,$MASTER_MYPORT,,)
+
+--let $rpl_connection_name= server_1_2
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now' and info = "SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name = 'mysql_disable_super_read_only_if_primary'"
+--source include/wait_condition.inc
+
+--echo
+--echo #########################################################################
+--echo # 03. Remove the debug flag and execute the select query from another
+--echo #     connection.
+--let $debug_point=group_replication_wait_before_group_member_actions_read_column_value
+--source include/remove_debug_point.inc
+
+--replace_result $_group_replication_action_enabled MEMBER_ACTION
+SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name = 'mysql_disable_super_read_only_if_primary';
+
+--echo
+--echo ########################################################################
+--echo # 04. Signal to continue T1 and verify that all members are online.
+SET DEBUG_SYNC= 'now SIGNAL signal.after_group_member_actions_read_column_value_continue';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $_group_replication_action_enabled MEMBER_ACTION
+--reap
+
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--echo
+--echo ################################################################
+--echo # 05. Cleanup
+--source include/group_replication_end.inc

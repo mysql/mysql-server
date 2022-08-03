@@ -1,0 +1,36 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#########################################################################
+# 01. On M1, connection thread(T1) executes the select query on
+#     performance_schema.replication_group_configuration_version table,
+#     then wait on sync point.
+[connection server1]
+# Adding debug point 'group_replication_wait_before_group_configuration_version_read_column_value' to @@GLOBAL.debug
+SELECT version FROM performance_schema.replication_group_configuration_version WHERE name = 'replication_group_member_actions';
+
+#########################################################################
+# 02. Verify that T1 is waiting on sync point.
+[connection server_1_2]
+
+#########################################################################
+# 03. Remove the debug flag and execute the select query from another
+#     connection.
+# Removing debug point 'group_replication_wait_before_group_configuration_version_read_column_value' from @@GLOBAL.debug
+SELECT version FROM performance_schema.replication_group_configuration_version WHERE name = 'replication_group_member_actions';
+version
+CONFIG_VERSION
+
+########################################################################
+# 04. Signal to continue T1 and verify that all members are online.
+SET DEBUG_SYNC= 'now SIGNAL signal.after_group_configuration_version_read_column_value_continue';
+[connection server1]
+version
+CONFIG_VERSION
+
+################################################################
+# 05. Cleanup
+include/group_replication_end.inc

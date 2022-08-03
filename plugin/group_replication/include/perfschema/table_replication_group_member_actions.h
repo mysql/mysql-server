@@ -29,6 +29,17 @@ class Pfs_table_replication_group_member_actions : public Abstract_Pfs_table {
 
   bool init() override;
   bool deinit() override;
+
+  static unsigned long long get_row_count();
+  static int rnd_init(PSI_table_handle *handle [[maybe_unused]],
+                      bool scan [[maybe_unused]]);
+  static int rnd_next(PSI_table_handle *handle);
+  static int rnd_pos(PSI_table_handle *handle);
+  static void reset_position(PSI_table_handle *handle);
+  static int read_column_value(PSI_table_handle *handle, PSI_field *field,
+                               unsigned int index);
+  static PSI_table_handle *open_table(PSI_pos **pos [[maybe_unused]]);
+  static void close_table(PSI_table_handle *handle);
 };
 
 }  // namespace perfschema
