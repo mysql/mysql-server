@@ -3537,8 +3537,19 @@ static void buf_flush_page_coordinator_thread() {
   buf_flush_wait_LRU_batch_end();
 
   bool success;
+  bool are_any_read_ios_still_underway;
 
   do {
+    /* If there are any read operations pending, they can result in the ibuf
+    merges and a dirtying page after the read is completed. If there are any
+    IO reads running before we run the flush loop, we risk having some dirty
+    pages after flushing reports n_flushed == 0. The ibuf change merging on
+    page results in dirtying the page and is followed by decreasing the
+    n_pend_reads counter, thus it's safe to check it before flush loop and
+    have guarantees if it was seen with value of 0. These reads could be issued
+    in the previous stage(s), the srv_master thread on shutdown tasks clear the
+    ibuf unless it's the fast shutdown. */
+    are_any_read_ios_still_underway = buf_get_n_pending_read_ios() > 0;
     pc_request(ULINT_MAX, LSN_MAX);
 
     while (pc_flush_slot() > 0) {
@@ -3553,7 +3564,7 @@ static void buf_flush_page_coordinator_thread() {
     buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
     buf_flush_wait_LRU_batch_end();
 
-  } while (!success || n_flushed > 0);
+  } while (!success || n_flushed > 0 || are_any_read_ios_still_underway);
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
