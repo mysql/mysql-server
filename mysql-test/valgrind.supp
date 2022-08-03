@@ -2619,3 +2619,16 @@
    fun:s2n_config_defaults_init
    ...
 }
+
+# Suppress https://bugzilla.redhat.com/show_bug.cgi?id=1462258
+
+{
+   suppress_param_points_to_unaddressable_bytes 
+   Memcheck:Param
+   ppoll(sigmask)
+   fun:ppoll
+   fun:ppoll
+   fun:_Z11vio_io_waitP3Vio17enum_vio_io_eventi
+   ...
+}
+
