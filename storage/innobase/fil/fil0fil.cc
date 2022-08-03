@@ -4562,6 +4562,8 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     tablespace file, the record must have already been
     written to the redo log. */
     log_write_up_to(*log_sys, mtr.commit_lsn(), true);
+
+    DBUG_EXECUTE_IF("space_delete_crash", DBUG_SUICIDE(););
 #endif /* UNIV_HOTBACKUP */
 
     char *cfg_name = Fil_path::make_cfg(path);
@@ -11759,7 +11761,13 @@ uint32_t fil_space_t::get_recent_version() const {
   return m_version;
 }
 bool fil_space_t::has_no_references() const {
-  ut_ad(fil_system->shard_by_id(id)->mutex_owned());
+  /* To assure the ref count can't be increased, we must either operate on
+  detached space that is ready to be removed, or have the fil shard latched. */
+#ifdef UNIV_DEBUG
+  if (!fil_system->shard_by_id(id)->mutex_owned()) {
+    ut_a(fil_space_get(id) != this);
+  }
+#endif
   return m_n_ref_count.load() == 0;
 }
 size_t fil_space_t::get_reference_count() const {
