@@ -1,0 +1,45 @@
+SET GLOBAL innodb_file_per_table=ON;
+#
+# Disable page cleaners and prevent page flushing/checkpointing.
+#
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+SET GLOBAL innodb_log_checkpoint_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_purge_stop_now = 1;
+#
+# Prepare tablespace and fill in some data.
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+#
+# Spam the redolog to force the previous data to be applied.
+# We set 5MB Buffer Pool, so around that many redologs is required. One
+# spam iteration will provide 400KB of log.
+#
+CALL log_spam(13);
+#
+# Drop tablespace now. After the crash, the previous log apply would
+# make the t1 tablespace be opened for recovery. Later, during the scan
+# of a next redo block, we would close it.
+#
+SET DEBUG='+d, space_delete_crash';
+DROP TABLE t1;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+#
+# Cleanup
+#

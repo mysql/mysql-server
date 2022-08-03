@@ -1,0 +1,77 @@
+#
+# This testcase checks if tablespace removal is handled correctly
+# during recovery. Assumption is file per table.
+# 
+# Crash between MLOG_FILE_RENAME is written to redo and the file is removed.
+
+--source include/not_valgrind.inc
+
+# the DBUG_EXECUTE_IF() macro needs a debug server.
+--source include/have_debug.inc
+
+--disable_query_log
+# These values can change during the test
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+
+
+--enable_query_log
+
+SET GLOBAL innodb_file_per_table=ON;
+
+
+--echo #
+--echo # Disable page cleaners and prevent page flushing/checkpointing.
+--echo #
+--source ../include/log_disable_page_cleaners.inc
+
+--echo #
+--echo # Prepare tablespace and fill in some data.
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+
+
+--echo #
+--echo # Spam the redolog to force the previous data to be applied.
+--echo # We set 5MB Buffer Pool, so around that many redologs is required. One
+--echo # spam iteration will provide 400KB of log.
+--echo #
+--source include/ib_log_spammer_init.inc
+CALL log_spam(13);
+
+
+--echo #
+--echo # Drop tablespace now. After the crash, the previous log apply would
+--echo # make the t1 tablespace be opened for recovery. Later, during the scan
+--echo # of a next redo block, we would close it.
+--echo #
+
+--source include/expect_crash.inc
+SET DEBUG='+d, space_delete_crash';
+--error CR_SERVER_LOST
+DROP TABLE t1;
+--source include/wait_until_disconnected.inc
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--source include/ib_log_spammer_cleanup.inc
+
+-- disable_query_log
+eval set global innodb_file_per_table=$innodb_file_per_table_orig;
+-- enable_query_log
