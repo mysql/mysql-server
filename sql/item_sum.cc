@@ -2835,8 +2835,16 @@ bool Item_sum_hybrid::compute() {
   */
   if (m_want_first != m_nulls_first) {
     // Cases (2) and (3): same structure as Item_first_last_value::compute
+
+    const bool visiting_first_in_frame =
+        (m_window->optimizable_row_aggregates() &&
+         m_window->rowno_being_visited() ==
+             m_window->first_rowno_in_rows_frame()) ||
+        !m_window->optimizable_row_aggregates();
+
     if ((m_window->needs_buffering() &&
-         (((m_window->rowno_in_frame() == 1 && m_want_first) ||
+         (((m_window->rowno_in_frame() == 1 && m_want_first &&
+            visiting_first_in_frame) ||
            (m_window->is_last_row_in_frame() && !m_want_first)) ||
           m_window->rowno_being_visited() == 0 /* No FROM; one const row */)) ||
         (!m_window->needs_buffering() &&
@@ -2902,8 +2910,11 @@ bool Item_sum_hybrid::compute() {
         (!m_window->needs_buffering())) {
       value->store_and_cache(args[0]);
       null_value = value->null_value;
-      const int64 frame_start =
-          (m_window->rowno_being_visited() - m_window->rowno_in_frame() + 1);
+
+      const int64 frame_start = m_window->optimizable_row_aggregates()
+                                    ? m_window->first_rowno_in_rows_frame()
+                                    : (m_window->rowno_being_visited() -
+                                       m_window->rowno_in_frame() + 1);
 
       if (!value->null_value &&
           m_window->rowno_being_visited() > m_saved_last_value_at) {
@@ -5147,7 +5158,6 @@ bool Item_first_last_value::compute() {
   }
   return null_value || current_thd->is_error();
 }
-
 longlong Item_first_last_value::val_int() {
   if (wf_common_init()) return 0;
 
