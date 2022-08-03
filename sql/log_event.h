@@ -2236,16 +2236,6 @@ class Begin_load_query_log_event : public Append_block_log_event,
                              const Format_description_event *description_event);
   ~Begin_load_query_log_event() override = default;
 
-#ifndef HAVE_MYSYS
-  // Visual Studio complains: inherits via dominance.
-  void print_event_info(std::ostream &s) override {
-    ::binary_log::Begin_load_query_event::print_event_info(s);
-  }
-  void print_long_info(std::ostream &s) override {
-    ::binary_log::Begin_load_query_event::print_long_info(s);
-  }
-#endif
-
  private:
 #if defined(MYSQL_SERVER)
   enum_skip_reason do_shall_skip(Relay_log_info *rli) override;
