@@ -2411,7 +2411,7 @@ ulint ibuf_merge_in_background(bool full) {
     mutex_enter(&ibuf_mutex);
 
     /* If the ibuf->size is more than half the max_size
-    then we make more agreesive contraction.
+    then we make more aggressive contraction.
     +1 is to avoid division by zero. */
     if (ibuf->size > ibuf->max_size / 2) {
       ulint diff = ibuf->size - ibuf->max_size / 2;
