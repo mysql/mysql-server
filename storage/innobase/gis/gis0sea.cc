@@ -852,7 +852,7 @@ rtr_info_t *rtr_create_rtr_info(bool need_prdt, bool init_matches,
         page_align(rtr_info->matches->rec_buf + UNIV_PAGE_SIZE_MAX + 1);
     mutex_create(LATCH_ID_RTR_MATCH_MUTEX, &rtr_info->matches->rtr_match_mutex);
     rw_lock_create(PFS_NOT_INSTRUMENTED, &(rtr_info->matches->block.lock),
-                   SYNC_LEVEL_VARYING);
+                   LATCH_ID_BUF_BLOCK_LOCK);
   }
 
   rtr_info->path = ut::new_withkey<rtr_node_path_t>(UT_NEW_THIS_FILE_PSI_KEY);

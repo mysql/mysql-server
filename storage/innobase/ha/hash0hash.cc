@@ -106,15 +106,14 @@ void hash_create_sync_obj(hash_table_t *table, latch_id_t id,
   ut_a(ut_is_2pow(n_sync_obj));
   ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   table->type = HASH_TABLE_SYNC_RW_LOCK;
-  latch_level_t level = sync_latch_get_level(id);
 
-  ut_a(level != SYNC_UNKNOWN);
+  ut_a(sync_latch_get_level(id) != SYNC_UNKNOWN);
 
   table->rw_locks = static_cast<rw_lock_t *>(ut::malloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, n_sync_obj * sizeof(rw_lock_t)));
 
   for (size_t i = 0; i < n_sync_obj; i++) {
-    rw_lock_create(hash_table_locks_key, table->rw_locks + i, level);
+    rw_lock_create(hash_table_locks_key, table->rw_locks + i, id);
   }
 
   table->n_sync_obj = n_sync_obj;

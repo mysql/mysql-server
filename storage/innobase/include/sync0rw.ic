@@ -465,8 +465,7 @@ static inline void rw_lock_sx_unlock_func(IF_DEBUG(ulint pass, )
 #ifdef UNIV_PFS_RWLOCK
 
 static inline void pfs_rw_lock_create_func(mysql_pfs_key_t key, rw_lock_t *lock,
-                                           IF_DEBUG(latch_level_t level,
-                                                    const char *cmutex_name, )
+                                           IF_DEBUG(latch_id_t id, )
                                                ut::Location clocation) {
   new (lock) rw_lock_t{};
 
@@ -474,7 +473,7 @@ static inline void pfs_rw_lock_create_func(mysql_pfs_key_t key, rw_lock_t *lock,
   lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key.m_value, lock);
 
   /* The actual function to initialize an rwlock */
-  rw_lock_create_func(lock, IF_DEBUG(level, cmutex_name, ) clocation);
+  rw_lock_create_func(lock, IF_DEBUG(id, ) clocation);
 }
 /** Performance schema instrumented wrap function for rw_lock_x_lock_func()
  NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly

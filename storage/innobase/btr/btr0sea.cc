@@ -207,7 +207,7 @@ btr_search_sys_t::btr_search_sys_t(size_t hash_size) {
 
 void btr_search_sys_t::search_part_t::initialize(size_t hash_size) {
   /* Step-1: Init latches. */
-  rw_lock_create(btr_search_latch_key, &latch, SYNC_SEARCH_SYS);
+  rw_lock_create(btr_search_latch_key, &latch, LATCH_ID_BTR_SEARCH);
 
   /* Step-2: Allocate hash tables. */
   hash_table = ib_create((hash_size / btr_ahi_parts), LATCH_ID_HASH_TABLE_MUTEX,

@@ -124,7 +124,7 @@ TEST(sync0rw, rw_lock_reader_thread) {
   rw_lock_t *rw_locks[3];
   for (auto &rw_lock : rw_locks) {
     rw_lock = static_cast<rw_lock_t *>(malloc(sizeof(rw_lock_t)));
-    rw_lock_create(PSI_NOT_INSTRUMENTED, rw_lock, SYNC_LEVEL_VARYING);
+    rw_lock_create(PSI_NOT_INSTRUMENTED, rw_lock, LATCH_ID_BUF_BLOCK_LOCK);
   }
 
   std::atomic<std::thread::id> thread_1_id;

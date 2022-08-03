@@ -118,12 +118,10 @@ extern ib_mutex_t rw_lock_list_mutex;
  to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
  is necessary only if the memory block containing it is freed.
  @param[in] lock pointer to memory
- @param[in] level level
- @param[in] cmutex_name mutex name
+ @param[in] id latch_id
  @param[in] clocation location where created */
-void rw_lock_create_func(rw_lock_t *lock, IF_DEBUG(latch_level_t level,
-                                                   const char *cmutex_name, )
-                                              ut::Location clocation);
+void rw_lock_create_func(rw_lock_t *lock,
+                         IF_DEBUG(latch_id_t id, ) ut::Location clocation);
 /** Calling this function is obligatory only if the memory buffer containing
  the rw-lock is freed. Removes an rw-lock object from the global list. The
  rw-lock is checked to be in the non-locked state. */
@@ -450,8 +448,6 @@ struct rw_lock_t
   /** In the debug version: pointer to the debug info list of the lock */
   UT_LIST_BASE_NODE_T(rw_lock_debug_t, list) debug_list{};
 
-  /** Level in the global latching order. */
-  latch_level_t level;
 #endif /* UNIV_DEBUG */
 
   /** Checks if there is a thread requesting an x-latch waiting for threads to
@@ -498,12 +494,10 @@ NOTE! Please use the corresponding macro rw_lock_create(), not directly this
 function!
 @param[in]      key             key registered with performance schema
 @param[in]      lock            rw lock
-@param[in]      level           level
-@param[in]      cmutex_name     mutex name
+@param[in]      id              latch_id
 @param[in]      clocation       location where created */
 static inline void pfs_rw_lock_create_func(mysql_pfs_key_t key, rw_lock_t *lock,
-                                           IF_DEBUG(latch_level_t level,
-                                                    const char *cmutex_name, )
+                                           IF_DEBUG(latch_id_t id, )
                                                ut::Location clocation);
 
 /** Performance schema instrumented wrap function for rw_lock_x_lock_func()
@@ -618,10 +612,10 @@ static inline void pfs_rw_lock_free_func(rw_lock_t *lock); /*!< in: rw-lock */
  if MySQL performance schema is enabled and "UNIV_PFS_RWLOCK" is
  defined, the rwlock are instrumented with performance schema probes. */
 #ifdef UNIV_DEBUG
-#define rw_lock_create(K, L, level) \
-  rw_lock_create_func((L), (level), #L, UT_LOCATION_HERE)
+#define rw_lock_create(K, L, ID) \
+  rw_lock_create_func((L), (ID), UT_LOCATION_HERE)
 #else /* UNIV_DEBUG */
-#define rw_lock_create(K, L, level) rw_lock_create_func((L), UT_LOCATION_HERE)
+#define rw_lock_create(K, L, ID) rw_lock_create_func((L), UT_LOCATION_HERE)
 #endif /* UNIV_DEBUG */
 
 /** NOTE! The following macros should be used in rw locking and
@@ -706,10 +700,10 @@ static inline void rw_lock_x_unlock_gen(rw_lock_t *L, ulint P) {
 
 /* Following macros point to Performance Schema instrumented functions. */
 #ifdef UNIV_DEBUG
-#define rw_lock_create(K, L, level) \
-  pfs_rw_lock_create_func((K), (L), (level), #L, UT_LOCATION_HERE)
+#define rw_lock_create(K, L, ID) \
+  pfs_rw_lock_create_func((K), (L), (ID), UT_LOCATION_HERE)
 #else /* UNIV_DEBUG */
-#define rw_lock_create(K, L, level) \
+#define rw_lock_create(K, L, ID) \
   pfs_rw_lock_create_func((K), (L), UT_LOCATION_HERE)
 #endif /* UNIV_DEBUG */
 
