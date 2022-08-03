@@ -497,9 +497,6 @@ bool PT_set_variable::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || itemize_safe(pc, &m_opt_expr)) {
     return true;
   }
-
-  THD *const thd = pc->thd;
-  LEX *const lex = thd->lex;
   const bool is_1d_name = m_opt_prefix.str == nullptr;
 
   /*
@@ -526,7 +523,14 @@ bool PT_set_variable::contextualize(Parse_context *pc) {
     3. Process SP local variable assignment:
   */
 
+  THD *const thd = pc->thd;
+  LEX *const lex = thd->lex;
   if (is_1d_name) {
+    // Remove deprecation warning when FULL is used as keyword.
+    if (thd->get_stmt_da()->has_sql_condition(ER_WARN_DEPRECATED_IDENT)) {
+      thd->get_stmt_da()->reset_condition_info(thd);
+    }
+
     sp_variable *spv = find_sp_variable(*pc, m_name);
     if (spv != nullptr) {
       if (m_opt_expr == nullptr) {
@@ -3643,6 +3647,12 @@ bool PT_set_scoped_system_variable::contextualize(Parse_context *pc) {
     return true;
   }
 
+  // Remove deprecation warning when FULL is used as keyword.
+  THD *thd = pc->thd;
+  if (thd->get_stmt_da()->has_sql_condition(ER_WARN_DEPRECATED_IDENT)) {
+    thd->get_stmt_da()->reset_condition_info(thd);
+  }
+
   const bool is_1d_name = m_opt_prefix.str == nullptr;
 
   /*
@@ -3691,6 +3701,12 @@ bool PT_set_system_variable::contextualize(Parse_context *pc) {
     return true;
   }
 
+  // Remove deprecation warning when FULL is used as keyword.
+  THD *thd = pc->thd;
+  if (thd->get_stmt_da()->has_sql_condition(ER_WARN_DEPRECATED_IDENT)) {
+    thd->get_stmt_da()->reset_condition_info(thd);
+  }
+
   /*
     This is `@@[scope.][prefix.]name, so reject @@[scope].{NEW | OLD}.name:
   */
@@ -3699,7 +3715,7 @@ bool PT_set_system_variable::contextualize(Parse_context *pc) {
     return true;
   }
 
-  return add_system_variable_assignment(pc->thd, m_opt_prefix, m_name, m_scope,
+  return add_system_variable_assignment(thd, m_opt_prefix, m_name, m_scope,
                                         m_opt_expr);
 }
 

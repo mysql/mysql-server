@@ -15284,6 +15284,12 @@ ident_keywords_unambiguous:
         | FORMAT_SYM
         | FOUND_SYM
         | FULL
+          {
+            THD *thd= YYTHD;
+            push_warning_printf(thd, Sql_condition::SL_WARNING,
+                                ER_WARN_DEPRECATED_IDENT,
+                                ER_THD(thd, ER_WARN_DEPRECATED_IDENT), "FULL");
+          }
         | GENERAL
         | GEOMETRYCOLLECTION_SYM
         | GEOMETRY_SYM

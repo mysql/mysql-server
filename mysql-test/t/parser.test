@@ -2643,3 +2643,28 @@ EXPLAIN SELECT 1 INTO DUMPFILE 'file1' FROM DUAL INTO DUMPFILE 'file2';
 # fixed. Verify that it still does.
 --error ER_MULTIPLE_INTO_CLAUSES
 EXPLAIN SELECT 1 INTO OUTFILE 'file1' FROM DUAL INTO OUTFILE 'file2';
+
+--echo #
+--echo # Deprecate usage of "full" as unquoted identfier
+--echo #
+CREATE TABLE full(i INT);
+DROP TABLE full;
+CREATE TABLE `full`(i INT);
+SELECT * from `full`;
+SELECT * from `full` AS full;
+SELECT * from `full` AS `full`;
+SELECT * from full;
+SELECT * from full as full;
+SELECT * from `full` full;
+--error ER_PARSE_ERROR
+SELECT * from full outer;
+
+SET @save_sql_mode=@@sql_mode;
+SET SQL_MODE = 'ANSI_QUOTES';
+SELECT * from `full`;
+SELECT * from "full";
+SELECT * from full;
+SET @@sql_mode=@save_sql_mode;
+
+DROP TABLE `full`;
+

@@ -2753,3 +2753,48 @@ EXPLAIN SELECT 1 INTO DUMPFILE 'file1' FROM DUAL INTO DUMPFILE 'file2';
 ERROR HY000: Multiple INTO clauses in one query block.
 EXPLAIN SELECT 1 INTO OUTFILE 'file1' FROM DUAL INTO OUTFILE 'file2';
 ERROR HY000: Multiple INTO clauses in one query block.
+#
+# Deprecate usage of "full" as unquoted identfier
+#
+CREATE TABLE full(i INT);
+Warnings:
+Warning	4119	Using FULL as unquoted identifier is deprecated, please use quotes or rename the identifier.
+DROP TABLE full;
+Warnings:
+Warning	4119	Using FULL as unquoted identifier is deprecated, please use quotes or rename the identifier.
+CREATE TABLE `full`(i INT);
+SELECT * from `full`;
+i
+SELECT * from `full` AS full;
+i
+Warnings:
+Warning	4119	Using FULL as unquoted identifier is deprecated, please use quotes or rename the identifier.
+SELECT * from `full` AS `full`;
+i
+SELECT * from full;
+i
+Warnings:
+Warning	4119	Using FULL as unquoted identifier is deprecated, please use quotes or rename the identifier.
+SELECT * from full as full;
+i
+Warnings:
+Warning	4119	Using FULL as unquoted identifier is deprecated, please use quotes or rename the identifier.
+Warning	4119	Using FULL as unquoted identifier is deprecated, please use quotes or rename the identifier.
+SELECT * from `full` full;
+i
+Warnings:
+Warning	4119	Using FULL as unquoted identifier is deprecated, please use quotes or rename the identifier.
+SELECT * from full outer;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'outer' at line 1
+SET @save_sql_mode=@@sql_mode;
+SET SQL_MODE = 'ANSI_QUOTES';
+SELECT * from `full`;
+i
+SELECT * from "full";
+i
+SELECT * from full;
+i
+Warnings:
+Warning	4119	Using FULL as unquoted identifier is deprecated, please use quotes or rename the identifier.
+SET @@sql_mode=@save_sql_mode;
+DROP TABLE `full`;
