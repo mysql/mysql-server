@@ -634,11 +634,15 @@ static inline void dict_table_x_lock_indexes(
 
   ut_a(table);
   ut_ad(dict_sys_mutex_own());
+  ut_d(dict_validate_no_purge_rollback_threads());
 
   /* Loop through each index of the table and lock them */
-  for (index = table->first_index(); index != nullptr; index = index->next()) {
+  auto clustered_index = table->first_index();
+  for (index = clustered_index->next(); index != nullptr;
+       index = index->next()) {
     rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
   }
+  rw_lock_x_lock(dict_index_get_lock(clustered_index), UT_LOCATION_HERE);
 }
 
 /** Release the exclusive locks on all index tree. */

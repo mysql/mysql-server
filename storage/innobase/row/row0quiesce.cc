@@ -1118,9 +1118,23 @@ dberr_t row_quiesce_set_state(
                 " FTS auxiliary tables will not be flushed.");
   }
 
+  if (srv_thread_is_active(srv_threads.m_trx_recovery_rollback)) {
+    /* We should wait until rollback after recovery end,
+    to lock the table consistently. */
+    srv_threads.m_trx_recovery_rollback.wait();
+  }
+  if (trx_purge_state() != PURGE_STATE_DISABLED) {
+    /* We should stop purge to lock the table consistently. */
+    trx_purge_stop();
+  }
+
   row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
 
   dict_table_x_lock_indexes(table);
+
+  if (trx_purge_state() != PURGE_STATE_DISABLED) {
+    trx_purge_run();
+  }
 
   switch (state) {
     case QUIESCE_START:
