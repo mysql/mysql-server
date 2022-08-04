@@ -1722,9 +1722,11 @@ class Query_block : public Query_term {
     have their own mem_roots.
   */
   void destroy();
-  /// Return true if this query block is part of a set operation
-  bool is_part_of_set_operation() const {
-    return master_query_expression()->is_set_operation();
+
+  /// @return true when query block is not part of a set operation and is not a
+  /// parenthesized query expression.
+  bool is_simple_query_block() const {
+    return master_query_expression()->is_simple();
   }
 
   /**
