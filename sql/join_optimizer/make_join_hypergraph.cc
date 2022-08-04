@@ -2444,12 +2444,13 @@ size_t EstimateHashJoinKeyWidth(const RelationalExpression *expr) {
 
 namespace {
 
-NodeMap IntersectIfNotDegenerate(NodeMap used_nodes, NodeMap available_nodes) {
-  if (!Overlaps(used_nodes, available_nodes)) {
+table_map IntersectIfNotDegenerate(table_map used_tables,
+                                   table_map available_tables) {
+  if (!Overlaps(used_tables, available_tables)) {
     // Degenerate case.
-    return available_nodes;
+    return available_tables;
   } else {
-    return used_nodes & available_nodes;
+    return used_tables & available_tables;
   }
 }
 
@@ -2572,48 +2573,57 @@ NodeMap AbsorbConflictRulesIntoTES(
   the presence of such cases.
  */
 Hyperedge FindHyperedgeAndJoinConflicts(THD *thd, NodeMap used_nodes,
-                                        RelationalExpression *expr) {
+                                        RelationalExpression *expr,
+                                        const JoinHypergraph *graph) {
   assert(expr->type != RelationalExpression::TABLE);
 
   Mem_root_array<ConflictRule> conflict_rules(thd->mem_root);
   ForEachJoinOperator(
-      expr->left, [expr, &conflict_rules](RelationalExpression *child) {
+      expr->left, [expr, graph, &conflict_rules](RelationalExpression *child) {
         if (!OperatorsAreAssociative(*child, *expr)) {
           // Prevent associative rewriting; we cannot apply this operator
           // (rule kicks in as soon as _any_ table from the right side
           // is seen) until we have all nodes mentioned on the left side of
           // the join condition.
-          const NodeMap left = IntersectIfNotDegenerate(
-              child->conditions_used_tables, child->left->nodes_in_subtree);
-          conflict_rules.push_back(
-              ConflictRule{child->right->nodes_in_subtree, left});
+          const table_map left = IntersectIfNotDegenerate(
+              child->conditions_used_tables, child->left->tables_in_subtree);
+          conflict_rules.emplace_back(ConflictRule{
+              child->right->nodes_in_subtree,
+              GetNodeMapFromTableMap(left & ~PSEUDO_TABLE_BITS,
+                                     graph->table_num_to_node_num)});
         }
         if (!OperatorsAreLeftAsscom(*child, *expr)) {
           // Prevent l-asscom rewriting; we cannot apply this operator
           // (rule kicks in as soon as _any_ table from the left side
           // is seen) until we have all nodes mentioned on the right side of
           // the join condition.
-          const NodeMap right = IntersectIfNotDegenerate(
-              child->conditions_used_tables, child->right->nodes_in_subtree);
-          conflict_rules.push_back(
-              ConflictRule{child->left->nodes_in_subtree, right});
+          const table_map right = IntersectIfNotDegenerate(
+              child->conditions_used_tables, child->right->tables_in_subtree);
+          conflict_rules.emplace_back(ConflictRule{
+              child->left->nodes_in_subtree,
+              GetNodeMapFromTableMap(right & ~PSEUDO_TABLE_BITS,
+                                     graph->table_num_to_node_num)});
         }
       });
 
   // Exactly the same as the previous, just mirrored left/right.
   ForEachJoinOperator(
-      expr->right, [expr, &conflict_rules](RelationalExpression *child) {
+      expr->right, [expr, graph, &conflict_rules](RelationalExpression *child) {
         if (!OperatorsAreAssociative(*expr, *child)) {
-          const NodeMap right = IntersectIfNotDegenerate(
-              child->conditions_used_tables, child->right->nodes_in_subtree);
-          conflict_rules.push_back(
-              ConflictRule{child->left->nodes_in_subtree, right});
+          const table_map right = IntersectIfNotDegenerate(
+              child->conditions_used_tables, child->right->tables_in_subtree);
+          conflict_rules.emplace_back(ConflictRule{
+              child->left->nodes_in_subtree,
+              GetNodeMapFromTableMap(right & ~PSEUDO_TABLE_BITS,
+                                     graph->table_num_to_node_num)});
         }
         if (!OperatorsAreRightAsscom(*expr, *child)) {
-          const NodeMap left = IntersectIfNotDegenerate(
-              child->conditions_used_tables, child->left->nodes_in_subtree);
-          conflict_rules.push_back(
-              ConflictRule{child->right->nodes_in_subtree, left});
+          const table_map left = IntersectIfNotDegenerate(
+              child->conditions_used_tables, child->left->tables_in_subtree);
+          conflict_rules.emplace_back(ConflictRule{
+              child->right->nodes_in_subtree,
+              GetNodeMapFromTableMap(left & ~PSEUDO_TABLE_BITS,
+                                     graph->table_num_to_node_num)});
         }
       });
 
@@ -3016,7 +3026,8 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
   const NodeMap used_nodes = GetNodeMapFromTableMap(
       used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
 
-  const Hyperedge edge = FindHyperedgeAndJoinConflicts(thd, used_nodes, expr);
+  const Hyperedge edge =
+      FindHyperedgeAndJoinConflicts(thd, used_nodes, expr, graph);
   graph->graph.AddEdge(edge.left, edge.right);
 
   // Figure out whether we have two left joins that are associatively
