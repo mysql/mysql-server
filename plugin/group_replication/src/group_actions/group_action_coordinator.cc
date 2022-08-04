@@ -699,7 +699,8 @@ void Group_action_coordinator::terminate_action() {
   // Log what was the result of the action
   LogPluginErr(
       SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_LOCAL_TERMINATION,
-      current_executing_action->get_action_name_and_description().second,
+      current_executing_action->get_action_name_and_description()
+          .second.c_str(),
       current_executing_action->execution_message_area->get_execution_message()
           .c_str());
 
@@ -879,9 +880,9 @@ int Group_action_coordinator::execute_group_action_handler() {
   monitoring_stage_handler.initialize_stage_monitor();
   is_group_action_being_executed = true;
 
-  LogPluginErr(
-      SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_START,
-      current_executing_action->get_action_name_and_description().second);
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_START,
+               current_executing_action->get_action_name_and_description()
+                   .second.c_str());
   while (Group_action::GROUP_ACTION_RESULT_RESTART ==
          current_executing_action->action_result) {
     current_executing_action->action_result =
@@ -895,9 +896,9 @@ int Group_action_coordinator::execute_group_action_handler() {
   }
   notify_and_reset_ctx(notification_ctx);
   is_group_action_being_executed = false;
-  LogPluginErr(
-      INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_END,
-      current_executing_action->get_action_name_and_description().second);
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_END,
+               current_executing_action->get_action_name_and_description()
+                   .second.c_str());
 
   current_executing_action->execution_message_area->set_execution_info(
       current_executing_action->executing_action->get_execution_info());
