@@ -4034,15 +4034,16 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
     return false;
   } else if (table_ref->is_view() || table_ref->field_translation) {
     /* View or derived information schema table. */
-    ulong view_privs;
+    ulong view_privs = 0;
     grant = &(table_ref->grant);
     db_name = table_ref->db;
     table_name = table_ref->table_name;
     if (table_ref->belong_to_view &&
         thd->lex->sql_command == SQLCOM_SHOW_FIELDS) {
       if (sctx->get_active_roles()->size() > 0) {
-        view_privs = sctx->table_acl({db_name, strlen(db_name)},
-                                     {table_name, strlen(table_name)});
+        if (!grant->grant_table) view_privs = grant->privilege;
+        view_privs |= sctx->table_acl({db_name, strlen(db_name)},
+                                      {table_name, strlen(table_name)});
         DBUG_PRINT("info", ("Found role privileges for %s.%s : %lu", db_name,
                             table_name, view_privs));
       } else

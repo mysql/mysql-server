@@ -127,3 +127,49 @@ DROP USER u2@localhost;
 SHOW STATUS LIKE '%acl_cache%';
 Variable_name	Value
 Acl_cache_items_count	1
+#
+# BUG#34341533: "SHOW FIELDS FROM" fails against a view when a view
+#               accessing from a view is recreated
+#
+CREATE USER user_with_role@localhost;
+CREATE ROLE test_role;
+GRANT ALL on *.* TO test_role;
+GRANT test_role TO user_with_role@localhost;
+SET DEFAULT ROLE test_role TO user_with_role@localhost;
+CREATE USER user_without_role@localhost;
+GRANT ALL on *.* TO user_without_role@localhost;
+connect user_with_role, localhost, user_with_role,,;
+USE test;
+CREATE TABLE t1 (c1 INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM v1;
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+# Without the patch, the following queries reported ER_VIEW_INVALID error
+SHOW FIELDS FROM v2;
+Field	Type	Null	Key	Default	Extra
+c1	int	YES		NULL	
+DESCRIBE v2;
+Field	Type	Null	Key	Default	Extra
+c1	int	YES		NULL	
+connect user_without_role, localhost, user_without_role,,;
+USE test;
+CREATE TABLE t2 (c1 INT);
+CREATE VIEW v3 AS SELECT * FROM t2;
+CREATE VIEW v4 AS SELECT * FROM v3;
+DROP VIEW v3;
+CREATE VIEW v3 AS SELECT * FROM t2;
+SHOW FIELDS FROM v4;
+Field	Type	Null	Key	Default	Extra
+c1	int	YES		NULL	
+DESCRIBE v4;
+Field	Type	Null	Key	Default	Extra
+c1	int	YES		NULL	
+disconnect user_without_role;
+disconnect user_with_role;
+connection default;
+DROP VIEW v1, v2, v3, v4;
+DROP TABLE t1, t2;
+DROP USER user_without_role@localhost;
+DROP USER user_with_role@localhost;
+DROP ROLE test_role;
