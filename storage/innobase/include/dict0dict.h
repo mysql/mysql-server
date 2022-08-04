@@ -600,7 +600,12 @@ static inline void dict_table_x_unlock_indexes(
  @return true if table has an FTS index */
 [[nodiscard]] static inline bool dict_table_has_fts_index(
     dict_table_t *table); /*!< in: table */
-#endif                    /* !UNIV_HOTBACKUP */
+#ifdef UNIV_DEBUG
+/** Validate no active background threads to cause purge or rollback
+ operations. */
+void dict_validate_no_purge_rollback_threads();
+#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 /** Checks if a column is in the ordering columns of the clustered index of a
  table. Column prefixes are treated like whole columns.
  @return true if the column, or its prefix, is in the clustered key */
