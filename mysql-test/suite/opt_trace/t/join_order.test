@@ -1,0 +1,48 @@
+--source include/have_optimizer_trace.inc
+--source include/have_hypergraph.inc # join_order is shown only in hypergraph
+
+--echo #
+--echo # Bug#34299473: Hypergraph : More join order information in the optimizer
+--echo #               trace
+--echo #
+
+SET optimizer_trace="enabled=on,one_line=off";
+
+create table json_tab(je json);
+let $insert_stmt = insert into json_tab
+  select json_extract(trace,"$.steps[1].join_optimization.steps[*].join_optimizer[*]") je
+         from information_schema.optimizer_trace;
+let $select_stmt = select jt.t from
+  json_tab, json_table(json_tab.je, "$[*]" COLUMNS(t text path "$")) as jt
+  where jt.t like '%current access paths%join_order%' order by t;
+
+
+# Testcase 1: More than two tables.
+
+create table t1(id int);
+insert into t1 values (1), (2), (3);
+analyze table t1;
+select * from t1, t1 t2, t1 t3 where t1.id = t2.id and t2.id = t3.id;
+
+eval $insert_stmt;
+eval $select_stmt;
+
+drop table t1;
+truncate table json_tab;
+
+
+# Testcase 2: Table scan under a Materialize/Filter plan.
+
+create table t1 (a int primary key, b int);
+insert into t1 values (1,1);
+analyze table t1;
+
+with x1 as (select max(a) as m1 from t1 group by b)
+  select * from t1 y1 left join t1 y2 on y1.a=-y2.a
+    where y1.b+y2.b = (select max(m1) from x1);
+
+eval $insert_stmt;
+eval $select_stmt;
+
+drop table t1;
+drop table json_tab;
