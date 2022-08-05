@@ -23024,8 +23024,6 @@ static void test_wl13075() {
   }
 }
 
-// TODO(WL#15232) Fix MYSQL reconnect code for server using client connections
-#ifndef _WIN32
 static void finish_with_error(MYSQL *con) {
   fprintf(stderr, "[%i] %s\n", mysql_errno(con), mysql_error(con));
   mysql_close(con);
@@ -23083,6 +23081,12 @@ static void test_bug34007830() {
   /* wait until connection times-out */
   printf("Waiting for 10s\n");
   sleep(10);
+#ifdef _WIN32
+  // On Windows, it (empirically) takes up to 2 minutes for a socket to
+  // gracefully close after closesocket is called - so we wait longer.
+  printf("Waiting for a further 120s on Windows\n");
+  sleep(120);
+#endif  // _WIN32
 
   /* send query #2 */
   if (!send_query(lmysql, "SELECT 2")) {
@@ -23093,7 +23097,6 @@ static void test_bug34007830() {
 
   mysql_close(lmysql);
 }
-#endif  // _WIN32
 
 static void test_bug33535746() {
   DBUG_TRACE;
@@ -23518,10 +23521,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug33164347", test_bug33164347},
     {"test_bug32915973", test_bug32915973},
     {"test_wl13075", test_wl13075},
-// TODO(WL#15232) Fix MYSQL reconnect code for server using client connections
-#ifndef _WIN32
     {"test_bug34007830", test_bug34007830},
-#endif
     {"test_bug33535746", test_bug33535746},
     {nullptr, nullptr}};
 
