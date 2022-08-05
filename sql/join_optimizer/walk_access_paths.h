@@ -58,10 +58,13 @@ enum class WalkAccessPathPolicy {
   func() must have signature func(AccessPath *, const JOIN *), or it could be
   JOIN * if a non-const JOIN is given in.
  */
-template <class Func, class JoinPtr>
-void WalkAccessPaths(AccessPath *path, JoinPtr join,
+template <class AccessPathPtr, class Func, class JoinPtr>
+void WalkAccessPaths(AccessPathPtr path, JoinPtr join,
                      WalkAccessPathPolicy cross_query_blocks, Func &&func,
                      bool post_order_traversal = false) {
+  static_assert(
+      std::is_convertible<AccessPathPtr, const AccessPath *>::value,
+      "The “path” argument must be AccessPath * or const AccessPath *.");
   static_assert(
       std::is_convertible<JoinPtr, const JOIN *>::value,
       "The “join” argument must be JOIN * or const JOIN * (or nullptr).");

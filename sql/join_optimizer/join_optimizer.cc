@@ -133,6 +133,7 @@ namespace {
 
 string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
                        const char *description_for_trace);
+void PrintJoinOrder(const AccessPath *path, string *join_order);
 
 AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
                                       TABLE *temp_table,
@@ -4025,6 +4026,8 @@ namespace {
 string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
                        const char *description_for_trace) {
   string str = "{";
+  string join_order;
+
   switch (path.type) {
     case AccessPath::TABLE_SCAN:
       str += "TABLE_SCAN";
@@ -4097,15 +4100,19 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
       break;
     case AccessPath::NESTED_LOOP_JOIN:
       str += "NESTED_LOOP_JOIN";
+      PrintJoinOrder(&path, &join_order);
       break;
     case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
       str += "NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL";
+      PrintJoinOrder(&path, &join_order);
       break;
     case AccessPath::BKA_JOIN:
       str += "BKA_JOIN";
+      PrintJoinOrder(&path, &join_order);
       break;
     case AccessPath::HASH_JOIN:
       str += "HASH_JOIN";
+      PrintJoinOrder(&path, &join_order);
       break;
     case AccessPath::FILTER:
       str += "FILTER";
@@ -4166,6 +4173,8 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
   }
   str += StringPrintf(", rows=%.1f", path.num_output_rows);
 
+  if (!join_order.empty()) str += ", join_order=" + join_order;
+
   // Print parameter tables, if any.
   if (path.parameter_tables != 0) {
     str += ", parm={";
@@ -4205,6 +4214,60 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
   } else {
     return str + "} [" + description_for_trace + "]";
   }
+}
+
+/**
+  Used by optimizer trace to print join order of join paths.
+  Appends into 'join_order' a string that looks something like '(t1,(t2,t3))'
+  where t1 is an alias of any kind of table including materialized table, and
+  t1 is joined with (t2,t3) where (t2,t3) is another join.
+ */
+void PrintJoinOrder(const AccessPath *path, string *join_order) {
+  assert(path != nullptr);
+
+  auto func = [join_order](const AccessPath *subpath, const JOIN *) {
+    // If it's a table, append its name.
+    if (const TABLE *table = GetBasicTable(subpath); table != nullptr) {
+      *join_order += table->alias;
+      return true;
+    }
+
+    AccessPath *outer, *inner;
+    switch (subpath->type) {
+      case AccessPath::NESTED_LOOP_JOIN:
+        outer = subpath->nested_loop_join().outer;
+        inner = subpath->nested_loop_join().inner;
+        break;
+      case AccessPath::HASH_JOIN:
+        outer = subpath->hash_join().outer;
+        inner = subpath->hash_join().inner;
+        break;
+      case AccessPath::BKA_JOIN:
+        outer = subpath->bka_join().outer;
+        inner = subpath->bka_join().inner;
+        break;
+      case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
+        outer = subpath->nested_loop_semijoin_with_duplicate_removal().outer;
+        inner = subpath->nested_loop_semijoin_with_duplicate_removal().inner;
+        break;
+      default:
+        return false;  // Allow walker to continue.
+    }
+
+    // If we are here, we found a join path.
+    join_order->push_back('(');
+    PrintJoinOrder(outer, join_order);
+    join_order->push_back(',');
+    PrintJoinOrder(inner, join_order);
+    join_order->push_back(')');
+
+    return true;
+  };
+
+  // Fetch tables or joins at inner levels.
+  WalkAccessPaths(path, /*join=*/nullptr,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION, func);
+  return;
 }
 
 /// Commit OverflowBitsets in path (but not its children) to
