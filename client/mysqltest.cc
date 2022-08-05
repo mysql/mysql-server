@@ -196,6 +196,7 @@ static int opt_port = 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
 static int opt_max_connections = DEFAULT_MAX_CONN;
+static bool backtick_lhs = false;
 static char *opt_init_command = nullptr;
 static bool opt_colored_diff = false;
 static bool opt_compress = false, silent = false, verbose = false,
@@ -2554,6 +2555,20 @@ void revert_properties() {
   once_property = false;
 }
 
+/* Operands available in if or while conditions */
+enum block_op { EQ_OP, NE_OP, GT_OP, GE_OP, LT_OP, LE_OP, ILLEG_OP };
+static enum block_op find_operand(const char *start) {
+  char first = *start;
+  char next = *(start + 1);
+  if (first == '=' && next == '=') return EQ_OP;
+  if (first == '!' && next == '=') return NE_OP;
+  if (first == '>' && next == '=') return GE_OP;
+  if (first == '>') return GT_OP;
+  if (first == '<' && next == '=') return LE_OP;
+  if (first == '<') return LT_OP;
+  return ILLEG_OP;
+}
+
 /*
   Set variable from the result of a query
 
@@ -2587,13 +2602,23 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
   DBUG_TRACE;
 
   /* Only white space or ) allowed past ending ` */
-  while (end > query && *end != '`') {
-    if (*end && (*end != ' ' && *end != '\t' && *end != '\n' && *end != ')'))
+  const char *expr_end = end;
+
+  while ((end > query) && (*end != '`')) --end;
+  if (query == end) die("Syntax error in query, missing '`'");
+
+  const char *end_ptr = end;
+  end_ptr++;
+
+  while (my_isspace(charset_info, *end_ptr) && end_ptr < expr_end) end_ptr++;
+  if (end_ptr != expr_end) {
+    enum block_op operand = find_operand(end_ptr);
+    if (operand != ILLEG_OP && backtick_lhs)
+      die("LHS of expression must be variable");
+    else
       die("Spurious text after `query` expression");
-    --end;
   }
 
-  if (query == end) die("Syntax error in query, missing '`'");
   ++query;
 
   /* Eval the query, thus replacing all environment variables */
@@ -6897,24 +6922,6 @@ static int do_done(struct st_command *command) {
   return 0;
 }
 
-/* Operands available in if or while conditions */
-
-enum block_op { EQ_OP, NE_OP, GT_OP, GE_OP, LT_OP, LE_OP, ILLEG_OP };
-
-static enum block_op find_operand(const char *start) {
-  char first = *start;
-  char next = *(start + 1);
-
-  if (first == '=' && next == '=') return EQ_OP;
-  if (first == '!' && next == '=') return NE_OP;
-  if (first == '>' && next == '=') return GE_OP;
-  if (first == '>') return GT_OP;
-  if (first == '<' && next == '=') return LE_OP;
-  if (first == '<') return LT_OP;
-
-  return ILLEG_OP;
-}
-
 /*
   Process start of a "if" or "while" statement
 
@@ -6934,7 +6941,7 @@ static enum block_op find_operand(const char *start) {
   <block statements>
   }
 
-  assert (expr)
+  assert ([!]<expr>)
 
   Evaluates the <expr> and if it evaluates to
   greater than zero executes the following code block.
@@ -7091,10 +7098,28 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
 
     v.is_int = true;
     my_free(v2.str_val);
-  } else {
-    if (*expr_start != '`' && !my_isdigit(charset_info, *expr_start))
-      die("Expression in %s() must begin with $, ` or a number", cmd_name);
+  } else if (*expr_start == '`') {
+    backtick_lhs = true;
     eval_expr(&v, expr_start, &expr_end);
+    backtick_lhs = false;
+  } else {
+    /* First skip any leading white space or unary -+ */
+    if (*expr_start == '-' || *expr_start == '+') expr_start++;
+    while (my_isspace(charset_info, *expr_start)) expr_start++;
+    if (!my_isdigit(charset_info, *expr_start))
+      die("Expression in %s() must begin with $, !, ` or an integer", cmd_name);
+    eval_expr(&v, expr_start, &expr_end);
+    char *endptr;
+    v.int_val = (int)strtol(v.str_val, &endptr, 10);
+    while (my_isspace(charset_info, *endptr)) endptr++;
+
+    if (*endptr != '\0') {
+      enum block_op operand = find_operand(endptr);
+      if (operand == ILLEG_OP)
+        die("Found junk '%s' in %s() condition", endptr, cmd_name);
+      else
+        die("LHS of %s() must be a variable", cmd_name);
+    }
   }
 
 NO_COMPARE:

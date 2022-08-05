@@ -7916,10 +7916,10 @@
 
   The allowable syntax for <b><em>expr</em></b> is
   <b>$<em>var_name</em></b>, <b>!$<em>var_name</em></b>,
-  a string or integer, or \`<b><em>query</em></b>\`.
+  <b><em>integer</em></b>, or \`<b><em>query</em></b>\`.
 
   The expression can also be a simple comparison, where the left hand
-  side must be a variable, and the right hand side can be any type
+  side must be a variable, and the right hand side can be string or any type
   valid for the single expression except the negated variable. The
   supported operators are ==, !=, <, <=, > and >=. Only the first two
   may be used if the right hand side does not evaluate to an integer.
@@ -7931,13 +7931,18 @@
   will then be stripped off before comparison. This is in contrast to
   <b>let</b> statements, where quoting is not stripped.
 
-  Examples of the expression syntax with comparisons (only the header
+  Examples of the expression syntax with and without comparisons (only the header
   shown):
 
   @verbatim
   while ($counter<5) ...
   if ($value == 'No such row') ...
   if ($slave_count != $master_count) ...
+  if ($counter < `SELECT 10`) ...
+  if (-1) ...
+  if (20) ...
+  if (`SELECT 1`) ...
+  if(! $cnt) ...
   @endverbatim
 
   The opening <b>{</b> (curly brace) must be separated from the

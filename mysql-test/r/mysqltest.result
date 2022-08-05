@@ -527,7 +527,7 @@ anything goes
 0 != string
 mysqltest: At line 2: Only == and != are supported for string values
 mysqltest: At line 2: Found junk '~= 6' after $variable in condition
-mysqltest: At line 2: Expression in if() must begin with $, ` or a number
+mysqltest: At line 2: Expression in if() must begin with $, !, ` or an integer
 mysqltest: At line 1: Missing right operand in comparison
 mysqltest: At line 1: Missing right operand in comparison
 counter is 2
@@ -2199,7 +2199,7 @@ DROP TABLE t1;
 #
 # Bug#33068833 MISSING END OF BLOCK ERROR WITH `--ASSERT` MYSQLTEST COMMAND
 #
-mysqltest: At line 1: Expression in assert() must begin with $, ` or a number
+mysqltest: At line 1: Expression in assert() must begin with $, !, ` or an integer
 mysqltest: At line 1: Assertion failed: assert(0)
 mysqltest: At line 1: Assertion failed: assert($undef_var)
 mysqltest: At line 1: Assertion failed: assert($false_var)
