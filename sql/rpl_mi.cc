@@ -222,10 +222,7 @@ Master_info::Master_info(
   ignore_server_ids = new Server_ids;
   strcpy(compression_algorithm, COMPRESSION_ALGORITHM_UNCOMPRESSED);
   zstd_compression_level = default_zstd_compression_level;
-  server_extn.m_user_data = nullptr;
-  server_extn.m_before_header = nullptr;
-  server_extn.m_after_header = nullptr;
-  server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
+  net_server_ext_init(&server_extn);
   gtid_monitoring_info = new Gtid_monitoring_info(&data_lock);
 
   mysql_mutex_init(*key_info_rotate_lock, &this->rotate_lock,

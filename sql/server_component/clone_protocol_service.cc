@@ -527,6 +527,7 @@ DEFINE_METHOD(int, mysql_clone_get_response,
 
   /* Use server extension callback to capture network byte information. */
   NET_SERVER server_extn;
+  net_server_ext_init(&server_extn);
   server_extn.m_user_data = static_cast<void *>(net_length);
   server_extn.m_before_header = func_before;
   server_extn.m_after_header = func_after;

@@ -249,10 +249,7 @@ void Ack_receiver::run() {
 
   init_net(&net, net_buff, REPLY_MESSAGE_MAX_LENGTH);
   NET_SERVER server_extn;
-  server_extn.m_user_data = nullptr;
-  server_extn.m_before_header = nullptr;
-  server_extn.m_after_header = nullptr;
-  server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
+  net_server_ext_init(&server_extn);
   net.extension = &server_extn;
 
   mysql_mutex_lock(&m_mutex);

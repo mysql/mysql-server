@@ -64,4 +64,12 @@ typedef struct NET_SERVER {
   bool timeout_on_full_packet;
 } NET_SERVER;
 
+inline void net_server_ext_init(NET_SERVER *ns) {
+  ns->m_user_data = nullptr;
+  ns->m_before_header = nullptr;
+  ns->m_after_header = nullptr;
+  ns->compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
+  ns->timeout_on_full_packet = false;
+}
+
 #endif
