@@ -3092,11 +3092,16 @@ TEST_F(HypergraphOptimizerTest, HashJoinWithSubqueryPredicate) {
 
   AccessPath *inner = join->hash_join().inner;
   ASSERT_EQ(AccessPath::HASH_JOIN, inner->type);
-  const Mem_root_array<Item_eq_base *> &equijoin_conditions =
-      inner->hash_join().join_predicate->expr->equijoin_conditions;
-  EXPECT_EQ(2, equijoin_conditions.size());
-  EXPECT_EQ("(t2.y = t3.y)", ItemToString(equijoin_conditions[0]));
-  EXPECT_EQ("(t2.x = t3.x)", ItemToString(equijoin_conditions[1]));
+
+  vector<string> equijoin_conditions;
+  for (Item_eq_base *cond :
+       inner->hash_join().join_predicate->expr->equijoin_conditions) {
+    equijoin_conditions.push_back(ItemToString(cond));
+  }
+  EXPECT_THAT(equijoin_conditions,
+              UnorderedElementsAre("(t2.y = t3.y)", "(t2.x = t3.x)"));
+
+  EXPECT_TRUE(inner->hash_join().join_predicate->expr->join_conditions.empty());
 
   AccessPath *t2 = inner->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
