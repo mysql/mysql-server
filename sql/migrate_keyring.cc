@@ -217,10 +217,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
     ssl_start();
     /* initiate connection */
     mysql = mysql_init(nullptr);
-    server_extn.m_user_data = nullptr;
-    server_extn.m_before_header = nullptr;
-    server_extn.m_after_header = nullptr;
-    server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
+    net_server_ext_init(&server_extn);
 
     mysql_extension_set_server_extn(mysql, &server_extn);
     /* set default compression method */
