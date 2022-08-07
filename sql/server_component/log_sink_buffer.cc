@@ -43,8 +43,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/log.h"
 #include "sql/psi_memory_key.h"  // key_memory_log_error_stack
-
-extern bool log_builtins_inited;
+#include "sql/server_component/log_builtins_internal.h"
 
 /**
   Make sure only one instance of the buffered "writer" runs at a time.
@@ -70,15 +69,11 @@ extern bool log_builtins_inited;
   buffer / backlog. As this backlog can be added to by all threads,
   it must be protected by a lock (once we have fully initialized
   the subsystem with log_builtins_init() and support multi-threaded
-  mode anyway, as indicated by log_builtins_inited being true, see
-  below). This is that lock.
+  mode anyway, as indicated by log_builtins_started being non-zero,
+  see below). This is that lock.
 */
 mysql_mutex_t THR_LOCK_log_buffered;
 
-struct log_line_buffer {
-  log_line ll;            ///< log-event we're buffering
-  log_line_buffer *next;  ///< chronologically next log-event
-};
 /// Pointer to the first element in the list of buffered log messages
 static log_line_buffer *log_line_buffer_start = nullptr;
 /// Where to write the pointer to the newly-created tail-element of the list
@@ -210,7 +205,7 @@ int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll) {
     Insert the new last event into the buffer
     (a singly linked list of events).
   */
-  if (log_builtins_inited) mysql_mutex_lock(&THR_LOCK_log_buffered);
+  if (log_builtins_started()) mysql_mutex_lock(&THR_LOCK_log_buffered);
 
   now = my_micro_time();
 
@@ -244,7 +239,7 @@ int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll) {
     count = llb->ll.count;
   }
 
-  if (log_builtins_inited) mysql_mutex_unlock(&THR_LOCK_log_buffered);
+  if (log_builtins_started()) mysql_mutex_unlock(&THR_LOCK_log_buffered);
 
   return count;
 }
@@ -281,13 +276,13 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
   /*
     If the lock hasn't been init'd yet, don't get it.
   */
-  if (log_builtins_inited) mysql_mutex_lock(&THR_LOCK_log_buffered);
+  if (log_builtins_started()) mysql_mutex_lock(&THR_LOCK_log_buffered);
 
   local_head = log_line_buffer_start;             // save list head
   log_line_buffer_start = nullptr;                // empty public list
   log_line_buffer_tail = &log_line_buffer_start;  // adjust tail of public list
 
-  if (log_builtins_inited) mysql_mutex_unlock(&THR_LOCK_log_buffered);
+  if (log_builtins_started()) mysql_mutex_unlock(&THR_LOCK_log_buffered);
 
   // get head element from list of buffered log events
   llp = local_head;
@@ -338,10 +333,9 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
           log_item_data *d =
               log_line_item_set(&llp->ll, LOG_ITEM_LOG_TIMESTAMP);
           if (d != nullptr) {
-            d->data_string.str = local_time_buff;
+            d->data_string.str = date;
             d->data_string.length = strlen(d->data_string.str);
-            llp->ll.item[llp->ll.count].alloc |= LOG_ITEM_FREE_VALUE;
-            llp->ll.seen |= LOG_ITEM_LOG_TIMESTAMP;
+            llp->ll.item[llp->ll.count - 1].alloc |= LOG_ITEM_FREE_VALUE;
           } else
             my_free(date);  // couldn't create key/value pair for timestamp
         } else
@@ -414,7 +408,7 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
     llp = local_head;
   }  // while (any_more_buffered_events_to_process)
 
-  if (log_builtins_inited) mysql_mutex_lock(&THR_LOCK_log_buffered);
+  if (log_builtins_started()) mysql_mutex_lock(&THR_LOCK_log_buffered);
 
   /*
     At this point, if (local_head == nullptr), we either didn't have
@@ -456,5 +450,23 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
     log_line_buffer_start = local_head;
   }
 
-  if (log_builtins_inited) mysql_mutex_unlock(&THR_LOCK_log_buffered);
+  if (log_builtins_started()) mysql_mutex_unlock(&THR_LOCK_log_buffered);
+}
+
+/**
+  Prepend a list of log-events to the already buffered events.
+
+  @param[in]  head  Head of the list to prepend to the main list
+  @param[out] tail  Pointer to the `next` pointer in last element to prepend
+*/
+void log_sink_buffer_prepend_list(log_line_buffer *head,
+                                  log_line_buffer **tail) {
+  if ((head == nullptr) || (tail == nullptr)) return;
+
+  mysql_mutex_lock(&THR_LOCK_log_buffered);
+
+  *tail = log_line_buffer_start;
+  log_line_buffer_start = head;
+
+  mysql_mutex_unlock(&THR_LOCK_log_buffered);
 }

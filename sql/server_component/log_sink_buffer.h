@@ -56,6 +56,11 @@ enum log_error_stage {
   LOG_ERROR_STAGE_SHUTTING_DOWN        ///< no external components
 };
 
+struct log_line_buffer {
+  log_line ll;            ///< log-event we're buffering
+  log_line_buffer *next;  ///< chronologically next log-event
+};
+
 /// Set error-logging stage hint (e.g. are loadable services available yet?).
 void log_error_stage_set(enum log_error_stage les);
 
@@ -78,5 +83,14 @@ int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll);
                 filter/print them first
 */
 void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode);
+
+/**
+  Prepend a list of log-events to the already buffered events.
+
+  @param[in]  head  Head of the list to prepend to the main list
+  @param[out] tail  Pointer to the `next` pointer in last element to prepend
+*/
+void log_sink_buffer_prepend_list(log_line_buffer *head,
+                                  log_line_buffer **tail);
 
 #endif /* LOG_SINK_BUFFER_H */

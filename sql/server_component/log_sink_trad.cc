@@ -47,9 +47,8 @@ extern int log_item_inconsistent(log_item *li);
   @retval -1   delimiter not found, "parsing" failed
   @retval >=0  length of token
 */
-static inline ssize_t parse_trad_field(const char *parse_from,
-                                       const char **token_end,
-                                       const char *buf_end) {
+ssize_t parse_trad_field(const char *parse_from, const char **token_end,
+                         const char *buf_end) {
   assert(token_end != nullptr);
   *token_end = (const char *)memchr(parse_from, ' ', buf_end - parse_from);
   return (*token_end == nullptr) ? -1 : (*token_end - parse_from);

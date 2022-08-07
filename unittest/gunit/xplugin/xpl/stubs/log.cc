@@ -32,6 +32,10 @@ log_line *log_line_init() { return nullptr; }
 log_item_data *log_line_item_set(log_line *, enum_log_item_type) {
   return nullptr;
 }
+log_item_data *log_line_item_set_with_key(log_line *, log_item_type,
+                                          const char *, uint32) {
+  return nullptr;
+}
 log_item_type_mask log_line_item_types_seen(log_line *, log_item_type_mask) {
   return 0;
 }

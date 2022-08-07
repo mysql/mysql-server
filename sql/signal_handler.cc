@@ -37,6 +37,7 @@
 #include "my_macros.h"
 #include "my_stacktrace.h"
 #include "my_sys.h"
+#include "my_time.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -83,18 +84,33 @@ void print_fatal_signal(int sig) {
 #ifdef _WIN32
   SYSTEMTIME utc_time;
   GetSystemTime(&utc_time);
+
+  const long year = utc_time.wYear;
+  const long month = utc_time.wMonth;
+  const long day = utc_time.wDay;
+
   const long hrs = utc_time.wHour;
   const long mins = utc_time.wMinute;
   const long secs = utc_time.wSecond;
 #else
   /* Using time() instead of my_time() to avoid looping */
   const time_t curr_time = time(nullptr);
+
+  // Offset for the UNIX epoch.
+  const ulong days_at_timestart = 719528;
+
   /* Calculate time of day */
-  const long tmins = curr_time / 60;
-  const long thrs = tmins / 60;
-  const long hrs = thrs % 24;
-  const long mins = tmins % 60;
+  const long total_mins = curr_time / 60;
+  const long total_hrs = total_mins / 60;
+  const long total_days = (total_hrs / 24) + days_at_timestart;
+
+  const long hrs = total_hrs % 24;
+  const long mins = total_mins % 60;
   const long secs = curr_time % 60;
+
+  uint year, month, day;
+
+  get_date_from_daynr(total_days, &year, &month, &day);
 #endif
 
   char hrs_buf[3] = "00";
@@ -104,8 +120,16 @@ void print_fatal_signal(int sig) {
   my_safe_itoa(10, mins, &mins_buf[2]);
   my_safe_itoa(10, secs, &secs_buf[2]);
 
-  my_safe_printf_stderr("%s:%s:%s UTC - mysqld got " SIGNAL_FMT " ;\n", hrs_buf,
-                        mins_buf, secs_buf, sig);
+  char year_buf[5] = "0000";
+  char month_buf[3] = "00";
+  char day_buf[3] = "00";
+  my_safe_itoa(10, year, &year_buf[4]);
+  my_safe_itoa(10, month, &month_buf[2]);
+  my_safe_itoa(10, day, &day_buf[2]);
+
+  my_safe_printf_stderr(
+      "%s-%s-%sT%s:%s:%sZ UTC - mysqld got " SIGNAL_FMT " ;\n", year_buf,
+      month_buf, day_buf, hrs_buf, mins_buf, secs_buf, sig);
 
   my_safe_printf_stderr(
       "%s",

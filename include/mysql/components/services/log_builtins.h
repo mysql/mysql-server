@@ -879,9 +879,10 @@ inline void dummy_log_message(longlong severity [[maybe_unused]],
 
 class LogEvent {
  private:
-  log_line *ll;
-  char *msg;
+  log_line *ll;  // Temporary allocation to hold a log-event.
+  char *msg;     // Temporary allocation to hold a message.
   const char *msg_tag;
+  bool have_msg;  // Was a message set in `msg` using set_message()?
 
   /**
     Set MySQL error-code if none has been set yet.
@@ -930,8 +931,28 @@ class LogEvent {
     if (ll != nullptr) {
       log_line_submit(this->ll);
       log_line_exit(ll);
-      log_free(msg);
+      /*
+        If a message was set on the LogEvent using set_message,
+        the message became part of a log_item on the log_line.
+        have_msg is true. The log_line's log_items were released
+        in log_line_submit(). Null `msg` here to prevent double-free.
+
+        On the other hand, if set_message() was not used, the
+        convenience buffer was never associated with the log_line,
+        and therefore wasn't freed when the log_line was submitted.
+        In that case, we'll leave the pointer intact for clean-up
+        further down.
+      */
+      if (have_msg) msg = nullptr;
     }
+
+    /*
+      If set_message() attached the buffer `msg` to the log_line,
+      the allocation has either been freed in log_line_submit()
+      above, or it is now owned by someone who stole it using steal().
+      In either case, msg==nullptr and we do nothing here.
+    */
+    if (msg != nullptr) log_free(msg);
   }
 
   /**
@@ -943,6 +964,7 @@ class LogEvent {
     server, and therefore need to submit them free-form.
   */
   LogEvent() {
+    have_msg = false;
     if ((ll = log_line_init()) != nullptr) {
       if ((msg = (char *)log_malloc(LOG_BUFF_MAX)) == nullptr) {
         log_line_exit(ll);
@@ -954,8 +976,59 @@ class LogEvent {
   }
 
   /**
+    Save the log-event allocated by LogEvent().
 
-     Set log type.
+    LogEvent() internally represents the log-event in a log_line
+    structure it allocates. steal() saves this pointer to the
+    method's argument. The pointer in the LogEvent() is then
+    cleared to prevent the destructor from freeing the log_line.
+    Freeing allocated memory is now the caller's responsibility:
+
+      log_line *ll;
+      LogEvent().prio(SYSTEM_LEVEL).message("Hi %s!", user).steal(&ll);
+
+      // Do some things with the event ...
+
+      log_line_item_free_all(ll);
+      log_line_exit(ll);
+
+    If a message was set, the message buffer pointed to by `msg`
+    becomes part of the log_line and is released on
+    log_line_item_free_all() (or equivalent).
+
+    If no message was set, the message buffer is released when
+    the LogEvent's destructor is called.
+
+    Note that verbatim() does NOT copy its argument to the
+    LogEvent's internal allocation `msg`.
+    Hence the life-cycle management of verbatim()'s argument
+    would be up to the developer. When using steal(), using it
+    with one of the set_message() wrappers is generally preferable:
+
+      LogEvent().message("%s", my_verbatim_string).steal(&ll);
+
+    @param  save_to  where to save the pointer to the log-event
+  */
+  void steal(log_line **save_to) {
+    *save_to = ll;
+    ll = nullptr;
+    /*
+      If the message was set, the allocation is now part of a log_item
+      on the log_line. Thus, it is now owned by the called and will
+      be released when they release the log_items on the log_line.
+      In that case, we null our pointer to it so we won't double-free
+      the allocation.
+
+      Conversely, if the buffer exists, but hasn't become part of
+      the log_line through use of a set_message() wrapper, we'll hold
+      on to the pointer so the empty buffer is released when we dest
+      the LogEvent().
+    */
+    if (have_msg) msg = nullptr;
+  }
+
+  /**
+    Set log type.
 
     @param  val  the log type (LOG_TYPE_ERROR)
 
@@ -1227,6 +1300,14 @@ class LogEvent {
     say unkind things about you.  Use registered messages and their
     error codes wherever possible!
 
+    Combining verbatim() with steal() is discouraged as it burdens
+    the developer with the life-cycle management of verbatim's
+    argument. This is a result of verbatim() using its argument
+    verbatim, rather than setting it up in the LogEvent's internal
+    allocation `msg` using set_message(). Hence, the LogEvent has
+    no copy of the message, which is an optimization for the
+    common, non-steal() case.
+
     @param  msg_arg the message. % substitution will not happen.
 
     @retval         the LogEvent, for easy fluent-style chaining.
@@ -1435,8 +1516,11 @@ inline void LogEvent::set_message(const char *fmt, va_list ap) {
       len = LOG_BUFF_MAX - 1;
       strcpy(&msg[LOG_BUFF_MAX - sizeof(ellipsis)], ellipsis);
     }
-    log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE), msg,
-                      len);
+    log_item_data *lid;
+    lid = log_line_item_set_with_key(this->ll, LOG_ITEM_LOG_MESSAGE, nullptr,
+                                     LOG_ITEM_FREE_VALUE);
+    log_set_lexstring(lid, msg, len);
+    have_msg = true;
   }
 }
 

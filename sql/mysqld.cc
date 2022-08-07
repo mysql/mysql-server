@@ -686,6 +686,8 @@ MySQL clients support the protocol:
 */
 /* clang-format on */
 
+#define LOG_SUBSYSTEM_TAG "Server"
+
 #include "sql/mysqld.h"
 
 #include "my_config.h"
@@ -759,9 +761,11 @@ MySQL clients support the protocol:
 #include "mysys/build_id.h"
 #include "pfs_thread_provider.h"
 #include "print_version.h"
-#include "scope_guard.h"                           // create_scope_guard()
-#include "server_component/log_sink_buffer.h"      // log_error_stage_set()
-#include "server_component/log_sink_perfschema.h"  // log_error_read_log()
+#include "scope_guard.h"                            // create_scope_guard()
+#include "server_component/log_sink_buffer.h"       // log_error_stage_set()
+#include "server_component/log_sink_perfschema.h"   // log_error_read_log()
+#include "server_component/log_sink_trad.h"         // log_sink_trad()
+#include "server_component/log_source_backtrace.h"  // log_error_read_backtrace()
 #ifdef _WIN32
 #include <shellapi.h>
 #endif
@@ -5696,6 +5700,26 @@ static void setup_error_log() {
 */
 static int setup_error_log_components() {
   int ret = 1;  // failure unless otherwise specified
+  int have_backtrace = false;
+
+  // Unless we're logging to stderr, try to find a crashdump in the error-log.
+  if ((log_error_dest != nullptr) && (*log_error_dest != '\0') &&
+      strcmp(log_error_dest, "stderr")) {
+    /*
+      In the unlikely event that the server crashed on the previous run,
+      it may have succeeded in writing a stackdump to stderr.
+      In that case, we deliberately don't go through the normal error logging
+      facilities as we do not now how corrupted the server has become, what
+      the locking situation is, whether we would be able to allocate memory,
+      and so on. While this is the right thing to do, it means we will not
+      log the stackdump to all log-sinks as it happens. Instead, we look for
+      such a stackdump at start-up and, if found, prepend it to this run's
+      start-up messages. Both will then be flushed to all qualified sinks
+      in their respective formats below.
+    */
+    if (log_error_read_backtrace(log_error_dest) == LOG_SERVICE_SUCCESS)
+      have_backtrace = true;
+  }
 
   /*
     LOCK_plugin needs to be valid in case we implicitly load
@@ -5852,7 +5876,7 @@ static int setup_error_log_components() {
   assert((log_error_dest != nullptr) && (log_error_dest[0] != '\0'));
 
   if (!strcmp(log_error_dest, "stderr")) {
-    // If we logging to stderr, there will be no log-file to read.
+    // If we logging to stderr, there will be no log-files/stackdumps to read.
     // As this is a common case in mysql-test-run, we offer a fallback.
 
     // Let the user know we cannot provide info from previous runs.
@@ -5867,17 +5891,83 @@ static int setup_error_log_components() {
     // We're logging to a named file.
 
     /*
-      Flush messages, not sending a copy to pfs -- we'll get the info
-      from the log-file anyway when we try to restore the previous run's
-      info.
+      Flush messages to log-files, not sending a copy to pfs.
+      After flushing, we'll be reading the tail end of the error-log
+      (to add the previous run's log-events to performance_schema.error_log).
+      Since flushing appended this start-up's messages to that log,
+      those start-up messages will be read along with the previous run's ones.
+      That is to say, if we were to send a copy of the start-up messages
+      directly to performance_schema.error_log while flushing here, we'd
+      then read the same data again from the logs below, and end up with
+      two copies in performance_schema.error_log.
     */
     flush_error_log_messages();
     /*
       Try to load error log events from the previous run (if available)
-      and that from the current start-up into performance_schema.error_log.
+      as well as those from the current start-up into
+      performance_schema.error_log.
     */
-    if (!log_error_read_log_init()) log_error_read_log(log_error_dest);
-    // flag log-stack as ready and enable logging to pfs
+    if (!log_error_read_log_init()) {
+      if ((log_error_read_log(log_error_dest) == LOG_SERVICE_SUCCESS) &&
+          (have_backtrace)) {
+        /*
+          If we processed a backtrace earlier, it should have been flushed
+          to the configured log-sinks in their respective formats.
+          If we managed to read an error-log just now, we should therefore
+          have read the backtrace from the selected log-sink in its format
+          (rather than reading the unformatted stacktrace written to stderr
+          when the signal occurred, which was then redirected to the
+          traditional error-log).
+          Hence, the backtrace should now be in performance_schema.error_log.
+          If we selected the JSON-sink, pfs.error_log will also show the data
+          in JSON; if we selected log_sink_internal, pfs.error_log will have
+          the data in the traditional error-log format, and so on.
+
+          If one of the selected sinks is the "traditional" error-log,
+          all's well -- we've already flushed some SYSTEM priority events
+          generated during start-up to the active logs, so the backtrace
+          is no longer at the very end of the file, and it won't get
+          processed again next time we start.
+
+          If however "trad" is not one of the selected sinks, it is quite
+          possible that nothing would be appended to the trad-log during
+          this run. This would result in the backtrace being processed again
+          at the next start-up, and in it being appended to the other logs
+          again.
+
+          For that reason, we write an event to the trad-log now, even if
+          it's not enabled in log_error_services. At the next start-up,
+          the backtrace will likely be seen again, but since it will no
+          longer be the very last segment in the log-file, it will be
+          ignored, rather than being processed again (and being added to
+          all configured log-files a second time).
+
+          Below, we synthesize that event, and instead of sending it to
+          the logger-core, we directly send it to the trad-sink.
+
+          We set the LOG_SUBSYSTEM_TAG explicitly at the top of the file.
+          Normally, we could just leave it at the default (NULL) as the
+          logger-core will fallback on "Server" if no string is specified.
+          However, we use LogEvent().steal() below which bypasses the core
+          (and thus, the NULL-fallback).
+        */
+        log_line *ll;
+        LogEvent()
+            .type(LOG_TYPE_ERROR)
+            .errcode(ER_STACK_BACKTRACE)
+            .subsys(LOG_SUBSYSTEM_TAG)
+            .prio(SYSTEM_LEVEL)  // make it unfilterable
+            .verbatim(
+                "A backtrace was processed and added to the main error-log "
+                "in the appropriate format.")  // marker
+            .steal(&ll);  // obtain pointer to the event-data
+        log_sink_trad(nullptr,
+                      ll);  // write to trad-log, bypassing logger-core.
+        log_line_item_free_all(ll);  // release all key/value pairs on event
+        log_line_exit(ll);           // release event itself
+      }
+    }
+    // flag log-stack as ready and enable copying log-events to pfs
     log_error_stage_set(LOG_ERROR_STAGE_COMPONENTS_AND_PFS);
   }
 

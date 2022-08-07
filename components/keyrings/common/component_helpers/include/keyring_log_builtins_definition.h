@@ -58,11 +58,6 @@ class Log_builtins_keyring {
     return false;
   }
 
-  static DEFINE_METHOD(log_item_data *, line_item_set_with_key,
-                       (log_line *, log_item_type, const char *, uint32)) {
-    return nullptr;
-  }
-
   static DEFINE_METHOD(log_item_data *, item_set_with_key,
                        (log_item *, log_item_type, const char *, uint32)) {
     return nullptr;
@@ -138,6 +133,9 @@ class Log_builtins_keyring {
 
   /* ================ REQUIRED ================ */
   /* log_builtins */
+  static DEFINE_METHOD(log_item_data *, line_item_set_with_key,
+                       (log_line * ll, log_item_type t, const char *key,
+                        uint32 alloc));
   static DEFINE_METHOD(log_item_data *, line_item_set,
                        (log_line * ll, log_item_type t));
   static DEFINE_METHOD(log_line *, line_init, ());

@@ -34,6 +34,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/log_shared.h>  // public data types
 
 /**
+  When the logger-core was initialized.
+
+  @retval 0  logger-core is not currently available
+  @retval >0 time (micro-seconds since the epoch) the logger became available
+*/
+extern ulonglong log_builtins_started();
+
+/**
   MySQL server's default log-processor.
 
   Apply all components (filters, sinks, ...) in the log stack to a given event.
