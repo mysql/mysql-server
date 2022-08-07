@@ -2105,6 +2105,9 @@ longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time) {
 /**
     Change a daynr to year, month and day. Daynr 0 is returned as date
     00.00.00
+
+    This function is called from mysqld's print_fatal_signal().
+    Do not make changes to this function that make that call unsafe.
 */
 void get_date_from_daynr(int64_t daynr, uint *ret_year, uint *ret_month,
                          uint *ret_day) {

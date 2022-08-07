@@ -11928,6 +11928,9 @@ ER_KEYRING_OCI_HTTP_REQUEST
 ER_THREAD_POOL_SYSVAR_CHANGE
   eng "Variable thread_pool.%s was updated: %s"
 
+ER_STACK_BACKTRACE
+  eng "%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

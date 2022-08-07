@@ -1,0 +1,61 @@
+# WL14955: Have backtraces of failed runs appear in pfs.error_log
+#
+
+#
+# Take down server started by mtr.
+#
+# Start our own server. Log to LOG_FILE1.
+#
+# Connect to our own server.
+#
+# Log a header.
+# If the header is present, but the stackdump is not, the stackdump
+# failed. If the header is not present, we have bigger issues.
+SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio";
+SELECT "--- STACKTRACE TO FOLLOW ---";
+--- STACKTRACE TO FOLLOW ---
+--- STACKTRACE TO FOLLOW ---
+SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
+#
+# Let's synthesize a crash, so to hopefully get a backtrace.
+SET @@session.debug='d,crash_now';
+ERROR HY000: Lost connection to MySQL server during query
+#
+# Restart mysqld after the crash using the same log-file.
+# Then, reconnect.
+# restart: --log-error=LOG_FILE1 --log-timestamps=UTC
+#
+# Connect to our own server.
+#
+# Check error-log file for stacktrace.
+# Test 1: expect one match (processed line only)
+include/assert_grep.inc [Found the expected stacktrace in the error-log file.]
+#
+# Check error-log file for stacktrace.
+# Test 2: expect two matches (original and processed line)
+include/assert_grep.inc [Found the expected stacktraces in the error-log file.]
+#
+# Show that a stacktrace was created, and was read at start-up.
+# While in log_backtrace.test, we wrote the processed stacktrace
+# to the JSON-log, this time we'll use the traditional error-log
+# format. It is worth testing both scenarios (input and output in
+# different log files vis-a-vis input and output in the same log
+# file).
+SET @err_code=ER_STACK_BACKTRACE;
+#
+# Look for 'SELECT'-header.
+SELECT data
+FROM performance_schema.error_log
+WHERE data LIKE "%--- STACKTRACE TO FOLLOW ---%";
+data
+Parser saw: SELECT "--- STACKTRACE TO FOLLOW ---"
+#
+# Look for stacktrace in pfs.error_log. Should find 1 signal-header.
+SELECT COUNT(*)
+FROM performance_schema.error_log
+WHERE error_code=@err_code
+AND data LIKE "% UTC - mysqld got %";
+COUNT(*)
+1
+#
+# Clean up.

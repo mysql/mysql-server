@@ -1,0 +1,39 @@
+# WL14955: Have backtraces of failed runs appear in pfs.error_log
+#
+
+# restart: --log-error=STACKDUMP_LOG --log-error-services=log_sink_json
+SELECT @@global.log_error_services;
+@@global.log_error_services
+log_sink_json
+SET @@session.time_zone=@@global.log_timestamps;
+SELECT COUNT(*)
+FROM performance_schema.error_log
+WHERE JSON_EXTRACT(data,'$.err_symbol')="ER_STACK_BACKTRACE";
+COUNT(*)
+21
+SELECT ">",logged,subsystem,JSON_EXTRACT(data,'$.time'),
+JSON_EXTRACT(data,'$.msg')
+FROM performance_schema.error_log
+WHERE JSON_EXTRACT(data,'$.err_symbol')="ER_STACK_BACKTRACE";
+>	logged	subsystem	JSON_EXTRACT(data,'$.time')	JSON_EXTRACT(data,'$.msg')
+>	2022-04-26 23:45:06.000000	Server	"2022-04-26T23:45:06.000000Z"	"2022-04-26T23:45:06Z UTC - mysqld got signal 1 ;"
+>	2022-04-26 23:45:06.000001	Server	"2022-04-26T23:45:06.000001Z"	"Most likely, you have hit a bug, but this error can also be caused by malfunctioning hardware."
+>	2022-04-26 23:45:06.000002	Server	"2022-04-26T23:45:06.000002Z"	"Thread pointer: 0x0"
+>	2022-04-26 23:45:06.000003	Server	"2022-04-26T23:45:06.000003Z"	"Attempting backtrace. You can use the following information to find out"
+>	2022-04-26 23:45:06.000004	Server	"2022-04-26T23:45:06.000004Z"	"where mysqld died. If you see no messages after this, something went"
+>	2022-04-26 23:45:06.000005	Server	"2022-04-26T23:45:06.000005Z"	"terribly wrong..."
+>	2022-04-26 23:45:06.000006	Server	"2022-04-26T23:45:06.000006Z"	"stack_bottom = 0 thread_stack 0x100000"
+>	2022-04-26 23:45:06.000007	Server	"2022-04-26T23:45:06.000007Z"	"/home/megacat/forest/mysql-trunk-wl14955/mysql-test/../bin/mysqld(my_print_stacktrace(unsigned char const*, unsigned long)+0x46) [0x48d6a66]"
+>	2022-04-26 23:45:06.000008	Server	"2022-04-26T23:45:06.000008Z"	"/home/megacat/forest/mysql-trunk-wl14955/mysql-test/../bin/mysqld(print_fatal_signal(int)+0x1c3) [0x31e57f3]"
+>	2022-04-26 23:45:06.000009	Server	"2022-04-26T23:45:06.000009Z"	"/home/megacat/forest/mysql-trunk-wl14955/mysql-test/../bin/mysqld(handle_fatal_signal+0x6c) [0x31e59ec]"
+>	2022-04-26 23:45:06.000010	Server	"2022-04-26T23:45:06.000010Z"	"/lib64/libc.so.6(+0x42750) [0x7fbe9d51b750]"
+>	2022-04-26 23:45:06.000011	Server	"2022-04-26T23:45:06.000011Z"	"/lib64/libc.so.6(__poll+0x4f) [0x7fbe9d5de79f]"
+>	2022-04-26 23:45:06.000012	Server	"2022-04-26T23:45:06.000012Z"	"/home/megacat/forest/mysql-trunk-wl14955/mysql-test/../bin/mysqld(Mysqld_socket_listener::listen_for_connection_event()+0x58) [0x31cf6f8]"
+>	2022-04-26 23:45:06.000013	Server	"2022-04-26T23:45:06.000013Z"	"/home/megacat/forest/mysql-trunk-wl14955/mysql-test/../bin/mysqld(Connection_acceptor<Mysqld_socket_listener>::connection_event_loop()+0x3d) [0x2dbf7fd]"
+>	2022-04-26 23:45:06.000014	Server	"2022-04-26T23:45:06.000014Z"	"/home/megacat/forest/mysql-trunk-wl14955/mysql-test/../bin/mysqld(mysqld_main(int, char**)+0x3db0) [0x2da4e10]"
+>	2022-04-26 23:45:06.000015	Server	"2022-04-26T23:45:06.000015Z"	"/home/megacat/forest/mysql-trunk-wl14955/mysql-test/../bin/mysqld(main+0x22) [0x2d97382]"
+>	2022-04-26 23:45:06.000016	Server	"2022-04-26T23:45:06.000016Z"	"/lib64/libc.so.6(+0x2d560) [0x7fbe9d506560]"
+>	2022-04-26 23:45:06.000017	Server	"2022-04-26T23:45:06.000017Z"	"/lib64/libc.so.6(__libc_start_main+0x7c) [0x7fbe9d50660c]"
+>	2022-04-26 23:45:06.000018	Server	"2022-04-26T23:45:06.000018Z"	"/home/megacat/forest/mysql-trunk-wl14955/mysql-test/../bin/mysqld(_start+0x25) [0x2d97295]"
+>	2022-04-26 23:45:06.000019	Server	"2022-04-26T23:45:06.000019Z"	"The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains"
+>	2022-04-26 23:45:06.000020	Server	"2022-04-26T23:45:06.000020Z"	"information that should help you find out what is causing the crash."

@@ -156,9 +156,19 @@ static mysql_rwlock_t THR_LOCK_log_stack;
 static mysql_mutex_t THR_LOCK_log_syseventlog;
 
 /**
-  Subsystem initialized and ready to use?
+  When the logger-core was initialized.
+   0: logger-core is not currently available
+  >0: time (micro-seconds since the epoch) the logger-core became available
 */
-bool log_builtins_inited = false;
+static ulonglong log_builtins_inited = 0;
+
+/**
+  When the logger-core was initialized.
+
+  @retval 0  logger-core is not currently available
+  @retval >0 time (micro-seconds since the epoch) the logger became available
+*/
+ulonglong log_builtins_started() { return log_builtins_inited; }
 
 /**
   Name of the interface that log-services implements.
@@ -1293,7 +1303,7 @@ int log_line_submit(log_line *ll) {
       catastrophically wrong, so we'll make sure the information
       (e.g. cause of failure) isn't lost.
     */
-    assert((log_builtins_inited == true) ||
+    assert(log_builtins_inited ||
            (log_line_process_hook_get() == log_line_buffer_event));
     log_line_process_hook(ll);
 
@@ -2161,7 +2171,7 @@ int log_builtins_exit() {
   log_service_instance_release_all();
   delete log_service_cache;
 
-  log_builtins_inited = false;
+  log_builtins_inited = 0;
   log_error_stage_set(LOG_ERROR_STAGE_BUFFERING);
 
   mysql_rwlock_unlock(&THR_LOCK_log_stack);
@@ -2219,7 +2229,7 @@ int log_builtins_init() {
   if (rr >= 0) {
     log_line_process_hook_set(log_line_buffer_event);
     log_error_stage_set(LOG_ERROR_STAGE_BUFFERING);
-    log_builtins_inited = true;
+    log_builtins_inited = my_micro_time();
     return 0;
   }
 

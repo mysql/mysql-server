@@ -1,0 +1,70 @@
+--echo # WL14955: Have backtraces of failed runs appear in pfs.error_log
+--echo #
+--echo
+
+# Let's have performance_schema.error_log to ourselves.
+--source include/not_parallel.inc
+
+#
+# Use an error-log file we prepared earlier that has multiple backtraces.
+# This is a traditional error-log file, i.e. it's not JSON-formatted.
+--let LOG_STACKDUMP = wl14955_stackdump.log
+--let SRC = $MYSQLTEST_VARDIR/std_data/$LOG_STACKDUMP
+--let TGT = $MYSQL_TMP_DIR/$LOG_STACKDUMP
+--copy_file $SRC $TGT
+
+#
+# Enable JSON logging and restart the server.
+# Expectations:
+# - backtrace is read from traditional log file
+# - (only last) backtrace is written as JSON to JSON log file
+# - start-up messages are written as JSON to JSON log file
+# - performance_schema.error_log contains backtrace and start-up info as JSON
+--let log_services=log_sink_json
+--let restart_parameters="restart: --log-error=$TGT --log-error-services=$log_services"
+--replace_result $TGT STACKDUMP_LOG
+--source include/restart_mysqld.inc
+
+#
+# Prove JSON logging is active.
+SELECT @@global.log_error_services;
+
+#
+# Make timestamps in file and table agree in case we need to correlate them.
+SET @@session.time_zone=@@global.log_timestamps;
+
+#
+# DEBUG: Dump pfs.error_log to see what we actually injected into it:
+# SELECT * FROM performance_schema.error_log INTO OUTFILE 'fartmart.log';
+# If pfs.error_log contains nonsense, check wl14955_stackdump.log.00.json
+# to see whether the JSON log already contained said nonsense (in which
+# case parsing the stacktrace in the trad error-log failed -- or it
+# succeeded, but inserting the events into pfs failed).
+
+#
+# Show the backtrace (read in trad format, flushed as JSON, then read as JSON).
+# Since we do not change the log-sink at runtime here, all rows should be in
+# JSON. If this statement fails complaining about incorrect JSON, examine the
+# JSON log (wl14955_stackdump.log.00.json).
+SELECT COUNT(*)
+  FROM performance_schema.error_log
+ WHERE JSON_EXTRACT(data,'$.err_symbol')="ER_STACK_BACKTRACE";
+
+#
+# Indent so we can tell the dump SELECTed from pfs.error_log
+# from a dump thrown during this test.
+# We're looking for the backtrace with "megacat" in the path and
+# timestamps starting with 2022-04-26 23:45:06.000000.
+# The first line will show two timestamps, one as part of the
+# "message" field (i.e. the line read from the original stackdump),
+# and one as the value of the "logged" field (i.e. the timestamp
+# we parsed it as).
+# The two should agree if @@session.time_zone=@@global.log_timestamps.
+SELECT ">",logged,subsystem,JSON_EXTRACT(data,'$.time'),
+       JSON_EXTRACT(data,'$.msg')
+  FROM performance_schema.error_log
+ WHERE JSON_EXTRACT(data,'$.err_symbol')="ER_STACK_BACKTRACE";
+
+# clean up
+--source include/force_restart.inc
+--remove_file $TGT

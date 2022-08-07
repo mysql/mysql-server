@@ -34,6 +34,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   log_sink_buffer.cc
   log_sink_perfschema.cc
   log_sink_trad.cc
+  log_source_backtrace.cc
   mysql_cond_service.cc
   mysql_connection_attributes_iterator_imp.cc
   mysql_current_thread_reader_imp.cc
