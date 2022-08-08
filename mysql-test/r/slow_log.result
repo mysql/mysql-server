@@ -92,30 +92,48 @@ ERROR HY000: Operation CREATE USER failed for 'duplicate_user'@'%'
 # logged, either. The general log also behaves like this by default.
 CREATE USER ‘bad_characters’@’%’ IDENTIFIED BY 'mypassword';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '%’ IDENTIFIED BY 'mypassword'' at line 1
-# Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
-SELECT "general table>",argument
+# Expected: 2 (1 OK stmt, 1 failed stmt, 0 unparseable stmts)
+SELECT COUNT(argument)/@protdiv
 FROM mysql.general_log
-WHERE INSTR(argument,"CREATE USER")=1 AND event_time>=@my_start
+WHERE INSTR(argument,"CREATE USER")=1
+AND INSTR(argument," IDENTIFIED BY <secret>")>0
+AND event_time>=@my_start
 ORDER BY event_time;
-general table>	argument
-general table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>
-general table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>
-# Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
-SELECT "slow table>",sql_text
+COUNT(argument)/@protdiv
+2.0000
+SELECT COUNT(argument)/@protdiv
+FROM mysql.general_log
+WHERE INSTR(argument,"CREATE USER")=1
+AND INSTR(argument," IDENTIFIED BY <secret>")=0
+AND event_time>=@my_start
+ORDER BY event_time;
+COUNT(argument)/@protdiv
+0.0000
+# Expected: 2 (1 OK stmt, 1 failed stmt, 0 unparseable stmts)
+SELECT COUNT(sql_text)/@protdiv
 FROM mysql.slow_log
-WHERE INSTR(sql_text,"CREATE USER")=1 AND start_time>=@my_start
+WHERE INSTR(sql_text,"CREATE USER")=1
+AND INSTR(sql_text," IDENTIFIED BY <secret>")>0
+AND start_time>=@my_start
 ORDER BY start_time;
-slow table>	sql_text
-slow table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>
-slow table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>
+COUNT(sql_text)/@protdiv
+2.0000
+SELECT COUNT(sql_text)/@protdiv
+FROM mysql.slow_log
+WHERE INSTR(sql_text,"CREATE USER")=1
+AND INSTR(sql_text," IDENTIFIED BY <secret>")=0
+AND start_time>=@my_start
+ORDER BY start_time;
+COUNT(sql_text)/@protdiv
+0.0000
 SET @@global.slow_query_log_file=@save_sqlf;
 SET @@global.slow_query_log=@save_sql;
 SET @@global.log_output=@save_lo;
 SET @@session.long_query_time=@save_lqt;
 DROP USER 'duplicate_user'@'%';
 # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
-slow file>CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>;
-slow file>CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>;
+slow file     obfuscated statements>2
+slow file non-obfuscated statements>0
 TRUNCATE mysql.slow_log;
 TRUNCATE mysql.general_log;
 #
