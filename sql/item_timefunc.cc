@@ -1490,7 +1490,7 @@ String *Item_func_dayname::val_str(String *str) {
 
 bool Item_func_year::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
-  set_data_type_year();
+  fix_char_length(5); /* 9999 plus sign */
   set_nullable(true);
   return false;
 }

@@ -202,17 +202,11 @@ INSERT INTO t VALUES
 (1, '1999-02-28', '1999-11-28 14:45:00'),
 (2, '1999-12-31', '2000-01-01 00:00:00');
 
---error ER_DATA_OUT_OF_RANGE
+# used to give an error for negative result (1999 - 2000 above)
 SELECT ((year(QC_DATE) - year(QC_TIMESTAMP))) FROM t
   WHERE QC_DATE_KEY = 2;
 
 DROP TABLE t;
-
-CREATE TABLE y(y1 YEAR, y2 YEAR);
-INSERT INTO y VALUES(2020,2022);
---error ER_DATA_OUT_OF_RANGE
-SELECT y1-y2 FROM y;
-DROP TABLE y;
 
 --echo #
 --echo # WL#13537: Deprecate display width for the YEAR datatype

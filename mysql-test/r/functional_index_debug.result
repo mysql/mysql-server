@@ -53,7 +53,7 @@ t1	CREATE TABLE `t1` (
   `!hidden!idx13!0!0` double GENERATED ALWAYS AS (st_x(`geometry_col`)) VIRTUAL,
   `!hidden!idx2!0!0` double GENERATED ALWAYS AS (abs(`dbl_col`)) VIRTUAL,
   `!hidden!idx3!0!0` decimal(3,0) GENERATED ALWAYS AS (truncate(`decimal_col`,0)) VIRTUAL,
-  `!hidden!idx4!0!0` year GENERATED ALWAYS AS (year(`date_col`)) VIRTUAL,
+  `!hidden!idx4!0!0` int GENERATED ALWAYS AS (year(`date_col`)) VIRTUAL,
   `!hidden!idx5!0!0` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_col`)) VIRTUAL,
   `!hidden!idx6!0!0` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_with_fractions_col`)) VIRTUAL,
   `!hidden!idx7!0!0` datetime GENERATED ALWAYS AS ((`datetime_col` - interval 30 day)) VIRTUAL,
