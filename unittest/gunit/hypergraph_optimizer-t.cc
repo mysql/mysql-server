@@ -953,10 +953,10 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition2) {
 
   EXPECT_EQ(10, graph.edges.size());
 
-  // Find the edge {t1,t2,t3,t4}/{t6}
+  // Find the edge {t2,t3,t4}/{t6}
   int edge_idx = -1;
   for (size_t i = 0; i < graph.graph.edges.size(); ++i) {
-    if (graph.graph.edges[i].left == TablesBetween(0, 4) &&
+    if (graph.graph.edges[i].left == TablesBetween(1, 4) &&
         graph.graph.edges[i].right == TableBitmap(5)) {
       edge_idx = i / 2;
       break;
@@ -983,6 +983,41 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition2) {
       COND_FILTER_ALLPASS          // selectivity of non-equijoin condition
           * COND_FILTER_EQUALITY,  // selectivity of a single equijoin condition
       predicate.selectivity);
+}
+
+TEST_F(MakeHypergraphTest, ConflictRulesWithManyTables) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 JOIN t3 LEFT JOIN t4"
+      " ON t4.y=t1.y WHERE t2.x = t1.x "
+      "AND EXISTS (SELECT 1 FROM t5 WHERE t5.x=t1.x)",
+      /*nullable=*/true);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  SortNodes(&graph);
+  ASSERT_EQ(5, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+  EXPECT_STREQ("t5", graph.nodes[4].table->alias);
+
+  for (const JoinPredicate &pred : graph.edges) {
+    // We are not interested in the plan. However, while generating
+    // conflict rules, earlier it would wrongly place the conflict
+    // rule {t4}->{t3} for the edge t1->t5. This was because it
+    // was using table_map instead of NodeMap to determine the rule.
+    EXPECT_EQ(0, pred.expr->conflict_rules.size());
+  }
 }
 
 TEST_F(MakeHypergraphTest, HyperpredicatesDoNotBlockExtraCycleEdges) {
