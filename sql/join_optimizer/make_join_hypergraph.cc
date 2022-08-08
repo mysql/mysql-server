@@ -2196,7 +2196,7 @@ bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
               if (item_equal) {
                 Item *const_item = item_equal->get_const();
                 if (const_item != nullptr &&
-                    item_equal->has_compatible_context(const_item))
+                    item->has_compatible_context(const_item))
                   return const_item;
               }
             }
