@@ -296,13 +296,9 @@ INSERT INTO t VALUES
 (2, '1999-12-31', '2000-01-01 00:00:00');
 SELECT ((year(QC_DATE) - year(QC_TIMESTAMP))) FROM t
 WHERE QC_DATE_KEY = 2;
-ERROR 22003: BIGINT UNSIGNED value is out of range in '(year(`test`.`t`.`QC_DATE`) - year(`test`.`t`.`QC_TIMESTAMP`))'
+((year(QC_DATE) - year(QC_TIMESTAMP)))
+-1
 DROP TABLE t;
-CREATE TABLE y(y1 YEAR, y2 YEAR);
-INSERT INTO y VALUES(2020,2022);
-SELECT y1-y2 FROM y;
-ERROR 22003: BIGINT UNSIGNED value is out of range in '(`test`.`y`.`y1` - `test`.`y`.`y2`)'
-DROP TABLE y;
 #
 # WL#13537: Deprecate display width for the YEAR datatype
 #
