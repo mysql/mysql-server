@@ -6394,7 +6394,6 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
       break;
     case MYSQL_TYPE_YEAR:
       assert(max_length == 4);  // Field_year is only for length 4.
-      assert(decimal_precision() == 4);
       field = new (*THR_MALLOC) Field_year(m_nullable, item_name.ptr());
       break;
     case MYSQL_TYPE_BIT:
