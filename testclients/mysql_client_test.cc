@@ -4402,6 +4402,78 @@ static void test_field_flags() {
   mysql_free_result(result);
 }
 
+/* Test BINARY flag not set for BIT aggregate functions */
+
+static void test_bug33781442() {
+  int rc;
+  MYSQL_RES *result;
+  MYSQL_FIELD *field;
+
+  myheader("test_bit_flags");
+
+  rc = mysql_query(mysql, "CREATE TABLE test_bit_flags(data BIT(32))");
+  myquery(rc);
+
+  /* Check BINARY_FLAG not set for BIT field */
+  rc = mysql_query(mysql, "SELECT data FROM test_bit_flags");
+  myquery(rc);
+
+  result = mysql_use_result(mysql);
+  mytest(result);
+
+  mysql_field_seek(result, 0);
+  field = mysql_fetch_field(result);
+  DIE_UNLESS((field->flags & BINARY_FLAG) == 0);
+
+  mysql_free_result(result);
+
+  /* Check BINARY_FLAG not set for aggregate on BIT field */
+  rc = mysql_query(mysql, "SELECT MAX(data) FROM test_bit_flags");
+  myquery(rc);
+
+  result = mysql_use_result(mysql);
+  mytest(result);
+
+  mysql_field_seek(result, 0);
+  field = mysql_fetch_field(result);
+  DIE_UNLESS(field->type == MYSQL_TYPE_BIT);
+  DIE_UNLESS((field->flags & BINARY_FLAG) == 0);
+
+  mysql_free_result(result);
+
+  /* Check BINARY_FLAG not set for union on BIT fields */
+  rc = mysql_query(
+      mysql,
+      "SELECT data FROM test_bit_flags UNION SELECT data FROM test_bit_flags");
+  myquery(rc);
+
+  result = mysql_use_result(mysql);
+  mytest(result);
+
+  mysql_field_seek(result, 0);
+  field = mysql_fetch_field(result);
+  DIE_UNLESS(field->type == MYSQL_TYPE_BIT);
+  DIE_UNLESS((field->flags & BINARY_FLAG) == 0);
+
+  mysql_free_result(result);
+
+  /* Check BINARY_FLAG not set for CASE using BIT field */
+  rc = mysql_query(mysql,
+                   "SELECT CASE WHEN data IS NOT NULL THEN data ELSE NULL END "
+                   "FROM test_bit_flags;");
+  myquery(rc);
+
+  result = mysql_use_result(mysql);
+  mytest(result);
+
+  mysql_field_seek(result, 0);
+  field = mysql_fetch_field(result);
+  DIE_UNLESS(field->type == MYSQL_TYPE_BIT);
+  DIE_UNLESS((field->flags & BINARY_FLAG) == 0);
+
+  mysql_free_result(result);
+}
+
 /* Test mysql_stmt_close for open stmts */
 
 static void test_stmt_close() {
@@ -23262,6 +23334,7 @@ static struct my_tests_st my_tests[] = {
     {"test_prepare_syntax", test_prepare_syntax},
     {"test_field_names", test_field_names},
     {"test_field_flags", test_field_flags},
+    {"test_bug33781442", test_bug33781442},
     {"test_long_data_str", test_long_data_str},
     {"test_long_data_str1", test_long_data_str1},
     {"test_long_data_bin", test_long_data_bin},
