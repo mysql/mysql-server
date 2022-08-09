@@ -131,7 +131,6 @@ class SchemaTest : public ::testing::Test {
   Server_initializer m_init;  // Server initializer.
 
  private:
-  // Declares (but does not define) copy constructor and assignment operator.
   SchemaTest(SchemaTest const &) = delete;
   SchemaTest &operator=(SchemaTest const &) = delete;
 };
