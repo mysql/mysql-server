@@ -53,7 +53,6 @@ class PropertiesTest : public ::testing::Test {
   dd::Properties *m_props;
 
  private:
-  // Declares (but does not define) copy constructor and assignment operator.
   PropertiesTest(PropertiesTest const &) = delete;
   PropertiesTest &operator=(PropertiesTest const &) = delete;
 };
