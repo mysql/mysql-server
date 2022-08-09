@@ -6160,9 +6160,16 @@ void Ndbcntr::open_secretsfile(Signal *signal,
   memcpy(&ekm.data, globalData.filesystemPassword, globalData.filesystemPasswordLength);
   ekm.data[globalData.filesystemPasswordLength] = 0;
 
-  lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (Uint32*)&ekm;
+  lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (const Uint32*)&ekm;
   lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
       ekm.get_needed_words();
+
+  if (ERROR_INSERTED(1026))
+  {
+    static constexpr EncryptionKeyMaterial WRONG_PWD = {8, "WRONGPWD"};
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (const Uint32 *)&WRONG_PWD;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz = WRONG_PWD.get_needed_words();
+  }
 
   req->page_size = 0;
   req->auto_sync_size = 0;
@@ -6241,6 +6248,7 @@ Ndbcntr::execFSOPENREF(Signal *signal)
       g_eventLogger->error(
           "File system encrypted but EncryptedFileSystem "
           "option not set in data node configuration");
+      CRASH_INSERTION(1025);
       progError(__LINE__, NDBD_EXIT_FS_ENCRYPTION_REQUIRED);
     }
     else if (c_secretsfile.m_state ==
@@ -6348,6 +6356,7 @@ Ndbcntr::execFSOPENCONF(Signal *signal)
       jam();
       g_eventLogger->error("File system encrypted but EncryptedFileSystem "
                            "option not set in data node configuration.");
+      CRASH_INSERTION(1025);
       progError(__LINE__, NDBD_EXIT_FS_ENCRYPTION_REQUIRED);
     }
     else if (c_secretsfile.m_state == SecretsFileOperationRecord::OPEN_WRITE_FILE_0)
@@ -6522,6 +6531,7 @@ Ndbcntr::execFSREADREF(Signal *signal)
       jam();
       g_eventLogger->error("Failed to read secrets file, error: %d",
                            ref->errorCode);
+      CRASH_INSERTION(1027);
       progError(__LINE__, NDBD_EXIT_INVALID_SECRETS_FILE);
     }
     jamLine(c_secretsfile.m_state);
@@ -6554,6 +6564,7 @@ void Ndbcntr::read_secretsfile_data(Signal *signal)
     jam();
     g_eventLogger->error("Failed to read secrets file using the "
                          "provided filesystem password (wrong password?)");
+    CRASH_INSERTION(1026);
     progError(__LINE__, NDBD_EXIT_WRONG_FILESYSTEM_PASSWORD);
   }
 
