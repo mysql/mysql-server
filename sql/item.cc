@@ -6183,9 +6183,11 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->table_name = empty_name;
   tmp_field->col_name = item_name.ptr();
   tmp_field->charsetnr = collation.collation->number;
-  tmp_field->flags =
-      (m_nullable ? 0 : NOT_NULL_FLAG) |
-      (my_binary_compare(charset_for_protocol()) ? BINARY_FLAG : 0);
+  tmp_field->flags = (m_nullable ? 0 : NOT_NULL_FLAG);
+  if (field_type_arg != MYSQL_TYPE_BIT) {
+    tmp_field->flags |=
+        (my_binary_compare(charset_for_protocol()) ? BINARY_FLAG : 0);
+  }
   tmp_field->type = field_type_arg;
   tmp_field->length = max_length;
   tmp_field->decimals = decimals;
