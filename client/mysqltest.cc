@@ -9597,7 +9597,7 @@ int main(int argc, char **argv) {
     mysql_options(&con->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
 
-  if (opt_ssl_mode == SSL_MODE_DISABLED)
+  if (opt_ssl_mode == SSL_MODE_DISABLED && !opt_protocol)
     mysql_options(&con->mysql, MYSQL_OPT_PROTOCOL,
                   (char *)&opt_protocol_for_default_connection);
 #endif
