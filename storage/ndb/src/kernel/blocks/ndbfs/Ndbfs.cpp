@@ -2165,6 +2165,12 @@ void Ndbfs::log_file_error(GlobalSignalNumber gsn, AsyncFile* file,
     {
       // OM_READWRITE existing: D1/DBDIH/S17.FragList - disk full?
     }
+    else if (gsn == GSN_FSREADREF &&
+             file != nullptr &&
+             strstr(file_name, "S0.sysfile"))
+    {
+      // Invalid/corrupt secretsfile D1/NDBCNTR/S0.sysfile
+    }
     else
     {
       ndbabort(); // Unexpected error?

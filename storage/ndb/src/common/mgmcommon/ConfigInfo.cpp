@@ -849,7 +849,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_STOP_ON_ERROR_INSERT,
     "RestartOnErrorInsert",
     DB_TOKEN,
-    "See src/kernel/vm/Emulator.hpp NdbRestartType for details",
+    "NdbRestartType value. 0: NRT_Default, 1:NRT_NoStart_Restart, 2: NRT_DoStart_Restart, 3: NRT_NoStart_InitialStart, 4: NRT_DoStart_InitialStart",
     ConfigInfo::CI_INTERNAL,
     0,
     ConfigInfo::CI_INT,

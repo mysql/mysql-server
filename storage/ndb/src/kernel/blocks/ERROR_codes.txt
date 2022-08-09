@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 Next QMGR 950
-Next NDBCNTR 1023
+Next NDBCNTR 1028
 Next NDBFS 2002
 Next DBACC 3006
 Next DBTUP 4039
@@ -827,6 +827,10 @@ NDBCNTR:
        Fail node rather than send WAIT_GCP_REQ
 1024 : Increase system shutdown TC timeout by 5 seconds
        Fail master node concurrent with sending WAIT_GCP_REQ
+
+1025 Crash insertion on open secretsfile
+1026 Change user provided filesystem password to a wrong one
+1027 Crash insertion on secretsfile reading
 
 SUMA:
 13036: Simulate report MISSING_DATA at node failure
