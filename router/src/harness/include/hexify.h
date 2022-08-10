@@ -25,6 +25,7 @@
 #include <algorithm>  // copy
 #include <array>
 #include <charconv>
+#include <cstdint>
 #include <iterator>  // back_inserter
 #include <string>
 #include <utility>  // exchange
