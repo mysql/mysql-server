@@ -2188,6 +2188,16 @@ class Item_func_group_concat final : public Item_sum {
   bool get_time(MYSQL_TIME *ltime) override {
     return get_time_from_string(ltime);
   }
+
+  bool has_distinct() const noexcept { return distinct; }
+  const String *get_separator_str() const noexcept { return separator; }
+  uint32_t get_group_concat_max_len() const noexcept {
+    return group_concat_max_len;
+  }
+  const Mem_root_array<ORDER> &get_order_array() const noexcept {
+    return order_array;
+  }
+
   String *val_str(String *str) override;
   Item *copy_or_same(THD *thd) override;
   void no_rows_in_result() override;
