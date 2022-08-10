@@ -7673,6 +7673,42 @@ pk	pk	pk	pk	pk
 8	8	8	8	8
 9	9	9	9	9
 drop table t;
+##################
+#
+# Bug#34482783 NDB: mysqld crash in ::is_pushable_within_nest()
+#
+##################
+create table t (
+pk int primary key,
+col_int_key int not null,
+col_int int not null,
+key(col_int_key)
+) engine = ndbcluster;
+explain format=tree SELECT *
+FROM t AS table1
+LEFT JOIN t AS table2
+JOIN t AS table3 ON table2.col_int IS NULL  # <- 'zero rows'
+  ON table1.col_int = table2.col_int AND
+table1.col_int_key = table2.col_int_key AND
+table1.pk = table3.pk;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1
+    -> Nested loop inner join
+        -> Zero rows (Impossible filter)
+        -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), with pushed condition: (table2.col_int = table1.col_int)
+
+Warnings:
+Note	1003	Can't push outer joined table 'table2' as child of 'table1', a table in its dependant join-nest(s) is not part of the pushed join
+SELECT *
+FROM t AS table1
+LEFT JOIN t AS table2
+JOIN t AS table3 ON table2.col_int IS NULL  # <- 'zero rows'
+  ON table1.col_int = table2.col_int AND
+table1.col_int_key = table2.col_int_key AND
+table1.pk = table3.pk;
+pk	col_int_key	col_int	pk	col_int_key	col_int	pk	col_int_key	col_int
+drop table t;
 select new.variable_name, new.variable_value - old.variable_value
 from server_counts_at_startup as old,
 performance_schema.global_status as new

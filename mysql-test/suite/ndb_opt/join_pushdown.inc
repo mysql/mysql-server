@@ -5763,6 +5763,38 @@ eval $query;
 
 drop table t;
 
+
+--echo ##################
+--echo #
+--echo # Bug#34482783 NDB: mysqld crash in ::is_pushable_within_nest()
+--echo #
+--echo ##################
+
+create table t (
+  pk int primary key,
+  col_int_key int not null,
+  col_int int not null,
+  key(col_int_key)
+) engine = ndbcluster;
+
+# No rows needed in table to provoke bug
+
+let $query=
+SELECT *
+FROM t AS table1
+  LEFT JOIN t AS table2
+    JOIN t AS table3 ON table2.col_int IS NULL  # <- 'zero rows'
+  ON table1.col_int = table2.col_int AND
+     table1.col_int_key = table2.col_int_key AND
+     table1.pk = table3.pk;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+drop table t;
+
 ########################################
 # Verify counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'

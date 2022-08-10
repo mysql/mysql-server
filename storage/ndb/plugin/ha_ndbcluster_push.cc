@@ -1284,11 +1284,22 @@ bool ndb_pushed_builder_ctx::is_pushable_within_nest(
     pending_conditions.intersect(nest);
     // Report the closest violating table, may be multiple.
     const uint violating = pending_conditions.last_table(tab_no);
-    EXPLAIN_NO_PUSH(
-        "Can't push %s joined table '%s' as child of '%s', "
-        "condition on its dependant table '%s' is not pushed down",
-        nest_type, table->get_table()->alias, m_join_root->get_table()->alias,
-        m_plan.get_table_access(violating)->get_table()->alias);
+    const TABLE *violating_table =
+        m_plan.get_table_access(violating)->get_table();
+    if (violating_table != nullptr) {
+      EXPLAIN_NO_PUSH(
+          "Can't push %s joined table '%s' as child of '%s', "
+          "condition on its dependant table '%s' is not pushed down",
+          nest_type, table->get_table()->alias, m_join_root->get_table()->alias,
+          violating_table->alias);
+    } else {
+      // The violating table was optimized away, e.g. 'zero rows'
+      EXPLAIN_NO_PUSH(
+          "Can't push %s joined table '%s' as child of '%s', "
+          "a condition on a dependant table is not pushed down",
+          nest_type, table->get_table()->alias,
+          m_join_root->get_table()->alias);
+    }
     return false;
   }
 
@@ -1311,12 +1322,24 @@ bool ndb_pushed_builder_ctx::is_pushable_within_nest(
     unpushed_tables.subtract(m_join_scope);
     // Report the closest unpushed table, may be multiple.
     const uint violating = unpushed_tables.last_table(tab_no);
-    EXPLAIN_NO_PUSH(
-        "Can't push %s joined table '%s' as child of '%s', "
-        "table '%s' in its dependant join-nest(s) is not part of the "
-        "pushed join",
-        nest_type, table->get_table()->alias, m_join_root->get_table()->alias,
-        m_plan.get_table_access(violating)->get_table()->alias);
+    const TABLE *violating_table =
+        m_plan.get_table_access(violating)->get_table();
+    if (violating_table != nullptr) {
+      EXPLAIN_NO_PUSH(
+          "Can't push %s joined table '%s' as child of '%s', "
+          "table '%s' in its dependant join-nest(s) is not part of the "
+          "pushed join",
+          nest_type, table->get_table()->alias, m_join_root->get_table()->alias,
+          violating_table->alias);
+    } else {
+      // The violating table was optimized away, e.g. 'zero rows'
+      EXPLAIN_NO_PUSH(
+          "Can't push %s joined table '%s' as child of '%s', "
+          "a table in its dependant join-nest(s) is not part of the "
+          "pushed join",
+          nest_type, table->get_table()->alias,
+          m_join_root->get_table()->alias);
+    }
     return false;
   }
   return true;
