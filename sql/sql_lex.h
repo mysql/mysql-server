@@ -2084,6 +2084,8 @@ class Query_block : public Query_term {
   */
   uint select_n_having_items{0};
   uint cond_count{0};  ///< number of arguments of and/or/xor in where/having/on
+  /// Number of predicates after preparation
+  uint saved_cond_count{0};
   uint between_count{0};  ///< number of between predicates in where/having/on
   uint max_equal_elems{
       0};  ///< maximal number of elements in multiple equalities

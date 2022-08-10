@@ -4252,6 +4252,9 @@ bool Query_block::save_properties(THD *thd) {
   first_execution = false;
   assert(!thd->stmt_arena->is_regular());
   if (thd->stmt_arena->is_regular()) return false;
+
+  saved_cond_count = cond_count;
+
   if (group_list.first &&
       save_order_properties(thd, &group_list, &group_list_ptrs))
     return true;
@@ -4787,6 +4790,8 @@ void Query_block::restore_cmd_properties() {
     tbl->table->m_record_buffer = Record_buffer{0, 0, nullptr};
   }
   assert(join == nullptr);
+
+  cond_count = saved_cond_count;
 
   // Restore GROUP BY list
   if (group_list_ptrs && group_list_ptrs->size() > 0) {
